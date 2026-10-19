@@ -1,0 +1,5 @@
+/target
+/storage
+/database
+*.db
+/qr
