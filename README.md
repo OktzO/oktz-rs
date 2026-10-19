@@ -2,8 +2,9 @@
 
 Bot WhatsApp versi Rust dari `ourin-md`. Perilaku mengikuti bot JS produksi.
 
-Repo ini sudah berisi binary Linux x64 siap jalan (`bin/oktz`), jadi panel
-Node.js tidak perlu toolchain Rust.
+Repo ini TIDAK menyimpan binary. Binary Linux x64 diunduh otomatis dari
+GitHub Release saat `launcher.js` pertama kali dijalankan (disimpan ke
+`bin/oktz`), jadi clone repo tetap kecil dan panel tidak butuh toolchain Rust.
 
 ## Jalankan
 
@@ -14,8 +15,12 @@ node launcher.js pair-qr           # pairing QR
 node launcher.js verify-db <path>  # cek db sesi
 ```
 
-Launcher mencari `bin/oktz`, lalu `target/release/oktz`. Bisa dipaksa lewat
+Launcher mencari `bin/oktz`, lalu `target/release/oktz`; kalau tidak ada, launcher
+mengunduh aset `oktz-linux-x64` dari release terbaru. Bisa dipaksa lewat
 `OKTZ_BIN=/path/ke/oktz`.
+
+Unduh manual (misal mesin tanpa internet): ambil `oktz-linux-x64` dari halaman
+release, simpan sebagai `bin/oktz`, `chmod +x bin/oktz`.
 
 Setelah pairing, creds tersimpan di `storage/session/creds.json` dan sesi
 ratchet di `database/wa/`. Dua direktori itu harus persisten.
@@ -25,8 +30,9 @@ ratchet di `database/wa/`. Dua direktori itu harus persisten.
 1. Upload/clone repo ini.
 2. Startup command: `node launcher.js` (atau `npm start`).
 3. Node 18+; tidak ada `npm install` (tanpa dependensi).
-4. Set `TZ=Asia/Jakarta` supaya tanggal/jam sapaan sama dengan bot JS.
-5. Isi `config.json` (lihat bawah), lalu pairing lewat console panel.
+4. Panel harus Linux x86_64 dengan glibc >= 2.34 (Debian 12 / Ubuntu 22.04+).
+5. Set `TZ=Asia/Jakarta` supaya tanggal/jam sapaan sama dengan bot JS.
+6. Isi `config.json` (lihat bawah), lalu pairing lewat console panel.
 
 Sinyal stop panel diteruskan launcher ke binary; exit code binary = exit code
 launcher.
