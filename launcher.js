@@ -14,6 +14,7 @@ import {
   constants,
   existsSync,
   mkdirSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -29,10 +30,23 @@ const BIN = process.env.OKTZ_BIN
 const ARGS = process.argv.slice(2);
 const CHILD_ARGS = ARGS.length > 0 ? ARGS : ["run"];
 
-if (!existsSync(BIN)) {
+function siap_dipakai(p) {
+  if (!existsSync(p)) return false;
+  try {
+    const s = statSync(p);
+    return s.isFile() && s.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+if (!siap_dipakai(BIN)) {
   if (process.env.OKTZ_BIN) {
-    console.error(`binary ${BIN} tidak ada (dari OKTZ_BIN)`);
+    console.error(`binary ${BIN} tidak ada/kosong (dari OKTZ_BIN)`);
     process.exit(127);
+  }
+  if (existsSync(BIN)) {
+    console.error(`[launcher] ${BIN} kosong atau bukan berkas, unduh ulang`);
   }
   try {
     await unduh();
@@ -44,19 +58,35 @@ if (!existsSync(BIN)) {
     );
     process.exit(127);
   }
+  if (!siap_dipakai(BIN)) {
+    console.error(`[launcher] ${BIN} masih tidak bisa dipakai setelah unduh`);
+    process.exit(127);
+  }
 }
 
 // Panel kadang menyimpan berkas tanpa bit eksekusi.
 try {
   accessSync(BIN, constants.X_OK);
 } catch {
-  chmodSync(BIN, 0o755);
+  try {
+    chmodSync(BIN, 0o755);
+  } catch (e) {
+    console.error(`[launcher] tidak bisa chmod +x ${BIN}: ${e.message}`);
+    process.exit(126);
+  }
 }
 
-console.log(`[launcher] jalankan ${BIN} ${CHILD_ARGS.join(" ")}`);
+// Path absolut: spawn dengan path relatif bisa ENOENT kalau cwd panel beda
+// dari folder launcher.
+const BIN_ABS = path.resolve(BIN);
+console.log(`[launcher] jalankan ${BIN_ABS} ${CHILD_ARGS.join(" ")}`);
 // cwd = akar repo supaya config.json, database/, dan storage/ selalu relatif
 // ke sini, bukan ke direktori kerja panel.
-const child = spawn(BIN, CHILD_ARGS, { stdio: "inherit", env: process.env, cwd: AKAR });
+const child = spawn(BIN_ABS, CHILD_ARGS, {
+  stdio: "inherit",
+  env: process.env,
+  cwd: AKAR,
+});
 
 // Panel mengirim SIGTERM saat stop; teruskan supaya bot menutup socket rapi.
 for (const sig of ["SIGINT", "SIGTERM"]) {
@@ -64,12 +94,15 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
 }
 
 child.on("error", (e) => {
-  console.error(`[launcher] gagal menjalankan ${BIN}: ${e.message}`);
+  console.error(`[launcher] gagal menjalankan ${BIN_ABS}: ${e.message}`);
   if (e.code === "ENOENT") {
     console.error(
       `[launcher] berkas ada tapi loader tidak ketemu — panel harus Linux x86_64 dengan glibc >= 2.34 ` +
         `(Debian 12/Ubuntu 22.04+). Arsitektur panel: ${process.platform}/${process.arch}`
     );
+  }
+  if (e.code === "EACCES") {
+    console.error(`[launcher] tidak punya izin eksekusi: jalankan chmod +x ${BIN_ABS}`);
   }
   process.exit(127);
 });
