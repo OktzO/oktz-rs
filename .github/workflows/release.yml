@@ -18,7 +18,18 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: thin
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
       - run: cp target/release/oktz oktz-linux-x64 && chmod +x oktz-linux-x64
+      # Aset statis: panel Alpine/musl tidak punya loader glibc, jadi binary
+      # dinamis gagal exec (ENOENT) walau berkasnya ada.
+      - run: cargo build --release --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+          CARGO_PROFILE_RELEASE_LTO: thin
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+      - run: cp target/x86_64-unknown-linux-gnu/release/oktz oktz-linux-x64-static && chmod +x oktz-linux-x64-static
+      - run: "! readelf -l oktz-linux-x64-static | grep -q INTERP"
       - uses: softprops/action-gh-release@v2
         with:
-          files: oktz-linux-x64
+          files: |
+            oktz-linux-x64
+            oktz-linux-x64-static
           generate_release_notes: true
