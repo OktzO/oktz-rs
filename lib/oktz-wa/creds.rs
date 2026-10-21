@@ -111,11 +111,23 @@ pub struct RoutingInfoJson {
 pub struct AccountJson {
     #[serde(default, deserialize_with = "de_b64_any_opt")]
     pub details: Option<String>,
-    #[serde(default, deserialize_with = "de_b64_any_opt")]
+    #[serde(
+        default,
+        rename = "accountSignatureKey",
+        deserialize_with = "de_b64_any_opt"
+    )]
     pub account_signature_key: Option<String>,
-    #[serde(default, deserialize_with = "de_b64_any_opt")]
+    #[serde(
+        default,
+        rename = "accountSignature",
+        deserialize_with = "de_b64_any_opt"
+    )]
     pub account_signature: Option<String>,
-    #[serde(default, deserialize_with = "de_b64_any_opt")]
+    #[serde(
+        default,
+        rename = "deviceSignature",
+        deserialize_with = "de_b64_any_opt"
+    )]
     pub device_signature: Option<String>,
 }
 
@@ -155,6 +167,94 @@ fn kp(j: &KeyPairJson) -> Result<KeyPair> {
             .with_context(|| format!("public key (len={})", pub_bytes.len()))?,
         private_key: PrivateKey::try_from(&b64(&j.private)?[..]).context("private key")?,
     })
+}
+
+/// Kebalikan [`inspect_creds`]: bangun creds.json onigis dari `Device`.
+///
+/// Dipakai setelah pairing. whatsapp-rust menyimpan `Device` di sqlite,
+/// sedangkan `run` membaca creds.json; tanpa dokumen ini sesi hasil pairing
+/// tidak bisa dipakai restart berikutnya.
+///
+/// Field yang tidak dibaca [`inspect_creds`] (pairingEphemeralKeyPair,
+/// signalIdentities, dsb.) sengaja tidak ditulis — library juga mengabaikannya.
+pub fn device_to_creds(d: &whatsapp_rust::wacore::store::Device) -> serde_json::Value {
+    use base64::Engine;
+    let e = |b: &[u8]| base64::engine::general_purpose::STANDARD.encode(b);
+    let kp_json = |k: &KeyPair| {
+        let pubser = k.public_key.serialize();
+        // onigis menyimpan public Curve25519 32 byte polos, tanpa prefix 0x05.
+        let pubraw = if pubser.len() == 33 && pubser[0] == DJB_PREFIX {
+            &pubser[1..]
+        } else {
+            &pubser[..]
+        };
+        serde_json::json!({
+            "private": e(k.private_key.serialize()),
+            "public": e(pubraw),
+        })
+    };
+
+    let pn = d.pn.as_ref().map(ToString::to_string);
+    let mut me = serde_json::json!({
+        "id": pn.clone().unwrap_or_default(),
+        "name": d.push_name,
+    });
+    if let Some(lid) = d.lid.as_ref() {
+        me["lid"] = serde_json::json!(lid.to_string());
+    }
+
+    let mut v = serde_json::json!({
+        "noiseKey": kp_json(&d.noise_key),
+        "signedIdentityKey": kp_json(&d.identity_key),
+        "signedPreKey": {
+            "keyPair": kp_json(&d.signed_pre_key),
+            "signature": e(&d.signed_pre_key_signature),
+            "keyId": d.signed_pre_key_id,
+        },
+        "advSecretKey": e(&d.adv_secret_key),
+        "registrationId": d.registration_id,
+        "nextPreKeyId": d.next_pre_key_id,
+        "firstUnuploadedPreKeyId": d.first_unupload_pre_key_id,
+        "platform": "smba",
+        "registered": true,
+        "me": me,
+    });
+
+    if let Some(r) = d.edge_routing_info.as_ref() {
+        v["routingInfo"] = serde_json::json!({"data": e(r)});
+    }
+    if let Some(h) = d.props_hash.as_ref() {
+        v["lastPropHash"] = serde_json::json!(h);
+    }
+    if let Some(a) = d.account.as_ref() {
+        let opt = |x: &Option<Vec<u8>>| match x {
+            Some(b) => serde_json::json!(e(b)),
+            None => serde_json::json!(""),
+        };
+        v["account"] = serde_json::json!({
+            "details": opt(&a.details),
+            "accountSignatureKey": opt(&a.account_signature_key),
+            "accountSignature": opt(&a.account_signature),
+            "deviceSignature": opt(&a.device_signature),
+        });
+    }
+    v
+}
+
+/// Sidik sesi yang sama dengan yang ditulis [`crate::bot::prepare_store`]:
+/// `registration_id:hex(public identity 32 byte)`.
+pub fn sidik_device(d: &whatsapp_rust::wacore::store::Device) -> String {
+    let pubser = d.identity_key.public_key.serialize();
+    let raw = if pubser.first() == Some(&DJB_PREFIX) {
+        &pubser[1..]
+    } else {
+        &pubser[..]
+    };
+    format!(
+        "{}:{}",
+        d.registration_id,
+        raw.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    )
 }
 
 /// Hasil pemetaan + catatan yang tidak bisa diturunkan dari creds.json.
@@ -306,6 +406,21 @@ mod tests {
         assert_eq!(m.next_pre_key_id, 15556);
         assert_eq!(m.adv_secret_key_len, 32);
         assert!(m.has_routing_info);
+    }
+
+    #[test]
+    fn maps_account_camel_case() {
+        let f = fixture().replace(
+            "\"me\"",
+            "\"account\":{\"details\":\"AA==\",\"accountSignatureKey\":\"AQ==\",\
+             \"accountSignature\":\"Ag==\",\"deviceSignature\":\"Aw==\"},\"me\"",
+        );
+        let (_, c) = inspect_creds(&f).unwrap();
+        let a = c.account.unwrap();
+        assert_eq!(a.details.as_deref(), Some("AA=="));
+        assert_eq!(a.account_signature_key.as_deref(), Some("AQ=="));
+        assert_eq!(a.account_signature.as_deref(), Some("Ag=="));
+        assert_eq!(a.device_signature.as_deref(), Some("Aw=="));
     }
 
     #[test]

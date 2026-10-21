@@ -616,6 +616,45 @@ async fn fresh_store(db_path: &str) -> anyhow::Result<SqliteStore> {
     .await?)
 }
 
+/// Simpan sesi hasil pairing ke `creds.json` + marker sidik db.
+///
+/// `pair_code_flow`/`pair_qr_flow` hanya hidup di db pairing; `run` membaca
+/// creds.json. Tanpa langkah ini pairing sukses tapi bot tidak bisa restart
+/// karena creds tidak pernah ada. Marker `<db>.ident` dibuat dengan sidik yang
+/// sama seperti [`crate::bot::prepare_store`], jadi `run` memakai db pairing
+/// apa adanya — sesi ratchet dan pre-key tidak hilang.
+pub async fn save_session(db_path: &str, creds_path: &str) -> anyhow::Result<()> {
+    let store = SqliteStore::new(db_path).await?;
+    let mut device = None;
+    // Event PairSuccess bisa terbit sebelum write-behind device selesai.
+    for _ in 0..20 {
+        if let Some(d) = store
+            .load_device_data_for_device(store.device_id())
+            .await?
+            && d.pn.is_some()
+        {
+            device = Some(d);
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let d = device.ok_or_else(|| anyhow::anyhow!("device pairing tidak ada di {db_path}"))?;
+
+    let tujuan = Path::new(creds_path);
+    if let Some(parent) = tujuan.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(tujuan, serde_json::to_vec(&crate::creds::device_to_creds(&d))?)?;
+    std::fs::write(
+        Path::new(db_path).with_extension("ident"),
+        crate::creds::sidik_device(&d),
+    )?;
+    tracing::info!(creds = %tujuan.display(), db = db_path, "sesi pairing disimpan");
+    Ok(())
+}
+
 /// Pump dua channel sampai ada hasil akhir atau `hold_secs` habis.
 ///
 /// Event QR/code lewat channel sendiri supaya payload yang sudah terbit tetap
@@ -1364,6 +1403,53 @@ const SHARED_STORE: &str = "oktz-run.db";
             plan.store_db,
             Some(dir.join(SHARED_STORE)),
             "env kosong harus jatuh ke store yang dicatat, bukan jadi path kosong"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn save_session_menulis_creds_dan_marker_sidik() {
+        use whatsapp_rust::prelude::Jid;
+        let dir = scratch("pair-save");
+        let db = dir.join("oktz-run.db");
+        let db_s = db.to_str().unwrap();
+
+        let store = SqliteStore::new(db_s).await.unwrap();
+        let mut d = whatsapp_rust::wacore::store::Device::new();
+        d.pn = Some(Jid::pn("628123456789"));
+        d.lid = Some(Jid::lid("188412430651393"));
+        d.push_name = "Oktz".to_string();
+        d.registration_id = 225;
+        d.account = Some(std::sync::Arc::new(
+            whatsapp_rust::waproto::whatsapp::ADVSignedDeviceIdentity {
+                details: Some(vec![1, 2]),
+                account_signature_key: Some(vec![3]),
+                account_signature: Some(vec![4]),
+                device_signature: Some(vec![5]),
+            },
+        ));
+        store.save_device_data_for_device(1, &d).await.unwrap();
+
+        let creds = dir.join("creds.json");
+        save_session(db_s, creds.to_str().unwrap()).await.unwrap();
+
+        let raw = std::fs::read_to_string(&creds).unwrap();
+        let (m, c) = crate::creds::inspect_creds(&raw).unwrap();
+        assert_eq!(m.registration_id, 225);
+        assert_eq!(m.pn, "628123456789@s.whatsapp.net");
+        assert_eq!(m.push_name, "Oktz");
+        assert!(!c.adv_secret_key.is_empty());
+        let d2 = crate::bot::build_device(&c).await.unwrap();
+        assert_eq!(d2.registration_id, 225);
+        assert_eq!(d2.pn.as_ref().unwrap().to_string(), "628123456789@s.whatsapp.net");
+        let acc = d2.account.as_ref().unwrap();
+        assert_eq!(acc.details.as_deref(), Some(&[1u8, 2][..]));
+        assert_eq!(acc.account_signature_key.as_deref(), Some(&[3u8][..]));
+        assert_eq!(acc.account_signature.as_deref(), Some(&[4u8][..]));
+        assert_eq!(acc.device_signature.as_deref(), Some(&[5u8][..]));
+        assert_eq!(
+            std::fs::read_to_string(db.with_extension("ident")).unwrap(),
+            crate::creds::sidik_device(&d)
         );
         std::fs::remove_dir_all(&dir).ok();
     }

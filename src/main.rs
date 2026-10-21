@@ -80,11 +80,21 @@ fn db_arg(path: PathBuf) -> Result<String, std::io::Error> {
 /// `storage/session/creds.json` di akar repo (panel: cwd = folder launcher)
 /// atau `../storage/session/creds.json` saat dijalankan dari `rust/` (dev).
 /// Path eksplisit di argumen selalu menang atas tebakan ini.
+/// Env fixture sesi ratchet untuk `run`; dipakai launcher setelah restore
+/// Turso supaya tidak perlu mengisi argumen posisional `settings.json`.
+const FIXTURE_ENV: &str = "OKTZ_SESSION_FIXTURE";
+
 fn creds_bawaan() -> String {
     for p in ["storage/session/creds.json", "../storage/session/creds.json"] {
         if std::path::Path::new(p).is_file() {
             return p.to_string();
         }
+    }
+    // Belum ada file: pilih layout berdasarkan folder storage yang ada.
+    // Panel menjalankan launcher dari akar repo (`storage/`), sedangkan dev
+    // menjalankan binary dari `rust/` (`../storage/`).
+    if std::path::Path::new("../storage").is_dir() {
+        return "../storage/session/creds.json".to_string();
     }
     "storage/session/creds.json".to_string()
 }
@@ -148,8 +158,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 0 = tanpa batas (daemon). Default lama (3600) mematikan bot produksi
         // setelah satu jam.
         let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let fixture = args.get(5).map(|s| s.trim()).filter(|s| !s.is_empty());
-        return run(&creds, settings.as_deref(), hold, fixture).await;
+        let fixture = args
+            .get(5)
+            .cloned()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| oktz_core::env::Env::get(FIXTURE_ENV));
+        return run(&creds, settings.as_deref(), hold, fixture.as_deref()).await;
     }
 
     // `oktz pair [db] [hold]` — pilih pairing code/QR dari `config.json`
@@ -196,6 +210,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // keluar dengan exit 0 supaya tidak dipakai script sebagai "berhasil".
         return match out {
             Ok(v) => {
+                if v.get("phase").and_then(|p| p.as_str()) != Some("PAIRED") {
+                    println!("{v}");
+                    std::process::exit(1);
+                }
+                // Tanpa langkah ini pairing hanya hidup di db pairing dan
+                // `run` tetap gagal "creds.json tidak ada".
+                let creds = creds_bawaan();
+                if let Err(e) = oktz_wa::pairing_run::save_session(&db, &creds).await {
+                    let line = serde_json::json!({
+                        "phase": "FAILED",
+                        "mode": mode,
+                        "db": db,
+                        "error": format!("simpan sesi: {e:#}"),
+                    });
+                    eprintln!("{line}");
+                    std::process::exit(1);
+                }
                 println!("{v}");
                 Ok(())
             }
