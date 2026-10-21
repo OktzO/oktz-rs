@@ -77,6 +77,18 @@ fn db_arg(path: PathBuf) -> Result<String, std::io::Error> {
     }
 }
 
+/// `storage/session/creds.json` di akar repo (panel: cwd = folder launcher)
+/// atau `../storage/session/creds.json` saat dijalankan dari `rust/` (dev).
+/// Path eksplisit di argumen selalu menang atas tebakan ini.
+fn creds_bawaan() -> String {
+    for p in ["storage/session/creds.json", "../storage/session/creds.json"] {
+        if std::path::Path::new(p).is_file() {
+            return p.to_string();
+        }
+    }
+    "storage/session/creds.json".to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     oktz_core::logging::init("info");
@@ -99,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let creds = args
             .get(2)
             .cloned()
-            .unwrap_or_else(|| "../storage/session/creds.json".into());
+            .unwrap_or_else(creds_bawaan);
         let to = args.get(3).cloned().unwrap_or_default();
         let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(60);
         let kind = mode.trim_start_matches("send-").to_string();
@@ -111,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let creds = args
             .get(2)
             .cloned()
-            .unwrap_or_else(|| "../storage/session/creds.json".into());
+            .unwrap_or_else(creds_bawaan);
         let fixture = args
             .get(3)
             .cloned()
@@ -131,7 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let creds = args
             .get(2)
             .cloned()
-            .unwrap_or_else(|| "../storage/session/creds.json".into());
+            .unwrap_or_else(creds_bawaan);
         let settings = args.get(3).cloned();
         // 0 = tanpa batas (daemon). Default lama (3600) mematikan bot produksi
         // setelah satu jam.
