@@ -40,7 +40,8 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // binary baru tidak pernah diunduh dan command baru (mis. menu) tetap hilang.
 //
 // v0.1.5 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
-const VERSI_BIN = "v0.1.5";
+// v0.1.6 — binary baca fixture sesi dari env (perbaiki "Bad Mac"/decrypt gagal).
+const VERSI_BIN = "v0.1.6";
 const KANDIDAT = ["bin/oktz", "target/release/oktz"].map((p) => path.join(AKAR, p));
 const BIN = process.env.OKTZ_BIN
   ? path.resolve(process.env.OKTZ_BIN)

@@ -1,0 +1,843 @@
+{
+ "ai": {
+  "HILANG": [
+   "ai",
+   "character-ai"
+  ],
+  "BEDA": [
+   "anime-gen",
+   "bananagen",
+   "bananagen2",
+   "claudehaiku",
+   "deepseek",
+   "dolphin",
+   "dpsteai",
+   "feelbetter",
+   "gpt5",
+   "jokowi-ai",
+   "kobo-ai",
+   "matematika",
+   "musicmaker",
+   "muslimai",
+   "prabowo-ai",
+   "quilbot",
+   "qwen3",
+   "simi",
+   "sologo",
+   "text2img",
+   "text2img2",
+   "to3d",
+   "toanime",
+   "toblack",
+   "tocartoon",
+   "tocermin",
+   "tochibi",
+   "tofigure",
+   "tofigure3",
+   "tohijab",
+   "toisland",
+   "tojapanese",
+   "tomanga",
+   "tooilpainting",
+   "text2img3",
+   "text2img4",
+   "waguri-ai"
+  ]
+ },
+ "anime": {
+  "HILANG": [
+   "autoanimewinbu"
+  ],
+  "BEDA": [
+   "mywaifu",
+   "topanime"
+  ]
+ },
+ "asupan": {
+  "HILANG": [],
+  "BEDA": [
+   "asupan",
+   "bocil",
+   "ukhty"
+  ]
+ },
+ "canvas": {
+  "HILANG": [
+   "fakedev7",
+   "fakestory",
+   "fakestory2",
+   "fakestory3",
+   "fakestory4",
+   "gura",
+   "igstory",
+   "igstoryimg",
+   "kalender",
+   "topixel",
+   "ttqc",
+   "bratlocal"
+  ],
+  "BEDA": [
+   "applemusic-canvas",
+   "buatquotes",
+   "facepalm",
+   "fakecall",
+   "fakegopay",
+   "fakeovo",
+   "iqc",
+   "iqc2",
+   "iqcpink",
+   "profileig",
+   "sroast",
+   "starboy",
+   "tiktokchat"
+  ]
+ },
+ "maker": {
+  "HILANG": [],
+  "BEDA": [
+   "musiccard",
+   "ttp"
+  ]
+ },
+ "fun": {
+  "HILANG": [
+   "akankah",
+   "apakah",
+   "bagaimana",
+   "berapa",
+   "bisakah",
+   "coba",
+   "dare",
+   "dimana",
+   "gachahusbu",
+   "haruskah",
+   "kapan",
+   "mengapa",
+   "sulap",
+   "tembak",
+   "tolak",
+   "truth"
+  ],
+  "BEDA": [
+   "bucin",
+   "cekkhodam",
+   "cekpacar",
+   "confess",
+   "gachawaifu",
+   "husbualbum",
+   "husbupool",
+   "jodoh",
+   "mimpi",
+   "rate",
+   "renungan",
+   "terima",
+   "tod",
+   "waifualbum",
+   "waifupool"
+  ]
+ },
+ "cek": {
+  "HILANG": [
+   "cekbaik",
+   "cekbucin",
+   "cekcantik",
+   "cekcreative",
+   "cekcupu",
+   "cekgabut",
+   "cekgacha",
+   "cekgamer",
+   "cekganteng",
+   "cekgila",
+   "cekhoki",
+   "cekimut",
+   "cekintrovert",
+   "cekjahat",
+   "cekjomblo",
+   "cekkaya",
+   "cekkece",
+   "cekkpopers",
+   "ceklapar",
+   "cekmalas",
+   "cekmesum",
+   "cekngantuk",
+   "cekotaku",
+   "cekoverpower",
+   "cekpelit",
+   "cekprocastinator",
+   "cekpsikopat",
+   "cekrezeki",
+   "ceksabar",
+   "ceksetia",
+   "ceksexy",
+   "ceksial",
+   "ceksocmed",
+   "cektsundere",
+   "cekwibu",
+   "cekyandere"
+  ],
+  "BEDA": [
+   "cekberat",
+   "cekfemboy",
+   "cekkarma",
+   "cekpartner",
+   "cekpintar",
+   "cekprem",
+   "ceksisaumur",
+   "cektinggi",
+   "cekumur"
+  ]
+ },
+ "clan": {
+  "HILANG": [],
+  "BEDA": [
+   "claninfo",
+   "claninvite",
+   "clankick",
+   "clanmembers"
+  ]
+ },
+ "downloader": {
+  "HILANG": [],
+  "BEDA": [
+   "alightmotiondl"
+  ]
+ },
+ "download": {
+  "HILANG": [],
+  "BEDA": [
+   "capcutdl",
+   "cocofundl",
+   "dailymotiondl",
+   "douyindl",
+   "instagramdl",
+   "likeedl",
+   "pindl",
+   "sfiledl",
+   "shopeedl",
+   "snackvideodl",
+   "spotifydl",
+   "terabox",
+   "threaddl",
+   "tiktok",
+   "tiktok2",
+   "ttmp3",
+   "videy",
+   "ytmp3",
+   "ytmp4"
+  ]
+ },
+ "ephoto": {
+  "HILANG": [],
+  "BEDA": [
+   "glitchtext"
+  ]
+ },
+ "game": {
+  "HILANG": [
+   "fisht",
+   "werewolf"
+  ],
+  "BEDA": [
+   "dungeon",
+   "family100",
+   "kyubigame",
+   "mct",
+   "suitpvp",
+   "tictactoe",
+   "ulartangga",
+   "wwkill",
+   "wwprotect",
+   "wwsee"
+  ]
+ },
+ "group": {
+  "HILANG": [
+   "cekonline",
+   "tam"
+  ],
+  "BEDA": [
+   "absen",
+   "acc",
+   "add",
+   "addantilink",
+   "addcmdsticker",
+   "addtoxic",
+   "afk",
+   "antibot",
+   "anticulik",
+   "anticustom",
+   "antidocument",
+   "antimedia",
+   "antispam",
+   "antisticker",
+   "antitoxic",
+   "autoai",
+   "autoforward",
+   "autoreply",
+   "botmodegrup",
+   "cekabsen",
+   "cekidgc",
+   "checksewa",
+   "clearchat",
+   "close",
+   "delete",
+   "delppgc",
+   "delstickercmd",
+   "deltoxic",
+   "demote",
+   "getpp",
+   "goodbye",
+   "groupinfo",
+   "hidetag2",
+   "intro",
+   "jadwalgroup",
+   "kick",
+   "linkgc",
+   "listwarn",
+   "notifclosegroup",
+   "notifdemote",
+   "notifgantitag",
+   "notifopengroup",
+   "notifpromote",
+   "notifsholat",
+   "open",
+   "openvo",
+   "gcpinchat",
+   "poll",
+   "promote",
+   "resetlinkgc",
+   "setdeskgc",
+   "setgoodbye",
+   "setintro",
+   "setnamegc",
+   "setppgc",
+   "setrulesgrup",
+   "setwelcome",
+   "slowmode",
+   "warn",
+   "welcome",
+   "autosambut",
+   "notifmakan",
+   "notiftidur"
+  ]
+ },
+ "info": {
+  "HILANG": [],
+  "BEDA": [
+   "bluearchive-char",
+   "gag",
+   "gag2",
+   "gag2watch",
+   "harilibur",
+   "howmuchenergy",
+   "infotourney",
+   "jadwalbola",
+   "livescore",
+   "whatrolethis"
+  ]
+ },
+ "berita": {
+  "HILANG": [],
+  "BEDA": [
+   "antara"
+  ]
+ },
+ "islamic": {
+  "HILANG": [],
+  "BEDA": [
+   "murrotal",
+   "quran"
+  ]
+ },
+ "jpm": {
+  "HILANG": [
+   "jpm"
+  ],
+  "BEDA": []
+ },
+ "main": {
+  "HILANG": [
+   "carifitur",
+   "jadibot",
+   "system"
+  ],
+  "BEDA": [
+   "allmenu",
+   "benefitowner",
+   "benefitpremium",
+   "donasi",
+   "leaderboard",
+   "menu",
+   "menucat",
+   "owner",
+   "ping",
+   "ping2",
+   "stats",
+   "stopjadibot",
+   "tqto"
+  ]
+ },
+ "rpg": {
+  "HILANG": [],
+  "BEDA": [
+   "gacha",
+   "adventure",
+   "alchemy",
+   "arena",
+   "beg",
+   "berburu",
+   "berladang",
+   "blacksmith",
+   "boss",
+   "breeding",
+   "buykoin",
+   "casino",
+   "coinflip",
+   "cook",
+   "cooking",
+   "craft",
+   "crime",
+   "dice",
+   "divorce",
+   "duel",
+   "enchant",
+   "expedition",
+   "fishing",
+   "freelance",
+   "garden",
+   "heal",
+   "hunt",
+   "jualan",
+   "kurir",
+   "leveluprpg",
+   "lottery",
+   "maling",
+   "meditation",
+   "merchant",
+   "mining",
+   "mulung",
+   "nambalban",
+   "ngamen",
+   "ngemis",
+   "ngojek",
+   "cerpen",
+   "nyapu",
+   "parkir",
+   "pet",
+   "petshop",
+   "rob",
+   "slot",
+   "stamina",
+   "steal",
+   "streamer",
+   "training",
+   "treasure",
+   "use",
+   "woodcut",
+   "work"
+  ]
+ },
+ "media": {
+  "HILANG": [
+   "music"
+  ],
+  "BEDA": []
+ },
+ "nsfw": {
+  "HILANG": [],
+  "BEDA": [
+   "paptt"
+  ]
+ },
+ "owner": {
+  "HILANG": [
+   "addplugin",
+   "addsewa",
+   "backupsc",
+   "bcpc",
+   "buatgrup",
+   "buatsaluran",
+   "colongpp",
+   "delplugin",
+   "delsewa",
+   "enableplugin",
+   "eval",
+   "ganti-foto2.jpg",
+   "ganti-foto3.jpg",
+   "ganti-mp3.mp3",
+   "ganti-mp4.mp4",
+   "ganti-namabot",
+   "ganti-v8.jpg",
+   "ganti-welcome.jpg",
+   "ganticode",
+   "gantiscraper",
+   "getplugin",
+   "hapusdata",
+   "join",
+   "resetdb",
+   "restart",
+   "savekontak",
+   "searchplugin",
+   "sessionstats",
+   "setallmenu",
+   "sistemdaftar",
+   "sprem",
+   "srt",
+   "startschedule",
+   "swgc",
+   "swgcv2",
+   "swgcv2all",
+   "upch"
+  ],
+  "BEDA": [
+   "addenergi",
+   "addexp",
+   "addkoin",
+   "addowner",
+   "addpartner",
+   "addprem",
+   "akses",
+   "aktifaudiomenu",
+   "anticall",
+   "arsip",
+   "autobackup",
+   "autobio",
+   "autojoingc",
+   "autoreactsw",
+   "autoread",
+   "autoreadsw",
+   "autosholat",
+   "baca",
+   "backupdb",
+   "ban",
+   "bcgc",
+   "block",
+   "botafk",
+   "botmode",
+   "capenergi",
+   "capfree",
+   "capprem",
+   "cekschedule",
+   "autoclear",
+   "checkban",
+   "cpuprofile",
+   "custompayment",
+   "delenergi",
+   "delexp",
+   "delkoin",
+   "disableplugin",
+   "exec",
+   "ganti-asset",
+   "ganti-demote.jpg",
+   "ganti-foto.jpg",
+   "ganti-games.jpg",
+   "ganti-goodbye.jpg",
+   "ganti-levelup.jpg",
+   "ganti-namadev",
+   "ganti-namaowner",
+   "ganti-pp-kosong.jpg",
+   "ganti-promote.jpg",
+   "ganti-rpg.jpg",
+   "ganti-rules.jpg",
+   "ganti-store.jpg",
+   "ganti-winner.jpg",
+   "get",
+   "goodbyeall",
+   "hapussaluran",
+   "heapsnap",
+   "leave",
+   "listjadibot",
+   "listjadibotaktif",
+   "mutechat",
+   "onlyadmin",
+   "onlythisgrup",
+   "payment",
+   "pinchat",
+   "addprefix",
+   "ptvch",
+   "public",
+   "renewsewa",
+   "sampah",
+   "savedb",
+   "schedule",
+   "self",
+   "setaudioallmenu",
+   "setgoodbyetype",
+   "setmenu",
+   "setmenucat",
+   "setownertype",
+   "setreply",
+   "setrules",
+   "setwelcometype",
+   "sewabot",
+   "similarity",
+   "star",
+   "stop",
+   "stopalljadibot",
+   "stopdandeletejadibot",
+   "stopschedule",
+   "swgcall",
+   "templateplugin",
+   "unban",
+   "unblock",
+   "welcomeall",
+   "deploy"
+  ]
+ },
+ "tools": {
+  "HILANG": [
+   "bandingkan-hp",
+   "cekidch",
+   "converter",
+   "crm",
+   "hd2",
+   "hd3",
+   "musikapaini",
+   "ocr",
+   "qwa",
+   "toaudio",
+   "tourl",
+   "transkrip"
+  ],
+  "BEDA": [
+   "carbon",
+   "caribug",
+   "cekxl",
+   "cjstoesm",
+   "dafont",
+   "delpp",
+   "emojitoimage",
+   "esmtocjs",
+   "remini",
+   "hdvid",
+   "hitungwrmlbb",
+   "imgtoprompt",
+   "invoicemaker",
+   "ipwho",
+   "izen",
+   "kalkulatormbg",
+   "lookup",
+   "nulis",
+   "pastebin",
+   "phisingataubukan",
+   "ptv",
+   "qrcustom",
+   "removebg",
+   "rvo",
+   "sendngl",
+   "setbio",
+   "setname",
+   "setpp",
+   "spamngl",
+   "styleteks",
+   "tempmail",
+   "toimg",
+   "tovideo",
+   "tovn",
+   "txt2qr",
+   "videotranscribe",
+   "wink"
+  ]
+ },
+ "panel": {
+  "HILANG": [
+   "addseller",
+   "delpanel"
+  ],
+  "BEDA": [
+   "cekjeda",
+   "cpanel",
+   "installtemabilling",
+   "installtemaenigma",
+   "installtemanebula",
+   "installtemastellar",
+   "uinstalltema"
+  ]
+ },
+ "linode": {
+  "HILANG": [
+   "linode2gb"
+  ],
+  "BEDA": []
+ },
+ "primbon": {
+  "HILANG": [],
+  "BEDA": [
+   "zodiak"
+  ]
+ },
+ "pushkontak": {
+  "HILANG": [],
+  "BEDA": [
+   "pushkontak"
+  ]
+ },
+ "random": {
+  "HILANG": [
+   "loli"
+  ],
+  "BEDA": []
+ },
+ "cecan": {
+  "HILANG": [],
+  "BEDA": []
+ },
+ "religi": {
+  "HILANG": [],
+  "BEDA": [
+   "asmaulhusna",
+   "audioquran",
+   "islami"
+  ]
+ },
+ "search": {
+  "HILANG": [
+   "playch",
+   "playvid",
+   "spotify",
+   "ttsearch",
+   "ytplay",
+   "yts"
+  ],
+  "BEDA": [
+   "android1-get",
+   "android1",
+   "animeapaini",
+   "apkmod-get",
+   "apkmod",
+   "applemusic",
+   "spekhp",
+   "advance-comparation",
+   "film",
+   "filmget",
+   "google",
+   "gsmarena",
+   "mangatoon",
+   "mcpedl",
+   "melolo",
+   "movieku",
+   "nerdfont-ambil",
+   "nerdfont",
+   "pap",
+   "pddikti",
+   "pin",
+   "pinvid",
+   "pixiv",
+   "play",
+   "play2",
+   "playcall",
+   "playsoundcloud",
+   "resep",
+   "searchthatsong",
+   "soundcloud",
+   "spotplay",
+   "tiktokfoto",
+   "wikipedia"
+  ]
+ },
+ "stalker  ": {
+  "HILANG": [],
+  "BEDA": [
+   "countrystalk"
+  ]
+ },
+ "stalker": {
+  "HILANG": [
+   "wastalk"
+  ],
+  "BEDA": [
+   "ffstalk",
+   "genshinstalk",
+   "igstalk",
+   "pintereststalk",
+   "robloxplayer",
+   "robloxstalk",
+   "stalkdc",
+   "stalkml",
+   "tiktokstalk",
+   "ytstalk"
+  ]
+ },
+ "sticker": {
+  "HILANG": [
+   "bratextra",
+   "bratgreen",
+   "bratvid2",
+   "pinpack",
+   "qc",
+   "smeme-animated",
+   "smeme",
+   "smemevid",
+   "sticker",
+   "stickerpack"
+  ],
+  "BEDA": [
+   "bratanime",
+   "attp",
+   "attp2",
+   "brat",
+   "bratvid",
+   "emojimix",
+   "linesticker",
+   "stickerly",
+   "swm"
+  ]
+ },
+ "store": {
+  "HILANG": [
+   "addproduk",
+   "done"
+  ],
+  "BEDA": [
+   "addlist",
+   "addstok",
+   "beli",
+   "editlist",
+   "editproduk",
+   "hapusproduk",
+   "hapusstok",
+   "list",
+   "listproduk",
+   "liststok"
+  ]
+ },
+ "tts": {
+  "HILANG": [],
+  "BEDA": [
+   "ttselon"
+  ]
+ },
+ "user": {
+  "HILANG": [
+   "listdaftar",
+   "profile"
+  ],
+  "BEDA": [
+   "birthday",
+   "buyfitur",
+   "daftar",
+   "daily",
+   "level",
+   "levelup",
+   "setbirthday",
+   "unreg"
+  ]
+ },
+ "utility": {
+  "HILANG": [],
+  "BEDA": [
+   "inspect"
+  ]
+ },
+ "vps": {
+  "HILANG": [
+   "delvps"
+  ],
+  "BEDA": [
+   "cekvps",
+   "listvps",
+   "sisavps",
+   "turnon"
+  ]
+ }
+}
