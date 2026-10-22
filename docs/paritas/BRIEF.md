@@ -127,6 +127,17 @@ Reply::table(title, headers, rows)   // rows: Vec<Vec<String>>
   .with_table_footer("...")
 ```
 
+### Link preview (`sock.sendPreview`)
+
+```rust
+Reply::preview(caption, url)        // -> extendedTextMessage + matchedText
+  .with_preview_title("...")
+  .with_preview_description("...")
+  .with_preview_thumbnail(MediaSource::url(u))   // gambar, di-upload otomatis
+  .with_preview_type(0)              // 0 = NONE, 1 = VIDEO
+  .with_preview_context(CardContext::new().mention(jid))
+```
+
 ### Balasan lain
 
 ```rust

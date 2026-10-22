@@ -574,6 +574,26 @@ pub enum Reply {
         message_params: Option<Value>,
         context: Option<Box<CardContext>>,
     },
+    /// Link preview — `sock.sendPreview` di JS.
+    ///
+    /// Bentuk wire-nya `extendedTextMessage` dengan `matchedText` + `previewType`
+    /// dan thumbnail. Dipakai plugin pencarian/hiburan yang mengirim tautan
+    /// dengan pratinjau (`:49` `playvid.js`, `:47` `fisch.js`,
+    /// `:264` `welcome.js`).
+    Preview {
+        /// Isi pesan (JS: `caption`).
+        text: String,
+        /// URL yang di-pratinjau (JS: `url` → `matchedText`).
+        matched_text: String,
+        title: Option<String>,
+        description: Option<String>,
+        /// Thumbnail — gambar yang harus naik ke CDN dulu.
+        thumbnail: Option<MediaSource>,
+        /// WA `PreviewType`: 0 = NONE, 1 = VIDEO.
+        preview_type: i32,
+        /// `contextInfo` — mention, forwarded, surat berita.
+        context: Option<Box<CardContext>>,
+    },
     /// Tabel WhatsApp — `sock.sendTable` di JS.
     ///
     /// Bentuk wire-nya `botForwardedMessage > richResponseMessage`
@@ -742,6 +762,62 @@ impl Reply {
     /// dan pesan yang dirujuk.
     pub fn with_context(mut self, context: CardContext) -> Self {
         if let Self::Interactive { context: c, .. } = &mut self {
+            *c = Some(Box::new(context));
+        }
+        self
+    }
+
+    /// Link preview — `sock.sendPreview(url, { caption, url, title, description, image, previewType })`.
+    pub fn preview(text: impl Into<String>, url: impl Into<String>) -> Self {
+        Self::Preview {
+            text: text.into(),
+            matched_text: url.into(),
+            title: None,
+            description: None,
+            thumbnail: None,
+            preview_type: 0,
+            context: None,
+        }
+    }
+
+    /// Judul pratinjau.
+    pub fn with_preview_title(mut self, title: impl Into<String>) -> Self {
+        if let Self::Preview { title: t, .. } = &mut self {
+            *t = Some(title.into());
+        }
+        self
+    }
+
+    /// Deskripsi pratinjau.
+    pub fn with_preview_description(mut self, description: impl Into<String>) -> Self {
+        if let Self::Preview { description: d, .. } = &mut self {
+            *d = Some(description.into());
+        }
+        self
+    }
+
+    /// Thumbnail pratinjau (gambar, wajib di-upload dulu).
+    pub fn with_preview_thumbnail(mut self, source: MediaSource) -> Self {
+        if let Self::Preview { thumbnail: t, .. } = &mut self {
+            *t = Some(source);
+        }
+        self
+    }
+
+    /// `previewType` WA: 0 = NONE, 1 = VIDEO.
+    pub fn with_preview_type(mut self, preview_type: i32) -> Self {
+        if let Self::Preview {
+            preview_type: pt, ..
+        } = &mut self
+        {
+            *pt = preview_type;
+        }
+        self
+    }
+
+    /// `contextInfo` pratinjau.
+    pub fn with_preview_context(mut self, context: CardContext) -> Self {
+        if let Self::Preview { context: c, .. } = &mut self {
             *c = Some(Box::new(context));
         }
         self
@@ -979,6 +1055,7 @@ impl Reply {
             | Self::Audio { .. }
             | Self::Document { .. }
             | Self::Interactive { .. }
+            | Self::Preview { .. }
             | Self::Table { .. }
             | Self::Reaction { .. }
             | Self::Mutate { .. } => false,
@@ -1062,6 +1139,7 @@ impl Reply {
             Self::Image { caption, .. } => Some(caption),
             Self::Video { caption, .. } => Some(caption),
             Self::PairedVideo { caption, .. } => Some(caption),
+            Self::Preview { text, .. } => Some(text),
             Self::Document { caption, .. } => Some(caption),
             Self::Interactive { body, .. } => Some(body),
             Self::Reaction { reply, .. } => reply.text_body(),

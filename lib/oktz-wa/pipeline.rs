@@ -999,6 +999,17 @@ pub trait MessageSender: Send + Sync {
         })
     }
 
+    /// Kirim preview link yang thumbnail-nya belum ter-upload.
+    ///
+    /// Default-nya error dengan alasan yang sama seperti
+    /// [`MessageSender::send_media`]: tanpa `Client` tidak ada yang bisa
+    /// meng-upload.
+    fn send_preview(&self, _to: &str, _preview: PendingPreview, _opts: SendOptions) -> SendBox<'_> {
+        Box::pin(async move {
+            Err("pengirim ini tidak mendukung kirim preview ( butuh Client )".to_string())
+        })
+    }
+
     /// Hapus pesan untuk semua orang di chat (`sock.sendMessage(chat, {delete:
     /// m.key})`, dipakai rantai group-protection di
     /// `handler.js:811, 823, 848`).
@@ -1143,6 +1154,61 @@ impl MessageSender for ClientSender {
             let message = built.to_message();
             client
                 .send_message_with_options(jid, message, opts.with_extra_stanza_nodes(vec![biz_node()]))
+                .await
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        })
+    }
+
+    /// Preview link: upload thumbnail dulu, lalu rakit `extendedTextMessage`.
+    fn send_preview(&self, to: &str, preview: PendingPreview, opts: SendOptions) -> SendBox<'_> {
+        let client = self.client.clone();
+        let to = to.to_string();
+        Box::pin(async move {
+            let jid: Jid = to
+                .parse()
+                .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
+
+            let mut thumb = None;
+            if let Some(src) = &preview.thumbnail {
+                let bytes = load_media(src).await.map_err(|e| e.to_string())?;
+                let up = client
+                    .upload(bytes.clone(), MediaType::Image, UploadOptions::default())
+                    .await
+                    .map_err(|e| format!("upload thumbnail gagal: {e}"))?;
+                thumb = Some((bytes, up));
+            }
+
+            let mut ext = wa::message::ExtendedTextMessage {
+                text: Some(preview.text.clone()),
+                matched_text: Some(preview.matched_text.clone()),
+                title: preview.title.clone(),
+                description: preview.description.clone(),
+                preview_type: Some(match preview.preview_type {
+                    1 => wa::message::extended_text_message::PreviewType::Video,
+                    _ => wa::message::extended_text_message::PreviewType::None,
+                }),
+                context_info: match preview.context {
+                    Some(c) => MessageField::some(c),
+                    None => MessageField::none(),
+                },
+                ..Default::default()
+            };
+            if let Some((bytes, up)) = thumb {
+                ext.jpeg_thumbnail = Some(bytes);
+                ext.thumbnail_direct_path = Some(up.direct_path);
+                ext.thumbnail_sha256 = Some(up.file_sha256.to_vec());
+                ext.thumbnail_enc_sha256 = Some(up.file_enc_sha256.to_vec());
+                ext.media_key = Some(up.media_key.to_vec());
+                ext.media_key_timestamp = Some(up.media_key_timestamp);
+            }
+
+            let message = wa::Message {
+                extended_text_message: MessageField::some(ext),
+                ..Default::default()
+            };
+            client
+                .send_message_with_options(jid, message, opts)
                 .await
                 .map(|_| ())
                 .map_err(|e| e.to_string())
@@ -1345,6 +1411,9 @@ pub struct Rendered {
     /// Kartu yang header/stiker-nya masih perlu di-upload. `Some` = kirim
     /// lewat [`MessageSender::send_card`].
     pub card: Option<PendingCard>,
+    /// Preview link yang thumbnail-nya masih perlu di-upload. `Some` = kirim
+    /// lewat [`MessageSender::send_preview`].
+    pub preview: Option<PendingPreview>,
     /// Id pesan yang harus dipakai — pipeline mengaturnya supaya pesan
     /// berikutnya bisa mengaitkan diri lewat `messageAssociation`.
     pub message_id: Option<String>,
@@ -1357,6 +1426,7 @@ impl Rendered {
             extra_nodes,
             media: None,
             card: None,
+            preview: None,
             message_id: None,
         }
     }
@@ -1369,6 +1439,19 @@ impl Rendered {
             extra_nodes,
             media: None,
             card: Some(card),
+            preview: None,
+            message_id: None,
+        }
+    }
+
+    /// Preview link yang thumbnail-nya belum ter-upload.
+    pub(crate) fn preview(pending: PendingPreview) -> Self {
+        Self {
+            message: wa::Message::default(),
+            extra_nodes: Vec::new(),
+            media: None,
+            card: None,
+            preview: Some(pending),
             message_id: None,
         }
     }
@@ -1378,6 +1461,24 @@ impl Rendered {
     pub fn needs_media(&self) -> bool {
         self.media.is_some() || self.card.is_some()
     }
+}
+
+/// Preview link yang thumbnail-nya belum naik ke CDN.
+///
+/// `sock.sendPreview` (JS) mengirim `extendedTextMessage` dengan `matchedText`
+/// + `previewType` + thumbnail. Field thumbnail (`thumbnailDirectPath`,
+/// `mediaKey`, `thumbnailSha256`, ...) berasal dari hasil upload, jadi
+/// thumbnail harus di-upload dulu sebelum pesannya bisa disusun.
+#[derive(Debug, Clone)]
+pub struct PendingPreview {
+    pub text: String,
+    pub matched_text: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    /// WA `PreviewType`: 0 = NONE, 1 = VIDEO.
+    pub preview_type: i32,
+    pub thumbnail: Option<MediaSource>,
+    pub context: Option<wa::ContextInfo>,
 }
 
 /// Kartu interaktif yang belum siap dikirim.
@@ -2016,6 +2117,7 @@ pub fn render_reply(
             extra_nodes: Vec::new(),
             media: Some(pending(MediaKind::Sticker, "Sticker", src, "", &[])?),
             card: None,
+            preview: None,
             message_id: None,
         })),
         Reply::Image {
@@ -2027,6 +2129,7 @@ pub fn render_reply(
             extra_nodes: Vec::new(),
             media: Some(pending(MediaKind::Image, "Image", src, caption, mentions)?),
             card: None,
+            preview: None,
             message_id: None,
         })),
         Reply::Video {
@@ -2042,6 +2145,7 @@ pub fn render_reply(
                 extra_nodes: Vec::new(),
                 media: Some(media),
                 card: None,
+                preview: None,
                 message_id: None,
             }))
         }
@@ -2057,6 +2161,7 @@ pub fn render_reply(
                 extra_nodes: Vec::new(),
                 media: Some(media),
                 card: None,
+                preview: None,
                 message_id: None,
             }))
         }
@@ -2068,6 +2173,7 @@ pub fn render_reply(
                 extra_nodes: Vec::new(),
                 media: Some(media),
                 card: None,
+                preview: None,
                 message_id: None,
             }))
         }
@@ -2084,6 +2190,7 @@ pub fn render_reply(
                 extra_nodes: Vec::new(),
                 media: Some(media),
                 card: None,
+                preview: None,
                 message_id: None,
             }))
         }
@@ -2129,6 +2236,53 @@ pub fn render_reply(
             let quote = card_quote_message(context.as_deref(), quote);
             let card = build_card_proto(&pending, None, quote, target.quote.as_ref())?;
             Ok(Some(Rendered::wire(card.to_message(), vec![biz_node()])))
+        }
+        Reply::Preview {
+            text,
+            matched_text,
+            title,
+            description,
+            thumbnail,
+            preview_type,
+            context,
+        } => {
+            let ctx_info = match context.as_deref() {
+                Some(c) => build_card_context(Some(c), None, quote),
+                None => None,
+            };
+            let ctx_for_ext = ctx_info.clone();
+            let pending = PendingPreview {
+                text: text.clone(),
+                matched_text: matched_text.clone(),
+                title: title.clone(),
+                description: description.clone(),
+                preview_type: *preview_type,
+                thumbnail: thumbnail.clone(),
+                context: ctx_info,
+            };
+            if pending.thumbnail.is_some() {
+                return Ok(Some(Rendered::preview(pending)));
+            }
+            let ext = wa::message::ExtendedTextMessage {
+                text: Some(text.clone()),
+                matched_text: Some(matched_text.clone()),
+                title: title.clone(),
+                description: description.clone(),
+                preview_type: Some(match *preview_type {
+                    1 => wa::message::extended_text_message::PreviewType::Video,
+                    _ => wa::message::extended_text_message::PreviewType::None,
+                }),
+                context_info: match ctx_for_ext {
+                    Some(c) => MessageField::some(c),
+                    None => MessageField::none(),
+                },
+                ..Default::default()
+            };
+            let message = wa::Message {
+                extended_text_message: MessageField::some(ext),
+                ..Default::default()
+            };
+            Ok(Some(Rendered::wire(message, Vec::new())))
         }
         Reply::Table {
             title,
@@ -3230,10 +3384,11 @@ impl Pipeline {
         // Kartu yang butuh upload header juga begitu: `message` kosong sampai
         // `send_card` merakitnya.
         let opts = send_options(&rendered);
-        let sent = match (rendered.media, rendered.card) {
-            (Some(pending), _) => self.sender.send_media(chat, pending, opts).await,
-            (None, Some(card)) => self.sender.send_card(chat, card, opts).await,
-            (None, None) => self.sender.send(chat, rendered.message, opts).await,
+        let sent = match (rendered.media, rendered.card, rendered.preview) {
+            (Some(pending), _, _) => self.sender.send_media(chat, pending, opts).await,
+            (None, Some(card), _) => self.sender.send_card(chat, card, opts).await,
+            (None, None, Some(preview)) => self.sender.send_preview(chat, preview, opts).await,
+            (None, None, None) => self.sender.send(chat, rendered.message, opts).await,
         };
         sent.map_err(|e| PipelineError::Other(format!("gagal kirim: {e}")))
     }

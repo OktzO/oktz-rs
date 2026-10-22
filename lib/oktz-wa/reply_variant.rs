@@ -220,6 +220,7 @@ fn render_variant_2(input: &VariantInput<'_>) -> Rendered {
             paired: false,
         }),
         card: None,
+        preview: None,
         message_id: None,
     }
 }
@@ -258,6 +259,7 @@ fn render_variant_3(input: &VariantInput<'_>) -> Rendered {
             paired: false,
         }),
         card: None,
+        preview: None,
         message_id: None,
     }
 }
@@ -370,6 +372,7 @@ fn render_variant_6(input: &VariantInput<'_>) -> Rendered {
             paired: false,
         }),
         card: None,
+        preview: None,
         message_id: None,
     }
 }
