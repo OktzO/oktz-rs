@@ -289,17 +289,150 @@ pub fn ttdown_from_tikwm(http: &dyn HttpGet, url: &str) -> Result<Value, HttpErr
                 }),
         ),
     );
+    // `fullname: res.author?.unique_id || "-"` (`tiktokdl.js:141`).
+    penulis.insert(
+        "fullname".to_string(),
+        Value::String(
+            field(&data, "author.unique_id")
+                .filter(|v| truthy(v))
+                .map(string_js)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+    );
     penulis.insert(
         "avatar".to_string(),
         prefixed_atau_null(field(&data, "author.avatar")),
     );
+
+    // `formatNumber(integer)` (`tiktokdl.js:28-32`) — angka dipisah pakai
+    // titik, jadi `1234` → "1.234".
+    let format_angka = |v: Option<&Value>| -> String {
+        let n = v
+            .filter(|v| truthy(v))
+            .and_then(|v| v.as_f64())
+            .map(|f| f.trunc() as i64)
+            .unwrap_or(0);
+        let s = n.abs().to_string();
+        let mut bagian = Vec::new();
+        let mut mulai = 0;
+        while s.len() - mulai > 3 {
+            bagian.push(s[mulai..mulai + 3].to_string());
+            mulai += 3;
+        }
+        bagian.push(s[mulai..].to_string());
+        let hasil = bagian.join(".");
+        if n < 0 {
+            format!("-{hasil}")
+        } else {
+            hasil
+        }
+    };
+
+    let mut statistik = Map::new();
+    statistik.insert(
+        "views".to_string(),
+        Value::String(format_angka(data.get("play_count"))),
+    );
+    statistik.insert(
+        "likes".to_string(),
+        Value::String(format_angka(data.get("digg_count"))),
+    );
+    statistik.insert(
+        "comment".to_string(),
+        Value::String(format_angka(data.get("comment_count"))),
+    );
+    statistik.insert(
+        "share".to_string(),
+        Value::String(format_angka(data.get("share_count"))),
+    );
+    statistik.insert(
+        "download".to_string(),
+        Value::String(format_angka(data.get("download_count"))),
+    );
+
+    let mut musik = Map::new();
+    musik.insert(
+        "id".to_string(),
+        Value::String(atau_kosong(field(&data, "music_info.id"))),
+    );
+    musik.insert(
+        "title".to_string(),
+        Value::String(
+            field(&data, "music_info.title")
+                .filter(|v| truthy(v))
+                .map(string_js)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+    );
+    musik.insert(
+        "author".to_string(),
+        Value::String(
+            field(&data, "music_info.author")
+                .filter(|v| truthy(v))
+                .map(string_js)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+    );
+    musik.insert(
+        "album".to_string(),
+        prefixed_atau_null(field(&data, "music_info.album")),
+    );
+    musik.insert(
+        "url".to_string(),
+        match data.get("music").filter(|v| truthy(v)) {
+            Some(m) => Value::String(format!("https://www.tikwm.com{}", string_js(m))),
+            None => prefixed_atau_null(field(&data, "music_info.play")),
+        },
+    );
+
+    let durasi_num = data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
     let mut out = Map::new();
     out.insert("title".to_string(), Value::String(atau_kosong(data.get("title"))));
     out.insert("author".to_string(), Value::Object(penulis));
     out.insert("cover".to_string(), prefixed_atau_null(data.get("cover")));
     out.insert("downloads".to_string(), Value::Array(downloads));
+    // Field tambahan supaya caption `tiktokdl.js:411-431` bisa dirakit:
+    // statistik, musik, durasi, wilayah, dan waktu unggah.
+    out.insert("stats".to_string(), Value::Object(statistik));
+    out.insert("music_info".to_string(), Value::Object(musik));
+    out.insert("durations".to_string(), Value::from(durasi_num));
+    out.insert(
+        "duration".to_string(),
+        Value::String(format!("{} Seconds", durasi_num)),
+    );
+    out.insert(
+        "region".to_string(),
+        Value::String(
+            data.get("region")
+                .filter(|v| truthy(v))
+                .map(string_js)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+    );
+    out.insert("id".to_string(), Value::String(atau_kosong(data.get("id"))));
+    // `formatDate(res.create_time)` (`tiktokdl.js:35-46`) — tanpa ICU di Rust,
+    // dipakai format ISO-like; nilainya tetap "waktu unggah".
+    out.insert(
+        "taken_at".to_string(),
+        Value::String(
+            data.get("create_time")
+                .filter(|v| truthy(v))
+                .and_then(|v| v.as_i64())
+                .map(format_waktu)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+    );
+    out.insert("_provider".to_string(), Value::String("tikwm".to_string()));
     Ok(Value::Object(out))
+}
+
+/// `formatDate(n * 1000)` (`tiktokdl.js:35-46`) — versi ISO-like, tanpa ICU.
+fn format_waktu(epoch: i64) -> String {
+    match chrono::DateTime::from_timestamp(epoch, 0) {
+        Some(t) => t.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        None => "-".to_string(),
+    }
 }
 
 /// `getSaveTTToken()` (`tiktok.js:76-85`).

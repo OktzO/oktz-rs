@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde_json::Value;
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::waproto::buffa::MessageField;
+use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_message::header::Media as HeaderMediaOneof;
 use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_message::InteractiveMessage as ImOneof;
 use whatsapp_rust::{NodeBuilder, wacore_binary::Node};
 
@@ -36,6 +37,8 @@ pub enum ButtonAction {
     CtaCancelReminder,
     AddressMessage,
     SendLocation,
+    /// `inapp_signup` (`serialize.js:1189-1194`) — tombol tanpa params.
+    InAppSignup,
 }
 
 impl ButtonAction {
@@ -50,6 +53,7 @@ impl ButtonAction {
             Self::CtaCancelReminder => "cta_cancel_reminder",
             Self::AddressMessage => "address_message",
             Self::SendLocation => "send_location",
+            Self::InAppSignup => "inapp_signup",
         }
     }
 
@@ -66,6 +70,7 @@ impl ButtonAction {
             "cta_cancel_reminder" => Self::CtaCancelReminder,
             "address_message" => Self::AddressMessage,
             "send_location" => Self::SendLocation,
+            "inapp_signup" => Self::InAppSignup,
             _ => return None,
         })
     }
@@ -143,6 +148,10 @@ impl Section {
 pub struct List {
     pub title: String,
     pub sections: Vec<Section>,
+    /// Penanda gaya tombol WA: `"DEFAULT"` atau `"REVIEW"`
+    /// (`plugins/main/menu.js:413, 442, 627, 715`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 impl List {
@@ -150,7 +159,13 @@ impl List {
         Self {
             title: title.into(),
             sections: sections.into_iter().collect(),
+            icon: None,
         }
+    }
+
+    pub fn icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
+        self
     }
 
     /// Kartu list siap kirim: body + footer + satu tombol `single_select`.
@@ -201,11 +216,32 @@ impl Button {
 
     /// Tombol `single_select` — isi params dari [`List`].
     pub fn select(list: &List) -> Self {
-        Self::new(
-            ButtonAction::SingleSelect,
-            serde_json::json!({ "title": &list.title, "sections": &list.sections }),
-        )
+        let mut params = serde_json::Map::new();
+        params.insert("title".into(), Value::String(list.title.clone()));
+        params.insert(
+            "sections".into(),
+            serde_json::to_value(&list.sections).unwrap_or(Value::Null),
+        );
+        // `icon` hanya ada kalau diisi — JS menulis `icon` pada daftar menu,
+        // dan daftar tanpa `icon` tidak boleh bringing `icon: null`.
+        if let Some(icon) = &list.icon {
+            params.insert("icon".into(), Value::String(icon.clone()));
+        }
+        Self::new(ButtonAction::SingleSelect, Value::Object(params))
     }
+}
+
+/// Media pada header kartu, sudah dalam bentuk proto.
+///
+/// Header gambar/video butuh byte yang sudah ter-upload ke CDN; lokasi tidak.
+/// Bentuk-bentuk ini diambil dari pemakaian nyata di `plugins/main/menu.js`:
+/// `imageMessage` (`:477`), `videoMessage` (`:726`), `locationMessage`
+/// (`:1015`).
+#[derive(Debug, Clone)]
+pub enum HeaderMedia {
+    Image(wa::message::ImageMessage),
+    Video(wa::message::VideoMessage),
+    Location(wa::message::LocationMessage),
 }
 
 /// Header kartu. Media header perlu pesan yang sudah ter-upload, jadi
@@ -215,6 +251,7 @@ pub struct Header {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub has_media_attachment: bool,
+    pub media: Option<HeaderMedia>,
 }
 
 /// Kartu native-flow. Kirim dengan `biz_node()` sebagai extra stanza node,
@@ -285,12 +322,30 @@ impl Card {
             .collect();
 
         let header = match &self.header {
-            Some(h) => ProtoHeader {
-                title: h.title.clone(),
-                subtitle: h.subtitle.clone(),
-                has_media_attachment: Some(h.has_media_attachment),
-                ..Default::default()
-            },
+            Some(h) => {
+                let mut proto = ProtoHeader {
+                    title: h.title.clone(),
+                    subtitle: h.subtitle.clone(),
+                    has_media_attachment: Some(h.has_media_attachment),
+                    ..Default::default()
+                };
+                // Media header masuk lewat oneof `media` (waproto-0.7.0
+                // `whatsapp.proto:3486`). Tanpa oneof ini WA mengabaikan
+                // lampiran dan hanya menampilkan judul.
+                match &h.media {
+                    Some(HeaderMedia::Image(m)) => {
+                        proto.media = Some(HeaderMediaOneof::ImageMessage(Box::new(m.clone())));
+                    }
+                    Some(HeaderMedia::Video(m)) => {
+                        proto.media = Some(HeaderMediaOneof::VideoMessage(Box::new(m.clone())));
+                    }
+                    Some(HeaderMedia::Location(m)) => {
+                        proto.media = Some(HeaderMediaOneof::LocationMessage(Box::new(m.clone())));
+                    }
+                    None => {}
+                }
+                proto
+            }
             None => ProtoHeader {
                 has_media_attachment: Some(false),
                 ..Default::default()

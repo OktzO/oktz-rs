@@ -17,9 +17,11 @@ pub mod reply_variant;
 pub mod rss;
 pub mod session;
 pub mod sock_client;
+pub mod tables;
 
 pub use bot::{build_device, connect_device, prepare_store};
 pub use cards::{biz_node, build_card, build_list};
+pub use tables::{Table, build_table, list_table};
 pub use creds::{DeviceMapping, inspect_creds};
 pub use load::{LoadReport, load_into_store};
 pub use pipeline::{

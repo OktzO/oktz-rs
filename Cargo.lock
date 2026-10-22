@@ -1279,6 +1279,7 @@ dependencies = [
 name = "oktz-scraper"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "md-5",
  "oktz-plugin-api",
  "rand 0.9.5",

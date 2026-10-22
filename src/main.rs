@@ -486,16 +486,24 @@ async fn send(
                     // replyVariant 9 — bentuk balasan yang aktif di produksi.
                     // Tanpa pemicu, jadi tidak ada kutipan/mention; yang
                     // diuji di sini adalah bubble orderMessage-nya.
-                    "order9" => oktz_wa::reply_variant::render_variant_9(
-                        "Balasan produksi Rust (replyVariant 9)",
-                        &oktz_wa::ReplyTarget::default(),
-                        oktz_wa::reply_variant::thumbnail_bytes(
-                            &std::env::current_dir().unwrap_or_default(),
-                            false,
-                        )
-                        .as_deref(),
-                    )
-                    .message,
+                    "order9" => {
+                        let root = std::env::current_dir().unwrap_or_default();
+                        let target = oktz_wa::ReplyTarget::default();
+                        let input = oktz_wa::reply_variant::VariantInput {
+                            text: "Balasan produksi Rust (replyVariant 9)",
+                            target: &target,
+                            root: &root,
+                            bot_name: "Oktz Bot",
+                            bot_developer: "Zann",
+                            bot_version: "3.3.1",
+                            website: "https://oktzz.xyz",
+                            newsletter_jid: "120363411617217441@newsletter",
+                            newsletter_name: "Join saluran resmi Oktz",
+                            owner_number: "6285608953677",
+                            srt_enabled: false,
+                        };
+                        oktz_wa::reply_variant::render_variant_9(&input).message
+                    }
                     _ => oktz_wa::Message::text("Halo dari produksi Rust"),
                 };
 

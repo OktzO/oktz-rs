@@ -17,7 +17,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(
     name = "listvps",
-    alias = [],
+    alias = ["listdroplet", "vpslist"],
     category = "vps",
     description = "List semua VPS DigitalOcean (DIBLOKIR: config.digitalocean belum tersedia di Rust)",
     usage = ".listvps",

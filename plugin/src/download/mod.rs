@@ -29,4 +29,6 @@ pub mod aio;
 pub mod alightmotion;
 
 // Ditambahkan scripts/pasang-modul.mjs.
+pub mod tiktok;
 pub mod tiktokdl2;
+pub mod ttmp3;

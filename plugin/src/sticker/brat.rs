@@ -317,6 +317,7 @@ mod tests {
                 body,
                 footer,
                 buttons,
+                ..
             } = r.without_mutations()
             else {
                 panic!("command {cmd}: harus kartu interaktif");

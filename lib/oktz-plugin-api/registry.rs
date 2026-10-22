@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::meta::PluginMeta;
@@ -129,6 +130,314 @@ impl InteractiveButton {
             }),
         )
     }
+
+    /// `{ name: "quick_reply", buttonParamsJson: JSON.stringify({display_text, id}) }`.
+    ///
+    /// `id` adalah PERINTAH yang dijalankan saat tombol ditekan — jadi di sini
+    /// harus sudah berisi prefix, misalnya `.menucat tools`
+    /// (`plugins/main/menu.js:620-624`).
+    pub fn quick_reply(display_text: impl Into<String>, id: impl Into<String>) -> Self {
+        Self::new(
+            "quick_reply",
+            serde_json::json!({ "display_text": display_text.into(), "id": id.into() }),
+        )
+    }
+
+    /// `{ name: "cta_url", buttonParamsJson: JSON.stringify({display_text, url}) }`.
+    pub fn url(display_text: impl Into<String>, url: impl Into<String>) -> Self {
+        Self::new(
+            "cta_url",
+            serde_json::json!({ "display_text": display_text.into(), "url": url.into() }),
+        )
+    }
+
+    /// `cta_url` dengan `merchant_url` — bentuk yang dipakai tombol "Owner"
+    /// (`plugins/main/menu.js:510-516`).
+    pub fn url_merchant(
+        display_text: impl Into<String>,
+        url: impl Into<String>,
+        merchant_url: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            "cta_url",
+            serde_json::json!({
+                "display_text": display_text.into(),
+                "url": url.into(),
+                "merchant_url": merchant_url.into(),
+            }),
+        )
+    }
+
+    /// `{ name: "single_select", buttonParamsJson: JSON.stringify(list) }`.
+    pub fn select(list: &CardList) -> Self {
+        Self::new("single_select", serde_json::to_value(list).unwrap_or(Value::Null))
+    }
+
+    /// Tombol dengan nama aksi dan params kosong — dipakai `inapp_signup`
+    /// (`serialize.js:1189-1194`) dan slot kosong pada varian menu 5/6
+    /// (`plugins/main/menu.js:924-927`).
+    pub fn empty(name: impl Into<String>) -> Self {
+        Self::new(name, Value::String(String::new()))
+    }
+}
+
+/// Satu baris di dalam `single_select` — `buttonParamsJson.sections[].rows[]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CardRow {
+    pub title: String,
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl CardRow {
+    pub fn new(title: impl Into<String>, id: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            id: id.into(),
+            header: None,
+            description: None,
+        }
+    }
+
+    pub fn description(mut self, d: impl Into<String>) -> Self {
+        self.description = Some(d.into());
+        self
+    }
+
+    pub fn header(mut self, h: impl Into<String>) -> Self {
+        self.header = Some(h.into());
+        self
+    }
+}
+
+/// Satu section di dalam `single_select`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct CardSection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highlight_label: Option<String>,
+    pub rows: Vec<CardRow>,
+}
+
+impl CardSection {
+    pub fn new(title: impl Into<String>) -> Self {
+        Self {
+            title: Some(title.into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn highlight_label(mut self, h: impl Into<String>) -> Self {
+        self.highlight_label = Some(h.into());
+        self
+    }
+
+    pub fn row(mut self, r: CardRow) -> Self {
+        self.rows.push(r);
+        self
+    }
+
+    pub fn rows(mut self, it: impl IntoIterator<Item = CardRow>) -> Self {
+        self.rows.extend(it);
+        self
+    }
+}
+
+/// Isi `buttonParamsJson` untuk `single_select` — `builder.js:607-633`.
+///
+/// `icon` adalah penanda gaya tombol yang WhatsApp baca: `"DEFAULT"` atau
+/// `"REVIEW"` (`plugins/main/menu.js:413, 442, 627, 715`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct CardList {
+    pub title: String,
+    pub sections: Vec<CardSection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+}
+
+impl CardList {
+    pub fn new(title: impl Into<String>, sections: impl IntoIterator<Item = CardSection>) -> Self {
+        Self {
+            title: title.into(),
+            sections: sections.into_iter().collect(),
+            icon: None,
+        }
+    }
+
+    pub fn icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
+        self
+    }
+}
+
+/// Media header kartu interaktif.
+///
+/// `header` pada `interactiveMessage` bisa berisi gambar, video, atau lokasi
+/// (`plugins/main/menu.js:473-478` gambar, `:722-727` video, `:1013-1022`
+/// lokasi). Gambar dan video harus ter-upload ke CDN dulu seperti media biasa;
+/// lokasi tidak perlu.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CardMedia {
+    Image { source: MediaSource },
+    Video { source: MediaSource },
+    Location(CardLocation),
+}
+
+/// `locationMessage` pada header kartu.
+///
+/// Koordinat `f64` karena proto-nya `double` — makanya tipe ini (dan yang
+/// memegangnya) tidak bisa `Eq`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CardLocation {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub name: String,
+    pub address: Option<String>,
+    pub thumbnail: Option<Vec<u8>>,
+}
+
+/// Header kartu interaktif.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CardHeader {
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub media: Option<CardMedia>,
+}
+
+impl CardHeader {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn title(mut self, t: impl Into<String>) -> Self {
+        self.title = Some(t.into());
+        self
+    }
+
+    pub fn subtitle(mut self, s: impl Into<String>) -> Self {
+        self.subtitle = Some(s.into());
+        self
+    }
+
+    pub fn image(mut self, source: MediaSource) -> Self {
+        self.media = Some(CardMedia::Image { source });
+        self
+    }
+
+    pub fn video(mut self, source: MediaSource) -> Self {
+        self.media = Some(CardMedia::Video { source });
+        self
+    }
+
+    pub fn location(mut self, loc: CardLocation) -> Self {
+        self.media = Some(CardMedia::Location(loc));
+        self
+    }
+}
+
+/// Info surat berita untuk `forwardedNewsletterMessageInfo`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewsletterInfo {
+    pub jid: String,
+    pub name: String,
+    pub server_message_id: i64,
+}
+
+/// Pesan yang dirujuk kartu lewat `contextInfo.quotedMessage`.
+///
+/// Di JS ini `quoted` pada `generateWAMessageFromContent` — dan karena
+/// `normalizeMessageContent` membuka wrapper `viewOnceMessage`, hasilnya
+/// mendarat di `interactiveMessage.contextInfo.quotedMessage`, bukan di
+/// `contextInfo` pesan luar (`onigis/lib/Utils/messages.js:558-610`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum CardQuote {
+    /// `contactMessage` — kartu "Yth. ..." (`plugins/main/menu.js:314-316`).
+    Contact { display_name: String, vcard: String },
+    /// `locationMessage` — kartu cuaca (`plugins/main/menu.js:652-662`).
+    Location {
+        latitude: f64,
+        longitude: f64,
+        name: String,
+        thumbnail: Option<Vec<u8>>,
+    },
+    /// `videoMessage` — video palsu tanpa upload (`plugins/main/menu.js:678-692`).
+    Video {
+        caption: String,
+        seconds: u32,
+        mimetype: String,
+        thumbnail: Option<Vec<u8>>,
+        file_length: u64,
+    },
+    /// `stickerMessage` — stiker palsu; gambarnya tetap perlu di-upload
+    /// (`plugins/main/menu.js:1151-1163`).
+    Sticker { source: MediaSource },
+    /// `conversation` — teks biasa (`plugins/main/menucat.js:262-264`).
+    Text(String),
+}
+
+/// `contextInfo` kartu interaktif.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CardContext {
+    pub mentioned: Vec<String>,
+    pub is_forwarded: bool,
+    pub forwarding_score: i64,
+    pub forwarded_newsletter: Option<NewsletterInfo>,
+    /// `participant` — siapa pemilik pesan yang dirujuk.
+    pub participant: Option<String>,
+    /// `stanzaId` — id pesan yang dirujuk.
+    pub stanza_id: Option<String>,
+    /// `remoteJid` — asal pesan yang dirujuk (dibutuhkan untuk grup).
+    pub remote_jid: Option<String>,
+    /// `quotedMessage` — pesan yang dirujuk.
+    pub quote: Option<Box<CardQuote>>,
+    /// `true` = kutip pesan yang memicu perintah ini, bukan pesan palsu.
+    ///
+    /// Di JS ini `quoted: m` pada `generateWAMessageFromContent`
+    /// (`plugins/main/menu.js:1074` varian 6, `plugins/main/sc.js:63`).
+    /// Berbeda dengan `quote` yang eksplisit: kalau ini aktif, pipeline yang
+    /// mengisi `quotedMessage` dari pemicunya.
+    pub quote_trigger: bool,
+}
+
+impl CardContext {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn mention(mut self, jid: impl Into<String>) -> Self {
+        self.mentioned.push(jid.into());
+        self
+    }
+
+    pub fn forwarded(mut self, score: i64) -> Self {
+        self.is_forwarded = true;
+        self.forwarding_score = score;
+        self
+    }
+
+    pub fn newsletter(mut self, jid: impl Into<String>, name: impl Into<String>) -> Self {
+        self.forwarded_newsletter = Some(NewsletterInfo {
+            jid: jid.into(),
+            name: name.into(),
+            server_message_id: 127,
+        });
+        self
+    }
+
+    pub fn quote(mut self, quote: CardQuote) -> Self {
+        self.quote = Some(Box::new(quote));
+        self
+    }
+
+    /// Kutip pesan yang memicu perintah — `quoted: m` di JS.
+    pub fn quote_trigger(mut self) -> Self {
+        self.quote_trigger = true;
+        self
+    }
 }
 
 /// Satu perubahan state yang diminta plugin.
@@ -164,7 +473,10 @@ pub enum Mutation {
 /// `sock.sendMessage`, dan sebagian besar mengirim `text` + `mentions`.
 /// Media ada karena ~22 plugin mengirim image/sticker/document — variant
 /// `Image` dipakai class C (media), `Interactive` untuk card WA.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+///
+/// `Eq` TIDAK diturunkan: kartu boleh membawa koordinat `f64`
+/// (`CardLocation`), dan `f64` tidak punya `Eq`.
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum Reply {
     /// Tidak membalas (JS: handler yang hanya efek samping atau `return`).
     #[default]
@@ -243,10 +555,47 @@ pub enum Reply {
     /// (`cta_copy`, `quick_reply`, ...) + objek `buttonParamsJson`. Pipeline
     /// yang memetakan ke proto; nama tak dikenal ditolak, bukan dibuang.
     /// `footer` = `footer` JS; `None` berarti footer tidak dikirim.
+    ///
+    /// `header`, `message_params`, dan `context` adalah bagian lain dari
+    /// `interactiveMessage` yang sama di JS:
+    /// - `header` — `header: { title, subtitle, imageMessage/videoMessage/
+    ///   locationMessage }` (`plugins/main/menu.js:473-478`).
+    /// - `message_params` — `nativeFlowMessage.messageParamsJson`
+    ///   (`bottom_sheet`, `limited_time_offer`, `tap_target_configuration`).
+    /// - `context` — `interactiveMessage.contextInfo` (mention, forwarded,
+    ///   surat berita, dan pesan yang dirujuk).
     Interactive {
         body: String,
         footer: Option<String>,
         buttons: Vec<InteractiveButton>,
+        /// Dikotak supaya enum `Reply` tetap ramping — `CardHeader` dan
+        /// `CardContext` jauh lebih besar daripada varian lain.
+        header: Option<Box<CardHeader>>,
+        message_params: Option<Value>,
+        context: Option<Box<CardContext>>,
+    },
+    /// Tabel WhatsApp — `sock.sendTable` di JS.
+    ///
+    /// Bentuk wire-nya `botForwardedMessage > richResponseMessage`
+    /// (`src/lib/rich-messages.js:609-637`), bukan pesan teks biasa: baris
+    /// judul, isi tabel, dan footer dirangkai jadi submessage.
+    Table {
+        title: String,
+        headers: Vec<String>,
+        rows: Vec<Vec<String>>,
+        header_text: Option<String>,
+        footer: Option<String>,
+    },
+    /// Video yang menempel pada pesan sebelumnya (WA `messageAssociation`).
+    ///
+    /// `menu.js:1215-1229` mengirim video sebagai pesan kedua yang
+    /// menempel pada kartu menu lewat `messageAssociation`
+    /// (`associationType: 12`). Di Rust pipeline yang mengisi induknya,
+    /// jadi plugin cukup menyebut "video ini menempel pada pesan sebelum".
+    PairedVideo {
+        media: Option<MediaSource>,
+        caption: String,
+        mentions: Vec<String>,
     },
     /// Reaksi emoji pada pesan yang memicu (JS `m.react`).
     ///
@@ -336,6 +685,9 @@ impl Reply {
             body: body.into(),
             footer: None,
             buttons: Vec::new(),
+            header: None,
+            message_params: None,
+            context: None,
         }
     }
 
@@ -353,6 +705,78 @@ impl Reply {
     pub fn with_button(mut self, button: InteractiveButton) -> Self {
         if let Self::Interactive { buttons, .. } = &mut self {
             buttons.push(button);
+        }
+        self
+    }
+
+    /// Tambah banyak tombol sekaligus — dipakai varian menu yang membuat
+    /// satu `single_select` per kategori (`menu.js:697-718`).
+    pub fn with_buttons(mut self, list: Vec<InteractiveButton>) -> Self {
+        if let Self::Interactive { buttons, .. } = &mut self {
+            buttons.extend(list);
+        }
+        self
+    }
+
+    /// `header` kartu interaktif — gambar/video/lokasi di atas body.
+    pub fn with_header(mut self, header: CardHeader) -> Self {
+        if let Self::Interactive { header: h, .. } = &mut self {
+            *h = Some(Box::new(header));
+        }
+        self
+    }
+
+    /// `nativeFlowMessage.messageParamsJson` — `bottom_sheet`,
+    /// `limited_time_offer`, `tap_target_configuration`.
+    pub fn with_message_params(mut self, params: Value) -> Self {
+        if let Self::Interactive {
+            message_params: p, ..
+        } = &mut self
+        {
+            *p = Some(params);
+        }
+        self
+    }
+
+    /// `interactiveMessage.contextInfo` — mention, forwarded, surat berita,
+    /// dan pesan yang dirujuk.
+    pub fn with_context(mut self, context: CardContext) -> Self {
+        if let Self::Interactive { context: c, .. } = &mut self {
+            *c = Some(Box::new(context));
+        }
+        self
+    }
+
+    /// Tabel WhatsApp — `sock.sendTable(title, headers, rows, quoted, options)`.
+    ///
+    /// `header_text` = `options.headerText`, `footer` = `options.footer`
+    /// (`src/lib/rich-messages.js:616`).
+    pub fn table(
+        title: impl Into<String>,
+        headers: impl IntoIterator<Item = impl Into<String>>,
+        rows: impl IntoIterator<Item = Vec<String>>,
+    ) -> Self {
+        Self::Table {
+            title: title.into(),
+            headers: headers.into_iter().map(Into::into).collect(),
+            rows: rows.into_iter().collect(),
+            header_text: None,
+            footer: None,
+        }
+    }
+
+    /// Teks sebelum tabel (`options.headerText`).
+    pub fn with_header_text(mut self, text: impl Into<String>) -> Self {
+        if let Self::Table { header_text, .. } = &mut self {
+            *header_text = Some(text.into());
+        }
+        self
+    }
+
+    /// Teks setelah tabel (`options.footer`).
+    pub fn with_table_footer(mut self, text: impl Into<String>) -> Self {
+        if let Self::Table { footer, .. } = &mut self {
+            *footer = Some(text.into());
         }
         self
     }
@@ -380,6 +804,16 @@ impl Reply {
             caption: caption.into(),
             mentions: Vec::new(),
             gif_playback: false,
+        }
+    }
+
+    /// Video yang menempel pada pesan sebelumnya — `messageAssociation`
+    /// (`menu.js:1215-1229`).
+    pub fn paired_video(source: MediaSource, caption: impl Into<String>) -> Self {
+        Self::PairedVideo {
+            media: Some(source),
+            caption: caption.into(),
+            mentions: Vec::new(),
         }
     }
 
@@ -541,9 +975,11 @@ impl Reply {
             | Self::Image { .. }
             | Self::Sticker { .. }
             | Self::Video { .. }
+            | Self::PairedVideo { .. }
             | Self::Audio { .. }
             | Self::Document { .. }
             | Self::Interactive { .. }
+            | Self::Table { .. }
             | Self::Reaction { .. }
             | Self::Mutate { .. } => false,
         }
@@ -575,8 +1011,26 @@ impl Reply {
             Self::Image { .. }
                 | Self::Sticker { .. }
                 | Self::Video { .. }
+                | Self::PairedVideo { .. }
                 | Self::Audio { .. }
                 | Self::Document { .. }
+        )
+    }
+
+    /// `true` kalau balasan ini TEKS.
+    ///
+    /// Varian `replyVariant` (`serialize.js:958-1357`) hanya berlaku untuk
+    /// `m.reply` — yaitu balasan teks. Kartu, gambar, dan sticker di JS dikirim
+    /// lewat `sock.sendMessage`/`sock.relayMessage` langsung, jadi tidak pernah
+    /// melewati logika varian. Tanpa pemisahan ini, kartu akan ikut dirender
+    /// sebagai `orderMessage` dan tombolnya hilang.
+    pub fn is_text_like(&self) -> bool {
+        matches!(
+            self.payload(),
+            Self::Text { .. }
+                | Self::TextQuoted { .. }
+                | Self::NoQuote { .. }
+                | Self::TextNoMention { .. }
         )
     }
 
@@ -591,6 +1045,7 @@ impl Reply {
             Self::Image { media, .. }
             | Self::Sticker { media }
             | Self::Video { media, .. }
+            | Self::PairedVideo { media, .. }
             | Self::Audio { media, .. }
             | Self::Document { media, .. } => media.as_ref(),
             _ => None,
@@ -606,6 +1061,7 @@ impl Reply {
             | Self::TextNoMention { text } => Some(text),
             Self::Image { caption, .. } => Some(caption),
             Self::Video { caption, .. } => Some(caption),
+            Self::PairedVideo { caption, .. } => Some(caption),
             Self::Document { caption, .. } => Some(caption),
             Self::Interactive { body, .. } => Some(body),
             Self::Reaction { reply, .. } => reply.text_body(),
@@ -618,6 +1074,9 @@ impl Reply {
             // tidak ada isinya.
             Self::Sequence(list) => list.iter().find_map(Self::text_body),
             Self::None | Self::Sticker { .. } | Self::Audio { .. } | Self::Mutate { .. } => None,
+            // Tabel tidak punya teks polos — isinya ada di dalam sel, dan
+            // router tidak boleh mengirim teks kosong sebagai gantinya.
+            Self::Table { .. } => None,
         }
     }
 }

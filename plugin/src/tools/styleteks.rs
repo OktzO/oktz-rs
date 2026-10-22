@@ -1102,6 +1102,7 @@ mod tests {
             body,
             footer,
             buttons,
+                ..
         } = tanpa.tanpa_reaksi()
         else {
             panic!("harus kartu interaktif");

@@ -4,3 +4,10 @@
 *.db
 /qr
 /bin/oktz
+
+# Bot JS (oktz-md) — repo git terpisah, dipakai sebagai sumber referensi
+# port, bukan bagian dari repo Rust.
+/oktz-md
+
+# Scratch agent.
+/.opencode

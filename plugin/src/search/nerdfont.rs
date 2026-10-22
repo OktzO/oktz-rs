@@ -545,6 +545,7 @@ Info: Y</div>
             body,
             footer,
             buttons,
+                ..
         } = r.without_mutations()
         else {
             panic!("harus kartu interaktif");

@@ -1,3 +1,4 @@
+pub mod allmenu;
 pub mod benefitowner;
 pub mod benefitpremium;
 pub mod menu;

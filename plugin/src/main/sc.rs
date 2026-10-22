@@ -1,6 +1,6 @@
 //! `plugins/main/sc.js` — link script bot (kartu tombol `cta_url`).
 
-use oktz_plugin_api::registry::InteractiveButton;
+use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `sc.js:24` — satu-satunya URL.
@@ -49,6 +49,8 @@ pub fn sc(ctx: Ctx) -> Reply {
                 "merchant_url": REPO_URL,
             }),
         ))
+        // `sc.js:63` — `quoted: m`, jadi kartu mengutip pesan pemicu.
+        .with_context(CardContext::new().quote_trigger())
 }
 
 #[cfg(test)]
@@ -94,6 +96,7 @@ mod tests {
             body: isi,
             footer,
             buttons,
+            ..
         } = r.without_mutations()
         else {
             panic!("harus kartu interaktif");

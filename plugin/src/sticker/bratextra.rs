@@ -17,7 +17,7 @@ pub(crate) fn help(prefix: &str, cmd: &str) -> String {
     name = "bratanime",
     alias = ["bratanime", "bratbahlil", "brathd", "bratpatrick", "bratsquidward", "bratwhite",
              "bratchika", "bratkobato", "bratmenhera", "bratnezuko", "bratqiqi", "bratruromiya",
-             "bratumaru"],
+             "bratumaru", "animebrat"],
     category = "sticker",
     description = "Bikin brat versi custom",
     usage = ".bratanime <teks>",

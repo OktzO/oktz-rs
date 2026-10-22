@@ -16,6 +16,8 @@ oktz-plugin-api = { path = "../oktz-plugin-api" }
 serde_json.workspace = true
 # `crypto.randomUUID()` / `randomBytes()` / `randomInt()` di JS.
 rand = "0.9"
+# `formatDate` (`tiktokdl.js:35-46`) — waktu unggah video TikTok.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 # Pola `replace(/.../)`, `match(/.../)`, `split(/.../)` — port regex JS.
 # Batas: lookahead/lookbehind/backreference tidak didukung crate ini; bagian
 # itu ditulis tangan dan dilaporkan.

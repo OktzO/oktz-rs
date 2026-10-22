@@ -33,7 +33,10 @@ use std::sync::Arc;
 
 /// Keputusan router untuk satu pesan — router yang memutuskan; ini yang
 /// differentiate "diam" (drop) dari "reply".
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `Eq` tidak diturunkan: `Reply` boleh membawa koordinat `f64` pada kartu
+/// interaktif, dan `f64` tidak punya `Eq`.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Decision {
     /// Bukan command — biarkan pipeline lain (smart trigger, game) yang
     /// mencoba. Router tidak balas apa pun.

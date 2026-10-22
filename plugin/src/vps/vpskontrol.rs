@@ -24,7 +24,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(
     name = "turnon",
-    alias = [],
+    alias = ["turnoff", "restartvps", "rebootvps"],
     category = "vps",
     description = "Kontrol VPS (on/off/restart) (DIBLOKIR: config.digitalocean belum tersedia di Rust)",
     usage = ".turnon <id>",

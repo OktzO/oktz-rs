@@ -18,7 +18,8 @@ use std::sync::{Arc, Mutex};
 
 use oktz_store::json_store::JsonStore;
 use oktz_wa::{
-    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node, Outcome, Pipeline,
+    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Outcome, Pipeline,
+    SendOptions,
     RosterSource, SendBox, SendBoxRoster, StoreContext,
 };
 use oktz_router::command::ParseOptions;
@@ -80,7 +81,7 @@ impl MessageSender for Recorder {
         &self,
         to: &str,
         message: Message,
-        _extra_nodes: Vec<Node>,
+        _opts: SendOptions,
     ) -> SendBox<'_> {
         let body = message
             .conversation
