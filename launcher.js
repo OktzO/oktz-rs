@@ -38,7 +38,9 @@ const ASET_GLIBC = "oktz-linux-x64";
 const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // Naikkan tiap rilis: panel menyimpan bin/oktz lama, jadi tanpa penanda ini
 // binary baru tidak pernah diunduh dan command baru (mis. menu) tetap hilang.
-const VERSI_BIN = "v0.1.4";
+//
+// v0.1.5 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
+const VERSI_BIN = "v0.1.5";
 const KANDIDAT = ["bin/oktz", "target/release/oktz"].map((p) => path.join(AKAR, p));
 const BIN = process.env.OKTZ_BIN
   ? path.resolve(process.env.OKTZ_BIN)
