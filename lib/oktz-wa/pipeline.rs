@@ -907,6 +907,16 @@ impl StoreContext {
             .and_then(|s| s.get("energi"))
             .and_then(Value::as_bool)
     }
+
+    /// `db.setting("notiflimit")` (`handler.js:1884`) — kalau aktif, potong
+    /// energi dilaporkan ke user.
+    pub fn notiflimit_setting(&self) -> bool {
+        let store = self.read();
+        top(&store, "settings")
+            .and_then(|s| s.get("notiflimit"))
+            .map(truthy_js)
+            .unwrap_or(false)
+    }
 }
 
 // =============================================================================
@@ -2650,7 +2660,17 @@ pub fn extract_body(m: &wa::Message) -> Option<String> {
 /// `config.messages?.energiExceeded || "⚡ Energi habis!"` (`handler.js:1879`).
 /// Tidak datang dari store, jadi constant — `config.messages` tidak ada di
 /// `oktz_core::Config`.
-const ENERGI_EXCEEDED: &str = "⚡ Energi habis!";
+/// `truthy` JS — dipakai untuk baca setting boolean dari store.
+fn truthy_js(v: &Value) -> bool {
+    match v {
+        Value::Null => false,
+        Value::Bool(b) => *b,
+        Value::Number(n) => n.as_f64().is_some_and(|f| f != 0.0),
+        Value::String(s) => !s.is_empty(),
+        Value::Array(a) => !a.is_empty(),
+        Value::Object(o) => !o.is_empty(),
+    }
+}
 
 /// `MessageKey` untuk pesan inbound — port `MessageContext::message_key`
 /// (`whatsapp-rust-0.7.0/src/bot.rs:172-182`).
@@ -3671,12 +3691,29 @@ impl Pipeline {
                 self.gates
                     .charge_energi(&caller, meta, &energi, &self.cap_energi_overrides());
             if !energy.allowed {
-                let reply = Reply::text(ENERGI_EXCEEDED);
+                // `config.messages?.energiExceeded || "⚡ Energi habis!"`
+                // (`handler.js:1879`) — pakai pesan config, bukan fallback.
+                let pesan = oktz_core::config::Messages::default().energi_exceeded;
+                let reply = Reply::text(pesan);
                 let target = reply_target(m, &caller.sender);
                 if let Some(rendered) = render_reply(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
                 }
                 return Ok(Outcome::EnergiDenied);
+            }
+            // `db.setting("notiflimit")` → laporkan potongannya
+            // (`handler.js:1884-1888`).
+            if energy.deducted > 0
+                && let Some(sisa) = energy.remaining
+                && self.ctx.notiflimit_setting()
+            {
+                let tpl = oktz_core::config::Messages::default().limit_deducted;
+                let pesan = oktz_router::gates::render_limit_deducted(&tpl, energy.deducted, sisa);
+                let reply = Reply::text(pesan);
+                let target = reply_target(m, &caller.sender);
+                if let Some(rendered) = render_reply(&reply, &target)? {
+                    self.deliver(&caller.chat, rendered).await?;
+                }
             }
         }
 
@@ -6672,6 +6709,49 @@ impl TestPlugin {
 
     // --- Gate 5: energi -----------------------------------------------
 
+    /// `db.setting("notiflimit")` → potong energi dilaporkan ke user
+    /// (`handler.js:1884-1888`).
+    #[tokio::test]
+    async fn notiflimit_melaporkan_potongan_energi() {
+        let plug = TestPlugin::new(0, 1, false);
+        let (p, s) = dm(
+            &plug,
+            r#"{"settings": {"notiflimit": true, "capenergi": {"gatetest": 1}}}"#,
+            poor(),
+        );
+
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        p.process(&m, 1_000).await.unwrap();
+
+        let tpl = oktz_core::config::Messages::default().limit_deducted;
+        let sisa = oktz_router::gates::render_limit_deducted(&tpl, 1, 0);
+        assert!(
+            s.texts().iter().any(|t| t.contains(&sisa)),
+            "potongan harus dilaporkan: {:?}",
+            s.texts()
+        );
+    }
+
+    /// Tanpa `notiflimit`, potongannya tidak dilaporkan (`handler.js:1884`).
+    #[tokio::test]
+    async fn tanpa_notiflimit_tidak_melaporkan_potongan() {
+        let plug = TestPlugin::new(0, 1, false);
+        let (p, s) = dm(
+            &plug,
+            r#"{"settings": {"capenergi": {"gatetest": 1}}}"#,
+            poor(),
+        );
+
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        p.process(&m, 1_000).await.unwrap();
+
+        assert!(
+            !s.texts().iter().any(|t| t.contains("Limit kau berkurang")),
+            "tanpa notiflimit tidak boleh ada notifikasi: {:?}",
+            s.texts()
+        );
+    }
+
     #[tokio::test]
     async fn insufficient_energi_is_denied_and_not_charged() {
         // `capenergi` memberi `.gatetest` biaya 5; tier default 1 → kurang.
@@ -6689,7 +6769,10 @@ impl TestPlugin {
         assert_eq!(plug.calls(), 0, "plugin TIDAK boleh jalan tanpa energi");
         assert_eq!(
             s.texts(),
-            vec![format!("{MEMBER}: {ENERGI_EXCEEDED}")],
+            vec![format!(
+                "{MEMBER}: {}",
+                oktz_core::config::Messages::default().energi_exceeded
+            )],
             "user diberi tahu, dan tidak ada balasan plugin"
         );
         // Saldo tetap 1: gate menolak SEBELUM memotong (`handler.js:1879-1880`
