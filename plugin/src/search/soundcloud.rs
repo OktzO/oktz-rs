@@ -81,9 +81,17 @@ fn extract_next_data(html: &str) -> String {
 }
 
 /// Map satu objek track JSON ke struct Track.
+///
+/// `soundcloud.js:37` — `.filter((v) => v && v.data && v.data.title)`: item
+/// tanpa `data.title` yang truthy dibuang SEBELUM pemetaan, jadi track tanpa
+/// judul tidak pernah sampai ke teks hasil.
 fn track_from_value(v: &Value) -> Option<Track> {
     let data = v.get("data")?;
-    let title = data.get("title").and_then(Value::as_str).unwrap_or("-").to_string();
+    let judul = data.get("title").filter(|t| crate::common::js_truthy_value(t))?;
+    let title = match judul {
+        Value::String(s) => s.clone(),
+        lain => lain.to_string(),
+    };
     let url = data.get("permalink_url").and_then(Value::as_str).unwrap_or("-").to_string();
     let artwork = data.get("artwork_url").and_then(Value::as_str).map(|s| s.to_string());
     let plays = data.get("playback_count").and_then(Value::as_u64).map_or("-".to_string(), |n| n.to_string());
@@ -139,7 +147,7 @@ fn help(prefix: &str) -> String {
     alias = ["scsearch", "scs"],
     category = "search",
     description = "Cari lagu di SoundCloud",
-    usage = ".soundcloud <judul>",
+    usage = ".soundcloud judul",
     example = ".soundcloud Only We Know",
     cooldown = 5,
     energi = 1,
@@ -158,8 +166,10 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
     let query = ctx.args.join(" ");
     let tracks = match sc_search(ctx.http.as_ref(), &query) {
         Ok(t) => t,
-        Err(_) => {
-            return Reply::text("❌ Maaf kak, terjadi kesalahan sistem!");
+        Err(e) => {
+            // `soundcloud.js:99` — `❌ Maaf kak, terjadi kesalahan sistem!` +
+            // baris `Error: ${e.message}`.
+            return Reply::text(format!("❌ Maaf kak, terjadi kesalahan sistem!\nError: {e}"));
         }
     };
 
@@ -182,12 +192,22 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
             content_txt.push_str("\n\n");
         }
     }
-    // Trim baris kosong seperti JS `.split("\n").map(line => line.trim() ? line : "").join("\n")`
-    let lines: Vec<&str> = content_txt.split('\n').filter(|l| !l.is_empty()).collect();
+    // `soundcloud.js:89` — `.trim().split("\n").map(line => line.trim() ? line : "")`
+    // MEMPERTAHANKAN jumlah baris: baris kosong jadi string kosong, bukan
+    // dihapus. Menghapus baris akan mengubah tinggi blok hasil.
+    let lines: Vec<String> = content_txt
+        .trim()
+        .split('\n')
+        .map(|l| if l.trim().is_empty() { String::new() } else { l.to_string() })
+        .collect();
     let content_txt = lines.join("\n");
     txt.push_str(&content_txt);
     txt.push_str("\n\n");
-    txt.push_str(&format!("Kalo mau download lagunya, pake fitur `{}`playsc aja kak! 😉", ctx.prefix));
+    // `soundcloud.js:91` — backtick menutup setelah `playsc`.
+    txt.push_str(&format!(
+        "Kalo mau download lagunya, pake fitur `{}playsc` aja kak! 😉",
+        ctx.prefix
+    ));
 
     let base_url = "https://m.soundcloud.com";
     if let Some(thumb) = thumb {
@@ -287,6 +307,52 @@ mod tests {
     const HTML_WITHOUT_DATA: &str = "<html><body>tidak ada data</body></html>";
 
     #[test]
+    fn output_sama_dengan_js() {
+        // `soundcloud.js:60-66` — kartu penggunaan.
+        assert_eq!(
+            help("."),
+            "🎵 *SOUNDCLOUD SEARCH* 🎵\n\nHalo kak! Mau cari lagu apa hari ini?\n\n\
+             *Cara Pakai:*\n👉 `.soundcloud <judul lagu>`\n\n\
+             *Contoh:*\n`.soundcloud Only We Know`"
+        );
+        // `soundcloud.js:74` — tidak ketemu.
+        assert_eq!(
+            text_of(&run(StubHttp::body(HTML_WITHOUT_DATA), "tidakada")),
+            "❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭"
+        );
+        // `soundcloud.js:99` — error sistem + `Error: <pesan>`.
+        assert_eq!(
+            text_of(&run(StubHttp::offline(), "jazz")),
+            "❌ Maaf kak, terjadi kesalahan sistem!\nError: Gagal mencari: offline"
+        );
+    }
+
+    #[test]
+    fn track_tanpa_judul_dibuang_seperti_filter_js() {
+        // `soundcloud.js:37` — `.filter((v) => v && v.data && v.data.title)`.
+        let json = serde_json::json!({
+            "props": {"pageProps": {"initialStoreState": {"entities": {"tracks": {
+                "1": {"data": {"title": "", "permalink_url": "u1"}},
+                "2": {"data": {"title": "Ada", "permalink_url": "u2"}}
+            }}}}}
+        });
+        let html = format!(r#"<script id="__NEXT_DATA__">{}</script>"#, json);
+        let tracks = sc_search(StubHttp::body(&html).as_ref(), "x").unwrap();
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].title, "Ada");
+    }
+
+    #[test]
+    fn baris_kosong_pertahankan_jumlah_baris() {
+        // `soundcloud.js:89` — baris kosong jadi string kosong, bukan hilang.
+        let http = StubHttp::body(HTML_WITH_DATA);
+        let r = run(http, "jazz");
+        let t = text_of(&r);
+        assert!(t.contains("🔁 *Reposts :* 2\n\n🎵 *Title :* Lagu Dua"), "{t}");
+        assert!(t.ends_with("Kalo mau download lagunya, pake fitur `.playsc` aja kak! 😉"), "{t}");
+    }
+
+    #[test]
     fn extract_next_data_mengambil_json() {
         let json = extract_next_data(HTML_WITH_DATA);
         assert!(json.contains("\"title\":\"Lagu Satu\""));
@@ -374,6 +440,9 @@ mod tests {
     #[test]
     fn jaringan_gagal_menggunakan_pesan_khusus() {
         let r = run(StubHttp::offline(), "jazz");
-        assert_eq!(text_of(&r), "❌ Maaf kak, terjadi kesalahan sistem!");
+        assert_eq!(
+            text_of(&r),
+            "❌ Maaf kak, terjadi kesalahan sistem!\nError: Gagal mencari: offline"
+        );
     }
 }

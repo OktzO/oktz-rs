@@ -5,6 +5,14 @@
 //! memakai `??` (nol tetap nol), dan `caught.slice(0, 3)` membatasi tiga
 //! hewan PERTAMA yang lolos — sisanya tetap menambah exp ke tabel tapi tidak
 //! masuk tas maupun ke teks.
+//!
+//! `berburu.js:37` mengirim pesan "Mengendap-endap masuk ke hutan..." lebih
+//! dulu, lalu `setTimeout(3000)` (`berburu.js:38`), baru pesan hasil.
+//! Dua pesan itu dikirim berurutan lewat [`Reply::sequence_text`].
+//!
+//! Reaksi `🏹`/`😢`/`✅` (`berburu.js:36`, `:52`, `:74`) tidak ikut: reaksi
+//! tidak bisa dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya
+//! bisa merender satu pesan), jadi teks dua pesan lebih dipilih.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -66,14 +74,21 @@ pub fn berburu(ctx: Ctx) -> Reply {
     }
     rpg.insert("stamina".into(), serde_json::json!(stamina - STAMINA_COST));
 
+    // `berburu.js:37` — pesan sebelum jeda `setTimeout`.
+    let berburu = "Mengendap-endap masuk ke hutan... 🤫🌳\n\
+                  Siapin panah dan bidik dengan teliti! 🏹👀"
+        .to_string();
+
     let mut caught = caught();
     if caught.is_empty() {
-        return Reply::text(format!(
-            "Yahh, apes banget hari ini kak! 😭😭\n\n\
-             Hewannya pada lari semua, nggak dapet apa-apa deh.\n\
-             Padahal stamina udah kepotong *-{STAMINA_COST}* ⚡. Sabar ya, coba lagi nanti! 🥺🌿"
-        ))
-        .with_reaction("😢")
+        return Reply::sequence_text([
+            berburu,
+            format!(
+                "Yahh, apes banget hari ini kak! 😭😭\n\n\
+                 Hewannya pada lari semua, nggak dapet apa-apa deh.\n\
+                 Padahal stamina udah kepotong *-{STAMINA_COST}* ⚡. Sabar ya, coba lagi nanti! 🥺🌿"
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "rpg": rpg }),
@@ -96,18 +111,20 @@ pub fn berburu(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, total_exp);
 
-    Reply::text(format!(
-        "CROOT! Kena sasaran kak! 🎯🏹\n\n\
-         Kamu pulang bawa hasil buruan nih:\n\
-         {lines}\n\
-         Hasil buruannya otomatis kejual ya! 🎉\n\
-         💸 Koin: *+Rp {}*\n\
-         📈 EXP: *+{total_exp}*\n\
-         ⚡ Stamina terpakai: *-{STAMINA_COST}*\n\n\
-         Mantap banget, besok-besok berburu lagi ya kak! 🔥🥩",
-        thousands_id(total_money as f64)
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        berburu,
+        format!(
+            "CROOT! Kena sasaran kak! 🎯🏹\n\n\
+             Kamu pulang bawa hasil buruan nih:\n\
+             {lines}\n\
+             Hasil buruannya otomatis kejual ya! 🎉\n\
+             💸 Koin: *+Rp {}*\n\
+             📈 EXP: *+{total_exp}*\n\
+             ⚡ Stamina terpakai: *-{STAMINA_COST}*\n\n\
+             Mantap banget, besok-besok berburu lagi ya kak! 🔥🥩",
+            thousands_id(total_money as f64)
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": crate::common::int_field(&ctx, "koin") + total_money,
@@ -143,8 +160,12 @@ mod tests {
         (plugin().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `berburu.js:37` mengirim satu
+    /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -269,5 +290,27 @@ mod tests {
         assert_eq!(ANIMALS.len(), 6);
         assert_eq!(ANIMALS[0], ("🐰 Kelinci", "daging_kelinci", 80, 1, 3, 50, 500));
         assert_eq!(ANIMALS[5], ("🦁 Singa", "taring_singa", 5, 1, 1, 1000, 25000));
+    }
+
+    /// `berburu.js:37` — pesan sebelum jeda persis sama dengan JS, dan
+    /// selalu mendahului pesan hasil.
+    #[test]
+    fn output_sama_dengan_js() {
+        for _ in 0..300 {
+            let r = run(serde_json::json!({ "rpg": { "stamina": 100 }, "koin": 0, "exp": 0 }));
+            let semua = crate::rpg::heal::reply_texts(&r);
+            assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+            assert_eq!(
+                semua[0],
+                "Mengendap-endap masuk ke hutan... 🤫🌳\n\
+                 Siapin panah dan bidik dengan teliti! 🏹👀"
+            );
+            assert!(
+                semua[1].starts_with("CROOT! Kena sasaran kak! 🎯🏹")
+                    || semua[1].starts_with("Yahh, apes banget hari ini kak! 😭😭"),
+                "{}",
+                semua[1]
+            );
+        }
     }
 }

@@ -31,7 +31,6 @@ macro_rules! cek_plugin {
     };
 }
 
-pub(crate) use cek_plugin;
 
 macro_rules! data_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
@@ -2292,8 +2291,15 @@ mod tests_batch_g {
             "addowner", "addprefix", "addprem", "akses", "arsip", "baca", "bcgc", "cekschedule", "clearsessions", "disableplugin", "editproduk",
             "exec", "ganti-asset", "ganti-demote.jpg", "ganti-foto.jpg", "ganti-goodbye.jpg", "ganti-levelup.jpg", "ganti-namadev", "ganti-namaowner", "ganti-pp-kosong.jpg", "ganti-rpg.jpg", "ganti-rules.jpg",
             "ganti-store.jpg", "get", "hapusgrup", "hapussaluran", "leave", "listjadibot", "listjadibotaktif", "listsewa", "mutechat", "onlythisgrup", "pinchat",
-            "ptvch", "pushkontak", "renewsewa", "sampah", "savedb", "setgoodbyetype", "setmenu", "setmenucat", "setownertype", "setwelcometype", "sewabot",
+            "ptvch", "pushkontak", "renewsewa", "sampah", "savekontak", "savedb", "setallmenu", "setgoodbyetype", "setmenu", "setmenucat", "setownertype", "setwelcometype", "sewabot",
             "star", "stopalljadibot", "stopdandeletejadibot", "stopschedule", "swgcall",
+
+            "addplugin", "addsewa", "backupsc", "bcpc", "buatgrup", "buatsaluran", "colongpp", "crm",
+            "delplugin", "delsewa", "enableplugin", "eval", "ganti-foto2.jpg", "ganti-foto3.jpg",
+            "ganti-mp3.mp3", "ganti-mp4.mp4", "ganti-namabot", "ganti-v8.jpg", "ganti-welcome.jpg",
+            "ganticode", "gantiscraper", "getplugin", "hapusdata", "join", "resetdb", "restart",
+            "searchplugin", "sessionstats", "sistemdaftar", "sprem", "srt", "startschedule",
+            "swgc", "swgcv2", "swgcv2all", "upch",
         ];
         for m in oktz_plugin_api::all_plugins().iter().map(|p| &p.meta) {
             if m.is_owner && m.is_enabled {
@@ -4158,13 +4164,13 @@ mod tests_roster_state {
     // berkas yang sama, mis. `sticker/attp2.js` yang memakai nama sekaligus
     // alias `attp2`, atau `main/leaderboard.js` yang mengulang
     // `leaderboard`). Tabrakan baru di luar daftar ini berarti port kita.
-    pub(crate) const JS_COLLISIONS: [&str; 38] = [
-        "applemusic", "asmaulhusna", "attp2", "backupdb", "beli", "berburu", "block", "bratanime",
-        "bucin",
+    pub(crate) const JS_COLLISIONS: [&str; 41] = [
+        "applemusic", "asmaulhusna", "attp2", "audioquran", "backupdb", "beli", "berburu", "block",
+        "bratanime", "bucin",
         "cantik", "cc", "cekjodoh", "cupu", "daftar", "exp", "fakedana", "fakegopay",
         "fakeovo", "film", "ganteng", "heapsnap", "inspect", "izen", "kaya", "leaderboard",
-        "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig", "sroast",
-        "tofigure3", "top", "unblock", "wibu",
+        "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig",
+        "smeme-animated", "smemevid", "sroast", "tofigure3", "top", "unblock", "wibu",
     ];
 
     #[test]

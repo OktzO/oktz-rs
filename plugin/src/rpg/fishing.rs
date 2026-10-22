@@ -8,6 +8,13 @@
 //! `caught` selalu mulai dari `whale` — keadaan tunak yang berlaku setelah
 //! pemanggilan pertama. Cases where no drop matches its chance threshold
 //! (rand > 50, ~50% peluang) memakai nilai fallback ini.
+//!
+//! `fishing.js:37` — pesan "Melempar kail ke air yang tenang..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "🎣" (`fishing.js:36`) dan "✅" (`fishing.js:67`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -83,15 +90,20 @@ pub fn fishing(ctx: Ctx) -> Reply {
         format!("> *{name}* 🎉✨\nAsik banget! Kamu juga dapet *+{exp_reward} EXP* nih!\n\n")
     };
 
-    Reply::text(format!(
-        "HAPPP! Kailnya ditarik! 🎣💦\n\n\
-         Wah, kamu berhasil dapetin:\n\
-         {catch_line}\
-         ⚡ Stamina terpakai: *-{STAMINA_COST}*\n\
-         \n\
-         Ikan/sampahnya udah masuk ke tas (`.inv`) ya! Jangan lupa mancing lagi nanti! 💖🌊"
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        // `fishing.js:37` — pesan sebelum jeda `setTimeout`.
+        "Melempar kail ke air yang tenang... 🌊🎣\n\
+         Sssttt, jangan berisik biar ikannya makan umpan! 🤫👀"
+            .to_string(),
+        format!(
+            "HAPPP! Kailnya ditarik! 🎣💦\n\n\
+             Wah, kamu berhasil dapetin:\n\
+             {catch_line}\
+             ⚡ Stamina terpakai: *-{STAMINA_COST}*\n\
+             \n\
+             Ikan/sampahnya udah masuk ke tas (`.inv`) ya! Jangan lupa mancing lagi nanti! 💖🌊"
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
@@ -115,8 +127,12 @@ mod tests {
         (oktz_plugin_api::find("fishing").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {

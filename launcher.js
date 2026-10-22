@@ -41,7 +41,8 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //
 // v0.1.5 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
 // v0.1.6 — binary baca fixture sesi dari env (perbaiki "Bad Mac"/decrypt gagal).
-const VERSI_BIN = "v0.1.6";
+// v0.1.7 — paritas plugin (749/793) + seluruh test hijau.
+const VERSI_BIN = "v0.1.7";
 const KANDIDAT = ["bin/oktz", "target/release/oktz"].map((p) => path.join(AKAR, p));
 const BIN = process.env.OKTZ_BIN
   ? path.resolve(process.env.OKTZ_BIN)

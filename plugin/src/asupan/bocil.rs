@@ -78,7 +78,7 @@ pub fn bocil(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::berkas::BerkasPalsu;
+    use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use std::sync::Arc;
 
     fn ctx(berkas: BerkasPalsu, premium: bool, owner: bool) -> Ctx {

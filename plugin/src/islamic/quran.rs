@@ -52,7 +52,7 @@ fn first_tag_text(html: &str, nama: &str) -> Option<String> {
         let abs = start + pos;
         let after = &html[abs + open.len()..];
         if after.starts_with('>') || after.starts_with(' ') || after.starts_with('/') {
-            let content_start = abs + open.len();
+            let content_start = abs + html[abs..].find('>')? + 1;
             let close = format!("</{nama}>");
             let content_end = html[content_start..].find(&close)?;
             return Some(html[content_start..content_start + content_end].to_string());
@@ -65,13 +65,10 @@ fn first_tag_text(html: &str, nama: &str) -> Option<String> {
 /// Nilai atribut `nama` dari tag pertama.
 fn attr_value(html: &str, nama: &str) -> Option<String> {
     let pola = format!("{nama}=\"");
-    let mut start = 0;
-    while let Some(pos) = html[start..].find(&pola) {
-        let abs = start + pos + pola.len();
-        let end = html[abs..].find('"')?;
-        return Some(html[abs..abs + end].to_string());
-    }
-    None
+    let pos = html.find(&pola)?;
+    let abs = pos + pola.len();
+    let end = html[abs..].find('"')?;
+    Some(html[abs..abs + end].to_string())
 }
 
 /// Teks dari tag pertama dengan atribut `attr="nilai"`.
@@ -143,7 +140,7 @@ fn parse_ayat(html: &str) -> Vec<Ayat> {
         let div_close = html[content_start..].find(&div_end_tag).unwrap_or(html.len() - content_start);
         let div_html = &html[content_start..content_start + div_close];
 
-        let arab = tag_text_by_attr(div_html, "dir", "rtl", "rtl").unwrap_or_default();
+        let arab = tag_text_by_attr(div_html, "span", "dir", "rtl").unwrap_or_default();
         let latin = tag_text_by_class(div_html, "text-primary-500").unwrap_or_default();
         let arti = tag_text_by_class(div_html, "text-neutral-700").unwrap_or_default();
 
@@ -239,7 +236,9 @@ fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn quran(ctx: Ctx) -> Reply {
-    let query = ctx.args.join(" ").trim();
+    // `m.args?.join(" ")?.trim()` (`quran.js:64`).
+    let gabung = ctx.args.join(" ");
+    let query = gabung.trim();
     if query.is_empty() {
         return Reply::text(help(&ctx.prefix));
     }
@@ -248,20 +247,23 @@ pub fn quran(ctx: Ctx) -> Reply {
     let data = match fetch_quran(ctx.http.as_ref(), &slug) {
         Ok(d) => d,
         Err(_) => {
-            return Reply::text(crate::common::error_template(&ctx));
+            // `m.react("☢")` lalu `m.reply(te(...))` (`quran.js:114-115`).
+            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
     if data.ayat.is_empty() {
-        return Reply::text(format!("❌ Surah *{query}* tidak ditemukan"));
+        // `m.react("❌")` (`quran.js:81`).
+        return Reply::text(format!("❌ Surah *{query}* tidak ditemukan")).with_reaction("❌");
     }
 
     let chunks = format_surah(&data);
-    let mut replies: Vec<Reply> = chunks
-        .into_iter()
-        .map(Reply::text)
-        .collect();
-    replies.last_mut().map(|r| r.with_reaction("✅"));
+    let mut replies: Vec<Reply> = chunks.into_iter().map(Reply::text).collect();
+    // `m.react("✅")` (`quran.js:90`) — reaksi menempel pada balasan terakhir.
+    if let Some(last) = replies.last_mut() {
+        let baru = last.clone().with_reaction("✅");
+        *last = baru;
+    }
 
     Reply::sequence(replies)
 }
@@ -270,6 +272,7 @@ pub fn quran(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     const SENDER: &str = "628111@s.whatsapp.net";

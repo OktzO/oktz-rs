@@ -1,24 +1,38 @@
 //! `plugins/cek/cekkpopers.js` — Cek tingkat kekpopersan 0-100%, lima ambang `>= 90/70/50/30`.
 
-use crate::common::{cek_plugin, cek_reply, percent_101};
+use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-cek_plugin!(
-    cekkpopers,
-    "cekkpopers",
-    ["kpopers", "kpop"],
-    "Cek tingkat kpopers kamu",
-    ".cekkpopers <nama>",
-    ".cekkpopers Budi",
-    "kekpopersan",
-    [
-        "ARMY/BLINK level max! 💜💗",
-        "Stan berat nih! 🎤",
-        "Casual listener~ 🎵",
-        "Tau dikit-dikit aja 😅",
-        "Bukan kpopers 🤷"
-    ]
-);
+#[plugin(
+    name = "cekkpopers",
+    alias = ["kpopers", "kpop"],
+    category = "cek",
+    description = "Cek tingkat kpopers kamu",
+    usage = ".cekkpopers <nama>",
+    example = ".cekkpopers Budi",
+    cooldown = 5,
+    energi = 0,
+    is_group = false,
+    is_private = false,
+    is_owner = false,
+    is_premium = false,
+    is_admin = false,
+    is_bot_admin = false
+)]
+pub fn cekkpopers(ctx: Ctx) -> Reply {
+    cek_reply(
+        &ctx,
+        percent_101(),
+        "kekpopersan",
+        [
+            "ARMY/BLINK level max! 💜💗",
+            "Stan berat nih! 🎤",
+            "Casual listener~ 🎵",
+            "Tau dikit-dikit aja 😅",
+            "Bukan kpopers 🤷",
+        ],
+    )
+}
 
 #[cfg(test)]
 mod tests {
@@ -176,4 +190,132 @@ mod tests {
         }
         assert_eq!(seen.len(), 5, "tier yang tidak terjangkau: {seen:?}");
     }
+
+    /// Kunci output: template JS persis (`cekkpopers.js:34-40`).
+    ///
+    /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
+    /// deterministik; jalur handler dicek terpisah di bawah.
+    #[test]
+    fn output_sama_dengan_js() {
+        let tier_js = |percent: u32| -> &'static str {
+            match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            }
+        };
+        let diri = Ctx {
+            prefix: ".".into(),
+            command: "cekkpopers".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            ..Default::default()
+        };
+        let lain = Ctx {
+            mentioned: vec!["628999@s.whatsapp.net".into()],
+            ..diri.clone()
+        };
+        for percent in [0u32, 29, 30, 49, 50, 69, 70, 89, 90, 100] {
+            let desc = tier_js(percent);
+            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kekpopersan", TIERS) else {
+                panic!("harus Reply::Text");
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Hai @{number}\n    \nTingkat kekpopersan kamu *{percent}%*\n```{desc}```",
+                    number = "628111",
+                    desc = desc
+                ),
+                "percent {percent}"
+            );
+            assert_eq!(mentions, vec!["628111@s.whatsapp.net".to_string()]);
+
+            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kekpopersan", TIERS) else {
+                panic!("harus Reply::Text");
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Kamu ingin ngecek tingkat kekpopersan @{number} yak? \n    \nTingkat kekpopersan dia sebesar *{percent}%*\n```{desc}```",
+                    number = "628999",
+                    desc = desc
+                ),
+                "percent {percent}"
+            );
+            assert_eq!(mentions, vec!["628999@s.whatsapp.net".to_string()]);
+        }
+    }
+
+    /// Jalur handler: persennya acak, tapi kerangka teksnya tetap sama.
+    #[test]
+    fn output_sama_dengan_js_di_jalur_handler() {
+        let diri = Ctx {
+            prefix: ".".into(),
+            command: "cekkpopers".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            ..Default::default()
+        };
+        let lain = Ctx {
+            mentioned: vec!["628999@s.whatsapp.net".into()],
+            ..diri.clone()
+        };
+        for _ in 0..200 {
+            let Reply::Text { text, .. } = cekkpopers(diri.clone()) else {
+                panic!("harus Reply::Text");
+            };
+            let percent: u32 = text
+                .split_once('*')
+                .and_then(|(_, rest)| rest.split_once('%'))
+                .and_then(|(head, _)| head.parse().ok())
+                .expect("persen di balasan");
+            assert!(
+                (0..=100).contains(&percent),
+                "persen di luar rentang JS: {percent}"
+            );
+            let desc = match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Hai @{number}\n    \nTingkat kekpopersan kamu *{percent}%*\n```{desc}```",
+                    number = "628111",
+                    desc = desc
+                ),
+                "{text}"
+            );
+
+            let Reply::Text { text, .. } = cekkpopers(lain.clone()) else {
+                panic!("harus Reply::Text");
+            };
+            let percent: u32 = text
+                .split_once('*')
+                .and_then(|(_, rest)| rest.split_once('%'))
+                .and_then(|(head, _)| head.parse().ok())
+                .expect("persen di balasan");
+            let desc = match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Kamu ingin ngecek tingkat kekpopersan @{number} yak? \n    \nTingkat kekpopersan dia sebesar *{percent}%*\n```{desc}```",
+                    number = "628999",
+                    desc = desc
+                ),
+                "{text}"
+            );
+        }
+    }
+
 }

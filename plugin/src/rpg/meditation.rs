@@ -5,6 +5,13 @@
 //! Catatan kursor: `maxHealth`/`maxMana` dihitung dari `user.level` (level di
 //! akar row, bukan `user.rpg.level`) —-default 1, jadi 105 HP dan 53 mana.
 //! Polanya berbeda dari `addexp.js` yang menulis `user.rpg.level`.
+//!
+//! `meditation.js:43` — pesan "💤 *ʙᴇʀɪsᴛɪʀᴀʜᴀᴛ...*" dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "💤" (`meditation.js:42`) dan "✨" (`:56`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -60,16 +67,19 @@ pub fn meditation(ctx: Ctx) -> Reply {
     rpg.insert("health".into(), serde_json::json!(new_health));
     rpg.insert("mana".into(), serde_json::json!(new_mana));
 
-    Reply::text(format!(
-        "✨ *ɪsᴛɪʀᴀʜᴀᴛ sᴇʟᴇsᴀɪ!*\n\n\
+    Reply::sequence_text([
+        // `meditation.js:43` — pesan sebelum jeda `setTimeout`.
+        "💤 *ʙᴇʀɪsᴛɪʀᴀʜᴀᴛ...*\n\n> Memulihkan energi...".to_string(),
+        format!(
+            "✨ *ɪsᴛɪʀᴀʜᴀᴛ sᴇʟᴇsᴀɪ!*\n\n\
          *💖 *ᴘᴜʟɪʜ:*
 \n\
          > ⚡ Stamina: *+{stamina_back}* ({new_stamina}/{MAX_STAMINA})\n\
          > ❤️ Health: *+{health_back}* ({new_health}/{max_health})\n\
          > 💙 Mana: *+{mana_back}* ({new_mana}/{max_mana})\n\n\n\
          > Kamu merasa lebih segar! 🌟"
-    ))
-    .with_reaction("✨")
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "rpg": rpg }),
@@ -94,8 +104,12 @@ mod tests {
         (oktz_plugin_api::find("meditation").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn written(r: &Reply) -> &Value {

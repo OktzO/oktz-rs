@@ -27,6 +27,9 @@ const LOVE_QUOTES: [&str; 8] = [
 
 pub(crate) const ERR_META: &str = "❌ *ɢᴀɢᴀʟ*";
 pub(crate) const ERR_MIN_TWO: &str = "> Minimal ada 2 member untuk dijodohkan!";
+/// `jodoh.js:66-68` — `m.groupMetadata` melempar, jadi metadata grup tidak
+/// bisa diambil sama sekali.
+pub(crate) const ERR_NO_GROUP: &str = "> Tidak bisa mengambil data grup!";
 pub(crate) const ERR_REGISTRATION: &str =
     "> Mode wajib daftar aktif. Minimal harus ada 2 member yang sudah terdaftar di grup ini!";
 
@@ -182,6 +185,12 @@ pub(crate) fn render(
     is_private = false
 )]
 pub fn jodoh(ctx: Ctx) -> Reply {
+    // `jodoh.js:63-69` — `m.groupMetadata` melempar → "Tidak bisa mengambil
+    // data grup!". Di Rust roster kosong berarti metadata grup tidak terbaca
+    // (bukan "grup dengan 0 member"), jadi cabang ini yang dipakai.
+    if ctx.roster.is_empty() {
+        return Reply::text(format!("{ERR_META}\n\n{ERR_NO_GROUP}"));
+    }
     let members: Vec<String> = ctx.roster.member_jids();
     if members.len() < 2 {
         return Reply::text(format!("{ERR_META}\n\n{ERR_MIN_TWO}"));
@@ -354,12 +363,19 @@ mod tests {
     }
 
     #[test]
+    fn an_unreadable_group_roster_takes_the_group_error_branch() {
+        // `jodoh.js:64-69` — `m.groupMetadata` melempar.
+        let ctx = ctx_of(plain(0), serde_json::json!({}));
+        let (text, mentions) = split(&run(ctx));
+        assert_eq!(text, format!("{ERR_META}\n\n{ERR_NO_GROUP}"));
+        assert!(mentions.is_empty());
+    }
+
+    #[test]
     fn fewer_than_two_members_takes_the_guard_branch() {
-        for n in [0usize, 1] {
-            let (text, mentions) = split(&run(ctx_of(plain(n), serde_json::json!({}))));
-            assert_eq!(text, format!("{ERR_META}\n\n{ERR_MIN_TWO}"), "n={n}");
-            assert!(mentions.is_empty(), "n={n}");
-        }
+        let (text, mentions) = split(&run(ctx_of(plain(1), serde_json::json!({}))));
+        assert_eq!(text, format!("{ERR_META}\n\n{ERR_MIN_TWO}"));
+        assert!(mentions.is_empty());
     }
 
     #[test]

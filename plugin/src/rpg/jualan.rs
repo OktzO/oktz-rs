@@ -7,6 +7,13 @@
 //! Yang tidak ikut ke port: reaksi + pesan antara sebelum jeda `setTimeout`
 //! (`Reply` hanya bisa satu pesan, jadi yang dikirim hasil akhir beserta reaksi
 //! TERAKHIR), dan kartu level-up dari `checkAndNotifyLevelUp` yang butuh canvas.
+//!
+//! `jualan.js:35` — pesan "Cangcimen cangcimen!..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "🛒" (`jualan.js:34`), "🌧️" (`:43`), "🤑" (`:50`), dan "✅" (`:59`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -180,48 +187,64 @@ pub fn jualan(ctx: Ctx) -> Reply {
         // Cabang rugi: TIDAK memanggil `addExpWithLevelCheck`, jadi exp utuh.
         let rugi = roll_incl(5000, 14999);
         let koin = (koin - rugi).max(0);
-        return Reply::text(format!(
-            "HUJAN DERAS! DAGANGAN SEPI! 🌧️🥶\n\n\
-             Nggak ada yang beli dan dagangan kerupukmu melempem semua.\n\
-             Kerugian Modal: *Rp {}*\n\
-             ⚡ Stamina: -{STAMINA_COST}\n\n\
-             Besok harus liat prakiraan cuaca nih! ☂️",
-            thousands_id(rugi as f64)
-        ))
-        .with_reaction("🌧️")
+        return Reply::sequence_text([
+            // `jualan.js:35` — pesan sebelum jeda `setTimeout`.
+            "Cangcimen cangcimen! Kacang kuaci permen! 🍬\n\
+             Nawarin dagangan ke orang lewat... 🗣️"
+                .to_string(),
+            format!(
+                "HUJAN DERAS! DAGANGAN SEPI! 🌧️🥶\n\n\
+                 Nggak ada yang beli dan dagangan kerupukmu melempem semua.\n\
+                 Kerugian Modal: *Rp {}*\n\
+                 ⚡ Stamina: -{STAMINA_COST}\n\n\
+                 Besok harus liat prakiraan cuaca nih! ☂️",
+                thousands_id(rugi as f64)
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "koin": koin, "rpg": rpg }),
         });
     }
 
-    let (earning, head, react) = if gacha > 0.85 {
-        let laku = roll_incl(40000, 119999);
-        (
-            laku,
-            "ADA BROMTON LEWAT DIBORONG SEMUA! 🚴‍♂️✨\n\n\
-             Rombongan sepeda elit mampir dan ngeborong semua isotonik sama cangcimen!\n",
-            "🤑",
-        )
+    let earning = if gacha > 0.85 {
+        roll_incl(40000, 119999)
     } else {
-        let earning = roll_incl(10000, 34999);
-        (
-            earning,
-            "DAGANGAN LAKU STANDAR! 🛒✨\n\n",
-            "✅",
-        )
+        roll_incl(10000, 34999)
     };
     let exp_gain = earning / 20;
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    Reply::text(format!(
-        "{head}\
-         💵 Omzet: *+Rp {}*\n\
-         📈 EXP: *+{exp_gain}*\n\
-         ⚡ Stamina: -{STAMINA_COST}",
-        thousands_id(earning as f64)
-    ))
-    .with_reaction(react)
+    // `jualan.js:51` (cabang laku keras) dan `jualan.js:60` (cabang biasa)
+    // punya judul, baris omzet, dan penutup yang BERBEDA.
+    let txt = if gacha > 0.85 {
+        format!(
+            "ADA BROMTON LEWAT DIBORONG SEMUA! 🚴‍♂️✨\n\n\
+             Rombongan sepeda elit mampir dan ngeborong semua isotonik sama cangcimen!\n\
+             💵 Omzet Mendadak: *+Rp {}*\n\
+             📈 EXP: *+{exp_gain}*\n\
+             ⚡ Stamina: -{STAMINA_COST}\n\n\
+             Bisa langsung pulang gasik ini mah! 🎉",
+            thousands_id(earning as f64)
+        )
+    } else {
+        format!(
+            "DAGANGAN LAKU STANDAR! 🛒✨\n\n\
+             💵 Omzet: *+Rp {}*\n\
+             📈 EXP: *+{exp_gain}*\n\
+             ⚡ Stamina: -{STAMINA_COST}\n\n\
+             Besok kulakan lagi ah! 🛍️",
+            thousands_id(earning as f64)
+        )
+    };
+
+    Reply::sequence_text([
+        // `jualan.js:35` — pesan sebelum jeda `setTimeout`.
+        "Cangcimen cangcimen! Kacang kuaci permen! 🍬\n\
+         Nawarin dagangan ke orang lewat... 🗣️"
+            .to_string(),
+        txt,
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": koin + earning, "exp": new_exp, "rpg": rpg }),
@@ -246,8 +269,12 @@ mod tests {
         (oktz_plugin_api::find("jualan").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn written(r: &Reply) -> &Value {

@@ -45,7 +45,6 @@ fn parse_surah_items(html: &str) -> Vec<SurahItem> {
             Some(e) => abs + e + 1,
             None => break,
         };
-        let tag_html = &html[tag_start..tag_end];
         // Cari penutup elemen ini (asumsi div)
         let Some(el_end) = html[tag_end..].find("</div>") else { break };
         let abs_el_end = tag_end + el_end + "</div>".len();
@@ -75,13 +74,10 @@ fn parse_no(html: &str) -> u32 {
 /// Nilai atribut `nama` dari tag pertama dalam `html`.
 fn attr_value(html: &str, nama: &str) -> Option<String> {
     let pola = format!("{nama}=\"");
-    let mut start = 0;
-    while let Some(pos) = html[start..].find(&pola) {
-        let abs = start + pos + pola.len();
-        let end = html[abs..].find('"')?;
-        return Some(html[abs..abs + end].to_string());
-    }
-    None
+    let pos = html.find(&pola)?;
+    let abs = pos + pola.len();
+    let end = html[abs..].find('"')?;
+    Some(html[abs..abs + end].to_string())
 }
 
 /// Teks dari tag pertama bernama `nama` dalam `html`.
@@ -94,7 +90,7 @@ fn tag_text(html: &str, nama: &str) -> Option<String> {
         let after = &html[abs + open.len()..];
         if after.starts_with('>') || after.starts_with(' ') || after.starts_with('/') {
             let close = format!("</{nama}>");
-            let content_start = abs + open.len();
+            let content_start = abs + html[abs..].find('>')? + 1;
             let content_end = html[content_start..].find(&close)?;
             return Some(html[content_start..content_start + content_end].to_string());
         }
@@ -134,7 +130,11 @@ fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn murrotal(ctx: Ctx) -> Reply {
-    let query = ctx.args.join(" ").trim();
+    // `m.args?.join(" ")?.trim()` (`murrotal.js:21`) — `join` menghasilkan
+    // `String` baru, jadi hasil `trim()` harus menyimpan string itu dulu
+    // (kalau langsung, temporer-nya jatuh sebelum dipakai).
+    let gabung = ctx.args.join(" ");
+    let query = gabung.trim();
     if query.is_empty() {
         return Reply::text(help(&ctx.prefix));
     }
@@ -142,17 +142,19 @@ pub fn murrotal(ctx: Ctx) -> Reply {
     let daftar = match fetch_surah_list(ctx.http.as_ref()) {
         Ok(d) => d,
         Err(_) => {
-            return Reply::text(crate::common::error_template(&ctx));
+            // `m.react("☢")` lalu `m.reply(te(...))` (`murrotal.js:65-66`).
+            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
-    let q = normalisasi(&query);
+    let q = normalisasi(query);
     let found = daftar.iter().find(|v| {
         normalisasi(&v.surah).contains(&q)
     });
 
     let Some(s) = found.filter(|v| !v.audio.is_empty()) else {
-        return Reply::text(format!("❌ Surah *{query}* tidak ditemukan"));
+        // `m.react("❌")` (`murrotal.js:55`).
+        return Reply::text(format!("❌ Surah *{query}* tidak ditemukan")).with_reaction("❌");
     };
 
     Reply::audio(MediaSource::url(s.audio.clone())).with_reaction("✅")
@@ -162,6 +164,7 @@ pub fn murrotal(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     const SENDER: &str = "628111@s.whatsapp.net";
@@ -279,7 +282,7 @@ mod tests {
     fn surah_ditemukan_mengembalikan_audio() {
         let http = StubHttp::body(HTML);
         let r = run(http.clone(), "al fatihah");
-        match r.without_mutations() {
+        match r.without_mutations().tanpa_reaksi() {
             Reply::Audio { media, .. } => {
                 let src = media.as_ref().expect("harus ada media");
                 assert_eq!(src, &MediaSource::url("https://cdn/audio/1.mp3"));
@@ -299,7 +302,7 @@ mod tests {
     fn pencarian_tidak_peka_huruf_dan_tanpa_spasi() {
         let http = StubHttp::body(HTML);
         let r = run(http.clone(), "AL FAtiHAH");
-        match r.without_mutations() {
+        match r.without_mutations().tanpa_reaksi() {
             Reply::Audio { media, .. } => {
                 let src = media.as_ref().expect("harus ada media");
                 assert_eq!(src, &MediaSource::url("https://cdn/audio/1.mp3"));

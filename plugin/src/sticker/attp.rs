@@ -42,7 +42,14 @@ pub(crate) fn api_url(text: &str, api_key: &str) -> String {
     is_bot_admin = false
 )]
 pub fn attp(ctx: Ctx) -> Reply {
-    let text = ctx.text.trim();
+    // `attp.js:74-77` — teks dari pesan, atau teks pesan yang di-reply kalau
+    // pesan itu tidak membawa teks sendiri.
+    let mut text = ctx.text.trim().to_string();
+    if text.is_empty()
+        && let Some(q) = ctx.quoted()
+    {
+        text = q.text.trim().to_string();
+    }
 
     if text.is_empty() {
         return Reply::text(help(&ctx.prefix));
@@ -53,7 +60,7 @@ pub fn attp(ctx: Ctx) -> Reply {
     }
 
     let api_key = ctx.config().api_keys.neoxr.clone();
-    let url = api_url(text, &api_key);
+    let url = api_url(&text, &api_key);
 
     let Ok(res) = ctx.http.get(&url) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
@@ -184,6 +191,37 @@ mod tests {
         let r = run(Stub::offline(), "");
         assert_eq!(text_of(&r), help("."));
         assert_eq!(reaction_of(&r), None);
+    }
+
+    #[test]
+    fn teks_dari_pesan_yang_direply_dipakai_saat_tidak_ada_teks() {
+        // `attp.js:74-77` — `m.quoted.text` jadi sumber teks kalau pesan
+        // pemicunya tidak membawa teks.
+        let ctx = Ctx {
+            text: String::new(),
+            args: vec![],
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "attp".into(),
+            http: Stub::offline(),
+            quoted: Some(oktz_plugin_api::QuotedMessage {
+                id: "MSG1".into(),
+                sender: ME.into(),
+                chat: ME.into(),
+                text: "Halo Dunia".into(),
+                kind: oktz_plugin_api::QuotedKind::Text,
+                mimetype: None,
+                file_name: None,
+                from_me: false,
+            }),
+            ..Ctx::default()
+        };
+        let r = attp(ctx);
+        // Teks terbaca, jadi bukan kartu pakai; karena offline, plugin jatuh
+        // ke template error.
+        assert_ne!(text_of(&r), help("."));
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "attp"));
     }
 
     #[test]

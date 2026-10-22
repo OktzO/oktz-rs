@@ -11,6 +11,7 @@
 //! jumlahnya sama.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::registry::InteractiveButton;
 use serde_json::Value;
 
 use crate::common::{js_truthy};
@@ -73,13 +74,13 @@ pub(crate) fn format_text(film: &Value, streams: &[Value], downloads: &[Value]) 
     let mut text = format!("🎬 *{}*\n\n", dash(film.get("title"), "Film"));
     text.push_str("╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n");
     for (label, key) in [
-        ("Rating", "rating"),
-        ("Quality", "quality"),
-        ("Duration", "duration"),
-        ("Release", "release"),
-        ("Genre", "tags"),
-        ("Director", "director"),
-        ("Actors", "actors"),
+        ("⭐ Rating", "rating"),
+        ("📺 Quality", "quality"),
+        ("⏱️ Duration", "duration"),
+        ("📅 Release", "release"),
+        ("🎭 Genre", "tags"),
+        ("🎬 Director", "director"),
+        ("👥 Actors", "actors"),
     ] {
         text.push_str(&format!("┃ {label}: {}\n", dash(film.get(key), "-")));
     }
@@ -157,8 +158,26 @@ pub fn filmget(ctx: Ctx) -> Reply {
         let _ = ctx.http.get(thumb);
     }
 
+    // `filmget.js:87-117` — tombol `cta_url`: satu untuk server streaming
+    // pertama, lalu maksimal dua provider download.
+    let mut buttons: Vec<InteractiveButton> = Vec::new();
+    if let Some(s) = streams.first() {
+        buttons.push(InteractiveButton::url(
+            format!("▶️ {}", interp(s.get("server"))),
+            interp(s.get("url")),
+        ));
+    }
+    for d in downloads.iter().take(2) {
+        buttons.push(InteractiveButton::url(
+            format!("📥 {}", interp(d.get("provider"))),
+            interp(d.get("url")),
+        ));
+    }
+
     Reply::interactive(format_text(film, streams, downloads))
-    .with_reaction("✅")
+        .with_buttons(buttons)
+        .with_footer("🎬 Nonton Film Online")
+        .with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -277,6 +296,45 @@ mod tests {
     }"#;
 
     #[test]
+    fn output_sama_dengan_js() {
+        // `filmget.js:25-31` — kartu pakai.
+        assert_eq!(
+            help("."),
+            "🎬 *ꜰɪʟᴍ ᴅᴇᴛᴀɪʟ*\n\n\
+             > Ambil detail film dari URL\n\n\
+             *Format:*\n\
+             > `.filmget <url>`\n\n\
+             > Gunakan `.film <judul>` untuk cari film dulu"
+        );
+        // `filmget.js:42` — film tidak ditemukan.
+        assert_eq!(NOT_FOUND, "❌ *ɢᴀɢᴀʟ*\n\n> Film tidak ditemukan");
+        // `filmget.js:58-85` — teks info + baris streaming/download.
+        let film = serde_json::json!({
+            "title": "Civil War", "rating": "8.1", "quality": "HD",
+            "duration": "1j 49m", "release": "2024", "tags": "Action",
+            "director": "Alex Garland", "actors": "A, B", "synopsis": "S."
+        });
+        let streams = vec![serde_json::json!({"server": "Srv1", "url": "u1"})];
+        let downloads = vec![serde_json::json!({"provider": "Pixeldrain", "url": "u2"})];
+        assert_eq!(
+            format_text(&film, &streams, &downloads),
+            "🎬 *Civil War*\n\n\
+             ╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n\
+             ┃ ⭐ Rating: 8.1\n\
+             ┃ 📺 Quality: HD\n\
+             ┃ ⏱️ Duration: 1j 49m\n\
+             ┃ 📅 Release: 2024\n\
+             ┃ 🎭 Genre: Action\n\
+             ┃ 🎬 Director: Alex Garland\n\
+             ┃ 👥 Actors: A, B\n\
+             ╰┈┈┈┈┈┈┈┈⬡\n\n\
+             📝 *Synopsis:*\n> S.\n\n\
+             ▶️ *Streaming:*\n> 1. Srv1\n\n\
+             📥 *Download:*\n> 1. Pixeldrain\n"
+        );
+    }
+
+    #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("filmget").unwrap();
         assert_eq!(p.meta.name, "filmget");
@@ -322,9 +380,9 @@ mod tests {
         let r = run(http.clone(), "https://tv.neoxr.eu/film/civil-war-2024");
         let body = body_of(&r);
         assert!(body.starts_with("🎬 *Civil War*\n\n╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n"), "{body}");
-        assert!(body.contains("┃ Rating: 8.1\n┃ Quality: HD\n┃ Duration: 1j 49m\n"), "{body}");
-        assert!(body.contains("┃ Genre: Action, Drama\n┃ Director: Alex Garland\n"), "{body}");
-        assert!(body.contains("┃ Actors: Cailee Spaeny, Kirsten Dunst\n╰┈┈┈┈┈┈┈┈⬡\n\n"), "{body}");
+        assert!(body.contains("┃ ⭐ Rating: 8.1\n┃ 📺 Quality: HD\n┃ ⏱️ Duration: 1j 49m\n"), "{body}");
+        assert!(body.contains("┃ 🎭 Genre: Action, Drama\n┃ 🎬 Director: Alex Garland\n"), "{body}");
+        assert!(body.contains("┃ 👥 Actors: Cailee Spaeny, Kirsten Dunst\n╰┈┈┈┈┈┈┈┈⬡\n\n"), "{body}");
         assert!(body.contains("📝 *Synopsis:*\n> Juru reporter invoke rival.\n\n"), "{body}");
         assert!(body.contains("▶️ *Streaming:*\n> 1. Srv1\n> 2. Srv2\n\n"), "{body}");
         assert!(body.contains("📥 *Download:*\n> 1. Pixeldrain\n"), "{body}");
@@ -345,7 +403,7 @@ mod tests {
         let film = serde_json::json!({});
         let text = format_text(&film, &[], &[]);
         assert!(text.starts_with("🎬 *Film*\n\n"), "{text}");
-        assert!(text.contains("┃ Rating: -\n┃ Quality: -\n"), "{text}");
+        assert!(text.contains("┃ ⭐ Rating: -\n┃ 📺 Quality: -\n"), "{text}");
         assert!(text.contains("> -\n\n"), "{text}");
         assert!(!text.contains("Streaming"), "{text}");
         assert!(!text.contains("Download"), "{text}");

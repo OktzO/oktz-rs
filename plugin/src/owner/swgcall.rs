@@ -33,7 +33,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_private = false,
     is_owner = true
 )]
-pub fn swgcall(ctx: Ctx) -> Reply {
+pub fn swgcall(_ctx: Ctx) -> Reply {
     Reply::text(
         "❌ *SWGCALL — TIDAK TERSEDIA*\n\n\
          Port Rust tertunda karena butuh:\n\

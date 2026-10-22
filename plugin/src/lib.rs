@@ -6,6 +6,7 @@
 // diabaikan rustc.
 pub mod ai;
 pub mod anime;
+pub mod asupan;
 pub mod canvas;
 pub mod cek;
 pub mod clan;
@@ -14,13 +15,18 @@ pub mod download;
 pub mod ephoto;
 pub mod fun;
 pub mod game;
+pub mod games;
 pub mod group;
 pub mod info;
+pub mod islamic;
+pub mod jpm;
 pub mod main;
+pub mod media;
 pub mod nsfw;
 pub mod owner;
 pub mod panel;
 pub mod primbon;
+pub mod pushkontak;
 pub mod random;
 pub mod religi;
 pub mod stalker;
@@ -29,8 +35,10 @@ pub mod search;
 pub mod sticker;
 pub mod store;
 pub mod tools;
+pub mod tts;
 pub mod user;
 pub mod utility;
+pub mod vps;
 
 #[cfg(test)]
 mod registry_test {

@@ -229,6 +229,7 @@ mod tests {
                 name: "Join saluran resmi Oktz".into(),
                 link: "https://whatsapp.com/channel/x".into(),
             },
+            digitalocean: Default::default(),
             api_keys: Default::default(),
             error_template: String::new(),
         }

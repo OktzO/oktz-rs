@@ -4,6 +4,10 @@
 //! Cabang rugi (`money < 0`) TIDAK memanggil `addExpWithLevelCheck`, jadi exp
 //! sama sekali tak tersentuh — hanya `koin` yang dijepit di 0. Cabang nihil
 //! (`money === 0`) memanggil `db.save()` tanpa perubahan apa pun.
+//!
+//! `beg.js:25` mengirim pesan "🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*" lebih dulu, lalu
+//! `setTimeout(2000)` (`beg.js:26`), baru pesan hasil. Dua pesan itu dikirim
+//! berurutan lewat [`Reply::sequence_text`].
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -68,10 +72,10 @@ pub fn beg(ctx: Ctx) -> Reply {
         serde_json::json!({ "koin": (koin + money).max(0) })
     } else {
         // `db.save()` tanpa perubahan — tak ada yang perlu ditulis.
-        return Reply::text(text);
+        return Reply::sequence_text(["🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*".to_string(), text]);
     };
 
-    Reply::text(text).with_mutation(Mutation::SetUser {
+    Reply::sequence_text(["🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*".to_string(), text]).with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data,
     })
@@ -93,8 +97,12 @@ mod tests {
         (oktz_plugin_api::find("beg").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `beg.js:25` mengirim satu pesan
+    /// lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -213,6 +221,25 @@ mod tests {
         for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "koin": null })] {
             let r = run(user.clone());
             assert!(!text_of(&r).is_empty(), "input {user}");
+        }
+    }
+
+    /// `beg.js:25` — pesan sebelum jeda persis sama dengan JS dan selalu
+    /// mendahului pesan hasil.
+    #[test]
+    fn output_sama_dengan_js() {
+        for _ in 0..300 {
+            let r = run(serde_json::json!({ "koin": 1_000, "exp": 0 }));
+            let semua = crate::rpg::heal::reply_texts(&r);
+            assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+            assert_eq!(semua[0], "🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*");
+            assert!(
+                semua[1].starts_with("🙏 *ɴɢᴇᴍɪs sᴜᴋsᴇs*")
+                    || semua[1].starts_with("😭 *ɴɢᴇᴍɪs ɢᴀɢᴀʟ*")
+                    || semua[1].starts_with("😢 *ɴɢᴇᴍɪs ɢᴀɢᴀʟ*"),
+                "{}",
+                semua[1]
+            );
         }
     }
 }

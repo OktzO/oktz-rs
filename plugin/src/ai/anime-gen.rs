@@ -29,7 +29,7 @@ fn help(prefix: &str) -> String {
          > Generate gambar anime AI dari prompt!\n\n\
          *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ:*\n\
          > `{prefix}anime-gen <deskripsi>`\n\n\
-         *ᴄᴏɴᴛᴏʛ:*\n\
+         *ᴄᴏɴᴛᴏʜ:*\n\
          > `{prefix}anime-gen girl, vibrant color, smilling, yellow pink gradient hair`\n\
          > `{prefix}anime-gen boy, dark aesthetic, silver hair, red eyes`\n\n\
          *ᴛɪᴘs:*\n\

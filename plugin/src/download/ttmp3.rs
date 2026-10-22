@@ -99,7 +99,7 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
     }
 
     let gagal = |pesan: &str| {
-        Reply::text(format!("❌ *ɢᴀɢᴀʟ ᴍᴇɢɴᴅᴜᴅᴜʜ*\n\n> {pesan}"))
+        Reply::text(format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> {pesan}"))
             .with_reaction("❌")
     };
 
@@ -222,5 +222,28 @@ mod tests {
             "https://www.tikwm.com/"
         );
         assert_eq!(origin_dari("http://cdn.tikwm.com/a.mp3"), "http://cdn.tikwm.com/");
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `ttmp3.js:158` — judul error memakai small-caps "mengunduh".
+        // Jalur gagal dipancing dengan `Ctx::default()`: `http`-nya `NoHttp`
+        // sehingga scraper gagal dan plugin melaporkan pesan error.
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "ttmp3".into(),
+            text: "https://vt.tiktok.com/xxx".into(),
+            args: vec!["https://vt.tiktok.com/xxx".into()],
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            ..Ctx::default()
+        };
+        let r = ttmp3(ctx);
+        let teks = r.without_mutations().text_body().unwrap_or_default();
+        assert!(
+                        teks.starts_with("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> "),
+            "teks: {teks}"
+        );
+        assert!(!teks.contains("ᴍᴇɢɴᴅᴜᴅᴜʰ"), "teks: {teks}");
     }
 }

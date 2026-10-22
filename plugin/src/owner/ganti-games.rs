@@ -1,26 +1,34 @@
-//! `plugins/owner/ganti-games.js` — ganti gambar games.jpg (thumbnail games).
+//! `plugins/owner/ganti-games.jpg.js` — ganti aset games.jpeg.
 //!
-//! ## BLOKIR — tidak di-port.
+//! Alur sama dengan JS: cek jenis media, unduh buffer, balas
+//! "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas aset dan
+//! laporkan jalurnya. Helper-nya ada di `ganti_gambar.rs`.
 //!
-//! Alasan: memanggil `updateAssetUrl('games', buffer, 'games.jpeg')` dari
-//! `../../src/lib/uploader.js`, yang bukan bagian dari `Ctx` API. `m.download()`
-//! / `m.quoted.download()` tersedia via `MediaFetch`, tetapi fungsi upload aset
-//! belum ada di Rust API. Jangan port paksa.
-//!
-//! `ponytail:` kalau `updateAssetUrl` diekspose lewat `Ctx` nanti, port ulang
-//! dari `plugins/owner/ganti-games.js` (cek `m.isImage` / `m.quoted.type`,
-//! unduh buffer, upload, kirim URL baru).
-//!
-//! NOTE: baris `pub mod ganti_games;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs dilarang disentuh karena sudah milik plugin lain).
+//! Catatan: `updateAssetUrl` di JS juga menulis ulang `config.js`; di Rust
+//! jalur aset sudah ada di `config.assets`, jadi cukup berkas asetnya yang
+//! ditulis.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
+
+use super::ganti_gambar::{Aset, Jenis, jalankan};
+
+/// Parameter aset untuk plugin ini.
+const ASET: Aset = Aset {
+    emoji_judul: "🖼️",
+    judul: "ɢᴀɴᴛɪ ɢᴀᴍᴇs.ᴊᴘɢ",
+    file_tampil: "assets/image/games.jpeg",
+    key: "games",
+    nama_file: "games.jpeg",
+    label_sukses: "Gambar",
+    label_error: "gambar",
+    jenis: Jenis::Gambar,
+};
 
 #[plugin(
     name = "ganti-games.jpg",
     alias = ["gantigames", "setgames"],
     category = "owner",
-    description = "Ganti gambar games.jpg (thumbnail games) (DIBLOKIR: updateAssetUrl belum tersedia di Rust)",
+    description = "Ganti gambar games.jpg (thumbnail games)",
     usage = ".ganti-games.jpg (reply/kirim gambar)",
     example = ".ganti-games.jpg",
     cooldown = 5,
@@ -32,6 +40,106 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_admin = false,
     is_bot_admin = false
 )]
-pub fn ganti_games(_ctx: Ctx) -> Reply {
-    Reply::None
+pub fn ganti_games(ctx: Ctx) -> Reply {
+    jalankan(&ctx, &ASET)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use oktz_plugin_api::{IncomingKind, IncomingMedia, QuotedKind, QuotedMessage};
+    use std::sync::Arc;
+
+    const ME: &str = "628111@s.whatsapp.net";
+
+    #[test]
+    fn meta_dan_alias_sama_dengan_js() {
+        let p = oktz_plugin_api::find("ganti-games.jpg").unwrap();
+        assert_eq!(p.meta.name, "ganti-games.jpg");
+        assert_eq!(p.meta.alias, ["gantigames", "setgames"]);
+        assert_eq!(p.meta.category, "owner");
+        assert_eq!(p.meta.description, "Ganti gambar games.jpg (thumbnail games)");
+        assert_eq!(p.meta.usage, ".ganti-games.jpg (reply/kirim gambar)");
+        assert_eq!(p.meta.example, ".ganti-games.jpg");
+        assert_eq!(p.meta.cooldown, 5);
+        assert_eq!(p.meta.energi, 0);
+        assert!(p.meta.is_owner);
+        assert!(!p.meta.is_group && !p.meta.is_private && !p.meta.is_premium);
+    }
+
+    #[test]
+    fn bukan_media_menampilkan_kartu_pakai() {
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-games.jpg".into(),
+            ..Ctx::default()
+        };
+        let r = ganti_games(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::pakai(&ASET)
+        );
+    }
+
+    #[test]
+    fn unduhan_gagal_menampilkan_pesan_gagal() {
+        let media = if ASET.jenis == Jenis::Gambar {
+            IncomingKind::Image
+        } else {
+            IncomingKind::Video
+        };
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-games.jpg".into(),
+            media: Some(IncomingMedia {
+                kind: media,
+                mimetype: None,
+                file_name: None,
+                caption: String::new(),
+            }),
+            media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
+            ..Ctx::default()
+        };
+        let r = ganti_games(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
+        );
+    }
+
+    #[test]
+    fn quoted_media_dilayani_sama() {
+        let kind = if ASET.jenis == Jenis::Gambar {
+            QuotedKind::Image
+        } else {
+            QuotedKind::Video
+        };
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-games.jpg".into(),
+            quoted: Some(QuotedMessage {
+                id: "1".into(),
+                sender: ME.into(),
+                chat: ME.into(),
+                text: String::new(),
+                kind,
+                mimetype: None,
+                file_name: None,
+                from_me: false,
+            }),
+            media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
+            ..Ctx::default()
+        };
+        let r = ganti_games(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
+        );
+    }
 }

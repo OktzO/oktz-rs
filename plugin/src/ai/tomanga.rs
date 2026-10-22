@@ -3,18 +3,21 @@
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin};
 
-const PROMPT: &str = "Transform this image into Japanese manga style illustration. \
-Apply black and white manga aesthetics with dramatic shading, speed lines, \
-expressive eyes, and detailed screentones. Keep the original composition \
-but convert it to look like a page from a Japanese manga with bold ink lines, \
-dynamic poses, and that distinctive manga art style.";
+const PROMPT: &str = "Transform this image into Japanese manga style illustration. \nApply black and white manga aesthetics with dramatic shading, speed lines, \nexpressive eyes, and detailed screentones. Keep the original composition \nbut convert it to look like a page from a Japanese manga with bold ink lines, \ndynamic poses, and that distinctive manga art style.";
 
-const HELP: &str = "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`.tomanga`";
+const HELP: &str = "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`{prefix}tomanga`";
 const GAGAL_DOWNLOAD: &str = "❌ Gagal mendownload gambar";
 
+/// Kartu pakai — `tomanga.js:27-33` memakai `${m.prefix}`.
+fn help(prefix: &str) -> String {
+    HELP.replace("{prefix}", prefix)
+}
+
+/// `tomanga.js:36-43`: sumber unduhan `m.quoted.isMedia` kalau ada, lalu
+/// `m.isMedia`; syarat "ada gambar" memakai `m.isImage`/quoted `imageMessage`.
 fn ambil_gambar(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if let Some(q) = ctx.quoted()
-        && q.kind.is_image()
+        && q.is_media()
     {
         return Some(ctx.download_quoted_media());
     }
@@ -42,7 +45,7 @@ fn ambil_gambar(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
 )]
 pub fn tomanga(ctx: Ctx) -> Reply {
     let Some(hasil_unduh) = ambil_gambar(&ctx) else {
-        return Reply::text(HELP);
+        return Reply::text(help(&ctx.prefix));
     };
     let Ok(buffer) = hasil_unduh else {
         return Reply::text(GAGAL_DOWNLOAD).with_reaction("❌");
@@ -50,9 +53,8 @@ pub fn tomanga(ctx: Ctx) -> Reply {
     let gambar = oktz_scraper::seaart::live3d(&*ctx.http, &buffer, PROMPT);
     match gambar {
         Ok(bytes) => Reply::image(MediaSource::bytes(bytes), String::new()).with_reaction("✅"),
-        Err(_) => Reply::text(
-            "☢ Kayaknya command `.tomanga` lagi ada kendala\nSilahkan coba lagi nanti, User\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
-        ).with_reaction("☢"),
+        // `tomanga.js:55-58` — `catch` memakai template error `te(...)`.
+        Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }
 
@@ -146,7 +148,19 @@ mod tests {
         let http = HttpStub::urutan(vec![]);
         let ctx = Ctx { text: ".tomanga".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: ".".into(), command: "tomanga".into(), http, ..Ctx::default() };
         let r = tomanga(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), HELP);
+        assert_eq!(r.without_mutations().text_body().unwrap(), help("."));
+    }
+
+    #[test]
+    fn kartu_pakai_memakai_prefix_ctx() {
+        // `tomanga.js:31` memakai `${m.prefix}`, bukan titik hardcode.
+        let http = HttpStub::urutan(vec![]);
+        let ctx = Ctx { text: ".tomanga".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: "!".into(), command: "tomanga".into(), http, ..Ctx::default() };
+        let r = tomanga(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`!tomanga`"
+        );
     }
 
     #[test]
@@ -186,7 +200,11 @@ mod tests {
             (200, r#"{"status":false}"#),
         ]);
         let r = run(http, Ok(b"IMG".to_vec()));
-        assert!(r.without_mutations().text_body().unwrap().contains("lagi ada kendala"));
+        // `tomanga.js:57` — `te(prefix, command, pushName)`.
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            crate::common::error_template_bawaan(".", "tomanga")
+        );
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "☢"),
             other => panic!("harus reaksi ☢, dapat {other:?}"),

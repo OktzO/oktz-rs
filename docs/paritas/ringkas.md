@@ -2,71 +2,69 @@
 
 Total plugin JS diperiksa: 792
 
-- HILANG (tidak ada di Rust): 151
-- BEDA (baris output beda): 479
-- ADA (tidak ada baris hilang): 162
+- HILANG (tidak ada di Rust): 44
+- BEDA (baris output beda): 506
+- ADA (tidak ada baris hilang): 242
 
 | kategori | hilang | beda | ada |
 |---|---|---|---|
-| ai | 2 | 37 | 7 |
+| ai | 1 | 37 | 8 |
 | anime | 1 | 2 | 0 |
 | asupan | 0 | 3 | 1 |
 | berita | 0 | 1 | 0 |
 | canvas | 12 | 13 | 5 |
 | cecan | 0 | 0 | 6 |
-| cek | 36 | 9 | 3 |
+| cek | 0 | 0 | 48 |
 | clan | 0 | 4 | 5 |
-| download | 0 | 19 | 5 |
+| download | 0 | 18 | 6 |
 | downloader | 0 | 1 | 1 |
 | ephoto | 0 | 1 | 0 |
-| fun | 16 | 15 | 9 |
+| fun | 15 | 13 | 12 |
 | game | 2 | 10 | 1 |
-| group | 2 | 63 | 38 |
+| group | 0 | 59 | 44 |
 | info | 0 | 10 | 3 |
 | islamic | 0 | 2 | 0 |
 | jpm | 1 | 0 | 0 |
 | linode | 1 | 0 | 0 |
 | main | 3 | 13 | 3 |
 | maker | 0 | 2 | 0 |
-| media | 1 | 0 | 0 |
+| media | 0 | 1 | 0 |
 | nsfw | 0 | 1 | 0 |
-| owner | 37 | 92 | 22 |
+| owner | 0 | 129 | 22 |
 | panel | 2 | 7 | 1 |
 | primbon | 0 | 1 | 7 |
 | pushkontak | 0 | 1 | 0 |
 | random | 1 | 0 | 5 |
 | religi | 0 | 3 | 1 |
-| rpg | 0 | 55 | 12 |
-| search | 6 | 33 | 7 |
+| rpg | 0 | 40 | 27 |
+| search | 0 | 38 | 8 |
 | stalker | 1 | 10 | 3 |
 | stalker   | 0 | 1 | 0 |
-| sticker | 10 | 9 | 1 |
+| sticker | 0 | 16 | 4 |
 | store | 2 | 10 | 2 |
-| tools | 12 | 37 | 7 |
+| tools | 0 | 49 | 7 |
 | tts | 0 | 1 | 1 |
 | user | 2 | 8 | 6 |
 | utility | 0 | 1 | 0 |
-| vps | 1 | 4 | 0 |
+| vps | 0 | 0 | 5 |
 
 ## Plugin dengan baris output berbeda
+
+### ai (ai)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/ai.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/ai/ai.rs`
+
+  - JS: `[AI Error]`
+    Rust: (tidak ada padanan)
 
 ### anime-gen (ai)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/anime-gen.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/ai/anime-gen.rs`
 
-  - JS: `*ᴄᴏɴᴛᴏʜ:*`
-    Rust: `*ᴄᴏɴᴛᴏʛ:*`
   - JS: `> Request terlalu lama. Coba lagi!`
     Rust: (tidak ada padanan)
   - JS: `⏱️ *ᴛɪᴍᴇᴏᴜᴛ*`
     Rust: (tidak ada padanan)
-
-### bananagen (ai)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/bananagen.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/ai/bananagen.rs`
-
-  - JS: ``Contoh: ␀bananagen make it anime style``
-    Rust: ``Contoh: .bananagen make it anime style``
 
 ### bananagen2 (ai)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/bananagen2.js`
@@ -261,8 +259,6 @@ Total plugin JS diperiksa: 792
 
   - JS: `Hasil kosong dari provider`
     Rust: (tidak ada padanan)
-  - JS: ``␀to3d``
-    Rust: ``.to3d``
 
 ### toanime (ai)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/toanime.js`
@@ -298,24 +294,12 @@ Total plugin JS diperiksa: 792
 
   - JS: `Hasil kosong dari provider`
     Rust: (tidak ada padanan)
-  - JS: ``␀tochibi``
-    Rust: ``.tochibi``
 
 ### tofigure (ai)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/tofigure.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/ai/tofigure.rs`
 
-  - JS: `> Kirim/reply gambar untuk diubah ke style Figure`
-    Rust: (tidak ada padanan)
-  - JS: `Ubah gambar ke style Figure/Action`
-    Rust: (tidak ada padanan)
-  - JS: ``␀tofigure``
-    Rust: `.tofigure`
   - JS: `image.jpg`
-    Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mendownload gambar`
-    Rust: (tidak ada padanan)
-  - JS: `🎭 *ꜰɪɢᴜʀᴇ sᴛʏʟᴇ*`
     Rust: (tidak ada padanan)
 
 ### tofigure3 (ai)
@@ -330,8 +314,6 @@ Total plugin JS diperiksa: 792
 - Rust: `/workspaces/oktz-rs/plugin/src/ai/tohijab.rs`
 
   - JS: `image.jpg`
-    Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mendownload gambar`
     Rust: (tidak ada padanan)
 
 ### toisland (ai)
@@ -354,24 +336,12 @@ Total plugin JS diperiksa: 792
 
   - JS: `Hasil kosong dari provider`
     Rust: (tidak ada padanan)
-  - JS: ``␀tomanga``
-    Rust: ``.tomanga``
 
 ### tooilpainting (ai)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/ai/tooilpainting.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/ai/tooilpainting.rs`
 
-  - JS: `> Kirim/reply gambar untuk diubah ke gaya lukisan minyak`
-    Rust: (tidak ada padanan)
   - JS: `Hasil kosong dari provider`
-    Rust: (tidak ada padanan)
-  - JS: `Ubah foto menjadi gaya lukisan minyak (oil painting)`
-    Rust: (tidak ada padanan)
-  - JS: ``␀tooilpainting``
-    Rust: `.tooilpainting`
-  - JS: `❌ Gagal mendownload gambar`
-    Rust: (tidak ada padanan)
-  - JS: `🖼️ *ᴛᴏ ᴏɪʟ ᴘᴀɪɴᴛɪɴɢ*`
     Rust: (tidak ada padanan)
 
 ### text2img3 (ai)
@@ -732,91 +702,6 @@ Total plugin JS diperiksa: 792
   - JS: `form-data`
     Rust: (tidak ada padanan)
 
-### cekberat (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekberat.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekberat.rs`
-
-  - JS: `Berat badan dia sebesar *␀ kg*`
-    Rust: `Berat badan dia sebesar *␀ kg`
-  - JS: `Berat badan kamu *␀ kg*`
-    Rust: `Berat badan kamu *␀ kg`
-
-### cekfemboy (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekfemboy.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekfemboy.rs`
-
-  - JS: `Gagal convert GIF`
-    Rust: (tidak ada padanan)
-  - JS: `cekfemboy-␀.gif`
-    Rust: (tidak ada padanan)
-  - JS: `cekfemboy-␀.mp4`
-    Rust: (tidak ada padanan)
-  - JS: `ffmpeg -y -ignore_loop 0 -i "␀" -t 30 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -movflags faststart -preset ultrafast -an "␀"`
-    Rust: (tidak ada padanan)
-
-### cekkarma (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekkarma.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekkarma.rs`
-
-  - JS: `Tingkat kekarmaan dia sebesar *␀%*`
-    Rust: `Tingkat kekarmaan dia sebesar *␀%`
-  - JS: `Tingkat kekarmaan kamu *␀%*`
-    Rust: `Tingkat kekarmaan kamu *␀%`
-
-### cekpartner (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekpartner.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekpartner.rs`
-
-  - JS: `62`
-    Rust: (tidak ada padanan)
-  - JS: `id-ID`
-    Rust: (tidak ada padanan)
-
-### cekpintar (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekpintar.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekpintar.rs`
-
-  - JS: `Kepintaran (IQ) dia sebesar *␀*`
-    Rust: `Kepintaran (IQ) dia sebesar *␀`
-  - JS: `Kepintaran (IQ) kamu *␀*`
-    Rust: `Kepintaran (IQ) kamu *␀`
-
-### cekprem (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekprem.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekprem.rs`
-
-  - JS: `62`
-    Rust: (tidak ada padanan)
-  - JS: `id-ID`
-    Rust: (tidak ada padanan)
-
-### ceksisaumur (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/ceksisaumur.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/ceksisaumur.rs`
-
-  - JS: `Sisa umur dia sebesar *␀ Tahun ␀ Bulan ␀ Hari*`
-    Rust: (tidak ada padanan)
-  - JS: `Sisa umur kamu *␀ Tahun ␀ Bulan ␀ Hari*`
-    Rust: `␀ Tahun ␀ Bulan ␀ Hari`
-
-### cektinggi (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cektinggi.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cektinggi.rs`
-
-  - JS: `Tinggi badan dia sebesar *␀ cm*`
-    Rust: `Tinggi badan dia sebesar *␀ cm`
-  - JS: `Tinggi badan kamu *␀ cm*`
-    Rust: `Tinggi badan kamu *␀ cm`
-
-### cekumur (cek)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/cek/cekumur.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/cek/cekumur.rs`
-
-  - JS: `Tingkat keumuran dia sebesar *␀%*`
-    Rust: `Tingkat keumuran dia sebesar *␀%`
-  - JS: `Tingkat keumuran kamu *␀%*`
-    Rust: `Tingkat keumuran kamu *␀%`
-
 ### claninfo (clan)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/clan/claninfo.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/clan/claninfo.rs`
@@ -855,12 +740,6 @@ Total plugin JS diperiksa: 792
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/download/alightmotion.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/download/alightmotion.rs`
 
-  - JS: `Content-Type`
-    Rust: (tidak ada padanan)
-  - JS: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36`
-    Rust: (tidak ada padanan)
-  - JS: `User-Agent`
-    Rust: (tidak ada padanan)
   - JS: `[AMDL Plugin Error]`
     Rust: (tidak ada padanan)
 
@@ -929,16 +808,9 @@ Total plugin JS diperiksa: 792
 - Rust: `/workspaces/oktz-rs/plugin/src/download/instagramdl.rs`
 
   - JS: `❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*`
-    Rust: `❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʂ*`
+    Rust: `❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʰ*`
   - JS: `📸 *Instagram ␀*`
     Rust: `📸 *Instagram Story*`
-
-### likeedl (download)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/download/likeedl.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/download/likeedl.rs`
-
-  - JS: `❌ Gagal mengambil video. Coba link lain.`
-    Rust: (tidak ada padanan)
 
 ### pindl (download)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/download/pindl.js`
@@ -1415,22 +1287,18 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `1970`
     Rust: (tidak ada padanan)
-  - JS: `> ␀`
-    Rust: (tidak ada padanan)
   - JS: `?.filter((d) => d.type === "photo" || d.url?.match(/.(jpg|jpeg|png|webp)/i) || result.durations === 0)`
     Rust: (tidak ada padanan)
   - JS: `?1`
     Rust: (tidak ada padanan)
   - JS: `Accept-Language`
     Rust: (tidak ada padanan)
-  - JS: `Coba lagi nanti, atau bisa coba *␀tt2* sebagai alternatif.`
-    Rust: (tidak ada padanan)
   - JS: `Content-Type`
     Rust: `content-type`
   - JS: `Contoh: `.tt https://vt.tiktok.com/ZSxxxx/`");`
     Rust: `Contoh: `.tt https://vt.tiktok.com/ZSxxxx/``
   - JS: `Jika tetap gagal, pastikan link valid dan video tidak private.`);`
-    Rust: (tidak ada padanan)
+    Rust: `Jika tetap gagal, pastikan link valid dan video tidak private.`
   - JS: `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36`
     Rust: `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36`
   - JS: `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36`
@@ -1450,7 +1318,7 @@ Total plugin JS diperiksa: 792
   - JS: `Sec-Fetch-Site`
     Rust: (tidak ada padanan)
   - JS: `Tekan tombol di bawah untuk ambil music.`, m, {`
-    Rust: (tidak ada padanan)
+    Rust: `Tekan tombol di bawah untuk ambil music.`
   - JS: `TikWM error:`
     Rust: (tidak ada padanan)
   - JS: `TikWM tidak mengembalikan data valid`
@@ -1466,7 +1334,7 @@ Total plugin JS diperiksa: 792
   - JS: `` +`
     Rust: (tidak ada padanan)
   - JS: ``*Statistik Konten:*`
-    Rust: `*Statistik Video:*`
+    Rust: `*Statistik Konten:*`
   - JS: ``*Statistik Video:*`
     Rust: `*Statistik Video:*`
   - JS: ``- Author: *␀* (␀)`
@@ -1498,7 +1366,7 @@ Total plugin JS diperiksa: 792
   - JS: ``📌 Contoh: *␀ https://vt.tiktok.com/...*``
     Rust: `📌 Contoh: *␀␀ https://vt.tiktok.com/...*`
   - JS: ``📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [␀]`
-    Rust: `🎵 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [␀]`
+    Rust: `📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [␀]`
   - JS: `albumMessage: finalSlides,`
     Rust: (tidak ada padanan)
   - JS: `alias: ["tiktokdl", "ttdown"],`
@@ -1758,7 +1626,7 @@ Total plugin JS diperiksa: 792
   - JS: `m.react("🕕");`
     Rust: (tidak ada padanan)
   - JS: `m.reply(`❌ *Gagal mengunduh TikTok*`
-    Rust: (tidak ada padanan)
+    Rust: `❌ *Gagal mengunduh TikTok*`
   - JS: `maxRedirects: 5,`
     Rust: (tidak ada padanan)
   - JS: `mimetype: videoRes.headers["content-type"]?.includes("video") ? videoRes.headers["content-type"] : "video/mp4",`
@@ -1927,7 +1795,7 @@ Total plugin JS diperiksa: 792
   - JS: `audio: { url: result.mp3[0] },`
     Rust: (tidak ada padanan)
   - JS: `await m.reply(`📸 *Mengirim ␀ slide...*`)`
-    Rust: (tidak ada padanan)
+    Rust: `📸 *Mengirim ␀ slide...*`
   - JS: `await sock.relayMessage(msg.key.remoteJid, msg.message, {`
     Rust: (tidak ada padanan)
   - JS: `await sock.relayMessage(opener.key.remoteJid, opener.message, {`
@@ -2153,8 +2021,6 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `␀_␀`
     Rust: (tidak ada padanan)
-  - JS: `❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*`
-    Rust: `❌ *ɢᴀɢᴀʟ ᴍᴇɢɴᴅᴜᴅᴜʜ*`
 
 ### videy (download)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/download/videy.js`
@@ -2456,8 +2322,6 @@ Total plugin JS diperiksa: 792
 
   - JS: `bucin.json`
     Rust: (tidak ada padanan)
-  - JS: `❌ Data tidak tersedia!`
-    Rust: (tidak ada padanan)
 
 ### cekkhodam (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/cekkhodam.js`
@@ -2470,13 +2334,6 @@ Total plugin JS diperiksa: 792
   - JS: `khodam-␀.mp3`
     Rust: (tidak ada padanan)
 
-### cekpacar (fun)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/cekpacar.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/fun/cekpacar.rs`
-
-  - JS: `💭 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*`
-    Rust: `💕 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*`
-
 ### confess (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/confess.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/fun/confess.rs`
@@ -2485,30 +2342,71 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `62`
     Rust: `62␀`
-  - JS: `> `␀confess 6281234567890|Hai kak, aku suka deh liat senyum kamu!``
-    Rust: `> `.confess 6281234567890|Hai kak, aku suka deh liat senyum kamu!``
-  - JS: `> 🔒 _Tenang, identitas kamu masih aman!_`
-    Rust: (tidak ada padanan)
-  - JS: `Coba ketik gini: `␀confess nomor|pesan``
-    Rust: `Coba ketik gini: `.confess nomor|pesan``
   - JS: `Hmm kak, nomor `␀` belum bisa dipastikan terdaftar di WhatsApp, jadi pesan belum dikirim. Coba lagi nanti kak! 🙏`
-    Rust: (tidak ada padanan)
+    Rust: `Hmm kak, nomor `␀` belum bisa dipastikan terdaftar di WhatsApp,`
   - JS: `Hmm kak, verifikasi nomor `␀` ke WhatsApp gagal (timeout/koneksi), jadi pesan belum dikirim ya. Coba lagi nanti kak! 🙏`
-    Rust: `Hmm kak, verifikasi nomor ke WhatsApp gagal (timeout/koneksi), jadi pesan belum dikirim ya. Coba lagi nanti kak! 🙏`
-  - JS: `Orang yang kamu kirimin menfess tadi barusan balas pesanmu:`
     Rust: (tidak ada padanan)
   - JS: `Tidak diketahui`
     Rust: (tidak ada padanan)
-  - JS: `Yah kak, nomor `␀` ternyata nggak terdaftar di WhatsApp! 😔`
-    Rust: `Yah kak, nomor ternyata nggak terdaftar di WhatsApp! 😔`
-  - JS: `✅ Sip kak! Balasan kamu udah aku sampaikan ke pengirim rahasianya.`
+
+### gachahusbu (fun)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/gachahusbu.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/fun/gachahusbu.rs`
+
+  - JS: `(␀/100)`
     Rust: (tidak ada padanan)
-  - JS: `👉 `␀confess nomor|pesan``
-    Rust: `👉 `.confess nomor|pesan``
-  - JS: `💌 *ADA BALASAN MENFESS NIH KAK!* 💌`
+  - JS: `Dia sedang berusaha meluluhkan hatimu!`
+    Rust: `Dia sedang berusaha melulukkan hatimu!`
+  - JS: `Jangan serakah! Jaga husbu yang kamu miliki sekarang. ␀ Ketik *␀husbuku* untuk berinteraksi dengannya.`
     Rust: (tidak ada padanan)
-  - JS: `💬 *Isi Balasan:*`
-    Rust: `💬 *Isi Pesan:*`
+  - JS: `Kamu mengembalikan barang-barangnya dan memintanya untuk pergi. Dia menatapmu dengan mata kecewa yang mendalam, berbalik tanpa sepatah kata pun, lalu menghilang di tengah hujan.`
+    Rust: (tidak ada padanan)
+  - JS: `Karena kasih sayangnya habis (0), dia mengemasi seluruh barang-barangnya dan pergi. Kamu kehilangan husbumu! *(Ketik ␀gachahusbu untuk memulai ulang)*`
+    Rust: (tidak ada padanan)
+  - JS: `Simulasi kencan virtual interaktif untuk mendapatkan laki-laki anime idamanmu! Tarik perhatiannya, buat dia jatuh cinta, dan nikahi dia!`
+    Rust: `Simulasi kencan virtual interaktif untuk mendapatkan laki-laki anime idamanmu!`
+  - JS: `[GachaHusbu] Pinterest API error:`
+    Rust: (tidak ada padanan)
+  - JS: `versi WhatsApp tidak mendukung`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction hadiah`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction klaim`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction menu_belanja`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_bioskop`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_bulanmadu`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_cium`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction menu_jalanjalan`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_kafe`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction menu_lainnya`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_mandi`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_peluk`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction menu_tidur`
+    Rust: (tidak ada padanan)
+  - JS: `␀husbuaction mesra`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction nikah`
+    Rust: `␀husbuaction ␀`
+  - JS: `␀husbuaction rayu`
+    Rust: `␀husbuaction ␀`
+  - JS: `✨ *EVENT:* ␀␀␀ aff)` : ""}␀ koin)` : ""}`
+    Rust: (tidak ada padanan)
+  - JS: `✨ +␀ EXP␀ Koin` : ""}`
+    Rust: (tidak ada padanan)
+  - JS: `💢 *HENTIKAN!* Kamu bertindak terlalu agresif saat perasaannya masih samar! *␀* menepis tanganmu dengan wajah marah dan kecewa.`
+    Rust: `💢 *HENTIKAN!* Kamu bertindak terlalu agresif saat perasaannya masih samar! *␀*`
+  - JS: `🗓️ *Hari ke-␀*␀` : ""}`
+    Rust: `🗓️ *Hari ke-␀*␀`
 
 ### gachawaifu (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/gachawaifu.js`
@@ -2518,18 +2416,14 @@ Total plugin JS diperiksa: 792
     Rust: `␀␀ (␀/100)`
   - JS: `Karena kasih sayangnya habis (0), dia pergi meninggalkan surat basah air mata. Kamu kehilangan waifumu! *(Ketik ␀gachawaifu untuk memulai ulang)*`
     Rust: (tidak ada padanan)
-  - JS: `Tekan tombol untuk mulai!`
-    Rust: (tidak ada padanan)
   - JS: `[GachaWaifu] Pinterest API error:`
     Rust: (tidak ada padanan)
   - JS: `versi WhatsApp tidak mendukung`
     Rust: (tidak ada padanan)
-  - JS: `␀gachawaifu start`
-    Rust: (tidak ada padanan)
   - JS: `␀waifuaction hadiah`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction klaim`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction menu_belanja`
     Rust: (tidak ada padanan)
   - JS: `␀waifuaction menu_bioskop`
@@ -2537,11 +2431,11 @@ Total plugin JS diperiksa: 792
   - JS: `␀waifuaction menu_bulanmadu`
     Rust: (tidak ada padanan)
   - JS: `␀waifuaction menu_cium`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction menu_jalanjalan`
     Rust: (tidak ada padanan)
   - JS: `␀waifuaction menu_kafe`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction menu_lainnya`
     Rust: (tidak ada padanan)
   - JS: `␀waifuaction menu_mandi`
@@ -2551,171 +2445,17 @@ Total plugin JS diperiksa: 792
   - JS: `␀waifuaction menu_tidur`
     Rust: (tidak ada padanan)
   - JS: `␀waifuaction mesra`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction nikah`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `␀waifuaction rayu`
-    Rust: (tidak ada padanan)
-  - JS: `␀waifuaction ␀`
-    Rust: (tidak ada padanan)
-  - JS: `☕ Kafe`
-    Rust: (tidak ada padanan)
-  - JS: `☕ Kopi Pahit`
-    Rust: (tidak ada padanan)
-  - JS: `⚽ Olahraga`
-    Rust: `⚽ Olahraga...`
-  - JS: `⛰️ Hiking`
-    Rust: (tidak ada padanan)
-  - JS: `⛵ Perahu`
-    Rust: (tidak ada padanan)
+    Rust: `␀waifuaction ␀`
   - JS: `✨ *EVENT:* ␀␀␀ aff)` : ""}␀ koin)` : ""}`
     Rust: (tidak ada padanan)
   - JS: `✨ +␀ EXP␀ Koin` : ""}`
     Rust: (tidak ada padanan)
-  - JS: `❤️ Jaga terus perasaannya ya!`
-    Rust: (tidak ada padanan)
-  - JS: `❤️ Kamu sudah menikahinya!`
-    Rust: (tidak ada padanan)
-  - JS: `🌆 Kota`
-    Rust: (tidak ada padanan)
-  - JS: `🌙 Serandu`
-    Rust: (tidak ada padanan)
-  - JS: `🌟 *␀ TIER WAIFU* 🌟`
-    Rust: (tidak ada padanan)
-  - JS: `🌳 Di Taman`
-    Rust: (tidak ada padanan)
-  - JS: `🌳 Taman`
-    Rust: (tidak ada padanan)
-  - JS: `🌴 Bulan Madu`
-    Rust: `🌴 Bulan madu...`
-  - JS: `🍖 BBQ`
-    Rust: (tidak ada padanan)
-  - JS: `🍰 Kue`
-    Rust: (tidak ada padanan)
-  - JS: `🍳 Masak`
-    Rust: (tidak ada padanan)
-  - JS: `🍳 Masakan Rumah`
-    Rust: (tidak ada padanan)
-  - JS: `🍵 Matcha Latte`
-    Rust: (tidak ada padanan)
-  - JS: `🍽️ Kuliner`
-    Rust: (tidak ada padanan)
-  - JS: `🍽️ Restoran`
-    Rust: (tidak ada padanan)
-  - JS: `🎁 Klaim Harian`
-    Rust: (tidak ada padanan)
-  - JS: `🎁 Lainnya`
-    Rust: (tidak ada padanan)
-  - JS: `🎣 Mancing`
-    Rust: (tidak ada padanan)
-  - JS: `🎤 Karaoke`
-    Rust: `🎤 Karaoke...`
-  - JS: `🎨 Animasi`
-    Rust: (tidak ada padanan)
-  - JS: `🎨 Melukis`
-    Rust: (tidak ada padanan)
-  - JS: `🎨 Seni`
-    Rust: (tidak ada padanan)
-  - JS: `🎬 Bioskop`
-    Rust: (tidak ada padanan)
-  - JS: `🎮 Adu Skor`
-    Rust: (tidak ada padanan)
-  - JS: `🎮 Lainnya`
-    Rust: (tidak ada padanan)
-  - JS: `🎯 Main Boneka`
-    Rust: (tidak ada padanan)
-  - JS: `🎲 Mulai Gacha!`
-    Rust: (tidak ada padanan)
-  - JS: `🎵 Solo`
-    Rust: (tidak ada padanan)
-  - JS: `🎶 Duet`
-    Rust: (tidak ada padanan)
-  - JS: `🎸 Konser`
-    Rust: (tidak ada padanan)
-  - JS: `🏃 Lari Pagi`
-    Rust: (tidak ada padanan)
-  - JS: `🏃 Punggung`
-    Rust: (tidak ada padanan)
-  - JS: `🏕️ Alam`
-    Rust: (tidak ada padanan)
-  - JS: `🏕️ Camping`
-    Rust: (tidak ada padanan)
-  - JS: `🏖️ Pantai`
-    Rust: (tidak ada padanan)
-  - JS: `🏝️ Di Pantai`
-    Rust: (tidak ada padanan)
-  - JS: `🏝️ Pantai`
-    Rust: (tidak ada padanan)
-  - JS: `🏢 Mall`
-    Rust: (tidak ada padanan)
-  - JS: `🏨 Hotel`
-    Rust: (tidak ada padanan)
-  - JS: `👗 Baju Lucu`
-    Rust: (tidak ada padanan)
-  - JS: `👩‍❤️‍👨 Mesra`
-    Rust: (tidak ada padanan)
-  - JS: `👸 Gaya Putri`
-    Rust: (tidak ada padanan)
-  - JS: `👻 Horor`
-    Rust: (tidak ada padanan)
-  - JS: `💋 Bibir`
-    Rust: (tidak ada padanan)
-  - JS: `💋 Cium`
-    Rust: (tidak ada padanan)
-  - JS: `💌 Rayu`
-    Rust: (tidak ada padanan)
-  - JS: `💍 Nikahi`
-    Rust: (tidak ada padanan)
-  - JS: `💎 Perhiasan`
-    Rust: (tidak ada padanan)
-  - JS: `💑 Berhadapan`
-    Rust: (tidak ada padanan)
-  - JS: `💝 Hadiah`
-    Rust: (tidak ada padanan)
-  - JS: `💞 Romantis`
-    Rust: (tidak ada padanan)
-  - JS: `💭 Dia menunggu jawabanmu...`
-    Rust: (tidak ada padanan)
-  - JS: `🕹️ Arcade`
-    Rust: (tidak ada padanan)
-  - JS: `🖐️ Tepuk Kepala`
-    Rust: (tidak ada padanan)
-  - JS: `🖼️ Museum`
-    Rust: (tidak ada padanan)
   - JS: `🗓️ *Hari ke-␀*␀` : ""}`
     Rust: `🗓️ *Hari ke-␀*␀`
-  - JS: `😚 Kening`
-    Rust: (tidak ada padanan)
-  - JS: `🚶 Jalan-jalan`
-    Rust: `🚶 Jalan-jalan ke...`
-  - JS: `🛁 Gosok Punggung`
-    Rust: (tidak ada padanan)
-  - JS: `🛁 Mandi`
-    Rust: (tidak ada padanan)
-  - JS: `🛍️ Belanja`
-    Rust: (tidak ada padanan)
-  - JS: `🛏️ Tidur`
-    Rust: (tidak ada padanan)
-  - JS: `🤗 Dari Belakang`
-    Rust: (tidak ada padanan)
-  - JS: `🤗 Gendong`
-    Rust: `🤗 Gendong...`
-  - JS: `🥛 Susu Hangat`
-    Rust: (tidak ada padanan)
-  - JS: `🥟 Dimsum`
-    Rust: (tidak ada padanan)
-  - JS: `🧗 Panjat`
-    Rust: (tidak ada padanan)
-  - JS: `🧸 Boneka`
-    Rust: (tidak ada padanan)
-  - JS: `🧺 Piknik`
-    Rust: `🧺 Piknik...`
-  - JS: `🧼 Usap Bahu`
-    Rust: (tidak ada padanan)
-  - JS: `🫂 Peluk`
-    Rust: (tidak ada padanan)
-  - JS: `🫂 Pulas`
-    Rust: (tidak ada padanan)
 
 ### husbualbum (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/husbualbum.js`
@@ -2775,34 +2515,12 @@ Total plugin JS diperiksa: 792
   - JS: `🔍 Tidak ada husbu cocok dengan *"␀"*. Coba nama/tier/franchise lain.`
     Rust: (tidak ada padanan)
 
-### jodoh (fun)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/jodoh.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/fun/jodoh.rs`
-
-  - JS: `> Tidak bisa mengambil data grup!`
-    Rust: (tidak ada padanan)
-
 ### mimpi (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/mimpi.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/fun/mimpi.rs`
 
-  - JS: `│ 🌈 *Elements:*`
-    Rust: `│ 🌈 Elements:`
-  - JS: `│ 🌟 *Encounters:*`
-    Rust: `│ 🌟 Encounters:`
-  - JS: `│ 🎪 *Events:*`
-    Rust: `│ 🎪 Events:`
-  - JS: `│ 💫 *Powers:*`
-    Rust: `│ 💫 Powers:`
   - JS: `🌙 *Memasuki alam mimpi...*`
-    Rust: (tidak ada padanan)
-
-### rate (fun)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/rate.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/fun/rate.rs`
-
-  - JS: `> Masukkan sesuatu untuk dinilai!`
-    Rust: `> Masukkan sesuatu untuk Dinilai!`
+    Rust: `🌙 *Memasuki alam dream...*`
 
 ### renungan (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/renungan.js`
@@ -2810,8 +2528,6 @@ Total plugin JS diperiksa: 792
 
   - JS: `renungan.json`
     Rust: `.renungan`
-  - JS: `❌ Gagal mengambil gambar. Coba lagi!`
-    Rust: (tidak ada padanan)
 
 ### terima (fun)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/fun/terima.js`
@@ -4807,29 +4523,14 @@ Total plugin JS diperiksa: 792
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/cekidgc.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/group/cekidgc.rs`
 
-  - JS: `...`
-    Rust: (tidak ada padanan)
-  - JS: `120363400911374213@newsletter`
-    Rust: (tidak ada padanan)
-  - JS: `> Gunakan di grup atau masukkan link grup`
-    Rust: (tidak ada padanan)
-  - JS: `> Link grup tidak valid .☘︎ ݁˖`
-    Rust: (tidak ada padanan)
-  - JS: `> Link grup tidak valid atau sudah expired .☘︎ ݁˖`
-    Rust: (tidak ada padanan)
-  - JS: `> Tidak bisa mengakses grup tersebut .☘︎ ݁˖`
-    Rust: (tidak ada padanan)
-  - JS: `> `␀cekidgc https://chat.whatsapp.com/xxx``
-    Rust: `.cekidgc https://chat.whatsapp.com/xxxxx`
-  - JS: `> `␀cekidgc` — di dalam grup`
-    Rust: (tidak ada padanan)
   - JS: `[CekIdGc] Error:`
     Rust: (tidak ada padanan)
-  - JS: `© ␀`
-    Rust: (tidak ada padanan)
-  - JS: `── .✦ 𝗖𝗘𝗞 𝗜𝗗 𝗚𝗥𝗨𝗣 ✦. ── 𝜗ৎ`
-    Rust: `── .✦ 𝗖𝗘𝗞 𝗜𝗗 𝗚𝗥𝗨𝗣 ✦. ──`
-  - JS: `✦ Copy ID Grup`
+
+### cekonline (group)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/cekonline.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/group/cekonline.rs`
+
+  - JS: `presence.update`
     Rust: (tidak ada padanan)
 
 ### checksewa (group)
@@ -4856,25 +4557,6 @@ Total plugin JS diperiksa: 792
   - JS: `🗑️`
     Rust: (tidak ada padanan)
 
-### close (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/close.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/close.rs`
-
-  - JS: `> Gagal menutup grup.`
-    Rust: `✅ telah menutup grup`
-  - JS: `> Grup sudah dalam keadaan `tertutup`.`
-    Rust: (tidak ada padanan)
-  - JS: `> Hanya admin yang bisa mengirim pesan.`
-    Rust: (tidak ada padanan)
-  - JS: `> _␀_`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*`
-    Rust: (tidak ada padanan)
-  - JS: `✅ @␀ telah menutup grup ini`
-    Rust: `✅ telah menutup grup`
-  - JS: `❌ *ᴇʀʀᴏʀ*`
-    Rust: (tidak ada padanan)
-
 ### delete (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/delete.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/group/delete.rs`
@@ -4888,17 +4570,6 @@ Total plugin JS diperiksa: 792
   - JS: `tidak terhapus`
     Rust: (tidak ada padanan)
   - JS: `❌ *Gagal menghapus!*`
-    Rust: (tidak ada padanan)
-
-### delppgc (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/delppgc.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/delppgc.rs`
-
-  - JS: `> Tidak dapat menghapus foto grup.`
-    Rust: (tidak ada padanan)
-  - JS: `> _␀_`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ɢᴀɢᴀʟ*`
     Rust: (tidak ada padanan)
 
 ### delstickercmd (group)
@@ -4928,8 +4599,6 @@ Total plugin JS diperiksa: 792
 
   - JS: `62`
     Rust: `62␀`
-  - JS: `Foto profil milik @␀`
-    Rust: (tidak ada padanan)
 
 ### goodbye (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/goodbye.js`
@@ -5111,13 +4780,6 @@ Total plugin JS diperiksa: 792
   - JS: `✅ @␀ telah dikeluarkan dari grup ini.`
     Rust: `telah dikeluarkan dari grup`
 
-### linkgc (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/linkgc.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/linkgc.rs`
-
-  - JS: `Link grup grup ini`
-    Rust: (tidak ada padanan)
-
 ### listwarn (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/listwarn.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/group/listwarn.rs`
@@ -5219,27 +4881,6 @@ Total plugin JS diperiksa: 792
   - JS: `❌ Hanya admin grup yang bisa menggunakan fitur ini`
     Rust: (tidak ada padanan)
 
-### open (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/open.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/open.rs`
-
-  - JS: `> Gagal membuka grup.`
-    Rust: (tidak ada padanan)
-  - JS: `> Grup sudah dalam keadaan `terbuka`.`
-    Rust: (tidak ada padanan)
-  - JS: `> Semua member sudah bisa mengirim pesan.`
-    Rust: (tidak ada padanan)
-  - JS: `> _␀_`
-    Rust: (tidak ada padanan)
-  - JS: `_Sekarang kalian bisa mengirim pesan_`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*`
-    Rust: (tidak ada padanan)
-  - JS: `✅ @␀ telah membuka grup ini`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ᴇʀʀᴏʀ*`
-    Rust: (tidak ada padanan)
-
 ### openvo (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/openvo.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/group/openvo.rs`
@@ -5303,17 +4944,6 @@ Total plugin JS diperiksa: 792
     Rust: `> User tidak ditemukan di grup!`
   - JS: `✅ @␀ sekarang menjadi admin!`
     Rust: `sekarang menjadi admin`
-
-### resetlinkgc (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/resetlinkgc.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/resetlinkgc.rs`
-
-  - JS: `Gunakan `␀linkgc` untuk mendapatkan link baru.`
-    Rust: (tidak ada padanan)
-  - JS: `Link grup lama sudah tidak berlaku.`
-    Rust: (tidak ada padanan)
-  - JS: `✅ *ʟɪɴᴋ ɢʀᴜᴘ ᴅɪʀᴇsᴇᴛ*`
-    Rust: (tidak ada padanan)
 
 ### setdeskgc (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/setdeskgc.js`
@@ -5383,19 +5013,6 @@ Total plugin JS diperiksa: 792
   - JS: `❌ *ɢᴀɢᴀʟ*`
     Rust: (tidak ada padanan)
 
-### setppgc (group)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/setppgc.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/group/setppgc.rs`
-
-  - JS: `> _␀_`
-    Rust: (tidak ada padanan)
-  - JS: `✅ Foto profil grup berhasil diperbarui!`
-    Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mengambil gambar.`
-    Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mengubah foto grup.`
-    Rust: (tidak ada padanan)
-
 ### setrulesgrup (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/setrulesgrup.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/group/setrulesgrup.rs`
@@ -5448,6 +5065,13 @@ Total plugin JS diperiksa: 792
     Rust: `Status: ❌ OFF`
   - JS: `␀_␀`
     Rust: (tidak ada padanan)
+
+### tam (group)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/group/tam.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/group/tam.rs`
+
+  - JS: `␀. ␀␀`
+    Rust: `␀. ␀`
 
 ### warn (group)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/group/warn.js`
@@ -6544,6 +6168,13 @@ Total plugin JS diperiksa: 792
   - JS: `␀*. *␀* [ ␀ ␀ ]`).join('`
     Rust: (tidak ada padanan)
 
+### music (media)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/media/music.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/media/music.rs`
+
+  - JS: `music␀`
+    Rust: `.music1`
+
 ### paptt (nsfw)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/nsfw/paptt.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/nsfw/paptt.rs`
@@ -6702,6 +6333,19 @@ Total plugin JS diperiksa: 792
   - JS: `⚠️ @␀ sudah menjadi owner!`
     Rust: (tidak ada padanan)
 
+### addplugin (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/addplugin.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/addplugin.rs`
+
+  - JS: `"`]([^`
+    Rust: (tidak ada padanan)
+  - JS: `- Status Reload: ␀`
+    Rust: `Status Reload`
+  - JS: ``]+)['`
+    Rust: (tidak ada padanan)
+  - JS: `␀.js`
+    Rust: `␀/␀.js`
+
 ### addprem (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/addprem.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/addprem.rs`
@@ -6736,6 +6380,23 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `💎 *DAFTAR PREMIUM*`
     Rust: `💎 *DEL PREMIUM*`
+
+### addsewa (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/addsewa.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/addsewa.rs`
+
+  - JS: `- Aku akan keluar pada: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `- Masa sewa: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `Bot sudah ada di grup`
+    Rust: `bot sudah ada di grup`
+  - JS: `Gagal join grup`
+    Rust: (tidak ada padanan)
+  - JS: `Ketik *␀menu* untuk melihat fitur dari bot ini.`
+    Rust: (tidak ada padanan)
+  - JS: `👋 *Halo Semuanya!*, perkenalkan, aku ␀`
+    Rust: (tidak ada padanan)
 
 ### akses (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/akses.js`
@@ -6997,6 +6658,85 @@ Total plugin JS diperiksa: 792
   - JS: `🔖 Schema: v␀`
     Rust: (tidak ada padanan)
 
+### backupsc (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/backupsc.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/backupsc.rs`
+
+  - JS: `.7z`
+    Rust: (tidak ada padanan)
+  - JS: `.avi`
+    Rust: (tidak ada padanan)
+  - JS: `.bak`
+    Rust: (tidak ada padanan)
+  - JS: `.cache`
+    Rust: (tidak ada padanan)
+  - JS: `.env`
+    Rust: (tidak ada padanan)
+  - JS: `.env.local`
+    Rust: (tidak ada padanan)
+  - JS: `.git`
+    Rust: (tidak ada padanan)
+  - JS: `.gitignore`
+    Rust: (tidak ada padanan)
+  - JS: `.ico`
+    Rust: (tidak ada padanan)
+  - JS: `.lock`
+    Rust: (tidak ada padanan)
+  - JS: `.log`
+    Rust: (tidak ada padanan)
+  - JS: `.mkv`
+    Rust: (tidak ada padanan)
+  - JS: `.mp3`
+    Rust: (tidak ada padanan)
+  - JS: `.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `.npm`
+    Rust: (tidak ada padanan)
+  - JS: `.npmrc`
+    Rust: (tidak ada padanan)
+  - JS: `.svg`
+    Rust: (tidak ada padanan)
+  - JS: `.tar.gz`
+    Rust: (tidak ada padanan)
+  - JS: `.traineddata`
+    Rust: (tidak ada padanan)
+  - JS: `.wav`
+    Rust: (tidak ada padanan)
+  - JS: `.yarn`
+    Rust: (tidak ada padanan)
+  - JS: `.zip`
+    Rust: (tidak ada padanan)
+  - JS: `120363400911374213@newsletter`
+    Rust: (tidak ada padanan)
+  - JS: `CHANGELOG.md`
+    Rust: (tidak ada padanan)
+  - JS: `File backup kosong atau 0KB`
+    Rust: (tidak ada padanan)
+  - JS: `File backup tidak ditemukan setelah proses zip`
+    Rust: (tidak ada padanan)
+  - JS: `Tidak ada file yang masuk ke backup script`
+    Rust: (tidak ada padanan)
+  - JS: `UPDATE.txt`
+    Rust: (tidak ada padanan)
+  - JS: `YYYY-MM-DD_HH-mm-ss`
+    Rust: (tidak ada padanan)
+  - JS: `boot_final.log`
+    Rust: (tidak ada padanan)
+  - JS: `bot_log.txt`
+    Rust: (tidak ada padanan)
+  - JS: `changelog.txt`
+    Rust: (tidak ada padanan)
+  - JS: `creds.json`
+    Rust: (tidak ada padanan)
+  - JS: `error.txt`
+    Rust: (tidak ada padanan)
+  - JS: `package-lock.json`
+    Rust: (tidak ada padanan)
+  - JS: `yarn.lock`
+    Rust: (tidak ada padanan)
+  - JS: `␀_backup_␀.zip`
+    Rust: (tidak ada padanan)
+
 ### ban (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ban.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/ban.rs`
@@ -7137,6 +6877,43 @@ Total plugin JS diperiksa: 792
   - JS: `📢 *Broadcast Grup*`
     Rust: (tidak ada padanan)
 
+### bcpc (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/bcpc.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/bcpc.rs`
+
+  - JS: `-@newsletter`
+    Rust: (tidak ada padanan)
+  - JS: `> Memulai broadcast...`
+    Rust: (tidak ada padanan)
+  - JS: `Gagal:`
+    Rust: (tidak ada padanan)
+  - JS: `┃ ⏱️ ᴊᴇᴅᴀ: `␀ms``
+    Rust: (tidak ada padanan)
+  - JS: `┃ ✅ ʙᴇʀʜᴀsɪʟ: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `┃ ❌ ɢᴀɢᴀʟ: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `┃ 👥 ᴛᴀʀɢᴇᴛ: `␀` kontak`
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📊 ᴇsᴛɪᴍᴀsɪ: `␀ menit``
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📊 ᴛᴏᴛᴀʟ: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📝 ᴘᴇsᴀɴ: `␀␀``
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📷 ᴍᴇᴅɪᴀ: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `╭┈┈⬡「 📊 *ʜᴀsɪʟ* 」`
+    Rust: (tidak ada padanan)
+  - JS: `╭┈┈⬡「 📋 *ᴅᴇᴛᴀɪʟ* 」`
+    Rust: (tidak ada padanan)
+  - JS: `╰┈┈⬡`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ʙʀᴏᴀᴅᴄᴀsᴛ ᴘʀɪᴠᴀᴛᴇ sᴇʟᴇsᴀɪ*`
+    Rust: (tidak ada padanan)
+  - JS: `📱 *ʙʀᴏᴀᴅᴄᴀsᴛ ᴘʀɪᴠᴀᴛᴇ*`
+    Rust: (tidak ada padanan)
+
 ### block (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/block.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/block.rs`
@@ -7166,6 +6943,38 @@ Total plugin JS diperiksa: 792
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/botmode.rs`
 
   - JS: `[BotMode] Changed to ␀ by ␀ (␀)`
+    Rust: (tidak ada padanan)
+
+### buatgrup (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/buatgrup.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/buatgrup.rs`
+
+  - JS: `Gagal menghapus grup otomatis (␀):`
+    Rust: (tidak ada padanan)
+  - JS: `Sesuai perintah Owner, waktu grup ini telah habis. Sayonara semuanya! 👋`
+    Rust: (tidak ada padanan)
+  - JS: `_Bot otomatis menjadi admin grup ini ya kak!_`
+    Rust: `_Bot otomatis menjadi admin grup ini ya kak!`
+  - JS: `⏳ *MASA AKTIF GRUP HABIS* ⏳`
+    Rust: (tidak ada padanan)
+
+### buatsaluran (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/buatsaluran.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/buatsaluran.rs`
+
+  - JS: `> Deskripsi: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `> ID: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `> Nama: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `> Subscribers: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `_Saluran ini bisa dikonfigurasi di config.saluran.id_`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal membuat saluran: ␀`
+    Rust: `❌ Gagal membuat saluran:`
+  - JS: `📢 *sᴀʟᴜʀᴀɴ ᴅɪʙᴜᴀᴛ*`
     Rust: (tidak ada padanan)
 
 ### capenergi (owner)
@@ -7288,6 +7097,15 @@ Total plugin JS diperiksa: 792
   - JS: `isOwner(): ␀`
     Rust: `isOwner(): ?`
 
+### colongpp (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/colongpp.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/colongpp.rs`
+
+  - JS: `2d`
+    Rust: (tidak ada padanan)
+  - JS: `[ColongPP] Error:`
+    Rust: (tidak ada padanan)
+
 ### cpuprofile (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/cpuprofile.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/cpuprofile.rs`
@@ -7373,24 +7191,42 @@ Total plugin JS diperiksa: 792
   - JS: `> `.delkoin <jumlah>` - dari diri sendiri`
     Rust: `> `.␀delkoin <jumlah>` - dari diri sendiri`
 
+### delplugin (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/delplugin.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/delplugin.rs`
+
+  - JS: `- File: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- Folder: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- Status Unload: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `.js`
+    Rust: (tidak ada padanan)
+  - JS: `Plugin tersebut sudah dihapus dan tidak aktif lagi.`
+    Rust: (tidak ada padanan)
+  - JS: `Proses selesai! Plugin berhasil dihapus dari sistem.`
+    Rust: (tidak ada padanan)
+
+### delsewa (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/delsewa.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/delsewa.rs`
+
+  - JS: `Bot akan meninggalkan grup.`
+    Rust: (tidak ada padanan)
+  - JS: `Hubungi owner untuk sewa ulang.`
+    Rust: (tidak ada padanan)
+  - JS: `⛔ Grup ini telah dihapus dari whitelist sewa.`
+    Rust: (tidak ada padanan)
+
 ### disableplugin (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/disableplugin.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/disableplugin.rs`
 
-  - JS: `*Contoh:*`
-    Rust: (tidak ada padanan)
   - JS: `.js`
-    Rust: (tidak ada padanan)
-  - JS: `> Masukkan nama plugin yang ingin dinonaktifkan`
     Rust: (tidak ada padanan)
   - JS: `> Restart bot atau gunakan hot reload untuk apply.`
     Rust: (tidak ada padanan)
-  - JS: `> `␀disableplugin sticker``
-    Rust: `.disableplugin sticker`
-  - JS: `> `␀disableplugin tiktok``
-    Rust: `.disableplugin sticker`
-  - JS: `Menonaktifkan plugin tertentu`
-    Rust: `Menonaktifkan plugin tertentu — BLOKIRAN`
   - JS: `file://␀`
     Rust: (tidak ada padanan)
   - JS: `isEnabled: false`
@@ -7409,13 +7245,53 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `╰┈┈⬡`
     Rust: (tidak ada padanan)
-  - JS: `⚠️ Plugin *␀* sudah dinonaktifkan!`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ᴘʟᴜɢɪɴ ᴅɪsᴀʙʟᴇᴅ*`
     Rust: (tidak ada padanan)
-  - JS: `❌ Plugin *␀* tidak ditemukan!`
+
+### enableplugin (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/enableplugin.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/enableplugin.rs`
+
+  - JS: `.js`
     Rust: (tidak ada padanan)
-  - JS: `🔌 *ᴅɪsᴀʙʟᴇ ᴘʟᴜɢɪɴ*`
+  - JS: `> Restart bot atau gunakan hot reload untuk apply.`
+    Rust: (tidak ada padanan)
+  - JS: `file://␀`
+    Rust: (tidak ada padanan)
+  - JS: `isEnabled: true`
+    Rust: (tidak ada padanan)
+  - JS: `utf-8`
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📁 Category: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📄 File: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `┃ 📦 Plugin: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `┃ 🟢 Status: *Enabled*`
+    Rust: (tidak ada padanan)
+  - JS: `╭┈┈⬡「 📋 *ᴅᴇᴛᴀɪʟ* 」`
+    Rust: (tidak ada padanan)
+  - JS: `╰┈┈⬡`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ᴘʟᴜɢɪɴ ᴇɴᴀʙʟᴇᴅ*`
+    Rust: (tidak ada padanan)
+
+### eval (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/eval.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/eval.rs`
+
+  - JS: `(async () => { ␀ })()`
+    Rust: `(async () => ␀)()`
+  - JS: `... (truncated)`
+    Rust: (tidak ada padanan)
+  - JS: ````␀````
+    Rust: (tidak ada padanan)
+  - JS: `┃ Type: ␀`
+    Rust: `┃ Type: Error`
+  - JS: `┃ ␀`
+    Rust: (tidak ada padanan)
+  - JS: `✅ Success`
     Rust: (tidak ada padanan)
 
 ### exec (owner)
@@ -7524,18 +7400,22 @@ Total plugin JS diperiksa: 792
 
   - JS: `> Config telah diupdate secara realtime!`
     Rust: (tidak ada padanan)
+  - JS: `> File: assets/image/demote.jpeg`
+    Rust: (tidak ada padanan)
   - JS: `> Gambar demote.jpeg telah diganti ke URL baru:`
+    Rust: (tidak ada padanan)
+  - JS: `> Kirim/reply gambar untuk mengganti`
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `demote.jpeg`
-    Rust: `ganti-demote.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mendownload gambar`
+    Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: `❌ Gagal mendownload gambar`
+    Rust: `⏳ Sedang mengupload gambar...`
+  - JS: `🖼️ *ɢᴀɴᴛɪ ᴅᴇᴍᴏᴛᴇ.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ᴅᴇᴍᴏᴛᴇ.ᴊᴘɢ`
 
 ### ganti-foto.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-foto.js`
@@ -7556,6 +7436,36 @@ Total plugin JS diperiksa: 792
   - JS: `❌ Gagal mengupload gambar: ␀`
     Rust: `❌ Gagal mendownload gambar`
 
+### ganti-foto2.jpg (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-foto2.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-foto2.rs`
+
+  - JS: `⏳ Sedang mengupload gambar...`
+    Rust: `❌ Gagal mengupload gambar: ␀`
+
+### ganti-foto3.jpg (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-foto3.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti_foto3.rs`
+
+  - JS: `> Config telah diupdate secara realtime!`
+    Rust: (tidak ada padanan)
+  - JS: `> File: assets/image/foto3.jpeg`
+    Rust: (tidak ada padanan)
+  - JS: `> Gambar foto3.jpeg telah diganti ke URL baru:`
+    Rust: (tidak ada padanan)
+  - JS: `> Kirim/reply gambar untuk mengganti`
+    Rust: (tidak ada padanan)
+  - JS: `> ␀`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mendownload gambar`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mengupload gambar: ␀`
+    Rust: `⏳ Sedang mengupload gambar...`
+  - JS: `🖼️ *ɢᴀɴᴛɪ ꜰᴏᴛᴏ3.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ꜰᴏᴛᴏ3.ᴊᴘɢ`
+
 ### ganti-games.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-games.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-games.rs`
@@ -7570,20 +7480,14 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `Ganti gambar games.jpg (thumbnail games)`
-    Rust: (tidak ada padanan)
-  - JS: `games.jpeg`
-    Rust: `ganti-games.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mendownload gambar`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `⏳ Sedang mengupload gambar...`
   - JS: `🖼️ *ɢᴀɴᴛɪ ɢᴀᴍᴇs.ᴊᴘɢ*`
-    Rust: (tidak ada padanan)
+    Rust: `ɢᴀɴᴛɪ ɢᴀᴍᴇs.ᴊᴘɢ`
 
 ### ganti-goodbye.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-goodbye.js`
@@ -7620,19 +7524,74 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `Ganti gambar levelup.jpg`
-    Rust: `ganti-levelup.jpg`
-  - JS: `levelup.jpeg`
-    Rust: `ganti-levelup.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mendownload gambar`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `⏳ Sedang mengupload gambar...`
   - JS: `🖼️ *ɢᴀɴᴛɪ ʟᴇᴠᴇʟᴜᴘ.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ʟᴇᴠᴇʟᴜᴘ.ᴊᴘɢ`
+
+### ganti-mp3.mp3 (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-mp3.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-mp3.rs`
+
+  - JS: `⏳ Sedang mengupload gambar...`
+    Rust: (tidak ada padanan)
+
+### ganti-mp4.mp4 (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-mp4.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-mp4.rs`
+
+  - JS: `> Config telah diupdate secara realtime!`
+    Rust: (tidak ada padanan)
+  - JS: `> File foto.mp4 telah diganti ke URL baru:`
+    Rust: (tidak ada padanan)
+  - JS: `> File: assets/video/foto.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `> Kirim/reply video untuk mengganti`
+    Rust: (tidak ada padanan)
+  - JS: `> ␀`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mendownload video`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mengupload file: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `🎬 *ɢᴀɴᴛɪ ᴍᴘ4.ᴍᴘ4*`
+    Rust: `ɢᴀɴᴛɪ ᴍᴘ4.ᴍᴘ4`
+
+### ganti-namabot (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-namabot.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-namabot.rs`
+
+  - JS: `"]([^`
+    Rust: `]([^'`
+  - JS: `"␀"`
+    Rust: (tidak ada padanan)
+  - JS: `'␀'`
+    Rust: (tidak ada padanan)
+  - JS: `*Penggunaan:*`
+    Rust: (tidak ada padanan)
+  - JS: `.ganti-namabot <nama baru>`
+    Rust: (tidak ada padanan)
+  - JS: `.ganti-namabot Bot Baru`
+    Rust: `ganti-namabot`
+  - JS: `> Nama bot diganti ke: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `> Nama saat ini: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `Ganti nama bot di config.js`
+    Rust: (tidak ada padanan)
+  - JS: ``␀ganti-namabot <nama baru>``
+    Rust: (tidak ada padanan)
+  - JS: `config.js`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
+    Rust: (tidak ada padanan)
+  - JS: `🤖 *ɢᴀɴᴛɪ ɴᴀᴍᴀ ʙᴏᴛ*`
     Rust: (tidak ada padanan)
 
 ### ganti-namadev (owner)
@@ -7700,20 +7659,14 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `Ganti gambar promote.jpg`
-    Rust: `ganti-promote.jpg`
-  - JS: `promote.jpeg`
-    Rust: `ganti-promote.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mendownload gambar`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `⏳ Sedang mengupload gambar...`
   - JS: `🖼️ *ɢᴀɴᴛɪ ᴘʀᴏᴍᴏᴛᴇ.ᴊᴘɢ*`
-    Rust: (tidak ada padanan)
+    Rust: `ɢᴀɴᴛɪ ᴘʀᴏᴍᴏᴛᴇ.ᴊᴘɢ`
 
 ### ganti-rpg.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-rpg.js`
@@ -7742,18 +7695,22 @@ Total plugin JS diperiksa: 792
 
   - JS: `> Config telah diupdate secara realtime!`
     Rust: (tidak ada padanan)
+  - JS: `> File: assets/image/rules.jpeg`
+    Rust: (tidak ada padanan)
   - JS: `> Gambar rules.jpeg telah diganti ke URL baru:`
+    Rust: (tidak ada padanan)
+  - JS: `> Kirim/reply gambar untuk mengganti`
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `rules.jpeg`
-    Rust: `ganti-rules.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mendownload gambar`
+    Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: `❌ Gagal mendownload gambar`
+    Rust: `⏳ Sedang mengupload gambar...`
+  - JS: `🖼️ *ɢᴀɴᴛɪ ʀᴜʟᴇs.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ʀᴜʟᴇs.ᴊᴘɢ`
 
 ### ganti-store.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-store.js`
@@ -7774,6 +7731,36 @@ Total plugin JS diperiksa: 792
   - JS: `❌ Gagal mengupload gambar: ␀`
     Rust: `❌ Gagal mendownload gambar`
 
+### ganti-v8.jpg (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-v8.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-v8.rs`
+
+  - JS: `> Config telah diupdate secara realtime!`
+    Rust: (tidak ada padanan)
+  - JS: `> File: assets/image/v9.jpeg`
+    Rust: (tidak ada padanan)
+  - JS: `> Gambar v8.jpeg telah diganti ke URL baru:`
+    Rust: (tidak ada padanan)
+  - JS: `> Kirim/reply gambar untuk mengganti`
+    Rust: (tidak ada padanan)
+  - JS: `> ␀`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mendownload gambar`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mengupload gambar: ␀`
+    Rust: `⏳ Sedang mengupload gambar...`
+  - JS: `🖼️ *ɢᴀɴᴛɪ ᴠ8.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ᴠ8.ᴊᴘɢ`
+
+### ganti-welcome.jpg (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-welcome.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-welcome.rs`
+
+  - JS: `⏳ Sedang mengupload gambar...`
+    Rust: `❌ Gagal mengupload gambar: ␀`
+
 ### ganti-winner.jpg (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganti-winner.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/ganti-winner.rs`
@@ -7788,20 +7775,294 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `> ␀`
     Rust: (tidak ada padanan)
-  - JS: `Ganti gambar winner.jpg (thumbnail game winner)`
-    Rust: (tidak ada padanan)
-  - JS: `winner.jpeg`
-    Rust: `ganti-winner.jpg`
-  - JS: `⏳ Sedang mengupload gambar...`
-    Rust: (tidak ada padanan)
   - JS: `✅ *ʙᴇʀʜᴀsɪʟ*`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mendownload gambar`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mengupload gambar: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `⏳ Sedang mengupload gambar...`
   - JS: `🏆 *ɢᴀɴᴛɪ ᴡɪɴɴᴇʀ.ᴊᴘɢ*`
+    Rust: `ɢᴀɴᴛɪ ᴡɪɴɴᴇʀ.ᴊᴘɢ`
+
+### ganticode (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/ganticode.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/ganticode.rs`
+
+  - JS: `"`]([^`
     Rust: (tidak ada padanan)
+  - JS: `"`]+)[`
+    Rust: (tidak ada padanan)
+  - JS: `)`
+    Rust: (tidak ada padanan)
+  - JS: `) {`
+    Rust: (tidak ada padanan)
+  - JS: `) || code.includes(`
+    Rust: (tidak ada padanan)
+  - JS: `));`
+    Rust: (tidak ada padanan)
+  - JS: `);`
+    Rust: (tidak ada padanan)
+  - JS: `.filter((d) => d.isDirectory())`
+    Rust: (tidak ada padanan)
+  - JS: `.map((d) => d.name);`
+    Rust: (tidak ada padanan)
+  - JS: `.readdirSync(pluginsDir, { withFileTypes: true })`
+    Rust: (tidak ada padanan)
+  - JS: `.replace(/[:.]/g,`
+    Rust: (tidak ada padanan)
+  - JS: `.slice(0, 19);`
+    Rust: (tidak ada padanan)
+  - JS: `.toISOString()`
+    Rust: (tidak ada padanan)
+  - JS: `;`
+    Rust: (tidak ada padanan)
+  - JS: `]/i);`
+    Rust: (tidak ada padanan)
+  - JS: `` +`
+    Rust: (tidak ada padanan)
+  - JS: ``- .ganticode (untuk deteksi otomatis)`
+    Rust: `- .ganticode (untuk deteksi otomatis)`
+  - JS: ``- .ganticode <nama file> (untuk nama kustom)`
+    Rust: `- .ganticode <nama file> (untuk nama kustom)`
+  - JS: ``- .ganticode <nama file> <folder> (untuk kustom nama dan folder)`
+    Rust: `- .ganticode <nama file> <folder> (untuk kustom nama dan folder)`
+  - JS: ``- File: ␀.js`
+    Rust: `- File: ␀.js`
+  - JS: ``- Folder: ␀`
+    Rust: `- Folder: ␀`
+  - JS: ``- Status Reload: ${reloadResult.success ?`
+    Rust: (tidak ada padanan)
+  - JS: ``- Ukuran: ␀ bytes`
+    Rust: `- Ukuran: ␀ bytes`
+  - JS: ``;`
+    Rust: (tidak ada padanan)
+  - JS: ``Halo *␀*, sepertinya kamu belum mereply kode plugin barunya.`
+    Rust: `Halo *␀*, sepertinya kamu belum mereply kode plugin barunya.`
+  - JS: ``Maaf *␀*, aku tidak bisa mendeteksi nama pluginnya. Silakan gunakan perintah dengan format .ganticode <nama file>.``
+    Rust: `Maaf *␀*, aku tidak bisa mendeteksi nama pluginnya. Silakan gunakan perintah dengan format .ganticode <nama file>.`
+  - JS: ``Maaf *␀*, proses gagal karena kode bukan format plugin yang valid. Pastikan ada export dan config di dalamnya.``
+    Rust: `Maaf *␀*, proses gagal karena kode bukan format plugin yang valid. Pastikan ada export dan config di dalamnya.`
+  - JS: ``Proses selesai! Kode plugin berhasil ${isNewFile ?`
+    Rust: `Proses selesai! Kode plugin berhasil ␀.`
+  - JS: ``Silakan reply kode plugin yang baru dengan perintah:`
+    Rust: `Silakan reply kode plugin yang baru dengan perintah:`
+  - JS: ``Tenang saja, kode yang lama akan otomatis dibackup sebelum diganti.``
+    Rust: `Tenang saja, kode yang lama akan otomatis dibackup sebelum diganti.`
+  - JS: ``]+)['`
+    Rust: (tidak ada padanan)
+  - JS: ``]/i);`
+    Rust: (tidak ada padanan)
+  - JS: `async function handler(m, { sock }) {`
+    Rust: (tidak ada padanan)
+  - JS: `await m.react(`
+    Rust: (tidak ada padanan)
+  - JS: `await m.reply(te(m.prefix, m.command, m.pushName));`
+    Rust: (tidak ada padanan)
+  - JS: `backupPath = path.join(backupDir, `␀_␀.js`);`
+    Rust: (tidak ada padanan)
+  - JS: `code = (await quoted.download()).toString();`
+    Rust: (tidak ada padanan)
+  - JS: `const args = m.args;`
+    Rust: (tidak ada padanan)
+  - JS: `const backupDir = path.join(process.cwd(),`
+    Rust: (tidak ada padanan)
+  - JS: `const baseName = file.replace(`
+    Rust: (tidak ada padanan)
+  - JS: `const categoryMatch = code.match(/category:s*['"`
+    Rust: (tidak ada padanan)
+  - JS: `const existing = findPluginFile(pluginsDir, fileName);`
+    Rust: (tidak ada padanan)
+  - JS: `const extracted = extractPluginInfo(code);`
+    Rust: (tidak ada padanan)
+  - JS: `const files = fs.readdirSync(folderPath).filter((f) => f.endsWith(`
+    Rust: (tidak ada padanan)
+  - JS: `const folderPath = path.join(pluginsDir, folder);`
+    Rust: (tidak ada padanan)
+  - JS: `const folderPath = path.join(pluginsDir, targetFolder);`
+    Rust: (tidak ada padanan)
+  - JS: `const folders = fs`
+    Rust: (tidak ada padanan)
+  - JS: `const hasConfig = code.includes(`
+    Rust: (tidak ada padanan)
+  - JS: `const hasExport = code.includes(`
+    Rust: (tidak ada padanan)
+  - JS: `const pluginsDir = path.join(process.cwd(),`
+    Rust: (tidak ada padanan)
+  - JS: `const quoted = m.quoted;`
+    Rust: (tidak ada padanan)
+  - JS: `const relBackup = path.relative(process.cwd(), backupPath);`
+    Rust: (tidak ada padanan)
+  - JS: `const timestamp = new Date()`
+    Rust: (tidak ada padanan)
+  - JS: `export { pluginConfig as config, handler };`
+    Rust: (tidak ada padanan)
+  - JS: `fileName = fileName.toLowerCase().replace(/[^a-z0-9-_]/g,`
+    Rust: (tidak ada padanan)
+  - JS: `filePath = existing.path;`
+    Rust: (tidak ada padanan)
+  - JS: `filePath = path.join(folderPath, `␀.js`);`
+    Rust: (tidak ada padanan)
+  - JS: `folderName = folderName.toLowerCase().replace(/[^a-z0-9-_]/g,`
+    Rust: (tidak ada padanan)
+  - JS: `for (const file of files) {`
+    Rust: (tidak ada padanan)
+  - JS: `for (const folder of folders) {`
+    Rust: (tidak ada padanan)
+  - JS: `fs.copyFileSync(filePath, backupPath);`
+    Rust: (tidak ada padanan)
+  - JS: `fs.mkdirSync(backupDir, { recursive: true });`
+    Rust: (tidak ada padanan)
+  - JS: `fs.mkdirSync(folderPath, { recursive: true });`
+    Rust: (tidak ada padanan)
+  - JS: `fs.writeFileSync(filePath, code);`
+    Rust: (tidak ada padanan)
+  - JS: `function findPluginFile(pluginsDir, name) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (`
+    Rust: (tidak ada padanan)
+  - JS: `if (!code || code.length < 50) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!fileName) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!folderName) folderName =`
+    Rust: (tidak ada padanan)
+  - JS: `if (!fs.existsSync(backupDir)) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!fs.existsSync(folderPath)) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!hasExport || !hasConfig) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!isNewFile) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!quoted) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (backupPath) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (baseName.toLowerCase() === name.toLowerCase()) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (categoryMatch) info.category = categoryMatch[1];`
+    Rust: (tidak ada padanan)
+  - JS: `if (existing) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (nameMatch) info.name = nameMatch[1];`
+    Rust: (tidak ada padanan)
+  - JS: `isNewFile = true;`
+    Rust: (tidak ada padanan)
+  - JS: `let backupPath = null;`
+    Rust: (tidak ada padanan)
+  - JS: `let code = quoted.text || quoted.body ||`
+    Rust: (tidak ada padanan)
+  - JS: `let fileName = args[0] || extracted.name;`
+    Rust: (tidak ada padanan)
+  - JS: `let filePath;`
+    Rust: (tidak ada padanan)
+  - JS: `let folderName = args[1] || extracted.category;`
+    Rust: (tidak ada padanan)
+  - JS: `let isNewFile = false;`
+    Rust: (tidak ada padanan)
+  - JS: `let oldSize = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `let reloadResult = { success: false };`
+    Rust: (tidak ada padanan)
+  - JS: `let replyText =`
+    Rust: (tidak ada padanan)
+  - JS: `let targetFolder;`
+    Rust: (tidak ada padanan)
+  - JS: `oldSize = fs.statSync(filePath).size;`
+    Rust: (tidak ada padanan)
+  - JS: `quoted.filename?.endsWith(`
+    Rust: (tidak ada padanan)
+  - JS: `quoted.mimetype ===`
+    Rust: (tidak ada padanan)
+  - JS: `reloadResult = (await hotReloadPlugin(filePath)) || { success: true };`
+    Rust: (tidak ada padanan)
+  - JS: `replyText +=`
+    Rust: (tidak ada padanan)
+  - JS: `replyText += `- Ukuran Lama: ␀ bytes`
+    Rust: `- Ukuran Lama: ␀ bytes`
+  - JS: `replyText += `File lama sudah dibackup dengan aman di lokasi berikut:`
+    Rust: `File lama sudah dibackup dengan aman di lokasi berikut:`
+  - JS: `replyText += `Plugin sudah aktif dan siap digunakan, silakan dicoba ya!`;`
+    Rust: `Plugin sudah aktif dan siap digunakan, silakan dicoba ya!`
+  - JS: `return info;`
+    Rust: (tidak ada padanan)
+  - JS: `return m.reply(`
+    Rust: (tidak ada padanan)
+  - JS: `return m.reply(`Maaf *␀*, proses gagal karena file tidak dapat diunduh.`);`
+    Rust: `Maaf *␀*, proses gagal karena file tidak dapat diunduh.`
+  - JS: `return m.reply(`Maaf *␀*, proses gagal karena kode terlalu pendek atau tidak valid.`);`
+    Rust: `Maaf *␀*, proses gagal karena kode terlalu pendek atau tidak valid.`
+  - JS: `return m.reply(`Maaf *␀*, proses gagal karena nama file tidak valid.`);`
+    Rust: `Maaf *␀*, proses gagal karena nama file tidak valid.`
+  - JS: `return m.reply(replyText);`
+    Rust: (tidak ada padanan)
+  - JS: `return null;`
+    Rust: (tidak ada padanan)
+  - JS: `return { folder, file, path: path.join(folderPath, file) };`
+    Rust: (tidak ada padanan)
+  - JS: `targetFolder = existing.folder;`
+    Rust: (tidak ada padanan)
+  - JS: `targetFolder = folderName;`
+    Rust: (tidak ada padanan)
+  - JS: `try {`
+    Rust: (tidak ada padanan)
+  - JS: `||`
+    Rust: (tidak ada padanan)
+  - JS: `}`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (e) {`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (error) {`
+    Rust: (tidak ada padanan)
+  - JS: `} catch {}`
+    Rust: (tidak ada padanan)
+  - JS: `} else {`
+    Rust: (tidak ada padanan)
+  - JS: `}.`
+    Rust: (tidak ada padanan)
+
+### gantiscraper (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/gantiscraper.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/gantiscraper.rs`
+
+  - JS: `- Plugin Berhasil Reload: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- Plugin Gagal Reload: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- Plugin Terdeteksi: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- Scraper: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- `␀``
+    Rust: ``␀``
+  - JS: `- `␀`␀)` : ""}`
+    Rust: (tidak ada padanan)
+  - JS: `Scraper sudah aktif dan siap digunakan!`
+    Rust: (tidak ada padanan)
+  - JS: `\$&`
+    Rust: (tidak ada padanan)
+  - JS: `scraper[\/].*␀\.js`
+    Rust: (tidak ada padanan)
+  - JS: `src[\/]scraper[\/]␀\.js`
+    Rust: (tidak ada padanan)
+  - JS: `ℹ️ Tidak ada plugin yang langsung mengimpor scraper ini.`
+    Rust: (tidak ada padanan)
+  - JS: `␀.js`
+    Rust: `.js`
+  - JS: `␀?t=␀`
+    Rust: (tidak ada padanan)
+  - JS: `␀_␀.js`
+    Rust: `␀/␀_␀.js`
+  - JS: `│ ␀. `␀.js` (␀ KB)`
+    Rust: `│ ␀. `␀` (␀ KB)`
+  - JS: `⚠️ *Plugin Gagal Reload:*`
+    Rust: (tidak ada padanan)
+  - JS: `⚠️ Sebagian reload gagal, restart bot mungkin diperlukan`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *Plugin Reloaded:*`
+    Rust: (tidak ada padanan)
+  - JS: `🔄 *Hot Reload:*`
+    Rust: `Hot Reload`
 
 ### get (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/get.js`
@@ -7910,6 +8171,41 @@ Total plugin JS diperiksa: 792
   - JS: `🕕 ␀ ␀ ...`
     Rust: (tidak ada padanan)
 
+### getplugin (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/getplugin.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/getplugin.rs`
+
+  - JS: `"`]([^`
+    Rust: (tidak ada padanan)
+  - JS: `.getplugin <nama plugin>`
+    Rust: `- .getplugin <nama plugin>`
+  - JS: `.getplugin menu`
+    Rust: `- .getplugin menu`
+  - JS: `.js`
+    Rust: (tidak ada padanan)
+  - JS: `Dapatkan source code plugin`
+    Rust: (tidak ada padanan)
+  - JS: `]/g);`
+    Rust: `]);`
+  - JS: ``]+)['`
+    Rust: (tidak ada padanan)
+  - JS: `a.replace(/['"`
+    Rust: (tidak ada padanan)
+  - JS: `const cleanAliases = aliases.map((a) =>`
+    Rust: (tidak ada padanan)
+  - JS: `if (aliases) {`
+    Rust: (tidak ada padanan)
+  - JS: `utf-8`
+    Rust: (tidak ada padanan)
+  - JS: `␀ bytes`
+    Rust: (tidak ada padanan)
+  - JS: `␀.js`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *Owner Only!*`
+    Rust: (tidak ada padanan)
+  - JS: `📁 *␀/␀*`
+    Rust: (tidak ada padanan)
+
 ### goodbyeall (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/goodbyeall.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/goodbyeall.rs`
@@ -7932,6 +8228,27 @@ Total plugin JS diperiksa: 792
     Rust: `👋 *ɢᴏᴏᴅʙʏᴇ ɢʟᴏʙᴀʟ*`
   - JS: `❌ *ɢᴏᴏᴅʙʏᴇ ɢʟᴏʙᴀʟ ᴏꜰꜰ*`
     Rust: `👋 *ɢᴏᴏᴅʙʏᴇ ɢʟᴏʙᴀʟ*`
+
+### hapusdata (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/hapusdata.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/hapusdata.rs`
+
+  - JS: `> ␀: *␀* data (␀)`
+    Rust: `> ␀: *␀* data (␀ KB)`
+  - JS: `␀ KB`
+    Rust: (tidak ada padanan)
+  - JS: `⭐ Premium`
+    Rust: (tidak ada padanan)
+  - JS: `👑 Owner`
+    Rust: (tidak ada padanan)
+  - JS: `👥 Groups`
+    Rust: (tidak ada padanan)
+  - JS: `👥 Users`
+    Rust: (tidak ada padanan)
+  - JS: `📊 Stats`
+    Rust: (tidak ada padanan)
+  - JS: `🤝 Partner`
+    Rust: (tidak ada padanan)
 
 ### hapussaluran (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/hapussaluran.js`
@@ -7977,6 +8294,19 @@ Total plugin JS diperiksa: 792
   - JS: `❌ ␀`
     Rust: (tidak ada padanan)
   - JS: `💾 *Heap Snapshot Berhasil*`
+    Rust: (tidak ada padanan)
+
+### join (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/join.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/join.rs`
+
+  - JS: `*␀.* ␀ — ⚠️ Sudah member`
+    Rust: `*.␀* ␀ — ⚠️ Sudah member`
+  - JS: `*␀.* ␀ — ✅ Berhasil join`
+    Rust: `*.␀* ␀ — ✅ Berhasil join`
+  - JS: `*␀.* ␀... — ❌ ␀`
+    Rust: `*.␀* ␀... — ❌ ␀`
+  - JS: `Link tidak valid`
     Rust: (tidak ada padanan)
 
 ### leave (owner)
@@ -8177,6 +8507,32 @@ Total plugin JS diperiksa: 792
   - JS: `📢 Sewa bot telah diperpanjang!`
     Rust: (tidak ada padanan)
 
+### resetdb (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/resetdb.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/resetdb.rs`
+
+  - JS: `db.json`
+    Rust: (tidak ada padanan)
+  - JS: `┃ ⚔️ Clans: ␀`
+    Rust: `┃ ⚔️ Clans: 0`
+  - JS: `┃ 👤 Users: ␀`
+    Rust: `┃ 👤 Users: 0`
+  - JS: `┃ 👥 Groups: ␀`
+    Rust: `┃ 👥 Groups: 0`
+
+### restart (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/restart.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/restart.rs`
+
+  - JS: `[Restart] Command triggered by:`
+    Rust: (tidak ada padanan)
+  - JS: `[Restart] Initiating graceful restart...`
+    Rust: (tidak ada padanan)
+  - JS: `[Restart] New process spawned, exiting current process...`
+    Rust: (tidak ada padanan)
+  - JS: `cmd.exe`
+    Rust: (tidak ada padanan)
+
 ### sampah (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/sampah.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/sampah.rs`
@@ -8198,6 +8554,13 @@ Total plugin JS diperiksa: 792
     Rust: `┃ ⏰ Time: `␀-␀-␀``
   - JS: `┃ 📅 Date: `␀``
     Rust: `┃ 📅 Date: `␀/␀/␀``
+
+### savekontak (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/savekontak.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/savekontak.rs`
+
+  - JS: `␀ Kontak`
+    Rust: (tidak ada padanan)
 
 ### schedule (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/schedule.js`
@@ -8436,6 +8799,25 @@ Total plugin JS diperiksa: 792
   - JS: `🗓️ Dibuat: ␀`
     Rust: (tidak ada padanan)
 
+### searchplugin (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/searchplugin.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/searchplugin.rs`
+
+  - JS: `.js`
+    Rust: (tidak ada padanan)
+  - JS: `> Error: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `> File: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `> Folder: `␀``
+    Rust: (tidak ada padanan)
+  - JS: `file://␀`
+    Rust: (tidak ada padanan)
+  - JS: `⚠️`
+    Rust: (tidak ada padanan)
+  - JS: `⚠️ *ᴘʟᴜɢɪɴ ᴇʀʀᴏʀ*`
+    Rust: (tidak ada padanan)
+
 ### self (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/self.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/self.rs`
@@ -8448,6 +8830,36 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `🚫 *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*`
     Rust: (tidak ada padanan)
+
+### sessionstats (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/sessionstats.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/sessionstats.rs`
+
+  - JS: `> _␀_`
+    Rust: (tidak ada padanan)
+  - JS: `pre-key`
+    Rust: (tidak ada padanan)
+  - JS: `┃ *total* — ␀ key · ␀`
+    Rust: (tidak ada padanan)
+  - JS: `┃ _sweep tiap 3 hari, hapus yang >30 hari_`
+    Rust: (tidak ada padanan)
+  - JS: `┃ ɴᴏ ᴋᴇʏ ᴛᴇʀsɪᴍᴘᴀɴ␀`
+    Rust: `┃ ɴᴏ ᴋᴇʏ ᴛᴇʀsɪᴍᴘᴀɴ`
+  - JS: `┃ ▸ `␀` — ␀ key · ␀␀`
+    Rust: (tidak ada padanan)
+  - JS: `┃ ⤵️ *pre-key* = ␀ key / ␀`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal membaca statistik session: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `⤵️`
+    Rust: (tidak ada padanan)
+
+### setallmenu (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/setallmenu.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/setallmenu.rs`
+
+  - JS: `Variant aktif saat ini: *V␀ — ␀`]?.name || "Unknown"}* 🎯`
+    Rust: `Variant aktif saat ini: *V␀ — ␀* 🎯`
 
 ### setaudioallmenu (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/setaudioallmenu.js`
@@ -8631,11 +9043,45 @@ Total plugin JS diperiksa: 792
   - JS: `> Fitur similarity command *DIMATIKAN*`
     Rust: `> Fitur similarity command *␀*`
 
+### sistemdaftar (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/sistemdaftar.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/sistemdaftar.rs`
+
+  - JS: `120363400911374213@newsletter`
+    Rust: (tidak ada padanan)
+  - JS: `␀-␀-␀`
+    Rust: (tidak ada padanan)
+
+### sprem (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/sprem.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/sprem.rs`
+
+  - JS: `[sprem]`
+    Rust: `.sprem`
+
+### srt (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/srt.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/srt.rs`
+
+  - JS: `Album Error:`
+    Rust: (tidak ada padanan)
+  - JS: `SRT List Error:`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Terjadi kesalahan saat membuat album gambar.`
+    Rust: (tidak ada padanan)
+
 ### star (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/star.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/star.rs`
 
   - JS: `❌ Gagal: ␀`
+    Rust: (tidak ada padanan)
+
+### startschedule (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/startschedule.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/startschedule.rs`
+
+  - JS: `[StartSchedule Error]`
     Rust: (tidak ada padanan)
 
 ### stop (owner)
@@ -8710,6 +9156,25 @@ Total plugin JS diperiksa: 792
   - JS: `❌ Scheduler tidak ditemukan atau sudah nonaktif`
     Rust: (tidak ada padanan)
 
+### swgc (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/swgc.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/swgc.rs`
+
+  - JS: `> Gagal mengambil daftar grup.`
+    Rust: (tidak ada padanan)
+  - JS: `> _␀_`
+    Rust: (tidak ada padanan)
+  - JS: `file-type`
+    Rust: (tidak ada padanan)
+  - JS: `swgc_␀.␀`
+    Rust: `␀/swgc_␀.␀`
+  - JS: `✅ Berhasil up sw ke grup ␀`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mengambil media.`
+    Rust: (tidak ada padanan)
+  - JS: `📋 *ᴘɪʟɪʜ ɢʀᴜᴘ ᴜɴᴛᴜᴋ ᴘᴏsᴛ sᴛᴏʀʏ*`
+    Rust: `📋 *ᴘɪʟɪʜ ɢʀᴜᴘ ᴅɴᴛᴜᴋ ᴘᴏsᴛ sᴛᴏʀʏ*`
+
 ### swgcall (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/swgcall.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/owner/swgcall.rs`
@@ -8778,6 +9243,34 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `📢 *ᴋᴏɴꜰɪʀᴍᴀsɪ ʙʀᴏᴀᴅᴄᴀsᴛ sᴡɢᴄ*`
     Rust: (tidak ada padanan)
+
+### swgcv2 (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/swgcv2.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/swgcv2.rs`
+
+  - JS: `> Gagal mengambil daftar grup.`
+    Rust: (tidak ada padanan)
+  - JS: `file-type`
+    Rust: (tidak ada padanan)
+  - JS: `swgcv2_␀.␀`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Gagal mengambil media.`
+    Rust: (tidak ada padanan)
+  - JS: `📋 *ᴘɪʟɪʜ ɢʀᴜᴘ ᴜɴᴛᴜᴋ ᴘᴏsᴛ sᴛᴏʀʏ ᴠ2*`
+    Rust: `📋 *ᴘɪʟɪʄ ɢʀᴜᴘ ᴜɴᴛᴜᴋ ᴘᴏsᴛ sᴛᴏʀʏ ᴠ2*`
+
+### swgcv2all (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/swgcv2all.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/swgcv2all.rs`
+
+  - JS: `[SwgcV2All] Error:`
+    Rust: (tidak ada padanan)
+  - JS: `file-type`
+    Rust: (tidak ada padanan)
+  - JS: `✅ *sᴡɢᴄᴠ2 ᴀʟʟ sᴇʟᴇsᴀɪ*`
+    Rust: `✅ *sᴡɢᴄᴠ2 ᴀʟʠ sᴇʟᴇsᴀɪ*`
+  - JS: `👋 *sᴡɢᴄᴠ2 ᴀʟʟ ɢʟᴏʙᴀʟ*`
+    Rust: `👋 *sᴡɢᴄᴠ2 ᴀʟʠ ɢʟᴏʙᴀʟ*`
 
 ### templateplugin (owner)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/templateplugin.js`
@@ -8848,6 +9341,25 @@ Total plugin JS diperiksa: 792
   - JS: `✅ *ɴᴏᴍᴏʀ ᴅɪ-ᴜɴʙʟᴏᴄᴋ*`
     Rust: (tidak ada padanan)
   - JS: `❌ Nomor tidak valid.`
+    Rust: (tidak ada padanan)
+
+### upch (owner)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/owner/upch.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/owner/upch.rs`
+
+  - JS: `Konversi opus gagal`
+    Rust: (tidak ada padanan)
+  - JS: `Media terlalu kecil atau gagal download`
+    Rust: (tidak ada padanan)
+  - JS: `[UpCh]`
+    Rust: (tidak ada padanan)
+  - JS: `audio/ogg; codecs=opus`
+    Rust: (tidak ada padanan)
+  - JS: `ffmpeg -y -i "␀" -vn -map_metadata -1 -ac 1 -ar 48000 -c:a libopus -b:a 96k -vbr on -application audio -f ogg "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `upch_in_␀`
+    Rust: (tidak ada padanan)
+  - JS: `upch_out_␀.ogg`
     Rust: (tidak ada padanan)
 
 ### welcomeall (owner)
@@ -9579,26 +10091,6 @@ Total plugin JS diperiksa: 792
   - JS: `🕕 Sedang memuat surah...`
     Rust: (tidak ada padanan)
 
-### adventure (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/adventure.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/adventure.rs`
-
-  - JS: `Hati-hati ya kak, auranya lumayan mencekam!`
-    Rust: (tidak ada padanan)
-  - JS: `Mengepak ransel dan menyalakan obor... Memasuki *␀*... ⚔️🗺️`
-    Rust: (tidak ada padanan)
-  - JS: `Yaampun kak... Kamu tewas di tempat. EXP kamu kena penalti 50% nih. 💔🥀`
-    Rust: `Yaampun kak...Kamu tewas di tempat. EXP kamu kena penalti 50% nh. 💔🥀`
-
-### alchemy (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/alchemy.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/alchemy.rs`
-
-  - JS: `Blubuk blubuk... BZZZZ! 🧪✨`
-    Rust: (tidak ada padanan)
-  - JS: `Mencampur bahan kimia untuk meracik *␀*... Awas meledak! 💥`
-    Rust: (tidak ada padanan)
-
 ### arena (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/arena.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/arena.rs`
@@ -9618,51 +10110,15 @@ Total plugin JS diperiksa: 792
   - JS: `🔥 Kamu melancarkan serangan kuat: *-␀ HP*`
     Rust: `> 🔥 Kamu melancarkan serangan kuat: *-␀ HP*`
 
-### beg (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/beg.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/beg.rs`
-
-  - JS: `🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*`
-    Rust: (tidak ada padanan)
-
-### berburu (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/berburu.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/berburu.rs`
-
-  - JS: `Mengendap-endap masuk ke hutan... 🤫🌳`
-    Rust: (tidak ada padanan)
-  - JS: `Siapin panah dan bidik dengan teliti! 🏹👀`
-    Rust: (tidak ada padanan)
-
-### berladang (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/berladang.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/berladang.rs`
-
-  - JS: `Menyiapkan cangkul dan menyiram tanah... 🌱💧`
-    Rust: (tidak ada padanan)
-  - JS: `Semoga hari ini panen berlimpah!`
-    Rust: (tidak ada padanan)
-
-### blacksmith (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/blacksmith.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/blacksmith.rs`
-
-  - JS: `Menempa logam untuk membuat *␀*... Prosesnya bakal sedikit makan waktu!`
-    Rust: (tidak ada padanan)
-  - JS: `Ting! Ting! Cshhh... 🔥🔨`
-    Rust: (tidak ada padanan)
-
 ### boss (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/boss.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/boss.rs`
 
   - JS: `")}`
     Rust: (tidak ada padanan)
+  - JS: `*Penalti Kekalahan:*`
+    Rust: `*Penalti Kekurangan:*`
   - JS: `.join("`
-    Rust: (tidak ada padanan)
-  - JS: `Aura kegelapan menyelimuti arena... *␀* telah muncul di hadapan kamu!`
-    Rust: (tidak ada padanan)
-  - JS: `_Siapkan senjatamu kak! Pertarungan dimulai..._`
     Rust: (tidak ada padanan)
   - JS: `␀`)`
     Rust: (tidak ada padanan)
@@ -9670,38 +10126,15 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `⚔️ Kamu menebas boss: *-␀ HP*`
     Rust: `> ⚔️ Kamu menebas boss: *-␀ HP*`
-  - JS: `⚔️ Kekuatan: *␀ ATK*`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *PERINGATAN BAHAYA!* ⚠️`
-    Rust: (tidak ada padanan)
-  - JS: `❤️ Darah Boss: *␀ HP*`
-    Rust: (tidak ada padanan)
   - JS: `👹 Boss mengamuk dan memukul mundur: *-␀ HP*`
     Rust: `> 👹 Boss mengamuk dan memukul mundur: *-␀ HP*`
   - JS: `💥 *CRITICAL HIT!!* Serangan mematikanmu masuk: *-␀ HP*`
     Rust: `> 💥 *CRITICAL HIT!!* Serangan mematikanmu masuk: *-␀ HP*`
 
-### breeding (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/breeding.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/breeding.rs`
-
-  - JS: `Biaya Bersalin: *Rp -␀*`
-    Rust: `Biaya Bersalin: *Rp -3.000*`
-  - JS: `Cieee, ␀ kamu sama ␀ temenmu lagi berduaan nih... 💕✨`
-    Rust: (tidak ada padanan)
-  - JS: `Tunggu bentar ya, dokternya lagi meriksa persalinan!`
-    Rust: (tidak ada padanan)
-
 ### buykoin (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/buykoin.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/buykoin.rs`
 
-  - JS: `> Dibutuhkan: *␀ EXP*`
-    Rust: `> Dibutuhkan: *␀* EXP`
-  - JS: `> EXP kamu: *␀ EXP*`
-    Rust: `> EXP kamu: *␀* EXP`
-  - JS: `> Maksimal: *␀ Koin*`
-    Rust: `> Maksimal: *␀* Koin*`
   - JS: ``;`
     Rust: (tidak ada padanan)
   - JS: `await m.react("💱");`
@@ -9765,45 +10198,12 @@ Total plugin JS diperiksa: 792
   - JS: `🪙 COINFLIP`
     Rust: (tidak ada padanan)
 
-### cook (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/cook.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/cook.rs`
-
-  - JS: `Lagi masak *␀* nih, wanginya enak banget! 🤤`
-    Rust: (tidak ada padanan)
-  - JS: `Srengg... Srenggg... 🔥🍳`
-    Rust: (tidak ada padanan)
-
-### cooking (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/cooking.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/cooking.rs`
-
-  - JS: `Lagi masak *␀* nih, wanginya nyebar sekampung! 🤤`
-    Rust: (tidak ada padanan)
-  - JS: `Srengg... Srenggg... 🔥🍳`
-    Rust: (tidak ada padanan)
-  - JS: `👨‍🍳`
-    Rust: (tidak ada padanan)
-
-### craft (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/craft.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/craft.rs`
-
-  - JS: `Sedang serius merakit *␀*... Bentar lagi jadi!`
-    Rust: (tidak ada padanan)
-  - JS: `Tok tok tok... Krek... 🛠️🔩`
-    Rust: (tidak ada padanan)
-  - JS: `🛠️`
-    Rust: (tidak ada padanan)
-
 ### crime (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/crime.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/crime.rs`
 
-  - JS: `Memasang alat peretas di ATM seberang jalan... 💣💻`
-    Rust: (tidak ada padanan)
   - JS: `Mesin ATM ngeluarin duit kayak air terjun! Lu langsung kabur bawa koper penuh duit.`
-    Rust: `Mesin ATM ngeluarin duit kayak air hujan! Lu langsung kabur bawa koper penuh duit.`
+    Rust: `Mesin ATM ngeluarin duit kayak air turun! Lu langsung kabur bawa koper penuh duit.`
 
 ### dice (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/dice.js`
@@ -9878,24 +10278,6 @@ Total plugin JS diperiksa: 792
   - JS: `├ 📈 EXP: ␀ (Min Lv. ␀)`
     Rust: `📈 EXP: ␀ (Min Lv. ␀)`
 
-### fishing (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/fishing.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/fishing.rs`
-
-  - JS: `Melempar kail ke air yang tenang... 🌊🎣`
-    Rust: (tidak ada padanan)
-  - JS: `Sssttt, jangan berisik biar ikannya makan umpan! 🤫👀`
-    Rust: (tidak ada padanan)
-
-### freelance (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/freelance.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/freelance.rs`
-
-  - JS: `Ngetik kode / nggambar di laptop... ⌨️`
-    Rust: (tidak ada padanan)
-  - JS: `Semoga klien nggak minta revisi! 🙏`
-    Rust: (tidak ada padanan)
-
 ### garden (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/garden.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/garden.rs`
@@ -9919,29 +10301,10 @@ Total plugin JS diperiksa: 792
   - JS: `🏹 _Mengendap-endap di balik semak belukar... Menyiapkan anak panah..._ 🌿🤫`
     Rust: (tidak ada padanan)
 
-### jualan (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/jualan.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/jualan.rs`
-
-  - JS: `Besok kulakan lagi ah! 🛍️`
-    Rust: (tidak ada padanan)
-  - JS: `Bisa langsung pulang gasik ini mah! 🎉`
-    Rust: (tidak ada padanan)
-  - JS: `Cangcimen cangcimen! Kacang kuaci permen! 🍬`
-    Rust: (tidak ada padanan)
-  - JS: `Nawarin dagangan ke orang lewat... 🗣️`
-    Rust: (tidak ada padanan)
-  - JS: `💵 Omzet Mendadak: *+Rp ␀*`
-    Rust: `💵 Omzet: *+Rp ␀*`
-
 ### kurir (rpg)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/kurir.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/rpg/kurir.rs`
 
-  - JS: `Mencari alamat yang sesuai di maps... 🗺️`
-    Rust: (tidak ada padanan)
-  - JS: `Pakettt!!! 📦`
-    Rust: (tidak ada padanan)
   - JS: `📈 EXP Kompensasi Lari: *+␀*`
     Rust: `📈 EXP Kompensasi Lari: *+500*`
 
@@ -9974,15 +10337,6 @@ Total plugin JS diperiksa: 792
   - JS: `🦹 COPET`
     Rust: (tidak ada padanan)
   - JS: `🦹 HASIL NYOPET`
-    Rust: (tidak ada padanan)
-
-### meditation (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/meditation.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/meditation.rs`
-
-  - JS: `> Memulihkan energi...`
-    Rust: (tidak ada padanan)
-  - JS: `💤 *ʙᴇʀɪsᴛɪʀᴀʜᴀᴛ...*`
     Rust: (tidak ada padanan)
 
 ### merchant (rpg)
@@ -10210,13 +10564,6 @@ Total plugin JS diperiksa: 792
   - JS: `Menebang pohon besar dengan sekuat tenaga...`
     Rust: (tidak ada padanan)
 
-### work (rpg)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/rpg/work.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/rpg/work.rs`
-
-  - JS: `Otw berangkat kerja jadi *␀* dulu kak! 🏃💼💨`
-    Rust: (tidak ada padanan)
-
 ### android1-get (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/android1-get.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/search/android1-get.rs`
@@ -10282,8 +10629,6 @@ Total plugin JS diperiksa: 792
 
   - JS: `resolve()`
     Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*`
-    Rust: `⚠️ *ᴄᴀʀʀᴀ ᴘᴀᴋᴀɪ*`
 
 ### spekhp (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/carisinyal.js`
@@ -10431,53 +10776,30 @@ Total plugin JS diperiksa: 792
   - JS: `🚪 Sesi perbandingan dibatalkan.`
     Rust: (tidak ada padanan)
 
-### film (search)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/film.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/search/film.rs`
-
-  - JS: `Hasil Pencarian`
-    Rust: (tidak ada padanan)
-  - JS: `␀filmget ␀`
-    Rust: (tidak ada padanan)
-  - JS: `⭐ ␀ | ␀ | ␀`
-    Rust: `> ⭐ ␀ | 📺 ␀ | 📅 ␀`
-  - JS: `🎬 Film Search`
-    Rust: (tidak ada padanan)
-  - JS: `🎬 Pilih Film`
-    Rust: (tidak ada padanan)
-
 ### filmget (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/filmget.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/search/filmget.rs`
 
   - JS: `┃ ⏱️ Duration: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `⏱️ Duration`
   - JS: `┃ ⭐ Rating: ␀`
-    Rust: `┃ Rating: -`
+    Rust: `┃ ⭐ Rating: -`
   - JS: `┃ 🎬 Director: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `🎬 Director`
   - JS: `┃ 🎭 Genre: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `┃ 🎭 Genre: Action`
   - JS: `┃ 👥 Actors: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `┃ 👥 Actors: A, B`
   - JS: `┃ 📅 Release: ␀`
-    Rust: (tidak ada padanan)
+    Rust: `┃ 📅 Release: 2024`
   - JS: `┃ 📺 Quality: ␀`
-    Rust: `┃ Quality: -`
-  - JS: `▶️ ␀`
-    Rust: (tidak ada padanan)
-  - JS: `🎬 Nonton Film Online`
-    Rust: (tidak ada padanan)
-  - JS: `📥 ␀`
-    Rust: (tidak ada padanan)
+    Rust: `┃ 📺 Quality: -`
 
 ### google (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/google.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/search/google.rs`
 
-  - JS: `> ␀`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *Google Gagal*`
+  - JS: `❌ Gagal mencari di Google, coba lagi nanti`
     Rust: (tidak ada padanan)
 
 ### gsmarena (search)
@@ -11916,11 +12238,36 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `[PlayCall] gagal — ␀`
     Rust: (tidak ada padanan)
-  - JS: `_Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._`
-    Rust: `_$Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._`
   - JS: `axios.get`
     Rust: (tidak ada padanan)
   - JS: `call_␀.␀`
+    Rust: (tidak ada padanan)
+  - JS: `yt-search`
+    Rust: (tidak ada padanan)
+  - JS: `␀: ␀`
+    Rust: (tidak ada padanan)
+
+### playch (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/playch.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/playch.rs`
+
+  - JS: `.message`
+    Rust: (tidak ada padanan)
+  - JS: `CapabilityError.tried`
+    Rust: (tidak ada padanan)
+  - JS: `Gagal mengambil audio dari API`
+    Rust: (tidak ada padanan)
+  - JS: `Konversi opus gagal`
+    Rust: (tidak ada padanan)
+  - JS: `[PlayCh] gagal — ␀`
+    Rust: (tidak ada padanan)
+  - JS: `ffmpeg -y -i "␀" -vn -map_metadata -1 -ac 1 -ar 48000 -c:a libopus -b:a 96k -vbr on -application audio -f ogg "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `in_*.mp3`
+    Rust: (tidak ada padanan)
+  - JS: `in_␀.␀`
+    Rust: (tidak ada padanan)
+  - JS: `out_␀.ogg`
     Rust: (tidak ada padanan)
   - JS: `yt-search`
     Rust: (tidak ada padanan)
@@ -11934,6 +12281,21 @@ Total plugin JS diperiksa: 792
   - JS: `Error: ␀`
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal mendownload lagu kak! 😭`
+    Rust: (tidak ada padanan)
+
+### playvid (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/playvid.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/playvid.rs`
+
+  - JS: `CapabilityError.message`
+    Rust: (tidak ada padanan)
+  - JS: `[PlayVid] gagal — ␀`
+    Rust: (tidak ada padanan)
+  - JS: `semua backend gagal`
+    Rust: (tidak ada padanan)
+  - JS: `yt-search`
+    Rust: (tidak ada padanan)
+  - JS: `␀: ␀`
     Rust: (tidak ada padanan)
 
 ### resep (search)
@@ -11965,8 +12327,6 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `[SearchThatSong]`
     Rust: (tidak ada padanan)
-  - JS: `request failed [fs] status=␀`
-    Rust: `request failed [rp] status=␀`
   - JS: `request timeout`
     Rust: (tidak ada padanan)
   - JS: `␀/`
@@ -11978,13 +12338,18 @@ Total plugin JS diperiksa: 792
 
   - JS: `#__NEXT_DATA__`
     Rust: (tidak ada padanan)
-  - JS: `.soundcloud judul`
-    Rust: `.soundcloud <judul>`
-  - JS: `Error: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Kalo mau download lagunya, pake fitur `␀playsc` aja kak! 😉`
-    Rust: `Kalo mau download lagunya, pake fitur `␀`playsc aja kak! 😉`
   - JS: `user-agent`
+    Rust: (tidak ada padanan)
+
+### spotify (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/spotify.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/spotify.rs`
+
+  - JS: `.spdl`
+    Rust: `.spdl ␀`
+  - JS: `[Spotify Search]`
+    Rust: `🚀 Spotify Search`
+  - JS: `tekan tombol di bawah ini`
     Rust: (tidak ada padanan)
 
 ### spotplay (search)
@@ -11997,10 +12362,6 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `␀ - ␀.mp3`
     Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*`
-    Rust: `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴜɪ*`
-  - JS: `❌ Gagal mengambil link download lagu Spotify.`
-    Rust: (tidak ada padanan)
 
 ### tiktokfoto (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/tiktokfoto.js`
@@ -12012,6 +12373,13 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `❌ Gagal memuat foto TikTok`
     Rust: (tidak ada padanan)
+
+### ttsearch (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/ttsearch.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/ttsearch.rs`
+
+  - JS: `㊗ ᴜsᴀɢᴇ: `␀ttsearch <query>``
+    Rust: `㊗ ᴅsᴀɢᴇ: `␀ttsearch <query>``
 
 ### wikipedia (search)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/search/wikipedia.js`
@@ -12046,6 +12414,1114 @@ Total plugin JS diperiksa: 792
   - JS: `user-agent`
     Rust: (tidak ada padanan)
   - JS: `␀/w/api.php`
+    Rust: (tidak ada padanan)
+
+### ytplay (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/ytplay.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/ytplay.rs`
+
+  - JS: `)`
+    Rust: (tidak ada padanan)
+  - JS: `)";`
+    Rust: (tidak ada padanan)
+  - JS: `);`
+    Rust: (tidak ada padanan)
+  - JS: `*{`
+    Rust: (tidak ada padanan)
+  - JS: `+ video.poster +`
+    Rust: (tidak ada padanan)
+  - JS: `-webkit-overflow-scrolling:touch`
+    Rust: (tidak ada padanan)
+  - JS: `-webkit-tap-highlight-color:transparent;`
+    Rust: (tidak ada padanan)
+  - JS: `-webkit-touch-callout:none;`
+    Rust: (tidak ada padanan)
+  - JS: `-webkit-user-select:none;`
+    Rust: (tidak ada padanan)
+  - JS: `.artist{`
+    Rust: (tidak ada padanan)
+  - JS: `.bg-overlay{`
+    Rust: (tidak ada padanan)
+  - JS: `.bg{`
+    Rust: (tidak ada padanan)
+  - JS: `.big-btn svg{`
+    Rust: (tidak ada padanan)
+  - JS: `.big-btn{`
+    Rust: (tidak ada padanan)
+  - JS: `.big-play{`
+    Rust: (tidak ada padanan)
+  - JS: `.bottom-left,`
+    Rust: (tidak ada padanan)
+  - JS: `.bottom-right{`
+    Rust: (tidak ada padanan)
+  - JS: `.bottom{`
+    Rust: (tidak ada padanan)
+  - JS: `.content{`
+    Rust: (tidak ada padanan)
+  - JS: `.controls{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-bar-fill{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-bar{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-cell b{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-cell span{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-cell{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-grid{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-head{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-log{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-server{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-state{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-title{`
+    Rust: (tidak ada padanan)
+  - JS: `.debug-wrap{`
+    Rust: (tidak ada padanan)
+  - JS: `.frame-playing .big-play{`
+    Rust: (tidak ada padanan)
+  - JS: `.icon-btn svg{`
+    Rust: (tidak ada padanan)
+  - JS: `.icon-btn{`
+    Rust: (tidak ada padanan)
+  - JS: `.info{`
+    Rust: (tidak ada padanan)
+  - JS: `.log-line{`
+    Rust: (tidak ada padanan)
+  - JS: `.player-wrap{`
+    Rust: (tidak ada padanan)
+  - JS: `.player{`
+    Rust: (tidak ada padanan)
+  - JS: `.progress{`
+    Rust: (tidak ada padanan)
+  - JS: `.replace(/`/g, "\`")`
+    Rust: (tidak ada padanan)
+  - JS: `.replace(/␀`
+    Rust: (tidak ada padanan)
+  - JS: `.side-btn svg{`
+    Rust: (tidak ada padanan)
+  - JS: `.side-btn{`
+    Rust: (tidak ada padanan)
+  - JS: `.song-title{`
+    Rust: (tidak ada padanan)
+  - JS: `.times{`
+    Rust: (tidak ada padanan)
+  - JS: `.top-sub{`
+    Rust: (tidak ada padanan)
+  - JS: `.top-title{`
+    Rust: (tidak ada padanan)
+  - JS: `.top{`
+    Rust: (tidak ada padanan)
+  - JS: `.video-frame video{`
+    Rust: (tidak ada padanan)
+  - JS: `.video-frame{`
+    Rust: (tidak ada padanan)
+  - JS: `.volume{`
+    Rust: (tidak ada padanan)
+  - JS: `180deg,`
+    Rust: (tidak ada padanan)
+  - JS: `: "";`
+    Rust: (tidak ada padanan)
+  - JS: `</button>`
+    Rust: (tidak ada padanan)
+  - JS: `</div>`
+    Rust: (tidak ada padanan)
+  - JS: `</script>`;`
+    Rust: (tidak ada padanan)
+  - JS: `</style>`
+    Rust: (tidak ada padanan)
+  - JS: `</svg>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgChunks">0</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgDownloaded">0.00 MB</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgLoop">OFF</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgMime">-</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgProgress">0%</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<b id="dbgTotal">-</b>`
+    Rust: (tidak ada padanan)
+  - JS: `<body>`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="big-btn" type="button" onclick="event.stopPropagation();toggleVideo()">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="icon-btn" type="button" onclick="toggleMute()" id="muteButton">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="icon-btn" type="button" onclick="toggleMute()">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="icon-btn" type="button" onclick="toggleRepeat()" id="repeatButton">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="side-btn" type="button" onclick="nextVideo()">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="side-btn" type="button" onclick="previousVideo()">`
+    Rust: (tidak ada padanan)
+  - JS: `<button class="side-btn" type="button" onclick="toggleVideo()">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="artist" id="artist">Unknown Channel</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="bg" id="background"></div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="bg-overlay"></div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="big-play" id="bigPlay">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="bottom">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="bottom-left">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="bottom-right">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="content">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="controls">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-bar">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-bar-fill" id="dbgBarFill"></div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-cell">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-grid">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-head">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-log" id="debugLog"></div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-server" id="wsServer">-</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-state" id="wsState">CONNECTING</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-title">WEBSOCKET VIDEO</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="debug-wrap">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="info">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="player">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="player-wrap">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="progress">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="song-title" id="songTitle">Unknown Video</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="times">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="top">`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="top-sub" id="playlistSub">␀</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="top-title" id="playlistTitle">NOW PLAYING VIDEO</div>`
+    Rust: (tidak ada padanan)
+  - JS: `<div class="video-frame" id="videoFrame" onclick="toggleVideo()">`
+    Rust: (tidak ada padanan)
+  - JS: `<div>`
+    Rust: (tidak ada padanan)
+  - JS: `<input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value="1" oninput="changeVolume(this.value)">`
+    Rust: (tidak ada padanan)
+  - JS: `<input id="progress" type="range" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)">`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M11 5 6 9H2v6h4l5 4V5z"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M16 6.5a9 9 0 0 1 0 11"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M17 2l4 4-4 4"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M17 5v14"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M19 20 9 12l10-8v16z"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M19 5v14"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M19 9a5 5 0 0 1 0 6"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M21 13v2a3 3 0 0 1-3 3H3"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M3 11V9a3 3 0 0 1 3-3h15"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M5 19V5"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M7 5v14"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="M8 5v14l11-7z"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="m14 9 5 6"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="m19 9-5 6"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="m5 4 10 8-10 8V4z"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<path d="m7 22-4-4 4-4"></path>`
+    Rust: (tidak ada padanan)
+  - JS: `<script>`
+    Rust: (tidak ada padanan)
+  - JS: `<span id="currentTime">0:00</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span id="duration">0:00</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>Chunks</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>Downloaded</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>Loop</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>MIME</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>Progress</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<span>Total</span>`
+    Rust: (tidak ada padanan)
+  - JS: `<svg id="pauseIcon" viewBox="0 0 24 24" style="display:none">`
+    Rust: (tidak ada padanan)
+  - JS: `<svg id="playIcon" viewBox="0 0 24 24">`
+    Rust: (tidak ada padanan)
+  - JS: `<svg id="smallPauseIcon" viewBox="0 0 24 24" style="display:none">`
+    Rust: (tidak ada padanan)
+  - JS: `<svg id="smallPlayIcon" viewBox="0 0 24 24">`
+    Rust: (tidak ada padanan)
+  - JS: `<svg id="volumeIcon" viewBox="0 0 24 24">`
+    Rust: (tidak ada padanan)
+  - JS: `<svg viewBox="0 0 24 24">`
+    Rust: (tidak ada padanan)
+  - JS: `<video id="videoPlayer" playsinline webkit-playsinline preload="none" poster="␀"></video>`
+    Rust: (tidak ada padanan)
+  - JS: `? `␀:␀``
+    Rust: (tidak ada padanan)
+  - JS: `Contoh: ␀ytplay melukis senja``
+    Rust: `Contoh: ␀ytplay melukis senja`
+  - JS: `URL.revokeObjectURL(wsObjectUrl);`
+    Rust: (tidak ada padanan)
+  - JS: `\\`
+    Rust: (tidak ada padanan)
+  - JS: `__typename: "FOAHtmlPrimitiveDemoDONOTUSE",`
+    Rust: (tidak ada padanan)
+  - JS: `__typename: "GenAISingleLayoutViewModel",`
+    Rust: (tidak ada padanan)
+  - JS: `__typename: "GenAIUnifiedResponseSection",`
+    Rust: (tidak ada padanan)
+  - JS: ``Mana judul atau link video YouTube yang mau diputar?`
+    Rust: `Mana judul atau link video YouTube yang mau diputar?`
+  - JS: `accent-color:#fff;`
+    Rust: (tidak ada padanan)
+  - JS: `aiRich.addSection({`
+    Rust: (tidak ada padanan)
+  - JS: `align-items:center;`
+    Rust: (tidak ada padanan)
+  - JS: `artist.textContent = config.channel || "Unknown Channel";`
+    Rust: (tidak ada padanan)
+  - JS: `aspect-ratio:16/9;`
+    Rust: (tidak ada padanan)
+  - JS: `async function handler(m, { sock }) {`
+    Rust: (tidak ada padanan)
+  - JS: `autoplay: false,`
+    Rust: (tidak ada padanan)
+  - JS: `await aiRich.send(m.chat, { includesUnifiedResponse: true });`
+    Rust: (tidak ada padanan)
+  - JS: `await m.react("☢");`
+    Rust: (tidak ada padanan)
+  - JS: `await m.react("✅");`
+    Rust: (tidak ada padanan)
+  - JS: `await m.react("🕕");`
+    Rust: (tidak ada padanan)
+  - JS: `await m.reply(`Gagal memutar video YouTube.`
+    Rust: `Gagal memutar video YouTube.`
+  - JS: `background-position:center;`
+    Rust: (tidak ada padanan)
+  - JS: `background-size:cover;`
+    Rust: (tidak ada padanan)
+  - JS: `background.style.backgroundImage = "url(`
+    Rust: (tidak ada padanan)
+  - JS: `background:#000;`
+    Rust: (tidak ada padanan)
+  - JS: `background:#090a0f;`
+    Rust: (tidak ada padanan)
+  - JS: `background:#111318;`
+    Rust: (tidak ada padanan)
+  - JS: `background:#fff;`
+    Rust: (tidak ada padanan)
+  - JS: `background:linear-gradient(`
+    Rust: (tidak ada padanan)
+  - JS: `background:linear-gradient(90deg,#4cc9f0,#7bff9f);`
+    Rust: (tidak ada padanan)
+  - JS: `background:rgba(0,0,0,.18);`
+    Rust: (tidak ada padanan)
+  - JS: `background:rgba(0,0,0,.35);`
+    Rust: (tidak ada padanan)
+  - JS: `background:rgba(255,255,255,.05);`
+    Rust: (tidak ada padanan)
+  - JS: `background:rgba(255,255,255,.08);`
+    Rust: (tidak ada padanan)
+  - JS: `background:transparent;`
+    Rust: (tidak ada padanan)
+  - JS: `body{`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:15px;`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:16px;`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:20px;`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:4px;`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:50%;`
+    Rust: (tidak ada padanan)
+  - JS: `border-radius:8px;`
+    Rust: (tidak ada padanan)
+  - JS: `border:0;`
+    Rust: (tidak ada padanan)
+  - JS: `border:1px solid rgba(255,255,255,.12);`
+    Rust: (tidak ada padanan)
+  - JS: `box-shadow:0 10px 40px rgba(0,0,0,.55)`
+    Rust: (tidak ada padanan)
+  - JS: `box-shadow:0 12px 35px rgba(0,0,0,.45);`
+    Rust: (tidak ada padanan)
+  - JS: `box-shadow:0 6px 18px rgba(0,0,0,.35)`
+    Rust: (tidak ada padanan)
+  - JS: `box-sizing:border-box`
+    Rust: (tidak ada padanan)
+  - JS: `box.appendChild(div);`
+    Rust: (tidak ada padanan)
+  - JS: `box.removeChild(box.firstChild);`
+    Rust: (tidak ada padanan)
+  - JS: `box.scrollTop = box.scrollHeight;`
+    Rust: (tidak ada padanan)
+  - JS: `channel: "␀",`
+    Rust: `📺 Channel: ␀`
+  - JS: `channel: info.channel || yt.channel || "YouTube",`
+    Rust: (tidak ada padanan)
+  - JS: `color:#08090d;`
+    Rust: (tidak ada padanan)
+  - JS: `color:#ffd166;`
+    Rust: (tidak ada padanan)
+  - JS: `color:#fff;`
+    Rust: (tidak ada padanan)
+  - JS: `color:rgba(255,255,255,.75);`
+    Rust: (tidak ada padanan)
+  - JS: `const aiRich = new AIRich(sock);`
+    Rust: (tidak ada padanan)
+  - JS: `const dur = info.duration`
+    Rust: (tidak ada padanan)
+  - JS: `const htmlPayload = buildPlayerHtml({`
+    Rust: (tidak ada padanan)
+  - JS: `const info = await getYoutubeDirectUrl(yt.url, "360");`
+    Rust: (tidak ada padanan)
+  - JS: `const query = m.text?.trim();`
+    Rust: (tidak ada padanan)
+  - JS: `const safeChannel = escapeHtmlJs(channel);`
+    Rust: (tidak ada padanan)
+  - JS: `const safeDuration = escapeHtmlJs(duration);`
+    Rust: (tidak ada padanan)
+  - JS: `const safeTitle = escapeHtmlJs(title);`
+    Rust: (tidak ada padanan)
+  - JS: `const safeVideoUrl = escapeHtmlJs(videoUrl);`
+    Rust: (tidak ada padanan)
+  - JS: `const safeWsUrl = escapeHtmlJs(wsUrl);`
+    Rust: (tidak ada padanan)
+  - JS: `const thumbRes = await axios.get(info.thumb, {`
+    Rust: (tidak ada padanan)
+  - JS: `const titleHeader = `YOUTUBE PLAY - ␀`;`
+    Rust: (tidak ada padanan)
+  - JS: `const wsUrl = `wss://stream.kanara.my.id/?url=␀`;`
+    Rust: (tidak ada padanan)
+  - JS: `const yt = await searchYoutube(query);`
+    Rust: (tidak ada padanan)
+  - JS: `currentTime.textContent = "0:00";`
+    Rust: (tidak ada padanan)
+  - JS: `currentTime.textContent = formatTime(video.currentTime);`
+    Rust: (tidak ada padanan)
+  - JS: `cursor:pointer`
+    Rust: (tidak ada padanan)
+  - JS: `display:block;`
+    Rust: (tidak ada padanan)
+  - JS: `display:flex;`
+    Rust: (tidak ada padanan)
+  - JS: `display:grid;`
+    Rust: (tidak ada padanan)
+  - JS: `div.className = "log-line";`
+    Rust: (tidak ada padanan)
+  - JS: `div.textContent = line;`
+    Rust: (tidak ada padanan)
+  - JS: `duration: "␀",`
+    Rust: (tidak ada padanan)
+  - JS: `duration: dur,`
+    Rust: (tidak ada padanan)
+  - JS: `durationLabel.textContent = formatTime(video.duration);`
+    Rust: (tidak ada padanan)
+  - JS: `el = document.getElementById("dbgBarFill");`
+    Rust: (tidak ada padanan)
+  - JS: `el = document.getElementById("dbgChunks");`
+    Rust: (tidak ada padanan)
+  - JS: `el = document.getElementById("dbgProgress");`
+    Rust: (tidak ada padanan)
+  - JS: `el = document.getElementById("dbgTotal");`
+    Rust: (tidak ada padanan)
+  - JS: `export { pluginConfig as config, handler };`
+    Rust: (tidak ada padanan)
+  - JS: `fill:currentColor;`
+    Rust: (tidak ada padanan)
+  - JS: `fill:none;`
+    Rust: (tidak ada padanan)
+  - JS: `filter:blur(22px);`
+    Rust: (tidak ada padanan)
+  - JS: `finishWsDownload(config);`
+    Rust: (tidak ada padanan)
+  - JS: `flex-shrink:0`
+    Rust: (tidak ada padanan)
+  - JS: `font-family:Arial,Helvetica,sans-serif;`
+    Rust: (tidak ada padanan)
+  - JS: `font-family:monospace`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:10px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:11px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:13px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:19px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:8px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-size:9px;`
+    Rust: (tidak ada padanan)
+  - JS: `font-weight:700;`
+    Rust: (tidak ada padanan)
+  - JS: `frame.classList.add("frame-playing");`
+    Rust: (tidak ada padanan)
+  - JS: `frame.classList.remove("frame-playing");`
+    Rust: (tidak ada padanan)
+  - JS: `function buildPlayerHtml({ title, channel, duration, videoUrl, wsUrl, posterBase64 }) {`
+    Rust: (tidak ada padanan)
+  - JS: `function changeVolume(value) {`
+    Rust: (tidak ada padanan)
+  - JS: `function finishWsDownload(cfg) {`
+    Rust: (tidak ada padanan)
+  - JS: `function fmtSize(bytes) {`
+    Rust: (tidak ada padanan)
+  - JS: `function formatTime(seconds) {`
+    Rust: (tidak ada padanan)
+  - JS: `function nextVideo() {`
+    Rust: (tidak ada padanan)
+  - JS: `function playVideo() {`
+    Rust: (tidak ada padanan)
+  - JS: `function previousVideo() {`
+    Rust: (tidak ada padanan)
+  - JS: `function seekVideo(value) {`
+    Rust: (tidak ada padanan)
+  - JS: `function setWsState(state) {`
+    Rust: (tidak ada padanan)
+  - JS: `function startVideoStream(cfg) {`
+    Rust: (tidak ada padanan)
+  - JS: `function toggleMute() {`
+    Rust: (tidak ada padanan)
+  - JS: `function toggleRepeat() {`
+    Rust: (tidak ada padanan)
+  - JS: `function toggleVideo() {`
+    Rust: (tidak ada padanan)
+  - JS: `function updateLoopStatus() {`
+    Rust: (tidak ada padanan)
+  - JS: `function updateUI() {`
+    Rust: (tidak ada padanan)
+  - JS: `function updateWsProgress() {`
+    Rust: (tidak ada padanan)
+  - JS: `function writeLog(line) {`
+    Rust: (tidak ada padanan)
+  - JS: `gap:12px`
+    Rust: (tidak ada padanan)
+  - JS: `gap:18px;`
+    Rust: (tidak ada padanan)
+  - JS: `gap:6px;`
+    Rust: (tidak ada padanan)
+  - JS: `gap:9px`
+    Rust: (tidak ada padanan)
+  - JS: `grid-template-columns:repeat(3,1fr);`
+    Rust: (tidak ada padanan)
+  - JS: `height:100%;`
+    Rust: (tidak ada padanan)
+  - JS: `height:110px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:17px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:19px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:26px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:34px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:38px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:4px;`
+    Rust: (tidak ada padanan)
+  - JS: `height:64px;`
+    Rust: (tidak ada padanan)
+  - JS: `host = new URL(wsUrl).host;`
+    Rust: (tidak ada padanan)
+  - JS: `if (!box) return;`
+    Rust: (tidak ada padanan)
+  - JS: `if (!info?.url) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!isFinite(bytes)) return "0 B";`
+    Rust: (tidak ada padanan)
+  - JS: `if (!isFinite(seconds)) return "0:00";`
+    Rust: (tidak ada padanan)
+  - JS: `if (!isFinite(video.duration)) return;`
+    Rust: (tidak ada padanan)
+  - JS: `if (!isLoop) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!message) return;`
+    Rust: (tidak ada padanan)
+  - JS: `if (!query) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!video.src) userPressed = true;`
+    Rust: (tidak ada padanan)
+  - JS: `if (!wsUrl && videoUrl) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!wsUrl) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (bytes >= 1024) return (bytes / 1024).toFixed(2) + " KB";`
+    Rust: (tidak ada padanan)
+  - JS: `if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB";`
+    Rust: (tidak ada padanan)
+  - JS: `if (cfg.autoplay || userPressed) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (config.volume !== undefined) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.style.width = pct.toFixed(1) + "%";`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = String(wsChunks.length);`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = fmtSize(wsDownloaded);`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = fmtSize(wsTotal);`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = isLoop ? "ON" : "OFF";`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = pct.toFixed(1) + "%";`
+    Rust: (tidak ada padanan)
+  - JS: `if (el) el.textContent = state;`
+    Rust: (tidak ada padanan)
+  - JS: `if (info.thumb) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (message.contentLength !== undefined && message.contentLength !== null) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (message.type === "end") {`
+    Rust: (tidak ada padanan)
+  - JS: `if (message.type === "error") {`
+    Rust: (tidak ada padanan)
+  - JS: `if (message.type === "start") {`
+    Rust: (tidak ada padanan)
+  - JS: `if (mimeEl) mimeEl.textContent = wsMime;`
+    Rust: (tidak ada padanan)
+  - JS: `if (now - wsLastLog > 400) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (result && result.catch) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (sec < 10) sec = "0" + sec;`
+    Rust: (tidak ada padanan)
+  - JS: `if (serverEl) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (typeof WebSocket === "undefined") {`
+    Rust: (tidak ada padanan)
+  - JS: `if (typeof event.data === "string") {`
+    Rust: (tidak ada padanan)
+  - JS: `if (video.paused) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (video.poster && background) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (video.volume > 0) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (wsDone) return;`
+    Rust: (tidak ada padanan)
+  - JS: `if (wsDone) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (wsObjectUrl) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (wsTotal !== null && wsTotal > 0) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (wsVideo) {`
+    Rust: (tidak ada padanan)
+  - JS: `input[type=range]{`
+    Rust: (tidak ada padanan)
+  - JS: `inset:-25px;`
+    Rust: (tidak ada padanan)
+  - JS: `inset:0;`
+    Rust: (tidak ada padanan)
+  - JS: `isLoop = !isLoop;`
+    Rust: (tidak ada padanan)
+  - JS: `isLoop = config.loop || false;`
+    Rust: (tidak ada padanan)
+  - JS: `justify-content:center;`
+    Rust: (tidak ada padanan)
+  - JS: `justify-content:space-between;`
+    Rust: (tidak ada padanan)
+  - JS: `let posterBase64 = "";`
+    Rust: (tidak ada padanan)
+  - JS: `letter-spacing:.5px`
+    Rust: (tidak ada padanan)
+  - JS: `letter-spacing:.8px;`
+    Rust: (tidak ada padanan)
+  - JS: `line-height:1.4`
+    Rust: (tidak ada padanan)
+  - JS: `line-height:1.6;`
+    Rust: (tidak ada padanan)
+  - JS: `loop: false`
+    Rust: (tidak ada padanan)
+  - JS: `margin-bottom:15px`
+    Rust: (tidak ada padanan)
+  - JS: `margin-bottom:8px`
+    Rust: (tidak ada padanan)
+  - JS: `margin-bottom:8px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:12px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:13px`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:15px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:18px`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:2px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:3px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:5px;`
+    Rust: (tidak ada padanan)
+  - JS: `margin-top:7px`
+    Rust: (tidak ada padanan)
+  - JS: `margin:0;`
+    Rust: (tidak ada padanan)
+  - JS: `margin:auto;`
+    Rust: (tidak ada padanan)
+  - JS: `max-width:260px`
+    Rust: (tidak ada padanan)
+  - JS: `max-width:440px;`
+    Rust: (tidak ada padanan)
+  - JS: `message = JSON.parse(event.data);`
+    Rust: (tidak ada padanan)
+  - JS: `object-fit:contain`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.38;`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.55;`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.5;`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.6;`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.8`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:.85`
+    Rust: (tidak ada padanan)
+  - JS: `opacity:0;`
+    Rust: (tidak ada padanan)
+  - JS: `overflow-y:auto;`
+    Rust: (tidak ada padanan)
+  - JS: `overflow:hidden;`
+    Rust: (tidak ada padanan)
+  - JS: `padding-top:15px`
+    Rust: (tidak ada padanan)
+  - JS: `padding:0;`
+    Rust: (tidak ada padanan)
+  - JS: `padding:12px`
+    Rust: (tidak ada padanan)
+  - JS: `padding:12px;`
+    Rust: (tidak ada padanan)
+  - JS: `padding:18px;`
+    Rust: (tidak ada padanan)
+  - JS: `padding:3px 8px;`
+    Rust: (tidak ada padanan)
+  - JS: `padding:6px 8px`
+    Rust: (tidak ada padanan)
+  - JS: `padding:6px 8px;`
+    Rust: (tidak ada padanan)
+  - JS: `payload: htmlPayload.trim()`
+    Rust: (tidak ada padanan)
+  - JS: `playVideo();`
+    Rust: (tidak ada padanan)
+  - JS: `playlistSub.textContent = config.title || "Unknown Video";`
+    Rust: (tidak ada padanan)
+  - JS: `pointer-events:none`
+    Rust: (tidak ada padanan)
+  - JS: `position:absolute;`
+    Rust: (tidak ada padanan)
+  - JS: `position:relative;`
+    Rust: (tidak ada padanan)
+  - JS: `posterBase64`
+    Rust: (tidak ada padanan)
+  - JS: `posterBase64 = "data:image/jpeg;base64," + Buffer.from(thumbRes.data).toString("base64");`
+    Rust: (tidak ada padanan)
+  - JS: `primitive: {`
+    Rust: (tidak ada padanan)
+  - JS: `progress.value = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `progress.value = value;`
+    Rust: (tidak ada padanan)
+  - JS: `repeatButton.style.opacity = isLoop ? "1" : ".55";`
+    Rust: (tidak ada padanan)
+  - JS: `repeatButton.title = isLoop ? "Loop ON" : "Loop OFF";`
+    Rust: (tidak ada padanan)
+  - JS: `responseType: "arraybuffer",`
+    Rust: (tidak ada padanan)
+  - JS: `result.catch(function() {});`
+    Rust: (tidak ada padanan)
+  - JS: `return `<style>`
+    Rust: (tidak ada padanan)
+  - JS: `return bytes + " B";`
+    Rust: (tidak ada padanan)
+  - JS: `return m.reply(`
+    Rust: (tidak ada padanan)
+  - JS: `return min + ":" + sec;`
+    Rust: (tidak ada padanan)
+  - JS: `return;`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(5,6,10,.35),`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(5,6,10,.72)`
+    Rust: (tidak ada padanan)
+  - JS: `serverEl.textContent = host || "-";`
+    Rust: (tidak ada padanan)
+  - JS: `setTimeout(function() {`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("CLOSED");`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("COMPLETE");`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("CONNECTED");`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("CONNECTING");`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("DOWNLOADING");`
+    Rust: (tidak ada padanan)
+  - JS: `setWsState("ERROR");`
+    Rust: (tidak ada padanan)
+  - JS: `smallPauseIcon.style.display = "block";`
+    Rust: (tidak ada padanan)
+  - JS: `smallPauseIcon.style.display = "none";`
+    Rust: (tidak ada padanan)
+  - JS: `smallPlayIcon.style.display = "block";`
+    Rust: (tidak ada padanan)
+  - JS: `smallPlayIcon.style.display = "none";`
+    Rust: (tidak ada padanan)
+  - JS: `songTitle.textContent = config.title || "Unknown Video";`
+    Rust: (tidak ada padanan)
+  - JS: `startVideoStream(config);`
+    Rust: (tidak ada padanan)
+  - JS: `stroke-linecap:round;`
+    Rust: (tidak ada padanan)
+  - JS: `stroke-linejoin:round`
+    Rust: (tidak ada padanan)
+  - JS: `stroke-width:2;`
+    Rust: (tidak ada padanan)
+  - JS: `stroke:currentColor;`
+    Rust: (tidak ada padanan)
+  - JS: `text-overflow:ellipsis`
+    Rust: (tidak ada padanan)
+  - JS: `text-overflow:ellipsis;`
+    Rust: (tidak ada padanan)
+  - JS: `throw new Error("Gagal mendapatkan direct link video.");`
+    Rust: `Gagal mendapatkan direct link video.`
+  - JS: `timeout: 10000`
+    Rust: (tidak ada padanan)
+  - JS: `title: "␀",`
+    Rust: (tidak ada padanan)
+  - JS: `title: info.title || yt.title || "YouTube Video",`
+    Rust: (tidak ada padanan)
+  - JS: `title: titleHeader,`
+    Rust: (tidak ada padanan)
+  - JS: `touch-action:manipulation;`
+    Rust: (tidak ada padanan)
+  - JS: `transform:scale(1.15);`
+    Rust: (tidak ada padanan)
+  - JS: `transition:opacity .2s;`
+    Rust: (tidak ada padanan)
+  - JS: `transition:width .3s`
+    Rust: (tidak ada padanan)
+  - JS: `trusted_sources: [],`
+    Rust: (tidak ada padanan)
+  - JS: `try {`
+    Rust: (tidak ada padanan)
+  - JS: `type: wsMime || "video/mp4"`
+    Rust: (tidak ada padanan)
+  - JS: `updateLoopStatus();`
+    Rust: (tidak ada padanan)
+  - JS: `updateUI();`
+    Rust: (tidak ada padanan)
+  - JS: `updateWsProgress();`
+    Rust: (tidak ada padanan)
+  - JS: `user-select:none;`
+    Rust: (tidak ada padanan)
+  - JS: `userPressed = false;`
+    Rust: (tidak ada padanan)
+  - JS: `var artist = document.getElementById("artist");`
+    Rust: (tidak ada padanan)
+  - JS: `var background = document.getElementById("background");`
+    Rust: (tidak ada padanan)
+  - JS: `var blob = new Blob(wsChunks, {`
+    Rust: (tidak ada padanan)
+  - JS: `var box = document.getElementById("debugLog");`
+    Rust: (tidak ada padanan)
+  - JS: `var bytes = event.data.byteLength || 0;`
+    Rust: (tidak ada padanan)
+  - JS: `var config = window.VIDEO_CONFIG || {};`
+    Rust: (tidak ada padanan)
+  - JS: `var currentTime = document.getElementById("currentTime");`
+    Rust: (tidak ada padanan)
+  - JS: `var div = document.createElement("div");`
+    Rust: (tidak ada padanan)
+  - JS: `var durationLabel = document.getElementById("duration");`
+    Rust: (tidak ada padanan)
+  - JS: `var el = document.getElementById("dbgDownloaded");`
+    Rust: (tidak ada padanan)
+  - JS: `var el = document.getElementById("dbgLoop");`
+    Rust: (tidak ada padanan)
+  - JS: `var el = document.getElementById("wsState");`
+    Rust: (tidak ada padanan)
+  - JS: `var frame = document.getElementById("videoFrame");`
+    Rust: (tidak ada padanan)
+  - JS: `var host = "-";`
+    Rust: (tidak ada padanan)
+  - JS: `var isLoop = false;`
+    Rust: (tidak ada padanan)
+  - JS: `var message = null;`
+    Rust: (tidak ada padanan)
+  - JS: `var mimeEl = document.getElementById("dbgMime");`
+    Rust: (tidak ada padanan)
+  - JS: `var min = Math.floor(seconds / 60);`
+    Rust: (tidak ada padanan)
+  - JS: `var now = Date.now();`
+    Rust: (tidak ada padanan)
+  - JS: `var pct = Math.min(100, (wsDownloaded / wsTotal) * 100);`
+    Rust: (tidak ada padanan)
+  - JS: `var playlistSub = document.getElementById("playlistSub");`
+    Rust: (tidak ada padanan)
+  - JS: `var progress = document.getElementById("progress");`
+    Rust: (tidak ada padanan)
+  - JS: `var repeatButton = document.getElementById("repeatButton");`
+    Rust: (tidak ada padanan)
+  - JS: `var result = video.play();`
+    Rust: (tidak ada padanan)
+  - JS: `var sec = Math.floor(seconds % 60);`
+    Rust: (tidak ada padanan)
+  - JS: `var serverEl = document.getElementById("wsServer");`
+    Rust: (tidak ada padanan)
+  - JS: `var smallPauseIcon = document.getElementById("smallPauseIcon");`
+    Rust: (tidak ada padanan)
+  - JS: `var smallPlayIcon = document.getElementById("smallPlayIcon");`
+    Rust: (tidak ada padanan)
+  - JS: `var songTitle = document.getElementById("songTitle");`
+    Rust: (tidak ada padanan)
+  - JS: `var userPressed = false;`
+    Rust: (tidak ada padanan)
+  - JS: `var value = (video.currentTime / video.duration) * 100;`
+    Rust: (tidak ada padanan)
+  - JS: `var video = document.getElementById("videoPlayer");`
+    Rust: (tidak ada padanan)
+  - JS: `var videoUrl = cfg.videoUrl || "";`
+    Rust: (tidak ada padanan)
+  - JS: `var volume = document.getElementById("volume");`
+    Rust: (tidak ada padanan)
+  - JS: `var wsChunks = [];`
+    Rust: (tidak ada padanan)
+  - JS: `var wsDone = false;`
+    Rust: (tidak ada padanan)
+  - JS: `var wsDownloaded = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `var wsLastLog = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `var wsMime = "video/mp4";`
+    Rust: (tidak ada padanan)
+  - JS: `var wsObjectUrl = null;`
+    Rust: (tidak ada padanan)
+  - JS: `var wsTotal = null;`
+    Rust: (tidak ada padanan)
+  - JS: `var wsUrl = cfg.wsUrl || "";`
+    Rust: (tidak ada padanan)
+  - JS: `var wsVideo = null;`
+    Rust: (tidak ada padanan)
+  - JS: `video.addEventListener("ended", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `video.addEventListener("loadedmetadata", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `video.addEventListener("pause", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `video.addEventListener("play", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `video.addEventListener("timeupdate", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `video.currentTime = (Number(value) / 100) * video.duration;`
+    Rust: (tidak ada padanan)
+  - JS: `video.currentTime = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `video.currentTime = Math.max(0, video.currentTime - 10);`
+    Rust: (tidak ada padanan)
+  - JS: `video.currentTime = Math.min(video.duration, video.currentTime + 10);`
+    Rust: (tidak ada padanan)
+  - JS: `video.load();`
+    Rust: (tidak ada padanan)
+  - JS: `video.loop = isLoop;`
+    Rust: (tidak ada padanan)
+  - JS: `video.muted = !video.muted;`
+    Rust: (tidak ada padanan)
+  - JS: `video.muted = false;`
+    Rust: (tidak ada padanan)
+  - JS: `video.pause();`
+    Rust: (tidak ada padanan)
+  - JS: `video.src = wsObjectUrl;`
+    Rust: (tidak ada padanan)
+  - JS: `video.volume = Number(value);`
+    Rust: (tidak ada padanan)
+  - JS: `video.volume = config.volume;`
+    Rust: (tidak ada padanan)
+  - JS: `videoUrl: "␀",`
+    Rust: (tidak ada padanan)
+  - JS: `videoUrl: info.url,`
+    Rust: (tidak ada padanan)
+  - JS: `view_model: {`
+    Rust: (tidak ada padanan)
+  - JS: `volume.value = config.volume;`
+    Rust: (tidak ada padanan)
+  - JS: `volume: 0.8,`
+    Rust: (tidak ada padanan)
+  - JS: `while (box.childNodes.length > 80) {`
+    Rust: (tidak ada padanan)
+  - JS: `white-space:nowrap;`
+    Rust: (tidak ada padanan)
+  - JS: `white-space:pre-wrap`
+    Rust: (tidak ada padanan)
+  - JS: `width:0;`
+    Rust: (tidak ada padanan)
+  - JS: `width:100%;`
+    Rust: (tidak ada padanan)
+  - JS: `width:17px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:19px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:26px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:34px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:38px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:64px;`
+    Rust: (tidak ada padanan)
+  - JS: `width:85px`
+    Rust: (tidak ada padanan)
+  - JS: `window.VIDEO_CONFIG = {`
+    Rust: (tidak ada padanan)
+  - JS: `window.addEventListener("beforeunload", function() {`
+    Rust: (tidak ada padanan)
+  - JS: `word-break:break-all;`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Binary chunk: " + fmtSize(bytes));`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Blob created (" + fmtSize(blob.size) + ")");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Code: " + event.code + " Reason: " + (event.reason || "-"));`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Connecting...");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Download complete");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("END");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("No video URL tersedia");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Player ready");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("START | MIME: " + wsMime);`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Server error: " + (message.message || "unknown"));`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Size: " + fmtSize(wsTotal));`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("Video source attached");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("WebSocket API tidak tersedia");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("WebSocket OPEN");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("WebSocket closed unexpectedly");`
+    Rust: (tidak ada padanan)
+  - JS: `writeLog("WebSocket error");`
+    Rust: (tidak ada padanan)
+  - JS: `wsChunks = [];`
+    Rust: (tidak ada padanan)
+  - JS: `wsChunks.push(event.data);`
+    Rust: (tidak ada padanan)
+  - JS: `wsDone = true;`
+    Rust: (tidak ada padanan)
+  - JS: `wsDownloaded += bytes;`
+    Rust: (tidak ada padanan)
+  - JS: `wsLastLog = now;`
+    Rust: (tidak ada padanan)
+  - JS: `wsMime = message.mime || "video/mp4";`
+    Rust: (tidak ada padanan)
+  - JS: `wsObjectUrl = URL.createObjectURL(blob);`
+    Rust: (tidak ada padanan)
+  - JS: `wsTotal = Number(message.contentLength);`
+    Rust: (tidak ada padanan)
+  - JS: `wsTotal = Number(message.length);`
+    Rust: (tidak ada padanan)
+  - JS: `wsUrl = "wss://stream.kanara.my.id/?url=" + encodeURIComponent(videoUrl);`
+    Rust: (tidak ada padanan)
+  - JS: `wsUrl,`
+    Rust: (tidak ada padanan)
+  - JS: `wsUrl: "␀",`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo = new WebSocket(wsUrl);`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.binaryType = "arraybuffer";`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.close();`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.onclose = function(event) {`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.onerror = function() {`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.onmessage = function(event) {`
+    Rust: (tidak ada padanan)
+  - JS: `wsVideo.onopen = function() {`
+    Rust: (tidak ada padanan)
+  - JS: `yt-search`
+    Rust: (tidak ada padanan)
+  - JS: `z-index:2`
+    Rust: (tidak ada padanan)
+  - JS: `z-index:3`
+    Rust: (tidak ada padanan)
+  - JS: `}`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (e) {}`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (err) {`
+    Rust: (tidak ada padanan)
+  - JS: `} catch {}`
+    Rust: (tidak ada padanan)
+  - JS: `} else if (message.length !== undefined && message.length !== null) {`
+    Rust: (tidak ada padanan)
+  - JS: `} else {`
+    Rust: (tidak ada padanan)
+  - JS: `});`
+    Rust: (tidak ada padanan)
+  - JS: `}, 300);`
+    Rust: (tidak ada padanan)
+  - JS: `};`
+    Rust: (tidak ada padanan)
+  - JS: `␀`);`
+    Rust: (tidak ada padanan)
+
+### yts (search)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/search/yts.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/search/yts.rs`
+
+  - JS: `yt-search`
     Rust: (tidak ada padanan)
 
 ### countrystalk (stalker  )
@@ -12421,23 +13897,6 @@ Total plugin JS diperiksa: 792
   - JS: `␀ytstalk`
     Rust: (tidak ada padanan)
 
-### bratanime (sticker)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/animebrat.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/sticker/bratextra.rs`
-
-  - JS: `.animebrat <text>`
-    Rust: (tidak ada padanan)
-  - JS: `.animebrat Hai semua`
-    Rust: (tidak ada padanan)
-  - JS: `> Masukkan teks`
-    Rust: (tidak ada padanan)
-  - JS: `Membuat sticker brat`
-    Rust: (tidak ada padanan)
-  - JS: ``Contoh: ␀animebrat Hai semua``
-    Rust: (tidak ada padanan)
-  - JS: `🖼️ *ʙʀᴀᴛ ᴀɴɪᴍᴇ sᴛɪᴄᴋᴇʀ*`
-    Rust: (tidak ada padanan)
-
 ### attp (sticker)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/attp.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/sticker/attp.rs`
@@ -12467,6 +13926,17 @@ Total plugin JS diperiksa: 792
   - JS: `API returned blank image`
     Rust: `API returned blank`
 
+### bratextra (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/bratextra.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/bratextra.rs`
+
+  - JS: `2d`
+    Rust: (tidak ada padanan)
+  - JS: `Template tidak ditemukan`
+    Rust: `Template tidak`
+  - JS: `bold ␀px sans-serif`
+    Rust: (tidak ada padanan)
+
 ### bratvid (sticker)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/bratvid.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/sticker/bratvid.rs`
@@ -12474,6 +13944,79 @@ Total plugin JS diperiksa: 792
   - JS: `brat-␀.webp`
     Rust: (tidak ada padanan)
   - JS: `spawn("ffmpeg")`
+    Rust: (tidak ada padanan)
+
+### bratvid2 (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/bratvid2.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/bratvid2.rs`
+
+  - JS: `+faststart`
+    Rust: (tidak ada padanan)
+  - JS: `-FE0F`
+    Rust: (tidak ada padanan)
+  - JS: `-c:v`
+    Rust: (tidak ada padanan)
+  - JS: `-crf`
+    Rust: (tidak ada padanan)
+  - JS: `-f`
+    Rust: (tidak ada padanan)
+  - JS: `-i`
+    Rust: (tidak ada padanan)
+  - JS: `-movflags`
+    Rust: (tidak ada padanan)
+  - JS: `-pix_fmt`
+    Rust: (tidak ada padanan)
+  - JS: `-preset`
+    Rust: (tidak ada padanan)
+  - JS: `-r`
+    Rust: (tidak ada padanan)
+  - JS: `-s`
+    Rust: (tidak ada padanan)
+  - JS: `-vf scale=512:512`
+    Rust: (tidak ada padanan)
+  - JS: `-y`
+    Rust: (tidak ada padanan)
+  - JS: `23`
+    Rust: (tidak ada padanan)
+  - JS: `2d`
+    Rust: (tidak ada padanan)
+  - JS: `Download gagal (␀)`
+    Rust: (tidak ada padanan)
+  - JS: `FFmpeg exit code ␀: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `Halo Guys`
+    Rust: (tidak ada padanan)
+  - JS: `Teks kosong`
+    Rust: (tidak ada padanan)
+  - JS: `[BratVid2 Error]`
+    Rust: (tidak ada padanan)
+  - JS: ``Contoh: ␀bratvid2 hello world``
+    Rust: ``Contoh: .bratvid2 hello world``
+  - JS: `blur(␀px)`
+    Rust: (tidak ada padanan)
+  - JS: `brat-`
+    Rust: (tidak ada padanan)
+  - JS: `brat2-␀.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `impact.ttf`
+    Rust: (tidak ada padanan)
+  - JS: `output.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `pipe:0`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(255, 255, 255, 0)`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(255, 255, 255, 0.05)`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(255, 255, 255, 0.35)`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(255, 255, 255, 0.95)`
+    Rust: (tidak ada padanan)
+  - JS: `␀-fe0f`
+    Rust: (tidak ada padanan)
+  - JS: `␀px Impact`
+    Rust: (tidak ada padanan)
+  - JS: `␀x␀`
     Rust: (tidak ada padanan)
 
 ### emojimix (sticker)
@@ -12484,8 +14027,6 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `80px sans-serif`
     Rust: (tidak ada padanan)
-  - JS: `> Contoh: `␀emojimix 😂🔥``
-    Rust: ``Contoh: ␀emojimix 😂🔥``
 
 ### linesticker (sticker)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/linesticker.js`
@@ -12497,17 +14038,134 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `[LineSticker] Sticker error:`
     Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mengirim sticker`
-    Rust: `> 🕕 Mengirim sticker...`
-  - JS: `❌ Tidak ada sticker ditemukan!`
+
+### pinpack (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/pinpack.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/pinpack.rs`
+
+  - JS: `Sticker pack dari Pinterest: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `User-Agent`
+    Rust: (tidak ada padanan)
+  - JS: `[PinPack] Error:`
+    Rust: (tidak ada padanan)
+  - JS: `[PinPack] Pack send failed:`
+    Rust: (tidak ada padanan)
+  - JS: `── .✦ 𝗣𝗜𝗡 𝗣𝗔𝗖𝗞 ✦. ── 𝜗ৎ`
+    Rust: `── .✦ 𝗣𝗜𝗇 𝗣𝗔𝗖𝗞 ✦. ── 𝜗ৎ`
+
+### qc (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/qc.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/qc.rs`
+
+  - JS: `14px sans-serif`
+    Rust: (tidak ada padanan)
+  - JS: `2d`
+    Rust: (tidak ada padanan)
+  - JS: `Foto-AI`
+    Rust: (tidak ada padanan)
+  - JS: `bold ␀px sans-serif`
+    Rust: (tidak ada padanan)
+  - JS: `rgba(255,255,255,0.6)`
+    Rust: (tidak ada padanan)
+  - JS: `~ ␀`
+    Rust: (tidak ada padanan)
+
+### smeme (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/smeme.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/smeme.rs`
+
+  - JS: `[SMEME] Error:`
+    Rust: (tidak ada padanan)
+  - JS: `[SMEME] Image uploaded:`
+    Rust: (tidak ada padanan)
+  - JS: `[SMEME] Sharp resize failed:`
+    Rust: (tidak ada padanan)
+  - JS: `[SMEME] Telegraph failed:`
+    Rust: (tidak ada padanan)
+  - JS: ``Contoh: ␀smeme Ketika|Kamu Lupa``
+    Rust: ``Contoh: .smeme Ketika|Kamu Lupa``
+  - JS: ``Contoh: ␀smeme Top|Bottom``
+    Rust: ``Contoh: .smeme Top|Bottom``
+  - JS: `form-data`
+    Rust: (tidak ada padanan)
+
+### smemevid (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/smemevid.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/smemevid.rs`
+
+  - JS: `-c:v libx264`
+    Rust: (tidak ada padanan)
+  - JS: `-crf 26`
+    Rust: `-crf`
+  - JS: `-map [out]`
+    Rust: (tidak ada padanan)
+  - JS: `-preset fast`
+    Rust: `-preset`
+  - JS: `-t 4`
+    Rust: (tidak ada padanan)
+  - JS: `2d`
+    Rust: (tidak ada padanan)
+  - JS: `Foto-AI`
+    Rust: (tidak ada padanan)
+  - JS: `Stream video tidak ditemukan`
+    Rust: (tidak ada padanan)
+  - JS: `[0:v]crop='min(iw,ih)':'min(iw,ih)',scale=␀:␀,fps=8[vid]`
+    Rust: `crop='min(iw,ih)':'min(iw,ih)',scale=512:512,fps=8`
+  - JS: `[vid][1:v]overlay=0:0[out]`
+    Rust: (tidak ada padanan)
+  - JS: ``Contoh: ␀smemevid Top|Bottom``
+    Rust: ``Contoh: .smemevid Top|Bottom``
+  - JS: ``Contoh: ␀smemevid WIDTH OR HEIGHT|WHY NOT BOTH?``
+    Rust: ``Contoh: .smemevid WIDTH OR HEIGHT|WHY NOT BOTH?``
+  - JS: `bold ␀px Impact, Arial`
+    Rust: (tidak ada padanan)
+  - JS: `fluent-ffmpeg`
+    Rust: (tidak ada padanan)
+  - JS: `overlay-␀.png`
+    Rust: (tidak ada padanan)
+  - JS: `vid-out-␀.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `vid-␀.mp4`
+    Rust: (tidak ada padanan)
+
+### sticker (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/sticker.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/sticker.rs`
+
+  - JS: `"␀" -i "␀" -vf "␀" -c:a copy -y "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `"␀" -i "␀" -vf "␀" -y "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `"␀" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `*ᴄᴏɴᴛᴏʜ:*`
+    Rust: `*ᴄᴏɴᴛᴏʛ:*`
+  - JS: `Sticker album selesai (␀). ␀ media lainnya dilewati (maks 10).`
+    Rust: (tidak ada padanan)
+  - JS: `[Sticker] Album failed:`
+    Rust: (tidak ada padanan)
+  - JS: `[Sticker] Album item skipped:`
+    Rust: (tidak ada padanan)
+  - JS: `[Sticker] FFmpeg processing failed:`
+    Rust: (tidak ada padanan)
+  - JS: `duration_check_␀.mp4`
+    Rust: (tidak ada padanan)
+  - JS: `format=rgba`
+    Rust: (tidak ada padanan)
+  - JS: `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(gt(pow(X-W/2,2)+pow(Y-H/2,2),pow(min(W,H)/2,2)),0,255)'`
+    Rust: `format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(gt(pow(X-W/2,2)+pow(Y-H/2,2),pow(min(W,H)/2,2)),0,255)'`
+  - JS: `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(X,␀)*lt(Y,␀)*gt(pow(␀-X,2)+pow(␀-Y,2),pow(␀,2)),0,if(gt(X,W-␀)*lt(Y,␀)*gt(pow(X-W+␀,2)+pow(␀-Y,2),pow(␀,2)),0,if(lt(X,␀)*gt(Y,H-␀)*gt(pow(␀-X,2)+pow(Y-H+␀,2),pow(␀,2)),0,if(gt(X,W-␀)*gt(Y,H-␀)*gt(pow(X-W+␀,2)+pow(Y-H+␀,2),pow(␀,2)),0,255))))'`
+    Rust: (tidak ada padanan)
+  - JS: `sticker_in_␀.␀`
+    Rust: (tidak ada padanan)
+  - JS: `sticker_out_␀.␀`
     Rust: (tidak ada padanan)
 
 ### stickerly (sticker)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/stickerly.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/sticker/stickerly.rs`
 
-  - JS: `> Sedang mendownload sticker pack... ⏳`
-    Rust: (tidak ada padanan)
   - JS: `> 💡 *Kirim angka (contoh: 1)* untuk mendownload pack, atau ketik `batal` untuk membatalkan pencarian.`
     Rust: `> 💡 *Kirim angka (contoh: 1)* untuk mendownload pack, atau ketik `batal``
   - JS: `Sesi pencarian stickerly sudah berakhir karena lebih dari 5 menit. Silakan ulangi perintah.`
@@ -12520,13 +14178,20 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `[Stickerly Search Error]`
     Rust: (tidak ada padanan)
-  - JS: `✅ Berhasil mengirim ␀ sticker.`
+
+### stickerpack (sticker)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/sticker/stickerpack.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/sticker/stickerpack.rs`
+
+  - JS: `Query kosong`
     Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mengirim pack sekaligus, mencoba mengirim satu per satu...`
+  - JS: `Sticker pack: ␀`
+    Rust: `Sticker.ly Pack`
+  - JS: `User-Agent`
     Rust: (tidak ada padanan)
-  - JS: `❌ Gagal mengirim seluruh sticker.`
+  - JS: `[StickerPack] Error:`
     Rust: (tidak ada padanan)
-  - JS: `❌ Tidak ada sticker dalam pack ini.`
+  - JS: `[StickerPack] Pack send failed:`
     Rust: (tidak ada padanan)
 
 ### swm (sticker)
@@ -12534,8 +14199,6 @@ Total plugin JS diperiksa: 792
 - Rust: `/workspaces/oktz-rs/plugin/src/sticker/swm.rs`
 
   - JS: `000000`
-    Rust: (tidak ada padanan)
-  - JS: `> Gagal mendownload sticker`
     Rust: (tidak ada padanan)
   - JS: `[SWM] Error:`
     Rust: (tidak ada padanan)
@@ -12847,6 +14510,69 @@ Total plugin JS diperiksa: 792
   - JS: `🗑️ Hapus: `␀hapusstok ␀ <nomor_item>``
     Rust: `🗑️ Hapus: `␀hapusstok <nomor> <nomor_item>``
 
+### bandingkan-hp (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/bandingkan-hp.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/bandingkan_hp.rs`
+
+  - JS: `*CARA PENGGUNAAN:*`
+    Rust: (tidak ada padanan)
+  - JS: `- *1:* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- *2:* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `- *␀* tidak ditemukan di database.`
+    Rust: (tidak ada padanan)
+  - JS: `- Contoh: `␀bandingkan-hp iphone 13 | samsung s22``
+    Rust: (tidak ada padanan)
+  - JS: `- Ketik `␀bandingkan-hp <hp pertama> | <hp kedua>``
+    Rust: (tidak ada padanan)
+  - JS: `.bandingkan-hp <hp1> | <hp2>`
+    Rust: (tidak ada padanan)
+  - JS: `.bandingkan-hp oppo a3s | vivo y91`
+    Rust: (tidak ada padanan)
+  - JS: `.ct-text-block, .ct-new-columns`
+    Rust: (tidak ada padanan)
+  - JS: `Fitur ini akan membantumu membandingkan spesifikasi dua *smartphone* secara langsung agar kamu bisa memilih mana yang terbaik!`
+    Rust: (tidak ada padanan)
+  - JS: `Maaf, sistem mengalami gangguan saat mencoba membandingkan HP dari *Carisinyal*. Silakan coba lagi nanti.`
+    Rust: (tidak ada padanan)
+  - JS: `Membandingkan dua spesifikasi smartphone dari Carisinyal.`
+    Rust: (tidak ada padanan)
+  - JS: `Pastikan kamu memasukkan dua nama ponsel dengan pemisah tanda vertikal (|).`
+    Rust: (tidak ada padanan)
+  - JS: `Silakan coba kata kunci yang berbeda.`
+    Rust: (tidak ada padanan)
+  - JS: `User-Agent`
+    Rust: (tidak ada padanan)
+  - JS: `_Pastikan kamu menggunakan tanda garis lurus (|) sebagai pemisah antara dua nama HP tersebut ya!_`
+    Rust: (tidak ada padanan)
+  - JS: `bandingkan-hp`
+    Rust: (tidak ada padanan)
+  - JS: `select[name="hp_1"] option`
+    Rust: (tidak ada padanan)
+  - JS: `⚖️ *FITUR PERBANDINGAN HP*`
+    Rust: (tidak ada padanan)
+  - JS: `⚖️ *PERBANDINGAN SMARTPHONE*`
+    Rust: (tidak ada padanan)
+  - JS: `✨ *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *FORMAT SALAH*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *GAGAL MENGAMBIL DATA*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *HP TIDAK DITEMUKAN*`
+    Rust: (tidak ada padanan)
+  - JS: `📱 *HP 1:* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `📱 *HP 2:* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `📸 (Cek Album)`
+    Rust: (tidak ada padanan)
+  - JS: `🔗 *Sumber:* Carisinyal`
+    Rust: (tidak ada padanan)
+  - JS: `🔹 *␀:*`
+    Rust: (tidak ada padanan)
+
 ### carbon (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/carbon.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/tools/carbon.rs`
@@ -12905,6 +14631,57 @@ Total plugin JS diperiksa: 792
   - JS: ``␀caribug function test() {}``
     Rust: ``␀caribug function test() {␀}``
   - JS: `␀caribug`
+    Rust: (tidak ada padanan)
+
+### cekidch (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/cekidch.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/cekidch.rs`
+
+  - JS: `*CONTOH PENGGUNAAN:*`
+    Rust: (tidak ada padanan)
+  - JS: `*RINCIAN CHANNEL:*`
+    Rust: (tidak ada padanan)
+  - JS: `.cekidch <link channel>`
+    Rust: (tidak ada padanan)
+  - JS: `.cekidch https://whatsapp.com/channel/xxxxx`
+    Rust: (tidak ada padanan)
+  - JS: `Berikut adalah detail informasi lengkap mengenai channel yang Anda cari:`
+    Rust: (tidak ada padanan)
+  - JS: `Cek ID dan info lengkap channel dari link`
+    Rust: (tidak ada padanan)
+  - JS: `Maaf, sistem tidak dapat menemukan informasi dari channel tersebut. Mungkin link sudah kedaluwarsa atau channel telah dihapus.`
+    Rust: (tidak ada padanan)
+  - JS: `Pastikan link yang Anda masukkan adalah link channel WhatsApp yang sah dan benar.`
+    Rust: (tidak ada padanan)
+  - JS: `Silakan masukkan link channel WhatsApp yang ingin Anda cek informasinya secara detail.`
+    Rust: (tidak ada padanan)
+  - JS: `[CekIdCh] Error:`
+    Rust: (tidak ada padanan)
+  - JS: `© ␀`
+    Rust: (tidak ada padanan)
+  - JS: `• Dibuat Pada: *␀*`
+    Rust: `• Dibuat Pada: *—*`
+  - JS: `• ID Channel: `␀``
+    Rust: `• ID Channel: `0029ABC``
+  - JS: `• Nama: *␀*`
+    Rust: `• Nama: *OKTZ*`
+  - JS: `• Status: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `• Subscriber: *␀*`
+    Rust: `• Subscriber: *25*`
+  - JS: `• `␀cekidch https://whatsapp.com/channel/xxxxx``
+    Rust: (tidak ada padanan)
+  - JS: `ℹ️ *INFORMASI PENGGUNAAN*`
+    Rust: (tidak ada padanan)
+  - JS: `✓ Verified`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *CHANNEL TIDAK DITEMUKAN*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *LINK TIDAK VALID*`
+    Rust: (tidak ada padanan)
+  - JS: `📋 Ambil ID Saluran nya`
+    Rust: (tidak ada padanan)
+  - JS: `🔗 Buka Channel nya`
     Rust: (tidak ada padanan)
 
 ### cekxl (tools)
@@ -12980,6 +14757,220 @@ Total plugin JS diperiksa: 792
     Rust: (tidak ada padanan)
   - JS: `🔄 *ᴄᴊs ᴛᴏ ᴇsᴍ ᴄᴏɴᴠᴇʀᴛᴇʀ*`
     Rust: (tidak ada padanan)
+
+### converter (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/converter.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/converter.rs`
+
+  - JS: `120363400911374213@newsletter`
+    Rust: (tidak ada padanan)
+  - JS: `[Converter] Error:`
+    Rust: (tidak ada padanan)
+  - JS: `convert_␀.␀`
+    Rust: `␀/convert_␀.␀`
+
+### crm (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/crm.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/crm.rs`
+
+  - JS: `"[Circular]"`
+    Rust: (tidak ada padanan)
+  - JS: `"[MaxDepth]"`
+    Rust: (tidak ada padanan)
+  - JS: `(?:\.|[^`
+    Rust: (tidak ada padanan)
+  - JS: `).toLowerCase() ===`
+    Rust: (tidak ada padanan)
+  - JS: `);`
+    Rust: (tidak ada padanan)
+  - JS: `,`
+    Rust: (tidak ada padanan)
+  - JS: `, codeBlocks: makeCodeBlocks(code) },`
+    Rust: (tidak ada padanan)
+  - JS: `]`
+    Rust: (tidak ada padanan)
+  - JS: `],`
+    Rust: (tidak ada padanan)
+  - JS: ``]/.test(token)) {`
+    Rust: (tidak ada padanan)
+  - JS: `async function handler(m, { sock }) {`
+    Rust: (tidak ada padanan)
+  - JS: `async function sendSnippet(sock, m, rawQuoted) {`
+    Rust: (tidak ada padanan)
+  - JS: `await sendSnippet(sock, m, unwrapped);`
+    Rust: (tidak ada padanan)
+  - JS: `await sock.relayMessage(`
+    Rust: (tidak ada padanan)
+  - JS: `await sock.relayMessage(relayMsg.key.remoteJid, relayMsg.message, {`
+    Rust: (tidak ada padanan)
+  - JS: `await sock.sendMessage(`
+    Rust: (tidak ada padanan)
+  - JS: `blocks.push({`
+    Rust: (tidak ada padanan)
+  - JS: `blocks.push({ highlightType, codeContent: token });`
+    Rust: (tidak ada padanan)
+  - JS: `botForwardedMessage: {`
+    Rust: (tidak ada padanan)
+  - JS: `botMetadata: {`
+    Rust: (tidak ada padanan)
+  - JS: `botResponseId:`
+    Rust: (tidak ada padanan)
+  - JS: `caption: `📄 ␀`,`
+    Rust: (tidak ada padanan)
+  - JS: `certificateChain: [`
+    Rust: (tidak ada padanan)
+  - JS: `codeContent: code.slice(lastIndex),`
+    Rust: (tidak ada padanan)
+  - JS: `codeContent: code.slice(lastIndex, match.index),`
+    Rust: (tidak ada padanan)
+  - JS: `codeMetadata: { codeLanguage:`
+    Rust: (tidak ada padanan)
+  - JS: `const code = buildReadableSendCode(rawQuoted);`
+    Rust: (tidak ada padanan)
+  - JS: `const isSnippet = (m.args?.[0] ||`
+    Rust: (tidak ada padanan)
+  - JS: `const rawQuoted = m.quoted?.message;`
+    Rust: (tidak ada padanan)
+  - JS: `const relayContent = normalizeForRelay(rawQuoted);`
+    Rust: (tidak ada padanan)
+  - JS: `const relayMsg = generateWAMessageFromContent(m.chat, relayContent, {`
+    Rust: (tidak ada padanan)
+  - JS: `const token = match[0];`
+    Rust: (tidak ada padanan)
+  - JS: `const unwrapped = unwrap(rawQuoted);`
+    Rust: (tidak ada padanan)
+  - JS: `const { filepath, filename } = buildRelayCodeFile(unwrapped);`
+    Rust: (tidak ada padanan)
+  - JS: `contextInfo: {`
+    Rust: (tidak ada padanan)
+  - JS: `deviceListMetadata: {},`
+    Rust: (tidak ada padanan)
+  - JS: `deviceListMetadataVersion: 2,`
+    Rust: (tidak ada padanan)
+  - JS: `document: readFileSync(filepath),`
+    Rust: (tidak ada padanan)
+  - JS: `export { pluginConfig as config, handler };`
+    Rust: (tidak ada padanan)
+  - JS: `fileName: filename,`
+    Rust: (tidak ada padanan)
+  - JS: `forwardOrigin: 4,`
+    Rust: (tidak ada padanan)
+  - JS: `forwardedAiBotMessageInfo: { botJid:`
+    Rust: (tidak ada padanan)
+  - JS: `forwardingScore: 1,`
+    Rust: (tidak ada padanan)
+  - JS: `highlightType = 1;`
+    Rust: (tidak ada padanan)
+  - JS: `highlightType = 2;`
+    Rust: (tidak ada padanan)
+  - JS: `highlightType = 3;`
+    Rust: (tidak ada padanan)
+  - JS: `highlightType = 4;`
+    Rust: (tidak ada padanan)
+  - JS: `highlightType: 0,`
+    Rust: (tidak ada padanan)
+  - JS: `if (!rawQuoted) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (!unwrapped || typeof unwrapped !==`
+    Rust: (tidak ada padanan)
+  - JS: `if (/^(const|let|var|function|return|class|static|new|async|await|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|import|export|from|default|extends|typeof|instanceof|in|of|delete|void|yield)$/.test(token)) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (isSnippet) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (lastIndex < code.length) {`
+    Rust: (tidak ada padanan)
+  - JS: `if (match.index > lastIndex) {`
+    Rust: (tidak ada padanan)
+  - JS: `isForwarded: true,`
+    Rust: (tidak ada padanan)
+  - JS: `lastIndex = regex.lastIndex;`
+    Rust: (tidak ada padanan)
+  - JS: `let highlightType = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `let lastIndex = 0;`
+    Rust: (tidak ada padanan)
+  - JS: `let match;`
+    Rust: (tidak ada padanan)
+  - JS: `m.react(`
+    Rust: (tidak ada padanan)
+  - JS: `m.reply(`⚠️ Gagal kirim snippet: ␀`);`
+    Rust: (tidak ada padanan)
+  - JS: `m.reply(te(m.prefix, m.command, m.pushName));`
+    Rust: (tidak ada padanan)
+  - JS: `message: {`
+    Rust: (tidak ada padanan)
+  - JS: `messageContextInfo: {`
+    Rust: (tidak ada padanan)
+  - JS: `messageDisclaimerText:`
+    Rust: (tidak ada padanan)
+  - JS: `messageId: relayMsg.key.id,`
+    Rust: (tidak ada padanan)
+  - JS: `messageType: 5,`
+    Rust: (tidak ada padanan)
+  - JS: `mimetype:`
+    Rust: (tidak ada padanan)
+  - JS: `proofs: [`
+    Rust: (tidak ada padanan)
+  - JS: `quoted: m,`
+    Rust: (tidak ada padanan)
+  - JS: `return blocks;`
+    Rust: (tidak ada padanan)
+  - JS: `return m.reply(`
+    Rust: (tidak ada padanan)
+  - JS: `return m.reply(`❌ Reply pesan yang mau di-relay dulu, lalu ketik *␀␀*`);`
+    Rust: `❌ Reply pesan yang mau di-relay dulu, lalu ketik *␀␀*`
+  - JS: `return;`
+    Rust: (tidak ada padanan)
+  - JS: `richResponseMessage: {`
+    Rust: (tidak ada padanan)
+  - JS: `signature:`
+    Rust: (tidak ada padanan)
+  - JS: `submessages: [`
+    Rust: (tidak ada padanan)
+  - JS: `try {`
+    Rust: (tidak ada padanan)
+  - JS: `useCase: 1,`
+    Rust: (tidak ada padanan)
+  - JS: `userJid: sock.user?.id,`
+    Rust: (tidak ada padanan)
+  - JS: `utf-8`
+    Rust: (tidak ada padanan)
+  - JS: `verificationMetadata: {`
+    Rust: (tidak ada padanan)
+  - JS: `version: 1,`
+    Rust: (tidak ada padanan)
+  - JS: `while ((match = regex.exec(code)) !== null) {`
+    Rust: (tidak ada padanan)
+  - JS: `{ messageType: 2, messageText:`
+    Rust: (tidak ada padanan)
+  - JS: `{ quoted: m }`
+    Rust: (tidak ada padanan)
+  - JS: `{}`
+    Rust: `{␀}`
+  - JS: `|"(?:\.|[^"\])*"|`(?:\.|[^`\])*`|b(?:const|let|var|function|return|class|static|new|async|await|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|import|export|from|default|extends|typeof|instanceof|in|of|delete|void|yield)b|b(?:true|false|null|undefined)b|bd+(?:.d+)?b)/g;`
+    Rust: (tidak ada padanan)
+  - JS: `|| !Object.keys(unwrapped).length) {`
+    Rust: (tidak ada padanan)
+  - JS: `|| /snipp/i.test(m.command);`
+    Rust: (tidak ada padanan)
+  - JS: `}`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (err) {`
+    Rust: (tidak ada padanan)
+  - JS: `} catch (error) {`
+    Rust: (tidak ada padanan)
+  - JS: `} else if (/^(true|false|null|undefined)$/.test(token) || /^d/.test(token)) {`
+    Rust: (tidak ada padanan)
+  - JS: `} else if (/^///.test(token) || /^/*/.test(token)) {`
+    Rust: (tidak ada padanan)
+  - JS: `} else if (/^[`
+    Rust: (tidak ada padanan)
+  - JS: `});`
+    Rust: (tidak ada padanan)
+  - JS: `};`
+    Rust: (tidak ada padanan)
+  - JS: `␀}`
+    Rust: `␀}}`
 
 ### dafont (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/dafont.js`
@@ -13243,6 +15234,50 @@ Total plugin JS diperiksa: 792
   - JS: `},`
     Rust: (tidak ada padanan)
 
+### hd2 (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/hd2.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/hd2.rs`
+
+  - JS: `// memproses`
+    Rust: (tidak ada padanan)
+  - JS: `[HD2 Plugin Error]`
+    Rust: (tidak ada padanan)
+  - JS: `gagal`
+    Rust: (tidak ada padanan)
+  - JS: `hd-␀.jpg`
+    Rust: `␀/hd-␀.jpg`
+  - JS: `m.download()`
+    Rust: (tidak ada padanan)
+  - JS: `node:crypto`
+    Rust: (tidak ada padanan)
+  - JS: `node:fs/promises`
+    Rust: (tidak ada padanan)
+  - JS: `node:os`
+    Rust: (tidak ada padanan)
+  - JS: `node:path`
+    Rust: (tidak ada padanan)
+
+### hd3 (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/hd3.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/hd3.rs`
+
+  - JS: `- Atau balas (reply) gambar yang sudah terkirim dengan perintah *␀hd3*`
+    Rust: `- Atau balas (reply) gambar yang sudah terkirim dengan perintah *.hd3*`
+  - JS: `- Kirim gambar dan tambahkan pesan *␀hd3*`
+    Rust: `- Kirim gambar dan tambahkan pesan *.hd3*`
+  - JS: `[HD3 Plugin Error]`
+    Rust: (tidak ada padanan)
+  - JS: `hd-␀.jpg`
+    Rust: `␀/hd-␀.jpg`
+  - JS: `node:crypto`
+    Rust: (tidak ada padanan)
+  - JS: `node:fs/promises`
+    Rust: (tidak ada padanan)
+  - JS: `node:os`
+    Rust: (tidak ada padanan)
+  - JS: `node:path`
+    Rust: (tidak ada padanan)
+
 ### hdvid (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/hdvid.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/tools/hdvid.rs`
@@ -13369,6 +15404,13 @@ Total plugin JS diperiksa: 792
   - JS: `🕕 *ᴍᴇɴᴄᴀʀɪ ɪɴꜰᴏ ᴅᴏᴍᴀɪɴ...*`
     Rust: (tidak ada padanan)
 
+### musikapaini (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/musikapaini.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/musikapaini.rs`
+
+  - JS: `form-data`
+    Rust: (tidak ada padanan)
+
 ### nulis (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/nulis.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/tools/nulis.rs`
@@ -13406,6 +15448,17 @@ Total plugin JS diperiksa: 792
   - JS: `❌ *ᴛᴇᴍᴘʟᴀᴛᴇ ᴛɪᴅᴀᴋ ᴀᴅᴀ*`
     Rust: (tidak ada padanan)
   - JS: `🕕 *ᴍᴇᴍᴘʀᴏsᴇs...*`
+    Rust: (tidak ada padanan)
+
+### ocr (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/ocr.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/ocr.rs`
+
+  - JS: `")}`
+    Rust: (tidak ada padanan)
+  - JS: `.join("`
+    Rust: (tidak ada padanan)
+  - JS: `␀`)`
     Rust: (tidak ada padanan)
 
 ### pastebin (tools)
@@ -13518,6 +15571,19 @@ Total plugin JS diperiksa: 792
   - JS: `📱 *QR Code*`
     Rust: (tidak ada padanan)
   - JS: `🕕 *Generating QR code...*`
+    Rust: (tidak ada padanan)
+
+### qwa (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/qwa.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/qwa.rs`
+
+  - JS: `Error QWA:`
+    Rust: (tidak ada padanan)
+  - JS: `Gagal download/upload media quoted:`
+    Rust: (tidak ada padanan)
+  - JS: `Gagal download/upload media utama:`
+    Rust: (tidak ada padanan)
+  - JS: `awesome-phonenumber`
     Rust: (tidak ada padanan)
 
 ### removebg (tools)
@@ -13647,6 +15713,17 @@ Total plugin JS diperiksa: 792
   - JS: `Ketik *␀tempmail create* dulu.`
     Rust: `Ketik *.tempmail create* dulu.`
 
+### toaudio (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/toaudio.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/toaudio.rs`
+
+  - JS: `audio_␀.mp3`
+    Rust: `␀/audio_␀.mp3`
+  - JS: `ffmpeg -y -i "␀" -vn -ar 44100 -ac 2 -b:a 192k "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `input_␀.␀`
+    Rust: `␀/input_␀.␀`
+
 ### toimg (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/toimg.js`
 - Rust: `/workspaces/oktz-rs/plugin/src/tools/toimg.rs`
@@ -13672,6 +15749,103 @@ Total plugin JS diperiksa: 792
   - JS: `❌ *ᴇʀʀᴏʀ*`
     Rust: (tidak ada padanan)
   - JS: `❌ *ꜰɪʟᴇ ᴋᴏʀᴜᴘ*`
+    Rust: (tidak ada padanan)
+
+### tourl (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/tourl.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/tourl.rs`
+
+  - JS: `*Cara Pakai:*`
+    Rust: (tidak ada padanan)
+  - JS: `.tourl`
+    Rust: (tidak ada padanan)
+  - JS: `.tourl (reply/kirim media) | .tourl <teks>`
+    Rust: (tidak ada padanan)
+  - JS: `// function`
+    Rust: (tidak ada padanan)
+  - JS: `> Batas: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `> Gagal di server: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `> Kebanyakan host gratisan nggak kuat file segede itu,`
+    Rust: (tidak ada padanan)
+  - JS: `> Ukuran: *␀*`
+    Rust: (tidak ada padanan)
+  - JS: `C-Net`
+    Rust: (tidak ada padanan)
+  - JS: `Halo kak! Butuh link untuk media kamu? Aku bisa bantu uploadin ke berbagai server gratisan loh!`
+    Rust: (tidak ada padanan)
+  - JS: `Paste.rs`
+    Rust: (tidak ada padanan)
+  - JS: `T O U R L`
+    Rust: (tidak ada padanan)
+  - JS: `Teks kamu udah di-paste, yuk ambil linknya! ✨`
+    Rust: (tidak ada padanan)
+  - JS: `Upload media ke multiple host, atau paste teks dan dapet link`
+    Rust: (tidak ada padanan)
+  - JS: `Yeay! Media kamu udah berhasil di-upload ke server awan. Silakan pilih linknya dan salin pakai tombol di bawah ya kak! ✨`
+    Rust: (tidak ada padanan)
+  - JS: `[tourl] gagal download media yang di-reply: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `[tourl] gagal download media: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `[tourl] gagal kirim card paste: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `[tourl] gagal kirim card: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `[tourl] paste ␀ gagal: ␀`
+    Rust: (tidak ada padanan)
+  - JS: `content-type`
+    Rust: (tidak ada padanan)
+  - JS: `copy_␀`
+    Rust: (tidak ada padanan)
+  - JS: `file.␀`
+    Rust: (tidak ada padanan)
+  - JS: `jadi percuma dicoba. Compres dulu ya, kak 🙏`
+    Rust: (tidak ada padanan)
+  - JS: `options.upload is not a`
+    Rust: (tidak ada padanan)
+  - JS: `∞ Permanen`
+    Rust: (tidak ada padanan)
+  - JS: `⏳ *Expired :* ∞ Permanen`
+    Rust: (tidak ada padanan)
+  - JS: `⏳ *Expired :* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `␀ balasan bukan URL`
+    Rust: (tidak ada padanan)
+  - JS: `␀ gagal`
+    Rust: (tidak ada padanan)
+  - JS: `☁️ *Server :* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `⚠️ Kak, tolong reply ke file (gambar/video/audio/berkas) ya!`
+    Rust: (tidak ada padanan)
+  - JS: `⚠️ _Fyi kak, ada yang gagal di server: ␀_`
+    Rust: (tidak ada padanan)
+  - JS: `❌ *Kak, filenya kelewat besar!*`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Aduh kak, paste-nya gagal semua!`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Aduh kak, semuanya pada error pas upload!`
+    Rust: (tidak ada padanan)
+  - JS: `❌ Waduh kak, medianya nggak kebaca. Coba kirim ulang deh!`
+    Rust: (tidak ada padanan)
+  - JS: `👉 Atau reply media yang udah ada dengan `␀tourl``
+    Rust: (tidak ada padanan)
+  - JS: `👉 Kirim media dengan caption `␀tourl``
+    Rust: (tidak ada padanan)
+  - JS: `👉 Kirim teks setelah command (`␀tourl <teks>`) buat dapet link paste`
+    Rust: (tidak ada padanan)
+  - JS: `📋 *Server :* ␀`
+    Rust: (tidak ada padanan)
+  - JS: `📋 Salin Link ␀`
+    Rust: (tidak ada padanan)
+  - JS: `📝 *TEXT UPLOAD BERHASIL!* 📝`
+    Rust: (tidak ada padanan)
+  - JS: `📤 *MEDIA UPLOADER* 📤`
+    Rust: (tidak ada padanan)
+  - JS: `🔗 *Link :*`
+    Rust: (tidak ada padanan)
+  - JS: `🚀 *UPLOAD BERHASIL!* 🚀`
     Rust: (tidak ada padanan)
 
 ### tovideo (tools)
@@ -13731,6 +15905,19 @@ Total plugin JS diperiksa: 792
     Rust: `␀/input_␀.␀`
   - JS: `vn_␀.ogg`
     Rust: `␀/vn_␀.ogg`
+
+### transkrip (tools)
+- JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/transkrip.js`
+- Rust: `/workspaces/oktz-rs/plugin/src/tools/transkrip.rs`
+
+  - JS: `ffmpeg -y -i "␀" -ar 16000 -ac 1 -f wav "␀"`
+    Rust: (tidak ada padanan)
+  - JS: `form-data`
+    Rust: (tidak ada padanan)
+  - JS: `stt_␀.ogg`
+    Rust: `␀/stt_␀.ogg`
+  - JS: `stt_␀.wav`
+    Rust: `␀/stt_␀.wav`
 
 ### txt2qr (tools)
 - JS: `/workspaces/oktz-rs/oktz-md/plugins/tools/txt2qr.js`
@@ -14171,155 +16358,5 @@ Total plugin JS diperiksa: 792
   - JS: `❌ *Masukkan jadwal baru!*`
     Rust: `❌ *Masukkan jadwal tidur!*`
   - JS: `❌ Nonaktif`
-    Rust: (tidak ada padanan)
-
-### cekvps (vps)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/vps/cekvps.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/vps/cekvps.rs`
-
-  - JS: `> `␀cekvps <droplet_id>``
-    Rust: (tidak ada padanan)
-  - JS: `> 📅 Created: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Bearer ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Cek detail VPS DigitalOcean`
-    Rust: (tidak ada padanan)
-  - JS: `┃ ⚡ `ᴄᴘᴜ`: *␀ vCPU*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🆔 `ɪᴅ`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🌍 `ɪᴘᴠ6`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🌏 `ʀᴇɢɪᴏɴ`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🌐 `ɪᴘᴠ4`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🏷️ `ɴᴀᴍᴇ`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 💻 `ᴏs`: *␀ ␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 💾 `ʀᴀᴍ`: *␀ MB*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 💿 `ᴅɪsᴋ`: *␀ GB*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 📊 `sᴛᴀᴛᴜs`: *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `╭─「 🖥️ *ɪɴꜰᴏ* 」`
-    Rust: (tidak ada padanan)
-  - JS: `╭─「 🧠 *sᴘᴇᴄ* 」`
-    Rust: (tidak ada padanan)
-  - JS: `╰───────────────`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*`
-    Rust: (tidak ada padanan)
-  - JS: `📋 *ᴅᴇᴛᴀɪʟ ᴠᴘs*`
-    Rust: (tidak ada padanan)
-  - JS: `🟢 Active`
-    Rust: (tidak ada padanan)
-
-### listvps (vps)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/vps/listvps.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/vps/listvps.rs`
-
-  - JS: `> Tidak ada VPS yang tersedia.`
-    Rust: (tidak ada padanan)
-  - JS: `> Total: ␀ droplet`
-    Rust: (tidak ada padanan)
-  - JS: `Bearer ␀`
-    Rust: (tidak ada padanan)
-  - JS: `List semua VPS DigitalOcean`
-    Rust: (tidak ada padanan)
-  - JS: `┃ ␀ *␀*`
-    Rust: (tidak ada padanan)
-  - JS: `┃ ⚡ CPU: ␀ vCPU`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🆔 ID: `␀``
-    Rust: (tidak ada padanan)
-  - JS: `┃ 🌐 IP: `␀``
-    Rust: (tidak ada padanan)
-  - JS: `┃ 💾 RAM: ␀ MB`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 💿 Disk: ␀ GB`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 📍 Region: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `╭─────────────`
-    Rust: (tidak ada padanan)
-  - JS: `╰─────────────`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*`
-    Rust: (tidak ada padanan)
-  - JS: `📋 *ʟɪsᴛ ᴠᴘs ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ*`
-    Rust: (tidak ada padanan)
-  - JS: `📋 *ʟɪsᴛ ᴠᴘs*`
-    Rust: (tidak ada padanan)
-  - JS: `🕕 *ᴍᴇɴɢᴀᴍʙɪʟ ᴅᴀᴛᴀ ᴠᴘs...*`
-    Rust: (tidak ada padanan)
-
-### sisavps (vps)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/vps/sisavps.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/vps/sisavps.rs`
-
-  - JS: `> ✅ Status: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `> 👤 Email: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Bearer ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Cek sisa kuota VPS`
-    Rust: (tidak ada padanan)
-  - JS: `┃ ✅ Terpakai: *␀* droplet`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 📋 Sisa: *␀* droplet`
-    Rust: (tidak ada padanan)
-  - JS: `┃ 📦 Limit: *␀* droplet`
-    Rust: (tidak ada padanan)
-  - JS: `╭─────────────`
-    Rust: (tidak ada padanan)
-  - JS: `╰─────────────`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*`
-    Rust: (tidak ada padanan)
-  - JS: `📊 *ᴋᴜᴏᴛᴀ ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ*`
-    Rust: (tidak ada padanan)
-
-### turnon (vps)
-- JS: `/workspaces/oktz-rs/oktz-md/plugins/vps/vpskontrol.js`
-- Rust: `/workspaces/oktz-rs/plugin/src/vps/vpskontrol.rs`
-
-  - JS: `> ID: `␀``
-    Rust: (tidak ada padanan)
-  - JS: `> Status: ␀`
-    Rust: (tidak ada padanan)
-  - JS: `> `␀␀ <droplet_id>``
-    Rust: (tidak ada padanan)
-  - JS: `> ␀ VPS sedang di-␀`
-    Rust: (tidak ada padanan)
-  - JS: `Bearer ␀`
-    Rust: (tidak ada padanan)
-  - JS: `Content-Type`
-    Rust: (tidak ada padanan)
-  - JS: `Kontrol VPS (on/off/restart)`
-    Rust: (tidak ada padanan)
-  - JS: `␀ *sᴇᴅᴀɴɢ ␀ ᴠᴘs...*`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*`
-    Rust: (tidak ada padanan)
-  - JS: `⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*`
-    Rust: (tidak ada padanan)
-  - JS: `✅ *ᴀᴋsɪ ʙᴇʀʜᴀsɪʟ*`
-    Rust: (tidak ada padanan)
-  - JS: `❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*`
-    Rust: (tidak ada padanan)
-  - JS: `❌ Aksi tidak dikenali.`
     Rust: (tidak ada padanan)
 

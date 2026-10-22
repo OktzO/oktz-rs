@@ -16,7 +16,7 @@ pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/search/applemusic";
 
 pub(crate) fn help(prefix: &str) -> String {
     format!(
-        "⚠️ *ᴄᴀʀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{p}applemusic <query>`\n\n\
+        "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{p}applemusic <query>`\n\n\
          > Contoh:\n> `{p}applemusic Best Friend`",
         p = prefix
     )
@@ -217,6 +217,27 @@ mod tests {
                 })
             })
             .collect()
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `applemusic.js:24-28` — kartu penggunaan persis, termasuk huruf
+        // kecil-kecil `ᴄᴀʀᴀ ᴘᴀᴋᴀɪ` (bukan `ᴄᴀʀʀᴀ`).
+        assert_eq!(
+            help("."),
+            "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.applemusic <query>`\n\n\
+             > Contoh:\n> `.applemusic Best Friend`"
+        );
+        // `applemusic.js:40` — pesan tidak ditemukan.
+        assert_eq!(not_found("x"), "❌ Tidak ditemukan hasil untuk: x");
+        // `applemusic.js:44-51` — daftar hasil.
+        let t = render("q", &tracks(2));
+        assert_eq!(
+            t,
+            "🍎 *ᴀᴘᴘʟᴇ ᴍᴜsɪᴄ sᴇᴀʀᴄʜ*\n\n> Query: *q*\n\n\
+             *1.* ```Lagu 0```\n   ├ 📀 `Artist 0`\n   └ 🔗 `https://youtu.be/abc0`\n\n\
+             *2.* ```Lagu 1```\n   ├ 📀 `Artist 1`\n   └ 🔗 `https://youtu.be/abc1`"
+        );
     }
 
     #[test]

@@ -53,3 +53,17 @@ pub mod styleteks;
 
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod removebg;
+
+// Port dari `oktz-md/plugins/tools/` (kategori tools).
+pub mod bandingkan_hp;
+pub mod cekidch;
+pub mod converter;
+pub mod crm;
+pub mod hd2;
+pub mod hd3;
+pub mod musikapaini;
+pub mod ocr;
+pub mod qwa;
+pub mod toaudio;
+pub mod tourl;
+pub mod transkrip;

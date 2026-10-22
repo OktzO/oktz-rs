@@ -1,12 +1,9 @@
 //! `plugins/fun/renungan.js` — kirim satu gambar renungan/motivasi acak.
 //!
-//! `ponytail:` reaksi hilang. JS bereaksi `🕕`, lalu `✅` atau `❌`
-//! tergantung hasil `sendMedia`. `Reply::with_reaction` membungkus reply
-//! dalam `Reply::Reaction`, sedangkan `Reply::has_media`/`media_source`
-//! hanya menembus `Reply::Mutate` — gambar yang dibungkus reaksi tidak akan
-//! pernah di-upload. Jadi reaksi dibuang; balasan error juga tidak dibuat
-//! karena `Reply::Image` dengan `media: None` sudah dilaporkan router
-//! sebagai error eksplisit.
+//! Reaksi JS (`🕕` lalu `✅`/`❌`) diterjemahkan jadi satu reaksi — `Reply`
+//! hanya bisa membawa satu. `Reply::Reaction` membungkus isi balasan, dan
+//! `Reply::payload` menembus pembungkus itu, jadi gambar di dalam reaksi
+//! tetap ter-upload pipeline.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -121,10 +118,16 @@ pub(crate) fn random_image() -> Option<&'static str> {
     random_item(&RENUNGAN)
 }
 
+/// `renungan.js:22-27` — cabang `catch` (gambar gagal dikirim).
+pub(crate) const ERR_GAGAL: &str = "❌ Gagal mengambil gambar. Coba lagi!";
+
 pub(crate) fn renungan_reply() -> Reply {
     match random_image() {
-        Some(url) => Reply::image(MediaSource::url(url), ""),
-        None => Reply::text(crate::common::DATA_UNAVAILABLE),
+        // JS bereaksi `🕕` lalu `✅` setelah `sendMedia` sukses.
+        Some(url) => Reply::image(MediaSource::url(url), "").with_reaction("✅"),
+        // JS: `getRandomItem` mengembalikan `undefined` → `sendMedia` melempar
+        // → `catch` → reaksi `❌` + pesan ini.
+        None => Reply::text(ERR_GAGAL).with_reaction("❌"),
     }
 }
 
@@ -223,11 +226,17 @@ mod tests {
         );
     }
 
+    /// `renungan.js:22-27` — teks galat saat gambar tidak bisa diambil.
+    #[test]
+    fn output_sama_dengan_js() {
+        assert_eq!(ERR_GAGAL, "❌ Gagal mengambil gambar. Coba lagi!");
+    }
+
     #[test]
     fn the_table_is_the_real_json_and_reacts_with_a_check_mark() {
         assert_eq!(RENUNGAN.len(), 100, "src/data/renungan.json");
         assert!(RENUNGAN.iter().all(|u| u.starts_with("https://telegra.ph/file/")));
-        // Reaksi JS (🕕 lalu ✅/❌) sengaja dibuang; lihat catatan modul.
-        assert!(!matches!(run().without_mutations(), Reply::Reaction { .. }));
+        // Reaksi JS: `🕕` lalu `✅`/`❌`. Yang dibawa adalah reaksi terakhir.
+        assert!(matches!(run().without_mutations(), Reply::Reaction { .. }));
     }
 }

@@ -106,10 +106,22 @@ fn kedaluwarsa(sesi: &Value, sekarang: i64) -> bool {
 
 /// `downloadStickerlyPack` (`stickerly.js:114-186`).
 fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
-    let gagal_ambil = || Reply::text("❌ Gagal mengambil detail pack.").with_reaction("❌");
+    // `stickerly.js:116` — laporan proses mengunduh.
+    let mengunduh = Reply::text("> Sedang mendownload sticker pack... ⏳");
+    let gagal_ambil = || {
+        Reply::sequence(vec![
+            mengunduh.clone(),
+            Reply::text("❌ Gagal mengambil detail pack."),
+        ])
+    };
     // `packInfo.trayResourceUrl.split(...)` di JS melempar kalau fieldnya tidak
     // ada; lemparan itu ditangkap `catch` luar (`stickerly.js:181-185`).
-    let rusak = || Reply::text(error_template(ctx)).with_reaction("☢");
+    let rusak = || {
+        Reply::sequence(vec![
+            mengunduh.clone(),
+            Reply::text(error_template(ctx)),
+        ])
+    };
 
     let Ok(res) = ctx.http.get(&url_pack(pack)) else {
         return rusak();
@@ -144,13 +156,37 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
         .map(|s| format!("{prefix}{}", teks_js(s.get("fileName"))))
         .collect();
 
+    // `stickerly.js:137-140` — pack tanpa sticker.
+    if urls.is_empty() {
+        return Reply::sequence(vec![
+            mengunduh,
+            Reply::text("❌ Tidak ada sticker dalam pack ini."),
+        ]);
+    }
+
+    // `stickerly.js:147-154` — `sock.sendStickerPack` tidak ada di Rust, jadi
+    // paket selalu "gagal" dan jalur `catch` (`stickerly.js:156-180`) yang
+    // dipakai: mengirim satu per satu lalu melaporkan hasilnya.
+    let mut balasan = vec![
+        mengunduh,
+        Reply::text("❌ Gagal mengirim pack sekaligus, mencoba mengirim satu per satu..."),
+    ];
+    let mut terkirim = 0usize;
+    for u in urls {
+        balasan.push(Reply::sticker(MediaSource::url(u)));
+        terkirim += 1;
+    }
+    if terkirim > 0 {
+        balasan.push(Reply::text(format!(
+            "✅ Berhasil mengirim {terkirim} sticker."
+        )));
+    } else {
+        balasan.push(Reply::text("❌ Gagal mengirim seluruh sticker."));
+    }
+
     // `m.react("✅")` setelah kirim (`stickerly.js:155`) tidak ikut: lihat
     // catatan modul soal `Sequence` + reaksi.
-    Reply::sequence(
-        urls.into_iter()
-            .map(|u| Reply::sticker(MediaSource::url(u)))
-            .collect(),
-    )
+    Reply::sequence(balasan)
 }
 
 #[plugin(
@@ -384,6 +420,27 @@ mod tests {
         r.without_mutations().text_body().unwrap_or("").to_string()
     }
 
+    fn teks_terakhir(r: &Reply) -> String {
+        match r.without_mutations() {
+            Reply::Sequence(list) => list
+                .iter()
+                .rev()
+                .find_map(Reply::text_body)
+                .unwrap_or("")
+                .to_string(),
+            lain => lain.text_body().unwrap_or("").to_string(),
+        }
+    }
+
+    fn stiker_dari(list: &[Reply]) -> Vec<&str> {
+        list.iter()
+            .filter_map(|item| match item.media_source() {
+                Some(MediaSource::Url { url, .. }) => Some(url.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn reaksi(r: &Reply) -> Option<&str> {
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => Some(emoji.as_str()),
@@ -570,13 +627,24 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus Sequence, dapat {:?}", r.without_mutations());
         };
-        assert_eq!(list.len(), 3);
-        for (i, item) in list.iter().enumerate() {
-            let Some(MediaSource::Url { url, .. }) = item.media_source() else {
-                panic!("harus sticker URL, dapat {item:?}");
-            };
-            assert_eq!(url, &format!("https://cdn.stickerly/{}.webp", i + 1));
-        }
+        assert_eq!(list.len(), 6);
+        assert_eq!(
+            list[0].text_body(),
+            Some("> Sedang mendownload sticker pack... ⏳")
+        );
+        assert_eq!(
+            list[1].text_body(),
+            Some("❌ Gagal mengirim pack sekaligus, mencoba mengirim satu per satu...")
+        );
+        assert_eq!(
+            stiker_dari(&list),
+            vec![
+                "https://cdn.stickerly/1.webp",
+                "https://cdn.stickerly/2.webp",
+                "https://cdn.stickerly/3.webp",
+            ]
+        );
+        assert_eq!(list[5].text_body(), Some("✅ Berhasil mengirim 3 sticker."));
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
             &["https://my.izuka-api.xyz/api/search/stickerly-pack?url=https%3A%2F%2Fsticker.ly%2Fs%2FAAA"]
@@ -589,11 +657,11 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus Sequence, dapat {:?}", r.without_mutations());
         };
-        assert_eq!(list.len(), 20);
-        let Some(MediaSource::Url { url, .. }) = list[19].media_source() else {
-            panic!("harus sticker URL");
-        };
-        assert_eq!(url, "https://cdn.stickerly/20.webp");
+        assert_eq!(list.len(), 23);
+        let stiker = stiker_dari(&list);
+        assert_eq!(stiker.len(), 20);
+        assert_eq!(stiker[19], "https://cdn.stickerly/20.webp");
+        assert_eq!(list[22].text_body(), Some("✅ Berhasil mengirim 20 sticker."));
     }
 
     #[test]
@@ -608,8 +676,8 @@ mod tests {
                 Stub::baru(vec![body.clone()]),
                 "https://sticker.ly/s/AAA",
             );
-            assert_eq!(reaksi(&r), Some("❌"), "{body}");
-            assert_eq!(teks_dari(&r), "❌ Gagal mengambil detail pack.", "{body}");
+            assert_eq!(reaksi(&r), None, "{body}");
+            assert_eq!(teks_terakhir(&r), "❌ Gagal mengambil detail pack.", "{body}");
             assert!(r.mutations().is_empty(), "{body}");
         }
     }
@@ -628,8 +696,8 @@ mod tests {
                 Stub::baru(vec![body.clone()]),
                 "https://sticker.ly/s/AAA",
             );
-            assert_eq!(reaksi(&r), Some("☢"), "{body}");
-            assert!(teks_dari(&r).contains("lagi ada kendala"), "{body}");
+            assert_eq!(reaksi(&r), None, "{body}");
+            assert!(teks_terakhir(&r).contains("lagi ada kendala"), "{body}");
         }
     }
 
@@ -689,7 +757,8 @@ mod tests {
         // `parseInt("2abc") = 2` (kuirk parseInt JS) — pack kedua tetap dipilih.
         let r = stickerly_answer(ctx_jawaban(Stub::offline(), "2abc", sesi.clone()))
             .expect("parseInt berhenti di non-digit");
-        assert_eq!(reaksi(&r), Some("☢"), "stub offline");
+        assert_eq!(reaksi(&r), None);
+        assert!(teks_terakhir(&r).contains("lagi ada kendala"));
         // `session.results` hilang: JS melempar TypeError, di sini `None`.
         let tanpa_hasil = json!({ "time": now_ms() });
         assert!(stickerly_answer(ctx_jawaban(Stub::offline(), "1", tanpa_hasil)).is_none());
@@ -711,7 +780,15 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus Sequence, dapat {:?}", r.without_mutations());
         };
-        assert_eq!(list.len(), 2);
+        assert_eq!(list.len(), 5);
+        assert_eq!(
+            stiker_dari(&list),
+            vec![
+                "https://cdn.stickerly/1.webp",
+                "https://cdn.stickerly/2.webp",
+            ]
+        );
+        assert_eq!(list[4].text_body(), Some("✅ Berhasil mengirim 2 sticker."));
         assert_eq!(sesi_tertulis(&r), Value::Null);
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),

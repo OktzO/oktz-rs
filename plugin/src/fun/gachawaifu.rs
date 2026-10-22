@@ -23,7 +23,8 @@
 //!
 //! `pub mod gachawaifu;` perlu ditambah manual ke `src/fun/mod.rs`.
 
-use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
+use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
 use crate::common::{JAKARTA_OFFSET_SECS, date_dmy, error_template, jakarta_parts, js_truthy, now_ms};
@@ -44,9 +45,9 @@ const TIER_WEIGHTS: [(&str, f64); 5] = [
 
 /// Satu baris `DOWRY` (`src/lib/romance.js:12-18`).
 pub(crate) struct Dowry {
-    limit: i64,
-    koin: i64,
-    exp: i64,
+    pub limit: i64,
+    pub koin: i64,
+    pub exp: i64,
 }
 
 const DOWRY: [(&str, Dowry); 5] = [
@@ -260,7 +261,7 @@ const ACTIONS_MARRIED: &[ActionDef] = &[
 ];
 
 /// `ACTIONS[key]` (`src/lib/waifu.js:126`) — cari lintas tiga fase.
-fn find_action(key: &str) -> Option<&'static ActionDef> {
+pub(crate) fn find_action(key: &str) -> Option<&'static ActionDef> {
     ACTIONS_APPROACH
         .iter()
         .chain(ACTIONS_INTIM)
@@ -374,29 +375,266 @@ const EVENTS: &[EventDef] = &[
         text: "🍀 Rezeki nomplok! Kamu dapat uang tak terduga." },
 ];
 
-/// `MENUS` (`gachawaifu.js:303-327`) — hanya judul yang tampil; label opsi
-/// dibuang karena `Reply` tidak punya tombol `nativeFlowMessage`.
-const MENUS: [(&str, &str); 19] = [
-    ("menu_jalanjalan", "🚶 Jalan-jalan ke..."),
-    ("menu_kafe", "☕ Pesan untuknya..."),
-    ("menu_bioskop", "🎬 Pilih genre film..."),
-    ("menu_belanja", "🛍️ Belikan dia apa?.."),
-    ("menu_karaoke", "🎤 Karaoke..."),
-    ("menu_arcade", "🕹️ Di arcade..."),
-    ("menu_piknik", "🧺 Piknik..."),
-    ("menu_masak", "🍳 Masak bareng..."),
-    ("menu_kuliner", "🍽️ Makan di..."),
-    ("menu_olahraga", "⚽ Olahraga..."),
-    ("menu_alam", "🏕️ Petualangan alam..."),
-    ("menu_seni", "🎨 Seni & budaya..."),
-    ("menu_lainnya", "🎮 Aksi lainnya..."),
-    ("menu_peluk", "🫂 Cara memeluk..."),
-    ("menu_cium", "💋 Cium di..."),
-    ("menu_tidur", "🛏️ Tidur bareng..."),
-    ("menu_mandi", "🛁 Mandi bareng..."),
-    ("menu_gendong", "🤗 Gendong..."),
-    ("menu_bulanmadu", "🌴 Bulan madu..."),
+/// `MENUS` (`gachawaifu.js:303-327`) — key, judul, dan opsi (label + id aksi).
+///
+/// Opsi `menu_lainnya` bergantung pada `affection`, jadi isinya kosong di
+/// sini dan dihitung di [`menu_lainnya_options`].
+const MENUS: [(&str, &str, &[(&str, &str)]); 19] = [
+    (
+        "menu_jalanjalan",
+        "🚶 Jalan-jalan ke...",
+        &[
+            ("🌳 Taman", "jalan_taman"),
+            ("🏢 Mall", "jalan_mall"),
+            ("🏖️ Pantai", "jalan_pantai"),
+            ("🌆 Kota", "jalan_kota"),
+        ],
+    ),
+    (
+        "menu_kafe",
+        "☕ Pesan untuknya...",
+        &[
+            ("☕ Kopi Pahit", "kafe_kopi"),
+            ("🍵 Matcha Latte", "kafe_matcha"),
+            ("🍰 Kue", "kafe_kue"),
+            ("🥛 Susu Hangat", "kafe_susu"),
+        ],
+    ),
+    (
+        "menu_bioskop",
+        "🎬 Pilih genre film...",
+        &[
+            ("💞 Romantis", "bioskop_romantis"),
+            ("👻 Horor", "bioskop_horor"),
+            ("🎨 Animasi", "bioskop_animasi"),
+        ],
+    ),
+    (
+        "menu_belanja",
+        "🛍️ Belikan dia apa?..",
+        &[
+            ("👗 Baju Lucu", "belanja_baju"),
+            ("💎 Perhiasan", "belanja_perhiasan"),
+            ("🧸 Boneka", "belanja_boneka"),
+        ],
+    ),
+    (
+        "menu_karaoke",
+        "🎤 Karaoke...",
+        &[("🎶 Duet", "karaoke_duet"), ("🎵 Solo", "karaoke_solo")],
+    ),
+    (
+        "menu_arcade",
+        "🕹️ Di arcade...",
+        &[
+            ("🎮 Adu Skor", "arcade_duo"),
+            ("🎯 Main Boneka", "arcade_boneka"),
+        ],
+    ),
+    (
+        "menu_piknik",
+        "🧺 Piknik...",
+        &[
+            ("🌳 Di Taman", "piknik_taman"),
+            ("🏝️ Di Pantai", "piknik_pantai"),
+        ],
+    ),
+    (
+        "menu_masak",
+        "🍳 Masak bareng...",
+        &[("🍳 Masakan Rumah", "masak_bareng"), ("🍰 Kue", "masak_kue")],
+    ),
+    (
+        "menu_kuliner",
+        "🍽️ Makan di...",
+        &[
+            ("🍽️ Restoran", "restoran_makan"),
+            ("🥟 Dimsum", "restoran_dimsum"),
+            ("🍖 BBQ", "restoran_bbq"),
+        ],
+    ),
+    (
+        "menu_olahraga",
+        "⚽ Olahraga...",
+        &[
+            ("⛰️ Hiking", "olahraga_hiking"),
+            ("🏃 Lari Pagi", "olahraga_lari"),
+            ("🧗 Panjat", "olahraga_panjat"),
+        ],
+    ),
+    (
+        "menu_alam",
+        "🏕️ Petualangan alam...",
+        &[
+            ("🏕️ Camping", "alam_camping"),
+            ("🎣 Mancing", "alam_mancing"),
+            ("⛵ Perahu", "alam_perahu"),
+        ],
+    ),
+    (
+        "menu_seni",
+        "🎨 Seni & budaya...",
+        &[
+            ("🖼️ Museum", "seni_museum"),
+            ("🎨 Melukis", "seni_melukis"),
+            ("🎸 Konser", "seni_konser"),
+        ],
+    ),
+    ("menu_lainnya", "🎮 Aksi lainnya...", &[]),
+    (
+        "menu_peluk",
+        "🫂 Cara memeluk...",
+        &[
+            ("🤗 Dari Belakang", "peluk_belakang"),
+            ("💑 Berhadapan", "peluk_depan"),
+        ],
+    ),
+    (
+        "menu_cium",
+        "💋 Cium di...",
+        &[("😚 Kening", "cium_kening"), ("💋 Bibir", "cium_bibir")],
+    ),
+    (
+        "menu_tidur",
+        "🛏️ Tidur bareng...",
+        &[("🫂 Pulas", "tidur_kelon"), ("🌙 Serandu", "tidur_serandu")],
+    ),
+    (
+        "menu_mandi",
+        "🛁 Mandi bareng...",
+        &[
+            ("🛁 Gosok Punggung", "mandi_punggung"),
+            ("🧼 Usap Bahu", "mandi_bahu"),
+        ],
+    ),
+    (
+        "menu_gendong",
+        "🤗 Gendong...",
+        &[
+            ("👸 Gaya Putri", "gendong_putri"),
+            ("🏃 Punggung", "gendong_punggung"),
+        ],
+    ),
+    (
+        "menu_bulanmadu",
+        "🌴 Bulan madu...",
+        &[
+            ("🏝️ Pantai", "bulanmadu_pantai"),
+            ("🏨 Hotel", "bulanmadu_hotel"),
+        ],
+    ),
 ];
+
+/// Opsi `menu_lainnya` — bergantung pada `affection` (`gachawaifu.js:316-320`).
+fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str)] {
+    if affection < 80.0 {
+        &[
+            ("🎤 Karaoke", "menu_karaoke"),
+            ("🕹️ Arcade", "menu_arcade"),
+            ("🧺 Piknik", "menu_piknik"),
+            ("🍳 Masak", "menu_masak"),
+            ("🍽️ Kuliner", "menu_kuliner"),
+            ("⚽ Olahraga", "menu_olahraga"),
+            ("🏕️ Alam", "menu_alam"),
+            ("🎨 Seni", "menu_seni"),
+        ]
+    } else if affection < 100.0 {
+        &[
+            ("🤗 Gendong", "menu_gendong"),
+            ("🖐️ Tepuk Kepala", "tepuk_kepala"),
+        ]
+    } else {
+        &[
+            ("🌴 Bulan Madu", "menu_bulanmadu"),
+            ("💝 Hadiah", "hadiah"),
+        ]
+    }
+}
+
+/// Tombol aksi utama per fase affection (`gachawaifu.js:100-124`).
+fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'static str)] {
+    if affection < 80.0 {
+        &[
+            ("🚶 Jalan-jalan", "menu_jalanjalan"),
+            ("☕ Kafe", "menu_kafe"),
+            ("🎬 Bioskop", "menu_bioskop"),
+            ("🛍️ Belanja", "menu_belanja"),
+            ("🎮 Lainnya", "menu_lainnya"),
+        ]
+    } else if affection < 100.0 {
+        &[
+            ("🫂 Peluk", "menu_peluk"),
+            ("💋 Cium", "menu_cium"),
+            ("🛏️ Tidur", "menu_tidur"),
+            ("🛁 Mandi", "menu_mandi"),
+            ("🎁 Lainnya", "menu_lainnya"),
+        ]
+    } else if !married {
+        &[
+            ("💍 Nikahi", "nikah"),
+            ("💝 Hadiah", "hadiah"),
+        ]
+    } else {
+        &[
+            ("👩‍❤️‍👨 Mesra", "mesra"),
+            ("💌 Rayu", "rayu"),
+            ("🌴 Bulan Madu", "menu_bulanmadu"),
+            ("🎁 Klaim Harian", "klaim"),
+        ]
+    }
+}
+
+/// Footer kartu waifu (`gachawaifu.js:127-129`).
+const FOOTER_DEFAULT: &str = "❤️ Jaga terus perasaannya ya!";
+const FOOTER_MENU: &str = "💭 Dia menunggu jawabanmu...";
+const FOOTER_MARRIED: &str = "❤️ Kamu sudah menikahinya!";
+const FOOTER_PANDUAN: &str = "Tekan tombol untuk mulai!";
+
+/// Rakit kartu interaktif waifu — padanan `sendWaifuMessage`
+/// (`gachawaifu.js:74-152`).
+///
+/// `custom` = `Some(..)` berarti tombol khusus (menu), dan footernya jadi
+/// "💭 Dia menunggu jawabanmu...". `None` memakai tombol utama sesuai fase
+/// affection.
+fn kartu_waifu(
+    ctx: &Ctx,
+    w: &Map<String, Value>,
+    body: &str,
+    custom: Option<&[(&str, &str)]>,
+) -> Reply {
+    let tier = js_str(w.get("tier"));
+    let nama = js_str(w.get("name"));
+    let married = js_truthy(w.get("married"));
+    let affection = mnum_or(w.get("affection"), 50.0);
+
+    let (footer, opsi): (&str, Vec<(&str, &str)>) = match custom {
+        Some(list) => (FOOTER_MENU, list.to_vec()),
+        None => (
+            if married { FOOTER_MARRIED } else { FOOTER_DEFAULT },
+            tombol_utama(affection, married).to_vec(),
+        ),
+    };
+
+    let buttons = opsi
+        .into_iter()
+        .map(|(label, id)| {
+            InteractiveButton::quick_reply(label, format!("{}waifuaction {id}", ctx.prefix))
+        })
+        .collect();
+
+    let header = CardHeader::new()
+        .title(format!("🌟 *{} TIER WAIFU* 🌟", tier.to_uppercase()))
+        .subtitle(nama.clone());
+    let header = match w.get("imageUrl").and_then(Value::as_str) {
+        Some(url) if !url.is_empty() => header.image(MediaSource::url(url)),
+        _ => header,
+    };
+
+    Reply::interactive(body)
+        .with_footer(footer)
+        .with_header(header)
+        .with_buttons(buttons)
+}
 
 /// Daftar pemicu tamparan (`gachawaifu.js:334`).
 const MESUM_ACTIONS: [&str; 15] = [
@@ -431,17 +669,11 @@ const VALID_PERSONALITIES: [&str; 10] = [
     "amayadori",
 ];
 
-/// Satu entri mentah pool waifu — bentuk `data/waifu/*.js` sebelum validasi.
-pub(crate) struct RawWaifu {
-    pub name: &'static str,
-    pub series: &'static str,
-    pub tier: &'static str,
-    pub personality: &'static str,
-    pub keyword: Option<&'static str>,
-    pub age: i64,
-    pub height: i64,
-    pub weight: i64,
-}
+/// Entri mentah pool waifu — bentuk `data/waifu/*.js` sebelum validasi.
+///
+/// Alias dari [`crate::fun::pool_data::RawPool`] supaya data waifu dan husbu
+/// memakai satu tipe yang sama.
+pub(crate) type RawWaifu = crate::fun::pool_data::RawPool;
 
 /// Hasil `buildPool` (`data/waifu/index.js:61-80`).
 pub(crate) struct Waifu {
@@ -451,15 +683,15 @@ pub(crate) struct Waifu {
     pub personality: String,
     pub keyword: String,
     pub age: i64,
-    pub height: i64,
-    pub weight: i64,
+    /// Disimpan sebagai string ("160 cm") — JS menyimpan apa adanya.
+    pub height: String,
+    /// Disimpan sebagai string ("45 kg") — JS menyimpan apa adanya.
+    pub weight: String,
     pub roll_weight: f64,
 }
 
-/// `ponytail: data/waifu/*.js` belum ter-port (brief melarang menyentuh
-/// berkas di luar plugin), jadi pool kosong dan cabang gacha selalu jatuh ke
-/// `te()` + ☢. Isi array ini kalau loader pool sudah ada di Rust.
-const WAIFU_ENTRIES: &[RawWaifu] = &[];
+/// `data/waifu/*.js` — 378 entri, urutan `FRANCHISES` di `data/waifu/index.js`.
+use crate::fun::pool_data::WAIFU_ENTRIES;
 
 /// `buildPool` — validasi, dedupe nama, trim, keyword default, bobot tier.
 pub(crate) fn build_pool(raw: &[RawWaifu]) -> Vec<Waifu> {
@@ -469,8 +701,8 @@ pub(crate) fn build_pool(raw: &[RawWaifu]) -> Vec<Waifu> {
         if w.name.is_empty()
             || w.series.is_empty()
             || w.age == 0
-            || w.height == 0
-            || w.weight == 0
+            || w.height.is_empty()
+            || w.weight.is_empty()
             || w.tier.is_empty()
             || w.personality.is_empty()
         {
@@ -501,8 +733,8 @@ pub(crate) fn build_pool(raw: &[RawWaifu]) -> Vec<Waifu> {
             personality: w.personality.to_string(),
             keyword,
             age: w.age,
-            height: w.height,
-            weight: w.weight,
+            height: w.height.to_string(),
+            weight: w.weight.to_string(),
             roll_weight: 0.0,
         });
     }
@@ -551,7 +783,7 @@ pub(crate) fn roll_waifu<'a>(
 }
 
 /// `TIER_ORDER.indexOf(tier)` — `-1` untuk tier tak dikenal, seperti JS.
-fn tier_index(tier: &str) -> i64 {
+pub(crate) fn tier_index(tier: &str) -> i64 {
     TIER_ORDER
         .iter()
         .position(|t| *t == tier)
@@ -560,7 +792,7 @@ fn tier_index(tier: &str) -> i64 {
 
 /// `Number` JSON: integral disimpan integer (`JSON.stringify` menulis `50`,
 /// bukan `50.0`).
-fn jnum(f: f64) -> Value {
+pub(crate) fn jnum(f: f64) -> Value {
     if f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e15 {
         Value::from(f as i64)
     } else {
@@ -569,7 +801,7 @@ fn jnum(f: f64) -> Value {
 }
 
 /// `${n}` JS: integral tanpa desimal, selain itu apa adanya.
-fn fmt_num(f: f64) -> String {
+pub(crate) fn fmt_num(f: f64) -> String {
     if f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e15 {
         (f as i64).to_string()
     } else {
@@ -579,30 +811,30 @@ fn fmt_num(f: f64) -> String {
 
 /// `Math.round` JS: setengah selalu ke ATAS (`-5.5` → `-5`), beda dari
 /// `f64::round` Rust yang menjauh dari nol (`-5.5` → `-6`).
-fn js_round(x: f64) -> f64 {
+pub(crate) fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 
-fn mnum(v: Option<&Value>) -> Option<f64> {
+pub(crate) fn mnum(v: Option<&Value>) -> Option<f64> {
     v.and_then(Value::as_f64)
 }
 
-fn mnum_or(v: Option<&Value>, d: f64) -> f64 {
+pub(crate) fn mnum_or(v: Option<&Value>, d: f64) -> f64 {
     mnum(v).unwrap_or(d)
 }
 
-fn mstr(v: Option<&Value>) -> Option<String> {
+pub(crate) fn mstr(v: Option<&Value>) -> Option<String> {
     v.and_then(Value::as_str).map(str::to_string)
 }
 
 /// Objek JSON dari `Value`, kosong kalau bukan object (JS `{}` saat field
 /// hilang).
-fn map_of(v: Option<&Value>) -> Map<String, Value> {
+pub(crate) fn map_of(v: Option<&Value>) -> Map<String, Value> {
     v.and_then(Value::as_object).cloned().unwrap_or_default()
 }
 
 /// `new Date(ms).toISOString()` — UTC dengan `Z`, bukan waktu Jakarta.
-fn iso_now(ms: i64) -> String {
+pub(crate) fn iso_now(ms: i64) -> String {
     let (y, mo, d, h, mi, s) = jakarta_parts(ms - JAKARTA_OFFSET_SECS * 1000);
     format!(
         "{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{:03}Z",
@@ -612,7 +844,7 @@ fn iso_now(ms: i64) -> String {
 
 /// `new Date(iso).getTime()` untuk bentuk yang ditulis [`iso_now`]. `None`
 /// kalau tidak bisa diparse (JS: `NaN`, semua perbandingan `false`).
-fn iso_to_ms(iso: &str) -> Option<i64> {
+pub(crate) fn iso_to_ms(iso: &str) -> Option<i64> {
     let b = iso.as_bytes();
     if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || b[10] != b'T' {
         return None;
@@ -626,7 +858,7 @@ fn iso_to_ms(iso: &str) -> Option<i64> {
 
 /// `todayStr()` (`gachawaifu.js:56-58`) — `toLocaleDateString("id-ID")` di
 /// Asia/Jakarta, bentuk `DD/MM/YYYY` = [`date_dmy`].
-fn today_str(now: i64) -> String {
+pub(crate) fn today_str(now: i64) -> String {
     date_dmy(now)
 }
 
@@ -634,7 +866,7 @@ fn today_str(now: i64) -> String {
 ///
 /// `ponytail:` tanggal yang tidak bisa diparse di JS jadi `NaN` dan hasilnya
 /// `NaN` juga; di sini jatuh ke `0`.
-fn marrage_day(married_date: Option<&str>, now: i64) -> i64 {
+pub(crate) fn marrage_day(married_date: Option<&str>, now: i64) -> i64 {
     let Some(date) = married_date else { return 0 };
     let Some(a) = iso_to_ms(date) else { return 0 };
     (((now - a) as f64) / 86_400_000.0).floor() as i64 + 1
@@ -816,7 +1048,7 @@ pub(crate) fn mood_state(waifu: &Map<String, Value>, sender: &str, now: i64) -> 
 }
 
 /// `moodLabel` (`gachawaifu.js:60-62`).
-fn mood_label(mood: &str) -> String {
+pub(crate) fn mood_label(mood: &str) -> String {
     match mood {
         "ceria" => "ceria 😄".to_string(),
         "romantis" => "romantis 💘".to_string(),
@@ -1069,12 +1301,12 @@ pub(crate) fn koin_gain(user: &Map<String, Value>, amount: i64) -> Option<i64> {
 }
 
 /// `user.exp || 0` (`level.js:222`) — `-1` tetap `-1` (truthy di JS).
-fn old_exp(user: &Map<String, Value>) -> i64 {
+pub(crate) fn old_exp(user: &Map<String, Value>) -> i64 {
     mnum(user.get("exp")).unwrap_or(0.0) as i64
 }
 
 /// `db.setUser(jid, patch)`.
-fn set_user(jid: &str, patch: Map<String, Value>) -> Mutation {
+pub(crate) fn set_user(jid: &str, patch: Map<String, Value>) -> Mutation {
     Mutation::SetUser {
         jid: jid.to_string(),
         data: Value::Object(patch),
@@ -1095,7 +1327,7 @@ fn balas(jid: &str, text: String, patch: Option<Map<String, Value>>, reaction: O
 
 /// `${v}` JS: number integral tanpa `.0`, string apa adanya, `undefined`
 /// untuk field hilang — bukan string kosong.
-fn js_str(v: Option<&Value>) -> String {
+pub(crate) fn js_str(v: Option<&Value>) -> String {
     match v {
         None | Some(Value::Null) => "undefined".to_string(),
         Some(Value::String(s)) => s.clone(),
@@ -1185,8 +1417,10 @@ fn status_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     text.push_str("\nLanjutkan interaksi dengan memilih aksi di bawah!");
 
     let mut patch = Map::new();
-    patch.insert("waifu".into(), Value::Object(w));
-    balas(&ctx.sender, text, Some(patch), Some("✅"))
+    patch.insert("waifu".into(), Value::Object(w.clone()));
+    kartu_waifu(ctx, &w, &text, None)
+        .with_mutation(set_user(&ctx.sender, patch))
+        .with_reaction("✅")
 }
 
 /// Cabang `tinggalinwaifu` (`gachawaifu.js:217-229`).
@@ -1261,7 +1495,14 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     }
     let sub = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
     if sub != "start" {
-        return Reply::text(guide(&ctx.prefix));
+        // `gachawaifu.js:262-278` — kartu panduan tanpa header, footer
+        // "Tekan tombol untuk mulai!" dan satu tombol Mulai Gacha.
+        return Reply::interactive(guide(&ctx.prefix))
+            .with_footer(FOOTER_PANDUAN)
+            .with_button(InteractiveButton::quick_reply(
+                "🎲 Mulai Gacha!",
+                format!("{}gachawaifu start", ctx.prefix),
+            ));
     }
 
     let mut user = user.clone();
@@ -1282,8 +1523,8 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     w.insert("personality".into(), Value::from(picked.personality.clone()));
     w.insert("keyword".into(), Value::from(picked.keyword.clone()));
     w.insert("age".into(), jnum(picked.age as f64));
-    w.insert("height".into(), jnum(picked.height as f64));
-    w.insert("weight".into(), jnum(picked.weight as f64));
+    w.insert("height".into(), Value::from(picked.height.clone()));
+    w.insert("weight".into(), Value::from(picked.weight.clone()));
     w.insert("rollWeight".into(), Value::from(picked.roll_weight));
     w.insert("affection".into(), jnum(50.0));
     w.insert("married".into(), Value::from(false));
@@ -1322,7 +1563,9 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
         js_str(w.get("personality")),
         js_str(w.get("affection")),
     );
-    balas(&ctx.sender, text, Some(patch), Some("✅"))
+    kartu_waifu(ctx, &w, &text, None)
+        .with_mutation(set_user(&ctx.sender, patch))
+        .with_reaction("✅")
 }
 
 /// Patch `SetUser` minimal yang menulis balik objek `waifu`.
@@ -1368,10 +1611,18 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
         }
     };
 
-    if let Some(title) = MENUS.iter().find(|(k, _)| *k == action) {
-        // `sendMenu` → `sendWaifuMessage(title, ...)`: hanya `body` yang
-        // terkirim; label tombol tidak ada di `Reply`.
-        return balas(&ctx.sender, title.1.to_string(), dirty_patch(&w), None);
+    if let Some((_, title, opsi)) = MENUS.iter().find(|(k, _, _)| *k == action) {
+        // `sendMenu` → `sendWaifuMessage(title, options)` (`gachawaifu.js:301`).
+        let opsi: Vec<(&str, &str)> = if opsi.is_empty() {
+            menu_lainnya_options(mnum_or(w.get("affection"), 50.0)).to_vec()
+        } else {
+            opsi.to_vec()
+        };
+        let reply = kartu_waifu(ctx, &w, title, Some(&opsi));
+        return match dirty_patch(&w) {
+            Some(patch) => reply.with_mutation(set_user(&ctx.sender, patch)),
+            None => reply,
+        };
     }
 
     if MESUM_ACTIONS.contains(&action.as_str()) && mnum_or(w.get("affection"), 0.0) < 80.0 {
@@ -1969,7 +2220,7 @@ mod tests {
     #[test]
     fn menu_lainnya_ada_judulnya() {
         assert_eq!(
-            MENUS.iter().find(|(k, _)| *k == "menu_lainnya").unwrap().1,
+            MENUS.iter().find(|(k, _, _)| *k == "menu_lainnya").unwrap().1,
             "🎮 Aksi lainnya..."
         );
     }
@@ -1984,8 +2235,8 @@ mod tests {
             personality,
             keyword: None,
             age: 17,
-            height: 160,
-            weight: 50,
+            height: "160 cm",
+            weight: "50 kg",
         }
     }
 
@@ -2529,12 +2780,12 @@ mod tests {
     }
 
     #[test]
-    fn gacha_dengan_pool_kosong_jatuh_ke_error_template_dan_reaksi_can() {
+    fn gacha_start_memilih_dan_menyimpan_waifu() {
         // `rollWaifu` JS tetap memanggil rng() sekali walau total bobot 0.
         let r = run("gachawaifu", &["start"], serde_json::json!({ "exp": 0 }), vec![0.0]);
-        assert_eq!(text_of(&r), error_template_bawaan(".", "gachawaifu"));
-        assert_eq!(reaction_of(&r).as_deref(), Some("☢"));
-        assert!(r.mutations().is_empty(), "cabang catch tidak menulis apa pun");
+        assert!(text_of(&r).starts_with("🎉 *SELAMAT! KAMU MENDAPATKAN WAIFU BARU!* 🎉"), "{}", text_of(&r));
+        assert_eq!(reaction_of(&r).as_deref(), Some("✅"));
+        assert!(!r.mutations().is_empty(), "gacha baru menyimpan user");
     }
 
     #[test]

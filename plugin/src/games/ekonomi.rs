@@ -8,14 +8,14 @@
 ///
 /// Padanan `db.updateKoin(jid, saldoLama + amount)` di JS.
 pub fn add_coins(saldo: i64, amount: i64) -> i64 {
-    saldo.saturating_add(amount)
+    saldo.saturating_add(amount).max(0)
 }
 
 /// `addExp` — tambah exp. Angka boleh negatif (pengurangan).
 ///
 /// Padanan penambahan `exp` sebelum `addExpWithLevelCheck` di JS.
 pub fn add_exp(exp: i64, amount: i64) -> i64 {
-    exp.saturating_add(amount)
+    exp.saturating_add(amount).max(0)
 }
 
 /// `expForLevel` = `(level - 1) * EXP_PER_LEVEL` (`level.js`).

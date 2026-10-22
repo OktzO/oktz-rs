@@ -87,7 +87,10 @@ pub fn asupan(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{berkas::BerkasPalsu, HttpBody, HttpError, HttpGet, HttpResponse};
+    use oktz_plugin_api::{
+        berkas::{Berkas, BerkasPalsu},
+        HttpBody, HttpError, HttpGet, HttpResponse,
+    };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
 
@@ -172,8 +175,8 @@ mod tests {
     #[test]
     fn tanpa_url_mengembalikan_pesan_data_kosong_tanpa_request() {
         let berkas = berkas_dengan(&[]);
-        let http = Arc::new(Stub::offline());
-        let r = run(berkas, http);
+        let http = Stub::offline();
+        let r = run(berkas, http.clone());
         assert_eq!(body_of(&r), ERR_DATA_EMPTY);
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -181,8 +184,8 @@ mod tests {
     #[test]
     fn satu_url_dikirim_sebagai_video() {
         let berkas = berkas_dengan(&[("src/tiktok/ukhty.json", r#"[{"url":"https://cdn/a.mp4"}]"#)]);
-        let http = Arc::new(Stub::bytes("VIDEO_BYTES"));
-        let r = run(berkas, http);
+        let http = Stub::bytes("VIDEO_BYTES");
+        let r = run(berkas, http.clone());
         match r {
             Reply::Video { media, .. } => {
                 assert_eq!(
@@ -205,8 +208,8 @@ mod tests {
             ("src/tiktok/santuy.json", "[]"),
             ("src/tiktok/tiktokgirl.json", r#"[{"url":"https://cdn/c.mp4"},{"url":"https://cdn/d.mp4"}]"#),
         ]);
-        let http = Arc::new(Stub::bytes("VID"));
-        let _ = run(berkas, http);
+        let http = Stub::bytes("VID");
+        let _ = run(berkas, http.clone());
         let seen = http.seen.lock().unwrap().clone();
         assert!(seen == vec!["https://cdn/b.mp4"] || seen == vec!["https://cdn/c.mp4"] || seen == vec!["https://cdn/d.mp4"]);
     }
@@ -214,7 +217,7 @@ mod tests {
     #[test]
     fn json_berkas_salah_diabaikan() {
         let berkas = berkas_dengan(&[("src/tiktok/bocil.json", "bukan json")]);
-        let http = Arc::new(Stub::offline());
+        let http = Stub::offline();
         let r = run(berkas, http);
         assert_eq!(body_of(&r), ERR_DATA_EMPTY);
     }

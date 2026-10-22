@@ -123,3 +123,63 @@ pub mod clearsessions;
 
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod ganti_large;
+
+// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner).
+pub mod addplugin;
+pub mod backupsc;
+pub mod bcgc;
+pub mod buatgrup;
+pub mod chatclear;
+pub mod colongpp;
+pub mod delsewa;
+pub mod eval;
+pub mod ganticode;
+pub mod ganti_foto3;
+pub mod ganti_gambar;
+pub mod getplugin;
+pub mod join;
+pub mod listjadibot;
+pub mod restart;
+pub mod searchplugin;
+pub mod setallmenu;
+pub mod sprem;
+pub mod startschedule;
+pub mod swgcall;
+pub mod swgcv2;
+pub mod upch;
+#[path = "ganti-games.rs"]
+pub mod ganti_games;
+#[path = "ganti-mp4.rs"]
+pub mod ganti_mp4;
+#[path = "ganti-promote.rs"]
+pub mod ganti_promote;
+#[path = "ganti-v8.rs"]
+pub mod ganti_v8;
+#[path = "ganti-winner.rs"]
+pub mod ganti_winner;
+
+// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 2).
+pub mod addsewa;
+pub mod aset;
+pub mod bcpc;
+pub mod buatsaluran;
+pub mod delplugin;
+pub mod disableplugin;
+pub mod enableplugin;
+pub mod gantiscraper;
+pub mod hapusdata;
+pub mod resetdb;
+pub mod savekontak;
+pub mod sessionstats;
+pub mod sistemdaftar;
+pub mod srt;
+pub mod swgc;
+pub mod swgcv2all;
+#[path = "ganti-foto2.rs"]
+pub mod ganti_foto2;
+#[path = "ganti-mp3.rs"]
+pub mod ganti_mp3;
+#[path = "ganti-namabot.rs"]
+pub mod ganti_namabot;
+#[path = "ganti-welcome.rs"]
+pub mod ganti_welcome;

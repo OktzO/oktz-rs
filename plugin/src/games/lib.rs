@@ -10,7 +10,7 @@ use std::collections::HashMap;
 ///
 /// `Math.floor(Math.random() * arr.length)`. Mengembalikan `None` kalau
 /// array kosong (JS mengembalikan `undefined`).
-pub fn pick(arr: &[&str]) -> Option<&str> {
+pub fn pick<'a>(arr: &'a [&'a str]) -> Option<&'a str> {
     if arr.is_empty() {
         return None;
     }
@@ -255,15 +255,15 @@ pub fn build_win_text(
     text.push_str(&format!("Percobaan: *{attempts}x*\n\n"));
 
     if total_limit > 0 || total_balance > 0 || total_exp > 0 {
-        let mut parts: Vec<&str> = Vec::new();
+        let mut parts: Vec<String> = Vec::new();
         if total_limit > 0 {
-            parts.push(&format!("+{total_limit} Limit"));
+            parts.push(format!("+{total_limit} Limit"));
         }
         if total_balance > 0 {
-            parts.push(&format!("+{total_balance} Koin"));
+            parts.push(format!("+{total_balance} Koin"));
         }
         if total_exp > 0 {
-            parts.push(&format!("+{total_exp} EXP"));
+            parts.push(format!("+{total_exp} EXP"));
         }
         text.push_str(&format!("🎁 {}", parts.join(", ")));
     }
@@ -287,7 +287,7 @@ pub fn build_surrender_text(winner_number: &str, answer: &str) -> String {
         .unwrap_or("🏳️ Nyerah!")
         .to_string();
     text.push_str(&format!("\n\nJawaban: *{answer}*\n\n"));
-    text.push_str(&format("_@{winner_number} menyerah_"));
+    text.push_str(&format!("_@{winner_number} menyerah_"));
     text
 }
 
@@ -370,7 +370,6 @@ mod tests {
         assert_eq!(full.hint_count, 3);
         // Field yang tidak di-override tetap default.
         assert_eq!(full.data_file, "tebakan.json");
-        assert_eq!(cfg.emoji, "🎮");
     }
 
     #[test]

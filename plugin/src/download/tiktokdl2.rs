@@ -12,8 +12,8 @@
 //!   supaya tautan yang ditolak savett tetap ada jalan.
 //! - **Album slide tidak dikirim.** JS merakit `albumMessage` + `relayMessage`
 //!   per slide (`tiktokdl2.js:170-249`); kontrak `Reply` cuma satu media per
-//!   pesan. Cabang foto diperlakukan seperti album kosong: tanpa pesan
-//!   `📸 Mengirim N slide`, lanjut ke cabang mp3 (note + audio) atau catch.
+//!   pesan. Slide dikirim satu per satu sebagai gambar, dengan pesan
+//!   "📸 *Mengirim N slide...*" (`tiktokdl2.js:171`) tetap ikut.
 //! - **Reaksi awal `⏱️` dibuang** (`tiktokdl2.js:134`), mengikuti konvensi
 //!   repo: `Reply` hanya membawa satu reaksi, jadi reaksi penutup yang ikut.
 //! - **Reaksi `✅` cabang mp3 hilang** (`tiktokdl2.js:261`). `Reply::Reaction`
@@ -88,6 +88,20 @@ pub(crate) fn unduhan_video(hasil: &Value) -> Option<&Value> {
             Some(t) => !matches!(t, "watermark" | "mp3" | "audio" | "photo"),
             None => false,
         })
+}
+
+/// `result.slides` — pada port scraper, slide foto disimpan sebagai unduhan
+/// bertipe `"photo"` (`oktz-scraper/src/tiktok.rs:532`).
+pub(crate) fn unduhan_foto(hasil: &Value) -> Vec<&Value> {
+    hasil
+        .get("downloads")
+        .and_then(Value::as_array)
+        .map(|list| {
+            list.iter()
+                .filter(|d| d.get("type").and_then(Value::as_str) == Some("photo"))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// `result.mp3[0]` (`tiktokdl2.js:240,256`) — URL audio pertama.
@@ -172,6 +186,37 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
             caption(&hasil),
         )
         .with_reaction("✅");
+    }
+
+    // Cabang foto/slide (`tiktokdl2.js:170-249`).
+    //
+    // `ponytail:` album slide butuh `albumMessage` + `relayMessage`
+    // (`tiktokdl2.js:196-234`), tidak ada di kontrak `Reply`; slide dikirim
+    // satu per satu sebagai gambar. Reaksi ✅ juga tidak bisa menempel di
+    // `Sequence` (pipeline melewati varian `Reaction`).
+    let foto = unduhan_foto(&hasil);
+    if !foto.is_empty() {
+        let mut balasan = vec![Reply::text(format!(
+            "📸 *Mengirim {} slide...*",
+            foto.len()
+        ))];
+        for (i, slide) in foto.iter().enumerate() {
+            let alamat = slide
+                .get("url")
+                .and_then(Value::as_str)
+                .filter(|u| !u.is_empty())
+                .unwrap_or_default();
+            // `caption: i === 0 ? caption : ''` (`tiktokdl2.js:185`).
+            let teks = if i == 0 { caption(&hasil) } else { String::new() };
+            balasan.push(Reply::image(MediaSource::url(alamat), teks));
+        }
+        // `tiktokdl2.js:236-245` — audio MP3 menyusul album.
+        if let Some(mp3) = unduhan_mp3(&hasil) {
+            balasan.push(Reply::audio(
+                MediaSource::url(mp3).with_mimetype("audio/mpeg"),
+            ));
+        }
+        return Reply::sequence(balasan);
     }
 
     if let Some(mp3) = unduhan_mp3(&hasil) {
@@ -471,14 +516,24 @@ mod tests {
     }
 
     #[test]
-    fn foto_dan_mp3_mengirim_note_lalu_audio_tanpa_reaksi() {
+    fn foto_dan_mp3_mengirim_slide_lalu_audio_tanpa_reaksi() {
         let http = Stub::baru(vec![halaman_token(), halaman_foto_dan_mp3()]);
         let r = run(http.clone(), "https://www.tiktok.com/@budi/photo/1");
         assert_eq!(reaction_of(&r), None, "reaksi ✅ hilang di dalam Sequence");
         let bagian = urutan(&r);
-        assert_eq!(bagian.len(), 2);
-        assert_eq!(bagian[0].without_mutations().text_body(), Some(NOTE_MP3));
+        assert_eq!(bagian.len(), 3);
+        assert_eq!(
+            bagian[0].without_mutations().text_body(),
+            Some("📸 *Mengirim 1 slide...*")
+        );
         match bagian[1].without_mutations() {
+            Reply::Image { media, .. } => assert_eq!(
+                media,
+                &Some(MediaSource::url("https://cdn.example/1.jpg"))
+            ),
+            lain => panic!("harus image, dapat {lain:?}"),
+        }
+        match bagian[2].without_mutations() {
             Reply::Audio { media, .. } => assert_eq!(
                 media,
                 &Some(MediaSource::url("https://cdn.example/a.mp3").with_mimetype("audio/mpeg"))
@@ -489,13 +544,23 @@ mod tests {
     }
 
     #[test]
-    fn foto_tanpa_mp3_masuk_catch() {
-        // Album slide tidak bisa dikirim (lihat header), jadi satu-satunya
-        // foto itu berakhir di template error.
+    fn foto_tanpa_mp3_mengirim_slide() {
         let http = Stub::baru(vec![halaman_token(), halaman_foto_saja()]);
         let r = run(http.clone(), "https://www.tiktok.com/@budi/photo/1");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "tiktok2"));
-        assert_eq!(reaction_of(&r), Some("☢"));
+        let bagian = urutan(&r);
+        assert_eq!(bagian.len(), 2);
+        assert_eq!(
+            bagian[0].without_mutations().text_body(),
+            Some("📸 *Mengirim 1 slide...*")
+        );
+        match bagian[1].without_mutations() {
+            Reply::Image { media, .. } => assert_eq!(
+                media,
+                &Some(MediaSource::url("https://cdn.example/1.jpg"))
+            ),
+            lain => panic!("harus image, dapat {lain:?}"),
+        }
+        assert_eq!(reaction_of(&r), None);
         assert_eq!(http.panggilan.lock().unwrap().len(), 2);
     }
 

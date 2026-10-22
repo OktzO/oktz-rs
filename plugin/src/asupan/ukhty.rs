@@ -32,7 +32,7 @@ fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {
 #[plugin(
     name = "ukhty",
     alias = ["ukht"],
-    category: "asupan",
+    category = "asupan",
     description = "Video ukhty",
     usage = ".ukhty",
     example = ".ukhty",
@@ -47,19 +47,22 @@ fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {
 )]
 pub fn ukhty(ctx: Ctx) -> Reply {
     let urls = match muat_data(ctx.berkas()) {
-        mut u if !u.is_empty() => u,
-        _ => return Reply::text(ERR_KOSONG),
+        u if !u.is_empty() => u,
+        // `m.react('❌')` lalu `m.reply('❌ Data tidak tersedia')`
+        // (`ukhty.js:35-38`).
+        _ => return Reply::text(ERR_KOSONG).with_reaction("❌"),
     };
 
     let url = &urls[random_index(urls.len())];
 
-    Reply::video(MediaSource::url(url.to_string()), "")
+    // `m.react('✅')` setelah `sock.sendMedia` (`ukhty.js:42-45`).
+    Reply::video(MediaSource::url(url.to_string()), "").with_reaction("✅")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::berkas::BerkasPalsu;
+    use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
 
     fn run(berkas: BerkasPalsu) -> Reply {
         let ctx = Ctx {
@@ -78,7 +81,9 @@ mod tests {
     }
 
     fn video_url(r: &Reply) -> Option<String> {
-        match r.without_mutations() {
+        // `with_reaction` membungkus balasan di `Mutate` + `Reaction`, jadi
+        // keduanya harus dilepas dulu sebelum varian media dilihat.
+        match r.without_mutations().tanpa_reaksi() {
             Reply::Video { media, .. } => media.as_ref().and_then(|m| match m {
                 MediaSource::Url { url, .. } => Some(url.clone()),
                 _ => None,

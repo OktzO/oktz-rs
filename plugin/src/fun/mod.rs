@@ -40,3 +40,9 @@ pub mod waifupool;
 
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod gachawaifu;
+
+// Data pool gacha (dihasilkan dari data/waifu + data/husbu versi JS).
+pub mod pool_data;
+
+// Plugin gacha husbu (sub-command husbuku/tinggalinhusbu/husbuaction).
+pub mod gachahusbu;

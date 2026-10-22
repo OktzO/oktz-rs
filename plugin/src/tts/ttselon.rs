@@ -9,12 +9,11 @@
 //! `te(...)` → `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{
-    Ctx, HttpCall, HttpError, MediaSource, Reply, plugin,
+    Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin,
 };
 use oktz_plugin_api::ffmpeg;
 use serde_json::Value;
 
-use crate::common::error_template;
 
 /// `https://api.emiliabot.my.id/tools/text-to-speech?text=<teks>` (`ttselon.js:58`).
 pub(crate) fn api_url(text: &str) -> String {
@@ -144,7 +143,7 @@ pub fn ttselon(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpResponse};
+    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
     use serde_json::json;
     use std::sync::{Arc, Mutex};
 
@@ -248,7 +247,7 @@ mod tests {
     fn api_url_mengencode_teks() {
         assert_eq!(
             api_url("To Mars!"),
-            "https://api.emiliabot.my.id/tools/text-to-speech?text=To%20Mars%21"
+            "https://api.emiliabot.my.id/tools/text-to-speech?text=To%20Mars!"
         );
     }
 

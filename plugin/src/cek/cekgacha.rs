@@ -1,22 +1,41 @@
-use crate::common::{cek_plugin, cek_reply, percent_101};
+//! `plugins/cek/cekgacha.js` — Cek hoki gacha kamu.
+//!
+//! Balasan: kegachaan acak `floor(rand * 101)` + lima tier deskripsi (ambang
+//! `>= 90/70/50/30`), lalu dua kalimat "diri sendiri" vs "orang lain".
+
+use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-cek_plugin!(
-    cekgacha,
-    "cekgacha",
-    ["luck"],
-    "Cek hoki gacha kamu",
-    ".cekgacha <nama>",
-    ".cekgacha Budi",
-    "kegachaan",
-    [
-        "HOKI PARAH! SSR GUARANTEED! ✨💎",
-        "Lucky! Pasti dapet SR keatas! 🍀",
-        "Hoki-hoki dikit 😊",
-        "Hmm... pray harder! 🙏",
-        "SIAL! Nanti aja gachanya! 💔"
-    ]
-);
+#[plugin(
+    name = "cekgacha",
+    alias = ["luck"],
+    category = "cek",
+    description = "Cek hoki gacha kamu",
+    usage = ".cekgacha <nama>",
+    example = ".cekgacha Budi",
+    cooldown = 5,
+    energi = 0,
+    is_group = false,
+    is_private = false,
+    is_owner = false,
+    is_premium = false,
+    is_admin = false,
+    is_bot_admin = false
+)]
+pub fn cekgacha(ctx: Ctx) -> Reply {
+    cek_reply(
+        &ctx,
+        percent_101(),
+        "kegachaan",
+        [
+            "HOKI PARAH! SSR GUARANTEED! ✨💎",
+            "Lucky! Pasti dapet SR keatas! 🍀",
+            "Hoki-hoki dikit 😊",
+            "Hmm... pray harder! 🙏",
+            "SIAL! Nanti aja gachanya! 💔",
+        ],
+    )
+}
 
 #[cfg(test)]
 mod tests {
@@ -172,4 +191,132 @@ mod tests {
         assert!(run(ctx_with(None)).mutations().is_empty());
         assert!(run(ctx_with(Some(OTHER))).mutations().is_empty());
     }
+
+    /// Kunci output: template JS persis (`cekgacha.js:34-40`).
+    ///
+    /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
+    /// deterministik; jalur handler dicek terpisah di bawah.
+    #[test]
+    fn output_sama_dengan_js() {
+        let tier_js = |percent: u32| -> &'static str {
+            match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            }
+        };
+        let diri = Ctx {
+            prefix: ".".into(),
+            command: "cekgacha".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            ..Default::default()
+        };
+        let lain = Ctx {
+            mentioned: vec!["628999@s.whatsapp.net".into()],
+            ..diri.clone()
+        };
+        for percent in [0u32, 29, 30, 49, 50, 69, 70, 89, 90, 100] {
+            let desc = tier_js(percent);
+            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kegachaan", TIERS) else {
+                panic!("harus Reply::Text");
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Hai @{number}\n    \nTingkat kegachaan kamu *{percent}%*\n```{desc}```",
+                    number = "628111",
+                    desc = desc
+                ),
+                "percent {percent}"
+            );
+            assert_eq!(mentions, vec!["628111@s.whatsapp.net".to_string()]);
+
+            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kegachaan", TIERS) else {
+                panic!("harus Reply::Text");
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Kamu ingin ngecek tingkat kegachaan @{number} yak? \n    \nTingkat kegachaan dia sebesar *{percent}%*\n```{desc}```",
+                    number = "628999",
+                    desc = desc
+                ),
+                "percent {percent}"
+            );
+            assert_eq!(mentions, vec!["628999@s.whatsapp.net".to_string()]);
+        }
+    }
+
+    /// Jalur handler: persennya acak, tapi kerangka teksnya tetap sama.
+    #[test]
+    fn output_sama_dengan_js_di_jalur_handler() {
+        let diri = Ctx {
+            prefix: ".".into(),
+            command: "cekgacha".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            ..Default::default()
+        };
+        let lain = Ctx {
+            mentioned: vec!["628999@s.whatsapp.net".into()],
+            ..diri.clone()
+        };
+        for _ in 0..200 {
+            let Reply::Text { text, .. } = cekgacha(diri.clone()) else {
+                panic!("harus Reply::Text");
+            };
+            let percent: u32 = text
+                .split_once('*')
+                .and_then(|(_, rest)| rest.split_once('%'))
+                .and_then(|(head, _)| head.parse().ok())
+                .expect("persen di balasan");
+            assert!(
+                (0..=100).contains(&percent),
+                "persen di luar rentang JS: {percent}"
+            );
+            let desc = match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Hai @{number}\n    \nTingkat kegachaan kamu *{percent}%*\n```{desc}```",
+                    number = "628111",
+                    desc = desc
+                ),
+                "{text}"
+            );
+
+            let Reply::Text { text, .. } = cekgacha(lain.clone()) else {
+                panic!("harus Reply::Text");
+            };
+            let percent: u32 = text
+                .split_once('*')
+                .and_then(|(_, rest)| rest.split_once('%'))
+                .and_then(|(head, _)| head.parse().ok())
+                .expect("persen di balasan");
+            let desc = match percent {
+                90..=100 => TIERS[0],
+                70..=89 => TIERS[1],
+                50..=69 => TIERS[2],
+                30..=49 => TIERS[3],
+                _ => TIERS[4],
+            };
+            assert_eq!(
+                text,
+                format!(
+                    "Kamu ingin ngecek tingkat kegachaan @{number} yak? \n    \nTingkat kegachaan dia sebesar *{percent}%*\n```{desc}```",
+                    number = "628999",
+                    desc = desc
+                ),
+                "{text}"
+            );
+        }
+    }
+
 }

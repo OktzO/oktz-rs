@@ -4,6 +4,14 @@
 //! `<= 0`, jadi bahan habis HILANG dari tas — bukan disimpan sebagai 0 seperti
 //! `sellall`. Itu yang bikin `sellall` dan `alchemy` tidak bisa saling
 //! menimpa.
+//!
+//! `alchemy.js:132` mengirim pesan "Blubuk blubuk..." lebih dulu, lalu
+//! `setTimeout(3000)` (`alchemy.js:133`), baru pesan hasil. Dua pesan itu
+//! dikirim berurutan lewat [`Reply::sequence_text`].
+//!
+//! Reaksi `🧪`/`✅` (`alchemy.js:131`, `:145`) tidak ikut: reaksi tidak bisa
+//! dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa merender
+//! satu pesan), jadi teks dua pesan lebih dipilih.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -125,15 +133,21 @@ pub fn alchemy(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp);
 
-    Reply::text(format!(
-        "CLLINGGG!! RAMUAN BERHASIL DIBUAT! 🎉🧪\n\n\
-         Kamu berhasil meracik:\n\
-         📦 Item: *{name}*\n\
-         💫 Efek: *{effect}*\n\
-         📈 EXP Alchemy: *+{exp}*\n\n\
-         Jangan diminum sekaligus kalau nggak mau sakit perut! 😂"
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        // `alchemy.js:132` — pesan sebelum jeda `setTimeout`.
+        format!(
+            "Blubuk blubuk... BZZZZ! 🧪✨\n\
+             Mencampur bahan kimia untuk meracik *{name}*... Awas meledak! 💥"
+        ),
+        format!(
+            "CLLINGGG!! RAMUAN BERHASIL DIBUAT! 🎉🧪\n\n\
+             Kamu berhasil meracik:\n\
+             📦 Item: *{name}*\n\
+             💫 Efek: *{effect}*\n\
+             📈 EXP Alchemy: *+{exp}*\n\n\
+             Jangan diminum sekaligus kalau nggak mau sakit perut! 😂"
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
@@ -158,8 +172,12 @@ mod tests {
         (oktz_plugin_api::find("alchemy").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `alchemy.js:132` mengirim satu
+    /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -276,5 +294,23 @@ mod tests {
         assert_eq!(POTIONS[8].2, [("herb", 10), ("diamond", 2), ("gold", 5)]);
         assert_eq!(potion("elixir").unwrap().4, 500);
         assert!(potion("tidak-ada").is_none());
+    }
+
+    /// `alchemy.js:132` — pesan sebelum jeda persis sama dengan JS dan
+    /// selalu mendahului pesan hasil.
+    #[test]
+    fn output_sama_dengan_js() {
+        let r = run(serde_json::json!({ "inventory": { "herb": 3 }, "exp": 0 }), "healthpotion");
+        let semua = crate::rpg::heal::reply_texts(&r);
+        assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+        assert_eq!(
+            semua[0],
+            "Blubuk blubuk... BZZZZ! 🧪✨\n\
+             Mencampur bahan kimia untuk meracik *❤️ Health Potion*... Awas meledak! 💥"
+        );
+        assert!(semua[1].starts_with("CLLINGGG!! RAMUAN BERHASIL DIBUAT! 🎉🧪"), "{}", semua[1]);
+        assert!(semua[1].contains("📦 Item: *❤️ Health Potion*"), "{}", semua[1]);
+        assert!(semua[1].contains("💫 Efek: *Pulihkan 50 HP*"), "{}", semua[1]);
+        assert!(semua[1].contains("📈 EXP Alchemy: *+80*"), "{}", semua[1]);
     }
 }

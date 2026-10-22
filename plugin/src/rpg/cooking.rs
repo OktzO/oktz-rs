@@ -4,6 +4,13 @@
 //! Batas efek mengikuti level: `maxHealth = 100 + level * 5` dan
 //! `maxMana = 50 + level * 3` — bukan `+ (level - 1)` seperti `level.js`.
 //! Itu tidak konsisten, tapi itu yang ditulis plugin ini.
+//!
+//! `cooking.js:81` — pesan "Srengg... Srenggg..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "👨‍🍳" (`cooking.js:80`) dan "✅" (`cooking.js:107`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -158,15 +165,21 @@ pub fn cooking(ctx: Ctx) -> Reply {
         .collect::<Vec<_>>()
         .join("\n");
 
-    Reply::text(format!(
-        "TADAA! MASAKAN MATANG! 🍽️✨\n\n\
-         Kamu langsung melahap *{name}* yang enak banget!\n\
-         Efek yang kamu dapet:\n\
-         {effect_text}\n\n\
-         📈 Bonus EXP Masak: *+{exp}*\n\n\
-         Kenyang banget rasanya, siap tempur lagi! 🔥"
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        // `cooking.js:81` — pesan sebelum jeda `setTimeout`.
+        format!(
+            "Srengg... Srenggg... 🔥🍳\n\
+             Lagi masak *{name}* nih, wanginya nyebar sekampung! 🤤"
+        ),
+        format!(
+            "TADAA! MASAKAN MATANG! 🍽️✨\n\n\
+             Kamu langsung melahap *{name}* yang enak banget!\n\
+             Efek yang kamu dapet:\n\
+             {effect_text}\n\n\
+             📈 Bonus EXP Masak: *+{exp}*\n\n\
+             Kenyang banget rasanya, siap tempur lagi! 🔥"
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
@@ -191,8 +204,12 @@ mod tests {
         (oktz_plugin_api::find("cooking").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {

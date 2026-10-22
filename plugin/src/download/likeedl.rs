@@ -40,9 +40,8 @@ pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link Likee.";
 /// `likeedl.js:47` — kedua field watermark kosong.
 pub(crate) const NO_VIDEO: &str = "❌ Video tidak ditemukan.";
 
-// `likeedl.js:41` (`!data`) tidak punya padanan di sini: `likee()` hanya
-// melempar atau mengembalikan objek, jadi cabang itu tidak pernah menyala dan
-// teksnya tidak ikut dipindah.
+/// `likeedl.js:41` — scraper mengembalikan `null`/falsy.
+pub(crate) const GAGAL_AMBIL: &str = "❌ Gagal mengambil video. Coba link lain.";
 
 /// Bagian hasil `likee` (`src/scraper/likee.js:29-34`) yang dibaca plugin.
 /// Regex yang tidak cocok mengisi `null` di scraper, yang oleh `||` di
@@ -110,6 +109,13 @@ pub fn likeedl(ctx: Ctx) -> Reply {
     let Ok(value) = oktz_scraper::likee::likee(ctx.http.as_ref(), url) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("🕕");
     };
+
+    // `likeedl.js:40-42` — `!data`. Scraper `likee` hanya melempar atau
+    // mengembalikan objek, jadi cabang ini praktis tidak terjangkau; tetap
+    // ditulis supaya teksnya tidak hilang.
+    if !crate::common::js_truthy(Some(&value)) {
+        return Reply::text(GAGAL_AMBIL).with_reaction("🕕");
+    }
 
     let data = hasil_dari(&value);
     let video = data.video_url();
@@ -352,6 +358,19 @@ mod tests {
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "🕕"),
             "gagal tanpa video harus bereaksi 🕕"
         );
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `likeedl.js:41` — pesan "gagal mengambil video".
+        assert_eq!(
+            GAGAL_AMBIL,
+            "❌ Gagal mengambil video. Coba link lain."
+        );
+        // `likeedl.js:47` — video tidak ditemukan.
+        assert_eq!(NO_VIDEO, "❌ Video tidak ditemukan.");
+        // `likeedl.js:32` — URL bukan Likee.
+        assert_eq!(BAD_URL, "❌ URL tidak valid. Gunakan link Likee.");
     }
 
     #[test]

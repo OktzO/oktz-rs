@@ -34,20 +34,18 @@ pub mod pixiv;
 pub mod play;
 pub mod play2;
 pub mod playcall;
-
-// Ditambahkan scripts/pasang-modul.mjs.
-
-// Ditambahkan scripts/pasang-modul.mjs.
-pub mod resep;
-pub mod spotplay;
-
-// Ditambahkan scripts/pasang-modul.mjs.
-pub mod playtiktok;
-
-// Ditambahkan scripts/pasang-modul.mjs.
+pub mod playch;
 pub mod playsoundcloud;
+pub mod playtiktok;
+pub mod playvid;
 pub mod ptvsearch;
+pub mod resep;
 pub mod searchthatsong;
 pub mod soundcloud;
+pub mod spotify;
+pub mod spotplay;
 pub mod tiktokfoto;
 pub mod wikipedia;
+pub mod yts;
+pub mod ytplay;
+pub mod ytsearch;

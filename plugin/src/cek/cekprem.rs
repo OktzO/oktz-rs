@@ -141,6 +141,7 @@ pub fn cekprem(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::date_long;
     use serde_json::{Value};
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -306,5 +307,30 @@ mod tests {
             Some(Value::Object(_))
         ));
         assert!(find_premium(&ctx, "628333").is_none());
+    }
+
+    /// Prefiks normalisasi nomor di JS (`cekprem.js:39`):
+    /// `targetNumber = '62' + targetNumber.slice(1)`.
+    const PREFIX_NOL_JS: &str = "62";
+
+    /// Locale tanggal di JS (`cekprem.js:19`):
+    /// `toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })`.
+    const LOCALE_TANGGAL_JS: &str = "id-ID";
+
+    #[test]
+    fn nomor_berawalan_nol_dinormalisasi_pakai_aturan_js() {
+        let raw = "0812";
+        let expect = format!("{PREFIX_NOL_JS}{}", &raw[1..]);
+        assert_eq!(normalize(raw.to_string()), expect);
+        // Nomor tanpa awalan nol tidak boleh disentuh.
+        assert_eq!(normalize("62812".to_string()), "62812");
+    }
+
+    #[test]
+    fn tanggal_dicetak_seperti_locale_id_id() {
+        // `id-ID` + hari numerik (tanpa nol di depan), bulan nama panjang,
+        // tahun numerik -> "1 Januari 2026".
+        assert_eq!(LOCALE_TANGGAL_JS, "id-ID");
+        assert_eq!(date_long(1_767_225_600_000), "1 Januari 2026");
     }
 }

@@ -7,6 +7,15 @@
 //! 2. `Math.max(1, health - 50)` saat kalah — HP tidak pernah menyentuh 0,
 //!    tidak seperti `adventure`.
 //! 3. `toLocaleString()` tanpa locale memakai koma (`5,000`), bukan titik.
+//!
+//! `boss.js:123` mengirim perkenalan boss dulu, lalu `setTimeout(2500)`
+//! (`boss.js:124`), lalu `boss.js:156` mengirim cuplikan pertarungan, lalu
+//! `setTimeout(1500)` (`boss.js:162`), lalu hasil akhir (`boss.js:211`).
+//! Empat pesan itu dikirim berurutan lewat [`Reply::sequence_text`].
+//!
+//! Reaksi `⚔️`/`🏆`/`💀` (`boss.js:116`, `:194`, `:207`) tidak ikut: reaksi
+//! tidak bisa dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa
+//! merender satu pesan), jadi teks beberapa pesan lebih dipilih.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -153,6 +162,19 @@ pub fn boss(ctx: Ctx) -> Reply {
 
     let f = fight(user_attack, user_defense, max_hp, chosen);
 
+    // `boss.js:117-123` — perkenalan boss sebelum jeda `setTimeout`.
+    let intro = format!(
+        "⚠️ *PERINGATAN BAHAYA!* ⚠️\n\n\
+         Aura kegelapan menyelimuti arena... *{}* telah muncul di hadapan kamu!\n\n\
+         ❤️ Darah Boss: *{} HP*\n\
+         ⚔️ Kekuatan: *{} ATK*\n\n\
+         _Siapkan senjatamu kak! Pertarungan dimulai..._",
+        chosen.0, chosen.1, chosen.2
+    );
+
+    // `boss.js:156-161` — cuplikan pertarungan sebelum jeda kedua.
+    let cuplikan = format!("⚔️ *Sengitnya Pertarungan...*\n\n{}", log_block(&f));
+
     if f.boss_hp <= 0 {
         let exp_reward = chosen.4 + crate::common::roll(500) as i64;
         let gold_reward = chosen.5 + crate::common::roll(2000) as i64;
@@ -196,12 +218,7 @@ pub fn boss(ctx: Ctx) -> Reply {
             data["inventory"] = Value::Object(inv);
         }
 
-        return Reply::text(format!(
-            "⚔️ *Sengitnya Pertarungan...*\n\n{}\n\n{txt}",
-            log_block(&f)
-        ))
-        .with_reaction("🏆")
-        .with_mutation(Mutation::SetUser {
+        return Reply::sequence_text([intro, cuplikan, txt]).with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data,
         });
@@ -212,20 +229,18 @@ pub fn boss(ctx: Ctx) -> Reply {
     let left_hp = loss_health(or_default(rpg_int(&rpg, "health"), 100));
     rpg.insert("health".into(), serde_json::json!(left_hp));
 
-    Reply::text(format!(
-        "⚔️ *Sengitnya Pertarungan...*\n\n{}\n\n\
-         💀 *YAH... KAMU TERPURUK...* 💔\n\n\
+    let hasil = format!(
+        "💀 *YAH... KAMU TERPURUK...* 💔\n\n\
          Tenaga *{}* ternyata masih terlalu besar buat kamu kak!\n\n\
-         *Penalti Kekalahan:*\n\
+         *Penalti Kekurangan:*\n\
          💸 Koin Terjatuh: *-Rp {}*\n\
          ❤️ HP Berkurang: *-50 HP*\n\n\
          > 💡 _Tips: Coba tingkatkan level dan perbaiki senjatamu sebelum nantangin dia lagi ya kak!_",
-        log_block(&f),
         chosen.0,
         thousands_en(gold_loss)
-    ))
-    .with_reaction("💀")
-    .with_mutation(Mutation::SetUser {
+    );
+
+    Reply::sequence_text([intro, cuplikan, hasil]).with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": (crate::common::int_field(&ctx, "koin") - gold_loss).max(0),
                       "rpg": rpg }),
@@ -249,8 +264,12 @@ mod tests {
         (oktz_plugin_api::find("boss").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `boss.js` mengirim tiga pesan
+    /// (perkenalan, cuplikan, hasil), jadi `Reply::Sequence` berisi tiga teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -330,7 +349,8 @@ mod tests {
             }
             won += 1;
             let data = write_of(&r);
-            assert!(t.contains("⚔️ *Sengitnya Pertarungan..."), "{t}");
+            let semua = crate::rpg::heal::reply_texts(&r);
+            assert!(semua[1].starts_with("⚔️ *Sengitnya Pertarungan..."), "{semua:?}");
             assert!(data["koin"].as_i64().unwrap() >= 4000);
             assert!(data["exp"].as_i64().unwrap() >= 1500);
             assert_eq!(data["rpg"]["stamina"], serde_json::json!(50));
@@ -395,5 +415,18 @@ mod tests {
         assert_eq!(BOSSES[6], ("⚡ Thunder God", 550, 65, 25, 4000, 15000,
             &["thunderstone", "divinecore"] as &[&str]));
         assert_eq!(lowest().3, 8, "Undead King adalah minLevel paling rendah");
+    }
+
+    /// `boss.js:117-123`, `:156-161`, `:184-192` — tiga pesan berurutan dengan
+    /// teks persis sama seperti JS.
+    #[test]
+    fn output_sama_dengan_js() {
+        let r = run(serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }));
+        let semua = crate::rpg::heal::reply_texts(&r);
+        assert_eq!(semua.len(), 3, "tiga pesan: {semua:?}");
+        assert!(semua[0].starts_with("⚠️ *PERINGATAN BAHAYA!* ⚠️\n\nAura kegelapan menyelimuti arena... *"), "{}", semua[0]);
+        assert!(semua[0].ends_with("_Siapkan senjatamu kak! Pertarungan dimulai..._"), "{}", semua[0]);
+        assert!(semua[1].starts_with("⚔️ *Sengitnya Pertarungan...*\n\n> "), "{}", semua[1]);
+        assert!(semua[2].starts_with("🏆 *BOSS BERHASIL DIKALAHKAN!!* 🎉\n\n"), "{}", semua[2]);
     }
 }

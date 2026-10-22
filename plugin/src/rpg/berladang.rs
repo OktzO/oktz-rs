@@ -4,6 +4,14 @@
 //!
 //! Kursor: `user.rpg.stamina ?? 100` memakai `??`, dan `results.length === 0`
 //! memberi 1 padi dengan nilai 100 — bukan 0.
+//!
+//! `berladang.js:37` mengirim pesan "Menyiapkan cangkul..." lebih dulu, lalu
+//! `setTimeout(3000)` (`berladang.js:38`), baru pesan hasil. Dua pesan itu
+//! dikirim berurutan lewat [`Reply::sequence_text`].
+//!
+//! Reaksi `🌾`/`✅` (`berladang.js:36`, `:73`) tidak ikut: reaksi tidak bisa
+//! dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa merender
+//! satu pesan), jadi teks dua pesan lebih dipilih.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -92,18 +100,22 @@ pub fn berladang(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    Reply::text(format!(
-        "PANEN RAYA KAK! 🚜🌾\n\n\
-         Gila, kebun kamu hari ini ngasilin banyak banget:\n\
-         {lines}\n\
-         💰 Total Estimasi Nilai: *Rp {}*\n\
-         📈 EXP Petani: *+{exp_gain}*\n\
-         ⚡ Stamina: *-{STAMINA_COST}*\n\n\
-         Kamu bisa jual hasil panen ini ke pasar pakai `{}sellall` ya! 🧺✨",
-        thousands_id(total_value as f64),
-        ctx.prefix
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        // `berladang.js:37` — pesan sebelum jeda `setTimeout`.
+        "Menyiapkan cangkul dan menyiram tanah... 🌱💧\nSemoga hari ini panen berlimpah!"
+            .to_string(),
+        format!(
+            "PANEN RAYA KAK! 🚜🌾\n\n\
+             Gila, kebun kamu hari ini ngasilin banyak banget:\n\
+             {lines}\n\
+             💰 Total Estimasi Nilai: *Rp {}*\n\
+             📈 EXP Petani: *+{exp_gain}*\n\
+             ⚡ Stamina: *-{STAMINA_COST}*\n\n\
+             Kamu bisa jual hasil panen ini ke pasar pakai `{}sellall` ya! 🧺✨",
+            thousands_id(total_value as f64),
+            ctx.prefix
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
@@ -126,8 +138,12 @@ mod tests {
         (oktz_plugin_api::find("berladang").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `berladang.js:37` mengirim satu
+    /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -242,5 +258,21 @@ mod tests {
         assert_eq!(CROPS.len(), 6);
         assert_eq!(CROPS[0], ("padi", "🌾 Padi", 90, 2, 8, 100));
         assert_eq!(CROPS[5], ("melon", "🍈 Melon", 10, 1, 1, 1000));
+    }
+
+    /// `berladang.js:37` — pesan sebelum jeda persis sama dengan JS dan
+    /// selalu mendahului pesan hasil.
+    #[test]
+    fn output_sama_dengan_js() {
+        for _ in 0..200 {
+            let r = run(serde_json::json!({ "rpg": { "stamina": 100 } }));
+            let semua = crate::rpg::heal::reply_texts(&r);
+            assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+            assert_eq!(
+                semua[0],
+                "Menyiapkan cangkul dan menyiram tanah... 🌱💧\nSemoga hari ini panen berlimpah!"
+            );
+            assert!(semua[1].starts_with("PANEN RAYA KAK! 🚜🌾"), "{}", semua[1]);
+        }
     }
 }

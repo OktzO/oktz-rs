@@ -8,6 +8,24 @@ fn d(v: &str) -> String {
     v.to_string()
 }
 
+/// `config.js` `digitalocean` (`config.js:301-306`). `Default` sengaja kosong
+/// supaya `Ctx::default()` di test tidak membaca environment.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DigitalOcean {
+    pub token: String,
+    pub region: String,
+    pub sellers: Vec<String>,
+    pub owner_panels: Vec<String>,
+}
+
+fn daftar_env(nama: &str) -> Vec<String> {
+    Env::get_or(nama, "")
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 /// `config.js` `APIkey` — semua dari env, nilai kosong kalau tidak diisi
 /// (`config.js:326-335`). Field yang kosong tidak dihapus supaya nama kuncinya
 /// masih terlihat saat debugging.
@@ -234,6 +252,7 @@ pub struct Runtime {
     pub payment: Payment,
     pub donasi: Donasi,
     pub saluran: Saluran,
+    pub digitalocean: DigitalOcean,
     pub api_keys: ApiKeys,
     /// \x60config.errorTemplate\x60 — dipakai \x60common::error_template\x60.
     pub error_template: String,
@@ -280,6 +299,7 @@ impl Default for Runtime {
                 qris: String::new(),
             },
             saluran: Saluran::default(),
+            digitalocean: DigitalOcean::default(),
             error_template: String::new(),
             api_keys: ApiKeys {
                 neoxr: String::new(),
@@ -316,6 +336,12 @@ impl Runtime {
             // Nilai `config.js:153` apa adanya.
             error_template: "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
                 .to_string(),
+            digitalocean: DigitalOcean {
+                token: Env::get_or("DIGITALOCEAN_TOKEN", ""),
+                region: d("sgp1"),
+                sellers: daftar_env("DIGITALOCEAN_SELLERS"),
+                owner_panels: daftar_env("DIGITALOCEAN_OWNER_PANELS"),
+            },
             api_keys: ApiKeys::default(),
         }
     }

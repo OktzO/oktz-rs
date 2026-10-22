@@ -3,6 +3,13 @@
 //! Kursor: denda dibatasi saldo yang ada (`Math.min(fine, user.koin || 0)`)
 //! dan `Math.max(0, ...)` lagi diftykai setelahnya, jadi koin tak pernah
 //! negatif; HP juga dijepit di 0 (berbeda dari `boss` yang minimal 1).
+//!
+//! `crime.js:27` — pesan "Memasang alat peretas di ATM..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "💣" (`crime.js:26`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -34,13 +41,17 @@ pub fn crime(ctx: Ctx) -> Reply {
         let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
         let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-        return Reply::text(format!(
-            "HACKING SUKSES!! 💻💵\n\n\
-             Mesin ATM ngeluarin duit kayak air hujan! Lu langsung kabur bawa koper penuh duit.\n\n\
-             💰 Hasil Bobol: *+Rp {}*\n\
-             📈 EXP Kriminal: *+{exp_gain}*",
-            thousands_id(stolen as f64)
-        ))
+        return Reply::sequence_text([
+            // `crime.js:27` — pesan sebelum jeda `setTimeout`.
+            "Memasang alat peretas di ATM seberang jalan... 💣💻".to_string(),
+            format!(
+                "HACKING SUKSES!! 💻💵\n\n\
+                 Mesin ATM ngeluarin duit kayak air turun! Lu langsung kabur bawa koper penuh duit.\n\n\
+                 💰 Hasil Bobol: *+Rp {}*\n\
+                 📈 EXP Kriminal: *+{exp_gain}*",
+                thousands_id(stolen as f64)
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "koin": koin + stolen, "exp": new_exp, "rpg": rpg }),
@@ -51,14 +62,18 @@ pub fn crime(ctx: Ctx) -> Reply {
     let left_hp = (or_default(rpg_int(&rpg, "health"), 100) - 15).max(0);
     rpg.insert("health".into(), serde_json::json!(left_hp));
 
-    Reply::text(format!(
-        "NGIIING NGIING!! ALARM BUNYI!! 🚨🚓\n\n\
-         Sialan, mesinnya error dan polisi langsung ngepung dari segala arah!\n\
-         Lu dipentung pake tongkat polisi terus dipaksa bayar denda.\n\n\
-         💸 Denda Pidana: *-Rp {}*\n\
-         🤕 Memar Kena Pentung: *-15 HP*",
-        thousands_id(fine as f64)
-    ))
+    Reply::sequence_text([
+        // `crime.js:27` — pesan sebelum jeda `setTimeout`.
+        "Memasang alat peretas di ATM seberang jalan... 💣💻".to_string(),
+        format!(
+            "NGIIING NGIING!! ALARM BUNYI!! 🚨🚓\n\n\
+             Sialan, mesinnya error dan polisi langsung ngepung dari segala arah!\n\
+             Lu dipentung pake tongkat polisi terus dipaksa bayar denda.\n\n\
+             💸 Denda Pidana: *-Rp {}*\n\
+             🤕 Memar Kena Pentung: *-15 HP*",
+            thousands_id(fine as f64)
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": (koin - fine).max(0), "rpg": rpg }),
@@ -81,8 +96,12 @@ mod tests {
         (oktz_plugin_api::find("crime").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {

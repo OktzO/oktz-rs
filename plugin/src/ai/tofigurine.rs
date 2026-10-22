@@ -7,12 +7,7 @@
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-const PROMPT: &str = "Using the model, create a 1/7 scale commercialized figurine of the characters in the picture, \
-in a realistic style, in a real environment. The figurine is placed on a computer desk. \
-The figurine has a round transparent acrylic base, with no text on the base. \
-The content on the computer screen is the modeling process of this figurine. \
-Next to the computer screen is a BANDAI-style toy packaging box printed with the original artwork. \
-The packaging features two-dimensional flat illustrations.";
+const PROMPT: &str = "Using the model, create a 1/7 scale commercialized figurine of the characters in the picture, \nin a realistic style, in a real environment. The figurine is placed on a computer desk. \nThe figurine has a round transparent acrylic base, with no text on the base. \nThe content on the computer screen is the modeling process of this figurine. \nNext to the computer screen is a BANDAI-style toy packaging box printed with the original artwork. \nThe packaging features two-dimensional flat illustrations.";
 
 fn help(prefix: &str) -> String {
     format!(

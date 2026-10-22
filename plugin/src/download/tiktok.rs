@@ -11,6 +11,8 @@
 //! - Tombol "🎵 Ambil Music" (`tiktokdl.js:399-405`) — di JS dikirim lewat
 //!   `sock.sendButton(..., { type: "video", buttons })`, jadi video-nya jadi
 //!   HEADER kartu native-flow dan tombolnya menempel di kartu yang sama.
+//! - Pesan gagal (`tiktokdl.js:509-514`) dan pesan "slide berhasil"
+//!   (`tiktokdl.js:504`).
 //!
 //! `ponytail:` yang berbeda dari JS, beserta alasannya:
 //! - `resolveTikTokUrl` (`tiktokdl.js:3-24`) mengikuti redirect短 link
@@ -141,15 +143,28 @@ pub(crate) fn caption_video(hasil: &Value) -> String {
     )
 }
 
-/// `tiktokdl.js:452-462` — caption foto.
+/// `tiktokdl.js:467-479` — caption foto.
+///
+/// Perbedaannya dengan `caption_video`: baris `- Music:` ikut, baris
+/// `- Uploaded:` (bukan `- Taken At:`), dan judul statistiknya
+/// `*Statistik Konten:*`.
 pub(crate) fn caption_foto(hasil: &Value) -> String {
+    let provider = {
+        let p = field(hasil, "_provider");
+        if p.is_empty() {
+            "tikwm".to_string()
+        } else {
+            p
+        }
+    };
     format!(
-        "📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥*\n\n\
+        "📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [{provider}]\n\n\
 - Author: *{}* ({})\n\
 - Caption: {}\n\
-- Taken At: {}\n\
+- Music: {} - {}\n\
+- Uploaded: {}\n\
 - Region: {}\n\n\
-*Statistik Video:*\n\
+*Statistik Konten:*\n\
 - Views: *{}*\n\
 - Likes: *{}*\n\
 - Comments: *{}*\n\
@@ -161,6 +176,8 @@ pub(crate) fn caption_foto(hasil: &Value) -> String {
             let t = field(hasil, "title");
             if t.is_empty() { "-".to_string() } else { t }
         },
+        field(hasil, "music_info.title"),
+        field(hasil, "music_info.author"),
         field(hasil, "taken_at"),
         field(hasil, "region"),
         field(hasil, "stats.views"),
@@ -168,6 +185,25 @@ pub(crate) fn caption_foto(hasil: &Value) -> String {
         field(hasil, "stats.comment"),
         field(hasil, "stats.share"),
         field(hasil, "stats.download"),
+    )
+}
+
+/// `tiktokdl.js:504` — pesan setelah slide berhasil dikirim.
+pub(crate) const SLIDE_BERHASIL: &str =
+    "📸 Slide berhasil dikirim!\nTekan tombol di bawah untuk ambil music.";
+
+/// `tiktokdl.js:509-514` — cabang `catch`.
+///
+/// `detail` = `e.message?.slice(0, 300) || "Unknown error"` (`tiktokdl.js:512`).
+pub(crate) fn gagal(prefix: &str, detail: &str) -> String {
+    let potong: String = detail.chars().take(300).collect();
+    let detail = if potong.is_empty() {
+        "Unknown error"
+    } else {
+        potong.as_str()
+    };
+    format!(
+        "❌ *Gagal mengunduh TikTok*\n\n> {detail}\n\nCoba lagi nanti, atau bisa coba *{prefix}tt2* sebagai alternatif.\nJika tetap gagal, pastikan link valid dan video tidak private."
     )
 }
 
@@ -196,12 +232,12 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         return Reply::text(URL_TIDAK_VALID).with_reaction("❌");
     }
 
-    let gagal = || {
-        Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+    let gagal_reply = |detail: &str| {
+        Reply::text(gagal(&ctx.prefix, detail)).with_reaction("❌")
     };
 
     let Ok(hasil) = oktz_scraper::tiktok::ttdown(&*ctx.http, teks) else {
-        return gagal();
+        return gagal_reply("Semua provider TikTok gagal");
     };
 
     // `tiktokdl.js:399-405` — tombol "Ambil Music" menunjuk ke `.ttmp3`.
@@ -218,10 +254,10 @@ pub fn tiktok(ctx: Ctx) -> Reply {
                 .header("User-Agent", UA_VIDEO)
                 .header("Referer", REFERER_VIDEO),
         ) else {
-            return gagal();
+            return gagal_reply("Gagal mendapatkan file video");
         };
         if !(200..300).contains(&res.status) {
-            return gagal();
+            return gagal_reply("Gagal mendapatkan file video");
         }
         let content_type = res
             .headers
@@ -231,7 +267,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             .unwrap_or_default();
         // `if (ct.includes("text/html")) throw` (`tiktokdl.js:443-444`).
         if content_type.contains("text/html") {
-            return gagal();
+            return gagal_reply("Gagal mendapatkan file video (response HTML)");
         }
         let mimetype = if content_type.contains("video") {
             content_type
@@ -244,7 +280,8 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             .with_header(CardHeader::new().video(
                 Ms::bytes(res.body.bytes().to_vec()).with_mimetype(mimetype),
             ))
-            .with_button(tombol_musik);
+            .with_button(tombol_musik)
+            .with_reaction("✅");
     }
 
     // Cabang foto/slide (`tiktokdl.js:455+`).
@@ -253,11 +290,20 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         .and_then(Value::as_str)
         .filter(|u| !u.is_empty())
     {
-        return Reply::interactive(caption_foto(&hasil))
-            .with_header(CardHeader::new().image(
-                Ms::url(foto).with_mimetype("image/jpeg"),
-            ))
-            .with_button(tombol_musik);
+        // `tiktokdl.js:496-506` — album slide lalu tombol "ambil music".
+        //
+        // `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
+        // (pipeline merender `Sequence` lewat loop, bukan `render_reply`), jadi
+        // reaksi ✅ pada jalur ini tidak ikut — sama seperti
+        // `download/tiktokdl2.rs`.
+        return Reply::sequence(vec![
+            Reply::interactive(caption_foto(&hasil))
+                .with_header(CardHeader::new().image(
+                    Ms::url(foto).with_mimetype("image/jpeg"),
+                ))
+                .with_button(tombol_musik),
+            Reply::text(SLIDE_BERHASIL),
+        ]);
     }
 
     // Cabang MP3 (`tiktokdl.js:487+`).
@@ -268,7 +314,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         ]);
     }
 
-    gagal()
+    gagal_reply("Tidak ada slide foto ditemukan")
 }
 
 #[cfg(test)]
@@ -338,6 +384,40 @@ mod tests {
         assert!(c.contains("- Duration: 12 Seconds"), "{c}");
         assert!(c.contains("- Region: ID"), "{c}");
         assert!(c.contains("- Views: *1.234*"), "{c}");
+        assert!(c.contains("*Statistik Video:*"), "{c}");
+    }
+
+    #[test]
+    fn caption_foto_mengikuti_baris_javascript() {
+        // `tiktokdl.js:467-479` — ikon 📸, baris `- Music:`, `- Uploaded:` dan
+        // judul `*Statistik Konten:*`.
+        let c = caption_foto(&hasil_contoh());
+        assert!(c.starts_with("📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞"), "{c}");
+        assert!(c.contains("[tikwm]"), "{c}");
+        assert!(c.contains("- Author: *Zann* (zann)"), "{c}");
+        assert!(c.contains("- Caption: Contoh video"), "{c}");
+        assert!(c.contains("- Music: Lagu - Artis"), "{c}");
+        assert!(c.contains("- Uploaded: 2025-01-02 03:04:05 UTC"), "{c}");
+        assert!(c.contains("- Region: ID"), "{c}");
+        assert!(c.contains("*Statistik Konten:*"), "{c}");
+        assert!(!c.contains("*Statistik Video:*"), "{c}");
+        assert!(!c.contains("Taken At"), "{c}");
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `tiktokdl.js:513` — pesan gagal.
+        assert_eq!(
+            gagal(".", "Gagal mengunduh"),
+            "❌ *Gagal mengunduh TikTok*\n\n> Gagal mengunduh\n\nCoba lagi nanti, atau bisa coba *.tt2* sebagai alternatif.\nJika tetap gagal, pastikan link valid dan video tidak private."
+        );
+        // `tiktokdl.js:504` — pesan slide.
+        assert_eq!(
+            SLIDE_BERHASIL,
+            "📸 Slide berhasil dikirim!\nTekan tombol di bawah untuk ambil music."
+        );
+        // Detail kosong → "Unknown error" (`tiktokdl.js:512`).
+        assert!(gagal(".", "").contains("> Unknown error"));
     }
 
     #[test]

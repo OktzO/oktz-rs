@@ -1,39 +1,52 @@
 //! `plugins/ai/tojapanese.js` — ubah gambar ke style Japanese.
 //!
-//! `ponytail:` `uploadImage` (`src/lib/uploader.js`) dan
-//! `applyImageEffect` (`src/lib/effect-api.js`) tidak tersedia di
-//! `Ctx`/`Reply`; handler untuk gambar diakhiri `error_template` + `☢`
-//! (pola `swm.rs`). Pemeriksaan gambar dan teks pakai di-port agar bisa diuji.
-//! Saat unggah + efek tersedia, tambahkan `pub mod tojapanese;` di
-//! `src/ai/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! Alur JS (`tojapanese.js:19-45`): cek gambar → unduh (quoted dulu kalau
+//! `m.quoted.isMedia`, lalu `m.isMedia`) → `uploadImage(buffer, 'image.jpg')`
+//! → `applyImageEffect('tojapanese', imageUrl)` → kirim gambar.
+//!
+//! Helper `uploadImage` + `applyImageEffect` ada di
+//! [`super::efek`](crate::ai::efek) — salinan `src/lib/uploader.js`,
+//! `src/lib/upload-providers.js`, dan `src/lib/effect-api.js`.
+//!
+//! `ponytail:` reaksi `🕕` (`tojapanese.js:26`) tidak ikut — `Reply` hanya
+//! membawa satu reaksi, jadi yang dikirim reaksi penutup.
 
-use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
+use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, QuotedKind, Reply, plugin};
 
-/// Kartu pakai / penolakan bukan gambar (`tojapanese.js:24`).
-pub(crate) fn pakai(prefix: &str) -> String {
+use super::efek::{apply_image_effect, upload_image};
+
+/// Efek di `applyImageEffect` (`tojapanese.js:38`).
+const EFEK: &str = "tojapanese";
+
+/// Kartu pakai — `tojapanese.js:21-23` memakai `${m.prefix}`.
+fn help(prefix: &str) -> String {
     format!(
-        "🎌 *ᴊᴀᴘᴀɴᴇsᴇ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Japanese\n\n`{prefix}tojapanese`"
+        "🎌 *ᴊᴀᴘᴀɴᴇsᴇ sᴛʏʟᴇ*\n\n\
+         > Kirim/reply gambar untuk diubah ke style Japanese\n\n\
+         `{prefix}tojapanese`"
     )
 }
 
-/// `isImage` (`tojapanese.js:21`).
-pub(crate) fn is_image(ctx: &Ctx) -> bool {
+/// `m.isImage || (m.quoted && m.quoted.type === 'imageMessage')`
+/// (`tojapanese.js:19`).
+fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
             .quoted()
-            .is_some_and(|q| q.kind.is_image())
+            .map(|q| q.kind == QuotedKind::Image)
+            .unwrap_or(false)
 }
 
-/// Unduh gambar: quoted dulu, baru trigger (`tojapanese.js:31-35`).
-pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
-    if ctx.quoted().is_some() {
-        ctx.download_quoted_media().ok()
-    } else if ctx.is_media() {
-        ctx.download_media().ok()
-    } else {
-        None
+/// `m.quoted && m.quoted.isMedia` → quoted; `m.isMedia` → pemicu
+/// (`tojapanese.js:28-32`).
+fn unduh_media(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
+    if ctx.quoted().is_some_and(|q| q.is_media()) {
+        return Some(ctx.download_quoted_media());
     }
+    if ctx.is_media() {
+        return Some(ctx.download_media());
+    }
+    None
 }
 
 #[plugin(
@@ -54,139 +67,267 @@ pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
 )]
 pub fn tojapanese(ctx: Ctx) -> Reply {
     if !is_image(&ctx) {
-        return Reply::text(pakai(&ctx.prefix));
+        return Reply::text(help(&ctx.prefix));
     }
 
-    let Some(_buffer) = unduh_media(&ctx) else {
-        return Reply::text("❌ Gagal mendownload gambar");
+    let Some(hasil) = unduh_media(&ctx) else {
+        return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
+    };
+    let Ok(buffer) = hasil else {
+        return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // `uploadImage` + `applyImageEffect('tojapanese', ...)` tidak tersedia —
-    // diakhiri error_template seperti swm.rs.
-    Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+    // `tojapanese.js:37-39` — upload + efek; kegagalan keduanya masuk `catch`.
+    let Ok(image_url) = upload_image(&*ctx.http, &buffer) else {
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+    };
+    let Ok(gambar) = apply_image_effect(&*ctx.http, EFEK, &image_url) else {
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+    };
+
+    Reply::image(MediaSource::bytes(gambar), String::new()).with_reaction("✅")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{IncomingMedia, QuotedKind, QuotedMessage};
-    use std::sync::Arc;
+    use serde_json::Value;
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin, QuotedMessage,
+    };
+    use std::sync::{Arc, Mutex};
 
-    #[derive(Debug, Default)]
-    struct StubFetch {
-        ok: bool,
-        bytes: Vec<u8>,
+    const ME: &str = "628111@s.whatsapp.net";
+
+    /// JPEG 12 byte — lolos `looks_like_image`.
+    const GAMBAR: &[u8] = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01";
+
+    /// Stub HTTP + MediaFetch: balasan per `call` berurutan, habis berarti offline.
+    #[derive(Debug)]
+    struct Stub {
+        balasan: Mutex<Vec<(u16, Vec<u8>)>>,
+        hitung: Mutex<usize>,
+        panggilan: Mutex<Vec<oktz_plugin_api::HttpCall>>,
+        unduhan: Mutex<Vec<MediaOrigin>>,
+        hasil_unduh: Result<Vec<u8>, MediaError>,
     }
 
-    impl oktz_plugin_api::MediaFetch for StubFetch {
-        fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
-            if self.ok {
-                Ok(self.bytes.clone())
-            } else {
-                Err(oktz_plugin_api::MediaError {
-                    message: "gagal".into(),
-                })
-            }
+    impl Stub {
+        fn baru(
+            balasan: Vec<(u16, Vec<u8>)>,
+            hasil_unduh: Result<Vec<u8>, MediaError>,
+        ) -> Arc<Stub> {
+            Arc::new(Stub {
+                balasan: Mutex::new(balasan),
+                hitung: Mutex::new(0),
+                panggilan: Mutex::new(Vec::new()),
+                unduhan: Mutex::new(Vec::new()),
+                hasil_unduh,
+            })
         }
     }
 
-    fn run(is_image: bool, quoted_image: bool, download_ok: bool) -> Reply {
-        let media = if is_image {
-            Some(IncomingMedia {
-                kind: IncomingKind::Image,
-                mimetype: Some("image/jpeg".into()),
-                file_name: None,
-                caption: String::new(),
-            })
-        } else {
-            None
-        };
-        let quoted = if quoted_image {
-            Some(QuotedMessage {
-                id: "Q1".into(),
+    impl oktz_plugin_api::HttpGet for Stub {
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.panggilan.lock().unwrap().push(req.clone());
+            let i = {
+                let mut hitung = self.hitung.lock().unwrap();
+                let i = *hitung;
+                *hitung += 1;
+                i
+            };
+            match self.balasan.lock().unwrap().get(i).cloned() {
+                Some((status, isi)) => Ok(HttpResponse {
+                    status,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(isi),
+                        mimetype: None,
+                    },
+                    headers: Vec::new(),
+                }),
+                None => Err(HttpError {
+                    message: "offline".into(),
+                }),
+            }
+        }
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.call(&oktz_plugin_api::HttpCall::get(url))
+        }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+    }
+
+    impl MediaFetch for Stub {
+        fn download(&self, origin: MediaOrigin) -> Result<Vec<u8>, MediaError> {
+            self.unduhan.lock().unwrap().push(origin);
+            self.hasil_unduh.clone()
+        }
+    }
+
+    fn ctx_stub(
+        http: Arc<Stub>,
+        media: Option<IncomingMedia>,
+        quoted: Option<QuotedKind>,
+        prefix: &str,
+    ) -> Ctx {
+        Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: prefix.into(),
+            command: "tojapanese".into(),
+            media,
+            quoted: quoted.map(|kind| QuotedMessage {
+                id: "q1".into(),
                 sender: "628999@s.whatsapp.net".into(),
-                chat: "120363@g.us".into(),
+                chat: ME.into(),
                 text: String::new(),
-                kind: QuotedKind::Image,
+                kind,
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            })
-        } else {
-            None
-        };
-        let ctx = Ctx {
-            prefix: ".".into(),
-            command: "tojapanese".into(),
-            sender: "628111@s.whatsapp.net".into(),
-            chat: "628111@s.whatsapp.net".into(),
-            media,
-            quoted,
-            media_fetch: Arc::new(StubFetch {
-                ok: download_ok,
-                bytes: b"IMG".to_vec(),
             }),
+            http: http.clone(),
+            media_fetch: http,
             ..Ctx::default()
-        };
-        tojapanese(ctx)
+        }
+    }
+
+    fn media_gambar() -> Option<IncomingMedia> {
+        Some(IncomingMedia {
+            kind: IncomingKind::Image,
+            mimetype: Some("image/jpeg".into()),
+            file_name: None,
+            caption: String::new(),
+        })
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
-    fn reaksi(r: &Reply) -> Option<&str> {
+    fn reaksi(r: &Reply) -> Option<String> {
         match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji.as_str()),
+            Reply::Reaction { emoji, .. } => Some(emoji.clone()),
             _ => None,
         }
     }
 
+    fn bytes_gambar(r: &Reply) -> Vec<u8> {
+        match r.without_mutations().tanpa_reaksi() {
+            Reply::Image { media, .. } => match media {
+                Some(MediaSource::Bytes { data, .. }) => data.to_vec(),
+                lain => panic!("harus bytes, dapat {lain:?}"),
+            },
+            lain => panic!("harus image, dapat {lain:?}"),
+        }
+    }
+
     #[test]
-    fn meta_dan_alias() {
+    fn terdaftar_dengan_meta_js() {
         let p = oktz_plugin_api::find("tojapanese").unwrap();
         assert_eq!(p.meta.name, "tojapanese");
         assert_eq!(p.meta.alias, ["japanese", "japanesestyle"]);
         assert_eq!(p.meta.category, "ai");
+        assert_eq!(p.meta.description, "Ubah gambar ke style Japanese");
+        assert_eq!(p.meta.usage, ".tojapanese (reply gambar)");
+        assert_eq!(p.meta.example, ".tojapanese");
         assert_eq!(p.meta.cooldown, 30);
         assert_eq!(p.meta.energi, 2);
-        assert!(!p.meta.is_owner && !p.meta.is_premium);
+        assert!(!p.meta.is_owner && !p.meta.is_premium && !p.meta.is_group);
+        for a in ["japanese", "japanesestyle"] {
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "tojapanese");
+        }
     }
 
     #[test]
-    fn bukan_gambar_tampilkan_pakai() {
-        let r = run(false, false, true);
-        assert_eq!(teks(&r), pakai("."));
+    fn kartu_pakai_pakai_prefix_ctx() {
+        // `tojapanese.js:23` memakai `${m.prefix}`.
+        let http = Stub::baru(vec![], Ok(Vec::new()));
+        let r = tojapanese(ctx_stub(http.clone(), None, None, "!"));
+        assert_eq!(
+            teks(&r),
+            "🎌 *ᴊᴀᴘᴀɴᴇsᴇ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Japanese\n\n`!tojapanese`"
+        );
         assert_eq!(reaksi(&r), None);
+        assert!(http.panggilan.lock().unwrap().is_empty());
     }
 
     #[test]
-    fn quoted_gambar_diprioritaskan() {
-        let r = run(false, true, true);
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "tojapanese")
+    fn unduhan_quoted_dipakai_lebih_dulu() {
+        let http = Stub::baru(
+            vec![
+                (200, b"https://litterbox.example/img.jpg".to_vec()),
+                (200, GAMBAR.to_vec()),
+            ],
+            Ok(b"gambar-asli".to_vec()),
         );
-        assert_eq!(reaksi(&r), Some("☢"));
+        let r = tojapanese(ctx_stub(
+            http.clone(),
+            media_gambar(),
+            Some(QuotedKind::Image),
+            ".",
+        ));
+        assert_eq!(bytes_gambar(&r), GAMBAR);
+        assert_eq!(reaksi(&r), Some("✅".into()));
+        assert_eq!(*http.unduhan.lock().unwrap(), [MediaOrigin::Quoted]);
     }
 
     #[test]
-    fn trigger_gambar_dipakai_unduh() {
-        let r = run(true, false, true);
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "tojapanese")
+    fn unduhan_gagal_membalas_pesan_dan_reaksi_silang() {
+        let http = Stub::baru(
+            vec![],
+            Err(MediaError {
+                message: "cdn mati".into(),
+            }),
         );
-        assert_eq!(reaksi(&r), Some("☢"));
-    }
-
-    #[test]
-    fn gagal_unduh_teks_tanpa_reaksi() {
-        let r = run(true, false, false);
+        let r = tojapanese(ctx_stub(http.clone(), media_gambar(), None, "."));
         assert_eq!(teks(&r), "❌ Gagal mendownload gambar");
-        assert_eq!(reaksi(&r), None);
+        assert_eq!(reaksi(&r), Some("❌".into()));
+        assert!(http.panggilan.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn upload_gagal_membalas_template_error() {
+        let balasan: Vec<(u16, Vec<u8>)> = (0..8).map(|_| (500, Vec::new())).collect();
+        let http = Stub::baru(balasan, Ok(b"gambar-asli".to_vec()));
+        let r = tojapanese(ctx_stub(http.clone(), media_gambar(), None, "."));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "tojapanese")
+        );
+        assert_eq!(reaksi(&r), Some("☢".into()));
+    }
+
+    #[test]
+    fn efek_non_2xx_membalas_template_error() {
+        let http = Stub::baru(
+            vec![
+                (200, b"https://litterbox.example/img.jpg".to_vec()),
+                (500, Vec::new()),
+            ],
+            Ok(b"gambar-asli".to_vec()),
+        );
+        let r = tojapanese(ctx_stub(http.clone(), media_gambar(), None, "."));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "tojapanese")
+        );
+        assert_eq!(reaksi(&r), Some("☢".into()));
+        let panggilan = http.panggilan.lock().unwrap();
+        assert_eq!(
+            panggilan[1].url,
+            "https://api-faa.my.id/faa/tojapanese?url=https%3A%2F%2Flitterbox.example%2Fimg.jpg"
+        );
     }
 }

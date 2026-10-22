@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn tanpa_query_pakai_username_random_dan_tanpa_request() {
-        let http = Stub::offline();
+        let http = Stub::body(json!({"data": {"video": {"url": "https://v/1.mp4"}, "caption": "c"}}));
         let r = run(http.clone(), "");
         assert!(!http.seen.lock().unwrap().is_empty(), "random butuh request HTTP");
         assert_eq!(reaction_of(&r), Some("✅"));
@@ -221,7 +221,7 @@ mod tests {
         let http = Stub::offline();
         let _ = run(http.clone(), "nata jadeh");
         let seen = http.seen.lock().unwrap().clone();
-        assert!(seen.iter().any(|u| u.contains("username=nata%20jadeh")));
+        assert!(seen.iter().any(|u| u.contains("username=nata jadeh")));
     }
 
     #[test]

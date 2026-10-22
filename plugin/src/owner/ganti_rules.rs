@@ -1,35 +1,28 @@
-//! `plugins/owner/ganti-rules.js` — ganti gambar rules.jpeg via `updateAssetUrl`.
+//! `plugins/owner/ganti-rules.jpg.js` — ganti aset rules.jpeg.
 //!
-//! `ponytail:` `updateAssetUrl` dari `src/lib/uploader.js` (unggah ke asset /
-//! config realtime) tidak diekspos ke plugin di registry Rust. Unduhan media
-//! tersedia, tetapi unggahan hasilnya tidak dapat dieksekusi.
+//! Alur sama dengan JS: cek jenis media, unduh buffer, balas
+//! "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas aset dan
+//! laporkan jalurnya. Helper-nya ada di `ganti_gambar.rs`.
+//!
+//! Catatan: `updateAssetUrl` di JS juga menulis ulang `config.js`; di Rust
+//! jalur aset sudah ada di `config.assets`, jadi cukup berkas asetnya yang
+//! ditulis.
 
-use oktz_plugin_api::{Ctx, IncomingKind, QuotedKind, Reply, plugin};
+use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Kartu pakai saat bukan gambar.
-pub(crate) fn help() -> String {
-    "🖼️ *ɢᴀɴᴛɪ ʀᴜʟᴇs.ᴊᴘɢ*\n\n> Kirim/reply gambar untuk mengganti\n> File: assets/image/rules.jpeg"
-        .to_string()
-}
+use super::ganti_gambar::{Aset, Jenis, jalankan};
 
-/// Cek apakah pemicu atau quoted adalah image, sama urutan dengan JS.
-fn is_image(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| matches!(q.kind, QuotedKind::Image))
-}
-
-/// Unduh buffer media: quoted dulu, baru trigger.
-fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
-    if ctx.quoted().is_some_and(|q| q.is_media()) {
-        return ctx.download_quoted_media().ok();
-    }
-    if ctx.is_media() {
-        return ctx.download_media().ok();
-    }
-    None
-}
+/// Parameter aset untuk plugin ini.
+const ASET: Aset = Aset {
+    emoji_judul: "🖼️",
+    judul: "ɢᴀɴᴛɪ ʀᴜʟᴇs.ᴊᴘɢ",
+    file_tampil: "assets/image/rules.jpeg",
+    key: "rules",
+    nama_file: "rules.jpeg",
+    label_sukses: "Gambar",
+    label_error: "gambar",
+    jenis: Jenis::Gambar,
+};
 
 #[plugin(
     name = "ganti-rules.jpg",
@@ -48,30 +41,34 @@ fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     is_bot_admin = false
 )]
 pub fn ganti_rules(ctx: Ctx) -> Reply {
-    if !is_image(&ctx) {
-        return Reply::text(help());
-    }
-
-    let Some(buffer) = ambil_buffer(&ctx) else {
-        return Reply::text("❌ Gagal mendownload gambar");
-    };
-
-    let _ = buffer; // buffer didapat, tapi `updateAssetUrl` tidak tersedia.
-
-    // `ponytail:` `updateAssetUrl('rules', buffer, 'rules.jpeg')` dan
-    // pembaruan config realtime tidak tersedia di registry Rust.
-    Reply::text(crate::common::error_template(&ctx))
+    jalankan(&ctx, &ASET)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{IncomingKind, IncomingMedia, QuotedKind, QuotedMessage};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
 
     #[test]
-    fn bukan_gambar_menghasilkan_kartu_pakai() {
+    fn meta_dan_alias_sama_dengan_js() {
+        let p = oktz_plugin_api::find("ganti-rules.jpg").unwrap();
+        assert_eq!(p.meta.name, "ganti-rules.jpg");
+        assert_eq!(p.meta.alias, ["gantirules", "setfotorules"]);
+        assert_eq!(p.meta.category, "owner");
+        assert_eq!(p.meta.description, "Ganti gambar rules.jpg (thumbnail rules)");
+        assert_eq!(p.meta.usage, ".ganti-rules.jpg (reply/kirim gambar)");
+        assert_eq!(p.meta.example, ".ganti-rules.jpg");
+        assert_eq!(p.meta.cooldown, 5);
+        assert_eq!(p.meta.energi, 0);
+        assert!(p.meta.is_owner);
+        assert!(!p.meta.is_group && !p.meta.is_private && !p.meta.is_premium);
+    }
+
+    #[test]
+    fn bukan_media_menampilkan_kartu_pakai() {
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
@@ -80,18 +77,26 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_rules(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), help());
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::pakai(&ASET)
+        );
     }
 
     #[test]
-    fn unduhan_gagal_menghasilkan_pesan_gagal() {
+    fn unduhan_gagal_menampilkan_pesan_gagal() {
+        let media = if ASET.jenis == Jenis::Gambar {
+            IncomingKind::Image
+        } else {
+            IncomingKind::Video
+        };
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
             prefix: ".".into(),
             command: "ganti-rules.jpg".into(),
-            media: Some(oktz_plugin_api::IncomingMedia {
-                kind: IncomingKind::Image,
+            media: Some(IncomingMedia {
+                kind: media,
                 mimetype: None,
                 file_name: None,
                 caption: String::new(),
@@ -100,22 +105,30 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_rules(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
+        );
     }
 
     #[test]
-    fn quoted_image_dilayani_sama() {
+    fn quoted_media_dilayani_sama() {
+        let kind = if ASET.jenis == Jenis::Gambar {
+            QuotedKind::Image
+        } else {
+            QuotedKind::Video
+        };
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
             prefix: ".".into(),
             command: "ganti-rules.jpg".into(),
-            quoted: Some(oktz_plugin_api::QuotedMessage {
+            quoted: Some(QuotedMessage {
                 id: "1".into(),
                 sender: ME.into(),
                 chat: ME.into(),
                 text: String::new(),
-                kind: QuotedKind::Image,
+                kind,
                 mimetype: None,
                 file_name: None,
                 from_me: false,
@@ -124,6 +137,9 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_rules(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
+        );
     }
 }

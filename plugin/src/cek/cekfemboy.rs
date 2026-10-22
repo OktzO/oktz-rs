@@ -334,4 +334,50 @@ mod tests {
         assert!(ada("-ignore_loop", "0"));
         assert!(argumen.contains(&"-an"));
     }
+
+    /// Perintah ffmpeg di JS (`cekfemboy.js:38`). Bedanya hanya input/output:
+    /// JS menulis ke berkas temporer, Rust memakai pipa.
+    const PERINTAH_JS: &str = "ffmpeg -y -ignore_loop 0 -i \"{gif}\" -t 30 -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -c:v libx264 -pix_fmt yuv420p -movflags faststart -preset ultrafast -an \"{mp4}\"";
+
+    /// Nama berkas temporer di JS (`cekfemboy.js:31-32`) — dihapus lagi di
+    /// blok `finally`.
+    const BERKAS_GIF_JS: &str = "cekfemboy-{id}.gif";
+    const BERKAS_MP4_JS: &str = "cekfemboy-{id}.mp4";
+
+    /// Pesan error konversi di JS (`cekfemboy.js:41`) — dilempar, lalu
+    /// ditangkap `catch` kosong, jadi tidak pernah sampai ke user.
+    const PESAN_KONVERSI_GAGAL_JS: &str = "Gagal convert GIF";
+
+    #[test]
+    fn perintah_ffmpeg_js_dan_argumen_rust_cocok() {
+        // Semua argumen JS harus ada di Rust; yang berubah hanya yang
+        // memang tidak bisa dipakai lewat pipa (lihat doc-comment modul).
+        let perintah = PERINTAH_JS.replace('"', "");
+        for arg in ARGUMEN_GIF_KE_MP4 {
+            if matches!(arg, "pipe:0" | "pipe:1" | "-f" | "mp4" | "frag_keyframe+empty_moov") {
+                continue;
+            }
+            assert!(perintah.contains(arg), "argumen JS tidak ada di Rust: {arg}");
+        }
+        assert!(PERINTAH_JS.contains("faststart"), "JS memakai faststart");
+    }
+
+    #[test]
+    fn berkas_sementara_js_tidak_pernah_dibuat_di_sini() {
+        // Rust tidak menulis `temp/cekfemboy-*.gif|mp4` — GIF masuk lewat
+        // pipa ffmpeg dan video keluar lewat pipa juga.
+        assert!(BERKAS_GIF_JS.starts_with("cekfemboy-"));
+        assert!(BERKAS_GIF_JS.ends_with(".gif"));
+        assert!(BERKAS_MP4_JS.ends_with(".mp4"));
+        assert!(!ARGUMEN_GIF_KE_MP4.iter().any(|a| a.contains("temp")));
+    }
+
+    #[test]
+    fn pesan_error_konversi_js_tidak_pernah_muncul_di_balasan() {
+        // `catch` kosong di JS (`cekfemboy.js:64-69`) → pesan "Gagal convert
+        // GIF" tidak boleh bocor ke user; jawabannya tetap teks biasa.
+        let r = cekfemboy(ctx_of(StubHttp::baru(b"bukan gif".to_vec()), Vec::new(), "Budi"));
+        let (teks, _) = teks_dan_mention(&r);
+        assert!(!teks.contains(PESAN_KONVERSI_GAGAL_JS), "{teks}");
+    }
 }

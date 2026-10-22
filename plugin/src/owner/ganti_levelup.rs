@@ -1,26 +1,34 @@
-//! `plugins/owner/ganti-levelup.js` — ganti gambar levelup.jpg.
+//! `plugins/owner/ganti-levelup.jpg.js` — ganti aset levelup.jpeg.
 //!
-//! ## BLOKIR — tidak di-port.
+//! Alur sama dengan JS: cek jenis media, unduh buffer, balas
+//! "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas aset dan
+//! laporkan jalurnya. Helper-nya ada di `ganti_gambar.rs`.
 //!
-//! Alasan: butuh `m.download()` / `m.quoted.download()` (media intake yang
-//! tidak ada di `Ctx`), `updateAssetUrl` dari `src/lib/uploader.js` (upload
-//! ke host eksternal + menulis ulang `config.js` lewat `fs`, termasuk
-//! `sharp` resize ke JPEG), dan `m.reply` aliran (`⏳ Sedang mengupload...`
-//! sebelum hasil). Satu `#[plugin]` juga hanya menangani satu nama command,
-//! sementara JS mendaftarkan `ganti-levelup.jpg` dengan alias
-//! `gantilevelup`/`setlevelup`.
-//!
-//! `ponytail:` kalau `download_media` dan uploader tersedia di `Ctx` nanti,
-//! port ulang dari `plugins/owner/ganti-levelup.js` (guard isImage, unduh,
-//! upload, tampilkan URL baru).
+//! Catatan: `updateAssetUrl` di JS juga menulis ulang `config.js`; di Rust
+//! jalur aset sudah ada di `config.assets`, jadi cukup berkas asetnya yang
+//! ditulis.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
+
+use super::ganti_gambar::{Aset, Jenis, jalankan};
+
+/// Parameter aset untuk plugin ini.
+const ASET: Aset = Aset {
+    emoji_judul: "🖼️",
+    judul: "ɢᴀɴᴛɪ ʟᴇᴠᴇʟᴜᴘ.ᴊᴘɢ",
+    file_tampil: "assets/image/levelup.jpeg",
+    key: "levelup",
+    nama_file: "levelup.jpeg",
+    label_sukses: "Gambar",
+    label_error: "gambar",
+    jenis: Jenis::Gambar,
+};
 
 #[plugin(
     name = "ganti-levelup.jpg",
     alias = ["gantilevelup", "setlevelup"],
     category = "owner",
-    description = "Ganti gambar levelup.jpg (DIBLOKIR: butuh download media + uploader + tulis config)",
+    description = "Ganti gambar levelup.jpg",
     usage = ".ganti-levelup.jpg (reply/kirim gambar)",
     example = ".ganti-levelup.jpg",
     cooldown = 5,
@@ -32,31 +40,106 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_admin = false,
     is_bot_admin = false
 )]
-pub fn ganti_levelup(_ctx: Ctx) -> Reply {
-    Reply::None
+pub fn ganti_levelup(ctx: Ctx) -> Reply {
+    jalankan(&ctx, &ASET)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use oktz_plugin_api::{IncomingKind, IncomingMedia, QuotedKind, QuotedMessage};
+    use std::sync::Arc;
+
+    const ME: &str = "628111@s.whatsapp.net";
+
     #[test]
-    fn registers_with_the_js_plugin_config() {
+    fn meta_dan_alias_sama_dengan_js() {
         let p = oktz_plugin_api::find("ganti-levelup.jpg").unwrap();
         assert_eq!(p.meta.name, "ganti-levelup.jpg");
         assert_eq!(p.meta.alias, ["gantilevelup", "setlevelup"]);
         assert_eq!(p.meta.category, "owner");
+        assert_eq!(p.meta.description, "Ganti gambar levelup.jpg");
+        assert_eq!(p.meta.usage, ".ganti-levelup.jpg (reply/kirim gambar)");
+        assert_eq!(p.meta.example, ".ganti-levelup.jpg");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_owner);
-        assert!(!p.meta.is_group && !p.meta.is_private);
+        assert!(!p.meta.is_group && !p.meta.is_private && !p.meta.is_premium);
     }
 
     #[test]
-    fn nama_command_menyimpan_titik_pertipe_js() {
-        // `name` JS literal `ganti-levelup.jpg`, bukan disamarkan ke
-        // `ganti_levelup` — titik penting untuk manifest plugin.
+    fn bukan_media_menampilkan_kartu_pakai() {
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-levelup.jpg".into(),
+            ..Ctx::default()
+        };
+        let r = ganti_levelup(ctx);
         assert_eq!(
-            oktz_plugin_api::find("ganti-levelup.jpg").unwrap().meta.name,
-            "ganti-levelup.jpg"
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::pakai(&ASET)
+        );
+    }
+
+    #[test]
+    fn unduhan_gagal_menampilkan_pesan_gagal() {
+        let media = if ASET.jenis == Jenis::Gambar {
+            IncomingKind::Image
+        } else {
+            IncomingKind::Video
+        };
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-levelup.jpg".into(),
+            media: Some(IncomingMedia {
+                kind: media,
+                mimetype: None,
+                file_name: None,
+                caption: String::new(),
+            }),
+            media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
+            ..Ctx::default()
+        };
+        let r = ganti_levelup(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
+        );
+    }
+
+    #[test]
+    fn quoted_media_dilayani_sama() {
+        let kind = if ASET.jenis == Jenis::Gambar {
+            QuotedKind::Image
+        } else {
+            QuotedKind::Video
+        };
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-levelup.jpg".into(),
+            quoted: Some(QuotedMessage {
+                id: "1".into(),
+                sender: ME.into(),
+                chat: ME.into(),
+                text: String::new(),
+                kind,
+                mimetype: None,
+                file_name: None,
+                from_me: false,
+            }),
+            media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
+            ..Ctx::default()
+        };
+        let r = ganti_levelup(ctx);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            super::super::ganti_gambar::gagal_unduh(&ASET)
         );
     }
 }

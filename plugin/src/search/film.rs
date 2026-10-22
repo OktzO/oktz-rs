@@ -6,6 +6,7 @@
 //! dan thumbnail tidak ikut — persis teks `film.js:49-57`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::registry::{CardList, CardRow, CardSection, InteractiveButton};
 use serde_json::Value;
 
 use crate::common::{js_truthy};
@@ -122,8 +123,30 @@ pub fn film(ctx: Ctx) -> Reply {
     };
     let films = &films[..films.len().min(10)];
 
+    // `film.js:59-88` — picker `single_select` dengan judul "🎬 Pilih Film",
+    // section "Hasil Pencarian", dan footer "🎬 Film Search".
+    let rows: Vec<CardRow> = films
+        .iter()
+        .map(|f| {
+            CardRow::new(interp(f.get("title")), format!("{}filmget {}", ctx.prefix, interp(f.get("url"))))
+                .description(format!(
+                    "⭐ {} | {} | {}",
+                    interp(f.get("rating")),
+                    interp(f.get("quality")),
+                    interp(f.get("release"))
+                ))
+                .header("")
+        })
+        .collect();
+    let list = CardList::new(
+        "🎬 Pilih Film",
+        vec![CardSection::new("Hasil Pencarian").rows(rows)],
+    );
+
     Reply::interactive(format_list(films, &query))
-    .with_reaction("✅")
+        .with_button(InteractiveButton::select(&list))
+        .with_footer("🎬 Film Search")
+        .with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -218,6 +241,38 @@ mod tests {
             {"title": "Dune", "rating": "8.5", "quality": "FHD", "release": "2021", "url": "https://tv.neoxr.eu/film/dune"}
         ]
     }"#;
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `film.js:24-31` — kartu pakai.
+        assert_eq!(
+            help("."),
+            "🎬 *ꜰɪʟᴍ sᴇᴀʀᴄʜ*\n\n\
+             > Cari dan nonton film online\n\n\
+             *Format:*\n\
+             > `.film <judul>`\n\n\
+             *Contoh:*\n\
+             > `.film civil war`"
+        );
+        // `film.js:42-44` — tidak ditemukan.
+        assert_eq!(
+            not_found("civil war"),
+            "❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Film \"civil war\" tidak ditemukan"
+        );
+        // `film.js:49-57` — daftar film.
+        let films = vec![
+            serde_json::json!({"title": "Civil War", "rating": "8.1", "quality": "HD", "release": "2024", "url": "u1"}),
+            serde_json::json!({"title": "Dune", "rating": "8.5", "quality": "FHD", "release": "2021", "url": "u2"}),
+        ];
+        assert_eq!(
+            format_list(&films, "civil war"),
+            "🎬 *ʜᴀsɪʟ ᴘᴇɴᴄᴀʀɪᴀɴ*\n\n\
+             > Ditemukan *2* film untuk \"civil war\"\n\n\
+             *1. Civil War*\n> ⭐ 8.1 | 📺 HD | 📅 2024\n\n\
+             *2. Dune*\n> ⭐ 8.5 | 📺 FHD | 📅 2021\n\n\
+             > _Pilih film dari list di bawah_"
+        );
+    }
 
     #[test]
     fn registers_with_the_js_plugin_config() {

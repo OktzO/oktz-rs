@@ -3,6 +3,13 @@
 //! Dua kursor: bahan tidak dihapus dari tas (`-= qty` saja, bahkan kalau
 //! habis), dan `db.save()` TIDAK dipanggil — perubahan tetap masuk mutasi di
 //! sini karena `Reply` ditulis pipeline sebelum pesan dikirim.
+//!
+//! `craft.js:97` — pesan "Tok tok tok... Krek..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "🛠️" (`craft.js:96`) dan "✅" (`craft.js:113`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -120,7 +127,15 @@ pub fn craft(ctx: Ctx) -> Reply {
         }
     }
 
-    Reply::text(txt).with_reaction("✅").with_mutation(Mutation::SetUser {
+    Reply::sequence_text([
+        // `craft.js:97` — pesan sebelum jeda `setTimeout`.
+        format!(
+            "Tok tok tok... Krek... 🛠️🔩\n\
+             Sedang serius merakit *{name}*... Bentar lagi jadi!"
+        ),
+        txt,
+    ])
+    .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "inventory": inv, "rpg": rpg }),
     })
@@ -144,8 +159,12 @@ mod tests {
         (oktz_plugin_api::find("craft").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {

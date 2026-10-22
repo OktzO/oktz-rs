@@ -208,6 +208,31 @@ fn decode_base64(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// `executeQueryPipeline(searchToken)` (`src/scraper/google.js:62-122`).
+///
+/// Mengembalikan `Err(pesan)` untuk cabang `status: false` — teksnya adalah
+/// `pipelineError.message` di JS, jadi pesan axios apa adanya. Plugin
+/// membungkusnya jadi `❌ *Google Gagal*`.
+pub(crate) fn jalankan_pipeline(
+    http: &dyn oktz_plugin_api::HttpGet,
+    query: &str,
+) -> Result<Vec<Item>, String> {
+    if query.trim().is_empty() {
+        return Err("Query tidak boleh kosong".to_string());
+    }
+    let url = search_url(query);
+    let res = http.get(&url).map_err(|e| e.message)?;
+    if res.status != 200 {
+        return Err(format!(
+            "Network core rejected stream with status: {}",
+            res.status
+        ));
+    }
+    let mut items = parse_items(&res.text());
+    items.truncate(MAX_ITEM);
+    Ok(items)
+}
+
 #[plugin(
     name = "google",
     alias = ["gsearch", "googlenews"],
@@ -230,20 +255,22 @@ pub fn google(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix)).with_reaction("❌");
     }
 
-    let Some(body) = ctx.http.get(&search_url(&query)).ok().map(|r| r.text()) else {
-        // `catch` di `google.js:64-68` — teksnya bukan `result.error`, karena
-        // error axios tidak pernah sampai ke plugin.
-        return Reply::text("❌ Gagal mencari di Google, coba lagi nanti").with_reaction("☢");
+    // `google.js:37-43` — `GoogleSearch` tidak pernah melempar; kegagalan
+    // jaringan dikembalikan sebagai `{ status: false, error }`.
+    let items = match jalankan_pipeline(ctx.http.as_ref(), &query) {
+        Ok(v) => v,
+        Err(e) => {
+            return Reply::text(format!("❌ *Google Gagal*\n\n> {e}")).with_reaction("☢");
+        }
     };
 
-    let mut items = parse_items(&body);
-    items.truncate(MAX_ITEM);
-
     if items.is_empty() {
+        // `google.js:47-50`.
         return Reply::text(format!("❌ Nggak nemu hasil buat: *{query}*")).with_reaction("☢");
     }
 
-    Reply::text(format_items(&items, &query)).with_reaction("✅")
+    // `google.js:62` — `m.reply(txt.trim())`.
+    Reply::text(format_items(&items, &query).trim().to_string()).with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -256,12 +283,17 @@ mod tests {
     #[derive(Debug)]
     struct Stub {
         body: String,
+        /// `Some(pesan)` = request gagal total (transport error).
+        gagal: Option<String>,
         seen: Mutex<Vec<String>>,
     }
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
+            if let Some(p) = &self.gagal {
+                return Err(HttpError { message: p.clone() });
+            }
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -310,6 +342,16 @@ mod tests {
     fn stub(body: &str) -> Arc<Stub> {
         Arc::new(Stub {
             body: body.to_string(),
+            gagal: None,
+            seen: Mutex::new(vec![]),
+        })
+    }
+
+    /// Stub yang selalu gagal — dipakai untuk cabang `status: false`.
+    fn stub_gagal(pesan: &str) -> Arc<Stub> {
+        Arc::new(Stub {
+            body: String::new(),
+            gagal: Some(pesan.to_string()),
             seen: Mutex::new(vec![]),
         })
     }
@@ -331,6 +373,41 @@ mod tests {
   <source url="https://lain.com">Lain</source>
 </item>
 </channel></rss>"#;
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `google.js:24-32` — kartu pakai.
+        assert_eq!(
+            help("."),
+            "🔍 *Google News*\n\n\
+             Cari berita terbaru dari Google News.\n\n\
+             *PENGGUNAAN:*\n\
+             > *.google <topik>*\n\n\
+             *CONTOH:*\n\
+             > *.google gempa hari ini*\n\
+             > *.google teknologi terbaru*"
+        );
+        // `google.js:42` — Google gagal.
+        let r = run(stub_gagal("offline"), "x");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "❌ *Google Gagal*\n\n> offline"
+        );
+        // `google.js:49` — tidak ada hasil.
+        let r = run(stub("<rss><channel></channel></rss>"), "tidak ada");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "❌ Nggak nemu hasil buat: *tidak ada*"
+        );
+        // `google.js:52-60` — daftar hasil.
+        let r = run(stub(FEED), "gempa");
+        let t = r.without_mutations().text_body().unwrap();
+        assert!(
+            t.starts_with("🔍 *Google News*\n\n> Pencarian: *gempa*\n\n"),
+            "{t}"
+        );
+        assert!(t.contains("*1.* Gempa 5,9 SR Magnitude\n   ├ 📰 Example News\n"), "{t}");
+    }
 
     #[test]
     fn registers_with_the_js_plugin_config() {

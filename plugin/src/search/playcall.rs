@@ -44,7 +44,7 @@ pub(crate) fn mulai_panggilan(title: &str, timestamp: &str, nomor: &str) -> Stri
          - Judul: *{title}*\n\
          - Durasi: *{timestamp}*\n\
          - Tujuan: *+{nomor}*\n\n\
-         _$Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"
+         _Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"
     )
 }
 
@@ -153,6 +153,50 @@ mod tests {
     }
 
     #[test]
+    fn output_sama_dengan_js() {
+        // `playcall.js:36-45` — kartu pakai.
+        assert_eq!(
+            help("."),
+            "⚠️ *PANGGILAN MUSIK (PLAYCALL)*\n\n\
+             Fitur ini digunakan untuk memutar musik YouTube langsung melalui panggilan telepon suara WhatsApp ke nomor kamu.\n\n\
+             *PENGGUNAAN:*\n\
+             - *.playcall <judul lagu>*\n\n\
+             *CONTOH:*\n\
+             - *.playcall surat cinta untuk starla*\n\
+             - *.playcall komang*\n\n\
+             _Pastikan nomormu dapat menerima panggilan suara WhatsApp._"
+        );
+        // `playcall.js:49-53` — VoIP belum siap.
+        assert_eq!(
+            text_of(&run("komang")),
+            "⚠️ *LAYANAN BELUM SIAP*\n\nModul panggilan suara VoIP belum aktif atau sedang dalam proses inisialisasi pada server."
+        );
+        // `playcall.js:68` — judul tidak ditemukan.
+        assert_eq!(
+            tidak_ditemukan("surat cinta untuk starla"),
+            "❌ Musik dengan judul *surat cinta untuk starla* tidak ditemukan."
+        );
+        // `playcall.js:96-102` — konfirmasi sebelum panggilan.
+        assert_eq!(
+            mulai_panggilan("Komang", "3:45", "628111"),
+            "📞 *MEMULAI PANGGILAN*\n\n\
+             - Judul: *Komang*\n\
+             - Durasi: *3:45*\n\
+             - Tujuan: *+628111*\n\n\
+             _Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"
+        );
+        // `playcall.js:110` / `:117`.
+        assert_eq!(
+            terhubung("Komang"),
+            "✅ *TERHUBUNG*\n\nPanggilan berhasil tersambung! Lagu *Komang* sedang diputar di telepon."
+        );
+        assert_eq!(
+            berakhir(""),
+            "📵 *PANGGILAN BERAKHIR*\n\nPanggilan telepon telah selesai (selesai)."
+        );
+    }
+
+    #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("playcall").unwrap();
         assert_eq!(p.meta.name, "playcall");
@@ -219,7 +263,7 @@ mod tests {
         let t = mulai_panggilan("Komang", "3:45", "628111");
         assert!(t.starts_with("📞 *MEMULAI PANGGILAN*\n\n- Judul: *Komang*\n"), "{t}");
         assert!(t.contains("- Durasi: *3:45*\n- Tujuan: *+628111*\n"), "{t}");
-        assert!(t.ends_with("_$Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"), "{t}");
+        assert!(t.ends_with("_Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"), "{t}");
 
         assert!(terhubung("Komang").contains("Lagu *Komang* sedang diputar"));
         assert_eq!(

@@ -9,7 +9,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
 
-use crate::rpg::heal::{apply_exp, or_default, other_user, rpg_map};
+use crate::rpg::heal::{apply_exp, or_default, other_user, rpg_map, thousands_en};
 
 const BREEDING_COST: i64 = 3_000;
 
@@ -155,16 +155,21 @@ pub fn breeding(ctx: Ctx) -> Reply {
     let koin = crate::common::int_field(&ctx, "koin");
     if koin < BREEDING_COST {
         return Reply::text(format!(
-            "Uang kamu nggak cukup buat bayar dokter hewan kak! Butuh Rp {BREEDING_COST}. 😭"
+            "Uang kamu nggak cukup buat bayar dokter hewan kak! Butuh Rp {}. 😭",
+            thousands_en(BREEDING_COST)
         ));
     }
 
-    let my_type = my_pet.get("type").and_then(Value::as_str).unwrap_or_default();
+    let my_type = my_pet.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
     let partner_type = partner_pet
         .get("type")
         .and_then(Value::as_str)
-        .unwrap_or_default();
-    let baby = offspring(&breed_key(my_type, partner_type));
+        .unwrap_or_default()
+        .to_string();
+    // `PET_NAMES[type]` — `undefined` kalau tipenya tak dikenal.
+    let my_label = pet_name(&my_type).unwrap_or("undefined").to_string();
+    let partner_label = pet_name(&partner_type).unwrap_or("undefined").to_string();
+    let baby = offspring(&breed_key(&my_type, &partner_type));
     let is_rare = RARE.contains(&baby);
 
     let mut storage = rpg
@@ -196,16 +201,27 @@ pub fn breeding(ctx: Ctx) -> Reply {
         "Selamat! Kamu berhasil menetaskan bayi:\n\
          🐣 Spesies: *{}*\n\n\
          Dapat EXP *+{exp_reward}*\n\
-         Biaya Bersalin: *Rp -3.000*\n\n\
+         Biaya Bersalin: *Rp -{}*\n\n\
          *(Bayi peliharaanmu disimpan ke dalam Pet Storage. Total simpananmu: {stored} ekor)*",
-        pet_name(baby).unwrap_or("Baby")
+        pet_name(baby).unwrap_or("Baby"),
+        thousands_en(BREEDING_COST)
     ));
 
-    Reply::Text {
-        text: txt,
-        mentions: vec![ctx.sender.clone(), target],
-    }
-    .with_reaction(if is_rare { "🎉" } else { "✅" })
+    // `breeding.js:98` — pesan sebelum jeda `setTimeout(4000)`.
+    let pembicaraan = format!(
+        "Cieee, {} kamu sama {} temenmu lagi berduaan nih... 💕✨\n\
+         Tunggu bentar ya, dokternya lagi meriksa persalinan!",
+        my_label,
+        partner_label
+    );
+
+    Reply::sequence(vec![
+        Reply::text(pembicaraan),
+        Reply::Text {
+            text: txt,
+            mentions: vec![ctx.sender.clone(), target],
+        },
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": koin - BREEDING_COST, "exp": new_exp, "rpg": rpg }),
@@ -246,8 +262,12 @@ mod tests {
         (oktz_plugin_api::find("breeding").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `breeding.js:98` mengirim satu
+    /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn ready(tipe: &str, level: i64) -> Value {
@@ -434,6 +454,26 @@ mod tests {
         assert_eq!(pet_name("naga"), None);
         assert_eq!(baby_name("dragon"), "Naga");
         assert_eq!(baby_name("naga"), "Baby");
+    }
+
+    /// `breeding.js:98` dan `:136` — pesan sebelum jeda dan biaya persalinan
+    /// persis sama dengan JS (`toLocaleString()` tanpa locale memakai koma).
+    #[test]
+    fn output_sama_dengan_js() {
+        let r = run(ctx_for(
+            &["628222@s.whatsapp.net"],
+            Some(ready("dog", 9)),
+            serde_json::json!({ "rpg": { "pet": { "type": "cat", "level": 9 } }, "koin": 10_000, "exp": 0 }),
+        ));
+        let semua = crate::rpg::heal::reply_texts(&r);
+        assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+        assert_eq!(
+            semua[0],
+            "Cieee, 🐱 Kucing kamu sama 🐕 Anjing temenmu lagi berduaan nih... 💕✨\n\
+             Tunggu bentar ya, dokternya lagi meriksa persalinan!"
+        );
+        assert!(semua[1].contains("Biaya Bersalin: *Rp -3,000*"), "{}", semua[1]);
+        assert!(semua[1].contains("Dapat EXP *+"), "{}", semua[1]);
     }
 
     #[test]

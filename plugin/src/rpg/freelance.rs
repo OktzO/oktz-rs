@@ -3,6 +3,13 @@
 //!
 //! Kursor: `staminaCost` dipotong SEBELUM lemparan, jadi cabang rugi pun
 //! tetap Bahn. Harga dolar tetap 16.000 (kurs beku di source).
+//!
+//! `freelance.js:35` — pesan "Ngetik kode / nggambar di laptop..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "💻" (`freelance.js:34`), "📉" (`:41`), "💸" (`:52`), dan "✅" (`:61`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -42,16 +49,23 @@ pub fn freelance(ctx: Ctx) -> Reply {
     let koin = crate::common::int_field(&ctx, "koin");
     let gacha = math_random();
 
+    // `freelance.js:35` — pesan sebelum jeda `setTimeout`.
+    let ngetik = "Ngetik kode / nggambar di laptop... ⌨️\n\
+                  Semoga klien nggak minta revisi! 🙏"
+        .to_string();
+
     // Cabang rugi: koin dan exp sama sekali tak tersentuh, hanya stamina.
     if gacha < 0.2 {
-        return Reply::text(format!(
-            "KLIEN KABUR GAK MAU BAYAR! 📉😡\n\n\
-             Udah dikerjain begadang 3 hari 3 malem, eh malah di-ghosting!\n\
-             💵 Bayaran: 0\n\
-             ⚡ Stamina melayang: -{STAMINA_COST}\n\n\
-             Apes banget, lain kali harus pake DP! 😭"
-        ))
-        .with_reaction("📉")
+        return Reply::sequence_text([
+            ngetik,
+            format!(
+                "KLIEN KABUR GAK MAU BAYAR! 📉😡\n\n\
+                 Udah dikerjain begadang 3 hari 3 malem, eh malah di-ghosting!\n\
+                 💵 Bayaran: 0\n\
+                 ⚡ Stamina melayang: -{STAMINA_COST}\n\n\
+                 Apes banget, lain kali harus pake DP! 😭"
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "rpg": rpg }),
@@ -65,16 +79,18 @@ pub fn freelance(ctx: Ctx) -> Reply {
         let exp_gain = total / 30;
         let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-        return Reply::text(format!(
-            "DIBAYAR PAKE DOLLAR OLEH BULE! 💸✨\n\n\
-             Klien luar negeri puas banget dan ngasih ${payment}!\n\
-             💵 Bayaran: *+Rp {}*\n\
-             📈 EXP: *+{exp_gain}*\n\
-             ⚡ Stamina: -{STAMINA_COST}\n\n\
-             Uang jajan sultan menanti! 🤑",
-            thousands_id(total as f64)
-        ))
-        .with_reaction("💸")
+        return Reply::sequence_text([
+            ngetik,
+            format!(
+                "DIBAYAR PAKE DOLLAR OLEH BULE! 💸✨\n\n\
+                 Klien luar negeri puas banget dan ngasih ${payment}!\n\
+                 💵 Bayaran: *+Rp {}*\n\
+                 📈 EXP: *+{exp_gain}*\n\
+                 ⚡ Stamina: -{STAMINA_COST}\n\n\
+                 Uang jajan sultan menanti! 🤑",
+                thousands_id(total as f64)
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "koin": koin + total, "exp": new_exp, "rpg": rpg }),
@@ -85,15 +101,17 @@ pub fn freelance(ctx: Ctx) -> Reply {
     let exp_gain = earning / 20;
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    Reply::text(format!(
-        "PROJECT SELESAI DAN ACC! 💻✨\n\n\
-         💵 Bayaran Lokal: *+Rp {}*\n\
-         📈 EXP: *+{exp_gain}*\n\
-         ⚡ Stamina: -{STAMINA_COST}\n\n\
-         Lumayan buat beli kopi kapal api! ☕",
-        thousands_id(earning as f64)
-    ))
-    .with_reaction("✅")
+    Reply::sequence_text([
+        ngetik,
+        format!(
+            "PROJECT SELESAI DAN ACC! 💻✨\n\n\
+             💵 Bayaran Lokal: *+Rp {}*\n\
+             📈 EXP: *+{exp_gain}*\n\
+             ⚡ Stamina: -{STAMINA_COST}\n\n\
+             Lumayan buat beli kopi kapal api! ☕",
+            thousands_id(earning as f64)
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": koin + earning, "exp": new_exp, "rpg": rpg }),
@@ -116,8 +134,12 @@ mod tests {
         (oktz_plugin_api::find("freelance").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn write_of(r: &Reply) -> Value {

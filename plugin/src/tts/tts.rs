@@ -8,7 +8,7 @@
 //! padanan di `Ctx`. Handler hanya mendukung teks input; sintesis suara
 //! tidak tersedia di konteks Rust.
 
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(
     name = "tts",

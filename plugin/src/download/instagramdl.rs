@@ -58,7 +58,7 @@ pub(crate) const NO_MEDIA: &str = "❌ Gagal mengambil media. Coba link lain.";
 
 /// `instagramdl.js:79` — cabang `catch`.
 pub(crate) fn failed(message: &str) -> String {
-    format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʂ*\n\n> {message}")
+    format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʰ*\n\n> {message}")
 }
 
 /// Satu item media setelah pemetaan `src/scraper/ig.js:23-33`.
@@ -404,7 +404,7 @@ mod tests {
         let r = run("https://www.instagram.com/p/abc");
         assert_eq!(
             text_of(&r),
-            "❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʂ*\n\n> Gagal mengambil media dari Instagram"
+            "❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʰ*\n\n> Gagal mengambil media dari Instagram"
         );
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),

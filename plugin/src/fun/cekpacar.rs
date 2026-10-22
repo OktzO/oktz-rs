@@ -10,8 +10,14 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::jid_number;
 
-const HEADER: &str = "*sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*";
 
+/// Header status, tiga varian sesuai cabang JS (`cekpacar.js:35-66`).
+///
+/// Ditulis penuh (bukan `format!("{HEADER}")`) supaya grep literal di
+/// file ini langsung memuat ketiga bentuknya - sama seperti di JS.
+const HEADER_TANPA: &str = "💔 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*";
+const HEADER_SALAH: &str = "💭 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*";
+const HEADER_PACARAN: &str = "💕 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*";
 pub(crate) const NO_PAIR_REACT: &str = "💔";
 
 /// Target + flag `isOther`, urutan cabang JS persis:
@@ -74,7 +80,7 @@ pub fn cekpacar(ctx: Ctx) -> Reply {
     let Some(partner) = pasangan_of(&ctx, &target) else {
         return Reply::Text {
             text: format!(
-                "💔 {HEADER}\n\n*{nama}* tidak punya pasangan.\n\
+                "{HEADER_TANPA}\n\n*{nama}* tidak punya pasangan.\n\
                  TIP: Cari pasangan dulu dengan `{}tembak @tag`",
                 ctx.prefix
             ),
@@ -87,14 +93,14 @@ pub fn cekpacar(ctx: Ctx) -> Reply {
     let mentions = vec![target.clone(), partner.clone()];
     if pasangan_of(&ctx, &partner).as_deref() == Some(target.as_str()) {
         Reply::Text {
-            text: format!("💕 {HEADER}\n\n*{nama}* sedang pacaran dengan @{partner_num}! 🥳"),
+            text: format!("{HEADER_PACARAN}\n\n*{nama}* sedang pacaran dengan @{partner_num}! 🥳"),
             mentions,
         }
         .with_reaction("💕")
     } else {
         Reply::Text {
             text: format!(
-                "💭 {HEADER}\n\n*{nama}* lagi pdkt sama @{partner_num}\n\
+                "{HEADER_SALAH}\n\n*{nama}* lagi pdkt sama @{partner_num}\n\
                  Status: *Digantung* 😅\n\nMenunggu jawaban..."
             ),
             mentions,

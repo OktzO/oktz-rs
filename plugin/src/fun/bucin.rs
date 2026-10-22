@@ -397,7 +397,7 @@ pub fn bucin(_ctx: Ctx) -> Reply {
     // JS: `if (!quote) { await m.reply('❌ Data tidak tersedia!'); return }`
     match random_item(&BUCIN) {
         Some(quote) => Reply::text(format!("```\"{quote}\"```\n\n")),
-        None => Reply::text(crate::common::DATA_UNAVAILABLE),
+        None => Reply::text("❌ Data tidak tersedia!"),
     }
 }
 

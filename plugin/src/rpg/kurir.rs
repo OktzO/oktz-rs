@@ -2,6 +2,13 @@
 //!
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`; yang
 //! dikirim adalah hasil akhir beserta reaksi terakhir.
+//!
+//! `kurir.js:35` — pesan "Pakettt!!! 📦" dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
+//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Reaksi "📦" (`kurir.js:34`), "🐕" (`:47`), dan "✅" (`:65`) tidak ikut: reaksi tidak bisa dibarengkan
+//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
+//! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -48,19 +55,24 @@ pub fn kurir(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let gacha = math_random();
 
+    // `kurir.js:35` — pesan sebelum jeda `setTimeout`.
+    let paket = "Pakettt!!! 📦\nMencari alamat yang sesuai di maps... 🗺️".to_string();
+
     if gacha < 0.2 {
         let extra = 10;
         rpg.insert("stamina".into(), serde_json::json!((stamina - extra).max(0)));
         let new_exp = apply_exp(&mut rpg, old_exp, 500);
-        return Reply::text(format!(
-            "GUK GUK GUK! DIKEJAR ANJING GALAK! 🐕💨\n\n\
-             Kamu lari keliling komplek demi nyelametin paket orang!\n\
-             ⚡ Stamina Tambahan: -{extra}\n\
-             📈 EXP Kompensasi Lari: *+500*\n\
-             💵 Pendapatan: 0 (Paketnya dilempar ke pagar)\n\n\
-             Nafas ngos-ngosan banget asli! 🥵"
-        ))
-        .with_reaction("🐕")
+        return Reply::sequence_text([
+            paket,
+            format!(
+                "GUK GUK GUK! DIKEJAR ANJING GALAK! 🐕💨\n\n\
+                 Kamu lari keliling komplek demi nyelametin paket orang!\n\
+                 ⚡ Stamina Tambahan: -{extra}\n\
+                 📈 EXP Kompensasi Lari: *+500*\n\
+                 💵 Pendapatan: 0 (Paketnya dilempar ke pagar)\n\n\
+                 Nafas ngos-ngosan banget asli! 🥵"
+            ),
+        ])
         .with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "exp": new_exp, "rpg": rpg }),
@@ -93,9 +105,7 @@ pub fn kurir(ctx: Ctx) -> Reply {
          Berhasil nganter tepat waktu! 🚚💨"
     );
 
-    Reply::text(txt)
-        .with_reaction("✅")
-        .with_mutation(Mutation::SetUser {
+    Reply::sequence_text([paket, txt]).with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "koin": koin + total, "exp": new_exp, "rpg": rpg }),
         })
@@ -119,8 +129,12 @@ mod tests {
         (oktz_plugin_api::find("kurir").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. Plugin ini mengirim satu pesan
+    /// lagi sebelum jeda `setTimeout`, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn written(r: &Reply) -> &Value {

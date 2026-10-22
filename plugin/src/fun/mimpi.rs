@@ -124,10 +124,10 @@ pub(crate) fn render(name: &str) -> String {
     t.push_str(&format!("│ ⭐ *Level:* {level}\n"));
     t.push_str(&format!("│ 💫 *Quality:* {quality}\n"));
     for (header, items) in [
-        ("🌈 Elements:", pick_multi(&ELEMENTS, 3)),
-        ("🎪 Events:", pick_multi(&EVENTS, 2)),
-        ("🌟 Encounters:", pick_multi(&ENCOUNTERS, 2)),
-        ("💫 Powers:", pick_multi(&POWERS, 2)),
+        ("🌈 *Elements:*", pick_multi(&ELEMENTS, 3)),
+        ("🎪 *Events:*", pick_multi(&EVENTS, 2)),
+        ("🌟 *Encounters:*", pick_multi(&ENCOUNTERS, 2)),
+        ("💫 *Powers:*", pick_multi(&POWERS, 2)),
     ] {
         t.push_str(&format!("│ {header}\n"));
         for item in items {
@@ -161,6 +161,8 @@ pub(crate) fn reply_for(ctx: &Ctx) -> String {
     render(&explorer_name(ctx))
 }
 
+/// `mimpi.js:106` — pesan pertama, sebelum jeda 1,5 detik.
+pub(crate) const MASUK_MIMPI: &str = "🌙 *Memasuki alam dream...*";
 #[plugin(
     name = "mimpi",
     alias = ["dream", "dreamworld"],
@@ -173,7 +175,13 @@ pub(crate) fn reply_for(ctx: &Ctx) -> String {
     is_private = false
 )]
 pub fn mimpi(ctx: Ctx) -> Reply {
-    Reply::text(reply_for(&ctx))
+    // JS mengirim dua pesan berurutan: "Memasuki alam dream..." lalu kartunya,
+    // dengan reaksi `🌙` di awal (`mimpi.js:105-117`).
+    Reply::sequence(vec![
+        Reply::text(MASUK_MIMPI),
+        Reply::text(reply_for(&ctx)),
+    ])
+    .with_reaction("🌙")
 }
 
 #[cfg(test)]
@@ -249,6 +257,37 @@ mod tests {
 
     // -- seed: cabang yang membuat dreamworld deterministik ---------------
 
+    /// `mimpi.js:105-117` — dua pesan berurutan: "Memasuki alam dream..."
+    /// lalu kartu dreamworld, dengan reaksi `🌙` di awal.
+    #[test]
+    fn output_sama_dengan_js() {
+        let r = (oktz_plugin_api::find("mimpi").unwrap().handler)(ctx_of(&["Keisya"]));
+        match r.without_mutations() {
+            Reply::Reaction { emoji, reply } => {
+                assert_eq!(emoji, "🌙");
+                match reply.as_ref() {
+                    Reply::Sequence(pesan) => {
+                        assert_eq!(pesan.len(), 2, "dua pesan berurutan");
+                        assert_eq!(
+                            pesan[0].text_body(),
+                            Some("🌙 *Memasuki alam dream...*")
+                        );
+                        assert!(
+                            pesan[1]
+                                .text_body()
+                                .unwrap()
+                                .starts_with("╭═══❯ *🌙 DREAM WORLD* ❮═══\n│ 👤 *Explorer:* Keisya\n"),
+                            "{}",
+                            pesan[1].text_body().unwrap()
+                        );
+                    }
+                    other => panic!("harus Sequence, dapat {other:?}"),
+                }
+            }
+            other => panic!("harus Reaction, dapat {other:?}"),
+        }
+    }
+
     #[test]
     fn the_seed_is_the_sum_of_char_codes() {
         assert_eq!(seed_num(""), 0);
@@ -311,10 +350,10 @@ mod tests {
             "│ 👤 *Explorer:* Keisya",
             "│ ⭐ *Level:* ",
             "│ 💫 *Quality:* ",
-            "│ 🌈 Elements:",
-            "│ 🎪 Events:",
-            "│ 🌟 Encounters:",
-            "│ 💫 Powers:",
+            "│ 🌈 *Elements:*",
+            "│ 🎪 *Events:*",
+            "│ 🌟 *Encounters:*",
+            "│ 💫 *Powers:*",
             "│ 🔮 *Message:*",
         ] {
             assert!(out.contains(h), "bagian hilang: {h:?}\n{out}");
@@ -325,10 +364,10 @@ mod tests {
     #[test]
     fn the_item_counts_are_exactly_three_two_two_and_two() {
         let out = render("Apu");
-        assert_eq!(bullets_under(&out, "│ 🌈 Elements:"), 3);
-        assert_eq!(bullets_under(&out, "│ 🎪 Events:"), 2);
-        assert_eq!(bullets_under(&out, "│ 🌟 Encounters:"), 2);
-        assert_eq!(bullets_under(&out, "│ 💫 Powers:"), 2);
+        assert_eq!(bullets_under(&out, "│ 🌈 *Elements:*"), 3);
+        assert_eq!(bullets_under(&out, "│ 🎪 *Events:*"), 2);
+        assert_eq!(bullets_under(&out, "│ 🌟 *Encounters:*"), 2);
+        assert_eq!(bullets_under(&out, "│ 💫 *Powers:*"), 2);
     }
 
     #[test]
@@ -387,7 +426,11 @@ mod tests {
     fn the_registered_handler_always_answers_with_text() {
         for args in [vec![], vec!["Keisya"], vec!["a", "long", "name"], vec!["😀"]] {
             let reply = mimpi(ctx_of(&args));
-            let body = reply.text_body().unwrap_or_else(|| panic!("{args:?} tidak membalas"));
+            let body = match reply.without_mutations().tanpa_reaksi() {
+                Reply::Sequence(list) => list.last().and_then(Reply::text_body),
+                lain => lain.text_body(),
+            }
+            .unwrap_or_else(|| panic!("{args:?} tidak membalas"));
             assert!(body.starts_with("╭═══❯ *🌙 DREAM WORLD*"), "{body}");
             // Nama command tidak boleh bocor ke kartu.
             assert!(!body.contains("*Explorer:* mimpi"), "{body}");

@@ -71,12 +71,19 @@ fn search(http: &dyn oktz_plugin_api::HttpGet, query: &str) -> Result<Value, okt
     let route_preview = route_data.get("route").or(Some(&route_data)).and_then(Value::as_str).unwrap_or("");
 
     let cookie = if !sid.is_empty() { Some(format!("session_id={sid}")) } else { None };
-    let (_s2, _h2, full) = json_post(
+    let (s2, _h2, full) = json_post(
         http,
         BASE,
         &serde_json::json!({ "data": query, "route_preview": route_preview, "search_mode": "web_search" }),
         cookie.as_deref(),
     )?;
+    // `searchthatsong.js:85` — status full search diperiksa terpisah, dengan
+    // penanda `[fs]` (route preview memakai `[rp]`).
+    if s2 != 200 {
+        return Err(oktz_plugin_api::HttpError {
+            message: format!("request failed [fs] status={s2}"),
+        });
+    }
     Ok(full)
 }
 
@@ -90,7 +97,7 @@ fn build_result(raw: &Value) -> Value {
     let lirik = teks_atau_null("plain_lyrics");
     let potongan = teks_atau_null("most_relevant_chunk");
     serde_json::json!({
-        "song": a.get("song").or_else(|| a.get("title")).and_then(Value::as_str),
+        "song": a.get("song").and_then(Value::as_str),
         "artist": a.get("artist").and_then(Value::as_str),
         "album": a.get("album").and_then(Value::as_str),
         "year": a.get("year_song_released").or_else(|| a.get("year")).and_then(Value::as_str),
@@ -98,7 +105,7 @@ fn build_result(raw: &Value) -> Value {
         "confidence": a.get("router_confidence").and_then(Value::as_str),
         "lyrics": lirik,
         "relevant_chunk": potongan,
-        "preview_url": a.get("preview_audio_url").or_else(|| a.get("youtube_url")).and_then(Value::as_str),
+        "preview_url": a.get("preview_audio_url").and_then(Value::as_str),
         "album_artwork": a.get("album_artwork_url").or_else(|| a.get("album_artwork")).and_then(Value::as_str),
         "youtube_url": a.get("Youtube_URL").or_else(|| a.get("youtube_url")).and_then(Value::as_str),
     })
@@ -172,6 +179,9 @@ pub fn searchthatsong(ctx: Ctx) -> Reply {
     let lyrics = r.get("lyrics").and_then(Value::as_str).unwrap_or("");
     let preview = r.get("preview_url").and_then(Value::as_str).unwrap_or("");
 
+    // `searchthatsong.js:143`/`:146` — caption selalu di-`trim()`.
+    let caption = caption.trim().to_string();
+
     let mut msgs: Vec<Reply> = Vec::new();
     if !artwork.is_empty() {
         msgs.push(Reply::image(MediaSource::url(artwork), caption.clone()));
@@ -200,6 +210,9 @@ mod tests {
         headers_list: Mutex<Vec<Vec<(String, String)>>>,
         seen: Mutex<Vec<String>>,
         hit: Mutex<usize>,
+        /// Status per respons; default 200. Dipakai untuk menguji cabang
+        /// `request failed [rp]`/`[fs]`.
+        statuses: Mutex<Vec<u16>>,
     }
 
     impl Stub {
@@ -209,7 +222,14 @@ mod tests {
                 headers_list: Mutex::new(Vec::new()),
                 seen: Mutex::new(Vec::new()),
                 hit: Mutex::new(0),
+                statuses: Mutex::new(Vec::new()),
             })
+        }
+
+        fn dengan_status(responses: Vec<String>, statuses: Vec<u16>) -> Arc<Stub> {
+            let s = Stub::ordered(responses);
+            *s.statuses.lock().unwrap() = statuses;
+            s
         }
     }
 
@@ -229,7 +249,10 @@ mod tests {
                 });
             };
             Ok(HttpResponse {
-                status: 200,
+                status: {
+                    let s = self.statuses.lock().unwrap();
+                    s.get(i).copied().unwrap_or(200)
+                },
                 body: HttpBody::Bytes {
                     data: Arc::from(body.into_bytes()),
                     mimetype: Some("application/json".into()),
@@ -280,6 +303,52 @@ mod tests {
             Reply::Reaction { emoji, .. } => Some(emoji.as_str()),
             _ => None,
         }
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `searchthatsong.js:118` — tanpa query.
+        let r = run(Stub::ordered(vec![]), "");
+        assert_eq!(
+            body(&r),
+            "❌ Masukkan potongan lirik atau nama lagu yang ingin dicari.\n\nContoh: `.sts ku menangis membayangkan`"
+        );
+        // `searchthatsong.js:128` — lagu tidak ditemukan.
+        let http = Stub::ordered(vec![
+            serde_json::json!({ "session_id": "x", "route": "r" }).to_string(),
+            serde_json::json!({ "answer": {} }).to_string(),
+        ]);
+        assert_eq!(
+            body(&run(http, "xyz")),
+            "⚠️ Lagu tidak ditemukan. Coba gunakan lirik yang lebih spesifik."
+        );
+        // `searchthatsong.js:166` — error sistem.
+        let http = Stub::ordered(vec![]);
+        assert_eq!(
+            body(&run(http, "x")),
+            "😔 Terjadi kesalahan saat mencari lagu. Server mungkin sedang bermasalah."
+        );
+    }
+
+    #[test]
+    fn status_full_search_menggunakan_penanda_fs() {
+        // `searchthatsong.js:77` = `[rp]`, `:85` = `[fs]`.
+        let http = Stub::dengan_status(
+            vec![
+                serde_json::json!({ "session_id": "x" }).to_string(),
+                serde_json::json!({}).to_string(),
+            ],
+            vec![200, 503],
+        );
+        let err = search(http.as_ref(), "q").unwrap_err();
+        assert_eq!(err.message, "request failed [fs] status=503");
+
+        let http = Stub::dengan_status(
+            vec![serde_json::json!({ "session_id": "x" }).to_string()],
+            vec![500],
+        );
+        let err = search(http.as_ref(), "q").unwrap_err();
+        assert_eq!(err.message, "request failed [rp] status=500");
     }
 
     #[test]

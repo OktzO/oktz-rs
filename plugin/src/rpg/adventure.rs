@@ -1,9 +1,14 @@
 //! `plugins/rpg/adventure.js` — petualangan acak: menang dapat koin + exp,
 //! kalah kehilangan HP (dan kalau habis, exp dipotong setengah).
 //!
-//! Yang tidak ikut ke port: `m.react("🗺️")` dan pesan "Mengepak ransel..."
-//! sebelum jeda `setTimeout` (`Reply` hanya bisa satu pesan), plus kartu
-//! level-up yang butuh canvas.
+//! `adventure.js:35` mengirim pesan "Mengepak ransel..." lebih dulu, lalu
+//! `setTimeout(2500)` (`adventure.js:36`), baru pesan hasil. Dua pesan itu
+//! dikirim berurutan lewat [`Reply::sequence`].
+//!
+//! Yang tidak ikut ke port: `m.react("🗺️")` (`adventure.js:34`) dan kartu
+//! level-up yang butuh canvas. Reaksi tidak bisa dibarengkan `Reply::sequence`
+//! (jalur reaksi pipeline hanya bisa merender satu pesan), jadi teks dua
+//! pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -54,13 +59,19 @@ pub fn adventure(ctx: Ctx) -> Reply {
 
     let location = LOCATIONS[crate::common::random_index(LOCATIONS.len())];
 
+    // `adventure.js:35` — pesan sebelum jeda `setTimeout`.
+    let persiapan = format!(
+        "Mengepak ransel dan menyalakan obor... Memasuki *{location}*... ⚔️🗺️\n\
+         Hati-hati ya kak, auranya lumayan mencekam!"
+    );
+
     if roll_percent() < WIN_PERCENT {
         let exp_gain = roll_incl(500, 2_499);
         let money_gain = roll_incl(2_000, 11_999);
         let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
         let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-        return Reply::text(format!(
+        let hasil = format!(
             "🗡️ *PETUALANGAN BERHASIL!!* 🗡️\n\n\
              📍 Lokasi: *{location}*\n\n\
              Wah hebat kak! Kamu berhasil ngalahin monster penjaga dan nemuin peti harta karun!\n\
@@ -69,8 +80,9 @@ pub fn adventure(ctx: Ctx) -> Reply {
              Kembali dengan selamat! Lanjut petualang lagi nanti ya kak! 🚀✨",
             thousands_id(money_gain as f64),
             thousands_id(exp_gain as f64)
-        ))
-        .with_mutation(Mutation::SetUser {
+        );
+
+        return Reply::sequence_text([persiapan, hasil]).with_mutation(Mutation::SetUser {
             jid: ctx.sender.clone(),
             data: serde_json::json!({ "koin": crate::common::int_field(&ctx, "koin") + money_gain,
                           "exp": new_exp,
@@ -94,7 +106,7 @@ pub fn adventure(ctx: Ctx) -> Reply {
     let exp_after = if left <= 0 {
         msg.push_str(
             "💀 *KAMU MATI!*\n\
-             Yaampun kak...Kamu tewas di tempat. EXP kamu kena penalti 50% nh. 💔🥀",
+             Yaampun kak... Kamu tewas di tempat. EXP kamu kena penalti 50% nih. 💔🥀",
         );
         Some(or_default(ctx.user_field("exp").and_then(Value::as_i64), 0) / 2)
     } else {
@@ -106,7 +118,7 @@ pub fn adventure(ctx: Ctx) -> Reply {
         Some(exp) => serde_json::json!({ "exp": exp, "rpg": rpg }),
         None => serde_json::json!({ "rpg": rpg }),
     };
-    Reply::text(msg).with_mutation(Mutation::SetUser {
+    Reply::sequence_text([persiapan, msg]).with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data,
     })
@@ -128,8 +140,17 @@ mod tests {
         (oktz_plugin_api::find("adventure").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `adventure.js:35` mengirim satu
+    /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
+    }
+
+    /// Semua teks balasan, urut.
+    fn semua_teks(r: &Reply) -> Vec<String> {
+        crate::rpg::heal::reply_texts(r)
     }
 
     fn write_of(r: &Reply) -> Value {
@@ -281,5 +302,51 @@ mod tests {
                 "lokasi di luar tabel: {t}"
             );
         }
+    }
+
+    /// `adventure.js:35` — pesan sebelum jeda dan teks hasil harus persis
+    /// sama dengan JS.
+    #[test]
+    fn output_sama_dengan_js() {
+        for _ in 0..400 {
+            let r = run(serde_json::json!({ "rpg": { "health": 100 }, "koin": 0, "exp": 0 }));
+            let semua = semua_teks(&r);
+            assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+            assert!(
+                semua[0].starts_with("Mengepak ransel dan menyalakan obor... Memasuki *"),
+                "{}",
+                semua[0]
+            );
+            assert!(semua[0].ends_with(
+                "... ⚔️🗺️\nHati-hati ya kak, auranya lumayan mencekam!"
+            ));
+            let hasil = &semua[1];
+            assert!(
+                hasil.starts_with("🗡️ *PETUALANGAN BERHASIL!!* 🗡️")
+                    || hasil.starts_with("☠️ *DISERGAP MONSTER!!* ☠️"),
+                "{hasil}"
+            );
+        }
+    }
+
+    /// `adventure.js:69` — kalimat kematian persis seperti JS.
+    #[test]
+    fn kalimat_kematian_sama_dengan_js() {
+        for _ in 0..600 {
+            let r = run(serde_json::json!({ "rpg": { "health": 30 }, "koin": 7, "exp": 901 }));
+            let t = text_of(&r);
+            if !t.contains("💀 *KAMU MATI!*") {
+                continue;
+            }
+            assert!(
+                t.ends_with(
+                    "💀 *KAMU MATI!*\nYaampun kak... Kamu tewas di tempat. \
+                     EXP kamu kena penalti 50% nih. 💔🥀"
+                ),
+                "{t}"
+            );
+            return;
+        }
+        panic!("tidak pernah mati dalam 600 percobaan");
     }
 }

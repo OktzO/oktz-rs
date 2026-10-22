@@ -39,7 +39,7 @@ const TRUTHS: [&str; 15] = [
     "Apa kebohongan terbesar yang pernah kamu ucapkan ke sahabatmu?",
 ];
 
-const DARES: [&str; 16] = [
+const DARES: [&str; 15] = [
     "Kirim foto selfie kamu dengan gaya paling jelek sekarang juga ke grup!",
     "Kirim VN (Voice Note) nyanyi reff lagu 'Balonku Ada Lima' tapi semua huruf vokalnya diganti jadi 'O'.",
     "Chat mantan kamu sekarang, bilang 'Aku masih sayang', lalu screenshot dan kirim ke grup ini!",
@@ -55,7 +55,6 @@ const DARES: [&str; 16] = [
     "Sebutkan nama lengkapmu dengan suara berteriak di VN!",
     "Pilih salah satu nomor secara acak dari kontakmu, chat 'P' sebanyak 10 kali, screenshot ke sini!",
     "Jadikan foto profil bot ini sebagai foto profil WhatsApp kamu selama 30 menit.",
-    "Kirim VN menyanyikan lagu Indonesia paling viral dengan serapih mungkin!",
 ];
 
 /// `Math.random() > 0.5` — undian 50/50 antara TRUTH dan DARE.

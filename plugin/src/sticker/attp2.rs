@@ -48,7 +48,13 @@ pub(crate) fn pakai(prefix: &str, command: &str) -> String {
     is_bot_admin = false
 )]
 pub fn attp2(ctx: Ctx) -> Reply {
-    let text = ctx.text.trim();
+    // `attp2.js:68` — `m.text?.trim() || m.quoted?.text?.trim()`.
+    let mut text = ctx.text.trim().to_string();
+    if text.is_empty()
+        && let Some(q) = ctx.quoted()
+    {
+        text = q.text.trim().to_string();
+    }
     if text.is_empty() {
         return Reply::text(pakai(&ctx.prefix, &ctx.command));
     }
@@ -126,6 +132,36 @@ mod tests {
                 r.without_mutations(),
                 Reply::Reaction { emoji, .. } if emoji == "☢"
             )
+        );
+    }
+
+    #[test]
+    fn teks_dari_pesan_yang_direply_dipakai_saat_tidak_ada_teks() {
+        // `attp2.js:68` — `m.quoted?.text?.trim()` jadi sumber teks.
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "attp2".into(),
+            text: String::new(),
+            args: vec![],
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            quoted: Some(oktz_plugin_api::QuotedMessage {
+                id: "MSG1".into(),
+                sender: "628111@s.whatsapp.net".into(),
+                chat: "628111@s.whatsapp.net".into(),
+                text: "Halo dunia".into(),
+                kind: oktz_plugin_api::QuotedKind::Text,
+                mimetype: None,
+                file_name: None,
+                from_me: false,
+            }),
+            ..Ctx::default()
+        };
+        let r = attp2(ctx);
+        assert_ne!(r.without_mutations().text_body().unwrap(), pakai(".", "attp2"));
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            crate::common::error_template_bawaan(".", "attp2")
         );
     }
 }

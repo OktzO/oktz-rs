@@ -69,6 +69,12 @@ fn tts_url(teks: &str) -> String {
     )
 }
 
+/// Target nama — urutan cabang JS persis (`cekkhodam.js:47-55`):
+/// `quoted` → `mentionedJid[0]` → `m.text` → `m.pushName` → nomor sender.
+///
+/// `m.pushName` ada di `Ctx` (`ctx.push_name`), jadi dipakai apa adanya.
+/// `m.quoted.pushName` tidak ada di `Ctx` — untuk quote dipakai nomor
+/// pengirim, sama seperti cabang fallback JS.
 fn target_name(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         q.sender.split('@').next().unwrap_or(&q.sender).to_string()
@@ -76,6 +82,8 @@ fn target_name(ctx: &Ctx) -> String {
         jid.split('@').next().unwrap_or(jid).to_string()
     } else if !ctx.text.trim().is_empty() {
         ctx.text.trim().to_string()
+    } else if !ctx.push_name.is_empty() {
+        ctx.push_name.clone()
     } else {
         ctx.sender.split('@').next().unwrap_or(&ctx.sender).to_string()
     }
@@ -112,7 +120,9 @@ pub fn cekkhodam(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal membuat audio khodam, coba lagi nanti.");
     }
 
-    Reply::audio(MediaSource::bytes(buf)).with_reaction("✅")
+    // JS tidak memanggil `m.react` sama sekali (`cekkhodam.js:56-72`), jadi
+    // balasan audio ini TIDAK diberi reaksi.
+    Reply::audio(MediaSource::bytes(buf))
 }
 
 #[cfg(test)]
@@ -239,6 +249,45 @@ mod tests {
     #[test]
     fn mention_digunakan_sebagai_target() {
         let r = run_dengan_mention(Stub::bytes(b"x".to_vec()), "628999@s.whatsapp.net");
-        assert_eq!(reaction_of(&r), Some("✅"));
+        assert!(r.has_media());
+        // JS tidak bereaksi di plugin ini.
+        assert!(reaction_of(&r).is_none());
+    }
+
+    /// `cekkhodam.js:47` — `m.pushName` dipakai kalau tidak ada quote/mention/teks.
+    #[test]
+    fn push_name_dipakai_sebagai_target_bawaan() {
+        let ctx = Ctx {
+            text: String::new(),
+            args: Vec::new(),
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "cekkhodam".into(),
+            push_name: "Budi".into(),
+            http: Stub::bytes(b"x".to_vec()),
+            ..Ctx::default()
+        };
+        assert_eq!(target_name(&ctx), "Budi");
+    }
+
+    /// `cekkhodam.js:48-49` — quote menang atas push_name.
+    #[test]
+    fn quote_menang_atas_push_name() {
+        let ctx = Ctx {
+            push_name: "Budi".into(),
+            quoted: Some(oktz_plugin_api::QuotedMessage {
+                id: "x".into(),
+                sender: "628999@s.whatsapp.net".into(),
+                chat: ME.into(),
+                text: String::new(),
+                kind: oktz_plugin_api::QuotedKind::Text,
+                mimetype: None,
+                file_name: None,
+                from_me: false,
+            }),
+            ..Ctx::default()
+        };
+        assert_eq!(target_name(&ctx), "628999");
     }
 }

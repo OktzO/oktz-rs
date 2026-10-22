@@ -5,10 +5,16 @@
 //! jadi tes di bawah menghasilkan `AlightMotion_.zip`; produksi (lebih
 //! `Runtime::from_config`) menghasilkan `AlightMotion_Oktz Bot.zip` seperti JS.
 
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
+
+/// `alightmotion.js:40` — UA yang dikirim ke API.
+const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
+
+/// `alightmotion.js:41` — Content-Type yang dikirim ke API.
+const CONTENT_TYPE: &str = "application/json";
 
 /// `alightmotion.js:23-28` — kartu pakai saat `text` kosong.
 fn help(prefix: &str) -> String {
@@ -75,7 +81,11 @@ pub fn alightmotion(ctx: Ctx) -> Reply {
 
     // `m.react("🕕")` di `:31` terjadi sebelum pemeriksaan; `Reply` hanya mampu
     // membawa satu reaksi, jadi yang ikut ke balasan hanyalah reaksi penutup.
-    let Ok(res) = ctx.http.get(&api_url(text)) else {
+    let Ok(res) = ctx.http.call(
+        &HttpCall::get(api_url(text))
+            .header("User-Agent", UA)
+            .header("Content-Type", CONTENT_TYPE),
+    ) else {
         return Reply::text(error_template(&ctx.prefix, &ctx.command)).with_reaction("☢");
     };
     let body = res.json().unwrap_or(Value::Null);

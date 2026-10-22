@@ -149,6 +149,45 @@ pub(crate) fn random_rare_frame() -> &'static str {
     FRAMES[crate::common::random_index(FRAMES.len())]
 }
 
+/// `Number.prototype.toLocaleString("id-ID")` — pemisah ribuan titik, tanda
+/// minus ikut (JS: `(-1000).toLocaleString("id-ID")` → `"-1.000"`).
+///
+/// `thousands_id` di `tools::kalkulatormbg` memakai `abs()`, jadi angka
+/// negatif kehilangan tanda minus; helper ini menutup celah itu.
+pub(crate) fn idr(n: i64) -> String {
+    let digits = n.unsigned_abs().to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push('.');
+        }
+        out.push(c);
+    }
+    if n < 0 {
+        out.insert(0, '-');
+    }
+    out
+}
+
+/// Caption pesan preview RPG: `sendRpgPreview` (`context.js:119-133`) memakai
+/// `caption: \`${config.info.website} ${text}\``.
+///
+/// Yang tidak ikut: `title`, `description`, dan `jpegThumbnail` — Rust tidak
+/// punya varian `extendedTextMessage` dengan preview.
+pub(crate) fn preview_caption(ctx: &Ctx, text: &str) -> String {
+    format!("{} {}", ctx.config().info.website, text)
+}
+
+/// Semua teks balasan, urut. `Reply::Sequence` dipecah jadi beberapa teks;
+/// balasan biasa cukup satu.
+pub(crate) fn reply_texts(reply: &Reply) -> Vec<String> {
+    match reply.without_mutations() {
+        Reply::Sequence(list) => list.iter().flat_map(reply_texts).collect(),
+        Reply::Reaction { reply: inner, .. } => reply_texts(inner),
+        other => other.text_body().map(|t| t.to_string()).into_iter().collect(),
+    }
+}
+
 #[plugin(
     name = "heal",
     alias = ["sembuh", "recover"],

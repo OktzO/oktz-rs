@@ -43,9 +43,9 @@ pub(crate) fn koin_amount(arg: &str, exp: i64) -> Option<i64> {
 pub(crate) fn not_enough(exp_needed: i64, exp: i64) -> String {
     format!(
         "❌ *EXP tidak cukup!*\n\n\
-         > Dibutuhkan: *{}* EXP\n\
-         > EXP kamu: *{}* EXP\n\n\
-         > Maksimal: *{}* Koin*",
+         > Dibutuhkan: *{} EXP*\n\
+         > EXP kamu: *{} EXP*\n\n\
+         > Maksimal: *{} Koin*",
         thousands_id(exp_needed as f64),
         thousands_id(exp as f64),
         thousands_id(exp.div_euclid(EXP_PER_KOIN) as f64)
@@ -222,9 +222,9 @@ mod tests {
         let r = run(serde_json::json!({"exp": 100, "koin": 0}), "100");
         let t = text_of(&r);
         assert!(t.starts_with("❌ *EXP tidak cukup!*"), "{t}");
-        assert!(t.contains("Dibutuhkan: *200* EXP"), "{t}");
-        assert!(t.contains("EXP kamu: *100* EXP"), "{t}");
-        assert!(t.contains("Maksimal: *50* Koin"), "{t}");
+        assert!(t.contains("Dibutuhkan: *200 EXP*"), "{t}");
+        assert!(t.contains("EXP kamu: *100 EXP*"), "{t}");
+        assert!(t.contains("Maksimal: *50 Koin*"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
@@ -324,5 +324,19 @@ mod tests {
         assert_eq!(koin_amount("0", 100), None);
         assert_eq!(koin_amount("-1", 100), None);
         assert_eq!(koin_amount("abc", 100), None);
+    }
+
+    /// `buykoin.js:58-63` — balasan "EXP tidak cukup" persis sama dengan JS:
+    /// satuan EXP/Koin DI DALAM bold.
+    #[test]
+    fn output_sama_dengan_js() {
+        let r = run(serde_json::json!({"exp": 100, "koin": 0}), "100");
+        assert_eq!(
+            text_of(&r),
+            "❌ *EXP tidak cukup!*\n\n\
+             > Dibutuhkan: *200 EXP*\n\
+             > EXP kamu: *100 EXP*\n\n\
+             > Maksimal: *50 Koin*"
+        );
     }
 }

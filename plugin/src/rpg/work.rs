@@ -2,6 +2,10 @@
 //!
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 //!
+//! `work.js:48` mengirim pesan "Otw berangkat kerja jadi *…* dulu kak!" lebih
+//! dulu, lalu `setTimeout(3000)` (`work.js:49`), baru pesan hasil. Dua pesan
+//! itu dikirim berurutan lewat [`Reply::sequence_text`].
+//!
 //! Catatan kursor: guard stamina pakai `user.rpg.stamina || 100` (nol falsy),
 //! dan `job.name.substring(3)` memotong 3 UNIT UTF-16 — bukan 3 karakter Rust.
 //! Untuk `👨‍🌾 Petani` itu berarti emote terakhir ikut tertinggal
@@ -57,22 +61,28 @@ pub fn work(ctx: Ctx) -> Reply {
     }
     rpg.insert("stamina".into(), serde_json::json!(stamina - STAMINA_COST));
 
-    let (label, _bare, min, max) = JOBS[crate::common::random_index(JOBS.len())];
+    let (label, bare, min, max) = JOBS[crate::common::random_index(JOBS.len())];
     let salary = roll_incl(min, max);
     let exp_gain = salary / 10;
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    Reply::text(format!(
-        "CIE YANG ABIS KERJA! 💸✨\n\n\
-         Gila, gajinya lumayan banget nih:\n\
-         💼 Profesi: *{label}*\n\
-         💵 Gaji Bersih: *+Rp {}*\n\
-         📈 EXP: *+{exp_gain}*\n\
-         ⚡ Stamina: *-{STAMINA_COST}*\n\n\
-         Kerja keras bagai quda membuahkan hasil kak! Lanjutkan! 🐴🔥",
-        thousands_id(salary as f64)
-    ))
+    // `work.js:48` — pesan sebelum jeda `setTimeout`.
+    let berangkat = format!("Otw berangkat kerja jadi *{bare}* dulu kak! 🏃💼💨");
+
+    Reply::sequence_text([
+        berangkat,
+        format!(
+            "CIE YANG ABIS KERJA! 💸✨\n\n\
+             Gila, gajinya lumayan banget nih:\n\
+             💼 Profesi: *{label}*\n\
+             💵 Gaji Bersih: *+Rp {}*\n\
+             📈 EXP: *+{exp_gain}*\n\
+             ⚡ Stamina: *-{STAMINA_COST}*\n\n\
+             Kerja keras bagai quda membuahkan hasil kak! Lanjutkan! 🐴🔥",
+            thousands_id(salary as f64)
+        ),
+    ])
     .with_mutation(Mutation::SetUser {
         jid: ctx.sender.clone(),
         data: serde_json::json!({ "koin": int_field(&ctx, "koin") + salary, "exp": new_exp, "rpg": rpg }),
@@ -97,8 +107,12 @@ mod tests {
         (oktz_plugin_api::find("work").unwrap().handler)(ctx)
     }
 
-    fn text_of(r: &Reply) -> &str {
-        r.without_mutations().text_body().expect("harus ada teks")
+    /// Teks balasan TERAKHIR — pesan hasil. `work.js:48` mengirim satu pesan
+    /// lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
+    fn text_of(r: &Reply) -> String {
+        let semua = crate::rpg::heal::reply_texts(r);
+        assert!(!semua.is_empty(), "harus ada teks");
+        semua[semua.len() - 1].clone()
     }
 
     fn written(r: &Reply) -> &Value {
@@ -186,5 +200,23 @@ mod tests {
     fn the_existing_balance_is_added_to_the_paycheque() {
         let r = run(serde_json::json!({"rpg": {"stamina": 100}, "koin": 250_000, "exp": 0}));
         assert!(written(&r)["koin"].as_i64().unwrap() > 250_000);
+    }
+
+    /// `work.js:48` — pesan sebelum jeda persis sama dengan JS, memakai
+    /// `job.name.substring(3)` (potong 3 unit UTF-16).
+    #[test]
+    fn output_sama_dengan_js() {
+        for _ in 0..300 {
+            let r = run(serde_json::json!({"rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
+            let semua = crate::rpg::heal::reply_texts(&r);
+            assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
+            let (_, bare, _, _) = JOBS
+                .iter()
+                .find(|(_, bare, _, _)| semua[0] == format!("Otw berangkat kerja jadi *{bare}* dulu kak! 🏃💼💨"))
+                .copied()
+                .unwrap_or_else(|| panic!("profesi tak dikenal: {}", semua[0]));
+            assert!(!bare.is_empty());
+            assert!(semua[1].starts_with("CIE YANG ABIS KERJA! 💸✨"), "{}", semua[1]);
+        }
     }
 }
