@@ -32,3 +32,6 @@ pub mod alightmotion;
 pub mod tiktok;
 pub mod tiktokdl2;
 pub mod ttmp3;
+
+#[cfg(test)]
+pub(crate) mod live_test;

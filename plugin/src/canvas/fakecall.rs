@@ -44,7 +44,10 @@ const CAPTION: &str = "";
 
 #[plugin(
     name = "fakecall",
-    alias = ["fakecall-android", "fakecall-ios", "fakecallwa"],
+    commands = [
+        "fakecall-android", "fakecall-ios",
+    ],
+    alias = ["fakecallwa"],
     category = "canvas",
     description = "Membuat gambar fake call WhatsApp (Tersedia versi Android dan iOS)",
     usage = ".fakecall nama | durasi",

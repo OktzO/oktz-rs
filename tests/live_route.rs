@@ -44,19 +44,36 @@ struct Roster;
 impl RosterSource for Roster {
     fn roster(&self, _chat: &str) -> SendBoxRoster<'_> {
         Box::pin(async {
-            Ok(oktz_plugin_api::registry::GroupRoster {
+            Ok(oktz_wa::pipeline::RosterSnapshot {
+                roster: oktz_plugin_api::registry::GroupRoster {
+                    participants: vec![
+                        oktz_plugin_api::registry::Participant {
+                            jid: BOT.to_string(),
+                            is_admin: true,
+                            ..Default::default()
+                        },
+                        oktz_plugin_api::registry::Participant {
+                            jid: MEMBER.to_string(),
+                            ..Default::default()
+                        },
+                    ],
+                    is_bot_admin: true,
+                },
                 participants: vec![
-                    oktz_plugin_api::registry::Participant {
-                        jid: BOT.to_string(),
-                        is_admin: true,
-                        ..Default::default()
+                    oktz_router::group::Participant {
+                        id: BOT.to_string(),
+                        lid: String::new(),
+                        phone_number: BOT.to_string(),
+                        admin: true,
                     },
-                    oktz_plugin_api::registry::Participant {
-                        jid: MEMBER.to_string(),
-                        ..Default::default()
+                    oktz_router::group::Participant {
+                        id: MEMBER.to_string(),
+                        lid: String::new(),
+                        phone_number: MEMBER.to_string(),
+                        admin: false,
                     },
                 ],
-                is_bot_admin: true,
+                available: true,
             })
         })
     }

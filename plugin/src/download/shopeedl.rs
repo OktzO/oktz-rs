@@ -3,7 +3,7 @@
 //! `ponytail:` `Reply` tidak punya variant video, jadi hasil `sendMessage` hanya
 //! terkirim sebagai caption teks; URL videonya tidak ikut.
 
-use oktz_plugin_api::{Ctx, HttpBody, HttpGet, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpBody, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::js_truthy_value;
@@ -133,8 +133,17 @@ pub fn shopeedl(ctx: Ctx) -> Reply {
         return Reply::text(NO_STREAM).with_reaction("❌");
     };
 
-    // `shopeedl.js:67-72` — `sendMessage` video lalu centang hijau.
-    Reply::text(caption(&data, best)).with_reaction("✅")
+    // `shopeedl.js:67-72` — `sendMessage` video dengan caption, lalu centang
+    // hijau. URL mentah dikirim, pipeline yang mengunduh saat kirim.
+    Reply::video(MediaSource::url(url_stream(best)), caption(&data, best)).with_reaction("✅")
+}
+
+/// `videoUrl` dari satu stream — `best.stream_url` (`shopeedl.js:62`).
+fn url_stream(best: &Value) -> String {
+    best.get("stream_url")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -186,10 +195,9 @@ mod tests {
                     .map(|(k, v)| (*k, String::from_utf8_lossy(v.bytes()).into_owned()))
                     .collect::<Vec<_>>()
             ));
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            let text = self.body.clone().map_err(|()| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -269,7 +277,8 @@ mod tests {
 
     #[test]
     fn the_link_is_posted_as_a_multipart_form_field() {
-        let http = Stub::body(serde_json::json!({ "success": true, "streams_array": [stream("V1080P")] }));
+        let http =
+            Stub::body(serde_json::json!({ "success": true, "streams_array": [stream("V1080P")] }));
         let _ = run(http.clone(), "https://shopee.co.id/universal-link/video/1");
         assert_eq!(
             http.seen.lock().unwrap().clone(),
@@ -335,7 +344,11 @@ mod tests {
             serde_json::json!({ "success": true, "username": null, "streams_array": [stream("V720P")] }),
         ] {
             let r = run(Stub::body(body.clone()), "https://shopee.co.id/x");
-            assert!(!text_of(&r).contains("Username"), "body {body}: {}", text_of(&r));
+            assert!(
+                !text_of(&r).contains("Username"),
+                "body {body}: {}",
+                text_of(&r)
+            );
         }
     }
 
@@ -363,5 +376,17 @@ mod tests {
             assert_eq!(text_of(&r), SEND_FAILED);
             assert_eq!(reaction_of(&r), Some("☢"));
         }
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Shopee; set OKTZ_TEST_SHOPEE_URL"]
+    fn live_shopeedl_mengambil_video() {
+        // Uji live padanan `plugins/download/shopeedl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_SHOPEE_URL");
+        let (http, ctx) = live_ctx("shopeedl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("shopeedl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

@@ -2,8 +2,8 @@
 //!
 //! `ponytail:` `pluginConfig.name` di JS adalah array
 //! `['autodl', 'autodownload']`. `PluginMeta.name` hanya `String`, jadi
-//! elemen pertama jadi `name` dan sisanya jadi `alias` — registry
-//! `matches()` tetap menerima keduanya.
+//! elemen pertama jadi `name` dan sisanya jadi command tambahan
+//! (`PluginMeta::commands`) — registry `find()` mengeceknya sebelum alias.
 //!
 //! Penegakan `m.text` dipindah tidak: filtering link dan unduhan berjalan di
 //! middleware/handler lain, bukan di `.autodl`.
@@ -16,7 +16,10 @@ pub(crate) const BAD_ARG: &str = "❌ *ᴀʀɢᴜᴍᴇɴ ᴛɪᴅᴀᴋ ᴠᴀ�
 
 #[plugin(
     name = "autodl",
-    alias = ["autodownload"],
+    commands = [
+        "autodownload",
+    ],
+    alias = [],
     category = "group",
     description = "Toggle auto download link sosmed",
     usage = ".autodl on/off",
@@ -107,7 +110,8 @@ mod tests {
         let p = oktz_plugin_api::find("autodl").unwrap();
         // `name` di JS adalah array `['autodl', 'autodownload']`.
         assert_eq!(p.meta.name, "autodl");
-        assert_eq!(p.meta.alias, ["autodownload"]);
+        assert_eq!(p.meta.commands, ["autodownload"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.description, "Toggle auto download link sosmed");
         assert_eq!(p.meta.usage, ".autodl on/off");
         assert_eq!(p.meta.example, ".autodl on");

@@ -1,14 +1,15 @@
 //! `plugins/download/spotifydl.js` — unduh lagu dari Spotify.
 //!
-//! `ponytail:` resolver berlapis belum di-port; yang dipakai di sini backend
-//! agregator yang sudah jadi cadangan kedua di JS (`nexray` →
-//! `/downloader/spotify`, `src/capabilities/spotify.js:60`).
+//! Urutan backend mengikuti `src/lib/resolve.js`: scraper lokal `spotyloader`
+//! dulu, lalu agregator `nexray` sebagai cadangan
+//! (`src/capabilities/spotify.js:13-72`). Bentuk lokal dan amplop aggregator
+//! dinormalisasi terpisah.
 //!
-//! `ponytail:` `Reply` tidak punya variant audio, jadi file audio tidak
-//! terkirim — hanya teks. Tambahkan `Reply::Audio` di `oktz-plugin-api`
-//! kalau pipeline sudah bisa mengunggah audio.
+//! Audio dikirim seperti `spotifydl.js:33-38`: `{ audio: { url }, mimetype:
+//! "audio/mpeg" }` → [`Reply::Audio`]. `fileName` tidak punya padanan di
+//! [`MediaSource`], dan Baileys juga mengabaikannya untuk `audioMessage`.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use super::douyindl::query_encode;
@@ -45,23 +46,33 @@ pub(crate) struct Track {
     pub url: String,
 }
 
-pub(crate) fn normalize(body: &Value) -> Result<Track, ()> {
-    if body.get("status").and_then(Value::as_bool) != Some(true) {
-        return Err(());
-    }
-    let isi = body.get("result").filter(|r| r.is_object()).ok_or(())?;
+/// Kegagalan normalisasi aggregator dipisahkan dari kegagalan backend.
+/// `status: false` dilempar oleh `lewatNexray` sebelum `normalize`, jadi bukan
+/// bukti link tidak ada (`src/capabilities/spotify.js:57-72`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AggregatorFailure {
+    Backend,
+    Normalization,
+}
+
+/// `trackUnduh` (`src/capabilities/spotify.js:131-146`).
+fn track_dari(isi: &Value) -> Result<Track, ()> {
     let raw = isi
         .get("url")
+        .filter(|value| !value.is_null())
         .or_else(|| isi.get("download_url"))
         .and_then(Value::as_str)
         .unwrap_or("")
         .trim()
         .to_string();
-    if !raw.starts_with("http://") && !raw.starts_with("https://") {
+    let Some((scheme, _)) = raw.split_once("://") else {
+        return Err(());
+    };
+    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
         return Err(());
     }
-    let text = |k: &str| {
-        isi.get(k)
+    let text = |key: &str| {
+        isi.get(key)
             .and_then(Value::as_str)
             .unwrap_or("")
             .trim()
@@ -72,6 +83,32 @@ pub(crate) fn normalize(body: &Value) -> Result<Track, ()> {
         artist: text("artist"),
         url: raw,
     })
+}
+
+/// Bentuk lokal `downloadSpotify` (`src/scraper/spotify.js:8-53`).
+fn normalize_local(body: &Value) -> Result<Track, ()> {
+    track_dari(body)
+}
+
+/// Bentuk amplop aggregator (`isiAmplop`, `src/capabilities/spotify.js:96-108`).
+fn normalize_aggregator(body: &Value) -> Result<Track, AggregatorFailure> {
+    let envelope =
+        body.is_array() || (body.get("status").is_some() || body.get("result").is_some());
+    if !envelope {
+        return track_dari(body).map_err(|_| AggregatorFailure::Normalization);
+    }
+    if !body
+        .get("status")
+        .map(oktz_scraper::common::truthy)
+        .unwrap_or(false)
+    {
+        return Err(AggregatorFailure::Backend);
+    }
+    let result = body
+        .get("result")
+        .filter(|value| value.is_object())
+        .ok_or(AggregatorFailure::Normalization)?;
+    track_dari(result).map_err(|_| AggregatorFailure::Normalization)
 }
 
 /// `spotifydl.js:31` — `${artist || "Spotify"} - ${title || "Audio"}.mp3`.
@@ -111,22 +148,41 @@ pub fn spotifydl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    let url = format!("{ENDPOINT}?url={}", query_encode(text));
-
-    // Klasifikasi dari `tried` di JS dipisah di sini oleh LAPIS: request yang
-    // gagal total (transport/bukan JSON) adalah kegagalan proses, sedangkan
-    // respons yang sampai tapi tidak punya URL unduhan adalah "normalisasi
-    // gagal" — dua pesan yang berbeda di `spotifydl.js:48-53`.
-    let body = ctx.http.get(&url).ok().and_then(|r| r.json());
-    match body.as_ref().and_then(|b| normalize(b).ok()) {
-        Some(track) => Reply::text(filename(&track)),
-        None => {
-            if body.is_some() {
-                Reply::text(NO_DOWNLOAD).with_reaction("❌")
-            } else {
-                Reply::text(SYS_ERROR).with_reaction("❌")
+    // `resolve.js` mencoba backend lokal sebelum backend API. Error lokal
+    // tidak menghentikan aggregator; hanya normalisasi yang gagal yang membuat
+    // pesan tautan, sisanya adalah kegagalan proses.
+    let mut normalisasi_gagal = false;
+    let local = match oktz_scraper::spotify::download_spotify(ctx.http.as_ref(), text) {
+        Ok(body) => match normalize_local(&body) {
+            Ok(track) => Some(track),
+            Err(()) => {
+                normalisasi_gagal = true;
+                None
             }
+        },
+        Err(_) => None,
+    };
+    let data = local.or_else(|| {
+        let url = format!("{ENDPOINT}?url={}", query_encode(text));
+        let body = ctx.http.get(&url).ok().and_then(|response| response.json());
+        match body.as_ref().map(|body| normalize_aggregator(body)) {
+            Some(Ok(track)) => Some(track),
+            Some(Err(AggregatorFailure::Normalization)) => {
+                normalisasi_gagal = true;
+                None
+            }
+            Some(Err(AggregatorFailure::Backend)) | None => None,
         }
+    });
+
+    match data {
+        // `spotifydl.js:33-40` — `{ audio: { url }, mimetype: "audio/mpeg" }`
+        // lalu reaksi ✅.
+        Some(track) => {
+            Reply::audio(Ms::url(track.url).with_mimetype("audio/mpeg")).with_reaction("✅")
+        }
+        None if normalisasi_gagal => Reply::text(NO_DOWNLOAD).with_reaction("❌"),
+        None => Reply::text(SYS_ERROR).with_reaction("❌"),
     }
 }
 
@@ -138,20 +194,48 @@ mod tests {
 
     #[derive(Debug)]
     struct Stub {
-        body: Result<String, ()>,
-        seen: Mutex<Vec<String>>,
+        local: Result<String, HttpError>,
+        aggregator: Result<String, HttpError>,
+        seen: Mutex<Vec<oktz_plugin_api::HttpCall>>,
     }
 
     impl Stub {
         fn body(v: Value) -> Arc<Stub> {
             Arc::new(Stub {
-                body: Ok(v.to_string()),
+                local: Err(HttpError {
+                    message: "local offline".into(),
+                }),
+                aggregator: Ok(v.to_string()),
                 seen: Mutex::new(Vec::new()),
             })
         }
+
+        fn local(v: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                local: Ok(v.to_string()),
+                aggregator: Err(HttpError {
+                    message: "aggregator offline".into(),
+                }),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn pair(local: Value, aggregator: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                local: Ok(local.to_string()),
+                aggregator: Ok(aggregator.to_string()),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
-                body: Err(()),
+                local: Err(HttpError {
+                    message: "local offline".into(),
+                }),
+                aggregator: Err(HttpError {
+                    message: "aggregator offline".into(),
+                }),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -159,11 +243,11 @@ mod tests {
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            self.seen
+                .lock()
+                .unwrap()
+                .push(oktz_plugin_api::HttpCall::get(url));
+            let text = self.aggregator.clone()?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -174,17 +258,34 @@ mod tests {
             })
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
         }
         fn post_multipart(
             &self,
             _: &str,
             _: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
+        }
+
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let text = match req.method {
+                oktz_plugin_api::HttpMethod::Post => self.local.clone()?,
+                oktz_plugin_api::HttpMethod::Get => self.aggregator.clone()?,
+                lain => panic!("metode {lain:?} tidak dipakai"),
+            };
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(text.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
         }
     }
 
@@ -266,33 +367,108 @@ mod tests {
         assert!(http.seen.lock().unwrap().is_empty());
     }
 
+    /// `Reply::Audio` dari balasan, kalau ada.
+    fn audio_dari(r: &Reply) -> Option<(String, bool)> {
+        match r {
+            Reply::Audio { media, .. } => {
+                let m = media.as_ref()?;
+                Some((m.mimetype().unwrap_or("").to_string(), true))
+            }
+            _ => None,
+        }
+    }
+
+    /// Isi balasan sebenarnya: `without_mutations` hanya membuang `Mutate`,
+    /// jadi `Reaction { reply }` masih harus dibuka satu lapis.
+    fn isi(r: &Reply) -> &Reply {
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        }
+    }
+
     #[test]
-    fn a_resolved_track_replies_with_the_mp3_filename() {
+    fn a_resolved_track_sends_the_audio_media() {
         let http = Stub::body(ok_body());
-        let r = run(http.clone(), "https://open.spotify.com/track/3RY0NyQQXxuAiyk5eAS4fC");
-        assert_eq!(text_of(&r), "Nasional - Indonesia Raya.mp3");
+        let r = run(
+            http.clone(),
+            "https://open.spotify.com/track/3RY0NyQQXxuAiyk5eAS4fC",
+        );
+        // `spotifydl.js:33-40` — media audio + reaksi ✅.
+        let (mime, _) = audio_dari(isi(&r)).expect("audio harus terkirim");
+        assert_eq!(mime, "audio/mpeg");
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 1);
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[0].url, "https://spotyloader.com/api/spotify/track");
+        assert_eq!(seen[1].method, oktz_plugin_api::HttpMethod::Get);
         assert!(
-            seen[0].starts_with("https://api.nexray.eu.cc/downloader/spotify?url=https%3A%2F%2F"),
+            seen[1]
+                .url
+                .starts_with("https://api.nexray.eu.cc/downloader/spotify?url=https%3A%2F%2F"),
             "{}",
-            seen[0]
+            seen[1].url
         );
     }
 
     #[test]
-    fn missing_artist_and_title_fall_back_to_spotify_and_audio() {
-        let body = serde_json::json!({ "status": true, "result": { "url": "https://cdn.example/a.mp3" } });
+    fn scraper_lokal_sukses_dipakai_sebelum_aggregator() {
+        let http = Stub::local(serde_json::json!({
+            "downloadLink": "https://cdn.example/local.mp3",
+            "post": {
+                "name": "Lagu Lokal",
+                "artist": "Artis Lokal",
+                "mime": "audio/mpeg"
+            }
+        }));
+        let r = run(http.clone(), "https://open.spotify.com/track/x");
+
+        assert!(audio_dari(isi(&r)).is_some());
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(
+            seen.len(),
+            1,
+            "aggregator tidak boleh dihubungi setelah local sukses"
+        );
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[0].url, "https://spotyloader.com/api/spotify/track");
+    }
+
+    #[test]
+    fn normalisasi_lokal_gagal_lanjut_ke_aggregator() {
+        let http = Stub::pair(
+            serde_json::json!({
+                "downloadLink": "ftp://invalid/audio.mp3",
+                "post": { "name": "Lagu", "artist": "Artis" }
+            }),
+            ok_body(),
+        );
+        let r = run(http.clone(), "https://open.spotify.com/track/x");
+
+        assert!(audio_dari(isi(&r)).is_some());
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[1].method, oktz_plugin_api::HttpMethod::Get);
+    }
+
+    #[test]
+    fn missing_artist_and_title_still_send_the_audio() {
+        let body =
+            serde_json::json!({ "status": true, "result": { "url": "https://cdn.example/a.mp3" } });
         let r = run(Stub::body(body), "https://open.spotify.com/track/x");
-        assert_eq!(text_of(&r), "Spotify - Audio.mp3");
+        assert!(
+            audio_dari(isi(&r)).is_some(),
+            "audio tetap terkirim tanpa judul"
+        );
     }
 
     #[test]
     fn a_response_without_a_download_url_gets_the_amber_warning() {
-        // `adaNormalisasiGagal` (`spotifydl.js:48`): backend menjawab tapi
-        // tidak ada yang bisa dikirim — track tidak ada atau terkunci region.
+        // `adaNormalisasiGagal` (`spotifydl.js:48`): backend menjawab normalisasi
+        // gagal karena tidak ada yang bisa dikirim — track tidak ada atau
+        // terkunci region.
         for body in [
-            serde_json::json!({ "status": false, "msg": "not found" }),
             serde_json::json!({ "status": true, "result": { "title": "x", "url": "ftp://x" } }),
             serde_json::json!({ "status": true, "result": {} }),
             serde_json::json!({ "status": true }),
@@ -305,6 +481,18 @@ mod tests {
                 "harus bereaksi ❌"
             );
         }
+    }
+
+    #[test]
+    fn aggregator_status_false_adalah_kegagalan_backend_bukan_normalisasi_gagal() {
+        // `lewatNexray` melempar sebelum `normalize` di `src/capabilities/spotify.js`.
+        // Jadi `status: false` tidak menghasilkan awalan `normalisasi gagal:` dan
+        // pesan yang benar adalah kegagalan proses, bukan tautan tidak ada.
+        let r = run(
+            Stub::body(serde_json::json!({ "status": false, "msg": "not found" })),
+            "https://open.spotify.com/track/x",
+        );
+        assert_eq!(text_of(&r), SYS_ERROR);
     }
 
     #[test]
@@ -322,6 +510,18 @@ mod tests {
             "result": { "download_url": "https://cdn.example/b.mp3", "title": "T" }
         });
         let r = run(Stub::body(body), "https://open.spotify.com/track/x");
-        assert_eq!(text_of(&r), "Spotify - T.mp3");
+        assert!(audio_dari(isi(&r)).is_some(), "audio tetap terkirim");
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Spotify; set OKTZ_TEST_SPOTIFY_URL"]
+    fn live_spotifydl_mengambil_audio() {
+        // Uji live padanan `plugins/download/spotifydl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_SPOTIFY_URL");
+        let (http, ctx) = live_ctx("spotifydl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("spotifydl").unwrap().handler)(ctx);
+        assert_media(&reply, &["audio"], &http);
     }
 }

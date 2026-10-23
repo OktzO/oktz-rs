@@ -117,7 +117,10 @@ pub(crate) fn unduhan_mp3(hasil: &Value) -> Option<&str> {
 
 #[plugin(
     name = "tiktok2",
-    alias = ["tt2", "tiktokdl2", "ttdown2"],
+    commands = [
+        "tt2",
+    ],
+    alias = ["tiktokdl2", "ttdown2"],
     category = "download",
     description = "Download video/slide TikTok tanpa watermark",
     usage = ".tiktok2 <url>",
@@ -147,9 +150,7 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
     // membawa satu reaksi, jadi hanya reaksi penutup di bawah yang dikirim.
 
     // `tiktokdl2.js:267-271` — catch membalas template error + reaksi ☢.
-    let gagal = || {
-        Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
-    };
+    let gagal = || Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
 
     // ponytail: JS cuma memakai savett; `ttdown` ditambahkan sebagai cadangan
     // (lihat header). Hapus `or_else` kalau ingin persis seperti JS.
@@ -201,14 +202,29 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
             foto.len()
         ))];
         for (i, slide) in foto.iter().enumerate() {
-            let alamat = slide
+            // `if (!imgUrl) continue` (`tiktokdl2.js:179-181`): slide tanpa URL
+            // dilewati, bukan dikirim sebagai `MediaSource::url("")` yang pasti
+            // gagal fetch di pipeline.
+            let Some(alamat) = slide
                 .get("url")
                 .and_then(Value::as_str)
                 .filter(|u| !u.is_empty())
-                .unwrap_or_default();
-            // `caption: i === 0 ? caption : ''` (`tiktokdl2.js:185`).
-            let teks = if i == 0 { caption(&hasil) } else { String::new() };
-            balasan.push(Reply::image(MediaSource::url(alamat), teks));
+            else {
+                continue;
+            };
+            // `caption: i === 0 ? caption : ''` (`tiktokdl2.js:185`) — caption
+            // menempel menurut indeks slide mentah, persis JS.
+            let teks = if i == 0 {
+                caption(&hasil)
+            } else {
+                String::new()
+            };
+            balasan.push(Reply::image(MediaSource::url(alamat.to_string()), teks));
+        }
+        // Semua slide gagal punya URL → `throw new Error('Gagal mengunduh
+        // gambar slide')` (`tiktokdl2.js:193`) → catch.
+        if balasan.len() == 1 {
+            return gagal();
         }
         // `tiktokdl2.js:236-245` — audio MP3 menyusul album.
         if let Some(mp3) = unduhan_mp3(&hasil) {
@@ -352,7 +368,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -410,9 +430,13 @@ mod tests {
     fn terdaftar_dengan_config_js() {
         let p = oktz_plugin_api::find("tiktok2").unwrap();
         assert_eq!(p.meta.name, "tiktok2");
-        assert_eq!(p.meta.alias, ["tt2", "tiktokdl2", "ttdown2"]);
+        assert_eq!(p.meta.commands, ["tt2"]);
+        assert_eq!(p.meta.alias, ["tiktokdl2", "ttdown2"]);
         assert_eq!(p.meta.category, "download");
-        assert_eq!(p.meta.description, "Download video/slide TikTok tanpa watermark");
+        assert_eq!(
+            p.meta.description,
+            "Download video/slide TikTok tanpa watermark"
+        );
         assert_eq!(p.meta.usage, ".tiktok2 <url>");
         assert_eq!(p.meta.example, ".tiktok2 https://vt.tiktok.com/xxx");
         assert_eq!(p.meta.cooldown, 10);
@@ -442,7 +466,11 @@ mod tests {
 
     #[test]
     fn url_bukan_tiktok_ditolak_tanpa_jaringan() {
-        for text in ["https://contoh.example/video", "tiktok", "youtube.com/watch?v=1"] {
+        for text in [
+            "https://contoh.example/video",
+            "tiktok",
+            "youtube.com/watch?v=1",
+        ] {
             let http = Stub::offline();
             let r = run(http.clone(), text);
             assert_eq!(text_of(&r), URL_TIDAK_VALID, "input {text:?}");
@@ -500,7 +528,10 @@ mod tests {
         assert_eq!(p[2].method, HttpMethod::Get);
         assert_eq!(p[2].url, "https://cdn.example/v.mp4");
         assert_eq!(cari_header(&p[2], "user-agent").as_deref(), Some(UA_VIDEO));
-        assert_eq!(cari_header(&p[2], "referer").as_deref(), Some(REFERER_VIDEO));
+        assert_eq!(
+            cari_header(&p[2], "referer").as_deref(),
+            Some(REFERER_VIDEO)
+        );
     }
 
     #[test]
@@ -511,7 +542,10 @@ mod tests {
             (500, "gagal".to_string(), Vec::new()),
         ]);
         let r = run(http, "https://www.tiktok.com/@budi/video/1");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "tiktok2"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "tiktok2")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -527,10 +561,9 @@ mod tests {
             Some("📸 *Mengirim 1 slide...*")
         );
         match bagian[1].without_mutations() {
-            Reply::Image { media, .. } => assert_eq!(
-                media,
-                &Some(MediaSource::url("https://cdn.example/1.jpg"))
-            ),
+            Reply::Image { media, .. } => {
+                assert_eq!(media, &Some(MediaSource::url("https://cdn.example/1.jpg")))
+            }
             lain => panic!("harus image, dapat {lain:?}"),
         }
         match bagian[2].without_mutations() {
@@ -554,10 +587,9 @@ mod tests {
             Some("📸 *Mengirim 1 slide...*")
         );
         match bagian[1].without_mutations() {
-            Reply::Image { media, .. } => assert_eq!(
-                media,
-                &Some(MediaSource::url("https://cdn.example/1.jpg"))
-            ),
+            Reply::Image { media, .. } => {
+                assert_eq!(media, &Some(MediaSource::url("https://cdn.example/1.jpg")))
+            }
             lain => panic!("harus image, dapat {lain:?}"),
         }
         assert_eq!(reaction_of(&r), None);
@@ -597,7 +629,10 @@ mod tests {
     fn semua_provider_gagal_masuk_catch() {
         let http = Stub::offline();
         let r = run(http.clone(), "https://www.tiktok.com/@budi/video/1");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "tiktok2"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "tiktok2")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
         // Urutannya: token savett, TikWM, savett, YuuLabs, MusicalDown — url
         // panjang tidak punya varian `resolved`, jadi tepat 5 percobaan.
@@ -676,5 +711,17 @@ mod tests {
         ]);
         let r = run(http, "https://www.tiktok.com/@budi/video/1");
         assert!(r.mutations().is_empty());
+    }
+
+    #[test]
+    #[ignore = "uji jaringan TikTok2; set OKTZ_TEST_TIKTOK2_URL"]
+    fn live_tiktokdl2_mengambil_video() {
+        // Uji live padanan `plugins/download/tiktokdl2.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_TIKTOK2_URL");
+        let (http, ctx) = live_ctx("tiktokdl2", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("tiktokdl2").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

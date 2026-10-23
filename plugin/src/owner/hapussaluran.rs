@@ -18,7 +18,10 @@ fn bantuan() -> String {
 
 #[plugin(
     name = "hapussaluran",
-    alias = ["deletesaluran", "deletenewsletter"],
+    commands = [
+        "deletesaluran", "deletenewsletter",
+    ],
+    alias = [],
     category = "owner",
     description = "Hapus saluran/newsletter",
     usage = ".hapussaluran <id_saluran>",
@@ -73,7 +76,8 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("hapussaluran").unwrap();
         assert_eq!(p.meta.name, "hapussaluran");
-        assert_eq!(p.meta.alias, ["deletesaluran", "deletenewsletter"]);
+        assert_eq!(p.meta.commands, ["deletesaluran", "deletenewsletter"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);

@@ -3,11 +3,10 @@
 //! Scraper `fbdown` (`src/scraper/fbdown.js`) cuma satu GET ke agregator
 //! nexray dan tidak butuh API key, jadi ikut dipindah utuh di sini.
 //!
-//! `ponytail:` `Reply` tidak punya variant video, jadi hasil `sendMedia` hanya
-//! terkirim sebagai caption teks; URL-nya tidak ikut — tidak ada padanan
-//! `Reply::Video` di `oktz-plugin-api`.
+//! Video kini benar-benar dikirim: `sock.sendMedia(m.chat, video.url, caption,
+//! m, { type: "video" })` (`facebookdl.js:64-71`) → [`Reply::Video`].
 
-use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 /// `fbdown.js:5` — agregator `nexrayWeb` (`src/lib/aggregator.js:30`).
@@ -146,7 +145,11 @@ pub(crate) fn caption(data: &Facebook, media: &Media) -> String {
 /// plugin praktis tidak pernah menyala — dan `Err` di sini berarti bentuk itu.
 pub(crate) fn fetch(url: &str, http: &dyn HttpGet) -> Option<Facebook> {
     let target = format!("{ENDPOINT}?url={}", axios_query(url));
-    http.get(&target).ok().and_then(|r| r.json()).as_ref().and_then(normalize)
+    http.get(&target)
+        .ok()
+        .and_then(|r| r.json())
+        .as_ref()
+        .and_then(normalize)
 }
 
 #[plugin(
@@ -189,8 +192,10 @@ pub fn facebookdl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("❌");
     }
 
-    // `facebookdl.js:64-72` — `sendMedia` video lalu reaksi centang.
-    Reply::text(caption(&data, media)).with_reaction("✅")
+    // `facebookdl.js:64-72` — `sendMedia` video dengan caption, lalu reaksi
+    // centang. URL mentah dikirim (pipeline yang mengunduh saat kirim), sama
+    // seperti `sendMedia(chat, video.url, …)` yang menyerahkan `url` ke Baileys.
+    Reply::video(MediaSource::url(media.url.clone()), caption(&data, media)).with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -223,10 +228,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            let text = self.body.clone().map_err(|()| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -288,7 +292,10 @@ mod tests {
         assert_eq!(p.meta.category, "download");
         assert_eq!(p.meta.description, "Download video Facebook");
         assert_eq!(p.meta.usage, ".facebookdl <url>");
-        assert_eq!(p.meta.example, ".facebookdl https://www.facebook.com/watch?v=xxx");
+        assert_eq!(
+            p.meta.example,
+            ".facebookdl https://www.facebook.com/watch?v=xxx"
+        );
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);
         assert!(!p.meta.is_group && !p.meta.is_private);
@@ -322,7 +329,11 @@ mod tests {
     fn an_empty_argument_shows_the_usage_card_without_any_request() {
         let http = Stub::body(ok_body());
         for text in ["", "   "] {
-            assert_eq!(text_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                text_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -350,16 +361,31 @@ mod tests {
     }
 
     #[test]
-    fn a_resolved_video_replies_with_the_caption_and_a_green_tick() {
+    fn a_resolved_video_sends_the_video_media_with_the_caption() {
         let http = Stub::body(ok_body());
         let r = run(http.clone(), "https://www.facebook.com/watch?v=xxx");
-        assert_eq!(
-            text_of(&r),
-            "🎥 *FACEBOOK DOWNLOADER*\n\n\
-             *Judul:* Uji Coba\n\
-             *Kualitas:* HD\n\
-             \n_Catatan: Fitur ini tidak mensupport postingan foto._"
-        );
+        // `facebookdl.js:64-72` — media video dengan caption yang sama.
+        let isi = match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        };
+        match isi {
+            Reply::Video { media, caption, .. } => {
+                let m = media.as_ref().expect("video harus punya sumber");
+                assert!(
+                    matches!(m, MediaSource::Url { .. }),
+                    "URL mentah, bukan byte"
+                );
+                assert_eq!(
+                    caption,
+                    "🎥 *FACEBOOK DOWNLOADER*\n\n\
+                     *Judul:* Uji Coba\n\
+                     *Kualitas:* HD\n\
+                     \n_Catatan: Fitur ini tidak mensupport postingan foto._"
+                );
+            }
+            lain => panic!("harus video, dapat {lain:?}"),
+        }
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"),
             "sukses harus bereaksi ✅"
@@ -424,7 +450,11 @@ mod tests {
             url: "u".into(),
             formatted_size: "12 MB".into(),
         };
-        assert!(caption(&data, &media).contains("*Ukuran:* 12 MB\n"), "{}", caption(&data, &media));
+        assert!(
+            caption(&data, &media).contains("*Ukuran:* 12 MB\n"),
+            "{}",
+            caption(&data, &media)
+        );
 
         let tanpa = Media {
             formatted_size: String::new(),
@@ -442,7 +472,10 @@ mod tests {
             let data = normalize(&body).unwrap();
             assert!(data.medias.is_empty(), "{body}");
         }
-        let r = run(Stub::body(serde_json::json!({ "status": true, "result": {} })), "https://fb.com/x");
+        let r = run(
+            Stub::body(serde_json::json!({ "status": true, "result": {} })),
+            "https://fb.com/x",
+        );
         assert_eq!(text_of(&r), NO_MEDIA);
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
@@ -468,5 +501,17 @@ mod tests {
     fn a_transport_failure_takes_the_same_path_as_a_failed_response() {
         let r = run(Stub::offline(), "https://fb.com/x");
         assert_eq!(text_of(&r), NO_MEDIA);
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Facebook; set OKTZ_TEST_FACEBOOK_URL"]
+    fn live_facebookdl_mengambil_video() {
+        // Uji live padanan `plugins/download/facebookdl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_FACEBOOK_URL");
+        let (http, ctx) = live_ctx("facebookdl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("facebookdl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

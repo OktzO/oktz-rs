@@ -1,16 +1,12 @@
 //! `plugins/download/snackvideodl.js` — unduh video SnackVideo.
 //!
-//! `ponytail:` scraper `snackvideo` datang dari paket npm `btch-downloader`,
-//! bukan dari repo ini, jadi tidak bisa di-port. Guard URL, kartu pakai, dan
-//! semua teks cabangnya tetap sama dengan JS; `fetch_snackvideo` selalu gagal,
-//! persis seperti scraper itu melempar di Node.
-//!
-//! `ponytail:` `Reply` tidak punya variant video, jadi hasil `sendMedia` hanya
-//! terkirim sebagai URL teks.
+//! Scraper `snackvideo` memakai kontrak resmi `btch-downloader@6.3.6` melalui
+//! `oktz_scraper::btch`, termasuk envelope `result` dan penanganan error
+//! transport seperti SDK Node.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+
 use serde_json::Value;
-
 
 /// `snackvideodl.js:31` — `/snackvideo\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_snackvideo_url(url: &str) -> bool {
@@ -56,12 +52,6 @@ pub(crate) fn video_url(data: &Value) -> String {
         .to_string()
 }
 
-/// `snackvideo(url)` dari `btch-downloader` — satu-satunya bagian yang tidak
-/// bisa di-port. `Err` = lempar, jadi cabang `catch` yang menyala.
-fn fetch_snackvideo(_url: &str) -> Result<Value, ()> {
-    Err(())
-}
-
 #[plugin(
     name = "snackvideodl",
     alias = ["svdl", "snackvideo"],
@@ -88,27 +78,85 @@ pub fn snackvideodl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    let data = match fetch_snackvideo(url) {
-        Ok(data) => data,
-        Err(()) => {
-            return Reply::text(crate::common::error_template(&ctx)).with_reaction("🕕");
-        }
-    };
+    // `snackvideodl.js:38` memakai SDK Node yang menangkap error transport dan
+    // mengembalikan envelope `status: false`.
+    let data = oktz_scraper::btch::snackvideo(ctx.http.as_ref(), url);
 
     if !accepted(&data) {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `snackvideodl.js:46-52` — `sendMedia` video; tidak ada padanannya di
-    // `Reply`.
-    Reply::text(video_url(&data)).with_reaction("🕕")
+    // `snackvideodl.js:46-52` — `sendMedia` video tanpa caption; reaksi ⏱️
+    // adalah satu-satunya reaksi yang dikirim JS.
+    Reply::video(MediaSource::url(video_url(&data)), "").with_reaction("🕕")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Debug)]
+    struct Stub {
+        body: Result<String, HttpError>,
+        seen: Mutex<Vec<String>>,
+    }
+
+    impl Stub {
+        fn json(value: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Ok(value.to_string()),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn offline() -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Err(HttpError {
+                    message: "offline".into(),
+                }),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            let body = self.body.clone()?;
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(body.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
+        }
+
+        fn post_json(&self, _url: &str, _body: &Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+
+        fn post_form(&self, _url: &str, _form: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+
+        fn post_multipart(
+            &self,
+            _url: &str,
+            _parts: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+    }
 
     fn run(text: &str) -> Reply {
+        run_with_http(text, Stub::offline())
+    }
+
+    fn run_with_http(text: &str, http: Arc<Stub>) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "svdl".into(),
@@ -116,6 +164,7 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             text: text.into(),
             args: vec![text.into()],
+            http,
             ..Default::default()
         };
         (oktz_plugin_api::find("snackvideodl").unwrap().handler)(ctx)
@@ -123,6 +172,13 @@ mod tests {
 
     fn text_of(r: &Reply) -> &str {
         r.without_mutations().text_body().expect("harus ada teks")
+    }
+
+    fn isi(r: &Reply) -> &Reply {
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        }
     }
 
     #[test]
@@ -147,10 +203,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["svdl", "snackvideo"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "snackvideodl"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "snackvideodl");
         }
     }
 
@@ -189,12 +242,51 @@ mod tests {
     }
 
     #[test]
-    fn the_scraper_failure_branch_is_the_error_template() {
+    fn scraper_btch_membungkus_data_snackvideo_dalam_result() {
+        let http = Stub::json(serde_json::json!({
+            "videoUrl": "https://cdn.example/video.mp4"
+        }));
+        let r = run_with_http("https://www.snackvideo.com/@a/video/1", http.clone());
+
+        match isi(&r) {
+            Reply::Video { media, .. } => {
+                assert_eq!(
+                    media.as_ref().and_then(|m| match m {
+                        MediaSource::Url { url, .. } => Some(url.as_str()),
+                        _ => None,
+                    }),
+                    Some("https://cdn.example/video.mp4")
+                );
+            }
+            lain => panic!("harus video, dapat {lain:?}"),
+        }
+        assert_eq!(
+            http.seen.lock().unwrap().as_slice(),
+            [
+                "https://backend1.tioo.eu.org/snackvideo?url=https%3A%2F%2Fwww.snackvideo.com%2F%40a%2Fvideo%2F1"
+            ]
+        );
+    }
+
+    #[test]
+    fn kegagalan_transport_btch_menghasilkan_branch_gagal_mengambil_video() {
         let r = run("https://www.snackvideo.com/@a/video/1");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "svdl"));
+        assert_eq!(text_of(&r), NO_VIDEO);
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "🕕"),
-            "reaksi jam harus tetap ada di cabang catch"
+            "reaksi jam harus tetap ada"
         );
+    }
+
+    #[test]
+    #[ignore = "uji jaringan SnackVideo; set OKTZ_TEST_SNACKVIDEO_URL"]
+    fn live_snackvideodl_mengambil_video() {
+        // Uji live padanan `plugins/download/snackvideodl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_SNACKVIDEO_URL");
+        let (http, ctx) = live_ctx("snackvideodl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("snackvideodl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

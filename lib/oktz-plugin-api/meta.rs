@@ -11,6 +11,17 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase", default)]
 pub struct PluginMeta {
     pub name: String,
+    /// Nama command TAMBAHAN — sisa array `name` di plugin JS.
+    ///
+    /// JS: `for (const n of names) pluginStore.commands.set(n, plugin)`
+    /// (`plugins.js:207-209`) — semua nama dari array `name` masuk map
+    /// `commands`, bukan map `aliases`. Alias (`config.alias`) masuk map
+    /// `aliases` (`plugins.js:211-213`) dan lookup memakai `commands` DULU
+    /// (`plugins.js:539-544`), jadi alias kalah kalau nama sama dipakai
+    /// plugin lain sebagai command. Contoh: `siapa.js` punya command
+    /// `cantik`, sementara `cekcantik.js` punya alias `cantik` — di JS
+    /// `.cantik` membuka `siapa`.
+    pub commands: Vec<String>,
     pub alias: Vec<String>,
     pub category: String,
     pub description: String,
@@ -39,6 +50,7 @@ impl Default for PluginMeta {
     fn default() -> Self {
         Self {
             name: String::new(),
+            commands: Vec::new(),
             alias: Vec::new(),
             category: String::from("uncategorized"),
             description: String::from("No description"),
@@ -62,7 +74,9 @@ impl Default for PluginMeta {
 
 impl PluginMeta {
     pub fn matches(&self, command: &str) -> bool {
-        self.name == command || self.alias.iter().any(|a| a == command)
+        self.name == command
+            || self.commands.iter().any(|c| c == command)
+            || self.alias.iter().any(|a| a == command)
     }
 }
 
@@ -85,10 +99,11 @@ mod tests {
     }
 
     #[test]
-    fn matches_name_and_alias() {
+    fn matches_name_command_dan_alias() {
         let m = PluginMeta {
             name: "menu".into(),
-            alias: vec!["m".into(), "help".into()],
+            commands: vec!["m".into()],
+            alias: vec!["help".into()],
             ..PluginMeta::default()
         };
         assert!(m.matches("menu"));

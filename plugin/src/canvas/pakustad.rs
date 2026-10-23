@@ -2,7 +2,8 @@
 //!
 //! `pluginConfig.name` di JS berupa array tiga nama
 //! (`['pakustad', 'pak-ustad', 'tanyaustad']`); yang pertama jadi `name`, sisa
-//! nya jadi `alias` — pola yang sama dengan `crate::fun::husbualbum`.
+//! nya jadi command tambahan (`PluginMeta::commands`) — pola yang sama dengan
+//! `crate::fun::husbualbum`.
 //! Kategori di JS `fun`, bukan nama folder `canvas`; nilai `category` di
 //! `#[plugin]` disalin apa adanya dari `pluginConfig`.
 //!
@@ -53,7 +54,10 @@ pub(crate) fn effective_text(ctx: &Ctx) -> String {
 
 #[plugin(
     name = "pakustad",
-    alias = ["pak-ustad", "tanyaustad"],
+    commands = [
+        "pak-ustad", "tanyaustad",
+    ],
+    alias = [],
     category = "fun",
     description = "Tanya pak ustad (gambar)",
     usage = ".pakustad <pertanyaan>",
@@ -167,7 +171,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let meta = oktz_plugin_api::find("pakustad").unwrap().meta.clone();
         assert_eq!(meta.name, "pakustad");
-        assert_eq!(meta.alias, ["pak-ustad", "tanyaustad"]);
+        assert_eq!(meta.commands, ["pak-ustad", "tanyaustad"]);
+        assert!(meta.alias.is_empty());
         assert_eq!(meta.category, "fun");
         assert_eq!(meta.description, "Tanya pak ustad (gambar)");
         assert_eq!(meta.usage, ".pakustad <pertanyaan>");

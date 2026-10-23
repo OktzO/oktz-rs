@@ -36,7 +36,10 @@ fn target_jid_dari_arg(raw: &str) -> String {
 
 #[plugin(
     name = "hapusgrup",
-    alias = ["deletegrup", "delgrup"],
+    commands = [
+        "deletegrup", "delgrup",
+    ],
+    alias = [],
     category = "owner",
     description = "Keluar dari grup / hapus grup",
     usage = ".hapusgrup (di dalam grup) atau .hapusgrup <jid>",

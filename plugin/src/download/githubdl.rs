@@ -9,9 +9,8 @@
 //! `ponytail:` `Reply` tidak punya variant document, jadi hasil `sendMedia` hanya
 //! terkirim sebagai nama file teks.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
-
 
 /// `githubdl.js:36-42` — kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
@@ -164,14 +163,16 @@ pub fn githubdl(ctx: Ctx) -> Reply {
     } else {
         target.branch.clone()
     };
-    let zip_url =
-        format!("https://github.com/{username}/{repo}/archive/refs/heads/{branch}.zip");
+    let zip_url = format!("https://github.com/{username}/{repo}/archive/refs/heads/{branch}.zip");
 
-    // `ponytail:` GET, bukan HEAD — trait `HttpGet` belum punya HEAD.
+    // `githubdl.js:70-77` — `sendMedia` document dari URL zip, lalu reaksi
+    // centang. GET pengecekan branch tetap jalan dulu seperti di JS.
     match ctx.http.get(&zip_url) {
-        Ok(r) if is_ok(r.status) => {
-            Reply::text(zip_filename(&repo, &branch)).with_reaction("✅")
-        }
+        Ok(r) if is_ok(r.status) => Reply::document(
+            MediaSource::url(zip_url).with_mimetype("application/zip"),
+            zip_filename(&repo, &branch),
+        )
+        .with_reaction("✅"),
         Ok(_) => Reply::text(bad_branch(&branch, &default_branch)).with_reaction("❌"),
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
@@ -188,8 +189,8 @@ fn nullable_branch(value: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
     use super::*;
+    use oktz_plugin_api::HttpGet;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
     use std::sync::{Arc, Mutex};
 
@@ -227,7 +228,10 @@ mod tests {
         }
         fn zip_offline() -> Arc<Stub> {
             Arc::new(Stub {
-                repo: Ok((200, serde_json::json!({ "default_branch": "develop" }).to_string())),
+                repo: Ok((
+                    200,
+                    serde_json::json!({ "default_branch": "develop" }).to_string(),
+                )),
                 zip: Err(()),
                 seen: Mutex::new(Vec::new()),
             })
@@ -238,13 +242,16 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
             let (status, text) = if url.starts_with("https://api.github.com/repos/") {
-                self.repo
-                    .clone()
-                    .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?
-            } else {
-                (self.zip.map_err(|()| oktz_plugin_api::HttpError {
+                self.repo.clone().map_err(|()| oktz_plugin_api::HttpError {
                     message: "offline".into(),
-                })?, String::new())
+                })?
+            } else {
+                (
+                    self.zip.map_err(|()| oktz_plugin_api::HttpError {
+                        message: "offline".into(),
+                    })?,
+                    String::new(),
+                )
             };
             Ok(HttpResponse {
                 status,
@@ -294,10 +301,7 @@ mod tests {
         assert_eq!(p.meta.name, "githubdl");
         assert_eq!(p.meta.alias, ["gitdl", "gitclone", "repodownload"]);
         assert_eq!(p.meta.category, "download");
-        assert_eq!(
-            p.meta.description,
-            "Download repository GitHub sebagai ZIP"
-        );
+        assert_eq!(p.meta.description, "Download repository GitHub sebagai ZIP");
         assert_eq!(p.meta.usage, ".githubdl <user> <repo> <branch>");
         assert_eq!(p.meta.example, ".githubdl niceplugin NiceBot main");
         assert_eq!(p.meta.cooldown, 15);
@@ -337,10 +341,15 @@ mod tests {
             }
         );
         // Tanpa branch, `args[1] || 'main'`.
-        assert_eq!(parse_target::<String>(&["https://github.com/u/r".into()]).branch, "main");
+        assert_eq!(
+            parse_target::<String>(&["https://github.com/u/r".into()]).branch,
+            "main"
+        );
         // `.git` hanya dilepas di akhir, `repo.git.git` jadi `repo.git`.
         assert_eq!(
-            parse_target::<String>(&["github.com/u/r.git.git".into()]).repo.unwrap(),
+            parse_target::<String>(&["github.com/u/r.git.git".into()])
+                .repo
+                .unwrap(),
             "r.git"
         );
     }
@@ -377,10 +386,24 @@ mod tests {
     }
 
     #[test]
-    fn a_resolved_branch_replies_with_the_zip_filename() {
+    fn a_resolved_branch_sends_the_zip_document() {
         let http = Stub::ok(200);
         let r = run(http.clone(), &["niceplugin", "NiceBot", "main"]);
-        assert_eq!(text_of(&r), "NiceBot - Branch: main.zip");
+        // `githubdl.js:70-77` — dokumen zip dari URL + nama berkas.
+        let isi = match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        };
+        match isi {
+            Reply::Document {
+                media, file_name, ..
+            } => {
+                assert!(matches!(media.as_ref(), Some(MediaSource::Url { .. })));
+                assert_eq!(file_name, "NiceBot - Branch: main.zip");
+                assert_eq!(media.as_ref().unwrap().mimetype(), Some("application/zip"));
+            }
+            lain => panic!("harus dokumen, dapat {lain:?}"),
+        }
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"),
             "sukses harus bereaksi ✅"
@@ -399,7 +422,11 @@ mod tests {
     fn a_missing_repository_is_reported_with_the_user_and_repo_names() {
         for status in [404u16, 403, 500] {
             let r = run(Stub::repo_status(status), &["niceplugin", "NiceBot"]);
-            assert_eq!(text_of(&r), not_found("niceplugin", "NiceBot"), "status {status}");
+            assert_eq!(
+                text_of(&r),
+                not_found("niceplugin", "NiceBot"),
+                "status {status}"
+            );
             assert!(
                 matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
                 "repo tidak ada harus bereaksi ❌"
@@ -420,7 +447,10 @@ mod tests {
     #[test]
     fn a_body_that_is_not_json_reports_the_system_error() {
         let r = run(Stub::repo_not_json(), &["niceplugin", "NiceBot"]);
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "githubdl"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "githubdl")
+        );
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "☢"),
             "harus bereaksi ☢"
@@ -430,6 +460,27 @@ mod tests {
     #[test]
     fn a_transport_failure_on_the_zip_check_reports_the_system_error() {
         let r = run(Stub::zip_offline(), &["niceplugin", "NiceBot"]);
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "githubdl"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "githubdl")
+        );
+    }
+
+    #[test]
+    #[ignore = "uji jaringan GitHub; set OKTZ_TEST_GITHUB_REPO, opsional OKTZ_TEST_GITHUB_BRANCH"]
+    fn live_githubdl_mengambil_dokumen() {
+        // Uji live padanan `plugins/download/githubdl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let repo = env_required("OKTZ_TEST_GITHUB_REPO");
+        let mut args = vec![repo.clone()];
+        if let Ok(branch) = std::env::var("OKTZ_TEST_GITHUB_BRANCH")
+            && !branch.trim().is_empty()
+        {
+            args.push(branch);
+        }
+        let (http, ctx) = live_ctx("githubdl", &repo, args);
+        let reply = (oktz_plugin_api::find("githubdl").unwrap().handler)(ctx);
+        assert_media(&reply, &["document"], &http);
     }
 }

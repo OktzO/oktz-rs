@@ -1,8 +1,9 @@
 //! `plugins/main/ping2.js` — performa dan status sistem bot real-time.
 //!
-//! `ponytail:` `sendTable` belum punya varian di `Reply`; header, tabel, dan
-//! footer dirangkai sebagai teks dengan isi serta urutan yang sama (pola
-//! `main/totalfitur.rs`).
+//! `sendTable` diport sebagai [`Reply::table`] (`sock.sendTable` JS): bentuk
+//! wire-nya `botForwardedMessage > richResponseMessage` dengan baris judul
+//! `Metric | Value`, `headerText` = nama bot + STATUS, dan footer
+//! "Realtime Monitoring" — persis `ping2.js:134-142`.
 //! `ponytail:` data sistem dibaca dari `/proc` + `std`; `df` tetap dipanggil
 //! lewat `std::process::Command` karena `statvfs` tidak ada di `std`.
 //! `ponytail:` `Ctx` hanya membawa data user/grup pengirim, bukan seluruh
@@ -237,7 +238,7 @@ fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
     (users, premium, groups)
 }
 
-fn teks(ctx: &Ctx, mulai: Instant) -> String {
+fn teks(ctx: &Ctx, mulai: Instant) -> Reply {
     let cfg = ctx.config();
     let nama_bot = if cfg.bot.name.is_empty() {
         "Foto-AI"
@@ -252,50 +253,61 @@ fn teks(ctx: &Ctx, mulai: Instant) -> String {
     let (users, premium, groups) = hitung_db(ctx);
     let total_exec = (mulai.elapsed().as_secs_f64() * 1000.0).round() as u64;
 
-    let mut out = format!(
-        "{nama_bot} *STATUS*\n\n\
-         - 🎄 Dibawah ini adalah statistik bot kita\n\n\
-         ⚡ System Performance\n\
-         Metric | Value\n"
-    );
-    out.push_str("WA Roundtrip | 1 ms\n");
-    out.push_str(&format!("Kecepatan Respon bot mu | {total_exec} ms\n"));
-    out.push_str("Status | Online\n");
-    out.push_str(&format!("Hostname | {}\n", baca_hostname()));
-    out.push_str(&format!("Platform | {}\n", platform()));
-    out.push_str("Node | N/A\n");
-    out.push_str(&format!("CPU | {}\n", potong_model(&model)));
-    out.push_str(&format!("Cores | {cores}\n"));
-    out.push_str(&format!(
-        "CPU Load | {}%\n",
-        cpu_persen(baca_load(), cores)
-    ));
-    out.push_str(&format!(
-        "RAM | {} / {}\n",
-        fmt_size(total_mem.saturating_sub(bebas_mem)),
-        fmt_size(total_mem)
-    ));
-    out.push_str(&format!(
-        "Heap | {} / {}\n",
-        fmt_size(heap_dipakai),
-        fmt_size(heap_total)
-    ));
-    out.push_str(&format!(
-        "Disk | {} / {}\n",
-        fmt_size(disk_dipakai),
-        fmt_size(disk_total)
-    ));
-    out.push_str(&format!("Network | {}\n", antarmuka_jaringan()));
-    out.push_str(&format!("Users | {users}\n"));
-    out.push_str(&format!("Premium | {premium}\n"));
-    out.push_str(&format!("Groups | {groups}\n"));
-    out.push_str(&format!(
-        "Uptime Bot | {}\n",
-        fmt_up(ctx.uptime_secs as f64)
-    ));
-    out.push_str(&format!("Uptime Server | {}\n", fmt_up(baca_uptime_server())));
-    out.push_str("\n🍃 Realtime Monitoring");
-    out
+    // `tableData` (`ping2.js:113-131`) — urutan baris = urutan JS.
+    let rows: Vec<Vec<String>> = [
+        ("WA Roundtrip", "1 ms".to_string()),
+        ("Kecepatan Respon bot mu", format!("{total_exec} ms")),
+        ("Status", "Online".to_string()),
+        ("Hostname", baca_hostname()),
+        ("Platform", platform()),
+        ("Node", "N/A".to_string()),
+        ("CPU", potong_model(&model)),
+        ("Cores", cores.to_string()),
+        ("CPU Load", format!("{}%", cpu_persen(baca_load(), cores))),
+        (
+            "RAM",
+            format!(
+                "{} / {}",
+                fmt_size(total_mem.saturating_sub(bebas_mem)),
+                fmt_size(total_mem)
+            ),
+        ),
+        (
+            "Heap",
+            format!(
+                "{} / {}",
+                fmt_size(heap_dipakai),
+                fmt_size(heap_total)
+            ),
+        ),
+        (
+            "Disk",
+            format!(
+                "{} / {}",
+                fmt_size(disk_dipakai),
+                fmt_size(disk_total)
+            ),
+        ),
+        ("Network", antarmuka_jaringan()),
+        ("Users", users.to_string()),
+        ("Premium", premium.to_string()),
+        ("Groups", groups.to_string()),
+        ("Uptime Bot", fmt_up(ctx.uptime_secs as f64)),
+        ("Uptime Server", fmt_up(baca_uptime_server())),
+    ]
+    .into_iter()
+    .map(|(k, v)| vec![k.to_string(), v])
+    .collect();
+
+    // `sock.sendTable(m.chat, '⚡ System Performance', ['Metric', 'Value'],
+    // tableData, m, { headerText, footer })` (`ping2.js:134-142`). HeaderText
+    // dan footer jadi submessage teks sebelum/sesudah tabel di wire
+    // (`rich-messages.js:616`), bukan bagian dari pesan teks lama.
+    Reply::table("⚡ System Performance", ["Metric", "Value"], rows)
+        .with_header_text(format!(
+            "{nama_bot} *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita"
+        ))
+        .with_table_footer("🍃 Realtime Monitoring")
 }
 
 #[plugin(
@@ -319,7 +331,7 @@ pub fn ping2(ctx: Ctx) -> Reply {
     let mulai = Instant::now();
     // `ponytail:` reaksi pembuka `🕕` hilang; `Reply` hanya membawa satu
     // reaksi, jadi yang dikirim reaksi akhir `✅` seperti JS.
-    Reply::text(teks(&ctx, mulai)).with_reaction("✅")
+    teks(&ctx, mulai).with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -350,6 +362,99 @@ mod tests {
         assert_eq!(fmt_up(86_400.0), "1d 0h 0m");
         assert_eq!(fmt_up(90_000.0), "1d 1h 0m");
         assert_eq!(fmt_up(90_061.0), "1d 1h 1m");
+    }
+
+    const ME: &str = "628111@s.whatsapp.net";
+
+    #[test]
+    fn balasan_adalah_tabel_send_table_bukan_teks() {
+        // JS `sock.sendTable(m.chat, "⚡ System Performance", ["Metric",
+        // "Value"], tableData, m, { headerText, footer })` — bentuk wire-nya
+        // `botForwardedMessage > richResponseMessage`, bukan teks biasa. Port
+        // lama merangkainya sebagai teks `Metric | Value` sehingga WhatsApp
+        // menampilkan teks polos tanpa tabel — inilah bug tampilan yang
+        // dilaporkan.
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ping2".into(),
+            uptime_secs: 3661,
+            // Store dengan satu user premium — Users=1, Premium=1.
+            user_data: serde_json::json!({ "isPremium": true }),
+            ..Ctx::default()
+        };
+        let r = ping2(ctx);
+        // Reaksi akhir ✅ tetap menempel seperti JS `m.react("✅")`.
+        assert!(r.mutations().is_empty());
+        // with_reaction membungkus `Mutate > Reaction > Table`, jadi lepas
+        // Mutate dulu (without_mutations) baru buang Reaction (tanpa_reaksi).
+        let r = r.without_mutations().tanpa_reaksi();
+        let Reply::Table {
+            title,
+            headers,
+            rows,
+            header_text,
+            footer,
+        } = r
+        else {
+            panic!("harus Reply::Table, dapat {:?}", std::mem::discriminant(r));
+        };
+        assert_eq!(title, "⚡ System Performance");
+        assert_eq!(
+            headers.as_slice(),
+            ["Metric".to_string(), "Value".to_string()]
+        );
+        // headerText: `${config.bot?.name || 'Foto-AI'} *STATUS*\n\n- 🎄 ...`
+        assert_eq!(
+            header_text.as_deref(),
+            Some("Foto-AI *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita")
+        );
+        assert_eq!(footer.as_deref(), Some("🍃 Realtime Monitoring"));
+
+        // Isi baris: urutan dan nilai persis `tableData` (ping2.js:113-131).
+        let ambil = |nama: &str| -> String {
+            rows.iter()
+                .find(|row| row[0] == nama)
+                .unwrap_or_else(|| panic!("baris {nama} hilang"))[1]
+                .clone()
+        };
+        assert_eq!(ambil("WA Roundtrip"), "1 ms");
+        assert_eq!(ambil("Status"), "Online");
+        assert_eq!(ambil("Cores"), baca_cpu().0.to_string());
+        assert_eq!(ambil("Users"), "1");
+        assert_eq!(ambil("Premium"), "1");
+        assert_eq!(ambil("Groups"), "0");
+        assert_eq!(ambil("Uptime Bot"), "1h 1m 1s");
+        assert_eq!(ambil("Uptime Server"), fmt_up(baca_uptime_server()));
+        // 18 baris = 18 entri tableData JS.
+        assert_eq!(rows.len(), 18);
+        for row in rows.iter() {
+            assert_eq!(row.len(), 2, "tiap baris dua kolom: {row:?}");
+        }
+    }
+
+    #[test]
+    fn header_text_memakai_nama_bot_config() {
+        // `oktz_plugin_api::config` = re-export `oktz_core::config` untuk crate
+        // plugin (lib.rs plugin-api).
+        let mut cfg = oktz_plugin_api::config::Runtime::default();
+        cfg.bot.name = "Oktz Bot".into();
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            config: std::sync::Arc::new(cfg),
+            ..Ctx::default()
+        };
+        let r = ping2(ctx);
+        let r = r.without_mutations().tanpa_reaksi();
+        let Reply::Table { header_text, .. } = r else {
+            panic!("harus Reply::Table");
+        };
+        assert_eq!(
+            header_text.as_deref(),
+            Some("Oktz Bot *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita")
+        );
     }
 
     #[test]

@@ -28,7 +28,10 @@ pub(crate) const GAGAL_BACA: &str = "❌ Gagal membaca data sticker";
 
 #[plugin(
     name = "sprem",
-    alias = ["stickerpremium", "premiumsticker"],
+    commands = [
+        "stickerpremium", "premiumsticker",
+    ],
+    alias = [],
     category = "owner",
     description = "Kirim ulang sticker sebagai premium (Lottie/AI)",
     usage = ".sprem (reply sticker)",
@@ -116,7 +119,8 @@ mod tests {
     fn meta_dan_alias_sama_dengan_js() {
         let p = oktz_plugin_api::find("sprem").unwrap();
         assert_eq!(p.meta.name, "sprem");
-        assert_eq!(p.meta.alias, ["stickerpremium", "premiumsticker"]);
+        assert_eq!(p.meta.commands, ["stickerpremium", "premiumsticker"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(
             p.meta.description,

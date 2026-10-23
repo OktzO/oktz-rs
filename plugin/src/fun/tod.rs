@@ -99,7 +99,10 @@ pub(crate) fn render(target_jid: &str) -> String {
 
 #[plugin(
     name = "tod",
-    alias = ["spin", "putarbotol", "todgame"],
+    commands = [
+        "spin", "putarbotol",
+    ],
+    alias = ["todgame"],
     category = "fun",
     description = "Bermain Truth or Dare bersama teman-teman grup secara instan!",
     usage = ".tod",
@@ -157,7 +160,8 @@ mod tests {
         let p = oktz_plugin_api::find("tod").unwrap();
         assert_eq!(p.meta.name, "tod");
         // `name` di JS berupa array; tiga elemen pertama jadi name + alias.
-        assert_eq!(p.meta.alias, ["spin", "putarbotol", "todgame"]);
+        assert_eq!(p.meta.commands, ["spin", "putarbotol"]);
+        assert_eq!(p.meta.alias, ["todgame"]);
         assert_eq!(p.meta.category, "fun");
         assert_eq!(
             p.meta.description,

@@ -39,7 +39,11 @@ use serde_json::{Map, Value, json};
 const UPLOAD_URL: &str = "https://videy.co/api/upload?visitorId=";
 const CDN: &str = "https://cdn.videy.co";
 
-const UA: &str = "Mozilla/5.0 (Linux; Android 10)";
+/// `src/scraper/videy.js:69-72` — profil UA untuk probe dan unduhan CDN.
+pub const UA: &str = "Mozilla/5.0 (Linux; Android 10)";
+
+/// `src/scraper/videy.js:71` — Referer wajib untuk CDN Videy.
+pub const REFERER: &str = "https://videy.co/";
 
 /// `PROBE_RANGE` (`videy.js:69`).
 const PROBE_RANGE: &str = "bytes=0-0";
@@ -85,7 +89,7 @@ fn alur(http: &dyn HttpGet, file: &str) -> Result<Value, HttpError> {
             // `...form.getHeaders()` tidak disalin: boundary dibuat klien Rust.
             .header("user-agent", UA)
             .header("origin", "https://videy.co")
-            .header("referer", "https://videy.co/")
+            .header("referer", REFERER)
             .header("accept", "application/json")
             .multipart(vec![MultipartPart {
                 name: "file".to_string(),
@@ -140,7 +144,7 @@ pub fn videy_share(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     http.call(
         &HttpCall::get(&address)
             .header("user-agent", UA)
-            .header("referer", "https://videy.co/")
+            .header("referer", REFERER)
             .header("accept", "video/mp4,video/quicktime,*/*")
             .header("range", PROBE_RANGE),
     )?;
@@ -322,13 +326,7 @@ mod tests {
         };
         assert_eq!(parts.len(), 1);
         assert_eq!(parts[0].name, "file");
-        assert!(
-            parts[0]
-                .file_name
-                .as_deref()
-                .unwrap()
-                .ends_with("klip.mp4")
-        );
+        assert!(parts[0].file_name.as_deref().unwrap().ends_with("klip.mp4"));
         assert_eq!(
             parts[0].mimetype.as_deref(),
             Some("video/mp4"),
@@ -362,7 +360,10 @@ mod tests {
     fn id_dari_membaca_kemunculan_pertama_dan_memangkas_id_berbahaya() {
         let http = StubHttp::baru("{}");
         let id = |u: &str| id_dari(&http, u);
-        assert_eq!(id("https://videy.co/v?id=7ZH1ZRIF"), Some("7ZH1ZRIF".to_string()));
+        assert_eq!(
+            id("https://videy.co/v?id=7ZH1ZRIF"),
+            Some("7ZH1ZRIF".to_string())
+        );
         assert_eq!(
             id("https://videy.co/v?id=abc&id=lain"),
             Some("abc".to_string())
@@ -372,7 +373,10 @@ mod tests {
             Some("zz".to_string())
         );
         // Bentuk id: hanya A-Z a-z 0-9 _ -, maksimal 64.
-        assert_eq!(id("https://videy.co/v?id=a-b_c9"), Some("a-b_c9".to_string()));
+        assert_eq!(
+            id("https://videy.co/v?id=a-b_c9"),
+            Some("a-b_c9".to_string())
+        );
         let batas = format!("https://videy.co/v?id={}", "a".repeat(65));
         for buruk in [
             "https://videy.co/v?id=",
@@ -416,13 +420,20 @@ mod tests {
     #[test]
     fn ekstensi_mov_hanya_saat_id_sembilan_karakter_berakhir_dua() {
         let http = StubHttp::baru("{}");
-        assert_eq!(ekstensi_videy("123456789"), "mp4", "9 karakter tapi bukan akhiran 2");
+        assert_eq!(
+            ekstensi_videy("123456789"),
+            "mp4",
+            "9 karakter tapi bukan akhiran 2"
+        );
         assert_eq!(ekstensi_videy("abcdefgh2"), "mov");
         assert_eq!(ekstensi_videy("abcdefghi2"), "mp4", "10 karakter");
         assert_eq!(ekstensi_videy(""), "mp4");
         // Regex JS menghitung karakter UTF-16; `chars().count()` menghitung
         // scalar. Untuk id yang lolos `ID_BENTUK` keduanya sama.
-        assert_eq!(videy_share(&http, "https://videy.co/v?id=abcdefgh2").unwrap()["ext"], "mov");
+        assert_eq!(
+            videy_share(&http, "https://videy.co/v?id=abcdefgh2").unwrap()["ext"],
+            "mov"
+        );
     }
 
     #[test]

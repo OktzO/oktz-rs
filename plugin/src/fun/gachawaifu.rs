@@ -2015,7 +2015,10 @@ fn action_engine(
 
 #[plugin(
     name = "gachawaifu",
-    alias = ["waifuaction", "tinggalinwaifu", "waifuku", "istriku", "gachaistri"],
+    commands = [
+        "waifuaction", "tinggalinwaifu", "waifuku", "istriku",
+    ],
+    alias = ["gachaistri"],
     category = "fun",
     description = "Gacha waifu impianmu, jaga perasaannya, dan jadikan dia pasanganmu!",
     usage = ".gachawaifu | .waifuku | .tinggalinwaifu",
@@ -2135,9 +2138,10 @@ mod tests {
         let p = oktz_plugin_api::find("gachawaifu").unwrap();
         assert_eq!(p.meta.name, "gachawaifu");
         assert_eq!(
-            p.meta.alias,
-            ["waifuaction", "tinggalinwaifu", "waifuku", "istriku", "gachaistri"]
+            p.meta.commands,
+            ["waifuaction", "tinggalinwaifu", "waifuku", "istriku"]
         );
+        assert_eq!(p.meta.alias, ["gachaistri"]);
         assert_eq!(p.meta.category, "fun");
         assert_eq!(
             p.meta.description,

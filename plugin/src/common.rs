@@ -1587,7 +1587,10 @@ mod tests_cek2 {
         for (alias, name) in ALIAS_OWNERS {
             let found = oktz_plugin_api::find(alias)
                 .unwrap_or_else(|| panic!("alias {alias} tidak resolve"));
-            assert_eq!(found.meta.name, name, "alias {alias} salah resolve");
+            // Alias yang namanya sama dengan command plugin lain kalah di JS
+            // (`plugins.js:539-544`) — `pintar` milik `siapa` (`bego`).
+            let owner = super::tests_roster_state::js_owner_of_alias(alias, name);
+            assert_eq!(found.meta.name, owner, "alias {alias} salah resolve");
         }
     }
 
@@ -2320,7 +2323,10 @@ mod tests_batch_g {
             for alias in aliases.iter() {
                 let found = oktz_plugin_api::find(alias)
                     .unwrap_or_else(|| panic!("alias {alias} tidak resolve"));
-                assert_eq!(&found.meta.name, name, "alias {alias} salah resolve");
+                // Alias yang namanya sama dengan command plugin lain kalah di
+                // JS (`plugins.js:539-544`) — `kaya` milik `siapa` (`bego`).
+                let owner = super::tests_roster_state::js_owner_of_alias(alias, name);
+                assert_eq!(&found.meta.name, owner, "alias {alias} salah resolve");
             }
         }
     }
@@ -4173,6 +4179,105 @@ mod tests_roster_state {
         "smeme-animated", "smemevid", "sroast", "tofigure3", "top", "unblock", "wibu",
     ];
 
+    /// Alias yang kalah oleh command plugin lain di JS. Lookup JS mengecek map
+    /// `commands` dulu, baru `aliases` (`plugins.js:539-544`), jadi alias yang
+    /// namanya sama dengan nama plugin lain sebagai command tidak pernah
+    /// dipakai. Contoh: `cekcantik` punya alias `cantik`, tapi `siapa`
+    /// (`bego`) punya command `cantik` — `.cantik` membuka `siapa`.
+    ///
+    /// Rust meniru ini lewat `PluginMeta::commands` (sisa array `name` JS),
+    /// yang dicek sebelum alias di `oktz_plugin_api::find`.
+    pub(crate) const JS_SHADOWED_ALIASES: [(&str, &str); 37] = [
+        ("admin", "admin"),
+        ("applemusic", "applemusic"),
+        ("asmaulhusna", "asmaulhusna"),
+        ("audioquran", "audioquran"),
+        ("backupdb", "backupdb"),
+        ("beli", "beli"),
+        ("berburu", "berburu"),
+        ("block", "block"),
+        ("bratanime", "bratanime"),
+        ("bucin", "bucin"),
+        ("cantik", "bego"),
+        ("cc", "clearchat"),
+        ("cekjodoh", "cekjodoh"),
+        ("cupu", "bego"),
+        ("daftar", "daftar"),
+        ("discordstalk", "discordstalk"),
+        ("exp", "exp"),
+        ("film", "film"),
+        ("ganteng", "bego"),
+        ("inspect", "inspect"),
+        ("kaya", "bego"),
+        ("leave", "leave"),
+        ("mimpi", "mimpi"),
+        ("ngemis", "ngemis"),
+        ("noob", "bego"),
+        ("pastebin", "pastebin"),
+        ("ping", "ping"),
+        ("pintar", "bego"),
+        ("pro", "bego"),
+        ("qrcode", "qrcustom"),
+        ("smemevid", "smemevid"),
+        ("stalkdc", "discordstalk"),
+        ("stats", "stats"),
+        ("top", "top"),
+        ("tts", "tts"),
+        ("unblock", "unblock"),
+        ("wibu", "bego"),
+    ];
+
+    /// Owner yang benar untuk `alias` menurut JS: command menang atas alias.
+    /// Kalau plugin owners-nya belum di-port ke Rust, alias jatuh ke
+    /// pemiliknya (fallback).
+    pub(crate) fn js_owner_of_alias<'a>(alias: &str, fallback: &'a str) -> &'a str {
+        match JS_SHADOWED_ALIASES
+            .iter()
+            .find(|(a, _)| *a == alias)
+            .map(|(_, owner)| *owner)
+        {
+            // Owner harus plugin yang NAMANYA `owner`. `find(owner)` tidak
+            // bisa dipakai: owner yang belum di-port (`admin`) masih resolve
+            // lewat alias plugin lain.
+            Some(owner)
+                if oktz_plugin_api::all_plugins()
+                    .iter()
+                    .any(|p| p.meta.name == owner) =>
+            {
+                owner
+            }
+            _ => fallback,
+        }
+    }
+
+    #[test]
+    fn every_shadowed_alias_resolves_to_the_js_command_owner() {
+        for (alias, owner) in JS_SHADOWED_ALIASES {
+            let found = oktz_plugin_api::find(alias)
+                .unwrap_or_else(|| panic!("alias {alias} tidak resolve"));
+            // `find(owner)` bisa resolve ke plugin lain lewat alias, jadi
+            // yang dicek adalah plugin yang NAMANYA `owner`.
+            let owner_ada = oktz_plugin_api::all_plugins()
+                .iter()
+                .any(|p| p.meta.name == owner);
+            if owner_ada {
+                assert_eq!(
+                    found.meta.name, owner,
+                    "alias {alias} harus kalah oleh command {owner}"
+                );
+                continue;
+            }
+            // Plugin owners JS belum di-port (`admin`, `pastebin`, `qrcustom`),
+            // jadi alias jatuh ke plugin yang mendeklarasikannya.
+            let pemilik = oktz_plugin_api::all_plugins()
+                .iter()
+                .find(|p| p.meta.alias.iter().any(|a| a == alias))
+                .map(|p| p.meta.name.as_str())
+                .unwrap_or("");
+            assert_eq!(found.meta.name, pemilik, "alias {alias} salah resolve");
+        }
+    }
+
     #[test]
     fn every_duplicate_key_is_one_we_inherited_from_js() {
         // Dibaca dari registry langsung, bukan lewat `find()`: `find` ikut
@@ -4181,7 +4286,9 @@ mod tests_roster_state {
         let mut keys: Vec<String> = oktz_plugin_api::all_plugins()
             .iter()
             .flat_map(|p| {
-                std::iter::once(p.meta.name.clone()).chain(p.meta.alias.iter().cloned())
+                std::iter::once(p.meta.name.clone())
+                    .chain(p.meta.commands.iter().cloned())
+                    .chain(p.meta.alias.iter().cloned())
             })
             .collect();
         keys.sort();

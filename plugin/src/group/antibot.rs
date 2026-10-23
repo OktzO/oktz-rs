@@ -8,7 +8,8 @@
 //! - `gpMsg` hanya dipakai `detectBot`, jadi ikut tidak dipindah.
 //!
 //! `pluginConfig.name` di JS berupa array `["antibot", "botdetect"]` dengan
-//! `alias: []`; elemen pertama jadi nama, sisanya jadi alias.
+//! `alias: []`; elemen pertama jadi nama, sisanya jadi command tambahan
+//! (`PluginMeta::commands`, `plugins.js:207-209`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -32,7 +33,10 @@ fn write(ctx: &Ctx, message: &str, on: bool) -> Reply {
 
 #[plugin(
     name = "antibot",
-    alias = ["botdetect"],
+    commands = [
+        "botdetect",
+    ],
+    alias = [],
     category = "group",
     description = "Deteksi dan kick bot WhatsApp (baileys) dari grup",
     usage = ".antibot <on/off>",
@@ -97,7 +101,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("antibot").unwrap();
         assert_eq!(p.meta.name, "antibot");
-        assert_eq!(p.meta.alias, ["botdetect"]);
+        assert_eq!(p.meta.commands, ["botdetect"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "group");
         assert_eq!(
             p.meta.description,

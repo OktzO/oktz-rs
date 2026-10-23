@@ -1,8 +1,7 @@
 //! `plugins/download/pixeldraindl.js` — unduh file dari Pixeldrain.
 //!
-//! `ponytail:` `config.APIkey?.neoxr` tidak ada di `Ctx` (yang hanya membawa
-//! state store), jadi `NEOXR_APIKEY` selalu kosong — sama dengan `|| ''` di JS
-//! saat `.env` tidak diisi, dan query `apikey=` tetap dikirim apa adanya.
+//! `config.APIkey?.neoxr` dibaca dari runtime `Ctx`, lalu dipakai apa adanya
+//! pada query `apikey=` seperti `pixeldraindl.js:4,36`.
 //!
 //! `f()` (`src/lib/http.js:32`) **tidak pernah melempar**: status `>= 400` dan
 //! semua error transport RETURN `null`. Jadi `Err` dari `ctx.http.get` — termasuk
@@ -10,13 +9,10 @@
 //! `Value::Null`, bukan ke cabang `catch`. Kalau tidak, kegagalan jaringan akan
 //! diam-diam memakai pesan yang berbeda dari `f()` di Node.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::js_falsy;
-
-/// `config.APIkey?.neoxr || ''`.
-pub(crate) const NEOXR_APIKEY: &str = "";
 
 /// `pixeldraindl.js:36` — endpoint aggregator neoxr.
 pub(crate) const ENDPOINT: &str = "https://api.neoxr.eu/api/pixeldrain";
@@ -261,7 +257,7 @@ pub fn pixeldraindl(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    let data = f_equivalent(&ctx, &api_url(url, NEOXR_APIKEY));
+    let data = f_equivalent(&ctx, &api_url(url, &ctx.config().api_keys.neoxr));
 
     // `!data?.status || !data?.data` — keduanya pakai falsiness JS, bukan
     // `=== true` atau sekadar "key tidak ada".
@@ -284,10 +280,17 @@ pub fn pixeldraindl(ctx: Ctx) -> Reply {
     };
 
     if mb > 0.0 && mb <= 100.0 {
-        // `pixeldraindl.js:60-68` — `sendMedia` document; `Reply` tidak punya
-        // variant document, jadi URL filenya yang terkirim sebagai teks.
-        let url_file = file.and_then(|f| f.get("url")).map(js_to_string).unwrap_or_default();
-        return Reply::text(url_file).with_reaction("✅");
+        // `pixeldraindl.js:60-68` — `sendMedia` document dari URL, nama berkas
+        // dari `file.filename`, mimetype bawaan `application/octet-stream`.
+        let url_file = file
+            .and_then(|f| f.get("url"))
+            .map(js_to_string)
+            .unwrap_or_default();
+        let nama = file
+            .and_then(|f| f.get("filename"))
+            .map(js_to_string)
+            .unwrap_or_default();
+        return Reply::document(MediaSource::url(url_file), nama).with_reaction("✅");
     }
     if mb > 100.0 {
         return Reply::text(terlalu_besar(&size_teks)).with_reaction("✅");
@@ -360,7 +363,11 @@ mod tests {
     }
 
     fn run(http: Arc<Stub>, args: &[&str]) -> Reply {
-        let ctx = Ctx {
+        run_with_key(http, args, "")
+    }
+
+    fn run_with_key(http: Arc<Stub>, args: &[&str], key: &str) -> Reply {
+        let mut ctx = Ctx {
             prefix: ".".into(),
             command: "pixeldraindl".into(),
             sender: SENDER.into(),
@@ -370,6 +377,9 @@ mod tests {
             http,
             ..Default::default()
         };
+        let mut config = ctx.config.as_ref().clone();
+        config.api_keys.neoxr = key.to_string();
+        ctx.config = Arc::new(config);
         (find("pixeldraindl").unwrap().handler)(ctx)
     }
 
@@ -387,7 +397,7 @@ mod tests {
     fn ok_file(size: Value) -> Value {
         serde_json::json!({
             "status": true,
-            "data": { "url": "https://cdn.example/f.zip", "filename": "f.zip", "size": size }
+            "data": { "url": "https://cdn.example/f.zip", "filename": "berkas-contoh.zip", "size": size }
         })
     }
 
@@ -484,13 +494,35 @@ mod tests {
             &["  https://pixeldrain.com/u/x  "],
         );
         assert_eq!(reaksi(&r), Some("✅"));
-        assert_eq!(text_of(&r).as_deref(), Some("https://cdn.example/f.zip"));
+        // Dokumen terkirim — bukan URL teks seperti port lama.
+        let isi = match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        };
+        assert!(matches!(isi, Reply::Document { .. }), "{r:?}");
+    }
+
+    #[test]
+    fn api_key_neoxr_dibaca_dari_runtime() {
+        // `config.APIkey?.neoxr` di `pixeldraindl.js:4` dibaca saat runtime,
+        // bukan konstanta kosong hasil port lama.
+        let http = Stub::json(ok_file(serde_json::json!("5 MB")));
+        run_with_key(
+            http.clone(),
+            &["https://pixeldrain.com/u/x"],
+            "KUNCI-RUNTIME",
+        );
+        assert_eq!(
+            http.seen.lock().unwrap()[0],
+            "https://api.neoxr.eu/api/pixeldrain\
+             ?url=https%3A%2F%2Fpixeldrain.com%2Fu%2Fx&apikey=KUNCI-RUNTIME"
+        );
     }
 
     #[test]
     fn the_query_uses_encode_uri_component_not_form_encoding() {
         assert_eq!(
-            api_url("https://pixeldrain.com/u/a b?x=1", NEOXR_APIKEY),
+            api_url("https://pixeldrain.com/u/a b?x=1", ""),
             "https://api.neoxr.eu/api/pixeldrain\
              ?url=https%3A%2F%2Fpixeldrain.com%2Fu%2Fa%20b%3Fx%3D1&apikey="
         );
@@ -513,7 +545,7 @@ mod tests {
         assert_eq!(mb("5  MB"), 5.0, "spasi di \\s* boleh nol");
         assert_eq!(mb("1.2.3 MB"), 1.2, "parseFloat berhenti di titik kedua");
         // `([\d.]+)\s*(MB|GB|KB)` mewajibkan satuan, jadi angka tanpa unit tidak cocok.
-assert_eq!(mb("5."), 0.0);
+        assert_eq!(mb("5."), 0.0);
         assert_eq!(mb("5 MB extra GB"), 5.0, "hanya kemunculan pertama");
         for tanpa in ["12345 bytes", "5 XB", "MB", "", "abc"] {
             assert_eq!(mb(tanpa), 0.0, "{tanpa:?}");
@@ -529,8 +561,16 @@ assert_eq!(mb("5."), 0.0);
     fn a_size_field_that_is_not_text_is_a_type_error_in_js() {
         assert_eq!(size_in_mb(SizeField::Absent), 0.0);
         assert_eq!(size_in_mb(SizeField::BukanTeks), 0.0);
-        for nilai in [serde_json::json!(5), serde_json::json!(true), serde_json::json!([]), serde_json::json!({})] {
-            let r = run(Stub::json(ok_file(nilai.clone())), &["https://pixeldrain.com/u/x"]);
+        for nilai in [
+            serde_json::json!(5),
+            serde_json::json!(true),
+            serde_json::json!([]),
+            serde_json::json!({}),
+        ] {
+            let r = run(
+                Stub::json(ok_file(nilai.clone())),
+                &["https://pixeldrain.com/u/x"],
+            );
             assert_eq!(
                 text_of(&r).as_deref(),
                 Some(crate::common::error_template_bawaan(".", "pixeldraindl").as_str()),
@@ -540,8 +580,15 @@ assert_eq!(mb("5."), 0.0);
         }
         // String dan null tidak melempar — keduanya jalan biasa.
         for nilai in [serde_json::json!("5 MB"), serde_json::json!(null)] {
-            let r = run(Stub::json(ok_file(nilai.clone())), &["https://pixeldrain.com/u/x"]);
-            assert_ne!(text_of(&r).as_deref(), Some(crate::common::error_template_bawaan(".", "pixeldraindl").as_str()), "{nilai}");
+            let r = run(
+                Stub::json(ok_file(nilai.clone())),
+                &["https://pixeldrain.com/u/x"],
+            );
+            assert_ne!(
+                text_of(&r).as_deref(),
+                Some(crate::common::error_template_bawaan(".", "pixeldraindl").as_str()),
+                "{nilai}"
+            );
         }
     }
 
@@ -550,11 +597,24 @@ assert_eq!(mb("5."), 0.0);
         for size in ["5 MB", "100 MB", "0.09 GB", "1024 KB", "12 mb"] {
             let http = Stub::json(ok_file(serde_json::json!(size)));
             let r = run(http.clone(), &["https://pixeldrain.com/u/x"]);
-            assert_eq!(
-                text_of(&r).as_deref(),
-                Some("https://cdn.example/f.zip"),
-                "size {size}"
-            );
+            // `pixeldraindl.js:60-68` — dokumen dari URL, nama dari
+            // `file.filename`. `with_reaction` membungkusnya dalam `Reaction`.
+            let isi = match r.without_mutations() {
+                Reply::Reaction { reply, .. } => reply.as_ref(),
+                lain => lain,
+            };
+            match isi {
+                Reply::Document {
+                    media, file_name, ..
+                } => {
+                    assert!(
+                        matches!(media.as_ref(), Some(MediaSource::Url { .. })),
+                        "size {size}"
+                    );
+                    assert_eq!(file_name, "berkas-contoh.zip", "size {size}");
+                }
+                lain => panic!("harus dokumen, dapat {lain:?} (size {size})"),
+            }
             assert_eq!(reaksi(&r), Some("✅"), "size {size}");
             assert_eq!(http.seen.lock().unwrap().len(), 1);
         }
@@ -612,17 +672,49 @@ assert_eq!(mb("5."), 0.0);
     #[test]
     fn a_truthy_non_boolean_status_is_accepted_like_in_js() {
         // `!data?.status` memakai falsiness JS, bukan `status === true`.
-        for status in [serde_json::json!(1), serde_json::json!("true"), serde_json::json!([]), serde_json::json!({})] {
+        for status in [
+            serde_json::json!(1),
+            serde_json::json!("true"),
+            serde_json::json!([]),
+            serde_json::json!({}),
+        ] {
             let body = serde_json::json!({ "status": status, "data": { "url": "https://cdn/f", "size": "1 MB" } });
             let r = run(Stub::json(body.clone()), &["https://pixeldrain.com/u/x"]);
-            assert_eq!(text_of(&r).as_deref(), Some("https://cdn/f"), "{status}");
+            let isi = match r.without_mutations() {
+                Reply::Reaction { reply, .. } => reply.as_ref(),
+                lain => lain,
+            };
+            match isi {
+                Reply::Document { media, .. } => {
+                    assert!(
+                        matches!(media.as_ref(), Some(MediaSource::Url { .. })),
+                        "{status}"
+                    );
+                }
+                lain => panic!("harus dokumen, dapat {lain:?} ({status})"),
+            }
             assert_eq!(reaksi(&r), Some("✅"), "{status}");
         }
     }
 
     #[test]
     fn the_plugin_only_reads_and_never_mutates() {
-        let r = run(Stub::json(ok_file(serde_json::json!("5 MB"))), &["https://pixeldrain.com/u/x"]);
+        let r = run(
+            Stub::json(ok_file(serde_json::json!("5 MB"))),
+            &["https://pixeldrain.com/u/x"],
+        );
         assert!(r.mutations().is_empty());
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Pixeldrain; set OKTZ_TEST_PIXELDRAIN_URL dan APIKEY_NEOXR bila perlu"]
+    fn live_pixeldraindl_mengambil_dokumen() {
+        // Uji live padanan `plugins/download/pixeldraindl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_PIXELDRAIN_URL");
+        let (http, ctx) = live_ctx("pixeldraindl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("pixeldraindl").unwrap().handler)(ctx);
+        assert_media(&reply, &["document"], &http);
     }
 }

@@ -1,27 +1,37 @@
 //! `plugins/download/pindl.js` — unduh gambar/video dari Pinterest.
 //!
-//! `ponytail:` lapisan kapabilitas (`src/capabilities/pinterest.js`) belum
-//! di-port, dan seluruh jalur unduhan juga butuh `child_process` + `fs`
-//! (`queueFFmpeg`, `fs.statSync`, `fs.readFileSync`) yang tidak ada di API
-//! plugin. Yang dipindah di sini semua logika plugin: guard URL per label,
-//! kartu pakai, `rencana_video`, `terlalu_besar`, pemilihan varian HLS, dan
-//! susunan pesan gagal. `resolve_pinterest` selalu gagal, jadi yang menyala
-//! adalah cabang `catch` biasa.
+//! Lapisan kapabilitas kini ikut: scraper lokal (`src/scraper/pindl.js`,
+//! proxy `ilovepin.net`) sudah di-port sebagai
+//! `oktz_scraper::pindl::scrape_pinterest`, dan `normalize`
+//! (`src/capabilities/pinterest.js:94-111`) disalin di bawah — entri media
+//! pertama dengan URL http yang dipakai, tipe tidak dikenal ditolak.
 //!
-//! `ponytail:` `Reply` tidak punya variant video maupun document, jadi file yang
-//! diproses di JS tidak ikut terkirim di sini.
+//! Jalur kirim di JS memakai `child_process` + `fs` (`queueFFmpeg`,
+//! `fs.statSync`) untuk video HLS. Di sini yang dipakai jalur FALLBACK JS
+//! (`pindl.js:220-236`): buffer video diunduh dengan `User-Agent` +
+//! `Referer: https://www.pinterest.com/` (Pinterest menolak UA generik),
+//! lalu dikirim sebagai video byte. Gambar dikirim sebagai URL
+//! (`pindl.js:278-289`), GIF jatuh ke jalur gambar seperti `catch` GIF JS
+//! (`pindl.js:291-297`).
+//!
+//! Reaksi ✅ hanya dikirim kalau ada file yang benar-benar terkirim
+//! (`sentCount`, `pindl.js:111-117,300-303`).
 
 // Cabang unduh/HLS tidak terjangkau di sini (stub resolver selalu gagal), tapi
 // kode JS-nya tetap ikut dipor supaya perilakunya bisa diuji dan nanti hidup
 // begitu kapabilitasnya ada.
 #![allow(dead_code)]
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
-use crate::common::{host_dari};
+use crate::common::host_dari;
 
 /// `pindl.js:20` — batas body video (dan batas file yang boleh dikirim).
 pub(crate) const BATAS_BODY_VIDEO: u64 = 64 * 1024 * 1024;
+
+/// `pindl.js:222` — UA unduhan fallback video Pinterest.
+pub(crate) const UA_PINTEREST: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
 /// `pindl.js:83-87` — kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
@@ -138,9 +148,8 @@ pub(crate) fn host_pinterest(url: &str) -> bool {
     if !host.split('.').any(|label| label == "pinterest") {
         return false;
     }
-    pathname_dari(url).is_some_and(|p| {
-        p.len() >= 5 && p.as_bytes()[..5].eq_ignore_ascii_case(b"/pin/")
-    })
+    pathname_dari(url)
+        .is_some_and(|p| p.len() >= 5 && p.as_bytes()[..5].eq_ignore_ascii_case(b"/pin/"))
 }
 
 /// `parsed.pathname` — bagian URL setelah host dan sebelum `?`/`#`, **termasuk**
@@ -184,9 +193,9 @@ pub(crate) fn pilih_varian(master_url: &str, manifest: &str) -> Varian {
             if bw > last_bandwidth {
                 last_bandwidth = bw;
                 // `u?.startsWith("http") ? u : baseUrl + u` — `u` boleh `undefined` kalau
-// manifestnya berakhir tepat di baris `#EXT-X-STREAM-INF`, dan `baseUrl +
-// undefined` di JS menghasilkan teks `"undefined"`, bukan string kosong.
-let candidate = lines.get(i + 1).copied().unwrap_or("undefined");
+                // manifestnya berakhir tepat di baris `#EXT-X-STREAM-INF`, dan `baseUrl +
+                // undefined` di JS menghasilkan teks `"undefined"`, bukan string kosong.
+                let candidate = lines.get(i + 1).copied().unwrap_or("undefined");
                 varian.video = Some(jadi_absolut(candidate, &base));
             }
         }
@@ -239,10 +248,57 @@ fn jadi_absolut(u: &str, base: &str) -> String {
 
 /// `resolver.resolve("pinterest", { url })` — lapisan kapabilitas belum
 /// di-port. `Err` = melempar, persis seperti backend yang gagal.
-fn resolve_pinterest(_url: &str) -> Result<Vec<serde_json::Value>, ()> {
-    Err(())
+/// Satu media hasil `normalize` (`src/capabilities/pinterest.js:94-111`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Media {
+    pub jenis: String,
+    pub url: String,
 }
 
+/// `dariLokal` (`pinterest.js:94-111`) — entri media PERTAMA dengan URL http;
+/// tipe yang bukan video/image ditolak, bukan ditebak jadi gambar.
+pub(crate) fn normalize_pinterest(hasil: &serde_json::Value) -> Result<Media, ()> {
+    let Some(media) = hasil.get("media").and_then(serde_json::Value::as_array) else {
+        return Err(());
+    };
+    let terbaik = media
+        .iter()
+        .find(|m| {
+            m.get("url")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|u| {
+                    let kecil = u.trim().to_lowercase();
+                    kecil.starts_with("http://") || kecil.starts_with("https://")
+                })
+        })
+        .ok_or(())?;
+    let jenis = terbaik
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    if jenis != "video" && jenis != "image" {
+        return Err(());
+    }
+    Ok(Media {
+        jenis: jenis.to_string(),
+        url: terbaik
+            .get("url")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string(),
+    })
+}
+
+/// `resolver.resolve("pinterest", { url })` — scraper lokal saja
+/// (`scrape_pinterest` tidak pernah `Err`; `catch`-nya mengembalikan `null`,
+/// jadi `null` di sini = lemparan JS).
+fn resolve_pinterest(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> Result<Media, ()> {
+    // `scrape_pinterest` tidak pernah `Err` (`catch` JS mengembalikan `null`),
+    // jadi `null` = lemparan → `normalize` menolak.
+    let hasil = oktz_scraper::pindl::scrape_pinterest(http, url).unwrap_or(serde_json::Value::Null);
+    normalize_pinterest(&hasil)
+}
 #[plugin(
     name = "pindl",
     alias = ["pinterestdl", "pindownload", "pintdl"],
@@ -273,16 +329,36 @@ pub fn pindl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    match resolve_pinterest(url) {
-        // `pindl.js:118-309` — loop media: video lewat ffmpeg + HLS, gambar
-        // dikirim langsung, GIF dikonversi dulu. Semuanya butuh `sock`/`fs`/
-        // `child_process`, jadi tidak ada padanannya di API plugin.
-        Ok(_media) => {
-            // `pindl.js:118-309` — loop media: video lewat ffmpeg + HLS, gambar
-            // dikirim langsung, GIF dikonversi dulu. Semuanya butuh `sock`/`fs`/
-            // `child_process`, jadi tidak ada padanannya di API plugin dan
-            // `sentCount` tidak pernah naik.
-            Reply::text(gagal(None)).with_reaction("❌")
+    match resolve_pinterest(ctx.http.as_ref(), url) {
+        // `pindl.js:118-309` — satu media per pin (`normalize` hanya meneruskan
+        // satu). Video memakai jalur FALLBACK JS: buffer diunduh dengan
+        // UA + Referer Pinterest (`pindl.js:220-236`). Gambar dan GIF (yang
+        // di JS di-ffmpeg dulu, gagal → `catch` gambar) dikirim sebagai URL.
+        Ok(media) => {
+            if media.jenis == "video" {
+                // `axios.get(media.url, { headers: UA + Referer pinterest })`
+                // (`pindl.js:221-225`) — Pinterest memblokir UA generik.
+                let res = ctx.http.call(
+                    &HttpCall::get(&media.url)
+                        .header("User-Agent", UA_PINTEREST)
+                        .header("Referer", "https://www.pinterest.com/"),
+                );
+                match res {
+                    Ok(res) if (200..300).contains(&res.status) => {
+                        let data = res.body.bytes().to_vec();
+                        if !data.is_empty() {
+                            return Reply::video(MediaSource::bytes(data), "").with_reaction("✅");
+                        }
+                    }
+                    _ => {}
+                }
+                // Fallback gagal → `lastError` terisi, `sentCount` tetap 0
+                // (`pindl.js:238-241,300-307`).
+                return Reply::text(gagal(Some("Gagal mengunduh video Pinterest")))
+                    .with_reaction("❌");
+            }
+            // `pindl.js:278-289` — `sendMedia(chat, media.url, { type: "image" })`.
+            Reply::image(MediaSource::url(media.url), "").with_reaction("✅")
         }
         // `pindl.js:310-314` — `m.pushName` tidak ada di `Ctx`, jadi `User`.
         Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
@@ -293,6 +369,8 @@ pub fn pindl(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::find;
+    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpGet, HttpResponse};
+    use std::sync::{Arc, Mutex};
 
     const SENDER: &str = "628111@s.whatsapp.net";
 
@@ -318,6 +396,92 @@ mod tests {
             Reply::Reaction { emoji, .. } => Some(emoji.as_str()),
             _ => None,
         }
+    }
+
+    fn isi(r: &Reply) -> &Reply {
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        }
+    }
+
+    /// Stub resolver Pinterest: cookie, proxy, lalu media video.
+    #[derive(Debug, Default)]
+    struct PinterestStub {
+        seen: Mutex<Vec<HttpCall>>,
+    }
+
+    impl HttpGet for PinterestStub {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.call(&HttpCall::get(url))
+        }
+        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("scraper Pinterest memakai form mentah")
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("scraper Pinterest memakai HttpCall::call")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("scraper Pinterest tidak multipart")
+        }
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let (body, headers) = if req.url.contains("ilovepin.net/id") {
+                (
+                    "<html>".to_string(),
+                    vec![("set-cookie".into(), "sess=1".into())],
+                )
+            } else if req.url.contains("ilovepin.net/proxy.php") {
+                (
+                    serde_json::json!({
+                        "api": {
+                            "status": "OK",
+                            "mediaItems": [{
+                                "type": "Video",
+                                "mediaQuality": "HD",
+                                "mediaRes": "720p",
+                                "mediaFileSize": "2 MB",
+                                "mediaUrl": "https://cdn.pin/video.mp4"
+                            }]
+                        }
+                    })
+                    .to_string(),
+                    Vec::new(),
+                )
+            } else if req.url == "https://cdn.pin/video.mp4" {
+                ("VIDEO".to_string(), Vec::new())
+            } else {
+                return Err(HttpError {
+                    message: format!("URL tak dikenal stub: {}", req.url),
+                });
+            };
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(body.into_bytes()),
+                    mimetype: None,
+                },
+                headers,
+            })
+        }
+    }
+
+    fn run_dengan_http(http: Arc<dyn HttpGet>, text: &str) -> Reply {
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "pindl".into(),
+            sender: SENDER.into(),
+            chat: SENDER.into(),
+            text: text.into(),
+            args: text.split_whitespace().map(str::to_string).collect(),
+            http,
+            ..Default::default()
+        };
+        (find("pindl").unwrap().handler)(ctx)
     }
 
     #[test]
@@ -417,8 +581,39 @@ mod tests {
     #[test]
     fn the_resolve_failure_lands_on_the_generic_catch_branch() {
         let r = run("https://pin.it/xxx");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pindl"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pindl")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
+    }
+
+    #[test]
+    fn video_pinterest_diunduh_byte_dengan_header_js() {
+        // `pindl.js:219-230` memakai fallback axios dengan UA + Referer,
+        // lalu mengirim buffer video. `MediaSource::Url` tidak membawa header.
+        let http = Arc::new(PinterestStub::default());
+        let r = run_dengan_http(http.clone(), "https://pin.it/abc");
+        match isi(&r) {
+            Reply::Video { media, .. } => {
+                assert_eq!(media, &Some(MediaSource::bytes(b"VIDEO".to_vec())))
+            }
+            lain => panic!("harus video, dapat {lain:?}"),
+        }
+        assert_eq!(reaksi(&r), Some("✅"));
+
+        let seen = http.seen.lock().unwrap();
+        assert_eq!(seen.len(), 3, "cookie, proxy, lalu media");
+        let media = seen.last().expect("request media");
+        let cari = |nama: &str| {
+            media
+                .headers
+                .iter()
+                .find(|(key, _)| key.eq_ignore_ascii_case(nama))
+                .map(|(_, value)| value.as_str())
+        };
+        assert_eq!(cari("user-agent"), Some(UA_PINTEREST));
+        assert_eq!(cari("referer"), Some("https://www.pinterest.com/"));
     }
 
     #[test]
@@ -426,32 +621,68 @@ mod tests {
         let r = |u: &str| rencana_video(Some(u));
 
         // `/720p|…/g` case-sensitive.
-        assert_eq!(r("https://cdn/v_720p.mp4").master_url, "https://cdn/v_hls.m3u8");
-        assert_eq!(r("https://cdn/v_480p.mp4").master_url, "https://cdn/v_hls.m3u8");
-        assert_eq!(r("https://cdn/v_360p.mp4").master_url, "https://cdn/v_hls.m3u8");
-        assert_eq!(r("https://cdn/v_240p.mp4").master_url, "https://cdn/v_hls.m3u8");
-        assert_eq!(r("https://cdn/v_1080p.mp4").master_url, "https://cdn/v_1080p.m3u8");
+        assert_eq!(
+            r("https://cdn/v_720p.mp4").master_url,
+            "https://cdn/v_hls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/v_480p.mp4").master_url,
+            "https://cdn/v_hls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/v_360p.mp4").master_url,
+            "https://cdn/v_hls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/v_240p.mp4").master_url,
+            "https://cdn/v_hls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/v_1080p.mp4").master_url,
+            "https://cdn/v_1080p.m3u8"
+        );
         assert_eq!(
             r("https://cdn/v_720P.mp4").master_url,
             "https://cdn/v_720P.m3u8",
             "huruf besar tidak diganti"
         );
         // Setiap kemunculan diganti (flag g), termasuk yang menempel pada huruf.
-        assert_eq!(r("https://cdn/a720p.mp4").master_url, "https://cdn/ahls.m3u8");
-        assert_eq!(r("https://cdn/a720p360p.mp4").master_url, "https://cdn/ahlshls.m3u8");
+        assert_eq!(
+            r("https://cdn/a720p.mp4").master_url,
+            "https://cdn/ahls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/a720p360p.mp4").master_url,
+            "https://cdn/ahlshls.m3u8"
+        );
 
         // `.replace(".mp4", ".m3u8")` hanya kemunculan PERTAMA (tanpa flag g).
-        assert_eq!(r("https://cdn/v720p.mp4.mp4").master_url, "https://cdn/vhls.m3u8.mp4");
-        assert_eq!(r("https://cdn/v.mp4.m3u8").master_url, "https://cdn/v.m3u8.m3u8");
-        assert_eq!(r("https://cdn/x/y720p.mp4").master_url, "https://cdn/x/yhls.m3u8");
-        assert_eq!(r("https://cdn/v.mp4?x=720p").master_url, "https://cdn/v.m3u8?x=hls");
+        assert_eq!(
+            r("https://cdn/v720p.mp4.mp4").master_url,
+            "https://cdn/vhls.m3u8.mp4"
+        );
+        assert_eq!(
+            r("https://cdn/v.mp4.m3u8").master_url,
+            "https://cdn/v.m3u8.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/x/y720p.mp4").master_url,
+            "https://cdn/x/yhls.m3u8"
+        );
+        assert_eq!(
+            r("https://cdn/v.mp4?x=720p").master_url,
+            "https://cdn/v.m3u8?x=hls"
+        );
     }
 
     #[test]
     fn rencana_video_only_rewrites_urls_that_contain_mp4() {
         let r = |u: &str| rencana_video(Some(u));
         assert_eq!(r("https://cdn/720p").master_url, "https://cdn/720p");
-        assert_eq!(r("https://cdn/a720p360p").master_url, "https://cdn/a720p360p");
+        assert_eq!(
+            r("https://cdn/a720p360p").master_url,
+            "https://cdn/a720p360p"
+        );
         assert_eq!(r("").master_url, "");
         assert_eq!(rencana_video(None).master_url, "", "String(null ?? \"\")");
     }
@@ -476,7 +707,10 @@ mod tests {
         assert_eq!(BATAS_BODY_VIDEO, 67_108_864);
         assert!(!terlalu_besar(0));
         assert!(!terlalu_besar(BATAS_BODY_VIDEO - 1));
-        assert!(!terlalu_besar(BATAS_BODY_VIDEO), "tepat sebesar batas masih boleh");
+        assert!(
+            !terlalu_besar(BATAS_BODY_VIDEO),
+            "tepat sebesar batas masih boleh"
+        );
         assert!(terlalu_besar(BATAS_BODY_VIDEO + 1));
         assert!(terlalu_besar(100 * 1024 * 1024));
     }
@@ -558,7 +792,9 @@ mod tests {
         // falsy, jadi `baseUrl + undefined` -> teks `"undefined"`.
         let master = "https://cdn/pin/master.m3u8";
         assert_eq!(
-            pilih_varian(master, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=9999\n").video.as_deref(),
+            pilih_varian(master, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=9999\n")
+                .video
+                .as_deref(),
             Some("https://cdn/pin/undefined")
         );
         assert_eq!(pilih_varian(master, ""), Varian::default());
@@ -580,5 +816,17 @@ mod tests {
     #[test]
     fn the_plugin_only_reads_and_never_mutates() {
         assert!(run("https://pin.it/xxx").mutations().is_empty());
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Pinterest; set OKTZ_TEST_PINTEREST_URL"]
+    fn live_pindl_mengambil_media() {
+        // Uji live padanan `plugins/download/pindl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_PINTEREST_URL");
+        let (http, ctx) = live_ctx("pindl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("pindl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video", "image"], &http);
     }
 }

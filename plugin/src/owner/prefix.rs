@@ -2,8 +2,9 @@
 //!
 //! JS satu handler menangani 6 command (`addprefix`, `gantiprefix`/`setprefix`,
 //! `delprefix`, `listprefix`, `resetprefix`). Di Rust satu `#[plugin]` = satu
-//! `name`, jadi daftarkan `name = "addprefix"` dan sisanya sebagai `alias`;
-//! `PluginMeta::matches` mencocokkan nama atau alias.
+//! `name`, jadi daftarkan `name = "addprefix"` dan sisanya sebagai command
+//! tambahan (`PluginMeta::commands`); `oktz_plugin_api::find` mencocokkan
+//! nama, command tambahan, lalu alias.
 //!
 //! `ponytail:` `m.command?.toLowerCase()` di JS sudah lowercase lewat router,
 //! jadi `ctx.command` dipakai langsung.
@@ -18,7 +19,10 @@ const CONFIG_PREFIX: &str = ".";
 /// sisanya alias (pencocokan nama/alias sama-sama lewat `PluginMeta::matches`).
 #[plugin(
     name = "addprefix",
-    alias = ["gantiprefix", "setprefix", "delprefix", "listprefix", "resetprefix"],
+    commands = [
+        "gantiprefix", "setprefix", "delprefix", "listprefix", "resetprefix",
+    ],
+    alias = [],
     category = "owner",
     description = "Manajemen prefix bot",
     usage = ".addprefix <prefix1> <prefix2>...",

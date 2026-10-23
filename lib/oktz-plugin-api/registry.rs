@@ -1596,13 +1596,21 @@ pub fn count() -> usize {
 
 pub fn find(command: &str) -> Option<&'static PluginEntry> {
     let semua = all_plugins();
-    // `plugins.js:539-544`: nama di `commands` dicek dulu, alias hanya dipakai
-    // kalau nama tidak ada. Alias tidak boleh menimpa plugin yang namanya
-    // persis sama (mis. alias `backupdb` di `savedb` vs nama `backupdb`).
+    // `plugins.js:539-544`: map `commands` dicek dulu, `aliases` hanya
+    // dipakai kalau command tidak ada. Alias tidak boleh menimpa plugin
+    // yang namanya persis sama (mis. alias `backupdb` di `savedb` vs nama
+    // `backupdb`) — dan nama tambahan dari array `name` JS (`commands`)
+    // juga menyingkir alias plugin lain.
     semua
         .iter()
         .copied()
         .find(|e| e.meta.name == command)
+        .or_else(|| {
+            semua
+                .iter()
+                .copied()
+                .find(|e| e.meta.commands.iter().any(|c| c == command))
+        })
         .or_else(|| {
             semua
                 .iter()

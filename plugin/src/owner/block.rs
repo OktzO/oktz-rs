@@ -73,7 +73,10 @@ pub(crate) fn sock_unavailable(action: &str, target: &str) -> String {
 
 #[plugin(
     name = "block",
-    alias = ["blokir"],
+    commands = [
+        "blokir",
+    ],
+    alias = [],
     category = "owner",
     description = "Blokir nomor WhatsApp",
     usage = ".block <nomor/reply/mention>",
@@ -157,7 +160,8 @@ mod tests {
         let p = entry();
         assert_eq!(p.meta.name, "block");
         // JS `name: ['block','blokir']` — entri kedua jadi alias, alias JS kosong.
-        assert_eq!(p.meta.alias, ["blokir"]);
+        assert_eq!(p.meta.commands, ["blokir"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Blokir nomor WhatsApp");
         assert_eq!(p.meta.usage, ".block <nomor/reply/mention>");

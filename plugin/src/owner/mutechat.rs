@@ -25,7 +25,10 @@ fn digits_only(s: &str) -> String {
 
 #[plugin(
     name = "mutechat",
-    alias = ["mute"],
+    commands = [
+        "mute",
+    ],
+    alias = [],
     category = "owner",
     description = "Mute/unmute chat",
     usage = ".mutechat <nomor/reply> atau .mutechat buka <nomor>",
@@ -119,7 +122,8 @@ mod tests {
     fn registers_with_js_plugin_config() {
         let p = oktz_plugin_api::find("mutechat").unwrap();
         assert_eq!(p.meta.name, "mutechat");
-        assert_eq!(p.meta.alias, ["mute"]);
+        assert_eq!(p.meta.commands, ["mute"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert!(p.meta.is_owner);
     }

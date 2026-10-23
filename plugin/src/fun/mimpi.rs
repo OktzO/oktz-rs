@@ -238,11 +238,14 @@ mod tests {
                 Some("mimpi".to_string()),
                 "alias {key} tidak resolve"
             );
-            let owners: Vec<&str> = all_plugins()
+            // Diurutkan: urutan registry plugin mengikuti urutan linker,
+            // bukan semantik. Yang penting: HIMPUNAN pemilik key ini.
+            let mut owners: Vec<&str> = all_plugins()
                 .iter()
                 .filter(|e| e.meta.matches(key))
                 .map(|e| e.meta.name.as_str())
                 .collect();
+            owners.sort_unstable();
             // `mimpi` bukan punya kita saja: `plugins/primbon/tafsirmimpi.js`
             // mendaftarkan `mimpi` sebagai alias (baris 5) padahal file ini
             // memakai nama itu sebagai `name`. Warisan JS, bukan bug port —

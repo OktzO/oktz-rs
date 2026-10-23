@@ -20,6 +20,7 @@ pub fn plugin(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let mut name = String::new();
+    let mut commands: Vec<String> = Vec::new();
     let mut alias: Vec<String> = Vec::new();
     let mut category = String::new();
     let mut description = String::new();
@@ -51,6 +52,9 @@ pub fn plugin(attr: TokenStream, item: TokenStream) -> TokenStream {
             "usage" => usage = lit_str(&nv.value).unwrap_or_default(),
             "example" => example = lit_str(&nv.value).unwrap_or_default(),
             "alias" => alias = lit_str_array(&nv.value),
+            // Nama command tambahan — sisa array `name` di plugin JS
+            // (`plugins.js:207-209`).
+            "commands" => commands = lit_str_array(&nv.value),
             "cooldown" => cooldown = lit_u32(&nv.value).unwrap_or(0),
             "energi" => energi = lit_i64(&nv.value).unwrap_or(0),
             "is_enabled" => is_enabled = lit_bool(&nv.value).unwrap_or(true),
@@ -79,6 +83,7 @@ pub fn plugin(attr: TokenStream, item: TokenStream) -> TokenStream {
                 ::oktz_plugin_api::registry::PluginEntry {
                     meta: ::oktz_plugin_api::meta::PluginMeta {
                         name: #name.to_string(),
+                        commands: vec![#(#commands.to_string()),*],
                         alias: vec![#(#alias.to_string()),*],
                         category: #category.to_string(),
                         description: #description.to_string(),

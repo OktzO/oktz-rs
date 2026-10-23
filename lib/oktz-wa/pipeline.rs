@@ -28,10 +28,10 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use oktz_plugin_api::berkas::Berkas;
 use oktz_plugin_api::registry::{
@@ -159,6 +159,115 @@ pub fn normalize_user_key(jid: &str) -> Option<String> {
 
 fn top<'a>(store: &'a JsonStore, key: &str) -> Option<&'a Value> {
     store.get(key)
+}
+
+/// `normalizeNumber` (`config.js:346-352`) — buang suffix `:device` dan
+/// `@domain`, lalu sisakan digit saja.
+fn normalize_number(v: &str) -> String {
+    let v = v.split(':').next().unwrap_or(v);
+    let v = v.split('@').next().unwrap_or(v);
+    v.chars().filter(char::is_ascii_digit).collect()
+}
+
+/// `matchesNumber` (`config.js:357-362`) — strict equality setelah
+/// normalisasi. BUKAN `contains`/`ends_with`: nomor yang kebetulan memuat
+/// digit owner lain tidak boleh lolos (privilege escalation).
+fn matches_number(a: &str, b: &str) -> bool {
+    let na = normalize_number(a);
+    let nb = normalize_number(b);
+    !na.is_empty() && na == nb
+}
+
+/// `new Date(str).getTime()` — parser ISO-8601 minimal untuk field
+/// `expiredAt` (`config.js:442`). Format yang dipakai: `YYYY-MM-DDTHH:MM:SS`
+/// opsional pecahan detik dan `Z`/offset.
+fn iso_to_ms(s: &str) -> Option<i64> {
+    let s = s.trim();
+    let (date, rest) = s.split_once('T')?;
+    let mut date_parts = date.split('-');
+    let y: i64 = date_parts.next()?.parse().ok()?;
+    let mo: i64 = date_parts.next()?.parse().ok()?;
+    let d: i64 = date_parts.next()?.parse().ok()?;
+    let time = rest.split(['Z', '+']).next()?;
+    let mut time_parts = time.split(':');
+    let h: i64 = time_parts.next()?.parse().ok()?;
+    let mi: i64 = time_parts.next()?.parse().ok()?;
+    let sec: f64 = time_parts
+        .next()
+        .unwrap_or("0")
+        .split_once('.')
+        .map(|(a, _)| a.parse().ok())
+        .unwrap_or(Some(0.0))?;
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) {
+        return None;
+    }
+    // Hari sejak epoch (algoritma Howard Hinnant, civil-from-days terbalik).
+    let y_adj = if mo <= 2 { y - 1 } else { y };
+    let era = if y_adj >= 0 { y_adj } else { y_adj - 399 } / 400;
+    let yoe = y_adj - era * 400;
+    let mp = (mo + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(((days * 24 + h) * 60 + mi) * 60_000 + (sec * 1000.0) as i64)
+}
+
+/// Entri koleksi `premium`/`partner` — `config.js:440-450`:
+/// string (tanpa masa berlaku) atau objek `{ id, expired | expiredAt }`.
+///
+/// `expired` dibaca sebagai angka milidetik; `expiredAt` sebagai tanggal ISO.
+/// String non-numerik di `expired` diabaikan, sama seperti hasil perbandingan
+/// longgar di JS (`"2025-01-01" < now` → false → dianggap belum kedaluwarsa).
+fn entry_is_active(entry: &Value, jid: &str, now_ms: i64) -> bool {
+    let matched = match entry {
+        Value::String(s) => matches_number(s, jid),
+        Value::Object(_) => entry
+            .get("id")
+            .and_then(Value::as_str)
+            .is_some_and(|id| matches_number(id, jid)),
+        _ => false,
+    };
+    if !matched {
+        return false;
+    }
+    if matches!(entry, Value::String(_)) {
+        return true;
+    }
+    let expire = entry
+        .get("expired")
+        .and_then(Value::as_i64)
+        .or_else(|| {
+            entry
+                .get("expiredAt")
+                .and_then(Value::as_str)
+                .and_then(iso_to_ms)
+        });
+    // `if (expireTime && expireTime < now)` — 0 dianggap "tidak ada masa
+    // berlaku".
+    !matches!(expire, Some(e) if e != 0 && e < now_ms)
+}
+
+/// Objek settings — dua layout file yang harus sama-sama jalan.
+///
+/// Layout Rust (merged store, `src/main.rs`): `{"settings": {...}, "users":
+/// {...}, "groups": {...}}` — semua koleksi dalam satu file.
+///
+/// Layout JS (`database/main/settings.json` hasil salinan bot JS): file itu
+/// ISi koleksi settings, TANPA pembungkus — `{"replyVariant": 9, ...}`.
+///
+/// Kalau key `"settings"` ada dan berupa objek → itu yang dipakai. Kalau
+/// tidak → seluruh file dianggap settings. Tanpa fallback ini, database hasil
+/// salinan JS dibaca sebagai "settings tidak ada", sehingga `replyVariant`,
+/// `botMode`, `energi`, dan `notiflimit` diam-diam kembali ke default —
+/// persis gejala "replyVariant tidak jalan" di bot Rust.
+fn settings_obj(store: &JsonStore) -> Value {
+    match store.get("settings") {
+        Some(s) if s.is_object() => s.clone(),
+        _ => {
+            let all = store.all();
+            if all.is_object() { all.clone() } else { Value::Null }
+        }
+    }
 }
 
 /// Grant akses dari `user.access[]` (`middleware.js:38-52`).
@@ -330,6 +439,174 @@ pub fn capprem_from(settings: Option<&Value>, name: &str) -> Option<bool> {
         .as_bool()
 }
 
+/// File-file store yang dipakai bot JS: satu file per koleksi
+/// (`database.js:127-136` — `fileMap`: `users.json`, `groups.json`,
+/// `settings.json`, `premium.json`, `owner.json`, `partner.json`).
+///
+/// Rust sendiri menaruh semua koleksi di satu `settings.json`. Kalau folder
+/// database punya file JS, file-file itu yang jadi sumber kebenaran:
+/// `groups.json` memuat flag group-protection (`antilink`, `antiswgc`, ...)
+/// yang TIDAK ada di `settings.json`. Tanpa pembacaan ini semua proteksi
+/// grup mati di deployment yang database-nya disalin dari bot JS.
+#[derive(Debug, Clone)]
+struct StoreFiles {
+    /// `settings.json` — isi settings, atau seluruh store (layout Rust).
+    primary: PathBuf,
+    /// Koleksi JS di samping file utama. `None` → layout Rust (satu file).
+    users: Option<PathBuf>,
+    groups: Option<PathBuf>,
+    premium: Option<PathBuf>,
+    owner: Option<PathBuf>,
+    partner: Option<PathBuf>,
+}
+
+/// Koleksi yang punya file sendiri di layout JS.
+const KOLEKSI_JS: [&str; 5] = ["users", "groups", "premium", "owner", "partner"];
+
+impl StoreFiles {
+    /// Deteksi layout dari file utama.
+    ///
+    /// Syaratnya file utama bernama `settings.json` — nama file store bot JS
+    /// (`database.js:129`). File lain yang kebetulan ada di folder yang sama
+    /// (mis. file test) tidak boleh mengubah layout store.
+    fn detect(primary: PathBuf) -> Self {
+        let dir = primary.parent().map(Path::to_path_buf).unwrap_or_default();
+        let bernama_settings = primary
+            .file_name()
+            .map(|n| n == "settings.json")
+            .unwrap_or(false);
+        let side = |name: &str| -> Option<PathBuf> {
+            if !bernama_settings {
+                return None;
+            }
+            let p = dir.join(name);
+            p.exists().then_some(p)
+        };
+        let users = side("users.json");
+        let groups = side("groups.json");
+        // Layout JS kalau ada file KOLEKSI di samping `settings.json`.
+        let js = users.is_some() || groups.is_some();
+        Self {
+            primary,
+            // File yang belum ada tetap remembering path: bot JS juga membuat
+            // file koleksi saat store dibuka (`database.js:138-152`).
+            users: if js {
+                Some(users.unwrap_or_else(|| dir.join("users.json")))
+            } else {
+                None
+            },
+            groups: if js {
+                Some(groups.unwrap_or_else(|| dir.join("groups.json")))
+            } else {
+                None
+            },
+            premium: side("premium.json"),
+            owner: side("owner.json"),
+            partner: side("partner.json"),
+        }
+    }
+
+    /// Layout JS? (file koleksi terpisah dari `settings.json`)
+    fn is_js(&self) -> bool {
+        self.users.is_some() || self.groups.is_some()
+    }
+
+    /// Semua file yang dibaca — untuk sidik jari (waktu modifikasi + panjang).
+    fn all_paths(&self) -> Vec<PathBuf> {
+        let mut v = vec![self.primary.clone()];
+        for p in [
+            self.users.clone(),
+            self.groups.clone(),
+            self.premium.clone(),
+            self.owner.clone(),
+            self.partner.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            v.push(p);
+        }
+        v
+    }
+}
+
+/// Sidik jari file: waktu modifikasi + panjang. `None` = file tidak ada.
+type Stamp = Option<(SystemTime, u64)>;
+
+fn stamps(files: &StoreFiles) -> Vec<(PathBuf, Stamp)> {
+    files
+        .all_paths()
+        .into_iter()
+        .map(|p| {
+            let st = std::fs::metadata(&p).ok().map(|m| {
+                (
+                    m.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+                    m.len(),
+                )
+            });
+            (p, st)
+        })
+        .collect()
+}
+
+/// Baca file JSON; file rusak / tidak ada → `None` (bukan error fatal).
+fn load_json(path: &Path) -> Option<Value> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+/// Pandangan satu file untuk seluruh koleksi — bentuk yang dipakai
+/// [`StoreContext`] sebagai snapshot.
+///
+/// Layout JS: `settings.json` = settings, tiap file lain = satu koleksi.
+/// Layout Rust: semua koleksi ada di root `settings.json`.
+fn merged_value(files: &StoreFiles) -> Value {
+    let primary =
+        load_json(&files.primary).unwrap_or_else(|| Value::Object(Default::default()));
+    let mut map = serde_json::Map::new();
+    let ada_settings = primary.get("settings").is_some_and(Value::is_object);
+    // Settings: layout merged → key "settings"; layout JS → seluruh file
+    // (kecuali key koleksi, itu bukan setting).
+    let settings = if ada_settings {
+        primary
+            .get("settings")
+            .cloned()
+            .unwrap_or_else(|| Value::Object(Default::default()))
+    } else {
+        let mut s = primary.clone();
+        if let Some(obj) = s.as_object_mut() {
+            for key in KOLEKSI_JS {
+                obj.remove(key);
+            }
+        }
+        s
+    };
+    map.insert("settings".into(), settings);
+    // File JS menang atas key root — itu sumber kebenaran layout JS.
+    for (key, path) in [
+        ("users", &files.users),
+        ("groups", &files.groups),
+        ("premium", &files.premium),
+        ("owner", &files.owner),
+        ("partner", &files.partner),
+    ] {
+        if let Some(p) = path
+            && let Some(v) = load_json(p)
+        {
+            map.insert(key.into(), v);
+        }
+    }
+    // Layout Rust: koleksi ada di root file utama.
+    if let Some(obj) = primary.as_object() {
+        for key in KOLEKSI_JS {
+            if let Some(v) = obj.get(key) {
+                map.entry(key.to_string()).or_insert_with(|| v.clone());
+            }
+        }
+    }
+    Value::Object(map)
+}
+
 /// [`RouterContext`] di atas `JsonStore`.
 ///
 /// Snapshot dibaca lewat `RwLock` bukan `Arc` polos karena `JsonStore::set`
@@ -349,15 +626,32 @@ pub struct StoreContext {
     /// Lokasi dokumen. Tulis selalu lewat buka-ulang file ini, jadi proses
     /// lain yang menulis file yang sama tidak diam-diam ditimpa.
     path: PathBuf,
+    /// File store yang dibaca (layout Rust satu file, atau layout JS).
+    files: StoreFiles,
+    /// Sidik jari file terakhir yang dimuat — dasar [`StoreContext::refresh`].
+    stamps: Arc<Mutex<Vec<(PathBuf, Stamp)>>>,
     started: Instant,
 }
 
 impl StoreContext {
     pub fn new(store: Arc<JsonStore>) -> Self {
         let path = store.path().to_path_buf();
+        let files = StoreFiles::detect(path.clone());
+        let merged = merged_value(&files);
+        let sidik = stamps(&files);
+        let snapshot = match JsonStore::open(&files.primary) {
+            Ok(mut s) => {
+                let _ = s.replace(merged);
+                Arc::new(s)
+            }
+            // File utama tidak bisa dibuka — pakai store yang sudah diberikan.
+            Err(_) => store,
+        };
         Self {
-            snapshot: Arc::new(RwLock::new(store)),
+            snapshot: Arc::new(RwLock::new(snapshot)),
             path,
+            files,
+            stamps: Arc::new(Mutex::new(sidik)),
             started: Instant::now(),
         }
     }
@@ -367,6 +661,34 @@ impl StoreContext {
         let mut this = Self::new(store);
         this.started = started;
         this
+    }
+
+    /// Muat ulang file store kalau ada yang berubah DI LUAR proses.
+    ///
+    /// Panel bot JS (atau proses lain) menulis `groups.json`/`settings.json`
+    /// langsung ke disk. Tanpa refresh, perubahan seperti toggle `antilink`
+    /// baru terlihat setelah mutasi Rust berikutnya — proteksi grup yang
+    /// baru dinyalakan owner tetap mati di sisi Rust.
+    ///
+    /// Biayanya cuma `stat()` per file; file yang berubah saja yang dibaca
+    /// ulang.
+    pub fn refresh(&self) {
+        let baru = stamps(&self.files);
+        {
+            let cur = self.stamps.lock().unwrap_or_else(|e| e.into_inner());
+            if *cur == baru {
+                return;
+            }
+        }
+        let merged = merged_value(&self.files);
+        if let Ok(mut s) = JsonStore::open(&self.files.primary) {
+            let _ = s.replace(merged);
+            *self
+                .snapshot
+                .write()
+                .unwrap_or_else(|e| e.into_inner()) = Arc::new(s);
+        }
+        *self.stamps.lock().unwrap_or_else(|e| e.into_inner()) = baru;
     }
 
     fn read(&self) -> Arc<JsonStore> {
@@ -393,24 +715,145 @@ impl StoreContext {
         // pesan yang sama-sama menulis user yang sama tidak boleh saling
         // menimpa snapshot di antara baca dan tulis.
         let mut guard = self.snapshot.write().unwrap_or_else(|e| e.into_inner());
-        let mut fresh = JsonStore::open(&self.path).map_err(|e| StoreWriteError {
-            path: self.path.clone(),
-            detail: format!("buka gagal: {e}"),
-        })?;
+        if self.files.is_js() {
+            // Layout bot JS: satu file per koleksi — `users.json` ditulis
+            // untuk user, `groups.json` untuk grup, `settings.json` untuk
+            // setting (`database.js:127-136`).
+            self.apply_js(mutations, now_ms)?;
+            let merged = merged_value(&self.files);
+            if let Ok(mut s) = JsonStore::open(&self.files.primary) {
+                let _ = s.replace(merged);
+                *guard = Arc::new(s);
+            }
+        } else {
+            let mut fresh = JsonStore::open(&self.path).map_err(|e| StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("buka gagal: {e}"),
+            })?;
 
+            for m in mutations {
+                apply_mutation(&mut fresh, m, now_ms, self.path.clone())?;
+            }
+
+            fresh.write().map_err(|e| StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("tulis gagal: {e}"),
+            })?;
+
+            // Snapshot ditukar HANYA setelah `write()` sukses. Kalau tulis
+            // gagal, pipeline masih membaca state lama — sama dengan isi disk.
+            *guard = Arc::new(fresh);
+        }
+        *self.stamps.lock().unwrap_or_else(|e| e.into_inner()) = stamps(&self.files);
+        Ok(mutations.len())
+    }
+
+    /// Tulis mutasi ke file KOLEKSI bot JS.
+    ///
+    /// `users.json` berisi objek user (key = nomor), `groups.json` objek
+    /// grup, `settings.json` isi setting — persis `fileMap` JS
+    /// (`database.js:127-136`). Menulis ke `settings.json` saja (seperti
+    /// layout Rust) akan mengaburkan file JS dan corrup `settings.json` yang
+    /// dipakai bot JS.
+    fn apply_js(&self, mutations: &[Mutation], now_ms: i64) -> Result<(), StoreWriteError> {
+        let mut user_mut = Vec::new();
+        let mut group_mut = Vec::new();
         for m in mutations {
-            apply_mutation(&mut fresh, m, now_ms, self.path.clone())?;
+            match m {
+                Mutation::SetUser { .. } => user_mut.push(m),
+                Mutation::SetGroup { .. } => group_mut.push(m),
+                Mutation::SetSetting { .. } => {}
+            }
         }
 
-        fresh.write().map_err(|e| StoreWriteError {
-            path: self.path.clone(),
-            detail: format!("tulis gagal: {e}"),
-        })?;
+        if !user_mut.is_empty() {
+            let path = self
+                .files
+                .users
+                .clone()
+                .unwrap_or_else(|| self.path.clone());
+            let mut store = JsonStore::open(&path).map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("buka gagal: {e}"),
+            })?;
+            let mut users = store.all().clone();
+            if !users.is_object() {
+                users = Value::Object(Default::default());
+            }
+            for m in user_mut {
+                let Mutation::SetUser { jid, data } = m else {
+                    continue;
+                };
+                // `getUser` mengembalikan `null` untuk jid yang tidak bisa
+                // dinormalisasi (`database.js:530-531`) → `setUser` diam.
+                let Some(key) = normalize_user_key(jid) else {
+                    continue;
+                };
+                apply_set_user(&mut users, &key, data, now_ms);
+            }
+            store.replace(users).map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("setUser gagal: {e}"),
+            })?;
+            store.write().map_err(|e| StoreWriteError {
+                path,
+                detail: format!("tulis gagal: {e}"),
+            })?;
+        }
 
-        // Snapshot ditukar HANYA setelah `write()` sukses. Kalau tulis
-        // gagal, pipeline masih membaca state lama — sama dengan isi disk.
-        *guard = Arc::new(fresh);
-        Ok(mutations.len())
+        if !group_mut.is_empty() {
+            let path = self
+                .files
+                .groups
+                .clone()
+                .unwrap_or_else(|| self.path.clone());
+            let mut store = JsonStore::open(&path).map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("buka gagal: {e}"),
+            })?;
+            let mut groups = store.all().clone();
+            if !groups.is_object() {
+                groups = Value::Object(Default::default());
+            }
+            for m in group_mut {
+                let Mutation::SetGroup { jid, data } = m else {
+                    continue;
+                };
+                if jid.is_empty() {
+                    continue;
+                }
+                apply_set_group(&mut groups, jid, data);
+            }
+            store.replace(groups).map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("setGroup gagal: {e}"),
+            })?;
+            store.write().map_err(|e| StoreWriteError {
+                path,
+                detail: format!("tulis gagal: {e}"),
+            })?;
+        }
+
+        // Setting tetap di file utama: `settings.json` (flat, tanpa key
+        // "settings") → ditulis di root, sama seperti `db.setting()` JS.
+        let setting_mut: Vec<&Mutation> = mutations
+            .iter()
+            .filter(|m| matches!(m, Mutation::SetSetting { .. }))
+            .collect();
+        if !setting_mut.is_empty() {
+            let mut store = JsonStore::open(&self.path).map_err(|e| StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("buka gagal: {e}"),
+            })?;
+            for m in setting_mut {
+                apply_mutation(&mut store, m, now_ms, self.path.clone())?;
+            }
+            store.write().map_err(|e| StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("tulis gagal: {e}"),
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -473,6 +916,19 @@ fn apply_mutation(
             })?;
         }
         Mutation::SetSetting { key, value } => {
+            // Dua layout file (lihat `settings_obj`). Kalau file ini layout JS
+            // — file = isi koleksi settings, tanpa key "settings" — setting
+            // ditulis di ROOT. Kalau tidak, layout berubah setengah jalan:
+            // file jadi punya key "settings", dan semua setting lama yang
+            // ada di root ikut hilang dari pembacaan.
+            let flat = !store.get("settings").is_some_and(Value::is_object);
+            if flat {
+                store.set(key, value.clone()).map_err(|e| StoreWriteError {
+                    path,
+                    detail: format!("setting({key}) gagal: {e}"),
+                })?;
+                return Ok(());
+            }
             let mut settings = store
                 .get("settings")
                 .cloned()
@@ -831,7 +1287,8 @@ impl RouterContext for StoreContext {
 
     fn mode_settings(&self) -> ModeSettings {
         let store = self.read();
-        mode_settings_from(top(&store, "settings"))
+        let s = settings_obj(&store);
+        mode_settings_from(if s.is_object() { Some(&s) } else { None })
     }
 
     fn group_overrides(&self, chat: &str) -> Option<GroupOverrides> {
@@ -841,7 +1298,8 @@ impl RouterContext for StoreContext {
 
     fn capprem(&self, name: &str) -> Option<bool> {
         let store = self.read();
-        capprem_from(top(&store, "settings"), name)
+        let s = settings_obj(&store);
+        capprem_from(if s.is_object() { Some(&s) } else { None }, name)
     }
 
     /// JS memakai `process.uptime()`. Tidak ada backing di store, jadi ini
@@ -879,7 +1337,63 @@ impl StoreContext {
     /// `settings` mentah — objek yang jadi `Ctx::settings`, sumber
     /// `db.setting(key)` (`database.js:753`).
     pub fn settings_entry(&self) -> Value {
-        self.read().get("settings").cloned().unwrap_or(Value::Null)
+        settings_obj(&self.read())
+    }
+
+    /// `config.isOwner(number)` (`config.js:364-404`) — sumber store besides
+    /// config: koleksi `owner` dan `settings.ownerNumbers`.
+    pub fn is_owner_user(&self, jid: &str) -> bool {
+        let store = self.read();
+        if store
+            .get("owner")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| matches_number(e.as_str().unwrap_or(""), jid)))
+        {
+            return true;
+        }
+        settings_obj(&store)
+            .get("ownerNumbers")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| matches_number(e.as_str().unwrap_or(""), jid)))
+    }
+
+    /// `config.isPremium(number)` (`config.js:406-460`) — koleksi `premium`
+    /// dan `settings.premiumUsers`.
+    ///
+    /// `ponytail:` JS menghapus entri kedaluwarsa dari store saat ditemukan;
+    /// di sini entri itu hanya DILEWATI (dicek readonly), jadi file store bisa
+    /// masih menyimpan premium lama yang sudah expired.
+    pub fn is_premium_user(&self, jid: &str, now_ms: i64) -> bool {
+        let store = self.read();
+        if store
+            .get("premium")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| entry_is_active(e, jid, now_ms)))
+        {
+            return true;
+        }
+        settings_obj(&store)
+            .get("premiumUsers")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| matches_number(e.as_str().unwrap_or(""), jid)))
+    }
+
+    /// `config.isPartner(number)` (`config.js:465-505`) — koleksi `partner`.
+    pub fn is_partner_user(&self, jid: &str, now_ms: i64) -> bool {
+        let store = self.read();
+        store
+            .get("partner")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| entry_is_active(e, jid, now_ms)))
+    }
+
+    /// `config.isBanned(number)` (`config.js:507-519`) — `settings.bannedUsers`.
+    pub fn is_banned_user(&self, jid: &str) -> bool {
+        let store = self.read();
+        settings_obj(&store)
+            .get("bannedUsers")
+            .and_then(Value::as_array)
+            .is_some_and(|arr| arr.iter().any(|e| matches_number(e.as_str().unwrap_or(""), jid)))
     }
 
     /// `settings.capenergi` (`handler.js:1856`) — override biaya energi per
@@ -888,8 +1402,8 @@ impl StoreContext {
     /// yang truthy. Key non-numerik diabaikan, bukan diperlakukan `0`.
     pub fn energy_overrides(&self) -> HashMap<String, i64> {
         let store = self.read();
-        top(&store, "settings")
-            .and_then(|s| s.get("capenergi"))
+        let s = settings_obj(&store);
+        s.get("capenergi")
             .and_then(Value::as_object)
             .map(|m| {
                 m.iter()
@@ -903,17 +1417,15 @@ impl StoreContext {
     /// tidak ada, jadi ikut [`resolve_energi_enabled`] dengan nilai config.
     pub fn energi_enabled_setting(&self) -> Option<bool> {
         let store = self.read();
-        top(&store, "settings")
-            .and_then(|s| s.get("energi"))
-            .and_then(Value::as_bool)
+        settings_obj(&store).get("energi").and_then(Value::as_bool)
     }
 
     /// `db.setting("notiflimit")` (`handler.js:1884`) — kalau aktif, potong
     /// energi dilaporkan ke user.
     pub fn notiflimit_setting(&self) -> bool {
         let store = self.read();
-        top(&store, "settings")
-            .and_then(|s| s.get("notiflimit"))
+        settings_obj(&store)
+            .get("notiflimit")
             .map(truthy_js)
             .unwrap_or(false)
     }
@@ -1320,8 +1832,23 @@ async fn load_media(source: &MediaSource) -> Result<Vec<u8>, PipelineError> {
             Ok(data)
         }
         MediaSource::Url { url, .. } => {
+            // Header `User-Agent` bawaan: beberapa CDN (TikTok, Facebook,
+            // Twitter) menolak request tanpa UA dengan 403 — dan di JS plugin
+            // yang mengunduh sendiri selalu mengirim UA. Tanpa ini, URL media
+            // yang valid gagal tepat di langkah terakhir.
+            //
+            // `ponytail:` header khusus per downloader (mis. `Referer` CDNs
+            // TikTok) belum dibawa lewat `MediaSource`; plugin yang butuh
+            // header itu harus mengunduh sendiri lewat `ctx.http` lalu
+            // mengirim `MediaSource::bytes`.
             let resp = http_client()
-                .execute(HttpRequest::get(url))
+                .execute(
+                    HttpRequest::get(url).with_header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                         (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                    ),
+                )
                 .await
                 .map_err(|e| PipelineError::Media(format!("gagal fetch media: {e}")))?;
             // URL sengaja tidak ikut pesan: media URL sering membawa token
@@ -2443,6 +2970,133 @@ fn mentioned_jids(m: &InboundMessage) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// `detectSwGcType(rawMsg)` (`group-protection.js:467-520`) — path tipe
+/// SW-group ("share status ke grup") di pohon pesan.
+///
+/// JS menelusuri SELURUH pohon pesan secara generik dan mengembalikan path
+/// seperti `message.groupMentionedMessage` atau
+/// `message.extendedTextMessage.contextInfo.groupMentions`. Path itu dipakai
+/// sebagai `%type%` di `gpMsg("antiswgc")`.
+///
+/// Port Rust memakai padanan protobuf (waproto 0.7):
+/// - `group_mentioned_message`, `status_mention_message`,
+///   `group_status_mention_message`, `group_status_message`,
+///   `group_status_message_v2` — wrapper SW-group;
+/// - `context_info.group_mentions` — mention grup di context info.
+///
+/// `ponytail:` `groupStatusMessageV2Extension` tidak ada di waproto 0.7, jadi
+/// tidak bisa dideteksi. `ponytail:` wrapper `device_sent`/`ephemeral`/
+/// `view_once` tidak menambah prefiks path seperti di JS — isi `%type%` tetap
+/// menunjuk tipe yang sama.
+fn sw_group_type_of(m: &wa::Message) -> Option<String> {
+    let b = m.get_base_message();
+    if b.group_mentioned_message.as_option().is_some() {
+        return Some("message.groupMentionedMessage".to_string());
+    }
+    if b.status_mention_message.as_option().is_some() {
+        return Some("message.statusMentionMessage".to_string());
+    }
+    if b.group_status_mention_message.as_option().is_some() {
+        return Some("message.groupStatusMentionMessage".to_string());
+    }
+    if b.group_status_message.as_option().is_some() {
+        return Some("message.groupStatusMessage".to_string());
+    }
+    if b.group_status_message_v2.as_option().is_some() {
+        return Some("message.groupStatusMessageV2".to_string());
+    }
+    // `contextInfoOf(node).groupMentions.length > 0` — satu mention grup
+    // sudah cukup; JS tidak mensyaratkan lebih dari satu.
+    let variants: [(&str, Option<&wa::ContextInfo>); 13] = [
+        (
+            "extendedTextMessage",
+            b.extended_text_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "imageMessage",
+            b.image_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "videoMessage",
+            b.video_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "documentMessage",
+            b.document_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "audioMessage",
+            b.audio_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "stickerMessage",
+            b.sticker_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "contactMessage",
+            b.contact_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "locationMessage",
+            b.location_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "buttonsResponseMessage",
+            b.buttons_response_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "listResponseMessage",
+            b.list_response_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "templateButtonReplyMessage",
+            b.template_button_reply_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "pollCreationMessage",
+            b.poll_creation_message
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+        (
+            "pollCreationMessageV2",
+            b.poll_creation_message_v2
+                .as_option()
+                .and_then(|v| v.context_info.as_option()),
+        ),
+    ];
+    for (nama, ci) in variants {
+        if let Some(ci) = ci
+            && !ci.group_mentions.is_empty()
+        {
+            return Some(format!("message.{nama}.contextInfo.groupMentions"));
+        }
+    }
+    None
+}
+
 /// `m.quoted` — pesan yang di-reply pengirim.
 fn quoted_of(m: &InboundMessage) -> Option<QuotedMessage> {
     let ci = context_info_of(&m.message)?;
@@ -2714,7 +3368,29 @@ pub trait RosterSource: Send + Sync {
 }
 
 pub type SendBoxRoster<'a> =
-    Pin<Box<dyn Future<Output = Result<GroupRoster, String>> + Send + 'a>>;
+    Pin<Box<dyn Future<Output = Result<RosterSnapshot, String>> + Send + 'a>>;
+
+/// Roster grup dari metadata: dua bentuk dari data yang sama.
+///
+/// - `roster` → bentuk plugin (`Ctx::roster`): satu JID per peserta.
+/// - `participants` → bentuk gate: satu peserta bisa punya tiga identitas
+///   (`id`/`lid`/`phone_number`), persis `p.jid`/`p.lid`/`p.phoneNumber` yang
+///   dibaca `_participantNums` (`serialize.js:101-116`). Tanpa bentuk ini,
+///   admin di grup addressing LID tidak pernah dikenali: roster hanya punya
+///   LID, sementara identitas bot/peserta bisa PN.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RosterSnapshot {
+    /// Bentuk plugin (`Ctx::roster`).
+    pub roster: GroupRoster,
+    /// Bentuk gate — identitas tiga-bentuk per peserta.
+    pub participants: Vec<oktz_router::group::Participant>,
+    /// Metadata grup berhasil dibaca?
+    ///
+    /// `false` = fetch gagal → di JS `catch` → gate group-protection dilewati
+    /// SENYAP (`group-protection.js:1330/1278/2104/2153`), bukan membalas
+    /// "bot bukan admin".
+    pub available: bool,
+}
 
 /// Default: tidak ada yang bisa tahu roster. Selalu kosong, bukan error —
 /// pesan dari grup tetap diproses, plugin `listadmin` yang perlu jailed.
@@ -2722,7 +3398,7 @@ pub struct NoRoster;
 
 impl RosterSource for NoRoster {
     fn roster(&self, _chat: &str) -> SendBoxRoster<'_> {
-        Box::pin(async { Ok(GroupRoster::default()) })
+        Box::pin(async { Ok(RosterSnapshot::default()) })
     }
 }
 
@@ -2755,42 +3431,71 @@ impl RosterSource for ClientSender {
             if let Some(lid) = client.lid() {
                 bot_jids.push(lid.to_string());
             }
-            Ok(roster_from(&meta, &bot_jids))
+            Ok(roster_snapshot_from(&meta, &bot_jids))
         })
     }
 }
 
-/// `GroupMetadata` → `Ctx::roster`.
+/// `GroupMetadata` → roster + identitas multi-bentuk untuk gate.
 ///
-/// Dipisah dari I/O supaya pemetaannya bisa diuji terhadap tipe asli
-/// `whatsapp_rust` tanpa `Client`. `ParticipantType` = `Member | Admin |
-/// SuperAdmin` (`wacore-0.7.0/src/iq/groups.rs:184`) dibaca lewat
+/// `GroupParticipant` bawa tiga bentuk: `jid` (LID di grup addressing LID,
+/// PN di grup addressing PN), `phone_number` (PN), dan `lid`
+/// (`whatsapp-rust-0.7.0/src/features/groups.rs:236-261`). `get_metadata`
+/// juga mengisi `phone_number` untuk peserta LID dari cache LID↔PN
+/// (`features/groups.rs:689-701`), jadi bentuk PN tersedia tanpa lookup
+/// tambahan.
+///
+/// `ParticipantType` = `Member | Admin | SuperAdmin`
+/// (`wacore-0.7.0/src/iq/groups.rs:184`) dibaca lewat
 /// `is_admin()`/`is_super_admin()` (`features/groups.rs:246,250`), persis dua
 /// nilai yang diporn plugin JS lewat `p.admin`.
-pub fn roster_from(meta: &GroupMetadata, bot_jids: &[String]) -> GroupRoster {
-    GroupRoster {
-        is_bot_admin: meta
-            .participants
-            .iter()
-            .any(|p| p.is_admin() && bot_jids.iter().any(|b| *b == p.jid.to_string())),
-        participants: meta
-            .participants
-            .iter()
-            .map(|p| Participant {
-                jid: p.jid.to_string(),
-                is_admin: p.is_admin(),
-                is_owner: p.is_super_admin(),
-                data: Value::Null,
-            })
-            .collect(),
+pub fn roster_snapshot_from(meta: &GroupMetadata, bot_jids: &[String]) -> RosterSnapshot {
+    let participants: Vec<oktz_router::group::Participant> = meta
+        .participants
+        .iter()
+        .map(|p| oktz_router::group::Participant {
+            id: p.jid.to_string(),
+            lid: p.lid.as_ref().map(|j| j.to_string()).unwrap_or_default(),
+            phone_number: p
+                .phone_number
+                .as_ref()
+                .map(|j| j.to_string())
+                .unwrap_or_default(),
+            admin: p.is_admin(),
+        })
+        .collect();
+    RosterSnapshot {
+        roster: GroupRoster {
+            // `adminFlagsFor(...).isBotAdmin` (serialize.js:153) — pencocokan
+            // ANGKA, bukan JID persis: di grup addressing LID `p.jid` = LID
+            // sementara bot dikenal sebagai PN (dan sebaliknya).
+            is_bot_admin: oktz_router::group::bot_is_admin(&participants, bot_jids),
+            participants: meta
+                .participants
+                .iter()
+                .map(|p| Participant {
+                    jid: p.jid.to_string(),
+                    is_admin: p.is_admin(),
+                    is_owner: p.is_super_admin(),
+                    data: Value::Null,
+                })
+                .collect(),
+        },
+        participants,
+        available: true,
     }
+}
+
+/// [`roster_snapshot_from`] — hanya bentuk plugin (`Ctx::roster`).
+pub fn roster_from(meta: &GroupMetadata, bot_jids: &[String]) -> GroupRoster {
+    roster_snapshot_from(meta, bot_jids).roster
 }
 
 /// Roster grup hasil baca, per chat, supaya satu grup tidak di-query ulang
 /// untuk tiap pesan.
 #[derive(Default)]
 struct RosterCache {
-    map: HashMap<String, (Instant, GroupRoster)>,
+    map: HashMap<String, (Instant, RosterSnapshot)>,
     ttl: std::time::Duration,
 }
 
@@ -2800,12 +3505,12 @@ impl RosterCache {
     /// biaya jaringan dan staleness.
     const DEFAULT_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 
-    fn get(&self, chat: &str) -> Option<GroupRoster> {
+    fn get(&self, chat: &str) -> Option<RosterSnapshot> {
         let (at, r) = self.map.get(chat)?;
         (at.elapsed() < self.ttl).then(|| r.clone())
     }
 
-    fn put(&mut self, chat: &str, roster: GroupRoster) {
+    fn put(&mut self, chat: &str, roster: RosterSnapshot) {
         self.map.insert(chat.to_string(), (Instant::now(), roster));
     }
 }
@@ -2846,6 +3551,7 @@ impl PluginCtxSource {
             .lock()
             .expect("roster cache")
             .get(&c.chat)
+            .map(|snapshot| snapshot.roster)
             .unwrap_or_default();
         // `db.getUser(p.jid)` per peserta — di JS tiap plugin yang mengiterasi
         // roster memanggilnya sendiri, jadi ini satu baca per peserta per pesan.
@@ -2958,6 +3664,12 @@ pub enum Outcome {
     EnergiDenied,
     /// Mode/permission ditolak, dan memang ada pesan yang dikirim.
     Denied,
+    /// User banned: command dibalas pesan banned, pesan non-command diabaikan
+    /// (`handler.js:901-913`).
+    Banned,
+    /// Grup sedang banned: command dari non-owner diabaikan tanpa balasan
+    /// (`handler.js:916-921`).
+    GroupBanned,
     /// Plugin jalan dan balasan terkirim.
     Sent,
 /// Plugin membalas media yang `Reply` tidak punya sumbernya.
@@ -3193,6 +3905,16 @@ impl Pipeline {
     pub fn caller_of(&self, m: &InboundMessage) -> Caller {
         let s = &m.info.source;
         let sender = s.sender.to_string();
+        // `config.isOwner/isPremium/isPartner` (`config.js:364-505`) membaca
+        // DUA sumber: config DAN store. Store Rust hanya berisi config
+        // (owner dari `config.json`), jadi tanpa baca store, user premium
+        // yang terdaftar di `premium.json`/`settings.premiumUsers` tetap
+        // dianggap non-premium dan command premium terus dibalas
+        // "Premium Only!".
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or_default();
         // Media pesan + jalur unduhnya. Pengirim stub (test) tidak punya
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
         // `NoMediaFetch` — `Ctx::media` tetap terisi supaya plugin bisa
@@ -3203,9 +3925,11 @@ impl Pipeline {
             chat: s.chat.to_string(),
             command: String::new(),
             is_group: s.is_group,
-            is_owner: self.identity.is_owner(&sender),
-            is_partner: self.identity.is_partner(&sender),
-            is_premium: self.identity.is_premium(&sender),
+            is_owner: self.identity.is_owner(&sender) || self.ctx.is_owner_user(&sender),
+            is_partner: self.identity.is_partner(&sender)
+                || self.ctx.is_partner_user(&sender, now_ms),
+            is_premium: self.identity.is_premium(&sender)
+                || self.ctx.is_premium_user(&sender, now_ms),
             is_admin: s.is_group && self.identity.is_admin(&sender),
             is_bot_admin: false,
             push_name: m.info.push_name.clone(),
@@ -3224,6 +3948,50 @@ impl Pipeline {
         format!("{id}@s.whatsapp.net")
     }
 
+    /// Kandidat identitas bot: PN + LID — `botCand` di JS
+    /// (`group-protection.js:1333`, `serialize.js:847`).
+    ///
+    /// Tanpa LID, bot tidak pernah dikenali sebagai admin di grup addressing
+    /// LID: roster peserta LID cuma punya angka LID, sedangkan `bot_number`
+    /// adalah PN.
+    fn bot_jids(&self) -> Vec<String> {
+        let mut jids: Vec<String> = Vec::new();
+        if let Some(client) = self.sender.client() {
+            if let Some(pn) = client.pn() {
+                jids.push(pn.to_string());
+            }
+            if let Some(lid) = client.lid() {
+                jids.push(lid.to_string());
+            }
+        }
+        if jids.is_empty() {
+            jids.push(self.bot_id_at());
+        }
+        jids
+    }
+
+    /// `m.sender` versi JS untuk pesan grup.
+    ///
+    /// JS: `serialize.js:694` mulai dari `msg.key.participant`; kalau
+    /// LID-ish, pasangan PN dicari (`participantAlt`/`participantPn`/sock/
+    /// cache, :700-747) → `m.sender` jadi PN. Rust: `MessageSource.sender_alt`
+    /// = `participant_pn` (addressing LID) atau `participant_lid` (addressing
+    /// PN) — `wacore-0.7.0/src/messages.rs:1110-1114`.
+    ///
+    /// Kalau wire tidak menyertakan pasangan itu, pengirim tetap LID — sama
+    /// seperti JS yang cache/sock-nya tidak bisa resolve.
+    fn resolved_sender(source: &whatsapp_rust::types::message::MessageSource) -> String {
+        let sender = source.sender.to_string();
+        let Some(alt) = source.sender_alt.as_ref() else {
+            return sender;
+        };
+        // PN preferred: LID adalah identitas grup, PN untuk teks/mention.
+        if source.sender.is_lid() && !alt.is_lid() {
+            return alt.to_string();
+        }
+        sender
+    }
+
     /// Caller untuk rantai group-protection, dari flag yang sudah dibaca
     /// [`Pipeline::caller_of`] plus sisa field yang cuma group.rs yang baca.
     ///
@@ -3235,18 +4003,16 @@ impl Pipeline {
         m: &InboundMessage,
         caller: &Caller,
         body: &str,
-        roster: &GroupRoster,
+        snapshot: &RosterSnapshot,
     ) -> GroupCaller {
-        let sender = caller.sender.clone();
-        // `m.key.participant` — di grup addressing LID ini bisa beda dari
-        // `m.sender`; `is_admin_check` mencocokkan keduanya.
-        let participant = m
-            .message
-            .get_base_message()
-            .extended_text_message
-            .as_option()
-            .and_then(|e| e.context_info.as_option())
-            .and_then(|c| c.participant.clone());
+        // `m.sender` versi JS — participant wire di-resolve ke PN kalau
+        // pasangannya ada di wire.
+        let sender = Self::resolved_sender(&m.info.source);
+        // `m.key.participant` — JS menulis ulang key ini jadi `m.sender`
+        // (`serialize.js:756-758`), jadi di gate keduanya sama: pengirim yang
+        // sudah di-resolve. BUG lama: Rust mengambil participant dari
+        // `context_info` (pesan yang DIKUTIP), bukan pesan sekarang.
+        let participant = Some(sender.clone());
         let parsed = parse_command(body, &self.parse_opts);
         GroupCaller {
             sender: sender.clone(),
@@ -3257,13 +4023,28 @@ impl Pipeline {
             // `group_guard` sendiri sudah melewati apa pun yang bukan grup.
             is_newsletter: false,
             is_owner: caller.is_owner,
-            is_admin: caller.is_admin,
+            // `m.isAdmin` (serialize.js:846) = admin GRUP dari metadata roster,
+            // bukan daftar admin global. Daftar admin global tidak ada di JS
+            // (`config.js` cuma punya owner/premium/partner), jadi angka
+            // `identity.admins` yang dipakai Rust selalu kosong → admin grup
+            // tidak pernah dikenali: pesan mereka dihapus dan toggle
+            // ditolak.
+            is_admin: oktz_router::group::sender_is_admin(
+                &snapshot.participants,
+                &[sender.as_str()],
+            ),
             is_partner: caller.is_partner,
-            is_bot_admin: roster.is_bot_admin,
+            is_bot_admin: oktz_router::group::bot_is_admin(
+                &snapshot.participants,
+                &self.bot_jids(),
+            ),
             from_me: m.info.source.is_from_me,
             is_command: parsed.is_command,
             is_document: wire_type_of(&m.message) == MessageKind::Document.wire_type(),
             message_type: wire_type_of(&m.message).to_string(),
+            // `detectSwGcType(rawMsg)` — path tipe SW-group untuk gate
+            // antiswgc (`group-protection.js:467-520`).
+            sw_group_type: sw_group_type_of(&m.message),
             body: body.to_string(),
             mentioned_jid: m
                 .message
@@ -3273,7 +4054,7 @@ impl Pipeline {
                 .and_then(|e| e.context_info.as_option())
                 .map(|c| c.mentioned_jid.clone())
                 .unwrap_or_default(),
-            participant_count: roster.participants.len(),
+            participant_count: snapshot.roster.participants.len(),
         }
     }
 
@@ -3422,59 +4203,96 @@ impl Pipeline {
 
     /// Eksekusi keputusan rantai group-protection di live path.
     ///
-    /// Urutan delete → reply mengikuti JS: `await sock.sendMessage(m.chat,
-    /// {delete: m.key}); await m.reply(...)` (`handler.js:811/823/848`). Reply
-    /// TANPA delete dikirim apa adanya; `DeleteAndStop` tidak mengirim apa pun.
+    /// Urutan delete → kick → reply mengikuti JS: `await sock.sendMessage(m.chat,
+    /// {delete: m.key}); await m.reply(...)` (`handler.js:811/823/848`).
     ///
-    /// Kegagalan delete TIDAK membatalkan reply dan tidak menggagalkan
-    /// pipeline — di JS `sock.sendMessage` pada gate ini dibungkus `try/catch`
-    /// yang menelan error, jadi meniru `?` di sini akan mengubah perilaku.
+    /// Kegagalan delete MEMBATALKAN aksi: di JS error delete naik ke `catch`
+    /// gate → `return false` → tanpa kick, tanpa balasan
+    /// (`group-protection.js:1346/1911/1966` + `catch` :1363/1936/1989).
+    /// Kegagalan kick berbeda per gate: `handleAntilinkGc/All` dan
+    /// `executeProtectionAction` menangkapnya lalu mengirim pesan mode-remove,
+    /// sedangkan `handleAntilink` tidak → tanpa balasan.
+    ///
+    /// `mention` = pengirim yang dipakai untuk mention balasan (`[m.sender]`
+    /// di JS, `serialize.js:958`).
     async fn execute_group_decision(
         &self,
         decision: group::Decision,
         m: &InboundMessage,
         caller: &Caller,
+        mention: &str,
     ) -> Result<Outcome, PipelineError> {
         let deletes = matches!(
             decision,
             group::Decision::DeleteAndStop
                 | group::Decision::DeleteAndReply(_)
                 | group::Decision::KickAndReply(_)
+                | group::Decision::KickAndReplyFallback { .. }
         );
-        if deletes
-            && let Err(e) = self
+        if deletes {
+            // Participant revoke = participant ASLI dari wire (LID kalau grup
+            // addressing LID). `whatsapp-rust` minta participant sama persis
+            // dengan key pesan asli — JANGAN konversi LID→PN
+            // (`send/actions.rs:39-55`), seperti WhatsApp Web.
+            //
+            // `ponytail:` JS menulis `m.key.participant` yang sudah di-resolve
+            // ke PN (`serialize.js:757`), jadi revoke-nya bisa tidak cocok di
+            // server untuk grup LID. Rust memakai participant wire asli supaya
+            // penghapusan benar-benar bekerja.
+            let participant = m.info.source.sender.to_string();
+            if let Err(e) = self
                 .sender
-                .delete_message(&caller.chat, &m.info.id, &caller.sender)
+                .delete_message(&caller.chat, &m.info.id, &participant)
                 .await
-        {
-            tracing::warn!(
-                error = %e,
-                chat = %caller.chat,
-                id = %m.info.id,
-                "gagal menghapus pesan terlarangan"
-            );
+            {
+                tracing::warn!(
+                    error = %e,
+                    chat = %caller.chat,
+                    id = %m.info.id,
+                    "gagal menghapus pesan terlarangan"
+                );
+                // JS: aksi dibatalkan — tanpa kick, tanpa balasan.
+                return Ok(Outcome::GroupStopped);
+            }
         }
-        // JS: delete → kick → reply. Kegagalan kick juga ditelan supaya pesan
-        // peringatan tetap terkirim (`src/lib/group-protection.js:1234-1242`).
-        if matches!(decision, group::Decision::KickAndReply(_))
-            && let Err(e) = self.plugin_src.sock.ubah_peserta(
+        // JS: delete → kick → reply.
+        let mut text = decision.reply_text().map(str::to_string);
+        if matches!(
+            decision,
+            group::Decision::KickAndReply(_) | group::Decision::KickAndReplyFallback { .. }
+        ) {
+            // Target kick = participant wire asli (LID kalau addressing LID) —
+            // roster grup memakai JID yang sama, jadi kick benar-benar
+            // mengeluarkan peserta.
+            let target = m.info.source.sender.to_string();
+            if let Err(e) = self.plugin_src.sock.ubah_peserta(
                 &caller.chat,
-                std::slice::from_ref(&caller.sender),
+                std::slice::from_ref(&target),
                 oktz_plugin_api::AksiPeserta::Keluar,
-            )
-        {
-            tracing::warn!(
-                error = %e,
-                chat = %caller.chat,
-                peserta = %caller.sender,
-                "gagal kick peserta"
-            );
+            ) {
+                tracing::warn!(
+                    error = %e,
+                    chat = %caller.chat,
+                    peserta = %target,
+                    "gagal kick peserta"
+                );
+                // JS: `handleAntilinkGc/All` + `executeProtectionAction`
+                // menangkap error kick lalu mengirim pesan mode-remove;
+                // `handleAntilink` tidak → tanpa balasan.
+                match decision.kick_fallback() {
+                    Some(fallback) => text = Some(fallback.to_string()),
+                    None => return Ok(Outcome::GroupStopped),
+                }
+            }
         }
-        match decision.reply_text() {
+        match text {
             Some(text) => {
+                // Di JS pesan gate ini dikirim `m.reply(...)` (group-protection
+                // memakai `m.reply`/`sock.sendMessage(m.chat, {text})` via
+                // helper) — bentuknya ikut `replyVariant` (serialize.js:958).
                 let reply = Reply::text(text);
-                let target = reply_target(m, &caller.sender);
-                if let Some(rendered) = render_reply(&reply, &target)? {
+                let target = reply_target(m, mention);
+                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
                 }
                 Ok(Outcome::Sent)
@@ -3489,9 +4307,13 @@ impl Pipeline {
     /// tetap jalan, hanya `Ctx::roster` kosong. Align dengan JS:
     /// `m.groupMetadata` bisa `undefined` dan plugin tetap jalan
     /// (`plugins/group/tagall.js:28-32`).
-    async fn roster_of(&self, chat: &str, is_group: bool) -> GroupRoster {
+    ///
+    /// Tapi gate group-protection harus TAHU bedanya: di JS fetch metadata
+    /// yang gagal membuat gate dilewati senyap (`catch` → `return false`),
+    /// bukan membalas "bot bukan admin". Itu Flags `available`.
+    async fn roster_of(&self, chat: &str, is_group: bool) -> RosterSnapshot {
         if !is_group {
-            return GroupRoster::default();
+            return RosterSnapshot::default();
         }
         if let Some(r) = self
             .plugin_src
@@ -3502,27 +4324,31 @@ impl Pipeline {
         {
             return r;
         }
-        let roster = match self.roster.roster(chat).await {
+        let snapshot = match self.roster.roster(chat).await {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(error = %e, chat = %chat, "gagal ambil roster grup");
-                GroupRoster::default()
+                RosterSnapshot::default()
             }
         };
         // Kosong tidak dicache: hasil gagal baca harus dicoba ulang, bukan
         // dikunci jadi "grup ini tidak punya anggota" selama TTL.
-        if !roster.is_empty() {
+        if snapshot.available && !snapshot.roster.is_empty() {
             self.plugin_src
                 .rosters
                 .lock()
                 .expect("roster cache")
-                .put(chat, roster.clone());
+                .put(chat, snapshot.clone());
         }
-        roster
+        snapshot
     }
 
     /// Satu pesan inbound → satu keputusan → satu pengiriman.
     pub async fn process(&self, m: &InboundMessage, now_ms: i64) -> Result<Outcome, PipelineError> {
+        // File store bisa diubah dari luar (panel bot JS, proses lain) —
+        // mis. owner menyalakan `antilink` di `groups.json`. Snapshot di-load
+        // ulang dulu supaya setting itu berlaku untuk pesan ini.
+        self.ctx.refresh();
         let Some(body) = extract_body(&m.message) else {
             return Ok(Outcome::NoBody);
         };
@@ -3550,7 +4376,19 @@ impl Pipeline {
         // boleh/tidaknya bot menghapus pesan) benar, dan supaya plugin pertama
         // yang jalan melihat `Ctx` lengkap. Router tidak punya Client maupun
         // store.
-        let roster = self.roster_of(&caller.chat, caller.is_group).await;
+        let snapshot = self.roster_of(&caller.chat, caller.is_group).await;
+
+        // `m.isAdmin` (serialize.js:846) = admin GRUP dari metadata roster.
+        // Rust sebelumnya memakai daftar admin global (`identity.admins`) yang
+        // di produksi selalu KOSONG — `config.js` JS tidak punya daftar itu —
+        // jadi admin grup tidak pernah dikenali: pesan mereka dihapus gate,
+        // dan toggle proteksi ditolak. Sekarang dihitung dari roster.
+        if caller.is_group {
+            caller.is_admin = oktz_router::group::sender_is_admin(
+                &snapshot.participants,
+                &[caller.sender.as_str()],
+            );
+        }
 
         // --- Gate 1: rantai group-protection (`handler.js:770-871`) ---------
         // Dijalankan untuk SETIAP pesan grup, sebelum command apa pun. Ini
@@ -3563,12 +4401,21 @@ impl Pipeline {
                 // buggy yang dipakai `handleAntilink*`
                 // (group-protection.js:1327/1898/1953); group.rs sudah tahu.
                 bot_number: self.bot_id_at().to_string(),
-                bot_lid: None,
+                // `sock.user.lid` — kandidat kedua "bot admin"
+                // (group-protection.js:1333). Tanpa ini bot tidak dikenali
+                // sebagai admin di grup addressing LID.
+                bot_lid: self
+                    .sender
+                    .client()
+                    .and_then(|client| client.lid())
+                    .map(|lid| lid.to_string()),
                 self_mode: self.ctx.mode_settings().mode.eq_ignore_ascii_case("self"),
-                participants: pipeline_gate::participants_from(&roster),
+                // Metadata gagal dibaca → JS `catch` → gate dilewati senyap.
+                metadata_available: snapshot.available,
+                participants: snapshot.participants.clone(),
                 now_ms,
             };
-            let gcaller = self.group_caller_of(m, &caller, &body, &roster);
+            let gcaller = self.group_caller_of(m, &caller, &body, &snapshot);
             let slow_key = format!("{}_{}", caller.chat, caller.sender);
             let input = group::GateInput {
                 caller: &gcaller,
@@ -3585,8 +4432,45 @@ impl Pipeline {
                 self.gates.record_message(&slow_key, now_ms);
             }
             if !matches!(decision, group::Decision::Allow) {
-                return self.execute_group_decision(decision, m, &caller).await;
+                // Mention balasan = `m.sender` versi JS (serialize.js:958).
+                let mention = gcaller.sender.clone();
+                return self
+                    .execute_group_decision(decision, m, &caller, &mention)
+                    .await;
             }
+        }
+
+        // --- Gate 1.5: user banned (`handler.js:901-913`) -------------------
+        // `m.isBanned` → kalau pesan ini command, balas pesan banned; kalau
+        // bukan, diam. Setelah itu pipeline berhenti — plugin tidak jalan.
+        // Sumber ban: `settings.bannedUsers` (`config.js:507-519`).
+        if self.ctx.is_banned_user(&caller.sender) {
+            if parse_command(&body, &self.parse_opts).is_command {
+                let pesan = oktz_core::config::Messages::default().banned;
+                let reply = Reply::text(pesan);
+                let target = reply_target(m, &caller.sender);
+                // `m.reply(...)` di JS — bentuknya ikut `replyVariant`.
+                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
+                    self.deliver(&caller.chat, rendered).await?;
+                }
+            }
+            return Ok(Outcome::Banned);
+        }
+
+        // --- Gate 1.6: grup banned (`handler.js:916-921`) --------------------
+        // Command dari user non-owner di grup yang di-banned diabaikan diam;
+        // owner tetap bisa pakai bot.
+        if caller.is_group
+            && !caller.is_owner
+            && parse_command(&body, &self.parse_opts).is_command
+            && self
+                .ctx
+                .group_entry(&caller.chat)
+                .get("isBanned")
+                .map(truthy_js)
+                .unwrap_or(false)
+        {
+            return Ok(Outcome::GroupBanned);
         }
 
         // --- Gate 2: rate limiter spam (`handler.js:1508`) ------------------
@@ -3629,7 +4513,9 @@ impl Pipeline {
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
             if let Some(reply) = router.answer(&caller, &body) {
                 let target = reply_target(m, &caller.sender);
-                if let Some(rendered) = render_reply(&reply, &target)? {
+                // Jawaban game di JS dikirim `m.reply` (`handler.js:440-473`),
+                // jadi bentuknya ikut `replyVariant`.
+                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
                 }
                 return Ok(Outcome::Sent);
@@ -3693,10 +4579,12 @@ impl Pipeline {
             if !energy.allowed {
                 // `config.messages?.energiExceeded || "⚡ Energi habis!"`
                 // (`handler.js:1879`) — pakai pesan config, bukan fallback.
+                // Dikirim lewat `m.reply` di JS, jadi bentuknya ikut
+                // `replyVariant` (`serialize.js:958`).
                 let pesan = oktz_core::config::Messages::default().energi_exceeded;
                 let reply = Reply::text(pesan);
                 let target = reply_target(m, &caller.sender);
-                if let Some(rendered) = render_reply(&reply, &target)? {
+                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
                 }
                 return Ok(Outcome::EnergiDenied);
@@ -3711,7 +4599,8 @@ impl Pipeline {
                 let pesan = oktz_router::gates::render_limit_deducted(&tpl, energy.deducted, sisa);
                 let reply = Reply::text(pesan);
                 let target = reply_target(m, &caller.sender);
-                if let Some(rendered) = render_reply(&reply, &target)? {
+                // `m.reply` di JS — bentuknya ikut `replyVariant`.
+                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
                 }
             }
@@ -4371,6 +5260,26 @@ mod tests {
         Arc::new(JsonStore::open(&p).unwrap())
     }
 
+    /// Store dengan layout file bot JS: satu file per koleksi di satu folder
+    /// (`database.js:127-136`). Kembalikan foldernya supaya test bisa
+    /// menulis file koleksi lain.
+    fn store_js_layout(
+        name: &str,
+        settings: &str,
+        users: &str,
+        groups: &str,
+    ) -> (PathBuf, Arc<JsonStore>) {
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("oktz-pipeline-js-{name}-{n}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("settings.json"), settings).unwrap();
+        std::fs::write(dir.join("users.json"), users).unwrap();
+        std::fs::write(dir.join("groups.json"), groups).unwrap();
+        let p = dir.join("settings.json");
+        let store = Arc::new(JsonStore::open(&p).unwrap());
+        (dir, store)
+    }
+
     /// `PipelineHandler` untuk pesan; antrean grup dibuat tapi tidak dipakai.
     fn handler_pesan(tx: IngestTx) -> PipelineHandler {
         let (grup, _grx) = whatsapp_rust::async_channel::unbounded();
@@ -4385,6 +5294,9 @@ mod tests {
         deleted: Arc<Mutex<Vec<(String, String, String)>>>,
         /// `(chat, emoji)` per panggilan reaksi.
         reacted: Arc<Mutex<Vec<(String, String)>>>,
+        /// `delete_message` gagal — menguji pembatalan aksi saat hapus gagal
+        /// (JS: error delete naik ke `catch` gate → aksi dibatalkan).
+        delete_fails: bool,
     }
 
     impl RecordingSender {
@@ -4432,6 +5344,9 @@ mod tests {
                 message_id.to_string(),
                 original_sender.to_string(),
             ));
+            if self.delete_fails {
+                return Box::pin(async { Err("gagal hapus".into()) });
+            }
             Box::pin(async move { Ok(()) })
         }
 
@@ -4450,29 +5365,53 @@ mod tests {
     impl RosterSource for AdminRoster {
         fn roster(&self, _chat: &str) -> SendBoxRoster<'_> {
             Box::pin(async {
-                Ok(GroupRoster {
-                    is_bot_admin: true,
+                Ok(RosterSnapshot {
+                    roster: GroupRoster {
+                        is_bot_admin: true,
+                        participants: vec![
+                            Participant {
+                                jid: "628111@s.whatsapp.net".into(),
+                                is_admin: false,
+                                is_owner: false,
+                                data: Default::default(),
+                            },
+                            Participant {
+                                jid: "628222@s.whatsapp.net".into(),
+                                is_admin: true,
+                                is_owner: true,
+                                data: Default::default(),
+                            },
+                            // Bot = participant admin dengan nomor "bot".
+                            Participant {
+                                jid: "628999@lid".into(),
+                                is_admin: true,
+                                is_owner: false,
+                                data: Default::default(),
+                            },
+                        ],
+                    },
+                    // Bentuk gate: identitas tiga-bentuk per peserta.
                     participants: vec![
-                        Participant {
-                            jid: "628111@s.whatsapp.net".into(),
-                            is_admin: false,
-                            is_owner: false,
-                            data: Default::default(),
+                        oktz_router::group::Participant {
+                            id: "628111@s.whatsapp.net".into(),
+                            lid: String::new(),
+                            phone_number: "628111@s.whatsapp.net".into(),
+                            admin: false,
                         },
-                        Participant {
-                            jid: "628222@s.whatsapp.net".into(),
-                            is_admin: true,
-                            is_owner: true,
-                            data: Default::default(),
+                        oktz_router::group::Participant {
+                            id: "628222@s.whatsapp.net".into(),
+                            lid: String::new(),
+                            phone_number: "628222@s.whatsapp.net".into(),
+                            admin: true,
                         },
-                        // Bot = participant admin dengan nomor "bot".
-                        Participant {
-                            jid: "628999@lid".into(),
-                            is_admin: true,
-                            is_owner: false,
-                            data: Default::default(),
+                        oktz_router::group::Participant {
+                            id: "628999@lid".into(),
+                            lid: "628999@lid".into(),
+                            phone_number: "628999@s.whatsapp.net".into(),
+                            admin: true,
                         },
                     ],
+                    available: true,
                 })
             })
         }
@@ -6018,6 +6957,25 @@ fn group_number_and_long_number_are_rejected() {
 
     // ---------- 9. Ctx: roster grup + state store ----------
 
+    /// Bentuk roster uji: satu JID per peserta, tanpa pasangan LID/PN.
+    fn snapshot_of(roster: GroupRoster) -> RosterSnapshot {
+        let participants = roster
+            .participants
+            .iter()
+            .map(|p| oktz_router::group::Participant {
+                id: p.jid.clone(),
+                lid: String::new(),
+                phone_number: p.jid.clone(),
+                admin: p.is_admin,
+            })
+            .collect();
+        RosterSnapshot {
+            roster,
+            participants,
+            available: true,
+        }
+    }
+
     fn real_group_metadata() -> GroupMetadata {
         // Bentuk persis `GroupInfoResponse` yang di-`GroupMetadata::from`
         // (`features/groups.rs:268`): `participant_type` tri-state.
@@ -6086,7 +7044,7 @@ fn group_number_and_long_number_are_rejected() {
     async fn without_a_roster_source_group_messages_still_get_processed() {
         // `NoRoster` = "tidak tahu", bukan "grup kosong" dan bukan error:
         // pesan harus tetap sampai ke plugin.
-        assert!(NoRoster.roster("120363@g.us").await.unwrap().is_empty());
+        assert!(NoRoster.roster("120363@g.us").await.unwrap().roster.is_empty());
     }
 
     #[test]
@@ -6165,7 +7123,7 @@ fn group_number_and_long_number_are_rejected() {
         src.rosters
             .lock()
             .unwrap()
-            .put("120363@g.us", roster.clone());
+            .put("120363@g.us", snapshot_of(roster.clone()));
         let wrapped = cache.get_or_insert(real, &src);
 
         // `Ctx` seperti yang router buat sebelum disuntik.
@@ -6300,10 +7258,10 @@ fn group_number_and_long_number_are_rejected() {
     #[test]
     fn unknown_chat_yields_an_empty_roster_not_a_stale_one() {
         let src = plugin_src_with(OK_STORE);
-        src.rosters.lock().unwrap().put("120363@g.us", roster_from(
+        src.rosters.lock().unwrap().put("120363@g.us", snapshot_of(roster_from(
             &real_group_metadata(),
             &["222@s.whatsapp.net".into()],
-        ));
+        )));
         let mut c = Ctx {
             chat: "999@g.us".into(),
             ..Default::default()
@@ -6339,8 +7297,8 @@ fn group_number_and_long_number_are_rejected() {
             }],
             is_bot_admin: false,
         };
-        c.put("g", r.clone());
-        assert_eq!(c.get("g"), Some(r));
+        c.put("g", snapshot_of(r.clone()));
+        assert_eq!(c.get("g"), Some(snapshot_of(r)));
         assert_eq!(c.get("lain"), None);
         // TTL habis -> dianggap tidak ada, supaya di-refresh.
         c.map.get_mut("g").unwrap().0 = Instant::now() - RosterCache::DEFAULT_TTL * 2;
@@ -6380,7 +7338,7 @@ fn group_number_and_long_number_are_rejected() {
         impl RosterSource for Tripwire {
             fn roster(&self, _chat: &str) -> SendBoxRoster<'_> {
                 *self.0.lock().unwrap() += 1;
-                Box::pin(async { Ok(GroupRoster::default()) })
+                Box::pin(async { Ok(RosterSnapshot::default()) })
             }
         }
         let calls = Arc::new(Mutex::new(0));
@@ -6549,6 +7507,94 @@ impl TestPlugin {
             texts[0].contains("Antilink"),
             "balasan harus peringatan antilink, bukan hasil plugin: {:?}",
             texts[0]
+        );
+    }
+
+    #[tokio::test]
+    async fn sw_group_mention_dihapus_dan_diperingatkan() {
+        // `handleAntiSwGc` (`group-protection.js:2075-2140`) — pesan SW-group
+        // ("share status ke grup") di grup dengan `antiswgc: "on"` dihapus,
+        // lalu bot kirim peringatan "AntiSWGC".
+        //
+        // Deteksi tipe SW di Rust: `sw_group_type_of` (pipeline.rs) membaca
+        // wrapper protobuf `group_mentioned_message` — padanan
+        // `message.groupMentionedMessage` di JS.
+        let plug = TestPlugin::new(3, 0, false);
+        let (p, s) = grp(
+            &plug,
+            r#"{"groups":{"120363@g.us":{"antiswgc":"on"}}}"#,
+        );
+        let mut msg = wa::Message {
+            conversation: Some("hai".into()),
+            ..Default::default()
+        };
+        msg.group_mentioned_message.get_or_insert_default();
+        let m = InboundMessage::builder()
+            .message(Arc::new(msg))
+            .info(Arc::new(MessageInfo {
+                source: MessageSource {
+                    chat: GROUP.parse().unwrap(),
+                    sender: MEMBER.parse().unwrap(),
+                    is_from_me: false,
+                    is_group: true,
+                    ..Default::default()
+                },
+                id: format!("M{}", n()),
+                ..Default::default()
+            }))
+            .build();
+        let out = p.process(&m, 1_000).await.unwrap();
+
+        assert_eq!(out, Outcome::Sent, "gate membalas peringatan, bukan plugin");
+        assert_eq!(plug.calls(), 0, "plugin TIDAK boleh dipanggil");
+        assert_eq!(
+            s.deleted(),
+            vec![(GROUP.to_string(), m.info.id.clone(), MEMBER.to_string())],
+            "pesan SW-group harus dihapus"
+        );
+        let texts = s.texts();
+        assert_eq!(texts.len(), 1, "tepat satu balasan: {texts:?}");
+        assert!(
+            texts[0].contains("AntiSWGC"),
+            "balasan harus peringatan antiswgc: {:?}",
+            texts[0]
+        );
+    }
+
+    #[tokio::test]
+    async fn group_gate_reply_pakai_reply_variant_dari_store() {
+        // Peringatan antilink di JS dikirim `m.reply(...)` di dalam
+        // `executeProtectionAction` — bentuknya ikut `replyVariant`.
+        let plug = TestPlugin::new(3, 0, false);
+        let sender = Arc::new(RecordingSender::default());
+        let ctx = StoreContext::new(store_with(
+            &format!("varian-grp-{}", n()),
+            r#"{"settings":{"replyVariant":9},"groups":{"120363@g.us":{"antilink":"on"}}}"#,
+        ));
+        let p = plug
+            .pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default())
+            .with_roster_source(Arc::new(AdminRoster));
+        let m = inbound_n(".gatetest https://contoh.com/x", MEMBER, GROUP, true);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+
+        let sent = sender.sent.lock().unwrap().clone();
+        assert_eq!(sent.len(), 1, "tepat satu balasan peringatan");
+        let order = sent[0]
+            .1
+            .order_message
+            .as_option()
+            .expect("peringatan gate harus orderMessage (varian 9)");
+        assert!(
+            order.message.as_deref().unwrap_or("").contains("Antilink"),
+            "isi peringatan: {:?}",
+            order.message
+        );
+        // Mention %user% tetap dioper sebagai mention JID (serialize varian).
+        let ci = order.context_info.as_option().expect("contextInfo");
+        assert!(
+            ci.mentioned_jid.contains(&MEMBER.to_string()),
+            "mention pengirim harus ada: {:?}",
+            ci.mentioned_jid
         );
     }
 
@@ -6944,6 +7990,380 @@ impl TestPlugin {
         // plugin yang sama) juga harus ditolak oleh permission, bukan cooldown.
         let m2 = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m2, 1_100).await.unwrap(), Outcome::Denied);
+    }
+
+    /// Pipeline DM dengan store berisi settings — dipakai test replyVariant.
+    fn dm_dengan_settings(
+        plug: &TestPlugin,
+        settings: &str,
+    ) -> (Arc<Pipeline>, Arc<RecordingSender>) {
+        let sender = Arc::new(RecordingSender::default());
+        let ctx = StoreContext::new(store_with(
+            &format!("varian-dm-{}", n()),
+            &format!(r#"{{"settings":{settings}}}"#),
+        ));
+        let p = plug.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default());
+        (Arc::new(p), sender)
+    }
+
+    /// Pipeline DM dengan file store mentah — untuk layout file JS (tanpa
+    /// pembungkus `{"settings": ...}`) dan koleksi di root.
+    fn dm_dengan_file(plug: &TestPlugin, raw: &str) -> (Arc<Pipeline>, Arc<RecordingSender>) {
+        let sender = Arc::new(RecordingSender::default());
+        let ctx = StoreContext::new(store_with(&format!("varian-file-{}", n()), raw));
+        let p = plug.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default());
+        (Arc::new(p), sender)
+    }
+
+    #[tokio::test]
+    async fn settings_layout_js_flat_tetap_dibaca_reply_variant() {
+        // `database/main/settings.json` hasil salinan bot JS berisi settings
+        // TANPA pembungkus (`database.js:130` — file itu ISi koleksi
+        // settings). Kalau bentuk itu tidak dibaca, `replyVariant` hilang dan
+        // balasan sistem kembali jadi teks biasa — gejala "replyVariant tidak
+        // jalan" di deployment yang database-nya disalin dari bot JS.
+        let plug = TestPlugin::new(3, 0, true);
+        let (p, s) = dm_dengan_file(&plug, r#"{"replyVariant":9}"#);
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Denied);
+
+        let sent = s.sent.lock().unwrap().clone();
+        assert_eq!(sent.len(), 1);
+        let order = sent[0]
+            .1
+            .order_message
+            .as_option()
+            .expect("denial harus orderMessage (varian 9 dari layout JS)");
+        assert!(
+            order.message.as_deref().unwrap_or("").contains("Premium Only"),
+            "isi: {:?}",
+            order.message
+        );
+    }
+
+    #[tokio::test]
+    async fn setting_ditulis_di_root_pada_layout_js_flat() {
+        // Layout JS: setting baru harus masuk ke file yang sama, TANPA
+        // membuat key "settings" — kalau key itu muncul, semua setting lama
+        // di root ikut hilang dari pembacaan.
+        let mut store = JsonStore::open(
+            std::env::temp_dir().join(format!("oktz-flat-{}.json", n())),
+        )
+        .unwrap();
+        store.write().unwrap();
+        store
+            .set("replyVariant", serde_json::json!(9))
+            .unwrap();
+        store
+            .set(
+                "settings",
+                serde_json::json!({ "replyVariant": 9, "botMode": "public" }),
+            )
+            .unwrap();
+        let path = store.path().to_path_buf();
+        let mut store = JsonStore::open(&path).unwrap();
+        apply_mutation(
+            &mut store,
+            &Mutation::SetSetting {
+                key: "notiflimit".into(),
+                value: serde_json::json!(true),
+            },
+            1_000,
+            path.clone(),
+        )
+        .unwrap();
+        let after = store.all().clone();
+        assert_eq!(
+            after.get("notiflimit"),
+            Some(&serde_json::json!(true)),
+            "setting harus ditulis di root pada layout flat"
+        );
+        assert!(
+            after.get("settings").is_none(),
+            "layout file tidak boleh berubah jadi merged: {after}"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn premium_dari_store_tidak_dibalas_premium_only() {
+        // `config.isPremium` (config.js:406-460) membaca koleksi `premium` dan
+        // `settings.premiumUsers`. Tanpa itu, user premium terdaftar tetap
+        // dianggap non-premium dan command premium-nya selalu dibalas
+        // "Premium Only!".
+        let plug = TestPlugin::new(3, 0, true);
+        let (p, _s) = dm_dengan_file(&plug, r#"{"premium":["628111"]}"#);
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(plug.calls(), 1, "user premium store tidak boleh ditolak");
+    }
+
+    #[tokio::test]
+    async fn premium_kedaluwarsa_di_store_tidak_dianggap_premium() {
+        // `expired` = ms epoch; kalau sudah lewat, premium gugur
+        // (config.js:444-452).
+        let plug = TestPlugin::new(3, 0, true);
+        let (p, _s) = dm_dengan_file(
+            &plug,
+            r#"{"premium":[{"id":"628111","expired":1000}]}"#,
+        );
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        let out = p.process(&m, 2_000_000_000_000).await.unwrap();
+        assert_eq!(out, Outcome::Denied, "premium expired harus ditolak");
+        assert_eq!(plug.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn owner_dari_store_dibaca_seperti_config_owner() {
+        // `config.isOwner` (config.js:383-398) membaca koleksi `owner` dan
+        // `settings.ownerNumbers`.
+        let store = store_with(
+            &format!("owner-store-{}", n()),
+            r#"{"owner":["628111"],"settings":{"ownerNumbers":["628999"]}}"#,
+        );
+        let ctx = StoreContext::new(store);
+        assert!(ctx.is_owner_user(MEMBER), "koleksi owner harus dibaca");
+        assert!(ctx.is_owner_user("628999@s.whatsapp.net"));
+        assert!(!ctx.is_owner_user("628777@s.whatsapp.net"));
+    }
+
+    #[tokio::test]
+    async fn user_banned_dibalas_pesan_banned_dan_plugin_tidak_jalan() {
+        // `handler.js:901-913` — user banned: kalau command, balas pesan
+        // banned; setelah itu pipeline berhenti.
+        let plug = TestPlugin::new(3, 0, false);
+        let (p, s) = dm_dengan_file(
+            &plug,
+            r#"{"settings":{"bannedUsers":["628111"]}}"#,
+        );
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Banned);
+        assert_eq!(plug.calls(), 0, "plugin tidak boleh jalan untuk user banned");
+        let texts = s.texts();
+        assert_eq!(texts.len(), 1);
+        assert!(texts[0].contains("Kamu Dibanned"), "{texts:?}");
+    }
+
+    #[tokio::test]
+    async fn layout_js_baca_koleksi_dari_file_terpisah() {
+        // Bot JS menyimpan satu file per koleksi (`database.js:127-136`).
+        // `groups.json` memuat flag proteksi grup; `settings.json` cuma
+        // settings. Kalau Rust cuma baca `settings.json`, semua proteksi grup
+        // mati di deployment yang database-nya disalin dari bot JS.
+        let (_dir, store) = store_js_layout(
+            "koleksi",
+            r#"{"replyVariant":9}"#,
+            r#"{"628111":{"isPremium":true}}"#,
+            r#"{"120363@g.us":{"antilink":"on"}}"#,
+        );
+        let ctx = StoreContext::new(store);
+        assert_eq!(
+            ctx.group_entry("120363@g.us").get("antilink"),
+            Some(&serde_json::json!("on")),
+            "groups.json harus terbaca"
+        );
+        assert_eq!(
+            ctx.settings_entry().get("replyVariant"),
+            Some(&serde_json::json!(9)),
+            "settings.json harus terbaca"
+        );
+        assert!(
+            ctx.user_entry(MEMBER).get("isPremium").is_some(),
+            "users.json harus terbaca"
+        );
+    }
+
+    #[tokio::test]
+    async fn layout_js_tulis_koleksi_ke_file_asalnya() {
+        // Mutasi harus masuk ke file KOLEKSI JS, bukan digabung ke
+        // `settings.json` — kalau tidak, `settings.json` yang dipakai bot JS
+        // berubah bentuk dan user/grup jadi hilang dari sana.
+        let (dir, store) = store_js_layout("tulis", r#"{"replyVariant":9}"#, "{}", "{}");
+        let ctx = StoreContext::new(store);
+        ctx.apply(
+            &[Mutation::SetUser {
+                jid: MEMBER.to_string(),
+                data: serde_json::json!({ "name": "Budi" }),
+            }],
+            1_000,
+        )
+        .unwrap();
+        let users: Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.join("users.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            users.get("628111").and_then(|u| u.get("name")),
+            Some(&serde_json::json!("Budi")),
+            "user harus ditulis ke users.json"
+        );
+        let settings: Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.join("settings.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            settings.get("replyVariant"),
+            Some(&serde_json::json!(9)),
+            "settings.json tidak boleh berubah bentuk: {settings}"
+        );
+        assert!(
+            settings.get("users").is_none(),
+            "koleksi tidak boleh masuk ke settings.json: {settings}"
+        );
+        // Snapshot setelah tulis harus ikut berubah.
+        assert_eq!(
+            ctx.user_entry(MEMBER).get("name"),
+            Some(&serde_json::json!("Budi"))
+        );
+    }
+
+    #[tokio::test]
+    async fn layout_js_setting_ditulis_di_root_settings_json() {
+        let (dir, store) = store_js_layout("setting", r#"{"replyVariant":9}"#, "{}", "{}");
+        let ctx = StoreContext::new(store);
+        ctx.apply(
+            &[Mutation::SetSetting {
+                key: "notiflimit".into(),
+                value: serde_json::json!(true),
+            }],
+            1_000,
+        )
+        .unwrap();
+        let settings: Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.join("settings.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            settings.get("notiflimit"),
+            Some(&serde_json::json!(true)),
+            "setting harus ditulis di root settings.json: {settings}"
+        );
+    }
+
+    #[tokio::test]
+    async fn layout_js_perubahan_eksternal_terbaca_setiap_pesan() {
+        // Owner menyalakan `antilink` dari panel (bot JS menulis
+        // `groups.json` langsung ke disk). Pesan berikutnya di Rust harus
+        // sudah melihat perubahan itu — tanpa refresh, proteksi baru
+        // dinyalakan tapi tidak berlaku.
+        let (dir, store) = store_js_layout(
+            "refresh",
+            r#"{"replyVariant":9}"#,
+            "{}",
+            r#"{"120363@g.us":{}}"#,
+        );
+        let ctx = StoreContext::new(store.clone());
+        assert!(
+            ctx.group_entry("120363@g.us")
+                .get("antilink")
+                .is_none(),
+            "awalnya belum ada flag"
+        );
+        std::fs::write(
+            dir.join("groups.json"),
+            r#"{"120363@g.us":{"antilink":"on"}}"#,
+        )
+        .unwrap();
+        ctx.refresh();
+        assert_eq!(
+            ctx.group_entry("120363@g.us").get("antilink"),
+            Some(&serde_json::json!("on")),
+            "perubahan dari luar harus terbaca setelah refresh"
+        );
+    }
+
+    #[tokio::test]
+    async fn layout_merged_tetap_satu_file() {
+        // Tanpa file koleksi di sampingnya, store Rust tetap satu file —
+        // file lain yang kebetulan ada di folder yang sama tidak boleh
+        // mengubah layout.
+        let store = store_with("merged", r#"{"settings":{"replyVariant":9}}"#);
+        let ctx = StoreContext::new(store.clone());
+        ctx.apply(
+            &[Mutation::SetUser {
+                jid: MEMBER.to_string(),
+                data: serde_json::json!({ "name": "Budi" }),
+            }],
+            1_000,
+        )
+        .unwrap();
+        let after: Value =
+            serde_json::from_str(&std::fs::read_to_string(store.path()).unwrap()).unwrap();
+        assert_eq!(
+            after.get("users").and_then(|u| u.get("628111")).and_then(|u| u.get("name")),
+            Some(&serde_json::json!("Budi")),
+            "layout satu file tetap menulis di file yang sama: {after}"
+        );
+    }
+
+    #[tokio::test]
+    async fn grup_banned_mengabaikan_command_non_owner() {
+        // `handler.js:916-921` — command dari non-owner di grup banned
+        // diabaikan tanpa balasan.
+        let plug = TestPlugin::new(3, 0, false);
+        let (p, s) = grp(
+            &plug,
+            r#"{"groups":{"120363@g.us":{"isBanned":true}}}"#,
+        );
+        let m = inbound_n(".gatetest halo", MEMBER, GROUP, true);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::GroupBanned);
+        assert_eq!(plug.calls(), 0);
+        assert!(s.texts().is_empty(), "grup banned: diam, tanpa balasan");
+    }
+
+    #[tokio::test]
+    async fn permission_denial_pakai_reply_variant_dari_store() {
+        // JS: balasan checkPermission dikirim lewat `m.reply(...)`
+        // (middleware.js:50-137), jadi bentuknya ikut `db.setting("replyVariant")`
+        // (serialize.js:958-991) — varian 9 produksi mengirim `orderMessage`
+        // berisi teks "Premium Only!", bukan teks biasa. Port lama melewatkan
+        // varian di jalur ini.
+        let plug = TestPlugin::new(3, 0, true);
+        let (p, s) = dm_dengan_settings(&plug, r#"{"replyVariant":9}"#);
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Denied);
+        assert_eq!(plug.calls(), 0, "plugin premium tidak boleh jalan");
+
+        let sent = s.sent.lock().unwrap().clone();
+        assert_eq!(sent.len(), 1, "denial tetap dibalas satu pesan");
+        let order = sent[0]
+            .1
+            .order_message
+            .as_option()
+            .expect("denial premium harus orderMessage (varian 9)");
+        assert_eq!(
+            order.message.as_deref(),
+            Some("💎 *Premium Only!* Fitur ini khusus member Premium. Ketik *.benefitpremium* untuk info upgrade.")
+        );
+        assert_eq!(order.order_title.as_deref(), Some("CONTROL"));
+    }
+
+    #[tokio::test]
+    async fn energi_denial_pakai_reply_variant_dari_store() {
+        // JS: `handler.js:1879` balas energiExceeded via `m.reply` — ikut
+        // replyVariant juga. `poor()` = tier default 1, plugin butuh 5.
+        let plug = TestPlugin::new(0, 5, false);
+        let sender = Arc::new(RecordingSender::default());
+        let ctx = StoreContext::new(store_with(
+            &format!("varian-energi-{}", n()),
+            r#"{"settings":{"replyVariant":9}}"#,
+        ));
+        let p = plug.pipeline_with_sender(ctx, sender.clone(), poor());
+        let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::EnergiDenied);
+
+        let sent = sender.sent.lock().unwrap().clone();
+        assert_eq!(sent.len(), 1);
+        let order = sent[0]
+            .1
+            .order_message
+            .as_option()
+            .expect("denial energi harus orderMessage (varian 9)");
+        assert!(
+            order.message.as_deref().unwrap_or("").contains("Energi Habis"),
+            "isi pesan energi: {:?}",
+            order.message
+        );
     }
 
     // =====================================================================
@@ -7537,7 +8957,7 @@ fn a_null_access_field_keeps_the_existing_grant() {
         let src = plugin_src_with(r#"{"users":{"628111":{"limit":3},"628222":{"limit":7}}}"#);
         src.rosters.lock().unwrap().put(
             "120363@g.us",
-            GroupRoster {
+            snapshot_of(GroupRoster {
                 participants: vec![
                     Participant {
                         jid: "628111@s.whatsapp.net".into(),
@@ -7553,7 +8973,7 @@ fn a_null_access_field_keeps_the_existing_grant() {
                     },
                 ],
                 is_bot_admin: false,
-            },
+            }),
         );
         let mut c = Ctx {
             chat: "120363@g.us".into(),
@@ -7614,6 +9034,8 @@ fn a_null_access_field_keeps_the_existing_grant() {
         meta: Option<Value>,
         /// Grup yang diminta keluar lewat [`Sock::keluar_grup`].
         keluar: Mutex<Vec<String>>,
+        /// `ubah_peserta` gagal — menguji fallback saat kick ditolak server.
+        kick_fails: bool,
     }
 
     macro_rules! sock_tolak {
@@ -7638,6 +9060,9 @@ fn a_null_access_field_keeps_the_existing_grant() {
                 .lock()
                 .unwrap()
                 .push((jid.to_string(), peserta.to_vec(), aksi));
+            if self.kick_fails {
+                return Err(oktz_plugin_api::SockError::baru("kick ditolak"));
+            }
             Ok(())
         }
 
@@ -7981,9 +9406,14 @@ fn a_null_access_field_keeps_the_existing_grant() {
 
         let m = inbound("https://contoh.invalid", MEMBER, GROUP, true, "K1");
         let caller = p.caller_of(&m);
-        p.execute_group_decision(group::Decision::KickAndReply("dikick".into()), &m, &caller)
-            .await
-            .expect("keputusan kick harus jalan tanpa menggagalkan pipeline");
+        p.execute_group_decision(
+            group::Decision::KickAndReply("dikick".into()),
+            &m,
+            &caller,
+            MEMBER,
+        )
+        .await
+        .expect("keputusan kick harus jalan tanpa menggagalkan pipeline");
 
         assert_eq!(
             sender.deleted(),
@@ -8003,6 +9433,206 @@ fn a_null_access_field_keeps_the_existing_grant() {
         assert!(
             sender.texts().iter().any(|t| t.contains("dikick")),
             "balasan terkirim setelah kick: {:?}",
+            sender.texts()
+        );
+    }
+
+    // ---------- group-protection: identitas LID/PN + kegagalan aksi ----------
+
+    /// Pesan grup dari pengirim LID yang wire-nya menyertakan pasangan PN
+    /// (`participant_pn`, addressing mode LID).
+    fn inbound_lid(body: &str, lid: &str, pn: &str, chat: &str, id: &str) -> InboundMessage {
+        InboundMessage::builder()
+            .message(Arc::new(wa::Message {
+                conversation: Some(body.to_string()),
+                ..Default::default()
+            }))
+            .info(Arc::new(MessageInfo {
+                source: MessageSource {
+                    chat: chat.parse().unwrap(),
+                    sender: lid.parse().unwrap(),
+                    sender_alt: Some(pn.parse().unwrap()),
+                    is_from_me: false,
+                    is_group: true,
+                    ..Default::default()
+                },
+                id: id.to_string(),
+                ..Default::default()
+            }))
+            .build()
+    }
+
+    #[test]
+    fn group_caller_memakai_pn_dari_participant_pn() {
+        // JS: `m.sender` = participant yang sudah di-resolve ke PN
+        // (`serialize.js:694-748`), lalu `m.key.participant` ditulis ulang jadi
+        // `m.sender` (:756-758) — jadi keduanya sama di gate.
+        let p = Pipeline::new(
+            StoreContext::new(store_with("lid-sender", "{}")),
+            Arc::new(RecordingSender::default()),
+            BOT,
+            ParseOptions::default(),
+        );
+        let m = inbound_lid(
+            "halo",
+            "9998887771:12@lid",
+            "628111@s.whatsapp.net",
+            GROUP,
+            "L1",
+        );
+        let caller = p.caller_of(&m);
+        let gcaller = p.group_caller_of(
+            &m,
+            &caller,
+            "halo",
+            &snapshot_of(GroupRoster::default()),
+        );
+        assert_eq!(gcaller.sender, "628111@s.whatsapp.net");
+        assert_eq!(gcaller.participant.as_deref(), Some("628111@s.whatsapp.net"));
+    }
+
+    #[test]
+    fn admin_grup_lid_dikenali_lewat_bentuk_pn() {
+        // Roster grup addressing LID: `id` = LID, `phone_number` = PN.
+        // `_participantNums` (serialize.js:101-116) mengumpulkan KETIGA
+        // bentuk, jadi admin tetap dikenali walau pengirimnya PN.
+        let snapshot = RosterSnapshot {
+            roster: GroupRoster::default(),
+            participants: vec![oktz_router::group::Participant {
+                id: "9998887771:12@lid".into(),
+                lid: "9998887771:12@lid".into(),
+                phone_number: "628222@s.whatsapp.net".into(),
+                admin: true,
+            }],
+            available: true,
+        };
+        let p = Pipeline::new(
+            StoreContext::new(store_with("lid-admin", "{}")),
+            Arc::new(RecordingSender::default()),
+            BOT,
+            ParseOptions::default(),
+        );
+        let m = inbound_lid(
+            "halo",
+            "9998887771:12@lid",
+            "628222@s.whatsapp.net",
+            GROUP,
+            "L2",
+        );
+        let caller = p.caller_of(&m);
+        let gcaller = p.group_caller_of(&m, &caller, "halo", &snapshot);
+        assert!(
+            gcaller.is_admin,
+            "admin grup LID harus dikenali lewat phone_number"
+        );
+    }
+
+    #[tokio::test]
+    async fn gagal_hapus_membatalkan_kick_dan_balasan() {
+        // JS: error delete naik ke `catch` gate → `return false` → tanpa kick,
+        // tanpa balasan (`group-protection.js:1346` + `catch` :1363).
+        let sender = Arc::new(RecordingSender {
+            delete_fails: true,
+            ..Default::default()
+        });
+        let sock = Arc::new(SockUji::default());
+        let ctx = StoreContext::new(store_with("del-fail", "{}"));
+        let p = Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+            .with_sock(sock.clone());
+
+        let m = inbound("https://contoh.invalid", MEMBER, GROUP, true, "D1");
+        let caller = p.caller_of(&m);
+        let out = p
+            .execute_group_decision(
+                group::Decision::KickAndReplyFallback {
+                    kick: "MODE-KICK".into(),
+                    fallback: "MODE-REMOVE".into(),
+                },
+                &m,
+                &caller,
+                MEMBER,
+            )
+            .await
+            .expect("keputusan tidak boleh menggagalkan pipeline");
+        assert!(matches!(out, Outcome::GroupStopped));
+        assert!(
+            sock.aksi.lock().unwrap().is_empty(),
+            "kick tidak boleh jalan setelah delete gagal"
+        );
+        assert!(
+            sender.texts().is_empty(),
+            "tidak boleh ada balasan setelah delete gagal: {:?}",
+            sender.texts()
+        );
+    }
+
+    #[tokio::test]
+    async fn gagal_kick_mengirim_pesan_mode_remove() {
+        // JS: `handleAntilinkGc/All` menangkap error kick lalu mengirim pesan
+        // mode-remove (`group-protection.js:1917-1924`).
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            kick_fails: true,
+            ..Default::default()
+        });
+        let ctx = StoreContext::new(store_with("kick-fail", "{}"));
+        let p = Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+            .with_sock(sock.clone());
+
+        let m = inbound("https://contoh.invalid", MEMBER, GROUP, true, "K2");
+        let caller = p.caller_of(&m);
+        let out = p
+            .execute_group_decision(
+                group::Decision::KickAndReplyFallback {
+                    kick: "MODE-KICK".into(),
+                    fallback: "MODE-REMOVE".into(),
+                },
+                &m,
+                &caller,
+                MEMBER,
+            )
+            .await
+            .expect("keputusan tidak boleh menggagalkan pipeline");
+        assert!(matches!(out, Outcome::Sent));
+        let texts = sender.texts();
+        assert!(
+            texts.iter().any(|t| t.contains("MODE-REMOVE")),
+            "kick gagal → balas pesan mode-remove: {texts:?}"
+        );
+        assert!(
+            !texts.iter().any(|t| t.contains("MODE-KICK")),
+            "pesan mode-kick tidak boleh terkirim saat kick gagal: {texts:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn gagal_kick_pada_antilink_polos_tidak_balasan() {
+        // JS: `handleAntilink` (:1349) TIDAK menangkap error kick → error naik
+        // ke `catch` luar → tanpa balasan sama sekali.
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            kick_fails: true,
+            ..Default::default()
+        });
+        let ctx = StoreContext::new(store_with("kick-fail-polos", "{}"));
+        let p = Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+            .with_sock(sock.clone());
+
+        let m = inbound("https://contoh.invalid", MEMBER, GROUP, true, "K3");
+        let caller = p.caller_of(&m);
+        let out = p
+            .execute_group_decision(
+                group::Decision::KickAndReply("MODE-KICK".into()),
+                &m,
+                &caller,
+                MEMBER,
+            )
+            .await
+            .expect("keputusan tidak boleh menggagalkan pipeline");
+        assert!(matches!(out, Outcome::GroupStopped));
+        assert!(
+            sender.texts().is_empty(),
+            "kick gagal tanpa fallback → tanpa balasan: {:?}",
             sender.texts()
         );
     }

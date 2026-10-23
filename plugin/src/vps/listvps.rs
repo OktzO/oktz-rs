@@ -57,7 +57,10 @@ fn teks_daftar(droplets: &[Value]) -> String {
 
 #[plugin(
     name = "listvps",
-    alias = ["listdroplet", "vpslist"],
+    commands = [
+        "listdroplet", "vpslist",
+    ],
+    alias = [],
     category = "vps",
     description = "List semua VPS DigitalOcean",
     usage = ".listvps",
@@ -202,7 +205,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("listvps").unwrap();
         assert_eq!(p.meta.name, "listvps");
-        assert_eq!(p.meta.alias, ["listdroplet", "vpslist"]);
+        assert_eq!(p.meta.commands, ["listdroplet", "vpslist"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "vps");
         assert_eq!(p.meta.description, "List semua VPS DigitalOcean");
         assert_eq!(p.meta.usage, ".listvps");

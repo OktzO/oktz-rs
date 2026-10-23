@@ -2,7 +2,8 @@
 //!
 //! `pluginConfig.name` di JS adalah array 52 kategori; `#[plugin]` hanya
 //! menerima satu string, jadi kategori pertama jadi `name` dan sisanya jadi
-//! alias (`husbualbum.rs` memakai aturan yang sama).
+//! command tambahan (`PluginMeta::commands`, `plugins.js:207-209`) —
+//! `husbualbum.rs` memakai aturan yang sama.
 //!
 //! `ponytail:` dua langkah JS TIDAK di-port: penyaringan
 //! `id !== sock.user?.id?.split(':')[0] + '@s.whatsapp.net'` (butuh `sock`,
@@ -14,7 +15,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{jid_number, random_index};
 
-/// `name` (kategori pertama) + sisa array `name` sebagai alias.
+/// `name` (kategori pertama) + sisa array `name` sebagai command tambahan.
 /// Dipakai tes untuk membandingkan attribute `#[plugin]` dengan array JS.
 #[cfg(test)]
 pub(crate) const COMMANDS: [&str; 52] = [
@@ -42,14 +43,15 @@ fn label(command: &str) -> &'static str {
 
 #[plugin(
     name = "bego",
-    alias = [
+    commands = [
         "goblok", "janda", "perawan", "babi", "tolol", "pekok", "jancok", "pinter", "pintar",
         "asu", "bodoh", "gay", "lesby", "bajingan", "anjing", "anjg", "anjj", "anj", "ngentod",
         "ngentot", "monyet", "mastah", "newbie", "bangsat", "bangke", "sange", "sangean",
-        "dakjal", "horny", "wibu", "puki", "puqi", "peak", "pantex", "pantek", "setan", "iblis",
-        "cacat", "yatim", "piatu", "ganteng", "cantik", "jelek", "keren", "cupu", "noob", "pro",
-        "sultan", "miskin", "kaya", "siapa"
+        "dakjal", "horny", "wibu", "puki", "puqi", "peak", "pantex", "pantek", "setan",
+        "iblis", "cacat", "yatim", "piatu", "ganteng", "cantik", "jelek", "keren", "cupu",
+        "noob", "pro", "sultan", "miskin", "kaya", "siapa",
     ],
+    alias = [],
     category = "fun",
     description = "Random pilih member untuk kategori tertentu",
     usage = ".<kategori>",
@@ -99,10 +101,10 @@ mod tests {
         }
     }
 
-    /// `find(kategori)` tidak selalu mengembalikan plugin ini: `pintar`,
-    /// `ganteng`, `cantik`, `cupu`, `kaya`, `noob`, `pro` juga alias plugin
-    /// `cek*`, dan tabrakan itu memang ada di JS. Jadi test memanggil
-    /// handler lewat `name` + `category`, bukan lewat `find`.
+    /// `find(kategori)` selalu mengembalikan plugin ini: `pintar`, `ganteng`,
+    /// `cantik`, `cupu`, `kaya`, `noob`, `pro` juga alias plugin `cek*`, tapi
+    /// di JS command menang atas alias (`plugins.js:539-544`) — persis seperti
+    /// di sini. Test tetap memanggil handler lewat `name` + `category`.
     fn entry() -> &'static oktz_plugin_api::PluginEntry {
         oktz_plugin_api::all_plugins()
             .iter()
@@ -157,20 +159,20 @@ mod tests {
     #[test]
     fn every_category_from_the_js_name_array_resolves() {
         // `find(c)` tidak boleh jadi kriteria: `pintar`/`ganteng`/`kaya`/dst
-        // juga alias plugin `cek*` dan menang di registry — persis seperti di
-        // JS. Yang diuji di sini: seluruh 52 kategori terdaftar sebagai
-        // command plugin ini.
+        // juga alias plugin `cek*`, tapi command menang di registry — persis
+        // seperti di JS (`plugins.js:539-544`). Yang diuji di sini: seluruh
+        // 52 kategori terdaftar sebagai command plugin ini.
         let meta = &entry().meta;
         for c in COMMANDS {
             assert!(
-                meta.name == c || meta.alias.iter().any(|a| a == c),
+                meta.name == c || meta.commands.iter().any(|a| a == c),
                 "kategori {c} tidak terdaftar"
             );
         }
         assert_eq!(
             COMMANDS.len(),
-            1 + meta.alias.len(),
-            "sisa array name harus jadi alias"
+            1 + meta.commands.len(),
+            "sisa array name harus jadi command tambahan"
         );
         assert_eq!(COMMANDS[0], "bego", "kategori pertama jadi name");
         assert_eq!(meta.name, COMMANDS[0]);

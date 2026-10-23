@@ -120,6 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|p| {
                 serde_json::json!({
                     "name": p.meta.name,
+                    "commands": p.meta.commands,
                     "alias": p.meta.alias,
                     "category": p.meta.category,
                 })
@@ -261,7 +262,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let store_path = PathBuf::from(&cfg.database.path).join("settings.json");
-    let store = JsonStore::open(&store_path)?;
+    let mut store = JsonStore::open(&store_path)?;
+    // JS: `settings: { file: "settings.json", defaults: defaultSettings }`
+    // dengan `defaultSettings = { selfMode: false }` (`database.js:19,130`) —
+    // file yang baru dibuat JUGA langsung ditulis isinya, bukan menunggu
+    // mutasi pertama. Tanpa ini `selfMode`/`replyVariant` dll terbaca `Null`
+    // sampai setting pertama diubah, dan balasan bot jatuh ke varian teks
+    // meskipun deployment memakai database hasil salinan JS.
+    if !store_path.exists() {
+        store.set("settings", serde_json::json!({ "selfMode": false }))?;
+        store.write()?;
+        tracing::info!(path = %store_path.display(), "settings.json disemai default JS");
+    }
     tracing::info!(
         path = %store.path().display(),
         keys = store.all().as_object().map(serde_json::Map::len).unwrap_or(0),

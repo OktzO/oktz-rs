@@ -11,7 +11,10 @@ pub(crate) fn help(prefix: &str) -> String {
 
 #[plugin(
     name = "husbupool",
-    alias = ["poolhusbu"],
+    commands = [
+        "poolhusbu",
+    ],
+    alias = [],
     category = "fun",
     description = "Jelajahi pool husbu — cari nama/franchise/tier!",
     usage = ".husbupool [nama|tier|franchise]",

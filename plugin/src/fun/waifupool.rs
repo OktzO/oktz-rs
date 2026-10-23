@@ -108,7 +108,10 @@ pub(crate) fn tidak_ada_waifu(query: &str) -> String {
 
 #[plugin(
     name = "waifupool",
-    alias = ["poolwaifu"],
+    commands = [
+        "poolwaifu",
+    ],
+    alias = [],
     category = "fun",
     description = "Jelajahi pool waifu — cari nama/franchise/tier!",
     usage = ".waifupool [nama|tier|franchise]",
@@ -138,7 +141,8 @@ mod tests {
         assert_eq!(p.meta.name, "waifupool");
         // Alias ikut JS `plugins/fun/waifupool.js` (`name: ["waifupool",
         // "poolwaifu"]`).
-        assert_eq!(p.meta.alias, ["poolwaifu"]);
+        assert_eq!(p.meta.commands, ["poolwaifu"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "fun");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);

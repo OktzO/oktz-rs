@@ -1,8 +1,9 @@
 //! `plugins/ephoto/ephoto.js` — efek teks dari en.ephoto360.com.
 //!
 //! `pluginConfig.name` di JS adalah array 32 efek; `#[plugin]` hanya menerima
-//! satu string, jadi efek pertama jadi `name` dan sisanya jadi alias, lalu
-//! alias JS (`ephoto`) menyusul — aturan yang sama seperti `siapa.rs` dan
+//! satu string, jadi efek pertama jadi `name` dan sisanya jadi command
+//! tambahan (`PluginMeta::commands`, `plugins.js:207-209`), lalu alias JS
+//! (`ephoto`) menyusul — aturan yang sama seperti `siapa.rs` dan
 //! `husbualbum.rs`.
 //!
 //! `ponytail:` scraping-nya belum di-port. JS butuh `cheerio` untuk membaca
@@ -235,14 +236,15 @@ fn ephoto(_url: &str, _text: &str) -> Result<String, String> {
 
 #[plugin(
     name = "glitchtext",
-    alias = [
+    commands = [
         "writetext", "advancedglow", "typographytext", "pixelglitch", "neonglitch", "flagtext",
         "flag3dtext", "deletingtext", "blackpinkstyle", "glowingtext", "underwatertext",
         "logomaker", "cartoonstyle", "papercutstyle", "watercolortext", "effectclouds",
         "blackpinklogo", "gradienttext", "summerbeach", "luxurygold", "multicoloredneon",
         "sandsummer", "galaxywallpaper", "1917style", "makingneon", "royaltext", "freecreate",
-        "galaxystyle", "amongustext", "rainytext", "lighteffects", "ephoto"
+        "galaxystyle", "amongustext", "rainytext", "lighteffects",
     ],
+    alias = ["ephoto"],
     category = "ephoto",
     description = "Buat efek text keren dengan berbagai style",
     usage = ".<effect> <text>",
@@ -338,11 +340,15 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("glitchtext").unwrap();
         assert_eq!(p.meta.name, "glitchtext");
-        assert_eq!(p.meta.alias.len(), 32);
+        assert_eq!(p.meta.commands.len(), 31);
         assert_eq!(
-            p.meta.alias,
-            COMMANDS[1..].iter().map(|s| s.to_string()).collect::<Vec<_>>()
+            p.meta.commands,
+            COMMANDS[1..32]
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
         );
+        assert_eq!(p.meta.alias, ["ephoto"]);
         assert_eq!(p.meta.category, "ephoto");
         assert_eq!(p.meta.description, "Buat efek text keren dengan berbagai style");
         assert_eq!(p.meta.usage, ".<effect> <text>");

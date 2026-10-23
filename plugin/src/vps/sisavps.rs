@@ -36,7 +36,10 @@ fn teks_kuota(account: &Value, droplets_used: usize) -> String {
 
 #[plugin(
     name = "sisavps",
-    alias = ["sisadroplet", "vpsquota"],
+    commands = [
+        "sisadroplet", "vpsquota",
+    ],
+    alias = [],
     category = "vps",
     description = "Cek sisa kuota VPS",
     usage = ".sisavps",
@@ -177,7 +180,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("sisavps").unwrap();
         assert_eq!(p.meta.name, "sisavps");
-        assert_eq!(p.meta.alias, ["sisadroplet", "vpsquota"]);
+        assert_eq!(p.meta.commands, ["sisadroplet", "vpsquota"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "vps");
         assert_eq!(p.meta.description, "Cek sisa kuota VPS");
         assert_eq!(p.meta.usage, ".sisavps");

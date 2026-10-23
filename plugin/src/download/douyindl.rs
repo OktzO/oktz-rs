@@ -1,17 +1,14 @@
 //! `plugins/download/douyindl.js` — unduh video/audio Douyin.
 //!
-//! `ponytail:` resolver berlapis (`src/lib/resolve.js`) belum di-port; yang
-//! dipakai di sini backend agregator yang SUDAH jadi cadangan kedua di JS
-//! (`nexrayWeb` → `/api/downloader/douyin`, `src/capabilities/douyin.js:51`).
-//! Scraper lokal `snapvideotools` tidak dipindah — butuh scraping HTML.
+//! Urutan backend mengikuti `src/lib/resolve.js`: scraper lokal
+//! `snapvideotools` dulu, lalu agregator `nexrayWeb` sebagai cadangan
+//! (`src/capabilities/douyin.js:31-67`). Normalisasi lokal dan aggregator
+//! dipisah karena bentuk responsnya berbeda.
 //!
-//! `ponytail:` `Reply` tidak punya variant video/audio, jadi caption yang
-//! sudah dirakit tetap terkirim sebagai teks sementara media-nya tidak ikut.
-//! Tambahkan
-//! `Reply::Video`/`Reply::Audio` di `oktz-plugin-api` kalau pipeline sudah
-//! bisa mengunggah keduanya.
+//! Media dikirim seperti `douyindl.js:73-87`: video dengan caption, lalu audio
+//! kalau ada → [`Reply::Sequence`] berisi [`Reply::Video`] + [`Reply::Audio`].
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 /// `nexrayWeb` di `src/lib/aggregator.js:24`.
@@ -87,13 +84,17 @@ pub(crate) const BAD_HOST: &str =
 pub(crate) const FAILED: &str = "❌ Gagal mengambil data Douyin, coba lagi nanti";
 
 /// `urlMedia` (`src/capabilities/douyin.js:84`) — hanya `http(s)` yang lolos.
+/// Regex JS memakai flag `i`, jadi huruf besar pada skema tetap valid.
 fn url_media(value: Option<&Value>) -> String {
     let s = value
         .and_then(Value::as_str)
         .unwrap_or("")
         .trim()
         .to_string();
-    if s.starts_with("http://") || s.starts_with("https://") {
+    let Some((scheme, _)) = s.split_once("://") else {
+        return String::new();
+    };
+    if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") {
         s
     } else {
         String::new()
@@ -110,15 +111,40 @@ pub(crate) struct DouyinData {
     pub audio: String,
 }
 
-pub(crate) fn normalize(body: &Value) -> Result<DouyinData, ()> {
+/// Bentuk lokal `DouyinDL` dari `src/scraper/douyin.js`.
+pub(crate) fn normalize_local(body: &Value) -> Result<DouyinData, ()> {
+    if body.get("status").and_then(Value::as_bool) == Some(false) {
+        return Err(());
+    }
+    let video = url_media(body.get("video"));
+    if video.is_empty() {
+        return Err(());
+    }
+    Ok(DouyinData {
+        title: body
+            .get("title")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string(),
+        platform: body
+            .get("platform")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string(),
+        video,
+        audio: url_media(body.get("audio")),
+    })
+}
+
+/// Bentuk aggregator `nexrayWeb` dari `src/capabilities/douyin.js:46`.
+pub(crate) fn normalize_aggregator(body: &Value) -> Result<DouyinData, ()> {
     if body.get("status").and_then(Value::as_bool) != Some(true) {
         return Err(());
     }
     let result = body.get("result").ok_or(())?;
-    let media = result
-        .get("media")
-        .and_then(Value::as_array)
-        .ok_or(())?;
+    let media = result.get("media").and_then(Value::as_array).ok_or(())?;
     let pick = |kind: &str| {
         media
             .iter()
@@ -187,16 +213,39 @@ pub fn douyindl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_HOST);
     }
 
-    let url = format!("{ENDPOINT}?url={}", query_encode(text));
-    let data = ctx
-        .http
-        .get(&url)
+    // `resolve.js` mengurutkan semua backend lokal sebelum backend API.
+    // Kegagalan lokal tidak menghentikan percobaan aggregator.
+    let local = oktz_scraper::douyin::douyin_dl(ctx.http.as_ref(), text)
         .ok()
-        .and_then(|r| r.json())
-        .and_then(|b| normalize(&b).ok());
+        .and_then(|body| normalize_local(&body).ok());
+    let data = local.or_else(|| {
+        let url = format!("{ENDPOINT}?url={}", query_encode(text));
+        ctx.http
+            .get(&url)
+            .ok()
+            .and_then(|r| r.json())
+            .and_then(|body| normalize_aggregator(&body).ok())
+    });
 
     match data {
-        Some(data) => Reply::text(caption(&data)),
+        // `douyindl.js:73-87` — video dengan caption, lalu audio kalau ada,
+        // dua pesan terpisah. `Reply::Sequence` merender keduanya.
+        Some(data) => {
+            let mut balasan = vec![Reply::video(
+                MediaSource::url(data.video.clone()),
+                caption(&data),
+            )];
+            if !data.audio.is_empty() {
+                balasan.push(Reply::audio(
+                    MediaSource::url(data.audio.clone()).with_mimetype("audio/mpeg"),
+                ));
+            }
+            if balasan.len() == 1 {
+                balasan.into_iter().next().expect("satu balasan")
+            } else {
+                Reply::sequence(balasan)
+            }
+        }
         None => Reply::text(FAILED).with_reaction("☢"),
     }
 }
@@ -209,20 +258,48 @@ mod tests {
 
     #[derive(Debug)]
     struct Stub {
-        body: Result<String, ()>,
-        seen: Mutex<Vec<String>>,
+        local: Result<String, HttpError>,
+        aggregator: Result<String, HttpError>,
+        seen: Mutex<Vec<oktz_plugin_api::HttpCall>>,
     }
 
     impl Stub {
         fn body(v: Value) -> Arc<Stub> {
             Arc::new(Stub {
-                body: Ok(v.to_string()),
+                local: Err(HttpError {
+                    message: "local offline".into(),
+                }),
+                aggregator: Ok(v.to_string()),
                 seen: Mutex::new(Vec::new()),
             })
         }
+
+        fn local(v: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                local: Ok(v.to_string()),
+                aggregator: Err(HttpError {
+                    message: "aggregator offline".into(),
+                }),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn pair(local: Value, aggregator: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                local: Ok(local.to_string()),
+                aggregator: Ok(aggregator.to_string()),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
-                body: Err(()),
+                local: Err(HttpError {
+                    message: "local offline".into(),
+                }),
+                aggregator: Err(HttpError {
+                    message: "aggregator offline".into(),
+                }),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -230,11 +307,11 @@ mod tests {
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            self.seen
+                .lock()
+                .unwrap()
+                .push(oktz_plugin_api::HttpCall::get(url));
+            let text = self.aggregator.clone()?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -245,17 +322,34 @@ mod tests {
             })
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
         }
         fn post_multipart(
             &self,
             _: &str,
             _: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            unreachable!("scraper lokal memakai HttpCall::call")
+        }
+
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let text = match req.method {
+                oktz_plugin_api::HttpMethod::Post => self.local.clone()?,
+                oktz_plugin_api::HttpMethod::Get => self.aggregator.clone()?,
+                lain => panic!("metode {lain:?} tidak dipakai"),
+            };
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(text.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
         }
     }
 
@@ -380,11 +474,39 @@ mod tests {
         let r = run(http.clone(), "https://v.douyin.com/xxx");
         assert_eq!(text_of(&r), "🎵 *Douyin*\n\nContoh Video");
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 1);
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[0].url, "https://snapvideotools.com/api/snap");
+        assert_eq!(seen[1].method, oktz_plugin_api::HttpMethod::Get);
         assert_eq!(
-            seen[0],
+            seen[1].url,
             "https://api.nexray.web.id/api/downloader/douyin?url=https%3A%2F%2Fv.douyin.com%2Fxxx"
         );
+    }
+
+    #[test]
+    fn scraper_lokal_sukses_dipakai_sebelum_aggregator() {
+        let http = Stub::local(serde_json::json!({
+            "data": {
+                "title": "Contoh Lokal",
+                "platformName": "douyin",
+                "mediaUrls": [
+                    { "type": "audio", "url": "HTTPS://cdn.example/a.mp3" },
+                    { "type": "video", "url": "HTTPS://cdn.example/v.mp4" }
+                ]
+            }
+        }));
+        let r = run(http.clone(), "https://v.douyin.com/xxx");
+
+        assert_eq!(text_of(&r), "🎵 *douyin*\n\nContoh Lokal");
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(
+            seen.len(),
+            1,
+            "aggregator tidak boleh dihubungi setelah local sukses"
+        );
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[0].url, "https://snapvideotools.com/api/snap");
     }
 
     #[test]
@@ -395,6 +517,21 @@ mod tests {
         });
         let r = run(Stub::body(body), "https://v.douyin.com/x");
         assert_eq!(text_of(&r), "🎵 *Douyin*\n\n");
+    }
+
+    #[test]
+    fn normalisasi_lokal_gagal_lanjut_ke_aggregator() {
+        let http = Stub::pair(
+            serde_json::json!({ "data": { "mediaUrls": [] } }),
+            ok_body(),
+        );
+        let r = run(http.clone(), "https://v.douyin.com/x");
+
+        assert_eq!(text_of(&r), "🎵 *Douyin*\n\nContoh Video");
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0].method, oktz_plugin_api::HttpMethod::Post);
+        assert_eq!(seen[1].method, oktz_plugin_api::HttpMethod::Get);
     }
 
     #[test]
@@ -425,8 +562,27 @@ mod tests {
 
     #[test]
     fn the_download_url_is_encoded_the_way_url_search_params_does_it() {
-        assert_eq!(query_encode("https://v.douyin.com/x"), "https%3A%2F%2Fv.douyin.com%2Fx");
+        assert_eq!(
+            query_encode("https://v.douyin.com/x"),
+            "https%3A%2F%2Fv.douyin.com%2Fx"
+        );
         assert_eq!(query_encode("a b"), "a+b");
-        assert_eq!(query_encode("safe-._*"), "safe-._*", "unreserved tak di-encode");
+        assert_eq!(
+            query_encode("safe-._*"),
+            "safe-._*",
+            "unreserved tak di-encode"
+        );
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Douyin; set OKTZ_TEST_DOUYIN_URL"]
+    fn live_douyindl_mengambil_video() {
+        // Uji live padanan `plugins/download/douyindl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_DOUYIN_URL");
+        let (http, ctx) = live_ctx("douyindl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("douyindl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

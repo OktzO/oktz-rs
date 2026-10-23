@@ -101,13 +101,19 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        for key in ["cekkaya","kaya", "rich"] {
+        for key in ["cekkaya", "rich"] {
             assert_eq!(
                 oktz_plugin_api::find(key).map(|p| p.meta.name.as_str()),
                 Some("cekkaya"),
                 "key {key} salah resolve"
             );
         }
+        // `kaya` juga command plugin `siapa` (`bego`) — command didahulukan
+        // (`plugins.js:539-544`), jadi alias `kaya` kalah, persis seperti JS.
+        assert_eq!(
+            oktz_plugin_api::find("kaya").map(|p| p.meta.name.as_str()),
+            Some("bego")
+        );
     }
 
     #[test]

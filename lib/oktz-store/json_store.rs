@@ -1,7 +1,12 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use oktz_core::error::{Error, Result};
 use serde_json::{Map, Value};
+
+/// Nomor urut nama file temp — dipakai bersama PID supaya dua writer di
+/// proses yang sama tidak memakai nama temp yang sama.
+static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
 
 pub struct JsonStore {
     path: PathBuf,
@@ -53,14 +58,33 @@ impl JsonStore {
         &self.data
     }
 
+    /// Ganti SELURUH isi file.
+    ///
+    /// `set()` hanya bisa mengubah satu key di level atas. Layout multi-file
+    /// bot JS menyimpan satu KOLEKSI per file (`users.json` = objek users,
+    /// `groups.json` = objek groups — `database.js:127-136`), jadi menulis
+    /// koleksi itu butuh mengganti isi file, bukan menambah key.
+    pub fn replace(&mut self, value: Value) -> Result<()> {
+        self.data = value;
+        Ok(())
+    }
+
     /// Tulis atomik: temp lalu rename (sama seperti `database.js:49`).
+    ///
+    /// Nama temp WAJIB unik per writer. Dua proses yang menulis file yang
+    /// sama (mis. dua `oktz boot` paralel, atau bot + `oktz boot`) akan
+    /// saling menimpa temp yang sama: rename pertama memindahkan file,
+    /// rename kedua gagal `NotFound` dan proses mati.
     pub fn write(&self) -> Result<()> {
         if let Some(parent) = self.path.parent()
             && !parent.as_os_str().is_empty()
         {
             std::fs::create_dir_all(parent)?;
         }
-        let tmp = self.path.with_extension("json.tmp");
+        let seq = TMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let tmp = self
+            .path
+            .with_extension(format!("{}-{seq}.tmp", std::process::id()));
         let body = serde_json::to_string(&self.data).map_err(Error::from)?;
         std::fs::write(&tmp, body)?;
         std::fs::rename(&tmp, &self.path)?;
@@ -175,7 +199,45 @@ mod tests {
         let path = tmpfile("tmpclean");
         let s = JsonStore::open(&path).unwrap();
         s.write().unwrap();
-        let tmp = path.with_extension("json.tmp");
-        assert!(!tmp.exists(), "file tmp tidak boleh tertinggal");
+        // Nama temp unik per writer (PID + urutan), jadi sisa file dicek lewat
+        // pola, bukan nama tetap.
+        let leftovers: Vec<String> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with("oktz-store-test-tmpclean") && n.ends_with(".tmp"))
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "file tmp tidak boleh tertinggal: {leftovers:?}"
+        );
+    }
+
+    #[test]
+    fn parallel_writes_to_one_file_do_not_clash_on_the_tmp_name() {
+        // Regresi: nama temp dulu tetap (`settings.json.tmp`) → dua writer
+        // menimpa temp yang sama, rename pertama memindahkan file, rename
+        // kedua gagal `NotFound` dan proses mati. `oktz boot` dua kali
+        // paralel di folder data yang sama memunculkan ini.
+        let path = tmpfile("paralel");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut handles = Vec::new();
+        for i in 0..8 {
+            let path = path.clone();
+            handles.push(std::thread::spawn(move || {
+                for n in 0..20 {
+                    let mut s = JsonStore::open(&path).unwrap();
+                    s.set("writer", Value::from(i * 100 + n)).unwrap();
+                    s.write().unwrap();
+                }
+            }));
+        }
+        for h in handles {
+            h.join().expect("writer tidak boleh gagal");
+        }
+        // Isi akhir harus salah satu nilai writer — bukan file rusak.
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let v: Value = serde_json::from_str(&raw).unwrap();
+        assert!(v.get("writer").is_some(), "file akhir harus valid: {raw}");
     }
 }

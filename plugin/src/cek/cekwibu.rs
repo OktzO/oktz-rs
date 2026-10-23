@@ -110,13 +110,16 @@ mod tests {
 
     #[test]
     fn setiap_alias_resolve_kembali_ke_plugin_ini() {
-        for key in std::iter::once("cekwibu").chain(["wibu", "weeb"]) {
+        for key in std::iter::once("cekwibu").chain(["weeb"]) {
             assert_eq!(
                 find(key).map(|p| p.meta.name.as_str()),
                 Some("cekwibu"),
                 "key {key} salah resolve"
             );
         }
+        // `wibu` juga command plugin `siapa` (`bego`) — command didahulukan
+        // (`plugins.js:539-544`), jadi alias `wibu` kalah, persis seperti JS.
+        assert_eq!(find("wibu").map(|p| p.meta.name.as_str()), Some("bego"));
     }
 
     #[test]

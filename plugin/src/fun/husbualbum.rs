@@ -36,7 +36,10 @@ pub(crate) fn reply_text(ctx: &Ctx) -> String {
 
 #[plugin(
     name = "husbualbum",
-    alias = ["albumhusbu"],
+    commands = [
+        "albumhusbu",
+    ],
+    alias = [],
     category = "fun",
     description = "Lihat riwayat gacha husbu & statistik luck kamu!",
     usage = ".husbualbum",
@@ -74,10 +77,11 @@ mod tests {
     #[test]
     fn registers_with_the_js_plugin_config() {
         // `name` di JS adalah ARRAY ["husbualbum", "albumhusbu"] dengan alias
-        // kosong; array itu diratakan jadi name + alias. Lihat doc modul.
+        // kosong; elemen kedua jadi command tambahan (`plugins.js:207-209`).
         let p = meta();
         assert_eq!(p.name, "husbualbum");
-        assert_eq!(p.alias, ["albumhusbu"]);
+        assert_eq!(p.commands, ["albumhusbu"]);
+        assert!(p.alias.is_empty());
         assert_eq!(p.category, "fun");
         assert_eq!(p.description, "Lihat riwayat gacha husbu & statistik luck kamu!");
         assert_eq!(p.usage, ".husbualbum");

@@ -10,6 +10,23 @@ fn echo(ctx: Ctx) -> Reply {
     Reply::text(ctx.text)
 }
 
+/// Nama array JS (`plugins.js:207-209`) masuk map `commands`, bukan `aliases`.
+#[plugin(
+    name = "cmd",
+    commands = ["cb"],
+    alias = ["ca"],
+    category = "tools"
+)]
+fn cmd(_ctx: Ctx) -> Reply {
+    Reply::text("cmd")
+}
+
+/// Alias plugin lain dengan nama yang sama — kalah oleh command `cmd`.
+#[plugin(name = "ali", alias = ["cb"], category = "tools")]
+fn ali(_ctx: Ctx) -> Reply {
+    Reply::text("ali")
+}
+
 #[test]
 fn registry_collects_declared_plugins() {
     let names: Vec<&str> = oktz_plugin_api::all_plugins()
@@ -62,4 +79,17 @@ fn handler_can_return_a_mention_reply() {
 #[test]
 fn unknown_command_returns_none() {
     assert!(find("command-yang-tidak-ada").is_none());
+}
+
+/// `plugins.js:539-544`: lookup mengecek map `commands` dulu, baru `aliases`.
+/// Jadi command menang atas alias plugin lain yang namanya sama.
+#[test]
+fn command_menang_atas_alias_plugin_lain() {
+    let cmd = find("cmd").unwrap();
+    assert_eq!(cmd.meta.commands, ["cb"]);
+    assert_eq!(cmd.meta.alias, ["ca"]);
+    assert_eq!(find("cb").unwrap().meta.name, "cmd");
+    assert_eq!(find("ca").unwrap().meta.name, "cmd");
+    // Alias plugin `ali` untuk key `cb` kalah, persis seperti di JS.
+    assert_eq!(find("ali").unwrap().meta.name, "ali");
 }

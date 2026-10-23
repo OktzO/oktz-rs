@@ -112,7 +112,10 @@ fn teks_detail(droplet: &Value) -> String {
 
 #[plugin(
     name = "cekvps",
-    alias = ["cekdroplet", "vpsstatus", "infovps"],
+    commands = [
+        "cekdroplet", "vpsstatus", "infovps",
+    ],
+    alias = [],
     category = "vps",
     description = "Cek detail VPS DigitalOcean",
     usage = ".cekvps <id>",
@@ -268,7 +271,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("cekvps").unwrap();
         assert_eq!(p.meta.name, "cekvps");
-        assert_eq!(p.meta.alias, ["cekdroplet", "vpsstatus", "infovps"]);
+        assert_eq!(p.meta.commands, ["cekdroplet", "vpsstatus", "infovps"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "vps");
         assert_eq!(p.meta.description, "Cek detail VPS DigitalOcean");
         assert_eq!(p.meta.usage, ".cekvps <id>");

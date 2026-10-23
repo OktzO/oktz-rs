@@ -1,21 +1,21 @@
 //! `plugins/download/ytmp3.js` — unduh audio YouTube.
 //!
-//! `ponytail:` resolver berlapis (`src/lib/resolve.js`) belum di-port. Yang
-//! dipakai di sini backend agregator yang SUDAH jadi tier kedua di JS
-//! (`izuka` → `/api/downloader/ytmp3`, `src/capabilities/youtube.js:257`).
-//! `izuka` punya `key: null` di `AGGREGATORS`, jadi tidak butuh
-//! `config.APIkey.*`.
+//! Resolver berlapis (`src/lib/resolve.js`) kini ikut: rantai backend JS
+//! untuk mp3 adalah `ytdl-native` (scraper lokal `d.ymcdn.org`) → `izuka`
+//! (agregator, `/api/downloader/ytmp3`) → `nexray` (agregator,
+//! `/api/downloader/ytmp3`) — `src/capabilities/youtube.js:395-432`. URL yang
+//! dikirim setiap backend adalah bentuk kanonik `kanonikDari(idVideo(url))`
+//! (`youtube.js:129`), bukan teks mentah user.
 //!
-//! `ponytail:` kanonikalisasi `kanonikDari(idVideo(url))` di dalam resolver
-//! tidak ikut — aggregator menerima URL persis seperti plugin JS mengirimnya
-//! (`getAudioDownload` melakukan `String(url).trim()` lalu menyerahkan ke
-//! `resolve`). Tambahkan langkah itu kalau scraper lokal (`ytdl`) ikut di-port.
-//!
-//! `ponytail:` `Reply` tidak punya variant audio, jadi file audio tidak ikut
-//! terkirim — teks berisi nama berkas yang akan dikirim tetap dikirim, sama
-//! seperti `spotifydl.rs` untuk Spotify.
+//! Audio kini benar-benar dikirim: `sock.sendMedia(..., { type: "audio",
+//! mimetype: mimetypeFor(format) })` (`ytmp3.js:83-88`) →
+//! [`Reply::Audio`] dengan mimetype dari `MediaSource` (pipeline memakai
+//! `audio/mpeg` sebagai bawaan, `socket.js:798`). Nama berkas `fileName`
+//! yang dioper JS di options TIDAK berlaku untuk audio di `sendMedia`
+//! (`socket.js:743-747` hanya menyalin `audio`, `mimetype`, `ptt`), jadi
+//! `Reply::Audio` tanpa nama berkas tetap padan.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use super::douyindl::query_encode;
@@ -117,7 +117,11 @@ pub(crate) fn format_from_mime(v: Option<&Value>) -> Option<String> {
 #[allow(dead_code)] // dipakai `ytmp4.rs` lewat `super::`
 pub(crate) fn mimetype_for(format: &str) -> String {
     let token = format_from_token(Some(&Value::String(format.to_string()))).unwrap_or_default();
-    let key = if token.is_empty() { format } else { token.as_str() };
+    let key = if token.is_empty() {
+        format
+    } else {
+        token.as_str()
+    };
     MIMETYPE_DARI_FORMAT
         .iter()
         .find(|(k, _)| *k == key)
@@ -226,11 +230,25 @@ pub(crate) fn format_dilaporkan(isi: &Value, url: &str) -> Option<String> {
     query_param(url, "mime").and_then(|mime| format_from_mime(Some(&Value::String(mime))))
 }
 
-/// `normalize` (`youtube.js:331`) untuk jalur audio: `urlUnduhan` sudah
-/// lengkap di sini — `url` polos jadi cabang terakhir, dan `video_normal` tidak
-/// ada di format mp3.
-pub(crate) fn normalize(isi: &Value) -> Result<AudioDownload, ()> {
+/// `normalize` (`youtube.js:331`) — membuka ampel aggregator sendiri: `result`
+/// objek (bukan array) dibuka, dan `status` yang ada TAPI bukan `true` berarti
+/// gagal. Bentuk lokal `ytdl` membawa `status`-nya sendiri, jadi pemeriksaan
+/// ditulis eksplisit — `!raw.status` akan salah memblokir bentuk SaveTube yang
+/// tidak punya `status` sama sekali.
+pub(crate) fn normalize(raw: &Value) -> Result<AudioDownload, ()> {
+    if let Some(status) = raw.get("status") {
+        if status.as_bool() != Some(true) {
+            return Err(());
+        }
+    }
+    let isi = match raw.get("result") {
+        Some(r) if r.is_object() => r,
+        _ => raw,
+    };
     let mut url = url_nama(isi);
+    if url.is_empty() {
+        url = url_video_normal(isi);
+    }
     if url.is_empty() {
         url = url_field(isi);
     }
@@ -245,6 +263,41 @@ pub(crate) fn normalize(isi: &Value) -> Result<AudioDownload, ()> {
     })
 }
 
+/// `urlUnduhan` cabang `video_normal` (`youtube.js:316-323`) — HANYA bentuk
+/// array `[{ext, quality, url}]`; nilai `video_normal` string diabaikan seperti
+/// `Array.isArray` di JS. `ext` bukan `"mp4"` tidak pernah dipilih.
+pub(crate) fn url_video_normal(isi: &Value) -> String {
+    let Some(daftar) = isi.get("video_normal").and_then(Value::as_array) else {
+        return String::new();
+    };
+    let mut terpilih: Option<&Value> = None;
+    let mut kualitas_terpilih: i64 = 0;
+    for item in daftar {
+        if item.get("ext").and_then(Value::as_str) != Some("mp4") {
+            continue;
+        }
+        let kualitas = item
+            .get("quality")
+            .map(js_to_string)
+            .and_then(|raw| crate::common::parse_int(&raw))
+            .unwrap_or(0);
+        if terpilih.is_none() || kualitas > kualitas_terpilih {
+            terpilih = Some(item);
+            kualitas_terpilih = kualitas;
+        }
+    }
+    let kandidat = terpilih
+        .and_then(|item| item.get("url"))
+        .map(js_to_string)
+        .unwrap_or_default();
+    let kandidat = kandidat.trim().to_string();
+    if is_http_url(&kandidat) {
+        kandidat
+    } else {
+        String::new()
+    }
+}
+
 /// Bentuk yang `getAudioDownload` kembalikan: `{ title, format, url }`.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct AudioDownload {
@@ -254,6 +307,12 @@ pub(crate) struct AudioDownload {
 }
 
 /// `ytmp3.js:87` — `${title || "audio"}.${extensionFor(format)}`.
+///
+/// Di JS nama ini dioper sebagai `options.fileName` pada `sendMedia` audio,
+/// tetapi `sendMedia` audio tidak menyalin `fileName` ke payload
+/// (`socket.js:743-747`), jadi `Reply::Audio` tidak membawanya. Fungsi ini
+/// tetap dipertahankan sebagai padanan teks JS + untuk test.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn file_name(audio: &AudioDownload) -> String {
     let title = if audio.title.is_empty() {
         "audio"
@@ -263,10 +322,87 @@ pub(crate) fn file_name(audio: &AudioDownload) -> String {
     format!("{title}.{}", extension_for(&audio.format))
 }
 
+/// `kanonikDari(idVideo(url))` (`src/capabilities/youtube.js:129`) — semua
+/// backend JS menerima `https://www.youtube.com/watch?v=<id>`, bukan teks
+/// mentah user. Pola ID = 11 karakter `[A-Za-z0-9_-]` (`POLA_ID`,
+/// `youtube.js:24`); bentuk berbagi yang diterima: `youtu.be/<id>`,
+/// `watch?v=<id>` (dengan parameter lain di sekitarnya), dan
+/// `shorts|live|embed|v/<id>` (`JALUR_LANGKAS`, `youtube.js:25`).
+///
+/// `Err` = `idVideo` mengembalikan `null` — guard plugin `host_youtube` sudah
+/// lolos, jadi ini hanya bentuk yang host-nya YouTube tapi tidak ada ID-nya.
+pub(crate) fn kanonik(url: &str) -> Result<String, ()> {
+    // `kandidatTautan` (`youtube.js:63-77`): tautan lengkap dulu, lalu token
+    // yang memuat "youtu".
+    let mentah = url.trim();
+    let dasar = match tautan_lengkap(mentah) {
+        Some(t) => t,
+        None => mentah
+            .split_whitespace()
+            .find(|token| token.to_lowercase().contains("youtu"))
+            .unwrap_or(mentah)
+            .to_string(),
+    };
+    let dengan_skema = if ada_skema(&dasar) {
+        dasar
+    } else {
+        format!("https://{dasar}")
+    };
+    // `parseTautan` + `hostYoutube` (`youtube.js:80-88`).
+    let Some((_, host)) = host_dari(&dengan_skema) else {
+        return Err(());
+    };
+    if host != "youtu.be" && host != "youtube.com" && !host.ends_with(".youtube.com") {
+        return Err(());
+    }
+
+    // `idDariTautan` (`youtube.js:90-109`). `query` tidak dibaca langsung —
+    // `query_param` memarsing URL utuh sendiri.
+    let sisi = dengan_skema
+        .split_once("://")
+        .map(|(_, sisi)| sisi)
+        .unwrap_or("");
+    let sisi = sisi.split_once('/').map(|(_, ekor)| ekor).unwrap_or("");
+    let path = sisi.split('?').next().unwrap_or("");
+    let id: Option<String> = if host == "youtu.be" {
+        // Short link resmi: seluruh segmen pertama path adalah ID-nya.
+        path.split('/')
+            .find(|segmen| !segmen.is_empty())
+            .filter(|kandidat| pola_id(kandidat))
+            .map(str::to_string)
+    } else {
+        // `watch?v=…` dengan parameter lain: `v` dibaca dari query.
+        let mut id = query_param(&dengan_skema, "v").filter(|v| pola_id(v));
+        if id.is_none() {
+            // Bentuk berbagi lain: `shorts|live|embed|v/<id>`.
+            let segmen: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+            for pasangan in segmen.windows(2) {
+                if matches!(pasangan[0], "shorts" | "live" | "embed" | "v") && pola_id(pasangan[1])
+                {
+                    id = Some(pasangan[1].to_string());
+                    break;
+                }
+            }
+        }
+        id
+    };
+    let Some(id) = id else {
+        return Err(());
+    };
+    Ok(format!("https://www.youtube.com/watch?v={id}"))
+}
+
+/// `POLA_ID` (`youtube.js:24`) — `^[A-Za-z0-9_-]{11}$`.
+fn pola_id(s: &str) -> bool {
+    s.len() == 11
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 /// `pastikanBentuk` + `lewatIzuka` (`youtube.js:238,257`) digabung: pemeriksaan
 /// bentuk aggregator diletakkan di sini juga karena `izuka` tidak butuh key.
-fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
-    let target = format!("{ENDPOINT}?url={}", query_encode(url));
+fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
+    let target = format!("{ENDPOINT}?url={}", query_encode(kanonik));
     let respons = ctx.http.get(&target).map_err(|_| ())?;
     let body = respons.json().ok_or(())?;
     if body.get("status").and_then(Value::as_bool) != Some(true) {
@@ -281,6 +417,51 @@ fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
         return Err(());
     }
     normalize(result)
+}
+
+/// `lewatNexray` (`youtube.js:279-291`) — backend mp3 terakhir. Nexray membawa
+/// `result.url`, dipetakan JS jadi `download` sebelum `normalize`; ampelnya
+/// dibuka [`normalize`], jadi di sini cukup status + `result.url`.
+fn unduh_nexray(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
+    let target = format!(
+        "https://api.nexray.web.id/api/downloader/ytmp3?url={}",
+        query_encode(kanonik)
+    );
+    let respons = ctx.http.get(&target).map_err(|_| ())?;
+    let body = respons.json().ok_or(())?;
+    if body.get("status").and_then(Value::as_bool) != Some(true) {
+        return Err(());
+    }
+    let result = body.get("result").filter(|r| r.is_object()).ok_or(())?;
+    let punya = result
+        .get("url")
+        .map(crate::common::js_truthy_value)
+        .unwrap_or(false);
+    if !punya {
+        return Err(());
+    }
+    normalize(result)
+}
+
+/// `getAudioDownload` (`ytmp3.js:55-59`) + resolver `resolve("youtube")` —
+/// rantai backend mp3: `ytdl-native` (lokal) → `izuka` → `nexray`
+/// (`youtube.js:395-432`). Scraper lokal tidak melempar (`{status:false,
+/// mess}`), jadi `normalize` yang menilai; aggregator yang gagal transport
+/// jatuh ke backend berikutnya.
+fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
+    let kanonik = kanonik(url)?;
+    // 1. `ytdl-native` — hanya untuk mp3 (`applies` backend, `youtube.js:399`).
+    if let Ok(v) = oktz_scraper::ytdl::ytdl(&*ctx.http, &kanonik, Some("mp3")) {
+        if let Ok(audio) = normalize(&v) {
+            return Ok(audio);
+        }
+    }
+    // 2. `izuka` (`youtube.js:409-413`).
+    if let Ok(audio) = unduh_izuka(ctx, &kanonik) {
+        return Ok(audio);
+    }
+    // 3. `nexray` (`youtube.js:415-418`).
+    unduh_nexray(ctx, &kanonik)
 }
 
 /// `ytmp3.js:64` — link hilang.
@@ -343,9 +524,7 @@ fn tautan_lengkap(mentah: &str) -> Option<String> {
         };
         let tail = &rest[scheme_len..];
         let cut = tail
-            .find(|c: char| {
-                c.is_whitespace() || c == '<' || c == '>' || c == '"' || c == '\''
-            })
+            .find(|c: char| c.is_whitespace() || c == '<' || c == '>' || c == '"' || c == '\'')
             .unwrap_or(tail.len());
         return Some(rest[..scheme_len + cut].to_string());
     }
@@ -415,9 +594,11 @@ pub fn ytmp3(ctx: Ctx) -> Reply {
     }
 
     match unduh_audio(&ctx, url) {
-        // `ponytail:` `Reply` tidak punya `Audio`, jadi yang terkirim hanya
-        // nama berkas — sama seperti `spotifydl.rs`.
-        Ok(audio) => Reply::text(file_name(&audio)).with_reaction("✅"),
+        // `ytmp3.js:83-89` — `sendMedia(..., { type: "audio", mimetype:
+        // mimetypeFor(format), ptt: false })` lalu reaksi ✅. `fileName` di
+        // options JS tidak berlaku untuk audio (`socket.js:743-747`).
+        Ok(audio) => Reply::audio(Ms::url(audio.url).with_mimetype(mimetype_for(&audio.format)))
+            .with_reaction("✅"),
         Err(()) => Reply::text(GAGAL).with_reaction("❌"),
     }
 }
@@ -430,32 +611,44 @@ mod tests {
 
     #[derive(Debug)]
     struct Stub {
-        body: Result<Value, ()>,
+        /// Respons per-backend dicocokkan dari potongan URL: backend `ytdl`
+        /// di `d.ymcdn.org`, `izuka` di `my.izuka-api.xyz`, `nexray` di
+        /// `api.nexray.web.id`. `None` = transport error.
+        per_backend: Vec<(&'static str, Option<Value>)>,
         seen: Mutex<Vec<String>>,
     }
 
     impl Stub {
-        fn body(v: Value) -> Arc<Stub> {
+        fn per_backend(per_backend: Vec<(&'static str, Option<Value>)>) -> Arc<Stub> {
             Arc::new(Stub {
-                body: Ok(v),
+                per_backend,
                 seen: Mutex::new(Vec::new()),
             })
         }
+        fn body(v: Value) -> Arc<Stub> {
+            // Semua backend dapat jawaban yang sama.
+            Self::per_backend(vec![("", Some(v))])
+        }
         fn offline() -> Arc<Stub> {
-            Arc::new(Stub {
-                body: Err(()),
-                seen: Mutex::new(Vec::new()),
-            })
+            Self::per_backend(vec![("", None)])
         }
     }
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
+            let (_, nilai) = self
+                .per_backend
+                .iter()
+                .find(|(penanda, _)| url.contains(penanda))
+                .ok_or(oktz_plugin_api::HttpError {
+                    message: format!("URL tak dikenal stub: {url}"),
+                })?;
+            let text = nilai
                 .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?
+                .ok_or(oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?
                 .to_string();
             Ok(HttpResponse {
                 status: 200,
@@ -467,7 +660,10 @@ mod tests {
             })
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!("cuma GET")
+            // Rantai mp3 hanya GET; POST tidak pernah ditunggu di sini.
+            Err(oktz_plugin_api::HttpError {
+                message: "stub tidak melayani POST".into(),
+            })
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("cuma GET")
@@ -506,6 +702,14 @@ mod tests {
         }
     }
 
+    /// Isi balasan sebenarnya: `Reaction { reply }` dibuka satu lapis.
+    fn isi(r: &Reply) -> &Reply {
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        }
+    }
+
     fn ok_body() -> Value {
         serde_json::json!({
             "status": true,
@@ -515,6 +719,120 @@ mod tests {
                 "download_url": "https://cdn.example/a.mp3"
             }
         })
+    }
+
+    /// Bentuk `ytdl` yang sukses (`{status:true, title, dl}` — `ytdl.rs:269`).
+    fn ytdl_ok() -> Value {
+        serde_json::json!({
+            "status": true,
+            "title": "Lagu ytdl",
+            "dl": "https://cdn.example/lokal.mp3"
+        })
+    }
+
+    #[test]
+    fn a_resolved_download_sends_the_audio_media() {
+        // ytdl lokal gagal (status:false), izuka sukses → audio izuka.
+        let http = Stub::per_backend(vec![
+            (
+                "ymcdn",
+                Some(serde_json::json!({"status": false, "mess": "x"})),
+            ),
+            ("izuka", Some(ok_body())),
+            (
+                "nexray",
+                Some(serde_json::json!({"status": true, "result": {"url": "https://n/a.mp3"}})),
+            ),
+        ]);
+        let r = run(http.clone(), "https://youtube.com/watch?v=dQw4w9WgXcQ");
+        assert_eq!(reaksi(&r), Some("✅"));
+        match isi(&r) {
+            Reply::Audio { media, .. } => {
+                let m = media.as_ref().expect("audio harus punya sumber");
+                assert_eq!(m.mimetype(), Some("audio/mpeg"), "format dilaporkan mp3");
+            }
+            lain => panic!("harus audio, dapat {lain:?}"),
+        }
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2, "ytdl lalu izuka, nexray tak dihubungi");
+        // Backend menerima URL kanonik, bukan teks mentah (`target()`,
+        // youtube.js:129) — spasi jadi +, byte lain %XX.
+        assert!(
+            seen[0].starts_with("https://d.ymcdn.org"),
+            "ytdl-native harus dicoba duluan: {}",
+            seen[0]
+        );
+        assert!(
+            seen[1].starts_with(
+                "https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdQw4w9WgXcQ"
+            ),
+            "{}",
+            seen[1]
+        );
+    }
+
+    #[test]
+    fn the_local_ytdl_shape_is_normalized_directly() {
+        // Bentuk sukses `ytdl` (`{status:true, title, dl}`) dibaca `normalize`
+        // — dipanggil langsung karena menjalankan scraper ytdl di stub butuh
+        // tiga balasan berantai (init → convert → progress); itu sudah ditutup
+        // test scraper `oktz-scraper/ytdl.rs`.
+        let audio = normalize(&ytdl_ok()).unwrap();
+        assert_eq!(audio.url, "https://cdn.example/lokal.mp3");
+        assert_eq!(audio.title, "Lagu ytdl");
+        assert_eq!(
+            audio.format, "mp3",
+            "FORMAT_DEFAULT untuk backend yang diam"
+        );
+    }
+
+    #[test]
+    fn nexray_is_the_last_mp3_backend() {
+        let gagal = serde_json::json!({"status": false});
+        let http = Stub::per_backend(vec![
+            ("ymcdn", Some(gagal.clone())),
+            ("izuka", Some(gagal)),
+            (
+                "nexray",
+                Some(serde_json::json!({"status": true, "result": {"url": "https://n/x.mp3"}})),
+            ),
+        ]);
+        let r = run(http.clone(), "https://youtu.be/dQw4w9WgXcQ");
+        assert_eq!(reaksi(&r), Some("✅"));
+        assert!(matches!(isi(&r), Reply::Audio { .. }));
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 3);
+        assert!(
+            seen[2].contains("api.nexray.web.id/api/downloader/ytmp3"),
+            "{}",
+            seen[2]
+        );
+    }
+
+    #[test]
+    fn kanonik_mengikuti_kanonikdari_idvideo() {
+        // `kanonikDari(idVideo(url))` (`youtube.js:129`) — semua bentuk share
+        // dipetakan ke watch?v=<id>.
+        assert_eq!(
+            kanonik("https://youtu.be/dQw4w9WgXcQ").unwrap(),
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            kanonik("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap(),
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            kanonik("putar https://youtu.be/dQw4w9WgXcQ dong").unwrap(),
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            kanonik("https://www.youtube.com/watch?app=desktop&v=dQw4w9WgXcQ&t=1s").unwrap(),
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        );
+        // Host YouTube tanpa ID → gagal (`idVideo` null).
+        assert!(kanonik("https://www.youtube.com/").is_err());
+        // Host lain dengan ID di query → bukan YouTube (`hostYoutube`).
+        assert!(kanonik("https://evil.example/?v=dQw4w9WgXcQ").is_err());
     }
 
     #[test]
@@ -572,7 +890,10 @@ mod tests {
     fn a_missing_link_shows_the_example_without_reacting() {
         let http = Stub::body(ok_body());
         let r = run(http.clone(), "");
-        assert_eq!(text_of(&r), "Contoh: .ytmp3 https://youtube.com/watch?v=xxx");
+        assert_eq!(
+            text_of(&r),
+            "Contoh: .ytmp3 https://youtube.com/watch?v=xxx"
+        );
         assert_eq!(reaksi(&r), None);
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -584,22 +905,6 @@ mod tests {
         assert_eq!(text_of(&r), BUKAN_YOUTUBE);
         assert_eq!(reaksi(&r), None);
         assert!(http.seen.lock().unwrap().is_empty());
-    }
-
-    #[test]
-    fn a_resolved_download_replies_with_the_file_name() {
-        let http = Stub::body(ok_body());
-        let r = run(http.clone(), "https://youtube.com/watch?v=xxx");
-        assert_eq!(text_of(&r), "Lagu Contoh.mp3");
-        assert_eq!(reaksi(&r), Some("✅"));
-        let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 1);
-        assert_eq!(
-            seen[0],
-            "https://my.izuka-api.xyz/api/downloader/ytmp3\
-             ?url=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3Dxxx",
-            "spasi jadi +, byte lain jadi %XX — searchParams.set, bukan encodeURIComponent"
-        );
     }
 
     #[test]
@@ -639,7 +944,10 @@ mod tests {
     #[test]
     fn an_unknown_format_token_falls_back_to_mp3() {
         assert_eq!(format_from_token(Some(&serde_json::json!("360"))), None);
-        assert_eq!(format_from_token(Some(&serde_json::json!(".MP3"))), Some("mp3".into()));
+        assert_eq!(
+            format_from_token(Some(&serde_json::json!(".MP3"))),
+            Some("mp3".into())
+        );
         assert_eq!(format_from_token(Some(&Value::Null)), None);
         assert_eq!(format_from_token(None), None);
     }
@@ -654,7 +962,10 @@ mod tests {
             serde_json::json!({ "status": true }),
             serde_json::json!([]),
         ] {
-            let r = run(Stub::body(body.clone()), "https://youtube.com/watch?v=xxx");
+            let r = run(
+                Stub::body(body.clone()),
+                "https://youtube.com/watch?v=dQw4w9WgXcQ",
+            );
             assert_eq!(text_of(&r), GAGAL, "body {body}");
             assert_eq!(reaksi(&r), Some("❌"));
         }
@@ -662,8 +973,20 @@ mod tests {
 
     #[test]
     fn a_transport_failure_reports_the_same_message() {
-        let r = run(Stub::offline(), "https://youtube.com/watch?v=xxx");
+        let r = run(Stub::offline(), "https://youtube.com/watch?v=dQw4w9WgXcQ");
         assert_eq!(text_of(&r), GAGAL);
         assert_eq!(reaksi(&r), Some("❌"));
+    }
+
+    #[test]
+    #[ignore = "uji jaringan YouTube MP3; set OKTZ_TEST_YTMP3_URL"]
+    fn live_ytmp3_mengambil_audio() {
+        // Uji live padanan `plugins/download/ytmp3.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_YTMP3_URL");
+        let (http, ctx) = live_ctx("ytmp3", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("ytmp3").unwrap().handler)(ctx);
+        assert_media(&reply, &["audio"], &http);
     }
 }

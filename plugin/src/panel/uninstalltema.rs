@@ -2,8 +2,8 @@
 //!
 //! `ponytail:` `pluginConfig.name` di JS adalah array
 //! `['uinstalltema','uninstalltema','removetema','hapustema']` dengan `alias: []`,
-//! jadi elemen pertama jadi `name` dan sisanya jadi `alias` — pola yang sama
-//! dengan `group/autodl.rs`.
+//! jadi elemen pertama jadi `name` dan sisanya jadi command tambahan
+//! (`PluginMeta::commands`) — pola yang sama dengan `group/autodl.rs`.
 //!
 //! Yang dipindah: kedua guard, pembacaan `ip|password`, dan penulisan
 //! `global.installtema = { vps, pwvps }` (saya di sini `Ctx::session_set`).
@@ -24,7 +24,10 @@ pub(crate) const USAGE: &str = "╭┈┈⬡「 🗑️ *ᴜɴɪɴsᴛᴀʟʟ �
 
 #[plugin(
     name = "uinstalltema",
-    alias = ["uninstalltema", "removetema", "hapustema"],
+    commands = [
+        "uninstalltema", "removetema", "hapustema",
+    ],
+    alias = [],
     category = "panel",
     description = "Uninstall tema Pterodactyl via SSH",
     usage = ".uinstalltema <ip>|<password>",
@@ -88,9 +91,10 @@ mod tests {
     #[test]
     fn registers_with_the_js_plugin_config() {
         let m = &find("uinstalltema").unwrap().meta;
-        // JS `name` adalah array; elemen pertama jadi name, sisanya alias.
+        // JS `name` adalah array; elemen pertama jadi name, sisanya command.
         assert_eq!(m.name, "uinstalltema");
-        assert_eq!(m.alias, ["uninstalltema", "removetema", "hapustema"]);
+        assert_eq!(m.commands, ["uninstalltema", "removetema", "hapustema"]);
+        assert!(m.alias.is_empty());
         assert_eq!(m.category, "panel");
         assert_eq!(m.description, "Uninstall tema Pterodactyl via SSH");
         assert_eq!(m.usage, ".uinstalltema <ip>|<password>");

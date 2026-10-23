@@ -17,6 +17,7 @@
 //! `docs/rust-rewrite/SCRAPER-PORTING.md`), bukan agent porting.
 
 pub mod aio;
+pub mod btch;
 pub mod claudehaiku;
 pub mod common;
 pub mod dafont;
@@ -29,9 +30,9 @@ pub mod feeb;
 pub mod gemini;
 pub mod gemini_vision;
 pub mod gpt5;
+pub mod gpt52;
 pub mod gsmarena;
 pub mod hd;
-pub mod gpt52;
 pub mod hdvid;
 pub mod hdvid2;
 pub mod hokinfo;

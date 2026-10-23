@@ -77,7 +77,10 @@ pub(crate) fn parse_peserta(teks: &str) -> Vec<String> {
 
 #[plugin(
     name = "buatgrup",
-    alias = ["creategroup", "newgroup"],
+    commands = [
+        "creategroup", "newgroup",
+    ],
+    alias = [],
     category = "owner",
     description = "Buat grup baru",
     usage = ".buatgrup <nama>|<nomor1,nomor2,...>|<durasi_menit>",
@@ -163,7 +166,8 @@ mod tests {
     fn meta_dan_alias_sama_dengan_js() {
         let p = oktz_plugin_api::find("buatgrup").unwrap();
         assert_eq!(p.meta.name, "buatgrup");
-        assert_eq!(p.meta.alias, ["creategroup", "newgroup"]);
+        assert_eq!(p.meta.commands, ["creategroup", "newgroup"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Buat grup baru");
         assert_eq!(

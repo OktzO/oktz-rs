@@ -1631,7 +1631,10 @@ fn dispatch(ctx: &Ctx, rng: &mut dyn FnMut() -> f64) -> Reply {
 
 #[plugin(
     name = "gachahusbu",
-    alias = ["husbuaction", "tinggalinhusbu", "husbuku", "suamiku", "gachasuami"],
+    commands = [
+        "husbuaction", "tinggalinhusbu", "husbuku", "suamiku",
+    ],
+    alias = ["gachasuami"],
     category = "fun",
     description = "Gacha husbu impianmu, rebut hatinya, dan jadikan dia pasanganmu!",
     usage = ".gachahusbu | .husbuku | .tinggalinhusbu",

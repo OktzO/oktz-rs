@@ -10,11 +10,17 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 // `pluginConfig.name` di JS adalah array 5 nama (`clearchat.js:3`).
+// Sisa array masuk `PluginMeta::commands` (`plugins.js:207-209`), bukan alias:
+// lookup JS mengecek map `commands` dulu (`plugins.js:539-544`), jadi `.cc`
+// membuka `clearchat`, bukan alias `cc` milik plugin lain.
 // `PluginMeta.name` hanya `String`, jadi elemen pertama jadi `name` dan sisanya
 // jadi `alias` — registry `matches()` tetap menerima kelima nama.
 #[plugin(
     name = "clearchat",
-    alias = ["cc", "cleangc", "deletechat", "delchat"],
+    commands = [
+        "cc", "cleangc", "deletechat", "delchat",
+    ],
+    alias = [],
     category = "group",
     description = "Membersihkan chat grup",
     usage = ".clearchat",
@@ -76,11 +82,12 @@ mod tests {
             );
         }
         // JS menaruh kelima nama di `name` (array) dengan `alias` kosong.
-        // Rust hanya punya satu string `name`, jadi empat sisanya jadi alias.
+        // Rust hanya punya satu string `name`, jadi empat sisanya jadi
+        // command tambahan (`plugins.js:207-209`).
         assert_eq!(
-            find("clearchat").unwrap().meta.alias,
+            find("clearchat").unwrap().meta.commands,
             ["cc", "cleangc", "deletechat", "delchat"],
-            "nama array JS dipetakan ke alias"
+            "nama array JS dipetakan ke command tambahan"
         );
     }
 

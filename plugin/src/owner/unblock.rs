@@ -19,7 +19,10 @@ pub(crate) const USAGE: &str = "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
 
 #[plugin(
     name = "unblock",
-    alias = ["unblocknomor"],
+    commands = [
+        "unblocknomor",
+    ],
+    alias = [],
     category = "owner",
     description = "Buka blokir nomor WhatsApp",
     usage = ".unblock <nomor/reply/mention>",
@@ -81,7 +84,8 @@ mod tests {
         let p = entry();
         assert_eq!(p.meta.name, "unblock");
         // JS `name: ['unblock','unblocknomor']` — entri kedua jadi alias.
-        assert_eq!(p.meta.alias, ["unblocknomor"]);
+        assert_eq!(p.meta.commands, ["unblocknomor"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Buka blokir nomor WhatsApp");
         assert_eq!(p.meta.usage, ".unblock <nomor/reply/mention>");

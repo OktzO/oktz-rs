@@ -1,17 +1,11 @@
 //! `plugins/download/capcutdl.js` — unduh video CapCut.
 //!
-//! `ponytail:` scraper `capcut` datang dari paket npm `btch-downloader`, bukan
-//! dari repo ini, jadi tidak bisa di-port. Guard URL, kartu pakai, dan semua
-//! teks cabangnya tetap sama dengan JS; yang hilang cuma pemanggilan scraper —
-//! `fetch_capcut` selalu gagal, persis seperti scraper itu melempar di Node.
-//!
-//! `ponytail:` `Reply` tidak punya variant video, jadi hasil `sendMedia` hanya
-//! terkirim sebagai URL teks. Tambahkan `Reply::Video` kalau pipeline sudah
-//! bisa mengunggah video.
+//! Scraper `capcut` memakai kontrak resmi `btch-downloader@6.3.6` melalui
+//! `oktz_scraper::btch`, termasuk endpoint, header, envelope, dan penanganan
+//! error transport seperti SDK Node.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
-
 
 /// `capcutdl.js:31` — `/capcut\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_capcut_url(url: &str) -> bool {
@@ -47,12 +41,6 @@ pub(crate) fn original_video_url(data: &Value) -> String {
         .to_string()
 }
 
-/// `capcut(url)` dari `btch-downloader` — satu-satunya bagian yang tidak bisa
-/// di-port. `Err` = lempar, jadi cabang `catch` yang menyala.
-fn fetch_capcut(_url: &str) -> Result<Value, ()> {
-    Err(())
-}
-
 #[plugin(
     name = "capcutdl",
     alias = ["ccdl", "capcut", "cc"],
@@ -79,27 +67,90 @@ pub fn capcutdl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    let data = match fetch_capcut(url) {
-        Ok(data) => data,
-        Err(()) => {
-            return Reply::text(crate::common::error_template(&ctx)).with_reaction("🕕");
-        }
-    };
+    // `capcutdl.js:38` memakai SDK Node yang menangkap error transport dan
+    // mengembalikan envelope `status: false`.
+    let data = oktz_scraper::btch::capcut(ctx.http.as_ref(), url);
 
     let video = original_video_url(&data);
     if !status_ok(&data) || video.is_empty() {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `capcutdl.js:44-50` — `sendMedia` video; tidak ada padanannya di `Reply`.
-    Reply::text(video).with_reaction("🕕")
+    // `capcutdl.js:44-50` — `sendMedia` video tanpa caption; reaksi ⏱️ adalah
+    // satu-satunya reaksi yang dikirim JS.
+    Reply::video(MediaSource::url(video), "").with_reaction("🕕")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpGet, HttpResponse};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Debug)]
+    struct Stub {
+        body: Result<String, HttpError>,
+        seen: Mutex<Vec<HttpCall>>,
+    }
+
+    impl Stub {
+        fn json(value: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Ok(value.to_string()),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn offline() -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Err(HttpError {
+                    message: "offline".into(),
+                }),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn get(&self, _url: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("klien btch memakai HttpCall::call")
+        }
+
+        fn post_json(&self, _url: &str, _body: &Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+
+        fn post_form(&self, _url: &str, _form: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+
+        fn post_multipart(
+            &self,
+            _url: &str,
+            _parts: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("hanya GET")
+        }
+
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let body = self.body.clone()?;
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(body.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
+        }
+    }
 
     fn run(text: &str) -> Reply {
+        run_with_http(text, Stub::offline())
+    }
+
+    fn run_with_http(text: &str, http: Arc<Stub>) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "ccdl".into(),
@@ -107,6 +158,7 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             text: text.into(),
             args: vec![text.into()],
+            http,
             ..Default::default()
         };
         (oktz_plugin_api::find("capcutdl").unwrap().handler)(ctx)
@@ -114,6 +166,13 @@ mod tests {
 
     fn text_of(r: &Reply) -> &str {
         r.without_mutations().text_body().expect("harus ada teks")
+    }
+
+    fn isi(r: &Reply) -> &Reply {
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        }
     }
 
     #[test]
@@ -180,14 +239,64 @@ mod tests {
     }
 
     #[test]
-    fn the_scraper_failure_branch_is_the_error_template() {
-        // `fetch_capcut` selalu gagal di port ini, jadi handler tidak pernah
-        // mencapai cabang media — persis yang terjadi kalau scraper melempar.
+    fn scraper_btch_memakai_endpoint_header_dan_envelope_yang_sama() {
+        let http = Stub::json(serde_json::json!({
+            "originalVideoUrl": "https://cdn.example/video.mp4"
+        }));
+        let r = run_with_http("https://www.capcut.com/t/xxx", http.clone());
+
+        match isi(&r) {
+            Reply::Video { media, .. } => {
+                assert_eq!(
+                    media.as_ref().and_then(|m| match m {
+                        MediaSource::Url { url, .. } => Some(url.as_str()),
+                        _ => None,
+                    }),
+                    Some("https://cdn.example/video.mp4")
+                );
+            }
+            lain => panic!("harus video, dapat {lain:?}"),
+        }
+
+        let seen = http.seen.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(
+            seen[0].url,
+            "https://backend1.tioo.eu.org/capcut?url=https%3A%2F%2Fwww.capcut.com%2Ft%2Fxxx"
+        );
+        let header = |nama: &str| {
+            seen[0]
+                .headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(nama))
+                .map(|(_, v)| v.as_str())
+        };
+        assert_eq!(header("content-type"), Some("application/json"));
+        assert_eq!(header("user-agent"), Some("btch/6.3.6"));
+        assert_eq!(header("x-client-version"), Some("6.3.6"));
+    }
+
+    #[test]
+    fn kegagalan_transport_btch_menghasilkan_branch_gagal_mengambil_video() {
+        // `btch-downloader` menangkap error HTTP dan mengembalikan envelope
+        // `status: false`, jadi plugin masuk branch `Gagal mengambil video`.
         let r = run("https://www.capcut.com/t/xxx");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "ccdl"));
+        assert_eq!(text_of(&r), NO_VIDEO);
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "🕕"),
-            "reaksi jam harus tetap ada di cabang catch"
+            "reaksi jam harus tetap ada"
         );
+    }
+
+    #[test]
+    #[ignore = "uji jaringan CapCut; set OKTZ_TEST_CAPCUT_URL"]
+    fn live_capcutdl_mengambil_video() {
+        // Uji live padanan `plugins/download/capcutdl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_CAPCUT_URL");
+        let (http, ctx) = live_ctx("capcutdl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("capcutdl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }

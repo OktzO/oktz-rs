@@ -29,7 +29,10 @@ fn contoh(prefix: &str) -> String {
 
 #[plugin(
     name = "buatsaluran",
-    alias = ["createsaluran", "createnewsletter"],
+    commands = [
+        "createsaluran", "createnewsletter",
+    ],
+    alias = [],
     category = "owner",
     description = "Buat saluran/newsletter baru",
     usage = ".buatsaluran <nama>|<deskripsi>",
@@ -99,7 +102,8 @@ mod tests {
     fn terdaftar_dengan_meta_js() {
         let p = find("buatsaluran").unwrap();
         assert_eq!(p.meta.name, "buatsaluran");
-        assert_eq!(p.meta.alias, ["createsaluran", "createnewsletter"]);
+        assert_eq!(p.meta.commands, ["createsaluran", "createnewsletter"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Buat saluran/newsletter baru");
         assert_eq!(p.meta.usage, ".buatsaluran <nama>|<deskripsi>");

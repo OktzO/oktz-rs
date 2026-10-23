@@ -46,7 +46,10 @@ fn bantuan(prefix: &str) -> String {
 
 #[plugin(
     name = "arsip",
-    alias = ["archive"],
+    commands = [
+        "archive",
+    ],
+    alias = [],
     category = "owner",
     description = "Arsipkan/buka arsip chat",
     usage = ".arsip <nomor/reply> atau .arsip buka <nomor>",
@@ -158,7 +161,8 @@ mod tests {
     fn arsip_daftar_alias_dan_meta() {
         let p = oktz_plugin_api::find("arsip").unwrap();
         assert_eq!(p.meta.name, "arsip");
-        assert_eq!(p.meta.alias, ["archive"]);
+        assert_eq!(p.meta.commands, ["archive"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 3);
         assert_eq!(p.meta.energi, 0);

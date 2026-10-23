@@ -275,7 +275,10 @@ fn help(prefix: &str) -> String {
 
 #[plugin(
     name = "antara",
-    alias = ["cnn", "cnbc", "sindonews", "berita"],
+    commands = [
+        "cnn", "cnbc", "sindonews", "berita",
+    ],
+    alias = [],
     category = "berita",
     description = "Mendapatkan berita terkini dari berbagai sumber",
     usage = ".berita <sumber>",

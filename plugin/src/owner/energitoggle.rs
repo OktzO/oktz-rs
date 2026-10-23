@@ -1,8 +1,9 @@
 //! `plugins/owner/energitoggle.js` — toggle global `settings.energi`.
 //!
 //! `name` di JS berupa array `['disableenergi', 'enableenergi']`: keduanya
-//! terdaftar sebagai command, jadi yang kedua masuk ke `alias` (cerminan
-//! `normalizePluginNames` di `plugins.js:76-85`).
+//! terdaftar sebagai command, jadi yang kedua masuk ke command tambahan
+//! (`PluginMeta::commands`, cerminan `normalizePluginNames` di
+//! `plugins.js:76-85`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -17,7 +18,10 @@ pub(crate) fn is_enable_command(command: &str) -> bool {
 
 #[plugin(
     name = "disableenergi",
-    alias = ["enableenergi", "offenergi", "onenergi"],
+    commands = [
+        "enableenergi",
+    ],
+    alias = ["offenergi", "onenergi"],
     category = "owner",
     description = "Enable/disable sistem energi",
     usage = ".disableenergi atau .enableenergi",
@@ -82,10 +86,11 @@ mod tests {
         let p = oktz_plugin_api::find("disableenergi").unwrap();
         assert_eq!(p.meta.name, "disableenergi");
         assert_eq!(
-            p.meta.alias,
-            ["enableenergi", "offenergi", "onenergi"],
+            p.meta.commands,
+            ["enableenergi"],
             "nama kedua pada array `name` JS ikut terdaftar"
         );
+        assert_eq!(p.meta.alias, ["offenergi", "onenergi"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Enable/disable sistem energi");
         assert_eq!(p.meta.usage, ".disableenergi atau .enableenergi");

@@ -13,7 +13,10 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(
     name = "star",
-    alias = ["bintang"],
+    commands = [
+        "bintang",
+    ],
+    alias = [],
     category = "owner",
     description = "Beri/hapus bintang pada pesan",
     usage = ".star (reply pesan) atau .star hapus (reply pesan)",
@@ -84,7 +87,8 @@ mod tests {
     fn registers_with_js_plugin_config() {
         let p = oktz_plugin_api::find("star").unwrap();
         assert_eq!(p.meta.name, "star");
-        assert_eq!(p.meta.alias, ["bintang"]);
+        assert_eq!(p.meta.commands, ["bintang"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "owner");
         assert!(p.meta.is_owner);
         assert!(!p.meta.is_group && !p.meta.is_private);

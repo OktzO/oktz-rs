@@ -16,7 +16,10 @@ use crate::vps::{has_access, token};
 
 #[plugin(
     name = "delvps",
-    alias = ["deldroplet", "deletevps"],
+    commands = [
+        "deldroplet", "deletevps",
+    ],
+    alias = [],
     category = "vps",
     description = "Hapus VPS DigitalOcean",
     usage = ".delvps <id>",
@@ -157,7 +160,8 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("delvps").unwrap();
         assert_eq!(p.meta.name, "delvps");
-        assert_eq!(p.meta.alias, ["deldroplet", "deletevps"]);
+        assert_eq!(p.meta.commands, ["deldroplet", "deletevps"]);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
         assert_eq!(p.meta.category, "vps");
         assert_eq!(p.meta.description, "Hapus VPS DigitalOcean");
         assert_eq!(p.meta.usage, ".delvps <id>");

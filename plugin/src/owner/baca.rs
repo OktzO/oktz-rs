@@ -10,7 +10,10 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(
     name = "baca",
-    alias = ["read", "markread"],
+    commands = [
+        "read", "markread",
+    ],
+    alias = [],
     category = "owner",
     description = "Tandai pesan sebagai sudah dibaca",
     usage = ".baca",

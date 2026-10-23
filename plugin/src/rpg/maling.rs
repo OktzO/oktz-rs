@@ -36,7 +36,9 @@ struct Outcome {
     msg: &'static str,
 }
 
-const OUTCOMES: [Outcome; 6] = [
+// `static`, bukan `const`: const akan dipromosikan jadi dua salinan berbeda
+// per lokasi pakai, jadi perbandingan pointer di tes tidak pernah cocok.
+static OUTCOMES: [Outcome; 6] = [
     Outcome {
         success: true,
         money: 20000,

@@ -15,7 +15,7 @@
 //! banyak media hanya mengirim teks caption-nya; satu video juga hanya teks
 //! caption; satu foto masih terkirim sebagai gambar.
 
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use super::facebookdl::axios_query;
@@ -204,7 +204,10 @@ fn unique_by_url(list: Option<&Value>) -> Vec<&Value> {
     let mut seen: Vec<&str> = Vec::new();
     let mut out = Vec::new();
     for item in items {
-        let Some(url) = item.get("url").filter(|u| js_truthy_value(u)).and_then(Value::as_str)
+        let Some(url) = item
+            .get("url")
+            .filter(|u| js_truthy_value(u))
+            .and_then(Value::as_str)
         else {
             continue;
         };
@@ -294,7 +297,29 @@ pub fn threaddl(ctx: Ctx) -> Reply {
     }
 
     let target = format!("{BASE_URL}?url={}&action=info", axios_query(url));
-    let Ok(response) = ctx.http.get(&target) else {
+    // `threaddl.js:66-85` — worker hanya menerima profil browser dan origin
+    // threadsvid, jadi header axios wajib diteruskan lewat `HttpCall`.
+    let request = HttpCall::get(&target)
+        .header("sec-ch-ua-platform", "\"Android\"")
+        .header(
+            "user-agent",
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+        )
+        .header("accept", "application/json")
+        .header(
+            "sec-ch-ua",
+            "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+        )
+        .header("content-type", "application/json")
+        .header("sec-ch-ua-mobile", "?1")
+        .header("origin", "https://threadsvid.com")
+        .header("sec-fetch-site", "cross-site")
+        .header("sec-fetch-mode", "cors")
+        .header("sec-fetch-dest", "empty")
+        .header("referer", "https://threadsvid.com/")
+        .header("accept-language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7")
+        .header("priority", "u=1, i");
+    let Ok(response) = ctx.http.call(&request) else {
         return Reply::text(SYSTEM_FAILED).with_reaction("☢");
     };
     let Some(data) = response.json() else {
@@ -326,30 +351,34 @@ pub fn threaddl(ctx: Ctx) -> Reply {
 
     let text = caption(&info, result.len());
     if result.len() > 1 {
-        // `threaddl.js:115-117` — teks dulu lalu album. `Reply` tidak punya
-        // album, jadi yang terkirim hanya teksnya.
+        // `threaddl.js:115-117` — teks dulu lalu album (banyak pesan). Kontrak
+        // `Reply` satu media per pesan; tanpa `albumMessage` di pipeline, yang
+        // terkirim hanya teksnya — sama seperti catatan sebelumnya.
         return Reply::text(text).with_reaction("✅");
     }
     match &result[0] {
         Item::Image { url } => {
             Reply::image(MediaSource::url(url.clone()), text).with_reaction("✅")
         }
-        // `threaddl.js:110-111` — video tidak punya variant di `Reply`.
-        Item::Video { .. } => Reply::text(text).with_reaction("✅"),
+        // `threaddl.js:121-124` — `{ video: { url }, caption: captionText }`:
+        // satu media membawa caption yang sama.
+        Item::Video { url } => {
+            Reply::video(MediaSource::url(url.clone()), text).with_reaction("✅")
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use oktz_plugin_api::HttpGet;
+    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpResponse};
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
     struct Stub {
         body: Result<String, ()>,
-        seen: Mutex<Vec<String>>,
+        seen: Mutex<Vec<HttpCall>>,
     }
 
     impl Stub {
@@ -376,11 +405,13 @@ mod tests {
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            self.call(&HttpCall::get(url))
+        }
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let text = self.body.clone().map_err(|()| HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -571,7 +602,8 @@ mod tests {
 
     #[test]
     fn the_caption_uses_the_js_fallback_chain() {
-        let info = serde_json::json!({ "author": "zuck", "title": "Halo", "description": "Cadangan" });
+        let info =
+            serde_json::json!({ "author": "zuck", "title": "Halo", "description": "Cadangan" });
         let text = caption(&info, 2);
         assert!(text.contains("👤 *Pembuat*: zuck"), "{text}");
         assert!(text.contains("📝 *Teks Postingan*: Halo"), "{text}");
@@ -586,21 +618,73 @@ mod tests {
         );
 
         let kosong = caption(&serde_json::json!({}), 1);
-        assert!(kosong.contains("📝 *Teks Postingan*: Tidak ada deskripsi."), "{kosong}");
+        assert!(
+            kosong.contains("📝 *Teks Postingan*: Tidak ada deskripsi."),
+            "{kosong}"
+        );
     }
 
     #[test]
     fn the_query_string_keeps_the_param_order_of_the_js() {
-        let http = Stub::body(serde_json::json!({ "success": true, "data": { "images": { "urls": [] } } }));
+        let http = Stub::body(
+            serde_json::json!({ "success": true, "data": { "images": { "urls": [] } } }),
+        );
         let _ = run(http.clone(), "https://www.threads.net/@zuck/post/1");
         assert_eq!(
-            http.seen.lock().unwrap().clone(),
+            http.seen
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|request| request.url.clone())
+                .collect::<Vec<_>>(),
             vec![
                 "https://workers-playground-cool-wood-c008.accoutydusra.workers.dev\
                  ?url=https:%2F%2Fwww.threads.net%2F%40zuck%2Fpost%2F1&action=info"
                     .to_string()
             ]
         );
+    }
+
+    #[test]
+    fn metadata_request_memakai_header_js() {
+        // `threaddl.js:66-85` mengirim header browser dan origin threadsvid.
+        let http = Stub::body(
+            serde_json::json!({ "success": true, "data": { "images": { "urls": [] } } }),
+        );
+        let _ = run(http.clone(), "https://www.threads.net/@zuck/post/1");
+        let seen = http.seen.lock().unwrap();
+        let request = seen.first().expect("request metadata");
+        let cari = |nama: &str| {
+            request
+                .headers
+                .iter()
+                .find(|(key, _)| key.eq_ignore_ascii_case(nama))
+                .map(|(_, value)| value.as_str())
+        };
+        let daftar = [
+            ("sec-ch-ua-platform", "\"Android\""),
+            (
+                "user-agent",
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+            ),
+            ("accept", "application/json"),
+            (
+                "sec-ch-ua",
+                "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+            ),
+            ("content-type", "application/json"),
+            ("sec-ch-ua-mobile", "?1"),
+            ("origin", "https://threadsvid.com"),
+            ("sec-fetch-site", "cross-site"),
+            ("sec-fetch-mode", "cors"),
+            ("sec-fetch-dest", "empty"),
+            ("referer", "https://threadsvid.com/"),
+            ("accept-language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7"),
+            ("priority", "u=1, i"),
+        ];
+        for (nama, nilai) in daftar {
+            assert_eq!(cari(nama), Some(nilai), "header {nama}");
+        }
     }
 
     #[test]
@@ -612,7 +696,11 @@ mod tests {
             })),
             "https://www.threads.net/@zuck/post/1",
         );
-        assert!(text_of(&r).starts_with("✨ *THREADS DOWNLOADER* ✨"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("✨ *THREADS DOWNLOADER* ✨"),
+            "{}",
+            text_of(&r)
+        );
         assert_eq!(
             r.media_source().map(|m| m.label().to_string()),
             Some("url".to_string())
@@ -621,7 +709,7 @@ mod tests {
     }
 
     #[test]
-    fn a_single_video_degrades_to_the_caption_text() {
+    fn a_single_video_is_sent_with_the_caption() {
         let r = run(
             Stub::body(serde_json::json!({
                 "success": true,
@@ -629,8 +717,19 @@ mod tests {
             })),
             "https://www.threads.net/@zuck/post/1",
         );
-        assert!(text_of(&r).starts_with("✨ *THREADS DOWNLOADER* ✨"), "{}", text_of(&r));
-        assert!(r.media_source().is_none(), "video tidak punya media source");
+        // `threaddl.js:121-124` — video + caption yang sama.
+        let isi = match r.without_mutations() {
+            Reply::Reaction { reply, .. } => reply.as_ref(),
+            lain => lain,
+        };
+        match isi {
+            Reply::Video { media, caption, .. } => {
+                assert!(matches!(media.as_ref(), Some(MediaSource::Url { .. })));
+                assert!(caption.starts_with("✨ *THREADS DOWNLOADER* ✨"));
+            }
+            lain => panic!("harus video, dapat {lain:?}"),
+        }
+        assert_eq!(reaction_of(&r), Some("✅"));
     }
 
     #[test]
@@ -653,16 +752,31 @@ mod tests {
     #[test]
     fn a_failed_response_reports_the_system_reason() {
         for (body, alasan) in [
-            (serde_json::json!({ "success": false, "message": "Postingan privat" }), "Postingan privat"),
-            (serde_json::json!({ "success": false, "error": "Dihapus" }), "Dihapus"),
+            (
+                serde_json::json!({ "success": false, "message": "Postingan privat" }),
+                "Postingan privat",
+            ),
+            (
+                serde_json::json!({ "success": false, "error": "Dihapus" }),
+                "Dihapus",
+            ),
             (serde_json::json!({ "success": false }), "Tidak diketahui"),
-            (serde_json::json!({ "success": true, "data": {} }), "Tidak diketahui"),
-            (serde_json::json!({ "success": "true", "data": { "images": { "urls": [{ "url": "u" }] } } }), "Tidak diketahui"),
+            (
+                serde_json::json!({ "success": true, "data": {} }),
+                "Tidak diketahui",
+            ),
+            (
+                serde_json::json!({ "success": "true", "data": { "images": { "urls": [{ "url": "u" }] } } }),
+                "Tidak diketahui",
+            ),
             // `res.data || {}` menerima string, lalu `data.success !== true`
             // dan `result.length === 0` menyalakan cabang gagal — bukan catch.
             (serde_json::json!("bukan objek"), "Tidak diketahui"),
         ] {
-            let r = run(Stub::body(body.clone()), "https://www.threads.net/@zuck/post/1");
+            let r = run(
+                Stub::body(body.clone()),
+                "https://www.threads.net/@zuck/post/1",
+            );
             assert_eq!(text_of(&r), failed(alasan), "body {body}");
             assert_eq!(reaction_of(&r), Some("❌"), "body {body}");
         }
@@ -677,5 +791,17 @@ mod tests {
             assert_eq!(text_of(&r), SYSTEM_FAILED);
             assert_eq!(reaction_of(&r), Some("☢"));
         }
+    }
+
+    #[test]
+    #[ignore = "uji jaringan Threads; set OKTZ_TEST_THREADS_URL"]
+    fn live_threaddl_mengambil_video() {
+        // Uji live padanan `plugins/download/threaddl.js`.
+        use crate::download::live_test::{assert_media, env_required, live_ctx};
+
+        let url = env_required("OKTZ_TEST_THREADS_URL");
+        let (http, ctx) = live_ctx("threaddl", &url, vec![url.clone()]);
+        let reply = (oktz_plugin_api::find("threaddl").unwrap().handler)(ctx);
+        assert_media(&reply, &["video"], &http);
     }
 }
