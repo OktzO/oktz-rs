@@ -28,6 +28,11 @@ Launcher mencari `bin/oktz`, lalu `target/release/oktz`; kalau tidak ada, launch
 mengunduh aset `oktz-linux-x64-static` dari release terbaru (fallback
 `oktz-linux-x64`). Bisa dipaksa lewat `OKTZ_BIN=/path/ke/oktz`.
 
+Versi target diambil dari tag rilis terbaru GitHub (redirect `releases/latest`,
+bukan API karena IP panel sering kena rate limit 403). Penanda versi disimpan di
+`bin/.oktz-versi`; kalau tag berbeda, binary diunduh ulang. Kalau GitHub tidak
+bisa dihubungi, binary yang sudah ada tetap dipakai.
+
 Unduh manual (misal mesin tanpa internet): ambil `oktz-linux-x64` dari halaman
 release, simpan sebagai `bin/oktz`, `chmod +x bin/oktz`.
 
@@ -69,6 +74,7 @@ cp target/release/oktz bin/oktz
 ```bash
 cargo test --release
 cargo clippy --release --all-targets
+node --test launcher.test.js   # logika versi rilis launcher
 ```
 
 ## Batas yang diketahui
