@@ -3,6 +3,9 @@
 // jalan kalau file itu jadi entry point.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   ambilAset,
   ambilVersiTerbaru,
@@ -10,6 +13,8 @@ import {
   urlAset,
   versiCocok,
 } from "./launcher.js";
+
+const AKAR = path.dirname(fileURLToPath(import.meta.url));
 
 /** fetch palsu: rekam URL dan balas sesuai `respons` (objek atau fungsi). */
 function fetchPalsu(respons) {
@@ -116,4 +121,25 @@ test("ambilAset fallback ke aset glibc kalau aset statis hilang", async () => {
 test("versiCocok bandingkan penanda versi", () => {
   assert.equal(versiCocok("v0.1.8\n", "v0.1.8"), true);
   assert.equal(versiCocok("v0.1.7", "v0.1.8"), false);
+});
+
+test("fallback rilis launcher menunjuk v0.1.9", async () => {
+  const modul = await import("./launcher.js");
+  assert.equal(modul.VERSI_BIN, "v0.1.9");
+});
+
+test("import launcher tanpa entry point tidak menjalankan bot", () => {
+  const launcher = pathToFileURL(path.join(AKAR, "launcher.js")).href;
+  const kode =
+    `await import(${JSON.stringify(launcher)}); ` +
+    `console.log(JSON.stringify({sigint: process.listenerCount("SIGINT"), ` +
+    `sigterm: process.listenerCount("SIGTERM")}))`;
+  const hasil = spawnSync(process.execPath, ["--input-type=module", "-e", kode], {
+    cwd: AKAR,
+    encoding: "utf8",
+    timeout: 5_000,
+  });
+  assert.equal(hasil.status, 0, hasil.stderr);
+  assert.deepEqual(JSON.parse(hasil.stdout), { sigint: 0, sigterm: 0 });
+  assert.doesNotMatch(hasil.stderr, /\[launcher\]/);
 });

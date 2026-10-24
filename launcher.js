@@ -37,11 +37,11 @@ const REPO = "OktzO/oktz-rs";
 // hanya boleh jalan kalau file ini yang jadi entry point.
 const UTAMA = (() => {
   const p = process.argv[1];
-  if (!p) return true;
+  if (!p) return false;
   try {
     return realpathSync(p) === realpathSync(FILE_INI);
   } catch {
-    return true;
+    return false;
   }
 })();
 // Statis dipilih lebih dulu: binary dinamis butuh loader glibc, dan panel
@@ -60,7 +60,8 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.1.6 — binary baca fixture sesi dari env (perbaiki "Bad Mac"/decrypt gagal).
 // v0.1.7 — paritas plugin (749/793) + seluruh test hijau.
 // v0.1.8 — paritas JS penuh: proteksi grup, downloader, command lookup.
-const VERSI_BIN = "v0.1.8";
+// v0.1.9 — plugin stalkdc parity JS + kartu menu native-flow.
+export const VERSI_BIN = "v0.1.9";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
@@ -638,8 +639,10 @@ async function boot() {
 }
 
 // Panel mengirim SIGTERM saat stop; teruskan supaya bot menutup socket rapi.
-for (const sig of ["SIGINT", "SIGTERM"]) {
-  process.on(sig, () => anak && anak.kill(sig));
+if (UTAMA) {
+  for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, () => anak && anak.kill(sig));
+  }
 }
 
 if (UTAMA) {
@@ -649,4 +652,3 @@ if (UTAMA) {
     await boot();
   }
 }
-
