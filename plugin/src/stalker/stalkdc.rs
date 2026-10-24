@@ -1,13 +1,25 @@
 //! `plugins/stalker/stalkdc.js` — profil Discord via dclookup.id.
 //!
-//! Alur JS dipertahankan: ambil versi collector dari `api.js`, minta token
-//! reCAPTCHA v3 (`anchor` lalu `reload`), baru `POST /api/user/lookup`.
-//! Status HTTP 4xx/5xx dianggap jawaban biasa (`validateStatus: () => true`),
-//! jadi semua request memakai `terima_semua_status()`.
+//! Alur JS dipertahankan: ambil versi collector dari `api.js`
+//! (`stalkdc.js:51-60`), minta token reCAPTCHA v3 (`anchor` lalu `reload`,
+//! `stalkdc.js:72-133`), baru `POST /api/user/lookup`
+//! (`stalkdc.js:135-158`). Status HTTP 4xx/5xx dianggap jawaban biasa
+//! (`validateStatus: () => true`), jadi semua request memakai
+//! `terima_semua_status()`.
 //!
 //! `ponytail:` `randomCb()` memakai `rand` (JS `Math.random`) dan versi
 //! collector TIDAK di-cache antar panggilan seperti `_cachedV` — antrean
 //! plugin Rust tidak punya state modul. Biaya satu request kecil per panggilan.
+//!
+//! `ponytail:` JS bereaksi `🕕` sebelum permintaan lalu `✅`/`❌` sesudahnya
+//! (`stalkdc.js:179,185,215,218`), sedangkan `Reply::with_reaction` hanya
+//! bisa membawa satu reaksi — jadi `🕕` hilang dan yang ikut ke balasan
+//! hanya reaksi penutup. Reaksi `✅` juga dikirim sebelum media avatar
+//! diunggah, jadi kegagalan upload tidak menambah balasan error.
+//!
+//! `ponytail:` JS mengirim avatar dengan `{ quoted: m }`
+//! (`stalkdc.js:210`); `Reply::image` tidak bisa mengutip pesan pemicu,
+//! jadi avatar dikirim tanpa quote.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -17,6 +29,18 @@ const SITEKEY: &str = "6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP";
 const ACTION: &str = "lookup";
 const RECAPTCHA_BASE: &str = "https://www.google.com/recaptcha/";
 const UA: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
+/// `sec-ch-ua` instance `gc` (`stalkdc.js:30`).
+const SEC_CH_UA: &str = "\"Chromium\";v=\"127\", \"Not)A;Brand\";v=\"99\", \"Microsoft Edge Simulate\";v=\"127\", \"Lemur\";v=\"127\"";
+
+/// Header bawaan instance `gc` axios (`stalkdc.js:25-35`) — dipakai untuk
+/// ketiga permintaan reCAPTCHA (versi collector, anchor, reload).
+fn dengan_header_gc(call: HttpCall) -> HttpCall {
+    call.header("user-agent", UA)
+        .header("accept-language", "id-ID")
+        .header("sec-ch-ua", SEC_CH_UA)
+        .header("sec-ch-ua-mobile", "?0")
+        .header("sec-ch-ua-platform", "\"Android\"")
+}
 
 /// `String(x)` versi JS untuk field profil.
 fn teks_js(v: Option<&Value>) -> String {
@@ -104,21 +128,21 @@ fn pasangan(daftar: &[(&str, &str)]) -> String {
         .join("&")
 }
 
-/// `fetchLatestVersion()` — `releases/<v>/` di `api.js`.
-fn versi_collector(ctx: &Ctx) -> Option<String> {
-    let r = ctx
-        .http
-        .call(
-            &HttpCall::get(format!("{RECAPTCHA_BASE}api.js"))
-                .header("referer", "https://www.google.com/")
-                .terima_semua_status(),
-        )
-        .ok()?;
+/// `fetchLatestVersion()` — `releases/<v>/` di `api.js` (`stalkdc.js:51-60`).
+fn versi_collector(ctx: &Ctx) -> Result<String, String> {
+    let call = dengan_header_gc(HttpCall::get(format!("{RECAPTCHA_BASE}api.js")))
+        .header("referer", "https://www.google.com/")
+        .terima_semua_status();
+    let r = ctx.http.call(&call).map_err(|e| e.message)?;
     let isi = r.text();
-    let mulai = isi.find("releases/")? + "releases/".len();
-    let sisa = &isi[mulai..];
-    let akhir = sisa.find('/')?;
-    Some(sisa[..akhir].to_string())
+    let Some(mulai) = isi.find("releases/") else {
+        return Err("gagal grab versi collector (v) dari api.js".to_string());
+    };
+    let sisa = &isi[mulai + "releases/".len()..];
+    let Some(akhir) = sisa.find('/') else {
+        return Err("gagal grab versi collector (v) dari api.js".to_string());
+    };
+    Ok(sisa[..akhir].to_string())
 }
 
 /// `extractRresp(body)`.
@@ -134,14 +158,61 @@ fn extract_rresp(body: &str) -> Option<String> {
     ambil_antara(bersih, "\"rresp\",\"", '"').map(str::to_string)
 }
 
-/// `solveRecaptchaV3(...)` — `(token, versi)`.
-fn solve_recaptcha(ctx: &Ctx) -> Option<(String, String)> {
-    let v = versi_collector(ctx)?;
+/// Satu percobaan reCAPTCHA: anchor → reload → token
+/// (`stalkdc.js:88-124`).
+fn percobaan_recaptcha(ctx: &Ctx, v: &str, anchor_qs: &str) -> Result<String, String> {
     let base = format!("{RECAPTCHA_BASE}api2/");
     let co = build_co(BASE);
-    let mut cb = random_cb();
+    let anchor_url = format!("{base}anchor?{anchor_qs}");
+    let call_anchor = dengan_header_gc(HttpCall::get(&anchor_url))
+        .header("referer", format!("{}/", origin(BASE)))
+        .header("sec-fetch-dest", "iframe")
+        .terima_semua_status();
+    let anchor = ctx.http.call(&call_anchor).map_err(|e| e.message)?;
+    if anchor.status != 200 {
+        return Err(format!("anchor HTTP {}", anchor.status));
+    }
+    let isi_anchor = anchor.text();
+    let c = ambil_antara(&isi_anchor, "id=\"recaptcha-token\" value=\"", '"')
+        .ok_or_else(|| "recaptcha-token tidak ditemukan di anchor".to_string())?;
 
-    // `retries = 2` → tiga percobaan.
+    let body = pasangan(&[
+        ("v", v),
+        ("reason", "q"),
+        ("c", c),
+        ("k", SITEKEY),
+        ("co", co.as_str()),
+        ("sa", ACTION),
+    ]);
+    let call_reload = dengan_header_gc(
+        HttpCall::post(format!("{base}reload?k={}", url_encode(SITEKEY)))
+            .header("content-type", "application/x-www-form-urlencoded")
+            .header("origin", "https://www.google.com")
+            .header("referer", &anchor_url)
+            .header("accept", "*/*")
+            .header("sec-fetch-site", "same-origin")
+            .header("sec-fetch-mode", "cors")
+            .header("sec-fetch-dest", "empty")
+            .form(body)
+            .terima_semua_status(),
+    );
+    let reload = ctx.http.call(&call_reload).map_err(|e| e.message)?;
+    if reload.status != 200 {
+        return Err(format!("reload HTTP {}", reload.status));
+    }
+    extract_rresp(&reload.text()).ok_or_else(|| "rresp/token tidak ditemukan di reload".to_string())
+}
+
+/// `solveRecaptchaV3(...)` — `(token, versi)`. `retries = 2` → tiga percobaan,
+/// error terakhir diteruskan (`stalkdc.js:87-132`).
+fn solve_recaptcha(ctx: &Ctx) -> Result<(String, String), String> {
+    // `v` diambil SEKALI di luar loop retry (`stalkdc.js:75-85`), jadi
+    // kegagalan grab versi collector tidak diulang.
+    let v = versi_collector(ctx)?;
+    let co = build_co(BASE);
+    let mut cb = random_cb();
+    let mut galat = String::new();
+
     for percobaan in 0..3 {
         let anchor_qs = pasangan(&[
             ("ar", "1"),
@@ -154,114 +225,47 @@ fn solve_recaptcha(ctx: &Ctx) -> Option<(String, String)> {
             ("execute-ms", "30000"),
             ("cb", cb.as_str()),
         ]);
-        let anchor_url = format!("{base}anchor?{anchor_qs}");
-        let anchor = match ctx.http.call(
-            &HttpCall::get(&anchor_url)
-                .header("referer", format!("{}/", origin(BASE)))
-                .header("sec-fetch-dest", "iframe")
-                .terima_semua_status(),
-        ) {
-            Ok(r) => r,
-            Err(_) => {
+        match percobaan_recaptcha(ctx, &v, &anchor_qs) {
+            Ok(token) => return Ok((token, v)),
+            Err(pesan) => {
+                galat = pesan;
                 if percobaan < 2 {
                     cb = random_cb();
-                    continue;
                 }
-                return None;
-            }
-        };
-        if anchor.status != 200 {
-            if percobaan < 2 {
-                cb = random_cb();
-                continue;
-            }
-            return None;
-        }
-        let c = match ambil_antara(&anchor.text(), "id=\"recaptcha-token\" value=\"", '"') {
-            Some(c) => c.to_string(),
-            None => {
-                if percobaan < 2 {
-                    cb = random_cb();
-                    continue;
-                }
-                return None;
-            }
-        };
-
-        let body = pasangan(&[("v", v.as_str()), ("reason", "q"), ("c", c.as_str()), ("k", SITEKEY), ("co", co.as_str()), ("sa", ACTION)]);
-        let reload = match ctx.http.call(
-            &HttpCall::post(format!("{base}reload?k={}", url_encode(SITEKEY)))
-                .header(
-                    "content-type",
-                    "application/x-www-form-urlencoded",
-                )
-                .header("origin", "https://www.google.com")
-                .header("referer", &anchor_url)
-                .header("accept", "*/*")
-                .header("sec-fetch-site", "same-origin")
-                .header("sec-fetch-mode", "cors")
-                .header("sec-fetch-dest", "empty")
-                .form(body)
-                .terima_semua_status(),
-        ) {
-            Ok(r) => r,
-            Err(_) => {
-                if percobaan < 2 {
-                    cb = random_cb();
-                    continue;
-                }
-                return None;
-            }
-        };
-        if reload.status != 200 {
-            if percobaan < 2 {
-                cb = random_cb();
-                continue;
-            }
-            return None;
-        }
-        match extract_rresp(&reload.text()) {
-            Some(token) => return Some((token, v)),
-            None => {
-                if percobaan < 2 {
-                    cb = random_cb();
-                    continue;
-                }
-                return None;
             }
         }
     }
-    None
+    Err(galat)
 }
 
-/// `lookupUser(discordId, token)`.
-fn lookup_user(ctx: &Ctx, id: &str, token: &str) -> Option<Value> {
-    let r = ctx
-        .http
-        .call(
-            &HttpCall::post(format!("{BASE}/api/user/lookup"))
-                .header(
-                    "content-type",
-                    "application/x-www-form-urlencoded; charset=UTF-8",
-                )
-                .header("accept", "application/json, text/javascript, */*; q=0.01")
-                .header("x-requested-with", "XMLHttpRequest")
-                .header("x-recaptcha-token", token)
-                .header("user-agent", UA)
-                .header("origin", BASE)
-                .header("referer", format!("{BASE}/"))
-                .form(pasangan(&[("id", id)]))
-                .terima_semua_status(),
+/// `lookupUser(discordId, token)` (`stalkdc.js:135-158`).
+fn lookup_user(ctx: &Ctx, id: &str, token: &str) -> Result<Value, String> {
+    let call = HttpCall::post(format!("{BASE}/api/user/lookup"))
+        .header(
+            "content-type",
+            "application/x-www-form-urlencoded; charset=UTF-8",
         )
-        .ok()?;
-    r.json()
+        .header("accept", "application/json, text/javascript, */*; q=0.01")
+        .header("x-requested-with", "XMLHttpRequest")
+        .header("x-recaptcha-token", token)
+        .header("user-agent", UA)
+        .header("origin", BASE)
+        .header("referer", format!("{BASE}/"))
+        .form(pasangan(&[("id", id)]))
+        .terima_semua_status();
+    let r = ctx.http.call(&call).map_err(|e| e.message)?;
+    // `typeof res.data !== 'object'` → lempar (`stalkdc.js:154-156`).
+    match r.json() {
+        Some(v) if v.is_object() => Ok(v),
+        _ => Err(format!("Response bukan JSON (HTTP {})", r.status)),
+    }
 }
 
+/// `v || '-'` — nilai falsy JS (`null`, `false`, `0`, `""`, hilang) jadi `-`.
 fn atau_minus(v: Option<&Value>) -> String {
     match v {
-        None | Some(Value::Null) => "-".to_string(),
-        Some(Value::String(s)) if s.is_empty() => "-".to_string(),
-        lain => teks_js(lain),
+        Some(x) if crate::common::js_truthy(Some(x)) => teks_js(Some(x)),
+        _ => "-".to_string(),
     }
 }
 
@@ -347,22 +351,22 @@ pub fn stalkdc(ctx: Ctx) -> Reply {
         );
     }
 
-    let Some((token, _versi)) = solve_recaptcha(&ctx) else {
-        return Reply::text(
-            "❌ *GAGAL MELACAK AKUN*\n\nMaaf, sistem sedang mengalami gangguan saat melakukan *bypass reCAPTCHA* atau memanggil API. Silakan coba beberapa saat lagi.\n\n_Error: recaptcha gagal_",
-        )
-        .with_reaction("❌");
+    let (token, _versi) = match solve_recaptcha(&ctx) {
+        Ok(v) => v,
+        Err(pesan) => return gagal(&pesan),
     };
 
-    let Some(resp) = lookup_user(&ctx, &discord_id, &token) else {
-        return Reply::text(
-            "❌ *GAGAL MELACAK AKUN*\n\nMaaf, sistem sedang mengalami gangguan saat melakukan *bypass reCAPTCHA* atau memanggil API. Silakan coba beberapa saat lagi.\n\n_Error: respons bukan JSON_",
-        )
-        .with_reaction("❌");
+    let resp = match lookup_user(&ctx, &discord_id, &token) {
+        Ok(v) => v,
+        Err(pesan) => return gagal(&pesan),
     };
 
     if !crate::common::js_truthy(resp.get("success")) {
-        let pesan = resp.get("message").and_then(Value::as_str).unwrap_or("-");
+        let pesan = resp
+            .get("message")
+            .filter(|m| crate::common::js_truthy(Some(m)))
+            .map(|m| teks_js(Some(m)))
+            .unwrap_or_else(|| "-".to_string());
         return Reply::text(format!(
             "❌ *AKUN TIDAK DITEMUKAN*\n\nSistem gagal menemukan akun dengan ID *{discord_id}*. Mungkin ID tersebut salah atau akun telah dihapus.\n\n_Pesan error: {pesan}_"
         ))
@@ -371,24 +375,120 @@ pub fn stalkdc(ctx: Ctx) -> Reply {
 
     let d = resp.get("data").cloned().unwrap_or(Value::Null);
     let caption = caption_sukses(&d);
+    // `d.avatar_url || d.default_avatar_url || d.avatar` (`stalkdc.js:208-209`)
+    // — string kosong di field pertama LALU ke field berikutnya.
     let avatar = ["avatar_url", "default_avatar_url", "avatar"]
         .iter()
-        .find_map(|k| d.get(*k).and_then(Value::as_str))
-        .filter(|s| !s.is_empty());
+        .find_map(|k| d.get(*k).and_then(Value::as_str).filter(|s| !s.is_empty()))
+        .map(str::to_string);
 
     match avatar {
-        Some(url) => Reply::image(MediaSource::url(url.to_string()), caption).with_reaction("✅"),
+        Some(url) => Reply::image(MediaSource::url(url), caption).with_reaction("✅"),
         None => Reply::text(caption).with_reaction("✅"),
     }
+}
+
+/// `catch` JS (`stalkdc.js:216-220`) — reaksi `❌` + pesan error.
+fn gagal(pesan: &str) -> Reply {
+    Reply::text(format!(
+        "❌ *GAGAL MELACAK AKUN*\n\nMaaf, sistem sedang mengalami gangguan saat melakukan *bypass reCAPTCHA* atau memanggil API. Silakan coba beberapa saat lagi.\n\n_Error: {pesan}_"
+    ))
+    .with_reaction("❌")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::uji::{HttpRangkaian, reaksi, teks};
-    use std::sync::Arc;
+    use crate::common::uji::{reaksi, teks};
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpMethod, HttpResponse};
+    use std::sync::{Arc, Mutex};
 
-    fn ctx_of(http: Arc<HttpRangkaian>, text: &str) -> Ctx {
+    /// Stub HTTP yang MEREKAM setiap request — supaya kontrak request
+    /// reCAPTCHA (metode, URL, header, body form) ikut diuji, bukan cuma
+    /// jumlah request. Stub bawaan `HttpRangkaian` membuang header custom.
+    #[derive(Debug, Default)]
+    struct Stub {
+        balasan: Mutex<Vec<(u16, String)>>,
+        seen: Mutex<Vec<HttpCall>>,
+    }
+
+    impl Stub {
+        fn urutan(balasan: Vec<(u16, String)>) -> Arc<Self> {
+            Arc::new(Stub {
+                balasan: Mutex::new(balasan),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn offline() -> Arc<Self> {
+            Self::urutan(Vec::new())
+        }
+
+        fn request(&self, n: usize) -> HttpCall {
+            self.seen.lock().unwrap()[n].clone()
+        }
+
+        fn jumlah(&self) -> usize {
+            self.seen.lock().unwrap().len()
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let mut balasan = self.balasan.lock().unwrap();
+            if balasan.is_empty() {
+                return Err(HttpError {
+                    message: "offline".into(),
+                });
+            }
+            let (status, body) = balasan.remove(0);
+            Ok(HttpResponse {
+                status,
+                body: HttpBody::Bytes {
+                    data: Arc::from(body.into_bytes()),
+                    mimetype: None,
+                },
+                headers: Vec::new(),
+            })
+        }
+
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.call(&HttpCall::get(url))
+        }
+
+        fn post_json(&self, url: &str, body: &Value) -> Result<HttpResponse, HttpError> {
+            self.call(&HttpCall::post(url).json(body))
+        }
+
+        fn post_form(&self, url: &str, form: &str) -> Result<HttpResponse, HttpError> {
+            self.call(&HttpCall::post(url).form(form.to_string()))
+        }
+
+        fn post_multipart(
+            &self,
+            _url: &str,
+            _parts: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("stalkdc tidak pakai multipart")
+        }
+    }
+
+    fn header<'a>(call: &'a HttpCall, name: &str) -> Option<&'a str> {
+        call.headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
+    }
+
+    fn form_body(call: &HttpCall) -> String {
+        match &call.body {
+            Some(HttpBody::Form(f)) => f.clone(),
+            _ => String::new(),
+        }
+    }
+
+    fn ctx_of(http: Arc<Stub>, text: &str) -> Ctx {
         Ctx {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
@@ -400,12 +500,19 @@ mod tests {
         }
     }
 
-    fn jalur_sukses(hasil: &str) -> Arc<HttpRangkaian> {
-        HttpRangkaian::urutan(vec![
-            "var x = 'https://www.google.com/recaptcha/releases/abcDEF-1x/api.js';".to_string(),
-            "<input id=\"recaptcha-token\" value=\"TOKEN-C\" />".to_string(),
-            ")]}'\n[\"rresp\",\"TOKEN-R\"]".to_string(),
-            hasil.to_string(),
+    /// Balasan scripted: versi collector → anchor → reload → lookup.
+    fn jalur_sukses(hasil: &str) -> Arc<Stub> {
+        Stub::urutan(vec![
+            (
+                200,
+                "var x = 'https://www.google.com/recaptcha/releases/abcDEF-1x/api.js';".to_string(),
+            ),
+            (
+                200,
+                "<input id=\"recaptcha-token\" value=\"TOKEN-C\" />".to_string(),
+            ),
+            (200, ")]}'\n[\"rresp\",\"TOKEN-R\"]".to_string()),
+            (200, hasil.to_string()),
         ])
     }
 
@@ -432,12 +539,12 @@ mod tests {
 
     #[test]
     fn tanpa_id_dan_id_bukan_angka() {
-        let t = teks(&stalkdc(ctx_of(HttpRangkaian::offline(), "")));
+        let t = teks(&stalkdc(ctx_of(Stub::offline(), "")));
         assert!(t.starts_with("👾 *DISCORD STALKER* 👾"), "{t}");
         assert!(t.contains("`.stalkdc <ID Discord>`"));
 
         assert_eq!(
-            teks(&stalkdc(ctx_of(HttpRangkaian::offline(), "abcdef"))),
+            teks(&stalkdc(ctx_of(Stub::offline(), "abcdef"))),
             "❌ *ID TIDAK VALID*\n\nPastikan ID Discord yang kamu masukkan hanya berupa angka."
         );
     }
@@ -470,7 +577,7 @@ mod tests {
         assert!(caption.contains("🏅 *Badges:* Staff"));
         assert!(caption.contains("🛡️ *Clan:* OKT (Oktz)"));
         assert!(caption.ends_with("_Powered by dclookup.id_"));
-        assert_eq!(http.terlihat().len(), 4);
+        assert_eq!(http.jumlah(), 4);
     }
 
     #[test]
@@ -493,9 +600,149 @@ mod tests {
     }
 
     #[test]
-    fn recaptcha_gagal_bereaksi_silang() {
-        let r = stalkdc(ctx_of(HttpRangkaian::offline(), "9"));
+    fn request_recaptcha_dan_lookup_sama_dengan_js() {
+        let http = jalur_sukses(r#"{"success":true,"data":{"username":"budi","id":"123"}}"#);
+        let _ = stalkdc(ctx_of(http.clone(), "1280009524941426700"));
+        assert_eq!(http.jumlah(), 4);
+
+        // 1. versi collector (`stalkdc.js:53-55`).
+        let api = http.request(0);
+        assert_eq!(api.method, HttpMethod::Get);
+        assert_eq!(api.url, "https://www.google.com/recaptcha/api.js");
+        assert_eq!(header(&api, "user-agent"), Some(UA));
+        assert_eq!(header(&api, "accept-language"), Some("id-ID"));
+        assert_eq!(header(&api, "sec-ch-ua"), Some(SEC_CH_UA));
+        assert_eq!(header(&api, "sec-ch-ua-mobile"), Some("?0"));
+        assert_eq!(header(&api, "sec-ch-ua-platform"), Some("\"Android\""));
+        assert_eq!(header(&api, "referer"), Some("https://www.google.com/"));
+
+        // 2. anchor (`stalkdc.js:91-93`).
+        let anchor = http.request(1);
+        assert_eq!(anchor.method, HttpMethod::Get);
+        assert!(
+            anchor
+                .url
+                .starts_with("https://www.google.com/recaptcha/api2/anchor?"),
+            "{}",
+            anchor.url
+        );
+        assert_eq!(header(&anchor, "sec-fetch-dest"), Some("iframe"));
+        assert_eq!(header(&anchor, "referer"), Some("https://www.dclookup.id/"));
+        assert!(anchor.url.contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP"));
+        assert!(anchor.url.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"));
+        assert!(anchor.url.contains("hl=id"));
+        assert!(anchor.url.contains("size=invisible"));
+
+        // 3. reload (`stalkdc.js:108-118`).
+        let reload = http.request(2);
+        assert_eq!(reload.method, HttpMethod::Post);
+        assert!(reload.url.starts_with("https://www.google.com/recaptcha/api2/reload?k="));
+        assert_eq!(
+            header(&reload, "content-type"),
+            Some("application/x-www-form-urlencoded")
+        );
+        assert_eq!(header(&reload, "origin"), Some("https://www.google.com"));
+        assert_eq!(header(&reload, "accept"), Some("*/*"));
+        assert_eq!(header(&reload, "sec-fetch-site"), Some("same-origin"));
+        assert_eq!(header(&reload, "sec-fetch-mode"), Some("cors"));
+        assert_eq!(header(&reload, "sec-fetch-dest"), Some("empty"));
+        let body = form_body(&reload);
+        assert!(body.contains("v=abcDEF-1x"), "{body}");
+        assert!(body.contains("reason=q"), "{body}");
+        assert!(body.contains("c=TOKEN-C"), "{body}");
+        assert!(body.contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP"), "{body}");
+        assert!(body.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"), "{body}");
+        assert!(body.contains("sa=lookup"), "{body}");
+
+        // 4. lookup (`stalkdc.js:136-149`).
+        let lookup = http.request(3);
+        assert_eq!(lookup.method, HttpMethod::Post);
+        assert_eq!(lookup.url, "https://www.dclookup.id/api/user/lookup");
+        assert_eq!(header(&lookup, "x-recaptcha-token"), Some("TOKEN-R"));
+        assert_eq!(header(&lookup, "user-agent"), Some(UA));
+        assert_eq!(header(&lookup, "origin"), Some("https://www.dclookup.id"));
+        assert_eq!(form_body(&lookup), "id=1280009524941426700");
+    }
+
+    #[test]
+    fn anchor_http_500_diulang_dua_kali_lalu_pesan_js() {
+        let http = Stub::urutan(vec![
+            (
+                200,
+                "var x = 'https://www.google.com/recaptcha/releases/abcDEF-1x/api.js';".to_string(),
+            ),
+            (500, String::new()),
+            (500, String::new()),
+            (500, String::new()),
+        ]);
+        let r = stalkdc(ctx_of(http.clone(), "9"));
         assert_eq!(reaksi(&r), ["❌"]);
-        assert!(teks(&r).contains("_Error: recaptcha gagal_"));
+        assert!(
+            teks(&r).contains("_Error: anchor HTTP 500_"),
+            "{}",
+            teks(&r)
+        );
+        assert_eq!(http.jumlah(), 4, "1 versi collector + 3 anchor");
+    }
+
+    #[test]
+    fn respons_bukan_json_menghasilkan_pesan_js() {
+        let http = Stub::urutan(vec![
+            (
+                200,
+                "var x = 'https://www.google.com/recaptcha/releases/abcDEF-1x/api.js';".to_string(),
+            ),
+            (
+                200,
+                "<input id=\"recaptcha-token\" value=\"TOKEN-C\" />".to_string(),
+            ),
+            (200, ")]}'\n[\"rresp\",\"TOKEN-R\"]".to_string()),
+            (500, "bukan json".to_string()),
+        ]);
+        let r = stalkdc(ctx_of(http, "9"));
+        assert_eq!(reaksi(&r), ["❌"]);
+        assert!(
+            teks(&r).contains("_Error: Response bukan JSON (HTTP 500)_"),
+            "{}",
+            teks(&r)
+        );
+    }
+
+    #[test]
+    fn recaptcha_gagal_bereaksi_silang() {
+        let r = stalkdc(ctx_of(Stub::offline(), "9"));
+        assert_eq!(reaksi(&r), ["❌"]);
+        let t = teks(&r);
+        assert!(t.contains("*GAGAL MELACAK AKUN*"), "{t}");
+        assert!(t.contains("_Error: offline_"), "{t}");
+    }
+
+    #[test]
+    fn avatar_kosong_lanjut_ke_default_avatar() {
+        let http = jalur_sukses(
+            r#"{"success":true,"data":{"username":"ani","id":"9","avatar_url":"",
+                "default_avatar_url":"https://cdn.example/d.png"}}"#,
+        );
+        let r = stalkdc(ctx_of(http, "9"));
+        let Reply::Image { media, .. } = r.without_mutations().tanpa_reaksi() else {
+            panic!("harus Image: {}", teks(&r));
+        };
+        assert_eq!(media, &Some(MediaSource::url("https://cdn.example/d.png")));
+    }
+
+    #[test]
+    fn nilai_falsy_jadi_dash() {
+        let http = jalur_sukes_falsy();
+        let r = stalkdc(ctx_of(http, "9"));
+        let t = teks(&r);
+        assert!(t.contains("🏷️ *Global Name:* -"), "{t}");
+        assert!(t.contains("🗓️ *Dibuat Sejak:* -"), "{t}");
+    }
+
+    fn jalur_sukes_falsy() -> Arc<Stub> {
+        jalur_sukses(
+            r#"{"success":true,"data":{"username":"ani","id":"9","global_name":false,
+                "creation_date":0}}"#,
+        )
     }
 }

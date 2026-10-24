@@ -1,16 +1,16 @@
-//! Bukti bahwa `.menu` benar-benar terkirim sebagai KARTU native-flow.
+//! Bukti bahwa `.menu` benar-benar diteruskan sebagai KARTU, bukan teks.
 //!
 //! `tests/live_route.rs` membuktikan command mencapai plugin sungguhan.
-//! Test ini melanjutkan dari situ: balasan `.menu` harus sampai ke WA
-//! sebagai kartu native-flow plus extra stanza node `biz` — bukan teks
-//! biasa. Tanpa node `biz`, WA diam-diam membuang kartu.
+//! Test ini melanjutkan dari situ: balasan `.menu` harus sampai ke pengirim
+//! sebagai kartu plus extra stanza node `biz` — bukan teks biasa. Tanpa node
+//! `biz`, WA diam-diam membuang kartu.
 //!
 //! Batas: `MessageSender` di sini tiruan, jadi soket WA belum tersentuh.
 //! Yang terbukti: plugin `menu` mengembalikan kartu, pipeline meneruskannya
-//! ke chat asal, dan node `biz` ikut. Bentuk wire (viewOnceMessage +
-//! nativeFlowMessage) sudah dibuktikan unit test `oktz-wa` (`pipeline.rs`,
-//! `cards.rs`) — di sini yang diuji jalur nyata: plugin → pipeline →
-//! pengirim.
+//! ke chat asal lewat jalur kartu (`PendingCard`), dan node `biz` ikut.
+//! Bentuk wire (viewOnceMessage + nativeFlowMessage) sudah dibuktikan unit
+//! test `oktz-wa` (`pipeline.rs`, `cards.rs`) — di sini yang diuji jalur
+//! nyata: plugin → pipeline → pengirim.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -67,8 +67,8 @@ fn store_kosong() -> Arc<JsonStore> {
     Arc::new(JsonStore::open(&p).unwrap())
 }
 
-/// Config seperti produksi: nama bot terisi dan nomor owner ada — tanpa
-/// nomor owner, tombol "Owner Kami" jadi `quick_reply` (bukan `cta_url`).
+/// Config seperti produksi: nama bot terisi dan nomor owner ada — nomor
+/// owner dipakai tombol "Owner Kami" pada varian kartu 2.
 fn config_produksi() -> oktz_plugin_api::config::Runtime {
     oktz_plugin_api::config::Runtime {
         bot: oktz_plugin_api::config::BotInfo {
@@ -106,7 +106,7 @@ fn inbound(body: &str) -> InboundMessage {
 }
 
 #[tokio::test]
-async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
+async fn menu_dikirim_sebagai_kartu_dengan_node_biz() {
     let rec = Arc::new(Recorder::default());
     let p = Pipeline::new(
         StoreContext::new(store_kosong()),
@@ -123,6 +123,13 @@ async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
     assert_eq!(terkirim.len(), 1, "tepat satu kartu");
     let (chat, card, node) = &terkirim[0];
     assert_eq!(chat, CHAT, "kartu harus dikirim ke chat asal");
+
+    // Kartu tidak boleh bocor jadi teks biasa.
+    assert!(
+        rec.teks.lock().unwrap().is_empty(),
+        "balasan teks bocor: {:?}",
+        rec.teks.lock().unwrap()
+    );
 
     // Node `biz` wajib; tanpa itu WA membuang kartu.
     let tag_biz = node.iter().any(|n| n.tag == "biz");
