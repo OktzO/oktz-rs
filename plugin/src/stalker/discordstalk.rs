@@ -256,13 +256,20 @@ mod tests {
 
     #[test]
     fn aliases_resolve_to_this_plugin() {
-        for a in ["discordstalk", "dcstalk", "dsstalk", "stalkdc"] {
+        for a in ["discordstalk", "dcstalk", "dsstalk"] {
             assert_eq!(
                 oktz_plugin_api::find(a).unwrap().meta.name,
                 "discordstalk",
                 "alias {a}"
             );
         }
+        // JS `plugins.js:539-544` cek map `commands` dulu, baru `aliases`:
+        // command `stalkdc` (plugin `stalkdc`) menang atas alias plugin ini.
+        assert_eq!(
+            oktz_plugin_api::find("stalkdc").unwrap().meta.name,
+            "stalkdc",
+            "command stalkdc harus menang atas alias discordstalk"
+        );
     }
 
     #[test]

@@ -19,3 +19,8 @@ pub mod stalkml;
 pub mod discordstalk;
 pub mod ffstalk;
 pub mod robloxstalk;
+
+// `plugins/stalker/stalkdc.js` — port dari ourin-md/rust (JS `stalkdc.js`,
+// profil Discord via dclookup.id). Alias `discordstalk`-nya kalah oleh plugin
+// bernama `discordstalk` (lihat `JS_SHADOWED_ALIASES`).
+pub mod stalkdc;
