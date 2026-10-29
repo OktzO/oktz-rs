@@ -61,7 +61,7 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.1.7 — paritas plugin (749/793) + seluruh test hijau.
 // v0.1.8 — paritas JS penuh: proteksi grup, downloader, command lookup.
 // v0.1.9 — plugin stalkdc parity JS + kartu menu native-flow.
-export const VERSI_BIN = "v0.1.9";
+export const VERSI_BIN = "v0.2.0";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
