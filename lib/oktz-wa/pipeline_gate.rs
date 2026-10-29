@@ -166,12 +166,6 @@ fn seed_energi(store: &mut InMemoryEnergi, caller: &Caller, settings: &EnergiSet
 // Group settings — `groups[chat]` → `GroupSettings`
 // =============================================================================
 
-/// `group.anticustomRules` → `Vec<CustomRule>`.
-///
-/// JS: `matchCustomRule(text, group.anticustomRules || [])` (:2031) memakai
-/// `rule.pattern`, `rule.type === "regex"`, `rule.name`, `rule.action`, dan
-/// `rule.flags`. Elemen yang bukan objek atau tanpa `pattern` diabaikan
-/// (`if (!rule || !rule.pattern) continue;`).
 fn custom_rules_from(entry: &Value) -> Vec<oktz_router::group::CustomRule> {
     entry
         .get("anticustomRules")
@@ -226,19 +220,12 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
         antilinkgc_mode: g("antilinkgcMode"),
         antilinkall: g("antilinkall"),
         antilinkall_mode: g("antilinkallMode"),
-        // `handleAntiJudol` (:2003-2004), `handleAntiPhising` (:2016-2017),
-        // `handleAntiCustom` (:2028-2031), `handleAntiSwGc` (:2080) — semua
-        // membandingkan dengan `"on"`, jadi boolean `true` tetap tidak
-        // menyalakan gate.
+        antihidetag: g("antihidetag"),
         antijudol: g("antijudol"),
         antijudol_mode: g("antijudolMode"),
         antiphising: g("antiphising"),
         antiphising_mode: g("antiphisingMode"),
-        anticustom: g("anticustom"),
-        anticustom_mode: g("anticustomMode"),
-        anticustom_rules: custom_rules_from(entry),
         antiswgc: g("antiswgc"),
-        antihidetag: g("antihidetag"),
         antidocument: entry
             .get("antidocument")
             .and_then(Value::as_bool)
@@ -255,6 +242,9 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
             })
             .unwrap_or_default(),
         mutegc: entry.get("mutegc").and_then(Value::as_bool).unwrap_or(false),
+        anticustom: g("anticustom"),
+        anticustom_mode: g("anticustomMode"),
+        anticustom_rules: custom_rules_from(entry),
         slowmode: entry.get("slowmode").map(|sm| Slowmode {
             enabled: sm.get("enabled").and_then(Value::as_bool).unwrap_or(false),
             delay_secs: sm.get("delay").and_then(Value::as_u64),
@@ -269,16 +259,30 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
 // =============================================================================
 // Roster grup → `GroupEnv.participants`
 // =============================================================================
-//
-// Bentuk gate (`oktz_router::group::Participant`) sekarang dibangun langsung
-// dari metadata grup di `pipeline.rs::roster_snapshot_from`, karena satu
-// peserta bisa punya TIGA identitas: `jid` (LID di grup addressing LID),
-// `phone_number` (PN), dan `lid` — persis yang dibaca `_participantNums`
-// (`serialize.js:101-116`).
-//
-// Versi lama (`participants_from`) cuma menyalin satu JID ke `id` dan
-// `phone_number`, jadi di grup addressing LID admin tidak pernah dikenali:
-// nomor yang tersimpan di store (PN) tidak cocok dengan angka LID.
+
+/// `GroupRoster` → `Vec<oktz_router::group::Participant>`.
+///
+/// `Participant` di router punya tiga identitas (`id`/`lid`/`phone_number`)
+/// karena `adminFlagsFor` mencocokkan nomor dengan tiga bentuk itu. Yang kita
+/// punya dari wire cuma satu JID per peserta, jadi JID yang sama diisi ke
+/// `id` dan `phone_number`, dan `lid` dibiarkan kosong — `participant_nums`
+/// menyaring string kosong, jadi slot kosong tidak bothers untuk apa pun.
+///
+/// `is_admin` sudah digabung oleh upstream: `roster_from` memakai
+/// `is_admin()`, yang true untuk admin maupun superadmin
+/// (`features/groups.rs:246`).
+pub fn participants_from(roster: &oktz_plugin_api::registry::GroupRoster) -> Vec<oktz_router::group::Participant> {
+    roster
+        .participants
+        .iter()
+        .map(|p| oktz_router::group::Participant {
+            id: p.jid.clone(),
+            lid: String::new(),
+            phone_number: p.jid.clone(),
+            admin: p.is_admin,
+        })
+        .collect()
+}
 
 #[cfg(test)]
 mod tests {

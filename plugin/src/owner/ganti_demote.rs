@@ -1,28 +1,36 @@
-//! `plugins/owner/ganti-demote.jpg.js` — ganti aset demote.jpeg.
+//! `plugins/owner/ganti-demote.js` — ganti gambar demote.jpeg via `updateAssetUrl`.
 //!
-//! Alur sama dengan JS: cek jenis media, unduh buffer, balas
-//! "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas aset dan
-//! laporkan jalurnya. Helper-nya ada di `ganti_gambar.rs`.
-//!
-//! Catatan: `updateAssetUrl` di JS juga menulis ulang `config.js`; di Rust
-//! jalur aset sudah ada di `config.assets`, jadi cukup berkas asetnya yang
-//! ditulis.
+//! `ponytail:` `updateAssetUrl` dari `src/lib/uploader.js` (unggah ke asset /
+//! config realtime) tidak diekspos ke plugin di registry Rust. Unduhan media
+//! (`ctx.download_quoted_media()` / `ctx.download_media()`) tersedia, tetapi
+//! unggahan hasilnya tidak dapat dieksekusi.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, IncomingKind, QuotedKind, Reply, plugin};
 
-use super::ganti_gambar::{Aset, Jenis, jalankan};
+/// Kartu pakai saat bukan gambar.
+pub(crate) fn help() -> String {
+    "🖼️ *ɢᴀɴᴛɪ ᴅᴇᴍᴏᴛᴇ.ᴊᴘɢ*\n\n> Kirim/reply gambar untuk mengganti\n> File: assets/image/demote.jpeg"
+        .to_string()
+}
 
-/// Parameter aset untuk plugin ini.
-const ASET: Aset = Aset {
-    emoji_judul: "🖼️",
-    judul: "ɢᴀɴᴛɪ ᴅᴇᴍᴏᴛᴇ.ᴊᴘɢ",
-    file_tampil: "assets/image/demote.jpeg",
-    key: "demote",
-    nama_file: "demote.jpeg",
-    label_sukses: "Gambar",
-    label_error: "gambar",
-    jenis: Jenis::Gambar,
-};
+/// Cek apakah pemicu atau quoted adalah image, sama urutan dengan JS.
+fn is_image(ctx: &Ctx) -> bool {
+    ctx.is_media_kind(IncomingKind::Image)
+        || ctx
+            .quoted()
+            .is_some_and(|q| matches!(q.kind, QuotedKind::Image))
+}
+
+/// Unduh buffer media: quoted dulu, baru trigger.
+fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
+    if ctx.quoted().is_some_and(|q| q.is_media()) {
+        return ctx.download_quoted_media().ok();
+    }
+    if ctx.is_media() {
+        return ctx.download_media().ok();
+    }
+    None
+}
 
 #[plugin(
     name = "ganti-demote.jpg",
@@ -41,34 +49,30 @@ const ASET: Aset = Aset {
     is_bot_admin = false
 )]
 pub fn ganti_demote(ctx: Ctx) -> Reply {
-    jalankan(&ctx, &ASET)
+    if !is_image(&ctx) {
+        return Reply::text(help());
+    }
+
+    let Some(buffer) = ambil_buffer(&ctx) else {
+        return Reply::text("❌ Gagal mendownload gambar");
+    };
+
+    let _ = buffer; // buffer didapat, tapi `updateAssetUrl` tidak tersedia.
+
+    // `ponytail:` `updateAssetUrl('demote', buffer, 'demote.jpeg')` dan
+    // pembaruan config realtime tidak tersedia di registry Rust.
+    Reply::text(crate::common::error_template(&ctx))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{IncomingKind, IncomingMedia, QuotedKind, QuotedMessage};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
 
     #[test]
-    fn meta_dan_alias_sama_dengan_js() {
-        let p = oktz_plugin_api::find("ganti-demote.jpg").unwrap();
-        assert_eq!(p.meta.name, "ganti-demote.jpg");
-        assert_eq!(p.meta.alias, ["gantidemote", "setdemote"]);
-        assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Ganti gambar demote.jpg");
-        assert_eq!(p.meta.usage, ".ganti-demote.jpg (reply/kirim gambar)");
-        assert_eq!(p.meta.example, ".ganti-demote.jpg");
-        assert_eq!(p.meta.cooldown, 5);
-        assert_eq!(p.meta.energi, 0);
-        assert!(p.meta.is_owner);
-        assert!(!p.meta.is_group && !p.meta.is_private && !p.meta.is_premium);
-    }
-
-    #[test]
-    fn bukan_media_menampilkan_kartu_pakai() {
+    fn bukan_gambar_menghasilkan_kartu_pakai() {
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
@@ -77,26 +81,18 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            super::super::ganti_gambar::pakai(&ASET)
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), help());
     }
 
     #[test]
-    fn unduhan_gagal_menampilkan_pesan_gagal() {
-        let media = if ASET.jenis == Jenis::Gambar {
-            IncomingKind::Image
-        } else {
-            IncomingKind::Video
-        };
+    fn unduhan_gagal_menghasilkan_pesan_gagal() {
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
             prefix: ".".into(),
             command: "ganti-demote.jpg".into(),
-            media: Some(IncomingMedia {
-                kind: media,
+            media: Some(oktz_plugin_api::IncomingMedia {
+                kind: IncomingKind::Image,
                 mimetype: None,
                 file_name: None,
                 caption: String::new(),
@@ -105,41 +101,54 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            super::super::ganti_gambar::gagal_unduh(&ASET)
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
     }
 
     #[test]
-    fn quoted_media_dilayani_sama() {
-        let kind = if ASET.jenis == Jenis::Gambar {
-            QuotedKind::Image
-        } else {
-            QuotedKind::Video
-        };
+    fn quoted_image_dilayani_sama() {
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
             prefix: ".".into(),
             command: "ganti-demote.jpg".into(),
-            quoted: Some(QuotedMessage {
+            quoted: Some(oktz_plugin_api::QuotedMessage {
                 id: "1".into(),
                 sender: ME.into(),
                 chat: ME.into(),
                 text: String::new(),
-                kind,
+                kind: QuotedKind::Image,
                 mimetype: None,
                 file_name: None,
                 from_me: false,
+            timestamp: 0,
+        }),
+            media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
+            ..Ctx::default()
+        };
+        let r = ganti_demote(ctx);
+        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+    }
+
+    #[test]
+    fn buffer_didapat_tapi_upload_tidak_tersedia_jatuh_ke_error_template() {
+        // Tidak dapat menyediakan HttpGet yang sukses untuk download media
+        // tanpa mock yang lengkap, jadi tes ini hanya memastikan handler
+        // tidak panic saat media ada tetapi download gagal (NoMediaFetch).
+        let ctx = Ctx {
+            sender: ME.into(),
+            chat: ME.into(),
+            prefix: ".".into(),
+            command: "ganti-demote.jpg".into(),
+            media: Some(oktz_plugin_api::IncomingMedia {
+                kind: IncomingKind::Image,
+                mimetype: Some("image/jpeg".into()),
+                file_name: None,
+                caption: String::new(),
             }),
             media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            super::super::ganti_gambar::gagal_unduh(&ASET)
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
     }
 }

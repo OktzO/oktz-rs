@@ -231,6 +231,7 @@ mod tests {
             mimetype: mimetype.map(str::to_string),
             file_name: None,
             from_me: false,
+            timestamp: 0,
         }
     }
 

@@ -180,11 +180,11 @@ pub fn crm(ctx: Ctx) -> Reply {
         || ctx.command.to_lowercase().contains("snipp");
 
     if is_snippet {
-        return Reply::table(
-            "Convert relay message 🔥🔥.",
-            Vec::<String>::new(),
-            vec![vec![kode]],
-        );
+        return Reply::Tabel {
+            tabel: oktz_plugin_api::Tabel::baru("Convert relay message 🔥🔥.")
+                .header(Vec::<String>::new())
+                .baris(vec![kode]),
+        };
     }
 
     let tipe = nama_tipe(&konten);
@@ -217,6 +217,7 @@ mod tests {
             mimetype: None,
             file_name: None,
             from_me: false,
+            timestamp: 0,
         }
     }
 
@@ -256,6 +257,7 @@ mod tests {
             mimetype: None,
             file_name: None,
             from_me: false,
+            timestamp: 0,
         };
         let r = crm(ctx_dengan(Some(q), "crm", &[]));
         assert_eq!(body(&r), JENIS_TIDAK_DIDUKUNG);

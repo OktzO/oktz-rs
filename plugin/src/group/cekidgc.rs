@@ -263,7 +263,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
 
     Reply::interactive(info_text)
         .with_footer(format!("© {bot_nama_efektif}"))
-        .with_button(tombol)
+        .with_button_card(tombol)
         .with_context(context)
         .with_reaction("✓")
 }
@@ -498,23 +498,21 @@ mod tests {
     #[test]
     fn output_sama_dengan_js_kartu_interaktif() {
         let r = run("621234567890@g.us", true, "");
-        let Reply::Interactive {
-            body,
-            footer,
-            buttons,
-            context,
-            ..
-        } = r.without_mutations().tanpa_reaksi()
+        let Reply::Interactive { kartu } = r.without_mutations().tanpa_reaksi()
         else {
             panic!("harus Interactive");
         };
+        let body = &kartu.body;
+        let footer = &kartu.footer;
+        let buttons = &kartu.buttons;
+        let context = kartu.context_card.clone().expect("contextInfo wajib");
         assert!(body.contains("╭─〔 Coba Grup 〕───⬣"), "{body}");
         assert_eq!(footer.as_deref(), Some("© Bot"));
         assert_eq!(buttons.len(), 1);
         assert_eq!(buttons[0].name, "cta_copy");
         assert_eq!(buttons[0].params["display_text"], "✦ Copy ID Grup");
         assert_eq!(buttons[0].params["copy_code"], "621234567890@g.us");
-        let ctx = *context.clone().expect("contextInfo wajib");
+        let ctx = *context;
         assert_eq!(ctx.mentioned, vec!["628999@s.whatsapp.net", "628111@s.whatsapp.net"]);
         assert!(ctx.is_forwarded);
         assert_eq!(ctx.forwarding_score, 9999);

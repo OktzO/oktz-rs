@@ -1,16 +1,19 @@
 //! `plugins/main/ping2.js` — performa dan status sistem bot real-time.
 //!
-//! `sendTable` diport sebagai [`Reply::table`] (`sock.sendTable` JS): bentuk
-//! wire-nya `botForwardedMessage > richResponseMessage` dengan baris judul
-//! `Metric | Value`, `headerText` = nama bot + STATUS, dan footer
-//! "Realtime Monitoring" — persis `ping2.js:134-142`.
+//! Balasan memakai tabel AI (`Reply::tabel`) — padanan `sock.sendTable` JS:
+//! judul tabel, baris heading, baris isi, teks sebelum tabel (`headerText`),
+//! dan teks setelah tabel (`footer`), isi serta urutannya sama dengan JS.
+//! `ponytail:` tabel versi 1 (`tableMetadata`), bukan versi 2 —
+//! `unifiedResponse` base64 dan `botMetadata` versi JS v2 belum di-port.
 //! `ponytail:` data sistem dibaca dari `/proc` + `std`; `df` tetap dipanggil
 //! lewat `std::process::Command` karena `statvfs` tidak ada di `std`.
-//! `ponytail:` `Ctx` hanya membawa data user/grup pengirim, bukan seluruh
-//! store; Users/Premium/Groups dihitung dari data itu, bukan total.
 //! `ponytail:` `process.memoryUsage()`, `process.version`, dan
 //! `m.messageTimestamp` tidak ada; Heap = VmRSS/VmSize, Node = `N/A`,
 //! WA Roundtrip = 1 ms (cabang `Date.now()` di JS).
+//!
+//! Urutan kirim meniru handler JS: tabel dulu, BARU reaksi `✅`
+//! (`ping2.js:129-141`). Reaksi pembuka `🕕` (`ping2.js:60`) dikirim sebelum
+//! tabel dan dibawa `Reply::Sequence`.
 
 use std::fs;
 use std::process::Command;
@@ -230,15 +233,17 @@ fn antarmuka_jaringan() -> String {
 }
 
 /// `Object.keys(db.data.users/groups)` dan `u.isPremium` tidak ada di `Ctx`;
-/// yang tersedia hanya data pengirim, jadi itulah yang dihitung.
+/// `ctx.store_users`/`store_premium`/`store_groups` dirangkum pipeline dari
+/// snapshot store yang sama dengan yang dipakai gate permission.
 fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
-    let users = ctx.user_data.is_object() as usize;
-    let groups = ctx.group_data.is_object() as usize;
-    let premium = crate::common::js_truthy(ctx.user_data.get("isPremium")) as usize;
-    (users, premium, groups)
+    (ctx.store_users, ctx.store_premium, ctx.store_groups)
 }
 
-fn teks(ctx: &Ctx, mulai: Instant) -> Reply {
+/// Susun tabel AI — padanan `sock.sendTable` JS (`ping2.js:129-139`).
+///
+/// Urutan baris sama persis dengan `tableData` JS; tiap `.with_table_row`
+/// menambah satu baris.
+fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
     let cfg = ctx.config();
     let nama_bot = if cfg.bot.name.is_empty() {
         "Foto-AI"
@@ -253,61 +258,57 @@ fn teks(ctx: &Ctx, mulai: Instant) -> Reply {
     let (users, premium, groups) = hitung_db(ctx);
     let total_exec = (mulai.elapsed().as_secs_f64() * 1000.0).round() as u64;
 
-    // `tableData` (`ping2.js:113-131`) — urutan baris = urutan JS.
-    let rows: Vec<Vec<String>> = [
-        ("WA Roundtrip", "1 ms".to_string()),
-        ("Kecepatan Respon bot mu", format!("{total_exec} ms")),
-        ("Status", "Online".to_string()),
-        ("Hostname", baca_hostname()),
-        ("Platform", platform()),
-        ("Node", "N/A".to_string()),
-        ("CPU", potong_model(&model)),
-        ("Cores", cores.to_string()),
-        ("CPU Load", format!("{}%", cpu_persen(baca_load(), cores))),
-        (
-            "RAM",
-            format!(
-                "{} / {}",
-                fmt_size(total_mem.saturating_sub(bebas_mem)),
-                fmt_size(total_mem)
-            ),
-        ),
-        (
-            "Heap",
-            format!(
-                "{} / {}",
-                fmt_size(heap_dipakai),
-                fmt_size(heap_total)
-            ),
-        ),
-        (
-            "Disk",
-            format!(
-                "{} / {}",
-                fmt_size(disk_dipakai),
-                fmt_size(disk_total)
-            ),
-        ),
-        ("Network", antarmuka_jaringan()),
-        ("Users", users.to_string()),
-        ("Premium", premium.to_string()),
-        ("Groups", groups.to_string()),
-        ("Uptime Bot", fmt_up(ctx.uptime_secs as f64)),
-        ("Uptime Server", fmt_up(baca_uptime_server())),
-    ]
-    .into_iter()
-    .map(|(k, v)| vec![k.to_string(), v])
-    .collect();
-
-    // `sock.sendTable(m.chat, '⚡ System Performance', ['Metric', 'Value'],
-    // tableData, m, { headerText, footer })` (`ping2.js:134-142`). HeaderText
-    // dan footer jadi submessage teks sebelum/sesudah tabel di wire
-    // (`rich-messages.js:616`), bukan bagian dari pesan teks lama.
-    Reply::table("⚡ System Performance", ["Metric", "Value"], rows)
-        .with_header_text(format!(
+    let mut t = Reply::tabel("⚡ System Performance")
+        .with_table_header(["Metric", "Value"])
+        .with_table_header_text(format!(
             "{nama_bot} *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita"
-        ))
-        .with_table_footer("🍃 Realtime Monitoring")
+        ));
+
+    t = t.with_table_row(["WA Roundtrip", "1 ms"]);
+    t = t.with_table_row([
+        "Kecepatan Respon bot mu".to_string(),
+        format!("{total_exec} ms"),
+    ]);
+    t = t.with_table_row(["Status", "Online"]);
+    t = t.with_table_row(["Hostname".to_string(), baca_hostname()]);
+    t = t.with_table_row(["Platform".to_string(), platform()]);
+    t = t.with_table_row(["Node".to_string(), "N/A".to_string()]);
+    t = t.with_table_row(["CPU".to_string(), potong_model(&model)]);
+    t = t.with_table_row(["Cores".to_string(), cores.to_string()]);
+    t = t.with_table_row([
+        "CPU Load".to_string(),
+        format!("{}%", cpu_persen(baca_load(), cores)),
+    ]);
+    t = t.with_table_row([
+        "RAM".to_string(),
+        format!(
+            "{} / {}",
+            fmt_size(total_mem.saturating_sub(bebas_mem)),
+            fmt_size(total_mem)
+        ),
+    ]);
+    t = t.with_table_row([
+        "Heap".to_string(),
+        format!("{} / {}", fmt_size(heap_dipakai), fmt_size(heap_total)),
+    ]);
+    t = t.with_table_row([
+        "Disk".to_string(),
+        format!("{} / {}", fmt_size(disk_dipakai), fmt_size(disk_total)),
+    ]);
+    t = t.with_table_row(["Network".to_string(), antarmuka_jaringan()]);
+    t = t.with_table_row(["Users".to_string(), users.to_string()]);
+    t = t.with_table_row(["Premium".to_string(), premium.to_string()]);
+    t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
+    t = t.with_table_row([
+        "Uptime Bot".to_string(),
+        fmt_up(ctx.uptime_secs as f64),
+    ]);
+    t = t.with_table_row([
+        "Uptime Server".to_string(),
+        fmt_up(baca_uptime_server()),
+    ]);
+
+    t.with_table_footer("🍃 Realtime Monitoring")
 }
 
 #[plugin(
@@ -329,14 +330,147 @@ fn teks(ctx: &Ctx, mulai: Instant) -> Reply {
 )]
 pub fn ping2(ctx: Ctx) -> Reply {
     let mulai = Instant::now();
-    // `ponytail:` reaksi pembuka `🕕` hilang; `Reply` hanya membawa satu
-    // reaksi, jadi yang dikirim reaksi akhir `✅` seperti JS.
-    teks(&ctx, mulai).with_reaction("✅")
+    // `await m.react('🕕')` (`ping2.js:60`) lalu tabel lalu `await m.react('✅')`
+    // (`:141`). Urutan itu bisa disusun karena `Reply::Sequence` dikirim
+    // berurutan: reaksi → tabel → reaksi.
+    Reply::sequence(vec![
+        Reply::reaction("🕕"),
+        reply(&ctx, mulai),
+        Reply::reaction("✅"),
+    ])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Balasan `ping2`: satu `Sequence` [reaksi, tabel, reaksi].
+    fn isi_sequence(reply: &Reply) -> &[Reply] {
+        match reply.without_mutations() {
+            Reply::Sequence(list) => list,
+            other => panic!("harus Sequence, dapat {other:?}"),
+        }
+    }
+
+    /// Ambil tabel di dalam sequence.
+    fn tabel_dari(reply: &Reply) -> &oktz_plugin_api::Tabel {
+        let [_, tabel, _] = isi_sequence(reply) else {
+            panic!("harus tiga elemen: reaksi, tabel, reaksi");
+        };
+        match tabel.tanpa_reaksi() {
+            Reply::Tabel { tabel } => tabel,
+            other => panic!("harus Tabel, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ping2_uses_stable_global_counts_and_reaction_after_table() {
+        let r = ping2(Ctx::default());
+        let list = isi_sequence(&r);
+
+        // Urutan event JS: reaksi pembuka → tabel → reaksi `✅`. Bukan
+        // `✅` lebih dulu (`with_reaction` mengirim reaksi SEBELUM balasan).
+        assert!(
+            matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🕕"),
+            "elemen pertama harus reaksi 🕕, dapat {:?}",
+            list[0]
+        );
+        assert!(
+            matches!(list[1].tanpa_reaksi(), Reply::Tabel { .. }),
+            "tabel harus dikirim SETELAH reaksi pembuka, dapat {:?}",
+            list[1]
+        );
+        assert!(
+            matches!(&list[2], Reply::Reaction { emoji, .. } if emoji == "✅"),
+            "reaksi ✅ harus SESUDAH tabel, dapat {:?}",
+            list[2]
+        );
+
+        // Angka Users/Premium/Groups dari SELURUH store (`ping2.js:100-102`),
+        // jadi tetap stabil walau `user_data`/`group_data` pengirim terisi.
+        let ctx = Ctx {
+            user_data: serde_json::json!({"isPremium": true}),
+            group_data: serde_json::json!({"name": "Grup"}),
+            store_users: 12,
+            store_premium: 4,
+            store_groups: 7,
+            ..Default::default()
+        };
+        let balasan = ping2(ctx);
+        let t = tabel_dari(&balasan);
+        let baris = |kunci: &str| {
+            t.baris
+                .iter()
+                .find(|b| b[0] == kunci)
+                .unwrap_or_else(|| panic!("baris {kunci} hilang"))
+                .clone()
+        };
+        assert_eq!(baris("Users"), vec!["Users", "12"]);
+        assert_eq!(baris("Premium"), vec!["Premium", "4"]);
+        assert_eq!(baris("Groups"), vec!["Groups", "7"]);
+    }
+
+    #[test]
+    fn balasan_membentuk_tabel_dengan_isi_dan_urutan_js() {
+        let r = ping2(Ctx::default());
+        let t = tabel_dari(&r);
+
+        assert_eq!(t.judul, "⚡ System Performance");
+        assert_eq!(t.header, vec!["Metric", "Value"]);
+        // `tableData` JS punya 18 baris, urutan sama.
+        assert_eq!(t.baris.len(), 18);
+        assert_eq!(t.baris[0], vec!["WA Roundtrip", "1 ms"]);
+        assert_eq!(t.baris[1][0], "Kecepatan Respon bot mu");
+        assert_eq!(t.baris[2], vec!["Status", "Online"]);
+        assert_eq!(t.baris[17][0], "Uptime Server");
+
+        let kunci: Vec<&str> = t.baris.iter().map(|b| b[0].as_str()).collect();
+        assert_eq!(
+            kunci,
+            vec![
+                "WA Roundtrip",
+                "Kecepatan Respon bot mu",
+                "Status",
+                "Hostname",
+                "Platform",
+                "Node",
+                "CPU",
+                "Cores",
+                "CPU Load",
+                "RAM",
+                "Heap",
+                "Disk",
+                "Network",
+                "Users",
+                "Premium",
+                "Groups",
+                "Uptime Bot",
+                "Uptime Server",
+            ]
+        );
+
+        assert_eq!(t.footer.as_deref(), Some("🍃 Realtime Monitoring"));
+        let header_teks = t.header_teks.as_deref().unwrap_or_default();
+        assert!(
+            header_teks.ends_with("*STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita"),
+            "{header_teks}"
+        );
+    }
+
+    #[test]
+    fn tanpa_store_jumlahnya_nol_bukan_satu() {
+        // `Ctx::default()` (test plugin langsung) belum lewat pipeline, jadi
+        // jumlah store 0 — bukan `user_data.is_object() as usize` yang melapor 1.
+        let balasan = ping2(Ctx::default());
+        let t = tabel_dari(&balasan);
+        for kunci in ["Users", "Premium", "Groups"] {
+            assert_eq!(
+                t.baris.iter().find(|b| b[0] == kunci).map(|b| b[1].as_str()),
+                Some("0"),
+                "{kunci}"
+            );
+        }
+    }
 
     #[test]
     fn fmt_size_satu_desimal_seperti_js() {
@@ -362,99 +496,6 @@ mod tests {
         assert_eq!(fmt_up(86_400.0), "1d 0h 0m");
         assert_eq!(fmt_up(90_000.0), "1d 1h 0m");
         assert_eq!(fmt_up(90_061.0), "1d 1h 1m");
-    }
-
-    const ME: &str = "628111@s.whatsapp.net";
-
-    #[test]
-    fn balasan_adalah_tabel_send_table_bukan_teks() {
-        // JS `sock.sendTable(m.chat, "⚡ System Performance", ["Metric",
-        // "Value"], tableData, m, { headerText, footer })` — bentuk wire-nya
-        // `botForwardedMessage > richResponseMessage`, bukan teks biasa. Port
-        // lama merangkainya sebagai teks `Metric | Value` sehingga WhatsApp
-        // menampilkan teks polos tanpa tabel — inilah bug tampilan yang
-        // dilaporkan.
-        let ctx = Ctx {
-            sender: ME.into(),
-            chat: ME.into(),
-            prefix: ".".into(),
-            command: "ping2".into(),
-            uptime_secs: 3661,
-            // Store dengan satu user premium — Users=1, Premium=1.
-            user_data: serde_json::json!({ "isPremium": true }),
-            ..Ctx::default()
-        };
-        let r = ping2(ctx);
-        // Reaksi akhir ✅ tetap menempel seperti JS `m.react("✅")`.
-        assert!(r.mutations().is_empty());
-        // with_reaction membungkus `Mutate > Reaction > Table`, jadi lepas
-        // Mutate dulu (without_mutations) baru buang Reaction (tanpa_reaksi).
-        let r = r.without_mutations().tanpa_reaksi();
-        let Reply::Table {
-            title,
-            headers,
-            rows,
-            header_text,
-            footer,
-        } = r
-        else {
-            panic!("harus Reply::Table, dapat {:?}", std::mem::discriminant(r));
-        };
-        assert_eq!(title, "⚡ System Performance");
-        assert_eq!(
-            headers.as_slice(),
-            ["Metric".to_string(), "Value".to_string()]
-        );
-        // headerText: `${config.bot?.name || 'Foto-AI'} *STATUS*\n\n- 🎄 ...`
-        assert_eq!(
-            header_text.as_deref(),
-            Some("Foto-AI *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita")
-        );
-        assert_eq!(footer.as_deref(), Some("🍃 Realtime Monitoring"));
-
-        // Isi baris: urutan dan nilai persis `tableData` (ping2.js:113-131).
-        let ambil = |nama: &str| -> String {
-            rows.iter()
-                .find(|row| row[0] == nama)
-                .unwrap_or_else(|| panic!("baris {nama} hilang"))[1]
-                .clone()
-        };
-        assert_eq!(ambil("WA Roundtrip"), "1 ms");
-        assert_eq!(ambil("Status"), "Online");
-        assert_eq!(ambil("Cores"), baca_cpu().0.to_string());
-        assert_eq!(ambil("Users"), "1");
-        assert_eq!(ambil("Premium"), "1");
-        assert_eq!(ambil("Groups"), "0");
-        assert_eq!(ambil("Uptime Bot"), "1h 1m 1s");
-        assert_eq!(ambil("Uptime Server"), fmt_up(baca_uptime_server()));
-        // 18 baris = 18 entri tableData JS.
-        assert_eq!(rows.len(), 18);
-        for row in rows.iter() {
-            assert_eq!(row.len(), 2, "tiap baris dua kolom: {row:?}");
-        }
-    }
-
-    #[test]
-    fn header_text_memakai_nama_bot_config() {
-        // `oktz_plugin_api::config` = re-export `oktz_core::config` untuk crate
-        // plugin (lib.rs plugin-api).
-        let mut cfg = oktz_plugin_api::config::Runtime::default();
-        cfg.bot.name = "Oktz Bot".into();
-        let ctx = Ctx {
-            sender: ME.into(),
-            chat: ME.into(),
-            config: std::sync::Arc::new(cfg),
-            ..Ctx::default()
-        };
-        let r = ping2(ctx);
-        let r = r.without_mutations().tanpa_reaksi();
-        let Reply::Table { header_text, .. } = r else {
-            panic!("harus Reply::Table");
-        };
-        assert_eq!(
-            header_text.as_deref(),
-            Some("Oktz Bot *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita")
-        );
     }
 
     #[test]

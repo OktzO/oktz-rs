@@ -897,7 +897,7 @@ pub fn styleteks(ctx: Ctx) -> Reply {
     // `sock.sendMessage(m.chat, { text: hasil, interactiveButtons: [{cta_copy}] })`
     // — teks masuk body kartu, tombol salin ikut.
     Reply::interactive(hasil.clone())
-        .with_button(oktz_plugin_api::registry::InteractiveButton::copy(
+        .with_button_card(oktz_plugin_api::registry::InteractiveButton::copy(
             "📋 Copy Hasil Teks",
             "copy",
             hasil,
@@ -1098,15 +1098,13 @@ mod tests {
     fn hasil_sukses_membawa_tombol_salin_cta_copy() {
         let tanpa = jalankan("Cursive | Halo");
         let tanpa = tanpa.without_mutations();
-        let Reply::Interactive {
-            body,
-            footer,
-            buttons,
-                ..
-        } = tanpa.tanpa_reaksi()
+        let Reply::Interactive { kartu } = tanpa.tanpa_reaksi()
         else {
             panic!("harus kartu interaktif");
         };
+        let body = &kartu.body;
+        let footer = &kartu.footer;
+        let buttons = &kartu.buttons;
         assert_eq!(body, "𝓗𝓪𝓵𝓸");
         assert_eq!(footer, &None);
         assert_eq!(buttons.len(), 1);

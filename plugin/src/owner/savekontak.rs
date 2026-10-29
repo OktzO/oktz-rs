@@ -337,9 +337,9 @@ mod tests {
         assert!(t.contains("• *.savekontak <nama>* — Menyimpan dengan nama kustom"), "{t}");
         assert!(t.contains("• *.savekontak* — Menyimpan dengan nama default \"User\""), "{t}");
         match r.without_mutations() {
-            Reply::Interactive { footer, buttons, .. } => {
-                assert_eq!(footer.as_deref(), Some(FOOTER));
-                assert_eq!(buttons.len(), 2);
+            Reply::Interactive { kartu } => {
+                assert_eq!(kartu.footer.as_deref(), Some(FOOTER));
+                assert_eq!(kartu.buttons.len(), 2);
             }
             other => panic!("harus Interactive, dapat {other:?}"),
         }

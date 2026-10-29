@@ -154,16 +154,19 @@ fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
         })
         .collect();
 
-    Reply::table(
-        "Distribusi Fitur",
-        ["Kategori", "Jumlah", "Persen"],
-        baris,
-    )
-    .with_header_text(format!(
-        "Total: {total} | Aktif: {aktif} | Kategori: {}",
-        daftar.len()
-    ))
-    .with_table_footer(format!("Total {total} fitur tersedia"))
+    {
+        let mut tabel = oktz_plugin_api::Tabel::baru("Distribusi Fitur")
+            .header(["Kategori", "Jumlah", "Persen"]);
+        for row in baris {
+            tabel = tabel.baris(row);
+        }
+        Reply::Tabel { tabel: tabel
+            .header_teks(format!(
+                "Total: {total} | Aktif: {aktif} | Kategori: {}",
+                daftar.len()
+            ))
+            .footer(format!("Total {total} fitur tersedia")) }
+    }
 }
 
 /// `catch` (`totalfitur.js:74-77`) — `m.react('☢')` lalu `m.reply(te(...))`.
@@ -236,24 +239,18 @@ mod tests {
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
 
-        let Reply::Table {
-            title,
-            headers,
-            rows,
-            header_text,
-            footer,
-        } = balasan
+        let Reply::Tabel { tabel } = balasan
         else {
-            panic!("harus Reply::Table, dapat {balasan:?}");
+            panic!("harus Reply::Tabel, dapat {balasan:?}");
         };
 
-        assert_eq!(title, "Distribusi Fitur");
+        assert_eq!(tabel.judul, "Distribusi Fitur");
         assert_eq!(
-            headers.iter().map(String::as_str).collect::<Vec<_>>(),
+            tabel.header.iter().map(String::as_str).collect::<Vec<_>>(),
             ["Kategori", "Jumlah", "Persen"]
         );
         assert_eq!(
-            header_text.as_deref(),
+            tabel.header_teks.as_deref(),
             Some(
                 format!(
                     "Total: {total} | Aktif: {aktif} | Kategori: {}",
@@ -263,13 +260,13 @@ mod tests {
             )
         );
         assert_eq!(
-            footer.as_deref(),
+            tabel.footer.as_deref(),
             Some(format!("Total {total} fitur tersedia").as_str())
         );
 
         // Satu baris per kategori, urutan sama dengan hasil sort.
-        assert_eq!(rows.len(), daftar.len());
-        for (baris, r) in rows.iter().zip(daftar.iter()) {
+        assert_eq!(tabel.baris.len(), daftar.len());
+        for (baris, r) in tabel.baris.iter().zip(daftar.iter()) {
             assert_eq!(baris.len(), 3, "baris harus tiga kolom");
             assert_eq!(
                 baris[0],
@@ -288,7 +285,7 @@ mod tests {
         };
         assert_eq!(emoji, "📊");
         assert!(
-            matches!(**reply, Reply::Table { .. }),
+            matches!(**reply, Reply::Tabel { .. }),
             "reaksi tidak boleh menutupi tabel"
         );
         assert!(r.mutations().is_empty(), "plugin ini hanya membaca");
@@ -299,12 +296,12 @@ mod tests {
         let (daftar, total, aktif) = rekap().expect("registry tidak kosong");
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
-        let Reply::Table {
-            rows, header_text, ..
-        } = balasan
+        let Reply::Tabel { tabel } = balasan
         else {
-            panic!("harus Reply::Table");
+            panic!("harus Reply::Tabel");
         };
+        let rows = &tabel.baris;
+        let header_text = &tabel.header_teks;
 
         assert!(header_text
             .as_deref()

@@ -1,10 +1,15 @@
 //! `plugins/main/stats.js` — statistik bot.
 //!
-//! `ponytail:` `sendTableV2` (tabel AI) belum punya varian di `Reply`; header,
-//! baris, dan footer dirangkai sebagai teks dengan isi serta urutan yang sama
-//! (pola `main/totalfitur.rs`).
-//! `ponytail:` `Ctx` hanya membawa data user/grup pengirim, bukan seluruh
-//! store; Users/Premium/Groups dihitung dari data itu, bukan total.
+//! Balasan memakai tabel V2 (`Reply::tabel_v2`) — padanan `sock.sendTableV2`
+//! JS (`stats.js:88-91`): baris heading, baris isi, dan footer, isi serta
+//! urutannya sama dengan JS.
+//!
+//! Judul input `📊 Bot Statistics` (`table[0]`) sengaja TIDAK dikirim ke wire:
+//! `generateTableContentV2` (`rich-messages.js:978-993`) hanya memakainya
+//! sebagai `tableMetadata.title` dan menulis section heading dari
+//! `options.headerText || options.title`. Tidak ada `headerText` di `.stats`,
+//! jadi yang mendarat di wire adalah `title` (`📊 Berikut ini adalah statistik
+//! dari bot kami`) dan `table[0]` hilang — persis seperti produksi.
 //! `ponytail:` `process.memoryUsage()` tidak ada; Heap memakai VmRSS/VmSize
 //! dari `/proc/self/status` — padanan terdekat.
 //! `ponytail:` `process.version` tidak punya padanan di Rust; kolom Node
@@ -147,12 +152,14 @@ fn baca_heap() -> (u64, u64) {
 }
 
 /// `Object.keys(db.db.data.users/groups)` dan `u.premium` tidak ada di `Ctx`;
-/// yang tersedia hanya data pengirim, jadi itulah yang dihitung.
+/// `ctx.store_users`/`store_groups` dirangkum pipeline dari snapshot store yang
+/// sama dengan yang dipakai gate permission.
+///
+/// Quirk produksi yang disalin apa adanya: `.stats` memfilter `u.premium`
+/// (`stats.js:56`) padahal skema store memakai `isPremium`, jadi hasilnya
+/// SELALU `0` — beda dengan `.ping2` yang memang membaca `isPremium`.
 fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
-    let users = ctx.user_data.is_object() as usize;
-    let groups = ctx.group_data.is_object() as usize;
-    let premium = crate::common::js_truthy(ctx.user_data.get("premium")) as usize;
-    (users, premium, groups)
+    (ctx.store_users, 0, ctx.store_groups)
 }
 
 /// `new Date().toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })`.
@@ -161,7 +168,14 @@ fn jam_jakarta() -> String {
     format!("{jam:02}.{menit:02}.{detik:02}")
 }
 
-fn teks(ctx: &Ctx) -> String {
+/// Susun tabel V2 — padanan `sock.sendTableV2` JS (`stats.js:88-91`).
+///
+/// `toTableMetadataV2` (`rich-messages.js:944-977`) membaca `table[0]` sebagai
+/// `title`, tapi `generateTableContentV2` hanya mengirim `unified_rows` plus
+/// section heading `headerText || title` dan section `footer`. Karena itu
+/// judul di sini (`table[0]` JS) tidak pernah mendarat di wire, dan heading
+/// yang terkirim adalah `options.title`.
+fn reply(ctx: &Ctx) -> Reply {
     let cfg = ctx.config();
     let nama_bot = cfg.bot.name.as_str();
     let bot = if nama_bot.is_empty() { "Bot" } else { nama_bot };
@@ -175,35 +189,51 @@ fn teks(ctx: &Ctx) -> String {
     let (total_mem, bebas_mem) = baca_memori();
     let (heap_dipakai, heap_total) = baca_heap();
 
-    let mut out =
-        String::from("📊 Berikut ini adalah statistik dari bot kami\n\nKey | Value\n");
-    out.push_str(&format!("Bot | {bot}\n"));
-    out.push_str(&format!("Version | v{versi}\n"));
-    out.push_str(&format!(
-        "Uptime | {}\n",
-        format_uptime(ctx.uptime_secs.saturating_mul(1000))
-    ));
-    out.push_str(&format!("Users | {users}\n"));
-    out.push_str(&format!("Premium | {premium}\n"));
-    out.push_str(&format!("Groups | {groups}\n"));
-    out.push_str(&format!("Platform | {}\n", platform()));
-    out.push_str("Node | N/A\n");
-    out.push_str(&format!("CPU Load | {}%\n", fixed2(baca_load())));
-    out.push_str(&format!(
-        "RAM | {} / {}\n",
-        format_bytes(total_mem.saturating_sub(bebas_mem)),
-        format_bytes(total_mem)
-    ));
-    out.push_str(&format!(
-        "Heap | {} / {}\n",
-        format_bytes(heap_dipakai),
-        format_bytes(heap_total)
-    ));
-    out.push_str(&format!("Updated | {}", jam_jakarta()));
-    if !nama_bot.is_empty() {
-        out.push_str(&format!("\n\n{nama_bot}"));
+    let mut t = Reply::tabel_v2("📊 Bot Statistics")
+        .with_table_header(["Key", "Value"])
+        // `options.title` JS — satu-satunya teks yang mendarat di wire sebagai
+        // section heading (`rich-messages.js:982-983`: `headerText || title`).
+        .with_table_header_text("📊 Berikut ini adalah statistik dari bot kami");
+
+    t = t.with_table_row(["Bot".to_string(), bot.to_string()]);
+    t = t.with_table_row(["Version".to_string(), format!("v{versi}")]);
+    t = t.with_table_row([
+        "Uptime".to_string(),
+        format_uptime(ctx.uptime_secs.saturating_mul(1000)),
+    ]);
+    t = t.with_table_row(["Users".to_string(), users.to_string()]);
+    t = t.with_table_row(["Premium".to_string(), premium.to_string()]);
+    t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
+    t = t.with_table_row(["Platform".to_string(), platform()]);
+    t = t.with_table_row(["Node".to_string(), "N/A".to_string()]);
+    t = t.with_table_row([
+        "CPU Load".to_string(),
+        format!("{}%", fixed2(baca_load())),
+    ]);
+    t = t.with_table_row([
+        "RAM".to_string(),
+        format!(
+            "{} / {}",
+            format_bytes(total_mem.saturating_sub(bebas_mem)),
+            format_bytes(total_mem)
+        ),
+    ]);
+    t = t.with_table_row([
+        "Heap".to_string(),
+        format!(
+            "{} / {}",
+            format_bytes(heap_dipakai),
+            format_bytes(heap_total)
+        ),
+    ]);
+    t = t.with_table_row(["Updated".to_string(), jam_jakarta()]);
+
+    // JS `footer: botConfig?.bot?.name` — string kosong berarti tanpa footer.
+    if nama_bot.is_empty() {
+        t
+    } else {
+        t.with_table_footer(nama_bot)
     }
-    out
 }
 
 #[plugin(
@@ -224,12 +254,122 @@ fn teks(ctx: &Ctx) -> String {
     is_bot_admin = false
 )]
 pub fn stats(ctx: Ctx) -> Reply {
-    Reply::text(teks(&ctx))
+    reply(&ctx)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Ambil tabel V2 dari balasan — `stats` tidak pakai reaksi, jadi cukup
+    /// menembus `Mutate` kalau ada.
+    fn tabel_dari(reply: &Reply) -> &oktz_plugin_api::RichV2 {
+        match reply.without_mutations().tanpa_reaksi() {
+            Reply::TabelV2(v2) => v2,
+            other => panic!("harus TabelV2, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stats_uses_table_v2_exact_heading_footer() {
+        // `sock.sendTableV2(m.chat, table, m, { title, footer })`
+        // (`stats.js:88-91`) — judul input `📊 Bot Statistics` (`table[0]`)
+        // hanya jadi `tableMetadata.title` dan TIDAK dikirim ke wire; yang
+        // mendarat sebagai section heading adalah `title`.
+        let r = stats(Ctx::default());
+        assert!(
+            matches!(r.without_mutations().tanpa_reaksi(), Reply::TabelV2 { .. }),
+            "harus Reply::TabelV2"
+        );
+        let t = tabel_dari(&r);
+
+        assert_eq!(t.judul, "📊 Bot Statistics");
+        assert_eq!(
+            t.heading.as_deref(),
+            Some("📊 Berikut ini adalah statistik dari bot kami")
+        );
+        // Config bawaan kosong, jadi footer hilang (`if (footer)`).
+        assert_eq!(t.footer, None);
+
+        assert_eq!(t.header, vec!["Key", "Value"]);
+        let kunci: Vec<&str> = t.baris.iter().map(|b| b[0].as_str()).collect();
+        assert_eq!(
+            kunci,
+            vec![
+                "Bot",
+                "Version",
+                "Uptime",
+                "Users",
+                "Premium",
+                "Groups",
+                "Platform",
+                "Node",
+                "CPU Load",
+                "RAM",
+                "Heap",
+                "Updated",
+            ]
+        );
+        assert_eq!(t.baris.len(), 12);
+
+        // Config bawaan kosong, jadi nama bot jatuh ke "Bot" dan versi ke
+        // "1.0.0" (`stats.js:59-60`).
+        assert_eq!(t.baris[0], vec!["Bot", "Bot"]);
+        assert_eq!(t.baris[1], vec!["Version", "v1.0.0"]);
+        assert_eq!(t.baris[8][0], "CPU Load");
+        assert!(t.baris[8][1].ends_with('%'));
+        // Waktu Asia/Jakarta `HH.MM.SS`.
+        assert_eq!(t.baris[11][1].len(), 8, "jam-menit-detik: {}", t.baris[11][1]);
+    }
+
+    #[test]
+    fn footer_ikut_nama_bot_dan_hilang_kala_kosong() {
+        // Nama bot kosong -> tanpa footer (JS `if (footer)`).
+        let r = stats(Ctx::default());
+        assert_eq!(tabel_dari(&r).footer, None);
+
+        // Nama bot terisi -> footer = nama bot.
+        let mut cfg = oktz_plugin_api::config::Runtime::default();
+        cfg.bot.name = "Foto-AI".to_string();
+        let ctx = Ctx {
+            config: std::sync::Arc::new(cfg),
+            ..Default::default()
+        };
+        let r = stats(ctx);
+        let t = tabel_dari(&r);
+        assert_eq!(t.footer.as_deref(), Some("Foto-AI"));
+        assert_eq!(t.baris[0], vec!["Bot", "Foto-AI"]);
+    }
+
+    #[test]
+    fn jumlah_users_premium_groups_dari_seluruh_store_bukan_pengirim() {
+        // `Object.keys(db.data.users/groups)` — SELURUH store. Data pengirim
+        // saja tidak boleh dihitung sebagai jumlah user.
+        //
+        // Quirk `.stats`: `Object.values(users).filter((u) => u.premium)`
+        // membaca field `premium` yang tidak ada di store (`isPremium` yang
+        // ada), jadi produksi selalu menulis `0` — diuji apa adanya.
+        let ctx = Ctx {
+            user_data: serde_json::json!({"isPremium": true}),
+            group_data: serde_json::json!({"name": "Grup"}),
+            store_users: 12,
+            store_premium: 4,
+            store_groups: 7,
+            ..Default::default()
+        };
+        let balasan = stats(ctx);
+        let t = tabel_dari(&balasan);
+        let baris = |kunci: &str| {
+            t.baris
+                .iter()
+                .find(|b| b[0] == kunci)
+                .unwrap_or_else(|| panic!("baris {kunci} hilang"))
+                .clone()
+        };
+        assert_eq!(baris("Users"), vec!["Users", "12"]);
+        assert_eq!(baris("Premium"), vec!["Premium", "0"]);
+        assert_eq!(baris("Groups"), vec!["Groups", "7"]);
+    }
 
     #[test]
     fn format_bytes_sama_dengan_js() {

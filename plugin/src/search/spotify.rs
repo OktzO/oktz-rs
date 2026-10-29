@@ -270,7 +270,7 @@ pub fn spotify(ctx: Ctx) -> Reply {
         return Reply::interactive(content)
             .with_footer("🚀 Spotify Search")
             .with_header(header)
-            .with_button(InteractiveButton::quick_reply(
+            .with_button_card(InteractiveButton::quick_reply(
                 "🎵 Unduh Lagu Pertama",
                 format!(".spdl {}", first.url),
             ))

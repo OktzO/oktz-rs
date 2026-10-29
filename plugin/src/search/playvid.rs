@@ -105,15 +105,7 @@ pub fn playvid(ctx: Ctx) -> Reply {
     };
 
     // `playvid.js:49-62` — pratinjau tautan, lalu `playvid.js:66-68` — video.
-    let preview = Reply::preview(
-        format!("{}\n{}", video.url, info),
-        video.url.clone(),
-    )
-    .with_preview_title(video.title.clone())
-    .with_preview_description("YouTube Video")
-    .with_preview_thumbnail(MediaSource::url(video.thumbnail.clone()))
-    .with_preview_type(1)
-    .with_preview_context(CardContext::new().quote_trigger());
+    let preview = Reply::text(format!("{}\n{}", video.url, info));
 
     let media = Reply::video(MediaSource::url(download_url.to_string()), "");
 

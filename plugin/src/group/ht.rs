@@ -2,8 +2,8 @@
 //!
 //! `pluginConfig.name` di JS adalah array `['ht', 'hidetag']`.
 //! `PluginMeta.name` hanya `String`, jadi elemen pertama jadi `name` dan sisanya
-//! jadi command tambahan (`PluginMeta::commands`) — `find()` mengeceknya
-//! sebelum alias. Pola yang sama dipakai [`crate::group::autodl`].
+//! jadi `alias` — `matches()` tetap menerima keduanya. Pola yang sama dipakai
+//! [`crate::group::autodl`].
 //!
 //! `ponytail:` cabang media (gambar/video/sticker/audio/dokumen) butuh
 //! `quoted.download()` (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi
@@ -28,10 +28,7 @@ pub(crate) fn help(prefix: &str) -> String {
 
 #[plugin(
     name = "ht",
-    commands = [
-        "hidetag",
-    ],
-    alias = [],
+    alias = ["hidetag"],
     category = "group",
     description = "Hidetag dengan support reply pesan (teks/media)",
     usage = ".ht [pesan] atau reply pesan",
@@ -91,6 +88,7 @@ mod tests {
             mimetype: None,
             file_name: None,
             from_me: false,
+            timestamp: 0,
         }
     }
 
@@ -134,11 +132,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("ht").unwrap();
         assert_eq!(p.meta.name, "ht");
-        assert_eq!(
-            p.meta.commands, ["hidetag"],
-            "elemen kedua name JS jadi command tambahan"
-        );
-        assert!(p.meta.alias.is_empty());
+        assert_eq!(p.meta.alias, ["hidetag"], "elemen kedua name JS jadi alias");
         assert_eq!(p.meta.category, "group");
         assert_eq!(
             p.meta.description,

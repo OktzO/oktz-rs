@@ -144,7 +144,7 @@ pub fn film(ctx: Ctx) -> Reply {
     );
 
     Reply::interactive(format_list(films, &query))
-        .with_button(InteractiveButton::select(&list))
+        .with_button_card(InteractiveButton::select(&list))
         .with_footer("🎬 Film Search")
         .with_reaction("✅")
 }

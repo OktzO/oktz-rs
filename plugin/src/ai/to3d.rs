@@ -197,6 +197,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
+            timestamp: 0,
             }),
             http: http.clone(),
             media_fetch: Arc::new(MediaStub(unduh)),

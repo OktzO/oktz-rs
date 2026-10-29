@@ -172,8 +172,8 @@ pub fn swgcv2(ctx: Ctx) -> Reply {
         grup.len(),
     ))
     .with_footer(footer)
-    .with_button(InteractiveButton::select(&list))
-    .with_button(InteractiveButton::quick_reply(
+    .with_button_card(InteractiveButton::select(&list))
+    .with_button_card(InteractiveButton::quick_reply(
         "❌ Batal",
         format!("{}cancelswgcv2", ctx.prefix),
     ))

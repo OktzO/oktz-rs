@@ -41,7 +41,7 @@ pub fn sc(ctx: Ctx) -> Reply {
     let bot = &ctx.config().bot;
     Reply::interactive(body(&ctx.push_name, bot))
         .with_footer(format!("{} — Oktz-MD", bot.name))
-        .with_button(InteractiveButton::new(
+        .with_button_card(InteractiveButton::new(
             "cta_url",
             serde_json::json!({
                 "display_text": "🥐 Kunjungi GitHub OktzO",
@@ -92,15 +92,13 @@ mod tests {
         };
 
         let r = sc(ctx);
-        let Reply::Interactive {
-            body: isi,
-            footer,
-            buttons,
-            ..
-        } = r.without_mutations()
+        let Reply::Interactive { kartu } = r.without_mutations()
         else {
             panic!("harus kartu interaktif");
         };
+        let isi = &kartu.body;
+        let footer = &kartu.footer;
+        let buttons = &kartu.buttons;
         assert!(isi.starts_with("🌾 Halo kak *Zann*"));
         assert_eq!(footer.as_deref(), Some("Oktz Bot — Oktz-MD"));
         assert_eq!(buttons[0].name, "cta_url");

@@ -32,14 +32,12 @@ use oktz_scraper::seaart::live3d;
 pub fn bananagen(ctx: Ctx) -> Reply {
     let prompt = ctx.args.join(" ");
     if prompt.trim().is_empty() {
-        // `bananagen.js:15-21` — contoh memakai `${m.prefix}`, bukan titik hardcode.
-        return Reply::text(format!(
+        return Reply::text(
             "🍌 *BANANA GEN*\n\n\
              > Edit gambar dengan AI\n\n\
-             `Contoh: {prefix}bananagen make it anime style`\n\n\
+             `Contoh: .bananagen make it anime style`\n\n\
              > Reply atau kirim gambar dengan caption",
-            prefix = ctx.prefix
-        ));
+        );
     }
 
     let is_image = ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
@@ -207,7 +205,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-                })
+            timestamp: 0,
+        })
             } else {
                 None
             },

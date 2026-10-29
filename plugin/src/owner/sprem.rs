@@ -101,6 +101,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
+            timestamp: 0,
             }),
             media_fetch: Arc::new(Unduh { ok: unduh_ok }),
             ..Default::default()

@@ -596,10 +596,10 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
     Reply::interactive("")
         .with_footer(footer)
         .with_header(CardHeader::new().image(aset_foto(ctx)))
-        .with_button(InteractiveButton::select(
+        .with_button_card(InteractiveButton::select(
             &CardList::new("🍃 Menu Utama", [baris]).icon("DEFAULT"),
         ))
-        .with_button(InteractiveButton::select(
+        .with_button_card(InteractiveButton::select(
             &CardList::new("Selengkapnya", [lainnya]).icon("REVIEW"),
         ))
         .with_context(
@@ -655,12 +655,12 @@ fn varian_2(ctx: &Ctx) -> Reply {
     Reply::interactive(body)
         .with_footer("Pilih tombol dibawah untuk info lebih lanjut")
         .with_header(CardHeader::new().image(aset_foto(ctx)))
-        .with_button(InteractiveButton::url_merchant(
+        .with_button_card(InteractiveButton::url_merchant(
             "🍫 Owner Kami",
             format!("https://wa.me/{owner}"),
             format!("https://wa.me/{owner}"),
         ))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply(
             "🍛 Dapatkan Script ( Gratis )",
             format!("{pref}sc"),
         ))
@@ -722,11 +722,11 @@ fn varian_3(ctx: &Ctx) -> Reply {
     Reply::interactive(body)
         .with_footer("🍔 Silahkan pilih dari salah satu tombol di bawah")
         .with_header(CardHeader::new().subtitle(bot.bot.name.clone()).image(aset_foto(ctx)))
-        .with_button(InteractiveButton::select(
+        .with_button_card(InteractiveButton::select(
             &CardList::new("🍃 List Menu", [baris]).icon("DEFAULT"),
         ))
-        .with_button(InteractiveButton::quick_reply("🧀 Owner", format!("{pref}owner")))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply("🧀 Owner", format!("{pref}owner")))
+        .with_button_card(InteractiveButton::quick_reply(
             "💐 Allmenu",
             format!("{pref}allmenu"),
         ))
@@ -836,12 +836,12 @@ _i am an automated system (WhatsApp bot) that can help to do something search an
         .with_footer("Please select the button in below")
         .with_header(CardHeader::new().video(aset_mp4(ctx)))
         .with_message_params(params_offer(sapa()))
-        .with_button(InteractiveButton::empty(""))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::empty(""))
+        .with_button_card(InteractiveButton::quick_reply(
             "𐔌 Allmenu  𐦯",
             format!("{pref}allmenu"),
         ))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply(
             "𐔌 Peraturan  𐦯",
             format!("{pref}rules"),
         ))
@@ -873,12 +873,12 @@ fn varian_6(ctx: &Ctx) -> Reply {
             thumbnail: thumbnail(ctx, "foto"),
         }))
         .with_message_params(params_offer(sapa()))
-        .with_button(InteractiveButton::empty(""))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::empty(""))
+        .with_button_card(InteractiveButton::quick_reply(
             "𐔌 Allmenu  𐦯",
             format!("{pref}allmenu"),
         ))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply(
             "𐔌 Peraturan  𐦯",
             format!("{pref}rules"),
         ))
@@ -937,7 +937,7 @@ fn varian_7(ctx: &Ctx) -> Reply {
             "Use: {pref}menucat <category>\n\nIf you have any questions, please contact the owner."
         ))
         .with_header(CardHeader::new().image(aset_foto(ctx)))
-        .with_button(InteractiveButton::url_merchant(
+        .with_button_card(InteractiveButton::url_merchant(
             "🥐 Contact Owner",
             format!("http://wa.me/{owner}"),
             format!("http://wa.me/{owner}"),
@@ -954,7 +954,7 @@ fn varian_7(ctx: &Ctx) -> Reply {
     // `messageAssociation` (`associationType: 12`).
     Reply::sequence(vec![
         kartu,
-        Reply::paired_video(aset_mp4(ctx), ""),
+        Reply::video(aset_mp4(ctx), ""),
     ])
 }
 
@@ -1159,15 +1159,13 @@ mod tests {
     #[test]
     fn varian_tiga_menghasilkan_kartu_dengan_tombol() {
         let r = menu(ctx());
-        let Reply::Interactive {
-            body,
-            footer,
-            buttons,
-            ..
-        } = r.without_mutations()
+        let Reply::Interactive { kartu } = r.without_mutations()
         else {
             panic!("harus kartu interaktif");
         };
+        let body = &kartu.body;
+        let footer = &kartu.footer;
+        let buttons = &kartu.buttons;
         assert!(body.contains("Hello Brother"), "{body}");
         assert_eq!(
             footer.as_deref(),
@@ -1186,15 +1184,13 @@ mod tests {
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 1 });
         let r = menu(c);
-        let Reply::Interactive {
-            body,
-            footer,
-            buttons,
-            ..
-        } = r.without_mutations()
+        let Reply::Interactive { kartu } = r.without_mutations()
         else {
             panic!("harus kartu interaktif");
         };
+        let body = &kartu.body;
+        let footer = &kartu.footer;
+        let buttons = &kartu.buttons;
         assert!(body.is_empty());
         assert!(footer.as_deref().unwrap_or_default().contains("INFORMASI BOT"));
         assert_eq!(buttons.len(), 2);

@@ -547,12 +547,12 @@ fn kartu_varian_2(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
         .with_message_params(params);
 
     if dengan_kategori {
-        reply = reply.with_button(InteractiveButton::quick_reply(
+        reply = reply.with_button_card(InteractiveButton::quick_reply(
             TOMBOL_DAFTAR_KATEGORI,
             format!("{}menucat", ctx.prefix),
         ));
     }
-    reply = reply.with_button(InteractiveButton::quick_reply(
+    reply = reply.with_button_card(InteractiveButton::quick_reply(
         TOMBOL_MENU_UTAMA,
         format!("{}menu", ctx.prefix),
     ));
@@ -607,15 +607,15 @@ fn kartu_varian_5(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
         .with_message_params(params)
         // Slot kosong pertama (`menucat.js:343`) — WA butuh minimal satu
         // tombol yang tidak berisi aksi.
-        .with_button(InteractiveButton::empty(""));
+        .with_button_card(InteractiveButton::empty(""));
 
     if dengan_kategori {
-        reply = reply.with_button(InteractiveButton::quick_reply(
+        reply = reply.with_button_card(InteractiveButton::quick_reply(
             TOMBOL_DAFTAR_KATEGORI,
             format!("{}menucat", ctx.prefix),
         ));
     }
-    reply = reply.with_button(InteractiveButton::quick_reply(
+    reply = reply.with_button_card(InteractiveButton::quick_reply(
         TOMBOL_MENU_UTAMA,
         format!("{}menu", ctx.prefix),
     ));
@@ -833,14 +833,9 @@ mod tests {
         r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
-    fn kartu(r: &Reply) -> (&str, Option<&str>, &[oktz_plugin_api::registry::InteractiveButton]) {
+    fn kartu(r: &Reply) -> (&str, Option<&str>, &[oktz_plugin_api::kartu::Tombol]) {
         match r.without_mutations() {
-            Reply::Interactive {
-                body,
-                footer,
-                buttons,
-                ..
-            } => (body.as_str(), footer.as_deref(), buttons.as_slice()),
+            Reply::Interactive { kartu } => (kartu.body.as_str(), kartu.footer.as_deref(), kartu.buttons.as_slice()),
             other => panic!("harus kartu interaktif, dapat {other:?}"),
         }
     }
@@ -1001,10 +996,10 @@ mod tests {
         assert_eq!(buttons[1].params["display_text"], TOMBOL_MENU_UTAMA);
         assert_eq!(buttons[1].params["id"], ".menu");
 
-        let Reply::Interactive { header, .. } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu");
         };
-        let header = header.as_ref().expect("header wajib ada");
+        let header = kartu.header_card.as_ref().expect("header wajib ada");
         match header.media.as_ref().expect("media wajib ada") {
             oktz_plugin_api::registry::CardMedia::Image { source } => {
                 assert_eq!(source.label(), "path");
@@ -1029,31 +1024,27 @@ mod tests {
         // Slot kosong pertama, lalu daftar kategori, lalu menu utama.
         assert_eq!(buttons.len(), 3);
         assert_eq!(buttons[0].name, "");
-        assert_eq!(buttons[0].params, serde_json::Value::String(String::new()));
+        assert_eq!(buttons[0].params.nilai(), &serde_json::Value::String(String::new()));
         assert_eq!(buttons[1].params["id"], ".menucat");
         assert_eq!(buttons[2].params["id"], ".menu");
 
-        let Reply::Interactive {
-            header,
-            message_params,
-            context,
-            ..
-        } = r.without_mutations()
+        let Reply::Interactive { kartu } = r.without_mutations()
         else {
             panic!("harus kartu");
         };
+        let header = kartu.header_card.as_ref().expect("header wajib ada");
         assert!(matches!(
-            header.as_ref().and_then(|h| h.media.as_ref()),
+            header.media.as_ref(),
             Some(oktz_plugin_api::registry::CardMedia::Video { .. })
         ));
-        let params = message_params
+        let params = kartu.params
             .as_ref()
             .expect("message params wajib ada");
         assert!(params["bottom_sheet"]["list_title"] == "Please select the menu");
         assert!(params["tap_target_configuration"]["domain"] == "shop.example.com");
         assert!(params["limited_time_offer"]["url"] == "Hai");
 
-        let context = context.as_ref().expect("context wajib ada");
+        let context = kartu.context_card.as_ref().expect("context wajib ada");
         assert!(context.is_forwarded);
         assert_eq!(context.forwarding_score, 9);
         assert_eq!(context.mentioned, vec![SENDER.to_string()]);
@@ -1079,10 +1070,10 @@ mod tests {
         assert_eq!(footer, None);
         assert!(buttons.is_empty());
 
-        let Reply::Interactive { header, .. } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu");
         };
-        let header = header.as_ref().expect("header wajib ada");
+        let header = kartu.header_card.as_ref().expect("header wajib ada");
         match header.media.as_ref().expect("media wajib ada") {
             oktz_plugin_api::registry::CardMedia::Location(loc) => {
                 assert_eq!(loc.name, "Oktz Bot");

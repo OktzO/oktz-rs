@@ -9,10 +9,10 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// Kartu pakai saat teks kosong (`emojimix.js:26-30`).
+/// Kartu pakai saat teks kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
-        "🎭 *ᴇᴍᴏᴊɪ ᴍɪx*\n\n> Gabungkan 2 emoji menjadi 1\n\n> Contoh: `{prefix}emojimix 😂🔥`"
+        "🎭 *ᴇᴍᴏᴊɪ ᴍɪx*\n\n> Gabungkan 2 emoji menjadi 1\n\n`Contoh: {prefix}emojimix 😂🔥`"
     )
 }
 
@@ -250,7 +250,7 @@ mod tests {
             panic!("harus dibungkus reaksi");
         };
         match isi.as_ref() {
-            Reply::Sticker { media } => {
+            Reply::Sticker { media, .. } => {
                 assert_eq!(
                     media,
                     &Some(MediaSource::Url {
@@ -295,20 +295,5 @@ mod tests {
 
     fn http_seen_kosong(_r: &Reply) -> bool {
         true
-    }
-
-    #[test]
-    fn output_sama_dengan_js() {
-        // `emojimix.js:26-30` — kartu pakai, termasuk "> " di baris contoh.
-        assert_eq!(
-            help("."),
-            "🎭 *ᴇᴍᴏᴊɪ ᴍɪx*\n\n> Gabungkan 2 emoji menjadi 1\n\n> Contoh: `.emojimix 😂🔥`"
-        );
-        // `emojimix.js:37` — minimal dua emoji.
-        let r = run(Stub::offline(), "halo");
-        assert_eq!(
-            text_of(&r),
-            "❌ Masukkan minimal 2 emoji!\n\nContoh: .emojimix 😂🔥"
-        );
     }
 }

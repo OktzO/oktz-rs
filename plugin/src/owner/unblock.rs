@@ -19,10 +19,7 @@ pub(crate) const USAGE: &str = "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
 
 #[plugin(
     name = "unblock",
-    commands = [
-        "unblocknomor",
-    ],
-    alias = [],
+    alias = ["unblocknomor"],
     category = "owner",
     description = "Buka blokir nomor WhatsApp",
     usage = ".unblock <nomor/reply/mention>",
@@ -84,8 +81,7 @@ mod tests {
         let p = entry();
         assert_eq!(p.meta.name, "unblock");
         // JS `name: ['unblock','unblocknomor']` — entri kedua jadi alias.
-        assert_eq!(p.meta.commands, ["unblocknomor"]);
-        assert!(p.meta.alias.is_empty(), "alias JS: []");
+        assert_eq!(p.meta.alias, ["unblocknomor"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Buka blokir nomor WhatsApp");
         assert_eq!(p.meta.usage, ".unblock <nomor/reply/mention>");
@@ -138,7 +134,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            }),
+            timestamp: 0,
+        }),
         ));
         assert!(matches!(t, Target::Jid(j) if j == "628999@s.whatsapp.net"));
     }

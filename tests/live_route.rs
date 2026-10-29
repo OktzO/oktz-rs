@@ -18,8 +18,7 @@ use std::sync::{Arc, Mutex};
 
 use oktz_store::json_store::JsonStore;
 use oktz_wa::{
-    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Outcome, Pipeline,
-    SendOptions,
+    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node, Outcome, Pipeline,
     RosterSource, SendBox, SendBoxRoster, StoreContext,
 };
 use oktz_router::command::ParseOptions;
@@ -44,36 +43,19 @@ struct Roster;
 impl RosterSource for Roster {
     fn roster(&self, _chat: &str) -> SendBoxRoster<'_> {
         Box::pin(async {
-            Ok(oktz_wa::pipeline::RosterSnapshot {
-                roster: oktz_plugin_api::registry::GroupRoster {
-                    participants: vec![
-                        oktz_plugin_api::registry::Participant {
-                            jid: BOT.to_string(),
-                            is_admin: true,
-                            ..Default::default()
-                        },
-                        oktz_plugin_api::registry::Participant {
-                            jid: MEMBER.to_string(),
-                            ..Default::default()
-                        },
-                    ],
-                    is_bot_admin: true,
-                },
+            Ok(oktz_plugin_api::registry::GroupRoster {
                 participants: vec![
-                    oktz_router::group::Participant {
-                        id: BOT.to_string(),
-                        lid: String::new(),
-                        phone_number: BOT.to_string(),
-                        admin: true,
+                    oktz_plugin_api::registry::Participant {
+                        jid: BOT.to_string(),
+                        is_admin: true,
+                        ..Default::default()
                     },
-                    oktz_router::group::Participant {
-                        id: MEMBER.to_string(),
-                        lid: String::new(),
-                        phone_number: MEMBER.to_string(),
-                        admin: false,
+                    oktz_plugin_api::registry::Participant {
+                        jid: MEMBER.to_string(),
+                        ..Default::default()
                     },
                 ],
-                available: true,
+                is_bot_admin: true,
             })
         })
     }
@@ -98,7 +80,7 @@ impl MessageSender for Recorder {
         &self,
         to: &str,
         message: Message,
-        _opts: SendOptions,
+        _extra_nodes: Vec<Node>,
     ) -> SendBox<'_> {
         let body = message
             .conversation

@@ -1,16 +1,14 @@
 //! `plugins/sticker/swm.js` — ganti packname/author sticker.
 //!
 //! Semua guard (reply, sticker, packname) dan pemecahan `packname|author`
-//! di-port apa adanya, termasuk laporan "Gagal mendownload sticker"
-//! (`swm.js:66-69`) ketika unduhan sticker kosong.
+//! di-port apa adanya.Langkah media tidak bisa: `QuotedMessage` di
+//! `oktz-plugin-api` bacaan saja (`quoted.download()` butuh I/O Baileys),
+//! `addExifToWebp` butuh encoder WebP + EXIF, dan `sendImageAsSticker` /
+//! `sendVideoAsSticker` tidak punya padanan di `Reply`. Karena itu jalur
+//! setelah `m.react('🕕')` berakhir di cabang `catch` JS.
 //!
-//! `ponytail:` langkah media setelah unduhan belum bisa: `addExifToWebp`
-//! butuh encoder WebP + EXIF, dan `sendImageAsSticker`/`sendVideoAsSticker`
-//! tidak punya padanan di `Reply`. Karena itu jalur setelah unduhan berakhir
-//! di cabang `catch` JS.
-//!
-//! `ponytail:` tambah `Reply::Sticker` + encoder WebP di `oktz-plugin-api`
-//! untuk menghidupkan lagi langkah `swm.js:71-91`.
+//! `ponytail:` tambah `Ctx::download_quoted()` + `Reply::Sticker` di
+//! `oktz-plugin-api` untuk menghidupkan lagi langkah `swm.js:57-79`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -87,12 +85,6 @@ pub fn swm(ctx: Ctx) -> Reply {
 
     let (_packname, _author) = split_input(input);
 
-    // `swm.js:64-69` — unduh sticker yang di-reply; kalau kosong, laporkan.
-    let buffer = ctx.download_quoted_media().unwrap_or_default();
-    if buffer.is_empty() {
-        return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendownload sticker").with_reaction("❌");
-    }
-
     // `swm.js:53-79` butuh buffer sticker; lihat catatan `ponytail:` modul.
     Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢")
 }
@@ -112,6 +104,7 @@ mod tests {
             mimetype: None,
             file_name: None,
             from_me: false,
+            timestamp: 0,
         })
     }
 
@@ -159,17 +152,6 @@ mod tests {
         for a in ["wm", "stickerwm", "stickermark", "colong"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "swm");
         }
-    }
-
-    #[test]
-    fn output_sama_dengan_js() {
-        // `swm.js:66-69` — sticker yang di-reply gagal diunduh.
-        let r = run("Foto-AI", quoted(QuotedKind::Sticker));
-        assert_eq!(text_of(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendownload sticker");
-        assert!(
-            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
-            "stiker kosong harus bereaksi ❌"
-        );
     }
 
     #[test]
@@ -251,20 +233,15 @@ mod tests {
     }
 
     #[test]
-    fn every_reachable_packname_falls_into_the_download_failure() {
-        // `swm.js:64-69` — `quoted.download()` pada `Ctx::default()` memakai
-        // `NoMediaFetch` yang selalu gagal, jadi buffer kosong dan plugin
-        // melapor "Gagal mendownload sticker" (bukan cabang `catch`).
+    fn every_reachable_packname_falls_into_the_error_template() {
+        // Guard lolos, tapi langkah media belum bisa di-port (lihat
+        // `ponytail:` modul) — cabang `catch` JS yang dipakai.
         for text in ["Foto-AI", "Foto-AI|LuckyArchz", "  Foto-AI  |  Lucky  "] {
             let r = run(text, quoted(QuotedKind::Sticker));
-            assert_eq!(
-                text_of(&r),
-                "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendownload sticker",
-                "input {text:?}"
-            );
+            assert_eq!(text_of(&r), error_reply(".", "swm"), "input {text:?}");
             assert!(
-                matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
-                "harus bereaksi ❌"
+                matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "☢"),
+                "harus bereaksi ☢"
             );
         }
     }

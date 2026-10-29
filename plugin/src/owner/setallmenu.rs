@@ -162,7 +162,7 @@ pub fn setallmenu(ctx: Ctx) -> Reply {
     .icon("DEFAULT");
 
     let mut reply = Reply::interactive(body_teks(current))
-        .with_button(InteractiveButton::select(&list));
+        .with_button_card(InteractiveButton::select(&list));
     if let Some(aset) = ctx.config().assets.get("foto")
         && ctx.berkas().ada(aset)
     {
@@ -239,9 +239,11 @@ mod tests {
     #[test]
     fn tanpa_argumen_menampilkan_kartu_dengan_tombol() {
         let r = run(&[], serde_json::json!({ "allmenuVariant": 2 }));
-        let Reply::Interactive { body, buttons, .. } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus Interactive");
         };
+        let body = &kartu.body;
+        let buttons = &kartu.buttons;
         assert!(body.contains("📋📑 *ALLMENU VARIANT*"));
         assert!(body.contains("Variant aktif saat ini: *V2 — ALLMENU PREMIUM* 🎯"));
         assert!(body.ends_with("> Pilih variant allmenu dari tombol di bawah 👇"));

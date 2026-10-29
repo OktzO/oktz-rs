@@ -1,263 +1,134 @@
-//! `plugins/sticker/sticker.js` — ubah gambar/video jadi sticker dengan opsi
-//! crop/resize/lingkaran/melengkung.
-//!
-//! Yang diport apa adanya:
-//! - Kartu pakai lengkap (`sticker.js:173-190`).
-//! - Parser opsi `--crop/-c`, `--resize/-r WxH`, `--circle`, `--rounded`,
-//!   plus dua argumen bebas sebagai packname/author (`sticker.js:53-84`).
-//! - Rantai filter ffmpeg untuk gambar dan video (`sticker.js:86-141`),
-//!   termasuk filter `geq` yang panjang — disalin apa adanya.
-//! - Pesan "video terlalu panjang" (`sticker.js:247`), pesan gagal unduh
-//!   (`sticker.js:228`), dan peringatan "efek tidak bisa diterapkan"
-//!   (`sticker.js:306-310`).
-//! - Reaksi penutup `✅` / `❌` / `☢`.
-//!
-//! `ponytail:`
-//! - JS menulis berkas sementara lalu memanggil `exec`; di sini video/gambar
-//!   dialirkan lewat pipe ffmpeg (`-i pipe:0 ... pipe:1`), jadi tidak ada
-//!   berkas di disk.
-//! - Pemeriksaan durasi video memakai `ffprobe` (`sticker.js:243`). `ffprobe`
-//!   tidak dibungkus di `oktz_plugin_api::ffmpeg`, jadi durasi dibaca dari
-//!   keluaran stderr ffmpeg. Kalau tidak terbaca, pemeriksaan dilewati —
-//!   sama seperti `catch (e) {}` di JS.
-//! - `sock.sendStickerPack` untuk album (`sticker.js:205`) tidak ada di
-//!   `Reply`, jadi album multi-media tidak dikirim.
-//! - `sock.sendImageAsSticker`/`sendVideoAsSticker` diganti `Reply::Sticker`.
+//! `plugins/sticker/sticker.js` — command `.s`.
 
-use oktz_plugin_api::registry::IncomingKind;
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-/// `sticker.js:173-190` — kartu pakai.
-pub(crate) fn pakai(prefix: &str) -> String {
+use std::sync::Arc;
+use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaFetch, MediaOrigin, MediaSource, OpsiS, Reply, StickerOpsi, plugin};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Jenis {
+    Gambar,
+    Video,
+}
+
+
+#[cfg(test)]
+#[derive(Debug, Default, Clone)]
+struct Unduhan {
+    pemicu: Vec<u8>,
+    kutipan: Vec<u8>,
+}
+
+#[cfg(test)]
+impl MediaFetch for Unduhan {
+    fn download(&self, origin: MediaOrigin) -> Result<Vec<u8>, MediaError> {
+        match origin {
+            MediaOrigin::Trigger => Ok(self.pemicu.clone()),
+            MediaOrigin::Quoted => Ok(self.kutipan.clone()),
+            MediaOrigin::Indexed(_) => Err(MediaError {
+                message: "tidak ada media di pesan yang di-reply".to_string(),
+            }),
+        }
+    }
+}
+
+fn is_gambar(ctx: &Ctx) -> bool {
+    ctx.is_media_kind(IncomingKind::Image)
+        || ctx
+            .quoted()
+            .is_some_and(|q| q.kind.is_image())
+}
+
+fn is_video(ctx: &Ctx) -> bool {
+    ctx.is_media_kind(IncomingKind::Video)
+        || ctx
+            .quoted()
+            .is_some_and(|q| q.kind.is_video())
+}
+
+fn pakai(prefix: &str) -> String {
     format!(
         "🖼️ *sᴛɪᴄᴋᴇʀ ᴍᴀᴋᴇʀ*\n\n\
-         Kirim/reply gambar atau video dengan caption:\n\
-         `{prefix}s`\n\n\
-         *ᴏᴘsɪ:*\n\
-         > `--crop` - Crop jadi kotak\n\
-         > `--resize WxH` - Resize ke ukuran\n\
-         > `--circle` - Bentuk lingkaran\n\
-         > `--rounded` - Sudut melengkung\n\n\
-         *ᴄᴏɴᴛᴏʛ:*\n\
-         > `{prefix}s --crop`\n\
-         > `{prefix}s --resize 256x256`\n\
-         > `{prefix}s --circle`\n\
-         > `{prefix}s --rounded`\n\n\
-         *ᴀʟʙᴜᴍ:*\n\
-         > Reply pesan foto/video yang banyak → semua jadi sticker dalam 1 pesan"
+Kirim/reply gambar atau video dengan caption:\n\
+`{prefix}s`\n\n\
+*ᴏᴘsɪ:*\n\
+> `--crop` - Crop jadi kotak\n\
+> `--resize WxH` - Resize ke ukuran\n\
+> `--circle` - Bentuk lingkaran\n\
+> `--rounded` - Sudut melengkung\n\n\
+*ᴄᴏɴᴛᴏʜ:*\n\
+> `{prefix}s --crop`\n\
+> `{prefix}s --resize 256x256`\n\
+> `{prefix}s --circle`\n\
+> `{prefix}s --rounded`\n\n\
+*ᴀʟʙᴜᴍ:*\n\
+> Reply pesan foto/video yang banyak → semua jadi sticker dalam 1 pesan"
     )
 }
 
-/// `sticker.js:228` — media gagal diunduh.
-pub(crate) const GAGAL_UNDUH: &str = "❌ Gagal mendownload media!";
+fn gagal_kirim() -> String {
+    "❌ Gagal mendownload media!".to_string()
+}
 
-/// `sticker.js:247` — video lebih dari 10 detik.
-pub(crate) fn terlalu_panjang(durasi: f64) -> String {
+fn terlalu_panjang(durasi: f64) -> String {
     format!(
-        "❌ Video terlalu panjang!\n\n> Durasi: {} detik\n> Maksimal: 10 detik",
-        format!("{durasi:.1}")
+        "❌ Video terlalu panjang!\n\n> Durasi: {:.1} detik\n> Maksimal: 10 detik",
+        durasi
     )
 }
 
-/// `sticker.js:306-310` — efek gagal diproses.
-pub(crate) const EFEK_GAGAL: &str = "⚠️ *Efek tidak bisa diterapkan*\n\n\
-     > Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n\
-     > _Sebaiknya cek format/ukuran sumbernya ya._";
-
-/// Opsi hasil `parseOptions` (`sticker.js:53-84`).
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct Opsi {
-    pub crop: bool,
-    pub resize: Option<String>,
-    pub circle: bool,
-    pub rounded: bool,
-    pub packname: Option<String>,
-    pub author: Option<String>,
+fn metadata(ctx: &Ctx, packname: Option<String>, author: Option<String>) -> (String, String) {
+    let cfg = ctx.config();
+    let nama_pack = packname
+        .or_else(|| (!cfg.sticker.packname.is_empty()).then(|| cfg.sticker.packname.clone()))
+        .or_else(|| (!cfg.bot.name.is_empty()).then(|| cfg.bot.name.clone()))
+        .unwrap_or_else(|| "Foto-AI".to_string());
+    let nama_author = author
+        .or_else(|| (!cfg.sticker.author.is_empty()).then(|| cfg.sticker.author.clone()))
+        .or_else(|| (!cfg.owner.name.is_empty()).then(|| cfg.owner.name.clone()))
+        .unwrap_or_else(|| "Bot".to_string());
+    (nama_pack, nama_author)
 }
 
-impl Opsi {
-    /// `sticker.js:196` — apakah ada efek yang perlu diproses.
-    pub(crate) fn ada_efek(&self) -> bool {
-        self.crop || self.resize.is_some() || self.circle || self.rounded
+fn unduh(ctx: &Ctx) -> Result<Vec<u8>, String> {
+    if ctx
+        .quoted()
+        .is_some_and(|q| q.kind.is_media())
+    {
+        return ctx
+            .download_quoted_media()
+            .map_err(|e| e.message);
+    }
+    ctx.download_media().map_err(|e| e.message)
+}
+
+fn reaksi(emoji: &str) -> Reply {
+    Reply::Reaction {
+        emoji: emoji.into(),
+        reply: Box::new(Reply::None),
     }
 }
 
-/// `parseOptions` (`sticker.js:53-84`) — tanpa regex crate.
-pub(crate) fn parse_opsi(args: &[String]) -> Opsi {
-    let mut opsi = Opsi::default();
-    let mut i = 0usize;
-    while i < args.len() {
-        let arg = args[i].as_str();
-        if arg == "--crop" || arg == "-c" {
-            opsi.crop = true;
-        } else if arg == "--resize" || arg == "-r" {
-            if let Some(next) = args.get(i + 1)
-                && is_ukuran(next)
-            {
-                opsi.resize = Some(next.clone());
-                i += 1;
-            }
-        } else if arg == "--circle" {
-            opsi.circle = true;
-        } else if arg == "--rounded" {
-            opsi.rounded = true;
-        } else if !arg.starts_with('-') && opsi.packname.is_none() {
-            opsi.packname = Some(arg.to_string());
-        } else if !arg.starts_with('-') && opsi.packname.is_some() && opsi.author.is_none() {
-            opsi.author = Some(arg.to_string());
-        }
-        i += 1;
+fn siapkan(
+    jenis: Jenis,
+    data: &[u8],
+    opsi: &[OpsiS],
+    packname: &str,
+    author: &str,
+) -> Result<(Vec<u8>, StickerOpsi), String> {
+    let opsi_wire = match jenis {
+        Jenis::Gambar => StickerOpsi::gambar(),
+        Jenis::Video => StickerOpsi::video(),
     }
-    opsi
-}
+    .with_packname(packname)
+    .with_author(author);
 
-/// `/^\d+x\d+$/i` (`sticker.js:68`).
-fn is_ukuran(raw: &str) -> bool {
-    let (a, b) = match raw.split_once('x').or_else(|| raw.split_once('X')) {
-        Some(p) => p,
-        None => return false,
+    let bytes = match jenis {
+        Jenis::Gambar => oktz_plugin_api::gambar_ke_stiker_webp(data, opsi)?,
+        Jenis::Video => oktz_plugin_api::video_ke_stiker_webp(data, opsi)?,
     };
-    !a.is_empty()
-        && !b.is_empty()
-        && a.chars().all(|c| c.is_ascii_digit())
-        && b.chars().all(|c| c.is_ascii_digit())
-}
-
-/// Filter `geq` untuk lingkaran (`sticker.js:101-102`).
-const FILTER_LINGKARAN: &str = "format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(gt(pow(X-W/2,2)+pow(Y-H/2,2),pow(min(W,H)/2,2)),0,255)'";
-
-/// Filter `geq` untuk sudut melengkung (`sticker.js:107-108`).
-const FILTER_MELENGKUNG: &str = "format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(X,50)*lt(Y,50)*gt(pow(50-X,2)+pow(50-Y,2),pow(50,2)),0,if(gt(X,W-50)*lt(Y,50)*gt(pow(X-W+50,2)+pow(50-Y,2),pow(50,2)),0,if(lt(X,50)*gt(Y,H-50)*gt(pow(50-X,2)+pow(Y-H+50,2),pow(50,2)),0,if(gt(X,W-50)*gt(Y,H-50)*gt(pow(X-W+50,2)+pow(Y-H+50,2),pow(50,2)),0,255))))'";
-
-/// `processImage` (`sticker.js:86-118`) — rantai filter untuk gambar.
-fn filter_gambar(opsi: &Opsi) -> Vec<String> {
-    let mut filters = Vec::new();
-    if let Some(ukuran) = &opsi.resize {
-        let (lebar, tinggi) = ukuran.split_once('x').or_else(|| ukuran.split_once('X')).unwrap_or((ukuran, ukuran));
-        filters.push(format!(
-            "scale={lebar}:{tinggi}:force_original_aspect_ratio=decrease"
-        ));
-        filters.push(format!(
-            "pad={lebar}:{tinggi}:(ow-iw)/2:(oh-ih)/2:color=0x00000000"
-        ));
-    }
-    if opsi.crop {
-        filters.push("crop='min(iw,ih)':'min(iw,ih)'".to_string());
-        filters.push("scale=512:512".to_string());
-    }
-    if opsi.circle {
-        filters.push(FILTER_LINGKARAN.to_string());
-    }
-    if opsi.rounded {
-        filters.push(FILTER_MELENGKUNG.to_string());
-    }
-    filters
-}
-
-/// `processVideo` (`sticker.js:120-141`) — rantai filter untuk video.
-fn filter_video(opsi: &Opsi) -> Vec<String> {
-    let mut filters = Vec::new();
-    if let Some(ukuran) = &opsi.resize {
-        let (lebar, tinggi) = ukuran.split_once('x').or_else(|| ukuran.split_once('X')).unwrap_or((ukuran, ukuran));
-        filters.push(format!(
-            "scale={lebar}:{tinggi}:force_original_aspect_ratio=decrease"
-        ));
-        filters.push(format!(
-            "pad={lebar}:{tinggi}:(ow-iw)/2:(oh-ih)/2:color=black"
-        ));
-    }
-    if opsi.crop {
-        filters.push("crop='min(iw,ih)':'min(iw,ih)'".to_string());
-        filters.push("scale=512:512".to_string());
-    }
-    filters
-}
-
-/// Jalankan ffmpeg untuk gambar → PNG.
-fn proses_gambar(input: &[u8], opsi: &Opsi) -> Option<Vec<u8>> {
-    let filters = filter_gambar(opsi);
-    if filters.is_empty() {
-        return None;
-    }
-    let argumen = vec![
-        "-hide_banner".to_string(),
-        "-loglevel".to_string(),
-        "error".to_string(),
-        "-y".to_string(),
-        "-i".to_string(),
-        "pipe:0".to_string(),
-        "-vf".to_string(),
-        filters.join(","),
-        "-f".to_string(),
-        "image2".to_string(),
-        "-vcodec".to_string(),
-        "png".to_string(),
-        "pipe:1".to_string(),
-    ];
-    let refs: Vec<&str> = argumen.iter().map(String::as_str).collect();
-    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&refs, input).ok()
-}
-
-/// Jalankan ffmpeg untuk video → MP4.
-fn proses_video(input: &[u8], opsi: &Opsi) -> Option<Vec<u8>> {
-    let filters = filter_video(opsi);
-    if filters.is_empty() {
-        return None;
-    }
-    let argumen = vec![
-        "-hide_banner".to_string(),
-        "-loglevel".to_string(),
-        "error".to_string(),
-        "-y".to_string(),
-        "-i".to_string(),
-        "pipe:0".to_string(),
-        "-vf".to_string(),
-        filters.join(","),
-        "-c:a".to_string(),
-        "copy".to_string(),
-        "-movflags".to_string(),
-        "frag_keyframe+empty_moov".to_string(),
-        "-f".to_string(),
-        "mp4".to_string(),
-        "pipe:1".to_string(),
-    ];
-    let refs: Vec<&str> = argumen.iter().map(String::as_str).collect();
-    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&refs, input).ok()
-}
-
-/// Durasi video dalam detik — dibaca dari keluaran ffmpeg (`Duration: HH:MM:SS.ss`).
-///
-/// `None` kalau tidak terbaca; pemanggil lalu melewati pemeriksaandurasi,
-/// sama seperti `catch (e) {}` pada `ffprobe` di JS (`sticker.js:252`).
-pub(crate) fn durasi_video(video: &[u8]) -> Option<f64> {
-    let argumen = [
-        "-hide_banner",
-        "-i",
-        "pipe:0",
-        "-f",
-        "null",
-        "-",
-    ];
-    let keluaran = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&argumen, video);
-    let teks = match keluaran {
-        Ok(_) => return None,
-        Err(e) => e,
-    };
-    let posisi = teks.find("Duration:")?;
-    let sisanya = &teks[posisi + "Duration:".len()..];
-    let akhir = sisanya.find(',')?;
-    let jam = sisanya[..akhir].trim();
-    let mut total = 0.0f64;
-    for (indeks, bagian) in jam.split(':').enumerate() {
-        let nilai: f64 = bagian.trim().parse().ok()?;
-        let pengali = match indeks {
-            0 => 3600.0,
-            1 => 60.0,
-            _ => 1.0,
-        };
-        total += nilai * pengali;
-    }
-    Some(total)
+    let bytes = oktz_plugin_api::tempel_metadata_stiker(&bytes, packname, author, &[&opsi_wire.emojis.first().cloned().unwrap_or_else(|| "🤖".to_string())])
+        .unwrap_or(bytes);
+    Ok((bytes, opsi_wire))
 }
 
 #[plugin(
@@ -266,236 +137,335 @@ pub(crate) fn durasi_video(video: &[u8]) -> Option<f64> {
     category = "sticker",
     description = "Membuat sticker dari gambar/video dengan opsi crop/resize",
     usage = ".s [--crop] [--resize WxH] [--circle] [--rounded]",
-    example = ".s --crop\n.s --resize 256x256\n.s --circle\n.s --rounded",
+    example = ".s --crop",
     cooldown = 5,
     energi = 1,
     is_group = false,
-    is_private = false,
-    is_owner = false,
-    is_premium = false,
-    is_admin = false,
-    is_bot_admin = false
+    is_private = false
 )]
 pub fn sticker(ctx: Ctx) -> Reply {
-    // `sticker.js:169-170` — gambar/video di pesan pemicu atau yang di-reply.
-    let quoted = ctx.quoted();
-    let is_image = ctx.is_media_kind(IncomingKind::Image)
-        || quoted.is_some_and(|q| q.kind.is_image() || q.kind.wire_type() == "imageMessage");
-    let is_video = ctx.is_media_kind(IncomingKind::Video)
-        || quoted.is_some_and(|q| q.kind.is_video() || q.kind.wire_type() == "videoMessage");
-    if !is_image && !is_video {
+    let gambar = is_gambar(&ctx);
+    let video = is_video(&ctx);
+
+    if !gambar && !video {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `sticker.js:221-225` — media yang di-reply didahulukan kalau media.
-    let media = if quoted.is_some_and(|q| q.is_media()) {
-        ctx.download_quoted_media().ok()
-    } else if ctx.is_media() {
-        ctx.download_media().ok()
-    } else {
-        None
-    };
-    let Some(mut buffer) = media else {
-        return Reply::text(GAGAL_UNDUH).with_reaction("❌");
-    };
+    let (opsi, packname, author) = oktz_plugin_api::opsi_s(&ctx.text);
+    let jenis = if gambar { Jenis::Gambar } else { Jenis::Video };
 
-    // `sticker.js:233-254` — cek durasi video.
-    if is_video {
-        if let Some(durasi) = durasi_video(&buffer)
-            && durasi > 10.0
-        {
-            return Reply::text(terlalu_panjang(durasi)).with_reaction("☢");
+    if !opsi.iter().any(|o| {
+        matches!(
+            o,
+            OpsiS::Crop | OpsiS::Resize(_, _) | OpsiS::Circle | OpsiS::Rounded
+        )
+    }) && ctx
+        .quoted()
+        .is_some_and(|q| q.kind.is_image() || q.kind.is_video())
+    {
+        let (packname, author) = metadata(&ctx, packname.clone(), author.clone());
+        let anchor_ts = ctx
+            .album_media()
+            .iter()
+            .find(|m| ctx.quoted().map(|q| q.id.as_str()) == Some(m.id.as_str()))
+            .map(|m| m.timestamp)
+            .unwrap_or(0);
+        let (selected, skipped) =
+            oktz_plugin_api::pilih_album_media(ctx.album_media(), ctx.quoted().unwrap().id.as_str(), anchor_ts);
+        if selected.len() >= 2 {
+            let mut buffers = Vec::new();
+            for item in selected {
+                if let Ok(bytes) = ctx.download_album_media(&item.id) {
+                    if let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]) {
+                        buffers.push(webp);
+                    }
+                }
+            }
+            if buffers.len() >= 2 {
+                let mut urutan = vec![
+                    reaksi("🕕"),
+                    Reply::sticker_pack(
+                        buffers
+                            .clone()
+                            .into_iter()
+                            .map(MediaSource::bytes)
+                            .collect(),
+                        packname.clone(),
+                        author.clone(),
+                        String::new(),
+                        vec!["🎨".to_string()],
+                    ),
+                ];
+                if skipped > 0 {
+                    urutan.push(Reply::text(format!(
+                        "Sticker album selesai ({}). {} media lainnya dilewati (maks 10).",
+                        buffers.len(),
+                        skipped
+                    )));
+                }
+                urutan.push(reaksi("✅"));
+                return Reply::sequence(urutan);
+            }
         }
     }
 
-    // `sticker.js:195` — opsi efek.
-    let opsi = parse_opsi(&ctx.args);
-    let mut diproses = true;
-    if opsi.ada_efek() {
-        let hasil = if is_image {
-            proses_gambar(&buffer, &opsi)
-        } else {
-            proses_video(&buffer, &opsi)
-        };
-        match hasil {
-            Some(hasil) => buffer = hasil,
-            // `sticker.js:284-289` — ffmpeg gagal: buffer asli tetap dikirim.
-            None => diproses = false,
+    let Ok(data) = unduh(&ctx) else {
+        return Reply::sequence(vec![Reply::text(gagal_kirim()), reaksi("❌")]);
+    };
+
+    if video
+        && let Some(durasi) = oktz_plugin_api::ffmpeg::durasi_dari_masukan(&data)
+        && durasi > 10.0
+    {
+        return Reply::sequence(vec![Reply::text(terlalu_panjang(durasi)), reaksi("☢")]);
+    }
+
+    let (packname, author) = metadata(&ctx, packname, author);
+    let has_processing = opsi.iter().any(|o| {
+        matches!(
+            o,
+            OpsiS::Crop | OpsiS::Resize(_, _) | OpsiS::Circle | OpsiS::Rounded
+        )
+    });
+
+    match siapkan(jenis, &data, &opsi, &packname, &author) {
+        Ok((bytes, opsi_wire)) => {
+            let mut urutan = vec![
+                reaksi("🕕"),
+                Reply::sticker_opsi(
+                    MediaSource::bytes(bytes).with_mimetype(match jenis {
+                        Jenis::Gambar => "image/webp",
+                        Jenis::Video => "image/webp",
+                    }),
+                    opsi_wire,
+                ),
+                reaksi("✅"),
+            ];
+            if has_processing {
+                urutan.push(Reply::text(
+                    "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._",
+                ));
+            }
+            Reply::sequence(urutan)
         }
+        Err(_) if has_processing => {
+            match siapkan(jenis, &data, &[], &packname, &author) {
+                Ok((bytes, opsi_wire)) => Reply::sequence(vec![
+                    reaksi("🕕"),
+                    Reply::sticker_opsi(
+                        MediaSource::bytes(bytes).with_mimetype("image/webp"),
+                        opsi_wire,
+                    ),
+                    reaksi("✅"),
+                    Reply::text(
+                        "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._",
+                    ),
+                ]),
+                Err(_) => Reply::sequence(vec![
+                    Reply::text(crate::common::error_template(&ctx)),
+                    reaksi("❌"),
+                ]),
+            }
+        }
+        Err(_) => Reply::sequence(vec![
+            Reply::text(crate::common::error_template(&ctx)),
+            reaksi("❌"),
+        ]),
     }
-
-    // `sticker.js:296-302` — kirim sticker, lalu centang hijau.
-    let balasan = Reply::sticker(MediaSource::bytes(buffer.clone()));
-
-    // `sticker.js:304-311` — efek gagal: tetap kirim sticker + peringatan.
-    // `ponytail:` `Reply::Sequence` tidak boleh berisi `Reaction` (pipeline
-    // merender tiap elemen_sequence lewat `render_reply`, yang menolak
-    // `Reaction`), jadi pada jalur ini reaksi ✅ tidak ikut.
-    if opsi.ada_efek() && !diproses {
-        return Reply::sequence(vec![balasan, Reply::text(EFEK_GAGAL)]);
-    }
-    balasan.with_reaction("✅")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::config::Runtime;
     use oktz_plugin_api::IncomingMedia;
+        use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::Mutex;
+
+    static STICKER_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    fn ctx_of(gambar: bool, args: &[&str]) -> Ctx {
+    fn ffprobe_palsu(durasi: &str) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("oktz-ffprobe-{}.sh", std::process::id()));
+        fs::write(
+            &path,
+            format!("#!/bin/sh\ncat >/dev/null\necho {durasi}\n"),
+        )
+        .unwrap();
+        let mut izin = fs::metadata(&path).unwrap().permissions();
+        izin.set_mode(0o755);
+        fs::set_permissions(&path, izin).unwrap();
+        path
+    }
+
+    fn png() -> Vec<u8> {
+        b"RIFF0000WEBP".to_vec()
+    }
+
+    fn ctx_media(kind: IncomingKind, pemicu: Vec<u8>, kutipan: Vec<u8>) -> Ctx {
         Ctx {
-            text: args.join(" "),
-            args: args.iter().map(|a| (*a).to_string()).collect(),
-            sender: ME.into(),
-            chat: ME.into(),
             prefix: ".".into(),
             command: "s".into(),
-            media: gambar.then(|| IncomingMedia {
-                kind: IncomingKind::Image,
-                mimetype: Some("image/png".into()),
+            sender: ME.into(),
+            chat: ME.into(),
+            text: String::new(),
+            args: Vec::new(),
+            media: Some(IncomingMedia {
+                kind,
+                mimetype: None,
                 file_name: None,
                 caption: String::new(),
             }),
+            media_fetch: Arc::new(Unduhan { pemicu, kutipan }),
             ..Ctx::default()
         }
     }
 
-    fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or("").to_string()
-    }
-
-    fn reaksi(r: &Reply) -> Option<&str> {
-        match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji.as_str()),
-            _ => None,
+    fn ctx_kutipan(kind: IncomingKind, pemicu: Vec<u8>, kutipan: Vec<u8>) -> Ctx {
+        let kind = match kind {
+            IncomingKind::Image => oktz_plugin_api::QuotedKind::Image,
+            IncomingKind::Video => oktz_plugin_api::QuotedKind::Video,
+            _ => oktz_plugin_api::QuotedKind::Other("media".into()),
+        };
+        let q = oktz_plugin_api::QuotedMessage {
+            id: "Q1".into(),
+            sender: ME.into(),
+            chat: ME.into(),
+            text: String::new(),
+            kind,
+            mimetype: None,
+            file_name: None,
+            from_me: false,
+            timestamp: 0,
+        };
+        Ctx {
+            quoted: Some(q),
+            ..ctx_media(IncomingKind::Image, pemicu, kutipan)
         }
     }
 
-    fn args_dari(list: &[&str]) -> Vec<String> {
-        list.iter().map(|a| (*a).to_string()).collect()
-    }
-
     #[test]
-    fn output_sama_dengan_js() {
-        assert_eq!(GAGAL_UNDUH, "❌ Gagal mendownload media!");
-        assert_eq!(
-            terlalu_panjang(12.34),
-            "❌ Video terlalu panjang!\n\n> Durasi: 12.3 detik\n> Maksimal: 10 detik"
-        );
-        assert_eq!(
-            EFEK_GAGAL,
-            "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._"
-        );
-    }
-
-    #[test]
-    fn meta_sama_dengan_js() {
+    fn plugin_registers_sticker_with_js_aliases_and_cooldown() {
         let p = oktz_plugin_api::find("sticker").unwrap();
         assert_eq!(p.meta.name, "sticker");
         assert_eq!(p.meta.alias, ["s", "stiker", "stickergif"]);
-        assert_eq!(p.meta.category, "sticker");
-        assert_eq!(
-            p.meta.description,
-            "Membuat sticker dari gambar/video dengan opsi crop/resize"
-        );
-        assert_eq!(p.meta.usage, ".s [--crop] [--resize WxH] [--circle] [--rounded]");
-        assert_eq!(
-            p.meta.example,
-            ".s --crop\n.s --resize 256x256\n.s --circle\n.s --rounded"
-        );
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
-        assert!(!p.meta.is_group && !p.meta.is_private);
-        assert!(!p.meta.is_owner && !p.meta.is_premium);
-    }
-
-    #[test]
-    fn setiap_alias_menunjuk_plugin_ini() {
-        for a in ["s", "stiker", "stickergif"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "sticker");
+        for key in ["s", "stiker", "stickergif"] {
+            assert_eq!(oktz_plugin_api::find(key).map(|p| p.meta.name.as_str()), Some("sticker"));
         }
     }
 
     #[test]
-    fn parse_opsi_menurut_js() {
-        let o = parse_opsi(&args_dari(&["--crop"]));
-        assert!(o.crop && !o.circle && !o.rounded && o.resize.is_none());
-
-        let o = parse_opsi(&args_dari(&["-c"]));
-        assert!(o.crop);
-
-        let o = parse_opsi(&args_dari(&["--resize", "256x256"]));
-        assert_eq!(o.resize.as_deref(), Some("256x256"));
-        assert!(o.ada_efek());
-
-        let o = parse_opsi(&args_dari(&["-r", "300x200"]));
-        assert_eq!(o.resize.as_deref(), Some("300x200"));
-
-        // Ukuran tidak valid → opsi diabaikan, argumen berikutnya tetap diproses.
-        let o = parse_opsi(&args_dari(&["--resize", "abc"]));
-        assert!(o.resize.is_none());
-
-        let o = parse_opsi(&args_dari(&["--circle", "--rounded"]));
-        assert!(o.circle && o.rounded);
-
-        // Dua argumen bebas pertama = packname, kedua = author.
-        let o = parse_opsi(&args_dari(&["Foto-AI", "Lucky", "--crop"]));
-        assert_eq!(o.packname.as_deref(), Some("Foto-AI"));
-        assert_eq!(o.author.as_deref(), Some("Lucky"));
-        assert!(o.crop);
+    fn option_parser_matches_js_first_two_named_tokens() {
+        let (opsi, packname, author) = oktz_plugin_api::opsi_s("--resize 256x256 Pack Author ketiga");
+        assert_eq!(opsi, vec![OpsiS::Resize(256, 256)]);
+        assert_eq!(packname.as_deref(), Some("Pack"));
+        assert_eq!(author.as_deref(), Some("Author"));
     }
 
     #[test]
-    fn filter_gambar_sesuai_js() {
-        let o = parse_opsi(&args_dari(&["--resize", "256x256"]));
-        let f = filter_gambar(&o);
+    fn image_sticker_metadata_and_context_match_js() {
+        let r = sticker(ctx_media(IncomingKind::Image, png(), Vec::new()));
+        let Reply::Sequence(list) = r else {
+            panic!("harus sequence: {r:?}")
+        };
+        let Reply::Sticker { media, opsi } = &list[1] else {
+            panic!("harus sticker: {list:?}")
+        };
+        assert!(media.is_some());
+        assert!(opsi.forwarded);
+        assert_eq!(opsi.forwarding_score, Some(1));
+        assert!(opsi.premium);
+        assert_eq!(opsi.packname.as_deref(), Some("Foto-AI"));
+    }
+
+    #[test]
+    fn video_sticker_context_is_forwarding_score_999() {
+        let _guard = STICKER_TEST_LOCK.lock().unwrap();
+        let r = sticker(ctx_media(IncomingKind::Video, b"RIFF0000WEBP".to_vec(), Vec::new()));
+        let Reply::Sequence(list) = r else {
+            panic!("harus sequence: {r:?}")
+        };
+        let Reply::Sticker { opsi, .. } = &list[1] else {
+            panic!("harus sticker: {list:?}")
+        };
+        assert!(opsi.forwarded);
+        assert_eq!(opsi.forwarding_score, Some(999));
+        assert!(!opsi.premium);
+    }
+
+    #[test]
+    fn quoted_media_is_downloaded_before_trigger() {
+        let _guard = STICKER_TEST_LOCK.lock().unwrap();
+        let r = sticker(ctx_kutipan(IncomingKind::Video, b"RIFF0000WEBP".to_vec(), b"RIFF0000WEBP".to_vec()));
+        let Reply::Sequence(list) = r else {
+            panic!("harus sequence: {r:?}")
+        };
+        assert!(matches!(&list[1], Reply::Sticker { .. }));
+    }
+
+    #[test]
+    fn over_ten_second_video_is_rejected_with_js_text() {
+        let _guard = STICKER_TEST_LOCK.lock().unwrap();
+        let path = ffprobe_palsu("10.5");
+        unsafe { std::env::set_var("OTKZ_FFPROBE_PATH", &path) };
+        let r = sticker(ctx_media(IncomingKind::Video, Vec::new(), Vec::new()));
+        unsafe { std::env::remove_var("OTKZ_FFPROBE_PATH") };
+        let _ = fs::remove_file(&path);
+        let Reply::Sequence(list) = r else {
+            panic!("harus sequence: {r:?}")
+        };
         assert_eq!(
-            f,
-            vec![
-                "scale=256:256:force_original_aspect_ratio=decrease".to_string(),
-                "pad=256:256:(ow-iw)/2:(oh-ih)/2:color=0x00000000".to_string(),
-            ]
+            list[0].without_mutations().text_body().unwrap(),
+            terlalu_panjang(10.5)
         );
+        assert!(matches!(&list[1], Reply::Reaction { emoji, .. } if emoji == "☢"));
+    }
 
-        let o = parse_opsi(&args_dari(&["--crop"]));
+    #[test]
+    fn processing_failure_sends_original_then_check_then_warning() {
+        let r = sticker(Ctx {
+            text: "--circle".into(),
+            args: vec!["--circle".into()],
+            ..ctx_media(IncomingKind::Image, png(), Vec::new())
+        });
+        let Reply::Sequence(list) = r else {
+            panic!("harus sequence: {r:?}")
+        };
+        assert_eq!(list.len(), 4);
+        assert!(matches!(&list[1], Reply::Sticker { .. }));
+        assert!(matches!(&list[2], Reply::Reaction { emoji, .. } if emoji == "✅"));
+        assert!(list[3].without_mutations().text_body().unwrap().contains("Sebaiknya"));
+    }
+
+    #[test]
+    fn no_media_shows_js_usage_card() {
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "s".into(),
+            ..Ctx::default()
+        };
+        let r = sticker(ctx);
         assert_eq!(
-            filter_gambar(&o),
-            vec![
-                "crop='min(iw,ih)':'min(iw,ih)'".to_string(),
-                "scale=512:512".to_string(),
-            ]
+            r.without_mutations().text_body().unwrap(),
+            pakai(".")
         );
-
-        let o = parse_opsi(&args_dari(&["--circle"]));
-        assert!(filter_gambar(&o)[0].starts_with("format=rgba,geq=r='r(X,Y)'"));
     }
 
     #[test]
-    fn filter_video_menggunakan_pad_hitam() {
-        let o = parse_opsi(&args_dari(&["--resize", "256x256"]));
-        let f = filter_video(&o);
-        assert_eq!(
-            f[1],
-            "pad=256:256:(ow-iw)/2:(oh-ih)/2:color=black".to_string()
-        );
-        // Lingkaran/melengkung hanya berlaku untuk gambar.
-        let o = parse_opsi(&args_dari(&["--circle"]));
-        assert!(filter_video(&o).is_empty());
-    }
-
-    #[test]
-    fn tanpa_media_menampilkan_kartu_pakai() {
-        let r = sticker(ctx_of(false, &[]));
-        assert_eq!(teks(&r), pakai("."));
-        assert_eq!(reaksi(&r), None);
-    }
-
-    #[test]
-    fn media_gagal_diunduh_menampilkan_pesan_gagal() {
-        let r = sticker(ctx_of(true, &[]));
-        assert_eq!(teks(&r), GAGAL_UNDUH);
-        assert_eq!(reaksi(&r), Some("❌"));
+    fn config_defaults_follow_js_truthy_chain() {
+        let mut cfg = Runtime::default();
+        cfg.sticker.packname.clear();
+        cfg.sticker.author.clear();
+        cfg.bot.name = "Foto-AI".into();
+        cfg.owner.name = "Oktz".into();
+        let ctx = Ctx {
+            config: Arc::new(cfg),
+            ..Ctx::default()
+        };
+        assert_eq!(metadata(&ctx, None, None), ("Foto-AI".to_string(), "Oktz".to_string()));
     }
 }

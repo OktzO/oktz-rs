@@ -403,9 +403,9 @@ mod tests {
         assert!(t.contains("> Total Grup: *1*"), "{t}");
         assert!(t.contains("_Pilih grup dari daftar di bawah:_"), "{t}");
         match r.without_mutations() {
-            Reply::Interactive { buttons, footer, .. } => {
-                assert_eq!(buttons.len(), 2);
-                assert_eq!(footer.as_deref(), Some("Oktz Bot"));
+            Reply::Interactive { kartu } => {
+                assert_eq!(kartu.buttons.len(), 2);
+                assert_eq!(kartu.footer.as_deref(), Some("Oktz Bot"));
             }
             other => panic!("harus Interactive, dapat {other:?}"),
         }

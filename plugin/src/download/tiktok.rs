@@ -280,7 +280,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             .with_header(CardHeader::new().video(
                 Ms::bytes(res.body.bytes().to_vec()).with_mimetype(mimetype),
             ))
-            .with_button(tombol_musik)
+            .with_button_card(tombol_musik)
             .with_reaction("✅");
     }
 
@@ -301,7 +301,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
                 .with_header(CardHeader::new().image(
                     Ms::url(foto).with_mimetype("image/jpeg"),
                 ))
-                .with_button(tombol_musik),
+                .with_button_card(tombol_musik),
             Reply::text(SLIDE_BERHASIL),
         ]);
     }

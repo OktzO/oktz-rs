@@ -1499,7 +1499,7 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
         // "Tekan tombol untuk mulai!" dan satu tombol Mulai Gacha.
         return Reply::interactive(guide(&ctx.prefix))
             .with_footer(FOOTER_PANDUAN)
-            .with_button(InteractiveButton::quick_reply(
+            .with_button_card(InteractiveButton::quick_reply(
                 "🎲 Mulai Gacha!",
                 format!("{}gachawaifu start", ctx.prefix),
             ));

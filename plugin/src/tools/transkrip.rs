@@ -324,6 +324,7 @@ mod tests {
             mimetype: Some("audio/ogg; codecs=opus".into()),
             file_name: None,
             from_me: false,
+            timestamp: 0,
         };
         let r = transkrip(ctx_dengan(Stub::offline(), Some(q), ""));
         assert_eq!(
@@ -346,6 +347,7 @@ mod tests {
             mimetype: Some("audio/ogg; codecs=opus".into()),
             file_name: None,
             from_me: false,
+            timestamp: 0,
         };
         assert_eq!(terlalu_kecil(), "❌ Audio terlalu kecil atau gagal diunduh");
         let r = transkrip(ctx_dengan(Stub::offline(), Some(q), "KUNCI"));

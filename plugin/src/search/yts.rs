@@ -115,11 +115,11 @@ pub fn yts(ctx: Ctx) -> Reply {
     Reply::interactive(body)
         .with_footer(ctx.config().bot.name.clone())
         .with_header(header)
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply(
             "🎥 Unduh Video",
             format!(".ytmp4 {}", first.url),
         ))
-        .with_button(InteractiveButton::quick_reply(
+        .with_button_card(InteractiveButton::quick_reply(
             "🎵 Unduh Audio",
             format!(".ytmp3 {}", first.url),
         ))
@@ -282,20 +282,20 @@ mod tests {
     fn tombol_unduh_memakai_url_video() {
         let r = run(Stub::body(HASIL), "lagu uji");
         match r.without_mutations().tanpa_reaksi() {
-            Reply::Interactive { buttons, .. } => {
-                assert_eq!(buttons.len(), 2);
-                assert_eq!(buttons[0].name, "quick_reply");
+            Reply::Interactive { kartu } => {
+                assert_eq!(kartu.buttons.len(), 2);
+                assert_eq!(kartu.buttons[0].name, "quick_reply");
                 assert_eq!(
-                    buttons[0].params["display_text"],
+                    kartu.buttons[0].params["display_text"],
                     "🎥 Unduh Video"
                 );
                 assert_eq!(
-                    buttons[0].params["id"],
+                    kartu.buttons[0].params["id"],
                     ".ytmp4 https://www.youtube.com/watch?v=aaaaaaaaaaa"
                 );
-                assert_eq!(buttons[1].params["display_text"], "🎵 Unduh Audio");
+                assert_eq!(kartu.buttons[1].params["display_text"], "🎵 Unduh Audio");
                 assert_eq!(
-                    buttons[1].params["id"],
+                    kartu.buttons[1].params["id"],
                     ".ytmp3 https://www.youtube.com/watch?v=aaaaaaaaaaa"
                 );
             }

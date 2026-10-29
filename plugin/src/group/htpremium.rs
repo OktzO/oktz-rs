@@ -2,9 +2,9 @@
 //!
 //! `pluginConfig.name` di JS adalah array
 //! `['htpremium', 'hidetagpremium', 'htprem']`. `PluginMeta.name` hanya
-//! `String`, jadi elemen pertama jadi `name` dan sisanya jadi command
-//! tambahan (`PluginMeta::commands`) — `find()` mengeceknya sebelum alias.
-//! Pola yang sama dipakai [`crate::group::autodl`].
+//! `String`, jadi elemen pertama jadi `name` dan sisanya jadi `alias` —
+//! `matches()` tetap menerima ketiganya. Pola yang sama dipakai
+//! [`crate::group::autodl`].
 //!
 //! `ponytail:`
 //! 1. Cabang media di reply-mode butuh `quoted.download()`
@@ -34,10 +34,7 @@ pub(crate) fn help(prefix: &str) -> String {
 
 #[plugin(
     name = "htpremium",
-    commands = [
-        "hidetagpremium", "htprem",
-    ],
-    alias = [],
+    alias = ["hidetagpremium", "htprem"],
     category = "group",
     description = "Hidetag dengan support reply pesan (teks/media)",
     usage = ".htprem [pesan] atau reply pesan",
@@ -103,6 +100,7 @@ mod tests {
             mimetype: None,
             file_name: None,
             from_me: false,
+            timestamp: 0,
         }
     }
 
@@ -146,8 +144,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("htpremium").unwrap();
         assert_eq!(p.meta.name, "htpremium");
-        assert_eq!(p.meta.commands, ["hidetagpremium", "htprem"]);
-        assert!(p.meta.alias.is_empty(), "alias JS: []");
+        assert_eq!(p.meta.alias, ["hidetagpremium", "htprem"]);
         assert_eq!(p.meta.category, "group");
         assert_eq!(
             p.meta.description,

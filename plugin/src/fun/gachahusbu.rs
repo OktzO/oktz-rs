@@ -1118,7 +1118,7 @@ fn gacha_husbu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     if sub != "start" {
         return Reply::interactive(guide(&ctx.prefix))
             .with_footer(FOOTER_PANDUAN)
-            .with_button(InteractiveButton::quick_reply(
+            .with_button_card(InteractiveButton::quick_reply(
                 "🎲 Panggil Husbando!",
                 format!("{}gachahusbu start", ctx.prefix),
             ));

@@ -222,7 +222,12 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
                         r
                     })
                     .collect();
-                out.push(Reply::table("", headers, body));
+                let mut tabel = oktz_plugin_api::Tabel::baru("");
+                tabel = tabel.header(headers);
+                for row in body {
+                    tabel = tabel.baris(row);
+                }
+                out.push(Reply::Tabel { tabel });
             }
         }
     }
