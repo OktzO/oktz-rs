@@ -402,8 +402,8 @@ impl Default for Energi {
     fn default() -> Self {
         Self {
             enabled: true,
-            default: 1,
-            premium: 0,
+            default: 99999,
+            premium: 99999999,
             owner: -1,
         }
     }
@@ -693,6 +693,12 @@ impl Config {
             set_u64(m, "syncInterval", "turso", &mut self.turso.sync_interval)?;
             set_bool(m, "enabled", "turso", &mut self.turso.enabled)?;
         }
+        if let Some(m) = objek(root, "energi")? {
+            set_bool(m, "enabled", "energi", &mut self.energi.enabled)?;
+            set_i64(m, "default", "energi", &mut self.energi.default)?;
+            set_i64(m, "premium", "energi", &mut self.energi.premium)?;
+            set_i64(m, "owner", "energi", &mut self.energi.owner)?;
+        }
         if let Some(m) = objek(root, "apiKeys")? {
             let a = &mut self.api_keys;
             set_teks(m, "neoxr", "apiKeys", &mut a.neoxr)?;
@@ -774,6 +780,16 @@ fn set_u64(m: &Map<String, Value>, kunci: &str, jalur: &str, out: &mut u64) -> R
             *out = v
                 .as_u64()
                 .ok_or_else(|| Error::Config(format!("{jalur}.{kunci} harus bilangan bulat")))?;
+            Ok(())
+        }
+    }
+}
+
+fn set_i64(m: &Map<String, Value>, kunci: &str, jalur: &str, out: &mut i64) -> Result<()> {
+    match m.get(kunci) {
+        None | Some(Value::Null) => Ok(()),
+        Some(v) => {
+            *out = v.as_i64().ok_or_else(|| Error::Config(format!("{jalur}.{kunci} harus bilangan bulat")))?;
             Ok(())
         }
     }

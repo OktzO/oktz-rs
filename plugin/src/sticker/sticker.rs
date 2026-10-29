@@ -177,6 +177,14 @@ pub fn sticker(ctx: Ctx) -> Reply {
             for item in selected {
                 if let Ok(bytes) = ctx.download_album_media(&item.id) {
                     if let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]) {
+                        let (pn, au) = metadata(&ctx, Some(packname.clone()), Some(author.clone()));
+                        let webp = oktz_plugin_api::tempel_metadata_stiker(
+                            &webp,
+                            &pn,
+                            &au,
+                            &[],
+                        )
+                        .unwrap_or(webp);
                         buffers.push(webp);
                     }
                 }
@@ -229,25 +237,18 @@ pub fn sticker(ctx: Ctx) -> Reply {
     });
 
     match siapkan(jenis, &data, &opsi, &packname, &author) {
-        Ok((bytes, opsi_wire)) => {
-            let mut urutan = vec![
-                reaksi("🕕"),
-                Reply::sticker_opsi(
-                    MediaSource::bytes(bytes).with_mimetype(match jenis {
-                        Jenis::Gambar => "image/webp",
-                        Jenis::Video => "image/webp",
-                    }),
-                    opsi_wire,
-                ),
-                reaksi("✅"),
-            ];
-            if has_processing {
-                urutan.push(Reply::text(
-                    "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._",
-                ));
-            }
-            Reply::sequence(urutan)
-        }
+        Ok((bytes, opsi_wire)) => Reply::sequence(vec![
+            reaksi("🕕"),
+            Reply::sticker_opsi(
+                MediaSource::bytes(bytes).with_mimetype(match jenis {
+                    Jenis::Gambar => "image/webp",
+                    Jenis::Video => "image/webp",
+                }),
+                opsi_wire,
+            ),
+            reaksi("✅"),
+        ]),
+
         Err(_) if has_processing => {
             match siapkan(jenis, &data, &[], &packname, &author) {
                 Ok((bytes, opsi_wire)) => Reply::sequence(vec![

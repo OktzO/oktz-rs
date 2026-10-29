@@ -89,6 +89,84 @@ pub fn identity_from_owners<I: IntoIterator<Item = String>>(owners: I) -> Identi
     }
 }
 
+/// Muat identitas owner/premium/partner dari berkas sumber yang sama dengan JS.
+///
+/// Sumber:
+/// - owner: `config.owner_numbers` + `<db>/owner.json` + `settings.ownerNumbers`
+/// - premium: `<db>/premium.json` (bentuk `{premium:[...]}` atau array) + `settings.premiumUsers`
+/// - partner: `<db>/partner.json` + `settings.partnerUsers` (jika ada)
+///
+/// Premium otomatis mencakup owner & partner, sama seperti `config.js`.
+pub fn load_identity<I: IntoIterator<Item = String>>(
+    settings: &std::path::Path,
+    owners: I,
+) -> Identity {
+    use oktz_store::json_store::JsonStore;
+    use std::collections::HashSet;
+
+    let mut owners_set: HashSet<String> = owners.into_iter().collect();
+    let mut premium_set: HashSet<String> = HashSet::new();
+    let mut partner_set: HashSet<String> = HashSet::new();
+    let dir = settings.parent().unwrap_or_else(|| std::path::Path::new("."));
+
+    // owner.json
+    if let Ok(store) = JsonStore::open(dir.join("owner.json")) {
+        if let Some(arr) = store.all().as_array() {
+            for v in arr {
+                if let Some(s) = v.as_str() { owners_set.insert(s.to_string()); }
+            }
+        }
+    }
+
+    // premium.json / partner.json — bentuk objek {premium:[...]} atau array langsung.
+    for (file, set) in [("premium.json", &mut premium_set), ("partner.json", &mut partner_set)] {
+        if let Ok(store) = JsonStore::open(dir.join(file)) {
+            let root = store.all();
+            let arr = root.as_array()
+                .or_else(|| root.get(file.trim_end_matches(".json")).and_then(serde_json::Value::as_array))
+                .or_else(|| root.get("premium").and_then(serde_json::Value::as_array))
+                .or_else(|| root.get("partner").and_then(serde_json::Value::as_array))
+                .or_else(|| root.get("partners").and_then(serde_json::Value::as_array));
+            if let Some(arr) = arr {
+                for v in arr {
+                    if let Some(s) = v.as_str() {
+                        set.insert(s.to_string());
+                    } else if let Some(obj) = v.as_object() {
+                        if let Some(s) = obj.get("jid").or_else(|| obj.get("number")).or_else(|| obj.get("id")).and_then(serde_json::Value::as_str) {
+                            set.insert(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // settings.json
+    if let Ok(store) = JsonStore::open(settings) {
+        let root = store.all();
+        if let Some(arr) = root.get("ownerNumbers").and_then(serde_json::Value::as_array) {
+            for v in arr { if let Some(s)=v.as_str() { owners_set.insert(s.to_string()); } }
+        }
+        if let Some(arr) = root.get("premiumUsers").and_then(serde_json::Value::as_array) {
+            for v in arr { if let Some(s)=v.as_str() { premium_set.insert(s.to_string()); } }
+        }
+        if let Some(arr) = root.get("partnerUsers").and_then(serde_json::Value::as_array) {
+            for v in arr { if let Some(s)=v.as_str() { partner_set.insert(s.to_string()); } }
+        }
+    }
+
+    // owner & partner ikut premium (sama seperti config.js)
+    for o in owners_set.clone() { premium_set.insert(o); }
+    for p in partner_set.clone() { premium_set.insert(p); }
+
+    Identity {
+        owners: owners_set,
+        premium: premium_set,
+        partners: partner_set,
+        admins: HashSet::new(),
+    }
+}
+
 /// `creds.me.id` → `bot_id`, dengan [`DEFAULT_BOT_ID`] sebagai fallback.
 ///
 /// Creds tak terbaca menghasilkan `Value::Null` (`load_guard_creds`), jadi
@@ -157,7 +235,7 @@ pub fn wiring_from_with_config(
         .with_context(|| format!("buka settings store {}", settings.display()))?;
     Ok(PipelineWiring {
         ctx: StoreContext::new(Arc::new(store)),
-        identity: identity_from_owners(owners),
+        identity: load_identity(settings, owners),
         bot_id: bot_id.into(),
         config,
         db_owners: owner_entries(settings.parent().map(|p| p.join("owner.json")).as_deref().unwrap_or(Path::new("owner.json"))),

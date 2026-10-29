@@ -326,49 +326,68 @@ pub fn tempel_metadata_stiker(
         return Err("bukan WebP".to_string());
     }
     let chunks = parse_chunks(webp).ok_or_else(|| "WebP rusak".to_string())?;
-    let exif = exif_payload(&sticker_metadata_json(packname, author, emojis));
+
+    // Trim trailing slack (byte sisa di luar chunk terakhir). WA menolak
+    // "garbage bytes at end".
+    let mut end = 12usize;
+    let riff_size = u32::from_le_bytes([webp[4], webp[5], webp[6], webp[7]]) as usize;
+    let limit = (12 + riff_size).min(webp.len());
+    while end + 8 <= limit {
+        let size = u32::from_le_bytes([webp[end + 4], webp[end + 5], webp[end + 6], webp[end + 7]]) as usize;
+        if end + 8 + size > limit {
+            break;
+        }
+        end += 8 + size + (size % 2);
+    }
+    let clean = if end < webp.len() && end >= 12 {
+        &webp[..end]
+    } else {
+        webp
+    };
+    // Recompute chunks from clean bytes.
+    let chunks = parse_chunks(clean).ok_or_else(|| "WebP rusak".to_string())?;
 
     let has_vp8x = chunks.iter().any(|(id, _)| id == b"VP8X");
     let has_alpha = chunks.iter().any(|(id, _)| id == b"ALPH");
-    let (mut width, mut height) = (0u32, 0u32);
+    let has_anim = chunks.iter().any(|(id, _)| id == b"ANIM" || id == b"ANMF");
+
+    // Dimensi.
+    let mut width = 0u32;
+    let mut height = 0u32;
     if let Some((_, payload)) = chunks.iter().find(|(id, _)| id == b"VP8X") {
         if payload.len() >= 10 {
-            let packed = ((payload[6] as u32) << 16)
-                | ((payload[7] as u32) << 8)
-                | payload[8] as u32;
-            let packed_h = ((payload[9] as u32) << 24)
-                | 0; // height occupies low 3 bytes after first byte
-            width = packed + 1;
-            height = packed_h.max(payload[9] as u32) + 1;
+            width = u32::from_le_bytes([payload[4], payload[5], payload[6], 0]) & 0x00FF_FFFF;
+            // payload layout: flags(1)+reserved(3)+canvasW(3)+canvasH(3)
+            width = u32::from_le_bytes([payload[4 + 4], payload[5 + 4], payload[6 + 4], 0]) & 0x00FF_FFFF; // placeholder
         }
     }
+    // Simpler: parse via getWebpDimensions logic.
+    let _ = (width, height);
+    // Recompute properly:
+    let (w, h) = webp_dimensions(clean);
+    let (width, height) = (w, h);
+
+    let exif = exif_payload(&sticker_metadata_json(packname, author, emojis));
 
     let mut body: Vec<u8> = Vec::new();
-    let flags = if has_alpha { 0x18 } else { 0x18 };
     if !has_vp8x {
-        let mut vp8x = vec![flags, 0, 0, 0];
-        let w = width.saturating_sub(1).min(0xFF_FFFF);
-        let h = height.saturating_sub(1).min(0xFF_FFFF);
-        vp8x.push(((w >> 16) & 0xFF) as u8);
-        vp8x.push(((w >> 8) & 0xFF) as u8);
-        vp8x.push((w & 0xFF) as u8);
-        vp8x.push(((h >> 16) & 0xFF) as u8);
-        vp8x.push(((h >> 8) & 0xFF) as u8);
-        vp8x.push((h & 0xFF) as u8);
-        put_chunk(&mut body, b"VP8X", &vp8x);
-    } else {
-        let mut vp8x = vec![flags, 0, 0, 0];
-        let w = width.saturating_sub(1).min(0xFF_FFFF);
-        let h = height.saturating_sub(1).min(0xFF_FFFF);
-        vp8x.push(((w >> 16) & 0xFF) as u8);
-        vp8x.push(((w >> 8) & 0xFF) as u8);
-        vp8x.push((w & 0xFF) as u8);
-        vp8x.push(((h >> 16) & 0xFF) as u8);
-        vp8x.push(((h >> 8) & 0xFF) as u8);
-        vp8x.push((h & 0xFF) as u8);
-        put_chunk(&mut body, b"VP8X", &vp8x);
+        if width > 0 && height > 0 {
+            let flags = 0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 });
+            let mut vp8x = vec![flags, 0, 0, 0];
+            let cw = (width.max(1) - 1).min(0x00FF_FFFF);
+            let ch = (height.max(1) - 1).min(0x00FF_FFFF);
+            vp8x.push(((cw >> 16) & 0xFF) as u8);
+            vp8x.push(((cw >> 8) & 0xFF) as u8);
+            vp8x.push((cw & 0xFF) as u8);
+            vp8x.push(((ch >> 16) & 0xFF) as u8);
+            vp8x.push(((ch >> 8) & 0xFF) as u8);
+            vp8x.push((ch & 0xFF) as u8);
+            put_chunk(&mut body, b"VP8X", &vp8x);
+        }
     }
-    for (id, payload) in chunks.iter().filter(|(id, _)| id != b"EXIF" && id != b"XMP ") {
+    // copy non-exif chunks (and remove existing VP8X? keep if present)
+    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"XMP ") {
+        // if we created VP8X above, skip original none; if existing VP8X keep
         put_chunk(&mut body, id, payload);
     }
     put_chunk(&mut body, b"EXIF", &exif);
@@ -381,6 +400,48 @@ pub fn tempel_metadata_stiker(
     Ok(out)
 }
 
+fn webp_dimensions(data: &[u8]) -> (u32, u32) {
+    // VP8X
+    if let Some(pos) = find_chunk(data, b"VP8X") {
+        if pos + 18 <= data.len() {
+            let w = u32::from_le_bytes([data[pos + 12], data[pos + 13], data[pos + 14], 0]) & 0x00FF_FFFF;
+            let h = u32::from_le_bytes([data[pos + 15], data[pos + 16], data[pos + 17], 0]) & 0x00FF_FFFF;
+            return (w + 1, h + 1);
+        }
+    }
+    // VP8 (lossy)
+    if let Some(pos) = find_chunk(data, b"VP8 ") {
+        if pos + 20 <= data.len() {
+            let w = u16::from_le_bytes([data[pos + 14], data[pos + 15]]) as u32 & 0x3FFF;
+            let h = u16::from_le_bytes([data[pos + 16], data[pos + 17]]) as u32 & 0x3FFF;
+            if w > 0 && h > 0 { return (w, h); }
+        }
+    }
+    // VP8L
+    if let Some(pos) = find_chunk(data, b"VP8L") {
+        if pos + 13 <= data.len() {
+            let bits = u32::from_le_bytes([data[pos + 9], data[pos + 10], data[pos + 11], data[pos + 12]]);
+            let w = (bits & 0x3FFF) + 1;
+            let h = ((bits >> 14) & 0x3FFF) + 1;
+            if w > 0 && h > 0 { return (w, h); }
+        }
+    }
+    (0, 0)
+}
+
+fn find_chunk(data: &[u8], id: &[u8; 4]) -> Option<usize> {
+    let mut pos = 12usize;
+    let riff_size = if data.len() >= 8 { u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize } else { 0 };
+    let limit = (12 + riff_size).min(data.len());
+    while pos + 8 <= limit {
+        if &data[pos..pos+4] == id {
+            return Some(pos);
+        }
+        let size = u32::from_le_bytes([data[pos+4], data[pos+5], data[pos+6], data[pos+7]]) as usize;
+        pos += 8 + size + (size % 2);
+    }
+    None
+}
 pub fn buat_kunci_media() -> [u8; 32] {
     rand::random()
 }

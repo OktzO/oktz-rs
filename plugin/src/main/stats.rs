@@ -121,7 +121,8 @@ fn baca_memori() -> (u64, u64) {
             .unwrap_or(0);
         match kunci.trim() {
             "MemTotal" => total = kb.saturating_mul(1024),
-            "MemFree" => bebas = kb.saturating_mul(1024),
+            "MemAvailable" => bebas = kb.saturating_mul(1024),
+            "MemFree" if bebas == 0 => bebas = kb.saturating_mul(1024),
             _ => {}
         }
     }

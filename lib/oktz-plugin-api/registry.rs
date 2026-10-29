@@ -984,6 +984,17 @@ impl GroupRoster {
         self.participants.is_empty()
     }
 
+    pub fn participant_is_admin(&self, jid: &str) -> bool {
+        let user = jid.split('@').next().unwrap_or(jid);
+        let num = user.split(':').next().unwrap_or(user);
+        self.participants.iter().any(|p| {
+            if !p.is_admin { return false; }
+            let pj = p.jid.split('@').next().unwrap_or(&p.jid);
+            let pn = pj.split(':').next().unwrap_or(pj);
+            pn == num
+        })
+    }
+
     /// JID semua anggota, urutan wire apa adanya. Bahan `tagall`
     /// (`plugins/group/tagall.js:29-47`).
     pub fn member_jids(&self) -> Vec<String> {

@@ -3523,7 +3523,7 @@ impl Pipeline {
             // `group_guard` sendiri sudah melewati apa pun yang bukan grup.
             is_newsletter: false,
             is_owner: caller.is_owner,
-            is_admin: caller.is_admin,
+            is_admin: caller.is_admin || roster.participant_is_admin(&sender),
             is_partner: caller.is_partner,
             is_bot_admin: roster.is_bot_admin,
             from_me: m.info.source.is_from_me,
@@ -3962,6 +3962,13 @@ impl Pipeline {
         // yang jalan melihat `Ctx` lengkap. Router tidak punya Client maupun
         // store.
         let roster = self.roster_of(&caller.chat, caller.is_group).await;
+
+        // Admin grup di JS berasal dari metadata grup, bukan dari identity
+        // global. Samakan di sini supaya plugin `is_admin` bisa jalan untuk
+        // admin grup sungguhan.
+        if caller.is_group {
+            caller.is_admin = caller.is_admin || roster.participant_is_admin(&caller.sender);
+        }
 
         // --- Gate 1: rantai group-protection (`handler.js:770-871`) ---------
         // Dijalankan untuk SETIAP pesan grup, sebelum command apa pun. Ini

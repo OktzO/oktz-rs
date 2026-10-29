@@ -123,9 +123,9 @@ test("versiCocok bandingkan penanda versi", () => {
   assert.equal(versiCocok("v0.1.7", "v0.1.8"), false);
 });
 
-test("fallback rilis launcher menunjuk v0.2.0", async () => {
+test("fallback rilis launcher menunjuk v0.2.1", async () => {
   const modul = await import("./launcher.js");
-  assert.equal(modul.VERSI_BIN, "v0.2.0");
+  assert.equal(modul.VERSI_BIN, "v0.2.1");
 });
 
 test("import launcher tanpa entry point tidak menjalankan bot", () => {
