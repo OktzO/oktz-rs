@@ -3968,6 +3968,7 @@ impl Pipeline {
         // admin grup sungguhan.
         if caller.is_group {
             caller.is_admin = caller.is_admin || roster.participant_is_admin(&caller.sender);
+            caller.is_bot_admin = roster.is_bot_admin;
         }
 
         // --- Gate 1: rantai group-protection (`handler.js:770-871`) ---------
