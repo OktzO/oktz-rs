@@ -129,7 +129,7 @@ pub fn brat(ctx: Ctx) -> Reply {
                 if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
                 if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
             );
-            let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &[]).unwrap_or(webp);
+            let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
             return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
         }
     };
@@ -141,7 +141,7 @@ pub fn brat(ctx: Ctx) -> Reply {
             if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
             if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
         );
-        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &[]).unwrap_or(webp);
+        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
         return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
     }
     let buf = res.body.bytes().to_vec();
@@ -153,7 +153,7 @@ pub fn brat(ctx: Ctx) -> Reply {
             if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
             if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
         );
-        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &[]).unwrap_or(webp);
+        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
         return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
     }
 
@@ -162,7 +162,7 @@ pub fn brat(ctx: Ctx) -> Reply {
         if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
         if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
     );
-    let buf = oktz_plugin_api::tempel_metadata_stiker(&buf, &pn, &au, &[]).unwrap_or(buf);
+    let buf = oktz_plugin_api::tempel_metadata_stiker(&buf, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(buf);
     Reply::sticker_opsi(
         MediaSource::bytes(buf).with_mimetype("image/webp"),
         oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au),

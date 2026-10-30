@@ -182,7 +182,7 @@ pub fn sticker(ctx: Ctx) -> Reply {
                             &webp,
                             &pn,
                             &au,
-                            &[],
+                            &oktz_plugin_api::EXIF_EMOJIS,
                         )
                         .unwrap_or(webp);
                         buffers.push(webp);
