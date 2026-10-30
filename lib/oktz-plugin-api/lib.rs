@@ -35,7 +35,7 @@ pub mod kanvas;
 pub use kanvas::Kanvas;
 pub mod sticker;
 pub use sticker::{
-    OpsiS, StickerOpsi, STICKER_WEBP_VF, buat_kunci_media, gambar_ke_stiker_webp, opsi_s,
+    EXIF_EMOJIS, OpsiS, StickerOpsi, STICKER_WEBP_VF, buat_kunci_media, gambar_ke_stiker_webp, opsi_s,
     tempel_metadata_stiker, video_ke_stiker_webp,
 };
 
