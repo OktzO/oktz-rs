@@ -537,7 +537,7 @@ fn kartu_varian_2(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
 
     let mut reply = Reply::interactive(teks.to_string())
         .with_footer(FOOTER_VARIAN_2)
-        .with_header(
+        .with_header_card(
             CardHeader::new()
                 .title("")
                 .subtitle("")
@@ -597,7 +597,7 @@ fn kartu_varian_5(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
 
     let mut reply = Reply::interactive(teks.to_string())
         .with_footer(FOOTER_VARIAN_5)
-        .with_header(
+        .with_header_card(
             CardHeader::new()
                 .title("")
                 .subtitle("")
@@ -642,7 +642,7 @@ fn kartu_varian_6(ctx: &Ctx, teks: &str) -> Option<Reply> {
 
     Some(
         Reply::interactive(teks.to_string())
-            .with_header(header)
+            .with_header_card(header)
             .with_context(context),
     )
 }

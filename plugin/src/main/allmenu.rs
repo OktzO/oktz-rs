@@ -595,7 +595,7 @@ fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
     Some(
         Reply::interactive(body_varian_2(ctx))
             .with_footer(txt.to_string())
-            .with_header(
+            .with_header_card(
                 CardHeader::new()
                     .title("")
                     .subtitle("")
@@ -651,7 +651,7 @@ fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
     Some(
         Reply::interactive(txt.to_string())
             .with_footer(FOOTER_VARIAN_5)
-            .with_header(
+            .with_header_card(
                 CardHeader::new()
                     .title("")
                     .subtitle("")
@@ -691,7 +691,7 @@ fn kartu_varian_6(ctx: &Ctx, txt: &str) -> Option<Reply> {
 
     Some(
         Reply::interactive(txt.to_string())
-            .with_header(header)
+            .with_header_card(header)
             .with_context(context),
     )
 }

@@ -95,6 +95,10 @@ pub enum AksiTombol {
     Alamat,
     /// `send_location` — kirim lokasi.
     Lokasi,
+    /// `""` — slot tombol tanpa aksi. WA butuh minimal satu tombol yang
+    /// tidak berisi aksi agar native-flow dirender
+    /// (`plugins/main/allmenu.js:343` — `{ name: "", buttonParamsJson: "" }`).
+    Kosong,
 }
 
 impl AksiTombol {
@@ -110,6 +114,7 @@ impl AksiTombol {
             Self::BatalPengingat => "cta_cancel_reminder",
             Self::Alamat => "address_message",
             Self::Lokasi => "send_location",
+            Self::Kosong => "",
         }
     }
 
@@ -126,6 +131,7 @@ impl AksiTombol {
             "cta_cancel_reminder" => Self::BatalPengingat,
             "address_message" => Self::Alamat,
             "send_location" => Self::Lokasi,
+            "" => Self::Kosong,
             _ => return None,
         })
     }
