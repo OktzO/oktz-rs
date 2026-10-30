@@ -376,12 +376,12 @@ pub fn tempel_metadata_stiker(
             let mut vp8x = vec![flags, 0, 0, 0];
             let cw = (width.max(1) - 1).min(0x00FF_FFFF);
             let ch = (height.max(1) - 1).min(0x00FF_FFFF);
-            vp8x.push(((cw >> 16) & 0xFF) as u8);
-            vp8x.push(((cw >> 8) & 0xFF) as u8);
             vp8x.push((cw & 0xFF) as u8);
-            vp8x.push(((ch >> 16) & 0xFF) as u8);
-            vp8x.push(((ch >> 8) & 0xFF) as u8);
+            vp8x.push(((cw >> 8) & 0xFF) as u8);
+            vp8x.push(((cw >> 16) & 0xFF) as u8);
             vp8x.push((ch & 0xFF) as u8);
+            vp8x.push(((ch >> 8) & 0xFF) as u8);
+            vp8x.push(((ch >> 16) & 0xFF) as u8);
             put_chunk(&mut body, b"VP8X", &vp8x);
         }
     }
