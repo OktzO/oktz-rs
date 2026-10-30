@@ -1437,6 +1437,12 @@ pub fn find(command: &str) -> Option<&'static PluginEntry> {
             semua
                 .iter()
                 .copied()
+                .find(|e| e.meta.commands.iter().any(|c| c == command))
+        })
+        .or_else(|| {
+            semua
+                .iter()
+                .copied()
                 .find(|e| e.meta.alias.iter().any(|a| a == command))
         })
 }
