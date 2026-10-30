@@ -162,7 +162,8 @@ pub fn brat(ctx: Ctx) -> Reply {
         if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
         if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
     );
-    let buf = oktz_plugin_api::tempel_metadata_stiker(&buf, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(buf);
+    let webp = oktz_plugin_api::gambar_ke_stiker_webp(&buf, &[]).unwrap_or(buf.clone());
+    let buf = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
     Reply::sticker_opsi(
         MediaSource::bytes(buf).with_mimetype("image/webp"),
         oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au),

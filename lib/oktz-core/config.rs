@@ -320,22 +320,49 @@ impl Runtime {
     /// apa adanya; `Saluran::default()` sengaja kosong supaya unit test lain
     /// tidak ikut terbawa nilai produksi.
     pub fn from_config() -> Self {
+        let info_defaults = Info::default();
+        let bot_defaults = BotInfo::default();
+        let sticker_defaults = Sticker::default();
+        let saluran_defaults = Saluran {
+            id: d("120363411617217441@newsletter"),
+            name: d("Join saluran resmi Oktz"),
+            link: d("https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"),
+        };
         Self {
-            info: Info::default(),
-            owner: Owner::default(),
-            bot: BotInfo::default(),
-            assets: Assets::default(),
-            sticker: Sticker::default(),
-            payment: Payment::default(),
-            donasi: Donasi::default(),
-            saluran: Saluran {
-                id: d("120363411617217441@newsletter"),
-                name: d("Join saluran resmi Oktz"),
-                link: d("https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"),
+            info: Info {
+                website: Env::get_or("INFO_WEBSITE", &info_defaults.website),
+                grupwa: Env::get_or("INFO_GRUPWA", &info_defaults.grupwa),
             },
-            // Nilai `config.js:153` apa adanya.
-            error_template: "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
-                .to_string(),
+            owner: Owner::default(),
+            bot: BotInfo {
+                name: Env::get_or("BOT_NAME", &bot_defaults.name),
+                version: Env::get_or("BOT_VERSION", &bot_defaults.version),
+                developer: Env::get_or("BOT_DEVELOPER", &bot_defaults.developer),
+                website: Env::get_or("BOT_WEBSITE", &bot_defaults.website),
+            },
+            assets: Env::get("OKTZ_ASSETS_JSON")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            sticker: Sticker {
+                packname: Env::get_or("STICKER_PACKNAME", &sticker_defaults.packname),
+                author: Env::get_or("STICKER_AUTHOR", &sticker_defaults.author),
+            },
+            payment: Env::get("OKTZ_PAYMENT_JSON")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            donasi: Env::get("OKTZ_DONASI_JSON")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            saluran: Saluran {
+                id: Env::get_or("SALURAN_ID", &saluran_defaults.id),
+                name: Env::get_or("SALURAN_NAME", &saluran_defaults.name),
+                link: Env::get_or("SALURAN_LINK", &saluran_defaults.link),
+            },
+            // Nilai `config.js:153` apa adanya, kecuali env override.
+            error_template: Env::get_or(
+                "ERROR_TEMPLATE",
+                "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_",
+            ),
             digitalocean: DigitalOcean {
                 token: Env::get_or("DIGITALOCEAN_TOKEN", ""),
                 region: d("sgp1"),
@@ -560,6 +587,33 @@ impl Config {
     /// Bawaan dari env + `.env` saja (`config.js` versi lama).
     pub fn from_env() -> Self {
         Env::load_dotenv();
+        let env_bool = |name: &str, default: bool| {
+            Env::get(name)
+                .map(|v| v == "true" || v == "1" || v == "yes")
+                .unwrap_or(default)
+        };
+        let env_u64 = |name: &str, default: u64| {
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
+        };
+        let env_u32 = |name: &str, default: u32| {
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
+        };
+        let env_i64 = |name: &str, default: i64| {
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
+        };
+
+        let owner_defaults = Owner::default();
+        let info_defaults = Info::default();
+        let bot_defaults = BotInfo::default();
+        let sticker_defaults = Sticker::default();
+        let energi_defaults = Energi::default();
+        let session_defaults = Session::default();
+        let saluran_defaults = Saluran {
+            id: d("120363411617217441@newsletter"),
+            name: d("Join saluran resmi Oktz"),
+            link: d("https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"),
+        };
+
         Self {
             owner_numbers: Env::get("OWNER_NUMBERS")
                 .map(|v| {
@@ -569,38 +623,65 @@ impl Config {
                         .collect()
                 })
                 .unwrap_or_default(),
-            owner_name: Owner::default().name,
-            info: Info::default(),
-            sticker: Sticker::default(),
+            owner_name: Env::get_or("OWNER_NAME", &owner_defaults.name),
+            info: Info {
+                website: Env::get_or("INFO_WEBSITE", &info_defaults.website),
+                grupwa: Env::get_or("INFO_GRUPWA", &info_defaults.grupwa),
+            },
+            sticker: Sticker {
+                packname: Env::get_or("STICKER_PACKNAME", &sticker_defaults.packname),
+                author: Env::get_or("STICKER_AUTHOR", &sticker_defaults.author),
+            },
             api_keys: ApiKeys::default(),
             session: Session {
                 pairing_number: Env::get_or("PAIRING_NUMBER", ""),
-                use_pairing_code: Env::get("USE_PAIRING_CODE")
-                    .map(|v| v == "true" || v == "1")
-                    .unwrap_or(true),
-                pairing_rate_limit_cooldown_ms: Env::get("PAIRING_RATE_LIMIT_COOLDOWN_MS")
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(3_600_000),
-                ..Session::default()
+                use_pairing_code: env_bool("USE_PAIRING_CODE", session_defaults.use_pairing_code),
+                pairing_rate_limit_cooldown_ms: env_u64(
+                    "PAIRING_RATE_LIMIT_COOLDOWN_MS",
+                    session_defaults.pairing_rate_limit_cooldown_ms,
+                ),
+                pairing_fallback_to_qr: env_bool(
+                    "SESSION_PAIRING_FALLBACK_TO_QR",
+                    session_defaults.pairing_fallback_to_qr,
+                ),
+                qr_dir: Env::get_or("SESSION_QR_DIR", &session_defaults.qr_dir),
+                qr_png_width: env_u32("SESSION_QR_PNG_WIDTH", session_defaults.qr_png_width),
+                qr_max_prints: env_u32("SESSION_QR_MAX_PRINTS", session_defaults.qr_max_prints),
+                keep_alive_interval_ms: env_u64(
+                    "SESSION_KEEP_ALIVE_INTERVAL_MS",
+                    session_defaults.keep_alive_interval_ms,
+                ),
             },
             database: Database {
                 path: Env::get_or("DATABASE_PATH", "./database/main"),
             },
-            energi: Energi::default(),
+            energi: Energi {
+                enabled: env_bool("ENERGI_ENABLED", energi_defaults.enabled),
+                default: env_i64("ENERGI_DEFAULT", energi_defaults.default),
+                premium: env_i64("ENERGI_PREMIUM", energi_defaults.premium),
+                owner: env_i64("ENERGI_OWNER", energi_defaults.owner),
+            },
             turso: Turso {
                 url: Env::get_or("TURSO_URL", ""),
                 auth_token: Env::get_or("TURSO_AUTH_TOKEN", ""),
-                sync_interval: 5000,
-                enabled: Env::get("TURSO_URL").is_some(),
+                sync_interval: env_u64("TURSO_SYNC_INTERVAL", 5000),
+                enabled: env_bool("TURSO_ENABLED", Env::get("TURSO_URL").is_some()),
             },
-            messages: Messages::default(),
-            bot: BotInfo::default(),
-            error_template: String::new(),
+            messages: Env::get("OKTZ_MESSAGES_JSON")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            bot: BotInfo {
+                name: Env::get_or("BOT_NAME", &bot_defaults.name),
+                version: Env::get_or("BOT_VERSION", &bot_defaults.version),
+                developer: Env::get_or("BOT_DEVELOPER", &bot_defaults.developer),
+                website: Env::get_or("BOT_WEBSITE", &bot_defaults.website),
+            },
             saluran: Saluran {
-                id: d("120363411617217441@newsletter"),
-                name: d("Join saluran resmi Oktz"),
-                link: d("https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"),
+                id: Env::get_or("SALURAN_ID", &saluran_defaults.id),
+                name: Env::get_or("SALURAN_NAME", &saluran_defaults.name),
+                link: Env::get_or("SALURAN_LINK", &saluran_defaults.link),
             },
+            error_template: Env::get_or("ERROR_TEMPLATE", ""),
         }
     }
 
@@ -611,6 +692,13 @@ impl Config {
     pub fn load() -> Result<Self> {
         let path = Env::get(CONFIG_ENV).unwrap_or_else(|| CONFIG_FILE.to_string());
         let mut cfg = Self::from_env();
+        // Seluruh config bisa diberikan lewat env (JSON) tanpa file.
+        if let Some(raw) = Env::get("OKTZ_CONFIG_JSON") {
+            let v: Value = serde_json::from_str(&raw)
+                .map_err(|e| Error::Config(format!("OKTZ_CONFIG_JSON: JSON tidak valid: {e}")))?;
+            cfg.apply_file(&v)
+                .map_err(|e| Error::Config(format!("OKTZ_CONFIG_JSON: {e}")))?;
+        }
         match std::fs::read_to_string(&path) {
             Ok(raw) => {
                 let v: Value = serde_json::from_str(&raw)

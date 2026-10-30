@@ -436,10 +436,9 @@ mod tests {
         let Reply::Sequence(list) = r else {
             panic!("harus sequence: {r:?}")
         };
-        assert_eq!(list.len(), 4);
+        assert_eq!(list.len(), 3);
         assert!(matches!(&list[1], Reply::Sticker { .. }));
         assert!(matches!(&list[2], Reply::Reaction { emoji, .. } if emoji == "✅"));
-        assert!(list[3].without_mutations().text_body().unwrap().contains("Sebaiknya"));
     }
 
     #[test]

@@ -33,6 +33,28 @@ import { fileURLToPath } from "node:url";
 const FILE_INI = fileURLToPath(import.meta.url);
 const AKAR = path.dirname(FILE_INI);
 const REPO = "OktzO/oktz-rs";
+
+// Muat .env (jika ada) supaya setting env-first konsisten dengan binary Rust.
+try {
+  const envPath = path.join(AKAR, ".env");
+  if (existsSync(envPath)) {
+    for (const baris of readFileSync(envPath, "utf8").split(/\\r?\\n/)) {
+      const trimmed = baris.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx <= 0) continue;
+      const kunci = trimmed.slice(0, idx).trim();
+      let nilai = trimmed.slice(idx + 1).trim();
+      if (
+        (nilai.startsWith('"') && nilai.endsWith('"')) ||
+        (nilai.startsWith("'") && nilai.endsWith("'"))
+      ) {
+        nilai = nilai.slice(1, -1);
+      }
+      if (process.env[kunci] === undefined) process.env[kunci] = nilai;
+    }
+  }
+} catch {}
 // Modul ini juga diimpor test; efek samping (unduh binary, spawn bot)
 // hanya boleh jalan kalau file ini yang jadi entry point.
 const UTAMA = (() => {

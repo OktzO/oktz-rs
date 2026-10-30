@@ -35,7 +35,7 @@ impl StickerOpsi {
         Self {
             forwarded: true,
             forwarding_score: Some(1),
-            premium: false,
+            premium: true,
             ..Default::default()
         }
     }
@@ -325,8 +325,6 @@ pub fn tempel_metadata_stiker(
     if !is_webp(webp) {
         return Err("bukan WebP".to_string());
     }
-    let chunks = parse_chunks(webp).ok_or_else(|| "WebP rusak".to_string())?;
-
     // Trim trailing slack (byte sisa di luar chunk terakhir). WA menolak
     // "garbage bytes at end".
     let mut end = 12usize;
@@ -347,47 +345,29 @@ pub fn tempel_metadata_stiker(
     // Recompute chunks from clean bytes.
     let chunks = parse_chunks(clean).ok_or_else(|| "WebP rusak".to_string())?;
 
-    let has_vp8x = chunks.iter().any(|(id, _)| id == b"VP8X");
     let has_alpha = chunks.iter().any(|(id, _)| id == b"ALPH");
     let has_anim = chunks.iter().any(|(id, _)| id == b"ANIM" || id == b"ANMF");
 
-    // Dimensi.
-    let mut width = 0u32;
-    let mut height = 0u32;
-    if let Some((_, payload)) = chunks.iter().find(|(id, _)| id == b"VP8X") {
-        if payload.len() >= 10 {
-            width = u32::from_le_bytes([payload[4], payload[5], payload[6], 0]) & 0x00FF_FFFF;
-            // payload layout: flags(1)+reserved(3)+canvasW(3)+canvasH(3)
-            width = u32::from_le_bytes([payload[4 + 4], payload[5 + 4], payload[6 + 4], 0]) & 0x00FF_FFFF; // placeholder
-        }
-    }
-    // Simpler: parse via getWebpDimensions logic.
-    let _ = (width, height);
-    // Recompute properly:
-    let (w, h) = webp_dimensions(clean);
-    let (width, height) = (w, h);
+    let (width, height) = webp_dimensions(clean);
 
     let exif = exif_payload(&sticker_metadata_json(packname, author, emojis));
 
     let mut body: Vec<u8> = Vec::new();
-    if !has_vp8x {
-        if width > 0 && height > 0 {
-            let flags = 0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 });
-            let mut vp8x = vec![flags, 0, 0, 0];
-            let cw = (width.max(1) - 1).min(0x00FF_FFFF);
-            let ch = (height.max(1) - 1).min(0x00FF_FFFF);
-            vp8x.push((cw & 0xFF) as u8);
-            vp8x.push(((cw >> 8) & 0xFF) as u8);
-            vp8x.push(((cw >> 16) & 0xFF) as u8);
-            vp8x.push((ch & 0xFF) as u8);
-            vp8x.push(((ch >> 8) & 0xFF) as u8);
-            vp8x.push(((ch >> 16) & 0xFF) as u8);
-            put_chunk(&mut body, b"VP8X", &vp8x);
-        }
+    if width > 0 && height > 0 {
+        let flags = 0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 });
+        let mut vp8x = vec![flags, 0, 0, 0];
+        let cw = (width.max(1) - 1).min(0x00FF_FFFF);
+        let ch = (height.max(1) - 1).min(0x00FF_FFFF);
+        vp8x.push((cw & 0xFF) as u8);
+        vp8x.push(((cw >> 8) & 0xFF) as u8);
+        vp8x.push(((cw >> 16) & 0xFF) as u8);
+        vp8x.push((ch & 0xFF) as u8);
+        vp8x.push(((ch >> 8) & 0xFF) as u8);
+        vp8x.push(((ch >> 16) & 0xFF) as u8);
+        put_chunk(&mut body, b"VP8X", &vp8x);
     }
-    // copy non-exif chunks (and remove existing VP8X? keep if present)
-    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"XMP ") {
-        // if we created VP8X above, skip original none; if existing VP8X keep
+    // copy non-exif/xmp/vp8x chunks
+    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"XMP " && *id != *b"VP8X") {
         put_chunk(&mut body, id, payload);
     }
     put_chunk(&mut body, b"EXIF", &exif);
