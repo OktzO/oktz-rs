@@ -61,7 +61,14 @@ pub fn bratgreen(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
 
-    Reply::sticker(MediaSource::bytes(buf)).with_reaction("✅")
+    let cfg = ctx.config();
+    let (pn, au) = (
+        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
+        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
+    );
+    let webp = oktz_plugin_api::gambar_ke_stiker_webp(&buf, &[]).unwrap_or(buf.clone());
+    let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &[]).unwrap_or(webp);
+    Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅")
 }
 
 #[cfg(test)]

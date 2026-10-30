@@ -35,7 +35,7 @@ impl StickerOpsi {
         Self {
             forwarded: true,
             forwarding_score: Some(1),
-            premium: true,
+            premium: false,
             ..Default::default()
         }
     }

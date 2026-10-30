@@ -10,8 +10,15 @@ fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema) -> Reply {
         ));
     }
     let (parsed, _) = super::brat::parse_brat_args(&ctx.text);
-    let bytes = oktz_plugin_api::render_brat(&parsed, tema, 0).unwrap_or_default();
-    Reply::sticker_opsi(MediaSource::bytes(bytes), oktz_plugin_api::StickerOpsi::gambar()).with_reaction("✅")
+    let png = oktz_plugin_api::render_brat(&parsed, tema, 0).unwrap_or_default();
+    let cfg = ctx.config();
+    let (pn, au) = (
+        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
+        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
+    );
+    let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).unwrap_or(png.clone());
+    let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &[]).unwrap_or(webp);
+    Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅")
 }
 
 #[plugin(
