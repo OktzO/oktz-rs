@@ -1880,9 +1880,12 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
                     .sticker
                     .as_ref()
                     .and_then(|o| o.animated.then_some(true)),
-                premium: media.sticker.as_ref().and_then(|o| {
-                    o.premium.then_some(1)
-                }),
+                // `premium` sengaja TIDAK ditulis ke proto. Bot JS menaruh
+                // `premium: 1` di contextInfo, dan ContextInfo tidak punya
+                // field itu sehingga gugur saat serialisasi. Menulisnya ke
+                // `StickerMessage.premium` (field 24) membuat WA menampilkan
+                // sticker sebagai sticker WhatsApp Premium: kosong/blur bagi
+                // penerima non-premium dan muncul prompt langganan WA Plus.
                 emojis: media.sticker.as_ref().and_then(|o| {
                     (!o.emojis.is_empty()).then(|| o.emojis.join(","))
                 }),
