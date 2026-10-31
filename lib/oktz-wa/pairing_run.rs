@@ -602,6 +602,96 @@ const SOCKET_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 /// `requestPairingCode(phoneNumber, "OKTZZLAH")`).
 const PAIRING_CODE: &str = "OKTZZLAH";
 
+/// Tulis `creds.json` + marker `.ident` setelah pairing sukses.
+///
+/// Launcher menuntut `creds.json` terisi sebelum menjalankan bot
+/// (`credsSiap`), dan `run` membangun store dari creds itu
+/// (`prepare_store`) — marker ber-sidik sama membuat db pairing yang
+/// sudah berisi prekey dipakai ulang, bukan dibangun ulang dari nol.
+///
+/// Jalur tujuan dari env [`crate::bot::CREDS_ENV`]; tanpa env (pemakaian
+/// CLI manual / test) fungsi ini no-op. Gagal menulis hanya memperingatkan:
+/// launcher akan gagal dengan pesan eksplisit miliknya.
+async fn ekspor_creds_setelah_paired(
+    store: &SqliteStore,
+    db_path: &str,
+) {
+    use whatsapp_rust::store::DeviceStore;
+
+    let Some(path) = oktz_core::env::Env::get(crate::bot::CREDS_ENV)
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+    else {
+        tracing::debug!("OKTZ_CREDS tidak diset — creds.json tidak diekspor");
+        return;
+    };
+
+    // Pair-success masih menulis push_name/pn ke store saat event PAIRED
+    // sampai ke kita; beri jeda pendek berulang sampai device terisi penuh.
+    let mut device = None;
+    for _ in 0..10 {
+        match store.load().await {
+            Ok(Some(d)) if d.pn.is_some() => {
+                device = Some(d);
+                break;
+            }
+            Ok(_) => tokio::time::sleep(std::time::Duration::from_millis(300)).await,
+            Err(e) => {
+                tracing::warn!(error = %e, "gagal membaca device dari store");
+                return;
+            }
+        }
+    }
+    let Some(d) = device else {
+        tracing::warn!("device belum lengkap di store — creds.json tidak diekspor");
+        return;
+    };
+
+    let doc = crate::creds::device_ke_creds_json(&d);
+    let tujuan = std::path::PathBuf::from(&path);
+    if let Some(parent) = tujuan.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        tracing::warn!(error = %e, path = %parent.display(), "gagal membuat folder creds");
+        return;
+    }
+    match serde_json::to_string_pretty(&doc) {
+        Ok(isi) => {
+            if let Err(e) = std::fs::write(&tujuan, isi) {
+                tracing::warn!(error = %e, path = %tujuan.display(), "gagal menulis creds.json");
+                return;
+            }
+            tracing::info!(path = %tujuan.display(), "creds.json diekspor");
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "gagal serialize creds.json");
+            return;
+        }
+    }
+
+    // Marker identitas (`prepare_store::sesi_lama_boleh_dipakai`): db
+    // pairing dipakai ulang karena sidik creds == sidik device di db.
+    // Sidik dihitung dari isi creds.json itu sendiri — dijamin sama dengan
+    // yang dihitung `prepare_store` (public key 32 byte polos).
+    let pub_b64 = doc["signedIdentityKey"]["public"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let Ok(ident) = crate::creds::b64(&pub_b64) else {
+        tracing::warn!("public key creds tidak terbaca — marker ident tidak ditulis");
+        return;
+    };
+    let sidik = format!(
+        "{}:{}",
+        d.registration_id,
+        ident.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    );
+    let marker = std::path::PathBuf::from(db_path).with_extension("ident");
+    if let Err(e) = std::fs::write(&marker, &sidik) {
+        tracing::warn!(error = %e, path = %marker.display(), "gagal menulis marker ident");
+    }
+}
+
 /// Store baru untuk linking: device row dibikin `PersistenceManager::new`, jadi
 /// store lama yang sudah ter-link harus dibuang — kalau tidak, bot tidak akan
 /// pernah melihat QR.
@@ -652,6 +742,9 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
     };
 
     let store = fresh_store(db_path).await?;
+    // Salinan untuk ekspor creds setelah PAIRED — pool Arc yang sama, jadi
+    // membaca device yang barusan ditulis proses pairing.
+    let export_store = store.clone();
     let (code_tx, code_rx) = std::sync::mpsc::channel::<String>();
     let (done_tx, done_rx) = std::sync::mpsc::channel::<Value>();
 
@@ -766,6 +859,9 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
     tracing::info!(code, "pairing code terbit");
 
     let outcome = wait_for_pairing(&done_rx, &code_rx, hold_secs).await;
+    if outcome.as_ref().is_some_and(|v| v["phase"] == "PAIRED") {
+        ekspor_creds_setelah_paired(&export_store, db_path).await;
+    }
     handle.abort();
 
     match outcome {
@@ -778,6 +874,8 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
 /// dan dipindai dari HP.
 pub async fn pair_qr_flow(db_path: &str, hold_secs: u64) -> anyhow::Result<Value> {
     let store = fresh_store(db_path).await?;
+    // Salinan untuk ekspor creds setelah PAIRED — pool Arc yang sama.
+    let export_store = store.clone();
     let (code_tx, code_rx) = std::sync::mpsc::channel::<String>();
     let (done_tx, done_rx) = std::sync::mpsc::channel::<Value>();
 
@@ -849,6 +947,9 @@ pub async fn pair_qr_flow(db_path: &str, hold_secs: u64) -> anyhow::Result<Value
     }
 
     let outcome = wait_for_pairing(&done_rx, &code_rx, hold_secs).await;
+    if outcome.as_ref().is_some_and(|v| v["phase"] == "PAIRED") {
+        ekspor_creds_setelah_paired(&export_store, db_path).await;
+    }
     handle.abort();
 
     match outcome {

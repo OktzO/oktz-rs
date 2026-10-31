@@ -613,6 +613,9 @@ async function pairing(creds) {
   console.log(
     `[launcher] belum ada sesi; mulai pairing ${pakaiKode ? `code ${nomor}` : "QR"}`
   );
+  // Binary menulis creds.json + marker ident ke sini setelah PAIRED, supaya
+  // `run` memakai ulang db pairing (prekey tidak dibangun ulang).
+  process.env.OKTZ_CREDS = creds;
   const rc = await spawnTunggu(args);
   if (rc !== 0) {
     console.error(`[launcher] pairing gagal (exit ${rc})`);

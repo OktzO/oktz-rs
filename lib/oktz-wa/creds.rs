@@ -130,11 +130,67 @@ pub fn b64(s: &str) -> Result<Vec<u8>> {
     Ok(base64::engine::general_purpose::STANDARD.decode(cleaned.as_bytes())?)
 }
 
-#[cfg(test)]
-#[cfg(test)]
 fn b64_encode(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+fn kp_json(kp: &KeyPair) -> serde_json::Value {
+    // onigis menyimpan public key Curve25519 32 byte POLOS (bentuk kanonik
+    // libsignal 33 byte 0x05+32 dilepas kembali — kebalikan `kp()` di
+    // `bot.rs::build_device`).
+    let pub_bytes = kp.public_key.public_key_bytes();
+    let pub_raw: &[u8] = if pub_bytes.len() == 33 && pub_bytes[0] == 0x05 {
+        &pub_bytes[1..]
+    } else {
+        pub_bytes
+    };
+    serde_json::json!({
+        "private": b64_encode(kp.private_key.serialize().as_slice()),
+        "public": b64_encode(pub_raw),
+    })
+}
+
+/// Kebalikan [`crate::bot::build_device`]: Device hasil pairing → dokumen
+/// creds.json onigis yang bisa dibaca ulang `prepare_store`.
+///
+/// Dipakai alur pairing (code & QR) setelah PAIRED supaya launcher menemukan
+/// `creds.json` (`credsSiap`) dan `run` memakai ulang db pairing — identitas
+/// yang sama persis dengan yang baru ter-daftar di server WA.
+///
+/// Field yang dibiarkan tidak ada = opsional bagi [`Creds`]: `platform`
+/// konstan "smba" seperti onigis; `account` (ADVSignedDeviceIdentity) di
+/// sisi Rust hidup di app-state, `inspect_creds` memang mendefault-kan.
+pub fn device_ke_creds_json(d: &wacore::store::Device) -> serde_json::Value {
+    let mut doc = serde_json::json!({
+        "noiseKey": kp_json(&d.noise_key),
+        "signedIdentityKey": kp_json(&d.identity_key),
+        "signedPreKey": {
+            "keyPair": kp_json(&d.signed_pre_key),
+            "signature": b64_encode(&d.signed_pre_key_signature),
+            "keyId": d.signed_pre_key_id,
+        },
+        "advSecretKey": b64_encode(&d.adv_secret_key),
+        "registrationId": d.registration_id,
+        "platform": "smba",
+        "me": {
+            "id": d.pn.as_ref().map(|j| j.to_string()).unwrap_or_default(),
+            "name": d.push_name,
+        },
+        "nextPreKeyId": d.next_pre_key_id,
+        "firstUnuploadedPreKeyId": d.first_unupload_pre_key_id,
+        "registered": true,
+    });
+    if let Some(lid) = &d.lid {
+        doc["me"]["lid"] = serde_json::Value::String(lid.to_string());
+    }
+    if let Some(ri) = &d.edge_routing_info {
+        doc["routingInfo"] = serde_json::json!({"type": "Buffer", "data": b64_encode(ri)});
+    }
+    if let Some(h) = &d.props_hash {
+        doc["lastPropHash"] = serde_json::Value::String(h.clone());
+    }
+    doc
 }
 
 /// creds.json onigis menyimpan public key Curve25519 sebagai 32 byte POLOS.
@@ -226,6 +282,53 @@ pub fn inspect_creds(raw: &str) -> Result<(DeviceMapping, Creds)> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// Roundtrip ekspor pairing: Device hasil PAIRED → creds.json →
+    /// dibaca ulang `inspect_creds` (langkah pertama `prepare_store`).
+    #[test]
+    fn device_ke_creds_json_bisa_dibaca_ulang_inspect_creds() {
+        use wacore_libsignal::core::curve::{KeyPair, PrivateKey, PublicKey};
+
+        fn kp(pubb: u8, privv: u8) -> KeyPair {
+            let mut pb = vec![0x05u8];
+            pb.extend(std::iter::repeat_n(pubb, 32));
+            KeyPair {
+                public_key: PublicKey::try_from(&pb[..]).unwrap(),
+                private_key: PrivateKey::deserialize(&[privv; 32]).unwrap(),
+            }
+        }
+
+        let d = wacore::store::Device {
+            pn: "6285143885645:59@s.whatsapp.net".parse().ok(),
+            lid: "188412430651393:59@lid".parse().ok(),
+            registration_id: 225,
+            noise_key: kp(0x01, 0x21),
+            identity_key: kp(0x02, 0x22),
+            signed_pre_key: kp(0x03, 0x23),
+            signed_pre_key_id: 15555,
+            signed_pre_key_signature: [0x11; 64],
+            adv_secret_key: [0x07; 32],
+            push_name: "Oktz".to_string(),
+            next_pre_key_id: 15556,
+            first_unupload_pre_key_id: 15556,
+            edge_routing_info: Some(b"MODALIDADE".to_vec()),
+            props_hash: Some("94gg0".to_string()),
+            ..Default::default()
+        };
+
+        let doc = device_ke_creds_json(&d);
+        let raw = serde_json::to_string(&doc).unwrap();
+        let (m, c) = inspect_creds(&raw).expect("creds.json hasil ekspor harus sah");
+
+        assert_eq!(m.registration_id, 225);
+        assert_eq!(m.pn, "6285143885645:59@s.whatsapp.net");
+        assert_eq!(m.push_name, "Oktz");
+        assert_eq!(m.signed_pre_key_id, 15555);
+        assert_eq!(m.adv_secret_key_len, 32);
+        assert!(m.has_routing_info);
+        assert_eq!(doc["registered"], true);
+        assert_eq!(c.me.as_ref().unwrap().lid.as_deref(), Some("188412430651393:59@lid"));
+    }
 
     /// creds.json produksi nyata, disanitasi: nilai kripto diganti dummy
     /// TAPI panjang base64 dijaga persis (32/33/64 byte).
