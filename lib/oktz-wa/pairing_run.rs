@@ -598,6 +598,10 @@ where
 
 const SOCKET_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
+/// Kode pairing bawaan — paritas JS (`oktz-md/src/connection.js:785`,
+/// `requestPairingCode(phoneNumber, "OKTZZLAH")`).
+const PAIRING_CODE: &str = "OKTZZLAH";
+
 /// Store baru untuk linking: device row dibikin `PersistenceManager::new`, jadi
 /// store lama yang sudah ter-link harus dibuang — kalau tidak, bot tidak akan
 /// pernah melihat QR.
@@ -721,6 +725,14 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
 
     let opts = whatsapp_rust::pair_code::PairCodeOptions {
         phone_number: phone.clone(),
+        // Paritas JS (`oktz-md/src/connection.js:785`): kode pairing selalu
+        // `OKTZZLAH`, bukan acak. Butuh patch `vendor/wacore` — validasi
+        // upstream menolak huruf `O` (alfabet Crockford), padahal server
+        // menerimanya. Bisa ditimpa lewat env `OKTZ_PAIRING_CODE`.
+        custom_code: Some(match std::env::var("OKTZ_PAIRING_CODE") {
+            Ok(c) if c.len() == 8 => c,
+            _ => PAIRING_CODE.to_string(),
+        }),
         ..Default::default()
     };
     // `pair_with_code` sudah mencek event `PairingCode` yang membawa kode-nya,

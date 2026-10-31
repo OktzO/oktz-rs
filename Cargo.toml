@@ -51,3 +51,10 @@ lto = "fat"
 codegen-units = 1
 strip = true
 panic = "unwind"
+
+# Vendor wacore 0.7.0 dengan satu divergensi: `PairCodeUtils::validate_code`
+# menerima A-Z0-9 penuh (bukan hanya alfabet Crockford) supaya kode pairing
+# custom `OKTZZLAH` dari bot JS diterima. Detail di vendor/wacore/src/pair_code.rs.
+[patch.crates-io]
+wacore = { path = "vendor/wacore" }
+
