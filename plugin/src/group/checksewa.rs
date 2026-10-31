@@ -369,7 +369,10 @@ mod tests {
 
     #[test]
     fn a_tenant_far_from_expiring_uses_the_clock_reaction() {
-        let far = crate::common::now_ms() + 400 * 86_400_000i64;
+        // Buffer 30 menit: handler menghitung `now`-nya sendiri, dan selisih
+        // beberapa milidetik dengan `now_ms()` di sini sudah memotong
+        // `Math.floor` ke "399 hari 23 jam" kalau sisa tepat 400 hari.
+        let far = crate::common::now_ms() + 400 * 86_400_000i64 + 1_800_000;
         let r = run(CHAT, tenant(serde_json::json!({ "expiredAt": far })));
         let t = text_of(&r);
         assert!(t.contains("Sisa waktu: *400 hari*"), "{t}");
