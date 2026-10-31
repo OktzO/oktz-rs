@@ -725,6 +725,12 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
 
     let opts = whatsapp_rust::pair_code::PairCodeOptions {
         phone_number: phone.clone(),
+        // Paritas JS (`oktz-md/src/connection.js:612`): browser
+        // `["Ubuntu", "Chrome", "22.0.0"]` → `companion_platform_id` = CHROME
+        // dan `companion_platform_display` = "Chrome (Ubuntu)". Default lib
+        // (device props os "rust") dikonversi paksa ke "Linux".
+        platform_id: Some(wacore::companion_reg::CompanionWebClientType::Chrome),
+        display_os: Some("Ubuntu".to_string()),
         // Paritas JS (`oktz-md/src/connection.js:785`): kode pairing selalu
         // `OKTZZLAH`, bukan acak. Butuh patch `vendor/wacore` — validasi
         // upstream menolak huruf `O` (alfabet Crockford), padahal server
@@ -741,7 +747,20 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
         Ok(c) => c,
         Err(e) => {
             handle.abort();
-            anyhow::bail!("pair_with_code gagal: {e}");
+            // Paritas JS (`oktz-md/src/connection.js:812`): WhatsApp
+            // membatasi permintaan kode pairing per nomor. Pesannya dibikin
+            // eksplisit supaya panel tidak terlihat seperti bug.
+            let teks = e.to_string();
+            if teks.contains("rate-overlimit") || teks.contains("429") {
+                anyhow::bail!(
+                    "kode pairing ditolak WhatsApp: rate-overlimit (429). \
+                     Tunggu ±1 jam sebelum mencoba lagi — permintaan berturut-turut \
+                     akan selalu gagal. Alternatif: pairing via QR \
+                     (env USE_PAIRING_CODE=false)"
+                )
+            } else {
+                anyhow::bail!("pair_with_code gagal: {e}");
+            }
         }
     };
     tracing::info!(code, "pairing code terbit");

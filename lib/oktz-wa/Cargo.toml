@@ -25,4 +25,7 @@ whatsapp-rust = { version = "0.7", default-features = false, features = [
     "sqlite-storage", "tokio-transport", "tokio-native", "ureq-client",
     "signal", "legacy-session-interop", "tracing",
 ] }
+# Langsung: `CompanionWebClientType` untuk paritas platform pairing tidak
+# di-re-export whatsapp-rust. Versi sama → di-patch ke vendor/wacore bersama.
+wacore = { version = "0.7", default-features = false }
 wacore-libsignal = { version = "0.7", features = ["legacy-session-interop"] }

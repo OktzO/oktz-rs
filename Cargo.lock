@@ -1361,6 +1361,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "wacore",
  "wacore-libsignal",
  "whatsapp-rust",
 ]
