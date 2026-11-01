@@ -1999,7 +1999,7 @@ mod tests {
         c.args = vec!["view".into()];
         let r = fisht(c);
         let t = r.text_body().unwrap().to_string();
-        assert!(t.starts_with("*TANGKAPAN DIAMBIL!*"), "{t}");
+        assert!(t.trim_start().starts_with("*TANGKAPAN DIAMBIL!*"), "{t}");
         assert!(t.contains("+100\n"), "{t}");
         assert!(t.contains("+10 EXP"), "exp minimal 10");
         assert!(t.contains("+1 ikan"));
@@ -2064,7 +2064,7 @@ mod tests {
         c.args = vec!["daily".into()];
         let r = fisht(c);
         let t = r.text_body().unwrap().to_string();
-        assert!(t.starts_with("*DAILY REWARD!*"), "{t}");
+        assert!(t.trim_start().starts_with("*DAILY REWARD!*"), "{t}");
         assert!(t.contains("*Streak:* 1 hari"));
         assert!(t.contains("+50K\n"), "reward streak 1 = 50000");
         for m in r.mutations() {

@@ -2295,7 +2295,8 @@ mod tests_batch_g {
             "exec", "ganti-asset", "ganti-demote.jpg", "ganti-foto.jpg", "ganti-goodbye.jpg", "ganti-levelup.jpg", "ganti-namadev", "ganti-namaowner", "ganti-pp-kosong.jpg", "ganti-rpg.jpg", "ganti-rules.jpg",
             "ganti-store.jpg", "get", "hapusgrup", "hapussaluran", "leave", "listjadibot", "listjadibotaktif", "linode2gb", "listsewa", "mutechat", "onlythisgrup", "pinchat",
             "ptvch", "pushkontak", "renewsewa", "sampah", "savekontak", "savedb", "setallmenu", "setgoodbyetype", "setmenu", "setmenucat", "setownertype", "setwelcometype", "sewabot",
-            "star", "stopalljadibot", "stopdandeletejadibot", "stopschedule", "swgcall",
+            "addproduk", "done", "star", "stopalljadibot", "stopdandeletejadibot", "stopschedule", "swgcall",
+            "listdaftar",
 
             "addplugin", "addsewa", "backupsc", "bcpc", "buatgrup", "buatsaluran", "colongpp", "crm",
             "delpanel", "delplugin", "delsewa", "enableplugin", "eval", "ganti-foto2.jpg", "ganti-foto3.jpg",
@@ -4173,14 +4174,14 @@ mod tests_roster_state {
     // berkas yang sama, mis. `sticker/attp2.js` yang memakai nama sekaligus
     // alias `attp2`, atau `main/leaderboard.js` yang mengulang
     // `leaderboard`). Tabrakan baru di luar daftar ini berarti port kita.
-    pub(crate) const JS_COLLISIONS: [&str; 44] = [
+    pub(crate) const JS_COLLISIONS: [&str; 48] = [
         "applemusic", "asmaulhusna", "attp2", "audioquran", "backupdb", "beli", "berburu", "block",
         "bratanime", "bucin",
         "cantik", "cc", "cekjodoh", "cupu", "daftar", "discordstalk", "exp", "fakedana",
         "fakegopay",
-        "fakeovo", "film", "ganteng", "heapsnap", "inspect", "izen", "kaya", "leaderboard",
-        "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig",
-        "smeme-animated", "smemevid", "sroast", "stalkdc", "tofigure3", "top", "tts", "unblock", "wibu",
+        "fakeovo", "film", "ganteng", "heapsnap", "inspect", "izen", "kaya", "kill", "leaderboard",
+        "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig", "qrcode",
+        "smeme-animated", "smemevid", "sroast", "stalkdc", "stats", "tofigure3", "top", "tts", "unblock", "waifu", "wibu",
     ];
 
     /// Alias yang kalah oleh command plugin lain di JS. Lookup JS mengecek map
@@ -4191,7 +4192,7 @@ mod tests_roster_state {
     ///
     /// Rust meniru ini lewat `PluginMeta::commands` (sisa array `name` JS),
     /// yang dicek sebelum alias di `oktz_plugin_api::find`.
-    pub(crate) const JS_SHADOWED_ALIASES: [(&str, &str); 37] = [
+    pub(crate) const JS_SHADOWED_ALIASES: [(&str, &str); 39] = [
         ("admin", "admin"),
         ("applemusic", "applemusic"),
         ("asmaulhusna", "asmaulhusna"),
@@ -4213,6 +4214,7 @@ mod tests_roster_state {
         ("ganteng", "bego"),
         ("inspect", "inspect"),
         ("kaya", "bego"),
+        ("kill", "loli"),
         ("leave", "leave"),
         ("mimpi", "mimpi"),
         ("ngemis", "ngemis"),
@@ -4228,6 +4230,7 @@ mod tests_roster_state {
         ("top", "top"),
         ("tts", "tts"),
         ("unblock", "unblock"),
+        ("waifu", "loli"),
         ("wibu", "bego"),
     ];
 

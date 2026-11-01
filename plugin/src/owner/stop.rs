@@ -72,9 +72,10 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
-        for a in ["shutdown", "kill"] {
-            assert_eq!(find(a).unwrap().meta.name, "stop", "alias {a}");
-        }
+        assert_eq!(find("shutdown").unwrap().meta.name, "stop");
+        // JS: command `kill` milik random/anime.js menang atas alias stop.js
+        // (lookup map commands dulu, baru alias — plugins.js:539-544).
+        assert_eq!(find("kill").unwrap().meta.name, "loli");
     }
 
     #[test]
