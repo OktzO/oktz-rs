@@ -1,8 +1,9 @@
 // Modul plugin kategori `sticker` — cerminan `oktz-md/plugins/sticker/*.js`.
 //
-// Catatan: `ttp.rs` sengaja TIDAK didaftarkan di sini. Metadata plugin-nya
-// memakai kategori `"maker"` (`oktz-md/plugins/sticker/ttp.js:8`), jadi
-// pendaftarannya milik kategori `maker`, bukan `sticker`.
+// `ttp.rs` ikut di sini: berkasnya ada di `plugins/sticker/ttp.js` dan
+// kategori `maker` tidak punya folder modul sendiri, jadi paling aman
+// mendeklarasikan modulnya di sini sementara `PluginMeta::category`
+// tetap `"maker"` mengikuti JS (`ttp.js:8`).
 //
 // `bratgreen`/`bratanime`/`bratcewek` hidup di `bratstatic.rs` dan
 // `bratvid2`/`bratlocal` di `bratvid.rs` — jangan daftarkan berkas lama
@@ -24,6 +25,7 @@ pub mod sticker;
 pub mod stickerly;
 pub mod stickerpack;
 pub mod swm;
+pub mod ttp;
 
 // Nama berkasnya memakai tanda hubung (`smeme-animated.js` → `smeme-animated.rs`),
 // jadi modul perlu `#[path]` agar Rust mencarinya dengan nama itu.

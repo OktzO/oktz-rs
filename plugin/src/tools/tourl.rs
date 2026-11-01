@@ -347,6 +347,24 @@ fn unggah_semua(ctx: &Ctx, buffer: &[u8], filename: &str) -> (Vec<Hasil>, Vec<St
     (hasil, gagal)
 }
 
+/// `uploadImage` (`src/lib/uploader.js:1-29`) — coba host berurutan,
+/// berhenti di URL pertama yang berhasil. Dipakai `store/addproduk.rs`.
+pub(crate) fn unggah_pertama(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<String> {
+    let percobaan: Vec<Option<Hasil>> = vec![
+        litterbox(ctx, buffer, filename),
+        kappa(ctx, buffer, filename),
+        uguu(ctx, buffer, filename),
+        nekohime(ctx, buffer, filename),
+        leopard(ctx, buffer, filename),
+        upload_ee(ctx, buffer, filename),
+    ];
+    percobaan
+        .into_iter()
+        .flatten()
+        .find(|h| !h.url.is_empty())
+        .map(|h| h.url)
+}
+
 /// `uploadToPaster` (`tourl.js:56-72`).
 fn upload_paster(ctx: &Ctx, nama: &str, url_paster: &str, text: &str) -> Option<Hasil> {
     let res = ctx

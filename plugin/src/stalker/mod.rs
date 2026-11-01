@@ -24,3 +24,6 @@ pub mod robloxstalk;
 // profil Discord via dclookup.id). Alias `discordstalk`-nya kalah oleh plugin
 // bernama `discordstalk` (lihat `JS_SHADOWED_ALIASES`).
 pub mod stalkdc;
+
+// Port batch stalker: profil WhatsApp.
+pub mod wastalk;

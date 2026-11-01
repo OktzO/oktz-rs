@@ -1,5 +1,6 @@
 pub mod dungeon;
 pub mod family100;
+pub mod fisch;
 pub mod kyubigame;
 pub mod suitpvp;
 pub mod tictactoe;

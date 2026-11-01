@@ -63,6 +63,7 @@ pub mod hd2;
 pub mod hd3;
 pub mod musikapaini;
 pub mod ocr;
+pub mod qrcustom;
 pub mod qwa;
 pub mod toaudio;
 pub mod tourl;

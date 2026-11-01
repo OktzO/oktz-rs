@@ -49,3 +49,8 @@ pub mod gachahusbu;
 
 // Port batch paritas: confess.
 pub mod confess;
+
+// Port batch: sulap (kick dramatis), tembak/tolak (pasangan).
+pub mod sulap;
+pub mod tembak;
+pub mod tolak;

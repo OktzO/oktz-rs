@@ -2303,6 +2303,9 @@ mod tests_batch_g {
             "ganticode", "gantiscraper", "getplugin", "hapusdata", "join", "resetdb", "restart",
             "searchplugin", "sessionstats", "sistemdaftar", "sprem", "srt", "startschedule",
             "swgc", "swgcv2", "swgcv2all", "upch",
+
+            // `plugins/anime/autoanimewinbu.js` (isOwner: true).
+            "autoanimewinbu",
         ];
         for m in oktz_plugin_api::all_plugins().iter().map(|p| &p.meta) {
             if m.is_owner && m.is_enabled {

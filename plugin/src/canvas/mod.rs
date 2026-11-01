@@ -41,3 +41,9 @@ pub mod fakestory3;
 pub mod fakestory4;
 pub mod gura;
 pub mod topixel;
+
+// Port batch canvas: igstory/igstoryimg (render terblokir), kalender, ttqc.
+pub mod igstory;
+pub mod igstoryimg;
+pub mod kalender;
+pub mod ttqc;

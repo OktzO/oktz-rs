@@ -1,3 +1,4 @@
+pub mod addproduk;
 pub mod addlist;
 pub mod addstok;
 pub mod beli;
@@ -13,4 +14,5 @@ pub mod liststok;
 // Ditambahkan scripts/pasang-modul.mjs.
 
 // Ditambahkan scripts/pasang-modul.mjs.
+pub mod done;
 pub mod editproduk;

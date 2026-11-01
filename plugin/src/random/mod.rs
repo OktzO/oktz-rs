@@ -17,3 +17,6 @@ pub mod meme;
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod lahelu;
 pub mod quotesimage;
+
+// Port dari `oktz-md/plugins/random/anime.js` (kunci `loli` + 29 tipe Nexray).
+pub mod anime;

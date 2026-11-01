@@ -8,8 +8,10 @@ pub mod energi;
 pub mod exp;
 pub mod koin;
 pub mod level;
+pub mod listdaftar;
 pub mod levelup;
 pub mod notiflimit;
+pub mod profile;
 pub mod setbirthday;
 
 // Ditambahkan scripts/pasang-modul.mjs.

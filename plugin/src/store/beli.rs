@@ -29,7 +29,7 @@ const TRX: &str = "storeTransactions";
 
 /// `(Rp " + n.toLocaleString("id-ID"))` — pemisah ribuan titik, sama dengan
 /// `formatNumber` yang dipakai `buyfitur.js`.
-fn rupiah(n: i64) -> String {
+pub(crate) fn rupiah(n: i64) -> String {
     let digits = n.abs().to_string();
     let mut out = String::new();
     for (i, c) in digits.chars().enumerate() {
@@ -75,7 +75,7 @@ fn available(p: &serde_json::Value) -> bool {
     }
 }
 
-fn price_of(p: &serde_json::Value) -> i64 {
+pub(crate) fn price_of(p: &serde_json::Value) -> i64 {
     p.get("price").and_then(|v| v.as_i64()).unwrap_or(0)
 }
 

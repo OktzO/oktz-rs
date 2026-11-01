@@ -1,6 +1,7 @@
 pub mod allmenu;
 pub mod benefitowner;
 pub mod benefitpremium;
+pub mod carifitur;
 pub mod menu;
 pub mod menucat;
 pub mod gacha;
