@@ -147,10 +147,11 @@ pub fn pinpack(ctx: Ctx) -> Reply {
     // `pinpack.js:102-114` — JS mengirim paket; di sini satu per satu.
     let packname = format!("Pinterest: {query}");
     let mut balasan: Vec<Reply> = vec![laporan];
+    let terkirim = sticker_bytes.len();
     for bytes in sticker_bytes {
         balasan.push(Reply::sticker(MediaSource::bytes(bytes)));
     }
-    balasan.push(Reply::text(berhasil_kirim(hasil.len(), &packname)));
+    balasan.push(Reply::text(berhasil_kirim(terkirim, &packname)));
     // `ponytail:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` — lihat
     // catatan di atas.
     Reply::sequence(balasan)

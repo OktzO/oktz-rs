@@ -83,7 +83,10 @@ pub fn emojimix(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let body = res.json().unwrap_or(Value::Null);
-    let data = body.get("data");
+    // JS `emojimix.js:50` — `data?.status && data?.data?.url` (data = body).
+    let data = body.get("data").filter(|_| {
+        body.get("status").is_some_and(|s| s.as_bool() == Some(true) || s.as_i64().unwrap_or(0) != 0)
+    });
     let Some(gambar_url) = data
         .and_then(|d| d.get("url").and_then(Value::as_str))
         .filter(|s| !s.is_empty())

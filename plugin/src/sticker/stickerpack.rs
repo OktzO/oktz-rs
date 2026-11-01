@@ -202,16 +202,19 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
     }
 
     // `stickerpack.js:156-160` — JS mengirim paket; di sini satu per satu.
+    // `stickerpack.js:157` — `randPick.name || config.sticker?.packname || "Bot"`.
+    let cfg = ctx.config();
     let packname = if nama.is_empty() {
-        "Sticker.ly Pack".to_string()
+        if cfg.sticker.packname.is_empty() { "Bot".to_string() } else { cfg.sticker.packname.clone() }
     } else {
         nama.clone()
     };
+    let terkirim = sticker_bytes.len();
     let mut balasan: Vec<Reply> = vec![laporan];
     for bytes in sticker_bytes {
         balasan.push(Reply::sticker(MediaSource::bytes(bytes)));
     }
-    balasan.push(Reply::text(berhasil_kirim(MAX_STICKERS.min(jumlah), &packname)));
+    balasan.push(Reply::text(berhasil_kirim(terkirim, &packname)));
     // `ponytail:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` — lihat
     // catatan di atas.
     Reply::sequence(balasan)

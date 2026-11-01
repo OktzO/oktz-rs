@@ -47,20 +47,36 @@ pub fn aio(ctx: Ctx) -> Reply {
     let Some(media) = result.get("media").and_then(Value::as_array) else {
         return Reply::text(NO_MEDIA).with_reaction("❌");
     };
-    let Some(item) = media.first() else {
+    if media.is_empty() {
         return Reply::text(NO_MEDIA).with_reaction("❌");
-    };
-    let tipe = item.get("type").and_then(Value::as_str).unwrap_or("");
-    let url_media = item.get("url").and_then(Value::as_str).unwrap_or("");
+    }
     let judul = result.get("title").and_then(Value::as_str).unwrap_or("");
 
-    let media_source = MediaSource::url(url_media);
-    let reply = match tipe {
-        "video" => Reply::video(media_source, judul),
-        "audio" => Reply::audio(media_source),
-        _ => Reply::image(media_source, judul),
-    };
-    reply.with_reaction("✅")
+    // JS: for (const item of result.media) — satu pesan per item.
+    let mut urutan: Vec<Reply> = media
+        .iter()
+        .filter_map(|item| {
+            let tipe = item.get("type").and_then(Value::as_str).unwrap_or("");
+            let url_media = item.get("url").and_then(Value::as_str)?;
+            if url_media.is_empty() {
+                return None;
+            }
+            let src = MediaSource::url(url_media);
+            Some(match tipe {
+                "video" => Reply::video(src, judul),
+                "audio" => Reply::audio(src),
+                _ => Reply::image(src, judul),
+            })
+        })
+        .collect();
+    if urutan.is_empty() {
+        return Reply::text(NO_MEDIA).with_reaction("❌");
+    }
+    urutan.push(Reply::Reaction {
+        emoji: "✅".into(),
+        reply: Box::new(Reply::None),
+    });
+    Reply::sequence(urutan)
 }
 
 #[cfg(test)]

@@ -108,6 +108,7 @@ fn ke_png(media: &[u8]) -> Vec<u8> {
 pub fn smeme(ctx: Ctx) -> Reply {
     // `smeme.js:26-30` — guard gambar/sticker.
     let ada_gambar = ctx.is_media_kind(IncomingKind::Image)
+        || ctx.is_media_kind(IncomingKind::Sticker)
         || ctx
             .quoted()
             .is_some_and(|q| q.kind.is_image() || q.kind.is_sticker());

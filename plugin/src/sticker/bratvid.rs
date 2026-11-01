@@ -97,8 +97,25 @@ fn run(ctx: Ctx, width: u32, height: u32, fps: u32) -> Reply {
             },
         ]);
     };
+    // JS: `sock.sendVideoAsSticker(...)` — mp4 diubah ke WebP animasi
+    // ber-EXIF lalu dikirim sebagai sticker, bukan video biasa.
+    let cfg = ctx.config();
+    let (packname, author) = (
+        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
+        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
+    );
+    let webp = match oktz_plugin_api::video_ke_stiker_webp(&mp4, &[]) {
+        Ok(webp) => oktz_plugin_api::tempel_metadata_stiker(&webp, &packname, &author, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp),
+        Err(_) => return Reply::sequence(vec![
+            Reply::text(crate::common::error_template(&ctx)),
+            Reply::Reaction { emoji: "☢".into(), reply: Box::new(Reply::None) },
+        ]),
+    };
     Reply::sequence(vec![
-        Reply::video(MediaSource::bytes(mp4).with_mimetype("video/mp4"), String::new()),
+        Reply::sticker_opsi(
+            MediaSource::bytes(webp).with_mimetype("image/webp"),
+            oktz_plugin_api::StickerOpsi::video().with_packname(packname).with_author(author),
+        ),
         Reply::Reaction {
             emoji: "✅".into(),
             reply: Box::new(Reply::None),

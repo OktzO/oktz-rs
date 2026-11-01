@@ -25,7 +25,7 @@ pub(crate) fn baris_varian(prefix: &str, text: &str) -> Vec<(String, String, Str
     .collect()
 }
 
-fn menu_brat(prefix: &str, text: &str) -> Reply {
+fn menu_brat(prefix: &str, text: &str, subtitle: &str) -> Reply {
     let rows: Vec<serde_json::Value> = baris_varian(prefix, text)
         .into_iter()
         .map(|(title, description, id)| {
@@ -40,7 +40,7 @@ fn menu_brat(prefix: &str, text: &str) -> Reply {
     Reply::interactive(CAPTION_MENU)
         .with_header(oktz_plugin_api::kartu::KartuHeader {
             title: Some(String::new()),
-            subtitle: Some("Oktz Bot".to_string()),
+            subtitle: Some(subtitle.to_string()),
             media: Some(MediaSource::path("assets/image/foto.jpeg")),
         })
         .with_footer("Pilih variant brat favorit kamu")
@@ -110,7 +110,9 @@ pub(crate) fn parse_brat_args(input: &str) -> (String, u8) {
 pub fn brat(ctx: Ctx) -> Reply {
     let command = ctx.command.to_lowercase();
     if command == "brat" || command == "bratmenu" {
-        return menu_brat(&ctx.prefix, &ctx.text);
+        let cfg = ctx.config();
+        let subtitle = if cfg.bot.name.is_empty() { "Oktz Bot".to_string() } else { cfg.bot.name.clone() };
+        return menu_brat(&ctx.prefix, &ctx.text, &subtitle);
     }
 
     if ctx.text.is_empty() {
@@ -177,7 +179,7 @@ mod tests {
 
     #[test]
     fn brat_menu_has_six_rows() {
-        let r = menu_brat(".", "halo");
+        let r = menu_brat(".", "halo", "Oktz Bot");
         let Reply::Interactive { kartu } = r else {
             panic!("harus interactive")
         };

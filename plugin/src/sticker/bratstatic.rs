@@ -2,15 +2,15 @@
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema) -> Reply {
+fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema, judul: &str, contoh: &str) -> Reply {
     if ctx.text.is_empty() {
         return Reply::text(format!(
-            "🖼️ *ʙʀᴀᴛ ɪᴍᴀɢᴇ*\n\n> Masukkan teks\n\n`Contoh: {}bratimg Hai semua`",
+            "🖼️ *{judul}*\n\n> Masukkan teks\n\n`Contoh: {}{contoh} Hai semua`",
             ctx.prefix
         ));
     }
-    let (parsed, _) = super::brat::parse_brat_args(&ctx.text);
-    let png = oktz_plugin_api::render_brat(&parsed, tema, 0).unwrap_or_default();
+    let (parsed, blur) = super::brat::parse_brat_args(&ctx.text);
+    let png = oktz_plugin_api::render_brat(&parsed, tema, blur).unwrap_or_default();
     let cfg = ctx.config();
     let (pn, au) = (
         if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
@@ -34,7 +34,7 @@ fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema) -> Reply {
     is_private = false
 )]
 pub fn bratgreen(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Hijau)
+    run(ctx, oktz_plugin_api::BratTema::Hijau, "BRAT GREEN", "bratgreen")
 }
 
 #[plugin(
@@ -50,7 +50,7 @@ pub fn bratgreen(ctx: Ctx) -> Reply {
     is_private = false
 )]
 pub fn bratanime(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Anime)
+    run(ctx, oktz_plugin_api::BratTema::Anime, "ʙʀᴀᴛ ᴀɴɪᴍᴇ sᴛɪᴄᴋᴇʀ", "animebrat")
 }
 
 #[plugin(
@@ -66,5 +66,5 @@ pub fn bratanime(ctx: Ctx) -> Reply {
     is_private = false
 )]
 pub fn bratcewek(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Cewek)
+    run(ctx, oktz_plugin_api::BratTema::Cewek, "ʙʀᴀᴛ cᴇᴡᴇᴋ sᴛɪᴄᴋᴇʀ", "bratcewek")
 }

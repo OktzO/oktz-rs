@@ -42,18 +42,25 @@ pub(crate) fn api_url(text: &str, api_key: &str) -> String {
     is_bot_admin = false
 )]
 pub fn attp(ctx: Ctx) -> Reply {
-    let text = ctx.text.trim();
+    // `attp.js:74-77` — `text || m.quoted?.text`.
+    let mut text = ctx.text.trim().to_string();
+    if text.is_empty()
+        && let Some(q) = ctx.quoted()
+    {
+        text = q.text.trim().to_string();
+    }
 
     if text.is_empty() {
         return Reply::text(help(&ctx.prefix));
     }
 
-    if text.len() > 100 {
+    // JS `text.length` menghitung unit UTF-16; `chars().count()` yang terdekat.
+    if text.chars().count() > 100 {
         return Reply::text("❌ Teks terlalu panjang! Maksimal 100 karakter.");
     }
 
     let api_key = ctx.config().api_keys.neoxr.clone();
-    let url = api_url(text, &api_key);
+    let url = api_url(&text, &api_key);
 
     let Ok(res) = ctx.http.get(&url) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");

@@ -146,8 +146,9 @@ pub fn addseller(ctx: Ctx) -> Reply {
 
     let Some(target) = target_user else {
         let cmd = ctx.command.as_str();
+        let prefix = ctx.prefix.as_str();
         return Reply::text(format!(
-            "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.{cmd} @user`\n> `.{cmd} 628xxx`\n> Reply pesan user"
+            "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{prefix}{cmd} @user`\n> `{prefix}{cmd} 628xxx`\n> Reply pesan user"
         ));
     };
 

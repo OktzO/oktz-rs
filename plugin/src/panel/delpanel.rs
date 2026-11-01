@@ -127,10 +127,10 @@ fn kerjakan(
     let Some(server_id) = rest.first() else {
         return Reply::text(format!(
             "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
-             > `.{prefix}delpanel ID` - Hapus server saja\n\
-             > `.{prefix}delpanel ID full` - Hapus server + user\n\
-             > `.{prefix}delpanel s2 ID` - Dari server 2\n\n\
-             > Lihat ID dengan `.{prefix}listserver`",
+             > `{prefix}delpanel ID` - Hapus server saja\n\
+             > `{prefix}delpanel ID full` - Hapus server + user\n\
+             > `{prefix}delpanel s2 ID` - Dari server 2\n\n\
+             > Lihat ID dengan `{prefix}listserver`",
             prefix = ctx.prefix
         ));
     };
