@@ -26,7 +26,7 @@ const CONFIG_PREFIX: &str = ".";
     category = "owner",
     description = "Manajemen prefix bot",
     usage = ".addprefix <prefix1> <prefix2>...",
-    example = ".addprefix ! # $ 😚",
+    example = ".addprefix ! # $",
     cooldown = 5,
     energi = 0,
     is_owner = true,
@@ -257,7 +257,7 @@ fn daftar_awalan(ctx: &Ctx, data: &Value) -> String {
     if !db.is_empty() {
         text.push_str("╭┈┈⬡「 📁 *ᴅᴀᴛᴀʙᴀsᴇ* 」\n");
         for (i, p) in db.iter().enumerate() {
-            text.push_str(&format!("┃ {}.\t`{}`\n", i + 1, p));
+            text.push_str(&format!("┃ {}. `{}`\n", i + 1, p));
         }
         text.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
     }
@@ -326,5 +326,67 @@ mod tests {
         let text = daftar_awalan(&c, &data);
         assert!(text.contains("Default: `.`"));
         assert!(text.contains("*Total prefix aktif:* 1"));
+    }
+
+    #[test]
+    fn semua_kunci_js_resolve_di_registry() {
+        // JS `name: ['addprefix', 'gantiprefix', 'setprefix', 'delprefix',
+        // 'listprefix', 'resetprefix']` — satu plugin, enam pintu masuk.
+        for kunci in [
+            "addprefix",
+            "gantiprefix",
+            "setprefix",
+            "delprefix",
+            "listprefix",
+            "resetprefix",
+        ] {
+            assert_eq!(
+                oktz_plugin_api::find(kunci).unwrap().meta.name,
+                "addprefix",
+                "kunci {kunci} harus resolve ke plugin addprefix"
+            );
+        }
+        let p = oktz_plugin_api::find("addprefix").unwrap();
+        assert_eq!(p.meta.category, "owner");
+        assert_eq!(p.meta.cooldown, 5);
+        assert_eq!(p.meta.energi, 0);
+        assert!(p.meta.is_owner);
+        assert!(p.meta.alias.is_empty(), "alias JS: []");
+    }
+
+    #[test]
+    fn listprefix_baris_database_pakai_spasi_bukan_tab() {
+        // `prefix.js:208`: `┃ ${i + 1}. \`${p}\`` — satu spasi setelah titik.
+        let c = ctx();
+        let mut data = muat_awalan(&c);
+        if let Some(obj) = data.as_object_mut() {
+            obj.insert(
+                "prefixes".to_string(),
+                serde_json::json!(["!", "#"]),
+            );
+        }
+        let text = daftar_awalan(&c, &data);
+        assert!(text.contains("┃ 1. `!`"), "{text}");
+        assert!(text.contains("┃ 2. `#`"), "{text}");
+        assert!(!text.contains('\t'), "tidak boleh ada tab: {text}");
+    }
+
+    #[test]
+    fn ganti_dan_reset_prefix_melalui_handler() {
+        let mut c = ctx();
+        c.command = "gantiprefix".into();
+        c.args = vec!["!".into()];
+        let r = prefix(c);
+        assert!(r.text_body().unwrap().contains("ᴘʀᴇғɪx ᴅɪɢᴀɴᴛɪ"));
+
+        let mut c = ctx();
+        c.command = "resetprefix".into();
+        let r = prefix(c);
+        assert!(r.text_body().unwrap().contains("ᴘʀᴇғɪx ᴅɪʀᴇsᴇᴛ"));
+
+        let mut c = ctx();
+        c.command = "listprefix".into();
+        let r = prefix(c);
+        assert!(r.text_body().unwrap().contains("ʟɪsᴛ ᴘʀᴇғɪx"));
     }
 }

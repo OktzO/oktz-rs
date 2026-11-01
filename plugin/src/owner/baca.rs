@@ -92,12 +92,11 @@ mod tests {
         }
     }
 
-    fn run() -> (Reply, StubSock) {
-        let sock = StubSock::default();
-        let sock_clone = sock.clone();
+    fn run() -> (Reply, std::sync::Arc<StubSock>) {
+        let sock = std::sync::Arc::new(StubSock::default());
         let ctx = Ctx {
             command: "baca".into(),
-            sock: std::sync::Arc::new(sock_clone),
+            sock: sock.clone(),
             ..Ctx::default()
         };
         let r = baca(ctx);
@@ -111,7 +110,7 @@ mod tests {
             r.without_mutations().text_body(),
             Some("📖 *Pesan ditandai sudah dibaca*")
         );
-        assert_eq!(sock.dipanggil.lock().unwrap().as_deref(), Some(&[]));
+        assert_eq!(sock.dipanggil.lock().unwrap().as_deref(), Some(&[][..]));
     }
 
     #[test]

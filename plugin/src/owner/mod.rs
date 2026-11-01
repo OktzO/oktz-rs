@@ -183,3 +183,13 @@ pub mod ganti_mp3;
 pub mod ganti_namabot;
 #[path = "ganti-welcome.rs"]
 pub mod ganti_welcome;
+
+// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 3):
+// file yang sudah ada di disk tapi belum dideklarasikan (orphan).
+pub mod addowner;
+pub mod addprem;
+pub mod arsip;
+pub mod baca;
+pub mod cekschedule;
+pub mod schedule;
+pub mod stopalljadibot;

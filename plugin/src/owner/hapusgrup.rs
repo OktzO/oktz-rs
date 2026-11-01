@@ -152,4 +152,25 @@ mod tests {
             "❌ Gagal keluar dari grup: sock tidak tersedia"
         );
     }
+
+    #[test]
+    fn terdaftar_dengan_semua_kunci_js() {
+        // JS `name: ['hapusgrup', 'deletegrup', 'delgrup']` — entri kedua dan
+        // ketiga masuk `commands`, `alias` JS kosong.
+        let p = oktz_plugin_api::find("hapusgrup").expect("hapusgrup terdaftar");
+        assert_eq!(p.meta.name, "hapusgrup");
+        assert_eq!(p.meta.commands, ["deletegrup", "delgrup"]);
+        assert!(p.meta.alias.is_empty());
+        assert_eq!(p.meta.category, "owner");
+        assert_eq!(p.meta.cooldown, 5);
+        assert_eq!(p.meta.energi, 0);
+        assert!(p.meta.is_owner);
+        for kunci in ["hapusgrup", "deletegrup", "delgrup"] {
+            assert_eq!(
+                oktz_plugin_api::find(kunci).unwrap().meta.name,
+                "hapusgrup",
+                "kunci {kunci} harus resolve ke hapusgrup"
+            );
+        }
+    }
 }

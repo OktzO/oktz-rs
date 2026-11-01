@@ -29,3 +29,15 @@ pub mod tiktokchat;
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod fakeml;
 pub mod profileig;
+
+// Ditambahkan scripts/pasang-modul.mjs.
+pub mod fakedev7;
+pub mod iqcpink;
+
+// Port batch paritas canvas (fakestory1-4, gura, topixel).
+pub mod fakestory;
+pub mod fakestory2;
+pub mod fakestory3;
+pub mod fakestory4;
+pub mod gura;
+pub mod topixel;

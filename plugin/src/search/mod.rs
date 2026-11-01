@@ -49,3 +49,6 @@ pub mod wikipedia;
 pub mod yts;
 pub mod ytplay;
 pub mod ytsearch;
+
+// Port batch paritas: ttsearch.
+pub mod ttsearch;

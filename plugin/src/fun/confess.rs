@@ -384,8 +384,18 @@ mod tests {
     /// `confess.js:62-64` — menfess untuk diri sendiri.
     #[test]
     fn menfess_ke_diri_sendiri_ditolak() {
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "confess".into(),
+            sender: "628111222333@s.whatsapp.net".into(),
+            chat: "628111222333@s.whatsapp.net".into(),
+            text: "628111222333|hallo kak".into(),
+            args: vec!["628111222333|hallo".into(), "kak".into()],
+            sock: Arc::new(SockGagal),
+            ..Default::default()
+        };
         assert_eq!(
-            text_of(&run("628111|hallo kak")),
+            text_of(&(oktz_plugin_api::find("confess").unwrap().handler)(ctx)),
             "Ih masa ngirim menfess buat diri sendiri sih kak? Kasih buat orang lain dong! 😂"
         );
     }
@@ -393,10 +403,10 @@ mod tests {
     /// `confess.js:101-103` — verifikasi WA gagal.
     #[test]
     fn verifikasi_gagal_memuat_nomor() {
-        let t = text_of(&run("628999|hallo kak"));
+        let t = text_of(&run("628999123456|hallo kak"));
         assert_eq!(
             t,
-            "Hmm kak, verifikasi nomor `628999` ke WhatsApp gagal (timeout/koneksi), \
+            "Hmm kak, verifikasi nomor `628999123456` ke WhatsApp gagal (timeout/koneksi), \
              jadi pesan belum dikirim ya. Coba lagi nanti kak! 🙏"
         );
     }

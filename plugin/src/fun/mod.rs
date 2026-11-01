@@ -46,3 +46,6 @@ pub mod pool_data;
 
 // Plugin gacha husbu (sub-command husbuku/tinggalinhusbu/husbuaction).
 pub mod gachahusbu;
+
+// Port batch paritas: confess.
+pub mod confess;
