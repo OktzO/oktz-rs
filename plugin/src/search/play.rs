@@ -1,17 +1,22 @@
 //! `plugins/search/play.js` — putar musik dari YouTube.
 //!
-//! `ponytail:` `yts` (`yt-search`, paket npm) tidak ada padanannya di crate
-//! ini dan tidak ada modul `youtube`/`yt` di `oktz-scraper`, jadi pencarian
-//! selalu gagal — persis `download::pindl` dengan resolver yang belum di-port.
-//! `sock.sendPreview` juga tidak ada padanannya di `Reply`.
+//! Pencarian memakai [`super::ytsearch::search`] (padanan paket npm
+//! `yt-search`), unduhan audio memakai [`crate::download::ytmp3::unduh_audio`]
+//! — padanan `resolve("youtube")` di JS. Deviasi: JS memanggil nexray
+//! langsung, versi ini lewat rantai `ytdl-native → izuka → nexray` yang sama
+//! dengan `.ytmp3`.
 //!
-//! Yang dipor: guard, pemformat views, susunan kartu `NOW PLAYING`, dan pesan
-//! gagalnya.
+//! Deviasi kedua: `sock.sendPreview` (kartu pratinjau tautan) belum punya
+//! padanan di `Reply`, jadi kartu NOW PLAYING dikirim sebagai teks biasa
+//! sebelum audio (urutan `Reply::sequence`).
+
 #![allow(clippy::too_many_arguments)]
 
-#![allow(dead_code)] // jalur pencarian tidak terjangkau tanpa yt-search
+use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use crate::download::ytmp3::{AudioDownload, mimetype_for, unduh_audio};
+
+use super::ytsearch;
 
 /// `play.js:26` — kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
@@ -45,11 +50,6 @@ fn satu_desimal(n: f64) -> String {
     let bawah = kali_seri.floor();
     let naik = if kali_seri - bawah >= 0.5 { 1.0 } else { 0.0 };
     format!("{:.1}", (bawah + naik) / 10.0)
-}
-
-/// `yts(query)` (`play.js:31`) — paket npm `yt-search`, belum di-port.
-fn yts(_query: &str) -> Result<serde_json::Value, ()> {
-    Err(())
 }
 
 /// `play.js:42-55` — kartu `NOW PLAYING`. `desc` = deskripsi video.
@@ -86,6 +86,27 @@ pub(crate) fn now_playing(
     info
 }
 
+/// `play.js:31-40` — `yts(query)` → `search.videos[0]`, lalu unduh audio.
+/// `Err` = semua jalur gagal (pencarian kosong/lempar, atau API audio gagal) —
+/// di JS semuanya jatuh ke `catch` yang sama.
+fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()> {
+    let videos = ytsearch::search(ctx.http.as_ref(), query).map_err(|_| ())?;
+    // `if (!search.videos.length) throw` (`play.js:32`).
+    let video = videos.first().ok_or(())?;
+    let audio = unduh_audio(ctx, &video.url)?;
+    let info = now_playing(
+        &video.title,
+        &video.author_name,
+        &video.timestamp,
+        video.views as f64,
+        &video.ago,
+        &video.video_id,
+        &video.description,
+        &video.url,
+    );
+    Ok((info, audio))
+}
+
 #[plugin(
     name = "play",
     alias = ["playaudio"],
@@ -111,14 +132,17 @@ pub fn play(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `m.react("🕐")` di `:28` sudah jalan; `catch` menggantinya dengan 😭.
-    match yts(query) {
-        Ok(_search) => {
-            // `search.videos[0]` → `api.nexray.web.id/api/downloader/ytmp3` →
-            // `sock.sendPreview` → `sock.sendMessage` audio. Preview tidak
-            // ada padanannya di `Reply`, jadi tidak ada yang terkirim.
-            Reply::text(GAGAL).with_reaction("😭")
-        }
+    match cari_dan_unduh(&ctx, query) {
+        // `play.js:42-86` — kartu NOW PLAYING lalu audio, lalu ✅. Reaksi
+        // tidak boleh membungkus `Reply::Sequence`, jadi 🕐/✅ jadi elemen
+        // urutan (pola `sticker.rs`).
+        Ok((info, audio)) => Reply::sequence(vec![
+            Reply::reaction("🕐"),
+            Reply::text(info),
+            Reply::audio(Ms::url(audio.url).with_mimetype(mimetype_for(&audio.format))),
+            Reply::reaction("✅"),
+        ]),
+        // `play.js:87-93` — 😭 lalu pesan kegagalan.
         Err(()) => Reply::text(GAGAL).with_reaction("😭"),
     }
 }
@@ -126,8 +150,76 @@ pub fn play(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
+    use std::sync::{Arc, Mutex};
 
-    fn run(text: &str) -> Reply {
+    /// Stub HTTP multi-URL: POST pencarian YouTube (lewat `call`), rantai
+    /// backend ytmp3 (`ymcdn` → `izuka` → `nexray`), dicocokkan dari potongan
+    /// URL. `None` = transport error.
+    #[derive(Debug)]
+    struct Stub {
+        per_url: Vec<(&'static str, Option<Value>)>,
+        seen: Mutex<Vec<String>>,
+    }
+
+    impl Stub {
+        fn per_url(per_url: Vec<(&'static str, Option<Value>)>) -> Arc<Stub> {
+            Arc::new(Stub {
+                per_url,
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn jawab(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            let (_, nilai) = self
+                .per_url
+                .iter()
+                .find(|(penanda, _)| url.contains(penanda))
+                .ok_or(HttpError {
+                    message: format!("URL tak dikenal stub: {url}"),
+                })?;
+            let text = nilai
+                .clone()
+                .ok_or(HttpError { message: "offline".into() })?
+                .to_string();
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(text.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_json(&self, url: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_form(&self, url: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!("cuma GET/POST JSON")
+        }
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.url.clone());
+            self.jawab(&req.url)
+        }
+    }
+
+    fn run_http(http: Arc<Stub>, text: &str) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "play".into(),
@@ -135,9 +227,14 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             text: text.into(),
             args: text.split_whitespace().map(str::to_string).collect(),
+            http,
             ..Default::default()
         };
         (oktz_plugin_api::find("play").unwrap().handler)(ctx)
+    }
+
+    fn run(text: &str) -> Reply {
+        run_http(Stub::per_url(vec![("", None)]), text)
     }
 
     fn text_of(r: &Reply) -> String {
@@ -156,6 +253,40 @@ mod tests {
                 _ => return None,
             }
         }
+    }
+
+    /// Hasil pencarian YouTube dengan satu video.
+    const HASIL: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+      {"itemSectionRenderer":{"contents":[
+        {"videoRenderer":{
+          "videoId":"aaaaaaaaaaa",
+          "title":{"runs":[{"text":"Lagu Uji"}]},
+          "ownerText":{"runs":[{"text":"Channel Uji"}]},
+          "viewCountText":{"simpleText":"1,234,567 views"},
+          "publishedTimeText":{"simpleText":"2 years ago"},
+          "lengthText":{"simpleText":"3:33"},
+          "detailedMetadataSnippets":[{"snippetText":{"runs":[{"text":"Deskripsi video."}]}}]
+        }}
+      ]}}
+    ]}}}}]}}"#;
+
+    fn stub_sukses() -> Arc<Stub> {
+        Stub::per_url(vec![
+            ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
+            // ytdl-native gagal → jatuh ke izuka.
+            ("ymcdn", Some(serde_json::json!({"status": false}))),
+            (
+                "izuka",
+                Some(serde_json::json!({
+                    "status": true,
+                    "result": {
+                        "title": "Lagu Uji",
+                        "format": "mp3",
+                        "download_url": "https://cdn.example/lagu.mp3"
+                    }
+                })),
+            ),
+        ])
     }
 
     #[test]
@@ -197,10 +328,71 @@ mod tests {
     }
 
     #[test]
-    fn a_query_falls_into_the_catch_branch_while_yt_search_is_missing() {
-        let r = run("komang");
+    fn a_successful_search_sends_the_now_playing_card_then_the_audio() {
+        let http = stub_sukses();
+        let r = run_http(http.clone(), "komang");
+        let Reply::Sequence(list) = r.without_mutations() else {
+            panic!("harus sequence, dapat {:?}", r.without_mutations());
+        };
+        assert_eq!(list.len(), 4);
+        assert!(matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🕐"));
+        let info = match &list[1] {
+            Reply::Text { text, .. } => text,
+            lain => panic!("harus teks NOW PLAYING, dapat {lain:?}"),
+        };
+        assert!(info.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Lagu Uji\n"), "{info}");
+        assert!(info.contains("👀 Views: *1.2M*\n"), "{info}");
+        assert!(info.ends_with("_⏳ mengirim audio, harap tunggu..._"), "{info}");
+        match &list[2] {
+            Reply::Audio { media, ptt } => {
+                assert!(!ptt, "JS kirim ptt: false");
+                let m = media.as_ref().expect("audio harus punya sumber");
+                assert_eq!(m.mimetype(), Some("audio/mpeg"));
+            }
+            lain => panic!("harus audio, dapat {lain:?}"),
+        }
+        assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
+
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 3, "pencarian, ytdl, lalu izuka");
+        assert!(
+            seen[0].contains("youtubei/v1/search"),
+            "pencarian dulu: {}",
+            seen[0]
+        );
+        assert!(
+            seen[1].contains("d.ymcdn.org"),
+            "ytdl-native dicoba duluan: {}",
+            seen[1]
+        );
+        assert!(
+            seen[2].starts_with("https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"),
+            "{}",
+            seen[2]
+        );
+    }
+
+    #[test]
+    fn a_search_without_results_falls_into_the_catch_branch() {
+        // `throw new Error("Video tidak ditemukan")` → catch yang sama.
+        let http = Stub::per_url(vec![("youtubei/v1/search", Some(serde_json::json!({"contents": {}})))]);
+        let r = run_http(http, "zzzz tidak ada");
         assert_eq!(text_of(&r), GAGAL);
-        assert_eq!(reaction_of(&r), Some("😭"), "🕐 digantikan 😭");
+        assert_eq!(reaction_of(&r), Some("😭"));
+    }
+
+    #[test]
+    fn a_backend_failure_falls_into_the_catch_branch() {
+        let gagal = serde_json::json!({"status": false});
+        let http = Stub::per_url(vec![
+            ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
+            ("ymcdn", Some(gagal.clone())),
+            ("izuka", Some(gagal.clone())),
+            ("nexray", Some(gagal)),
+        ]);
+        let r = run_http(http, "komang");
+        assert_eq!(text_of(&r), GAGAL);
+        assert_eq!(reaction_of(&r), Some("😭"));
     }
 
     #[test]

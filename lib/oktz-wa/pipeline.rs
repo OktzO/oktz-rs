@@ -61,6 +61,7 @@ use whatsapp_rust::media::{
 };
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::GroupMetadata;
+use whatsapp_rust::GroupParticipant;
 use whatsapp_rust::upload::{UploadOptions, UploadResponse};
 use whatsapp_rust::waproto::buffa::MessageField;
 use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_response_message::InteractiveResponseMessage as IrOneof;
@@ -1880,15 +1881,14 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
                     .sticker
                     .as_ref()
                     .and_then(|o| o.animated.then_some(true)),
-                // `premium` sengaja TIDAK ditulis ke proto. Bot JS menaruh
-                // `premium: 1` di contextInfo, dan ContextInfo tidak punya
-                // field itu sehingga gugur saat serialisasi. Menulisnya ke
-                // `StickerMessage.premium` (field 24) membuat WA menampilkan
-                // sticker sebagai sticker WhatsApp Premium: kosong/blur bagi
-                // penerima non-premium dan muncul prompt langganan WA Plus.
-                emojis: media.sticker.as_ref().and_then(|o| {
-                    (!o.emojis.is_empty()).then(|| o.emojis.join(","))
-                }),
+                // `premium` dan `emojis` sengaja TIDAK ditulis ke proto —
+                // onigis/Baileys tidak pernah mengirim keduanya di
+                // stickerMessage. `premium` membuat WA menampilkan sticker
+                // sebagai sticker WhatsApp Premium (kosong/blur + prompt
+                // langganan WA Plus); `emojis` tidak ada padanannya di jalur
+                // JS dan WA menolak merender sticker yang memakainya.
+                // Paritas field wire (isAnimated/premium/forwardingScore)
+                // dikunci test di `plugin/src/sticker/sticker.rs`.
                 context_info: ci.map_or_else(MessageField::none, |c| MessageField::some(*c)),
                 ..Default::default()
             }),
@@ -3006,11 +3006,43 @@ impl RosterSource for ClientSender {
 /// `is_admin()`/`is_super_admin()` (`features/groups.rs:246,250`), persis dua
 /// nilai yang diporn plugin JS lewat `p.admin`.
 pub fn roster_from(meta: &GroupMetadata, bot_jids: &[String]) -> GroupRoster {
+    // JS `adminFlagsFor` (`serialize.js:141-157`): kecocokan admin pakai
+    // ANGKA saja. Perbandingan string JID mentah gagal di grup LID — JID bot
+    // membawa suffix device (`123:16@lid`) sedangkan peserta metadata tidak
+    // (`123@lid`), dan PN/LID bisa beda server untuk orang yang sama.
+    // Buang device/agent dulu (`62812:16@s.whatsapp.net` -> `62812`), baru
+    // ambil digit — kalau digit diambil dari string utuh, suffix device
+    // menempel di ekor nomor dan fuzzy suffix tak pernah cocok.
+    let angka = |s: &str| -> String {
+        let tanpa_server = s.split('@').next().unwrap_or(s);
+        let tanpa_device = tanpa_server.split(':').next().unwrap_or(tanpa_server);
+        let tanpa_agent = tanpa_device.split('.').next().unwrap_or(tanpa_device);
+        tanpa_agent.chars().filter(|c| c.is_ascii_digit()).collect()
+    };
+    let bot_nums: Vec<String> = bot_jids
+        .iter()
+        .map(|b| angka(b))
+        .filter(|n| !n.is_empty())
+        .collect();
+    let cocok_bot = |p: &GroupParticipant| -> bool {
+        if bot_nums.is_empty() {
+            return false;
+        }
+        let mut nums = vec![angka(&p.jid.to_string())];
+        if let Some(phone) = &p.phone_number {
+            nums.push(angka(&phone.to_string()));
+        }
+        if let Some(lid) = &p.lid {
+            nums.push(angka(&lid.to_string()));
+        }
+        nums.retain(|n| !n.is_empty());
+        bot_nums.iter().any(|bn| {
+            nums.iter()
+                .any(|n| n == bn || (n.len() >= 8 && bn.len() >= 8 && (n.ends_with(bn.as_str()) || bn.ends_with(n.as_str()))))
+        })
+    };
     GroupRoster {
-        is_bot_admin: meta
-            .participants
-            .iter()
-            .any(|p| p.is_admin() && bot_jids.iter().any(|b| *b == p.jid.to_string())),
+        is_bot_admin: meta.participants.iter().any(|p| p.is_admin() && cocok_bot(p)),
         participants: meta
             .participants
             .iter()
@@ -6560,9 +6592,35 @@ fn group_number_and_long_number_are_rejected() {
         // Bot tidak ada di daftar.
         assert!(!roster_from(&meta, &["999@s.whatsapp.net".into()]).is_bot_admin);
         assert!(!roster_from(&meta, &[]).is_bot_admin);
-        // JID bot dalam format device-suffiks tidak boleh dianggap cocok
-        // dengan JID wire yang bersih.
-        assert!(!roster_from(&meta, &["222:3@s.whatsapp.net".into()]).is_bot_admin);
+        // JID bot dengan suffix device adalah akun yang sama — harus cocok
+        // (inilah yang membuat `.antilinkgc` menolak padahal bot sudah admin).
+        assert!(roster_from(&meta, &["222:3@s.whatsapp.net".into()]).is_bot_admin);
+    }
+
+    #[test]
+    fn bot_admin_cocok_lewat_digit_meski_jid_bot_bawa_device() {
+        // `serialize.js:141-157`: kecocokan pakai digit + fuzzy suffix —
+        // nomor dengan device (`62812x:16@...`) harus tetap cocok dengan
+        // peserta metadata yang bersih. Inilah kasus nyata `.antilinkgc`
+        // menolak padahal bot sudah admin di grup LID.
+        let p = |jid: &str, t: ParticipantType| GroupParticipant {
+            jid: jid.parse().unwrap(),
+            phone_number: None,
+            lid: None,
+            username: None,
+            participant_type: t,
+            details: None,
+        };
+        let meta = GroupMetadata {
+            participants: vec![
+                p("628123456789@s.whatsapp.net", ParticipantType::Admin),
+                p("555666777888999@lid", ParticipantType::Admin),
+            ],
+            ..Default::default()
+        };
+        assert!(roster_from(&meta, &["628123456789:16@s.whatsapp.net".into()]).is_bot_admin);
+        assert!(roster_from(&meta, &["555666777888999:44@lid".into()]).is_bot_admin);
+        assert!(!roster_from(&meta, &["628987654321:16@s.whatsapp.net".into()]).is_bot_admin);
     }
 
     #[tokio::test]

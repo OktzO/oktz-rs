@@ -32,7 +32,8 @@ Gunakan format markdown secara ketat:\n\
 3. Gunakan formatting teks tebal (*teks*) untuk menekankan sesuatu, atau hashtag (#) untuk judul / penjelas besar.\n\
 Pastikan semua respon terstruktur dengan baik agar sistem AIRich dapat merendernya dengan cantik.";
 
-/// Prefix kunci sesi — `sessions` di JS鍵专属, di Rust `Ctx::sessions` global.
+/// Prefix kunci sesi — map `sessions` di JS per-modul, di Rust `Ctx::sessions`
+/// global sehingga butuh prefix supaya tidak menabrak plugin lain.
 const KUNCI_SESI: &str = "ai:gemini:";
 
 /// Kartu pakai — `ai.js:42-51`.
@@ -48,6 +49,7 @@ fn help(prefix: &str) -> String {
 }
 
 /// Satu blok hasil pemecahan markdown.
+#[derive(Debug)]
 enum Blok {
     /// `aiRich.addText(...)`.
     Teks(String),
@@ -76,32 +78,11 @@ fn bukan_baris_pemisah(row: &[String]) -> bool {
         .all(|c| !c.is_empty() && c.chars().all(|ch| ch == '-' || ch == ':'))
 }
 
-/// `ai.js:87-101` — `flushTable`.
-fn flush_tabel(current_table: &mut Vec<Vec<String>>) -> Option<Blok> {
-    if current_table.is_empty() {
-        return None;
-    }
-    let data: Vec<Vec<String>> = current_table.iter().map(|l| sel_baris_tabel(l)).collect();
-    let disaring: Vec<Vec<String>> = data
-        .iter()
-        .filter(|row| !bukan_baris_pemisah(row))
-        .cloned()
-        .collect();
-    current_table.clear();
-
-    if !disaring.is_empty() && disaring.iter().all(|row| !row.is_empty()) {
-        Some(Blok::Tabel(disaring))
-    } else {
-        // `aiRich.addText(currentTable.join('\n'))` — sudah dikosongkan di atas,
-        // jadi baris aslinya harus disimpan sebelum dibuang.
-        Some(Blok::Teks(String::new()))
-    }
-}
-
 /// Pecah jawaban markdown seperti loop di `ai.js:103-136`.
 fn pecah(teks: &str) -> Vec<Blok> {
     let lines: Vec<&str> = teks.split('\n').collect();
-    let mut current_table: Vec<Vec<String>> = Vec::new();
+    // JS `currentTable` berisi baris mentah (string), bukan sel.
+    let mut current_table: Vec<String> = Vec::new();
     let mut current_code: Vec<String> = Vec::new();
     let mut in_code = false;
     let mut code_lang = String::new();
@@ -170,17 +151,19 @@ fn pecah(teks: &str) -> Vec<Blok> {
     blocks
 }
 
-/// `flushTable` (`ai.js:87-101`) — versi yang menyimpan teks baris mentah
-/// untuk cabang fallback `addText(currentTable.join('\n'))`.
-fn flush_tabel_teks(current_table: &mut Vec<Vec<String>>) -> Option<Blok> {
+/// `flushTable` (`ai.js:87-101`) — baris mentah disimpan untuk cabang
+/// fallback `addText(currentTable.join('\n'))`.
+fn flush_tabel_teks(current_table: &mut Vec<String>) -> Option<Blok> {
     if current_table.is_empty() {
         return None;
     }
     let mentah: Vec<String> = current_table.clone();
     let data: Vec<Vec<String>> = mentah.iter().map(|l| sel_baris_tabel(l)).collect();
+    // JS `filter(row => !row.every(c => /^[-:]+$/.test(c)))` — buang baris
+    // separator (`|---|---|`), sisakan baris isi.
     let disaring: Vec<Vec<String>> = data
         .iter()
-        .filter(|row| !bukan_baris_pemisah(row))
+        .filter(|row| bukan_baris_pemisah(row))
         .cloned()
         .collect();
     current_table.clear();
@@ -290,67 +273,87 @@ pub fn ai(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpGet, HttpResponse};
     use std::sync::{Arc, Mutex};
 
+    /// Stub HTTP: scraper `gemini` memakai `HttpCall::call` dengan body form,
+    /// jadi stub menimpa `call` (bukan `get`/`post_json`) dan mencatat
+    /// permintaannya supaya bisa diperiksa test.
     #[derive(Debug)]
     struct Stub {
-        resp: Option<String>,
-        seen: Mutex<Vec<(String, String)>>,
+        balasan: Mutex<Vec<Result<HttpResponse, HttpError>>>,
+        permintaan: Mutex<Vec<HttpCall>>,
+        hitung: Mutex<usize>,
     }
 
     impl Stub {
+        /// Satu balasan (200, `body`) dipakai berulang untuk semua permintaan —
+        /// scraper hanya membaca status + header `batchexecute`, dan body yang
+        /// sama tetap valid untuk pemanggilan berikutnya.
         fn ok(body: &str) -> Arc<Stub> {
             Arc::new(Stub {
-                resp: Some(body.to_string()),
-                seen: Mutex::new(Vec::new()),
+                balasan: Mutex::new(vec![Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(body.as_bytes().to_vec().into_boxed_slice()),
+                        mimetype: None,
+                    },
+                    headers: vec![],
+                })]),
+                permintaan: Mutex::new(Vec::new()),
+                hitung: Mutex::new(0),
             })
         }
+
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
-                resp: None,
-                seen: Mutex::new(Vec::new()),
-            })
-        }
-        fn respond(&self) -> Result<HttpResponse, HttpError> {
-            let Some(text) = &self.resp else {
-                return Err(oktz_plugin_api::HttpError {
+                balasan: Mutex::new(vec![Err(HttpError {
                     message: "offline".into(),
-                });
-            };
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(text.clone().into_bytes()),
-                    mimetype: Some("application/json".into()),
-                },
-                headers: vec![],
+                })]),
+                permintaan: Mutex::new(Vec::new()),
+                hitung: Mutex::new(0),
             })
         }
     }
 
     impl HttpGet for Stub {
-        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            self.seen.lock().unwrap().push((url.into(), String::new()));
-            self.respond()
+        fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("plugin ini hanya POST")
         }
-        fn post_json(&self, url: &str, body: &Value) -> Result<HttpResponse, HttpError> {
-            self.seen
-                .lock()
-                .unwrap()
-                .push((url.into(), body.to_string()));
-            self.respond()
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("plugin ini hanya POST form")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!("plugin ini hanya POST JSON")
+            unreachable!("plugin ini hanya POST form")
         }
         fn post_multipart(
             &self,
             _: &str,
             _: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
-            unimplemented!("plugin ini hanya POST JSON")
+            unreachable!("plugin ini tidak multipart")
         }
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.permintaan.lock().unwrap().push(req.clone());
+            let mut hitung = self.hitung.lock().unwrap();
+            let balasan = self.balasan.lock().unwrap();
+            let i = (*hitung).min(balasan.len().saturating_sub(1));
+            *hitung += 1;
+            balasan[i].clone()
+        }
+    }
+
+    /// Satu blok respons StreamGenerate yang bisa dibaca scraper:
+    /// `parsed[4][0][1][0]` = jawaban, `parse1[1]` = `["id_lama"]`.
+    fn blok_stream(jawaban: &str) -> String {
+        let parsed = json!([
+            "wrb.fr",
+            ["id_lama"],
+            null,
+            null,
+            [["id_baru", [jawaban]]]
+        ]);
+        format!("5\n{}\n", json!([["wrb.fr", null, parsed.to_string()]]))
     }
 
     fn run(http: Arc<Stub>, sessions: oktz_plugin_api::SessionStore, text: &str) -> Reply {
@@ -380,6 +383,41 @@ mod tests {
                 .map(|t| vec![t.to_string()])
                 .unwrap_or_default(),
         }
+    }
+
+    /// Body JSON `request_body` di dalam `f.req=` permintaan StreamGenerate
+    /// (permintaan kedua; yang pertama `batchexecute` hanya mengambil cookie).
+    fn isi_stream(stub: &Stub, indeks: usize) -> Value {
+        let p = stub.permintaan.lock().unwrap();
+        let req = &p[indeks];
+        assert!(req.url.contains("StreamGenerate"), "bukan StreamGenerate");
+        let Some(HttpBody::Form(form)) = &req.body else {
+            panic!("body bukan form");
+        };
+        let isi = form.strip_prefix("f.req=").expect("awalan f.req=");
+        // Kebalikan URLSearchParams: `+` = spasi, `%XX` = byte.
+        let bytes = isi.as_bytes();
+        let mut decode = Vec::with_capacity(bytes.len());
+        let mut i = 0;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'+' => {
+                    decode.push(b' ');
+                    i += 1;
+                }
+                b'%' => {
+                    let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap();
+                    decode.push(u8::from_str_radix(hex, 16).unwrap());
+                    i += 3;
+                }
+                _ => {
+                    decode.push(bytes[i]);
+                    i += 1;
+                }
+            }
+        }
+        let payload: Value = serde_json::from_slice(&decode).unwrap();
+        serde_json::from_str(payload[1].as_str().unwrap()).unwrap()
     }
 
     #[test]
@@ -413,41 +451,50 @@ mod tests {
                 "🤖 *AI*\n\n> Halo! Aku asisten cerdas\n\n*Cara penggunaan:*\n> `.ai <pertanyaan>`\n\n*Contoh:*\n> `.ai buatkan tabel jadwal piket`"
             ]
         );
-        assert!(http.seen.lock().unwrap().is_empty());
+        assert!(http.permintaan.lock().unwrap().is_empty());
     }
 
     #[test]
     fn teks_polos_dikirim_apa_adanya() {
-        let http = Stub::ok(r#"{"text":"Halo dunia","sessionId":"abc"}"#);
+        let http = Stub::ok(&blok_stream("Halo dunia"));
         let r = run(http.clone(), oktz_plugin_api::new_session_store(), "halo");
         assert_eq!(blok_teks(&r), vec!["Halo dunia"]);
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "✅"
         ));
-        let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 1);
-        let body: Value = serde_json::from_str(&seen[0].1).unwrap();
-        assert_eq!(body["message"], "halo");
-        assert_eq!(body["instruction"], SYSTEM_PROMPT);
-        assert!(body["sessionId"].is_null());
+        // Permintaan pertama `batchexecute` (ambil cookie), kedua StreamGenerate.
+        assert_eq!(http.permintaan.lock().unwrap().len(), 2);
+        let body = isi_stream(&http, 1);
+        assert_eq!(body[0][0], "halo", "message");
+        assert_eq!(body[26][2], SYSTEM_PROMPT, "instruction");
+        assert_eq!(body[2][0], "", "tanpa sesi, resumeArray bawaan");
     }
 
     #[test]
     fn session_id_disimpan_dan_dikirim_ulang() {
         let store = oktz_plugin_api::new_session_store();
-        let http = Stub::ok(r#"{"text":"ok","sessionId":"SID-1"}"#);
+        let http = Stub::ok(&blok_stream("ok"));
         let _ = run(http.clone(), store.clone(), "halo");
-        assert_eq!(
-            store.lock().unwrap().get("ai:gemini:628111@s.whatsapp.net"),
-            Some(&Value::String("SID-1".into()))
-        );
+        let tersimpan = store
+            .lock()
+            .unwrap()
+            .get("ai:gemini:628111@s.whatsapp.net")
+            .cloned();
+        let Some(Value::String(sid)) = tersimpan else {
+            panic!("sesi tidak tersimpan");
+        };
+        assert!(!sid.is_empty(), "sessionId scraper berupa base64 non-kosong");
 
-        let http2 = Stub::ok(r#"{"text":"ok2","sessionId":"SID-2"}"#);
+        // Sesi tersimpan dipakai ulang: resumeArray dari sessionId muncul di
+        // permintaan berikutnya.
+        let http2 = Stub::ok(&blok_stream("ok2"));
         let _ = run(http2.clone(), store.clone(), "lagi");
-        let seen = http2.seen.lock().unwrap().clone();
-        let body: Value = serde_json::from_str(&seen[0].1).unwrap();
-        assert_eq!(body["sessionId"], "SID-1");
+        let body = isi_stream(&http2, 1);
+        assert_eq!(
+            body[2][0], "id_lama",
+            "resumeArray dari sesi tersimpan dipakai ulang"
+        );
     }
 
     #[test]
@@ -477,7 +524,15 @@ mod tests {
         let blok = pecah("| A | B |\n|---|---|\n| 1 | 2 |");
         match &blok[0] {
             Blok::Tabel(rows) => {
-                assert_eq!(rows, vec![vec!["A", "B"], vec!["1", "2"]]);
+                // `.clone()` supaya tipe kiri-kanan sama (Vec<Vec<String>>);
+                // `&Vec` tidak punya impl `PartialEq` ke `Vec`.
+                assert_eq!(
+                    rows.clone(),
+                    vec![
+                        vec!["A".to_string(), "B".to_string()],
+                        vec!["1".to_string(), "2".to_string()]
+                    ]
+                );
             }
             lain => panic!("harus Tabel, dapat {lain:?}"),
         }
@@ -487,21 +542,17 @@ mod tests {
     fn reply_tabel_memakai_baris_pertama_sebagai_header() {
         let blok = pecah("| A | B |\n| 1 | 2 |");
         let r = blocks_ke_reply(blok);
-        match r.without_mutations().tanpa_reaksi() {
-            Reply::Sequence(list) => match &list[0] {
-                Reply::Table {
-                    title,
-                    headers,
-                    rows,
-                    ..
-                } => {
-                    assert_eq!(title, "");
-                    assert_eq!(headers, &["A".to_string(), "B".to_string()]);
-                    assert_eq!(rows, &vec![vec!["1".to_string(), "2".to_string()]]);
-                }
-                lain => panic!("harus Table, dapat {lain:?}"),
-            },
-            lain => panic!("harus Sequence, dapat {lain:?}"),
+        let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
+            panic!("harus Sequence");
+        };
+        assert_eq!(list.len(), 1);
+        match &list[0] {
+            Reply::Tabel { tabel } => {
+                assert_eq!(tabel.judul, "");
+                assert_eq!(tabel.header, vec!["A".to_string(), "B".to_string()]);
+                assert_eq!(tabel.baris, vec![vec!["1".to_string(), "2".to_string()]]);
+            }
+            lain => panic!("harus Tabel, dapat {lain:?}"),
         }
     }
 
@@ -510,23 +561,33 @@ mod tests {
         let blok = pecah("Intro\n\n| A |\n|---|\n| 1 |\n\nOutro");
         assert_eq!(blok.len(), 3);
         let r = blocks_ke_reply(blok);
-        match r.without_mutations().tanpa_reaksi() {
-            Reply::Sequence(list) => {
-                assert_eq!(list.len(), 3);
-                assert_eq!(list[0].text_body(), Some("Intro"));
-                assert!(matches!(list[1], Reply::Table { .. }));
-                assert_eq!(list[2].text_body(), Some("Outro"));
-            }
-            lain => panic!("harus Sequence, dapat {lain:?}"),
+        let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
+            panic!("harus Sequence");
+        };
+        assert_eq!(list.len(), 3);
+        assert_eq!(list[0].text_body(), Some("Intro"));
+        assert!(matches!(list[1], Reply::Tabel { .. }));
+        assert_eq!(list[2].text_body(), Some("Outro"));
+    }
+
+    #[test]
+    fn tabel_berisi_sel_kosong_tetap_jadi_tabel_sesuai_js() {
+        // `| |` → satu sel kosong. JS `every(row => row.length > 0)` tetap
+        // true (array berisi satu string kosong panjangnya 1), jadi tabel.
+        let blok = pecah("| |");
+        match &blok[0] {
+            Blok::Tabel(rows) => assert_eq!(rows.clone(), vec![vec!["".to_string()]]),
+            lain => panic!("harus Tabel, dapat {lain:?}"),
         }
     }
 
     #[test]
-    fn tabel_tanpa_sel_kosong_jadi_teks_biasa() {
-        // `| |` menghasilkan satu sel kosong → bukan tabel, jadi teks biasa.
-        let blok = pecah("| |");
+    fn baris_pemisah_saja_jadi_teks_mentah() {
+        // Semua baris adalah separator → hasil filter kosong → fallback
+        // `aiRich.addText(currentTable.join('\n'))` di JS.
+        let blok = pecah("|---|---|");
         match &blok[0] {
-            Blok::Teks(t) => assert_eq!(t, "| |"),
+            Blok::Teks(t) => assert_eq!(t, "|---|---|"),
             lain => panic!("harus Teks, dapat {lain:?}"),
         }
     }

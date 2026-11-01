@@ -448,7 +448,7 @@ fn unduh_nexray(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
 /// (`youtube.js:395-432`). Scraper lokal tidak melempar (`{status:false,
 /// mess}`), jadi `normalize` yang menilai; aggregator yang gagal transport
 /// jatuh ke backend berikutnya.
-fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
+pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     let kanonik = kanonik(url)?;
     // 1. `ytdl-native` — hanya untuk mp3 (`applies` backend, `youtube.js:399`).
     if let Ok(v) = oktz_scraper::ytdl::ytdl(&*ctx.http, &kanonik, Some("mp3")) {

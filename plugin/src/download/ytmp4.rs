@@ -72,7 +72,7 @@ fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<String, ()> {
 /// `youtube.js:403-407`) → `izuka` (`youtube.js:409-413`). SaveTube
 /// mengembalikan `{url}` polos tanpa ampel, jadi [`normalize`] langsung
 /// membacanya.
-fn unduh_video(ctx: &Ctx, url: &str) -> Result<String, ()> {
+pub(crate) fn unduh_video(ctx: &Ctx, url: &str) -> Result<String, ()> {
     let kanonik = kanonik(url)?;
     // 1. `youtube-fallback` — hanya untuk mp4 (`applies`, `youtube.js:405`).
     if let Ok(v) = oktz_scraper::youtube::get_youtube_direct_url(&*ctx.http, &kanonik, Some("360"))

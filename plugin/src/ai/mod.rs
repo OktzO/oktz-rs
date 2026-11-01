@@ -1,8 +1,10 @@
 //! Plugin `plugins/ai/`.
 //!
-//! `ai.js` dan `characterai.js` sengaja tidak ada di sini: keduanya butuh
-//! kemampuan yang tidak ada di registry plugin (lihat laporan batch E1).
+//! `ai.rs` kini aktif (padanan `ai.js`). `characterai.js` sengaja tidak ada
+//! di sini: dia butuh kemampuan yang tidak ada di registry plugin (lihat
+//! laporan batch E1).
 
+pub mod ai;
 pub mod aiassist;
 #[path = "anime-gen.rs"]
 pub mod anime_gen;

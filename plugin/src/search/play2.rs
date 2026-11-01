@@ -1,19 +1,28 @@
-//! `plugins/search/play2.js` — kartu music player interaktif (AIRICH).
+//! `plugins/search/play2.js` — pemutar lagu dengan LIRIK SINKRON.
 //!
-//! Hampir seluruh plugin ini bertumpu pada kapabilitas yang tidak ada di API
-//! plugin: `ytmusic-api`, `yt-search`, `sharp`, `child_process` (ffmpeg), dan
-//! `crypto.createDecipheriv` untuk metadata `savetube.vip`, plus pengiriman
-//! `botForwardedMessage` AIRICH lewat `sock.relayMessage`. Tidak satu pun punya
-//! padanan, jadi jalur setelah `m.react('🎧')` selalu berakhir di `catch`.
+//! PENYIMPANGAN (satu baris per butir):
+//! - `ytmusic-api` tidak ada: pencarian judul pakai `ytsearch::search` yang
+//!   sama dengan jalur URL di JS; pesan "Lagu tidak ditemukan di YT Music"
+//!   dipertahankan untuk jalur judul.
+//! - Savetube + `createDecipheriv` tidak diport: unduhan audio memakai rantai
+//!   `crate::download::ytmp3::unduh_audio` (`ytdl-native → izuka → nexray`).
+//! - Kartu HTML AIRICH (`botForwardedMessage` + `relayMessage`) + lirik yang
+//!   bergeser per detik di dalam player tidak ada padanannya di `Reply`: lagu
+//!   dikirim sebagai voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg)
+//!   dan lirik dikirim sebagai teks statis `[m:ss] baris` sebelum audio.
+//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dan thumbnail `sharp` dilewati.
 //!
 //! Yang dipor penuh karena murni dan bisa diuji: parser LRC, konversi lirik
-//! polos menjadi lirik bertime, normalisasi, pemformat durasi, `secondsFromTimestamp`,
-//! `escapeHtml`, dan kartu pakai.
+//! polos menjadi lirik bertime, normalisasi, pemformat durasi,
+//! `secondsFromTimestamp`, `escapeHtml`, dan kartu pakai.
 #![allow(clippy::collapsible_if)]
 
-#![allow(dead_code)] // jalur playback tidak terjangkau tanpa kapabilitas di atas
+use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use crate::download::douyindl::query_encode;
+use crate::download::ytmp3::{mimetype_for, unduh_audio};
+
+use super::ytsearch;
 
 /// `play2.js:954` — kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
@@ -27,22 +36,44 @@ pub(crate) fn gagal(message: &str) -> String {
     format!("❌ Gagal memproses lagu.\n\n> {message}")
 }
 
-/// `play2.js:980` — pesan yang dilempar saat pencarian YT Music tidak
-/// menghasilkan entri. Ini pesan pertama yang muncul di port ini, karena
-/// `ytmusic-api` tidak ada.
+/// `play2.js:980` — pesan yang dilempar saat pencarian tidak menghasilkan
+/// entri untuk input judul.
 pub(crate) const LAGU_TIDAK_DITEMUKAN: &str = "Lagu tidak ditemukan di YT Music";
 
 /// `play2.js:1002` — `yts` tidak menemukan video untuk URL yang diberikan.
 pub(crate) const VIDEO_TIDAK_DITEMUKAN: &str = "Video tidak ditemukan";
 
-/// `play2.js:281-285` — regex ID video; `None` = "URL YouTube tidak valid".
+/// `play2.js:281-285` — regex ID video; pesan untuk ID yang tidak ketemu.
 pub(crate) const URL_TIDAK_VALID: &str = "URL YouTube tidak valid";
 
-/// `play2.js:295` / `:308` / `:327` / `:345`.
+/// `play2.js:295` / `:308` / `:327` / `:345` — pesan savetube; rantai resolver
+/// pengganti hanya memakai `Download gagal`, sisanya disimpan sebagai teks JS.
+#[allow(dead_code)]
 pub(crate) const CDN_TIDAK_TERSEDIA: &str = "CDN tidak tersedia";
+#[allow(dead_code)]
 pub(crate) const METADATA_KOSONG: &str = "Metadata kosong";
+#[allow(dead_code)]
 pub(crate) const DECRYPT_GAGAL: &str = "Decrypt metadata gagal";
 pub(crate) const DOWNLOAD_GAGAL: &str = "Download gagal";
+
+/* CONFIG (`play2.js:12-46`). */
+
+const LRCLIB_API: &str = "https://lrclib.net/api";
+const LRCLIB_USER_AGENT: &str = "WA-Bot/1.0 (https://github.com/)";
+
+/// `User-Agent` savetube (`play2.js:21`) — ikut dipakai `downloadAudioBuffer`.
+const USER_AGENT: &str =
+    "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36";
+
+const MAX_ORIGINAL_AUDIO_MB: usize = 25;
+const MAX_ORIGINAL_AUDIO_SIZE: usize = MAX_ORIGINAL_AUDIO_MB * 1024 * 1024;
+
+const MAX_COMPRESSED_AUDIO_MB: usize = 6;
+const MAX_COMPRESSED_AUDIO_SIZE: usize = MAX_COMPRESSED_AUDIO_MB * 1024 * 1024;
+
+const MAX_BASE64_AUDIO_BYTES: usize = 8 * 1024 * 1024;
+
+/* LIRIK (`play2.js:104-215`). */
 
 /// `play2.js:104` — `parseLrcTimestamp`. Menolak `seconds >= 60`.
 pub(crate) fn parse_lrc_timestamp(menit: f64, detik: f64, pecahan: Option<&str>) -> Option<f64> {
@@ -202,6 +233,8 @@ pub(crate) fn normalize_lyrics(mut lyrics: Vec<Baris>) -> Vec<Baris> {
 }
 
 /// `escapeHtml` (`play2.js:235-242`) — urutan penggantian penting: `&` dulu.
+/// Hanya dipakai kartu HTML JS yang tidak diport; disimpan untuk paritas teks.
+#[allow(dead_code)]
 pub(crate) fn escape_html(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -211,6 +244,7 @@ pub(crate) fn escape_html(text: &str) -> String {
 }
 
 /// `escapeAttr` = `escapeHtml` (`play2.js:244-246`).
+#[allow(dead_code)]
 pub(crate) fn escape_attr(text: &str) -> String {
     escape_html(text)
 }
@@ -250,28 +284,247 @@ pub(crate) fn format_duration(detik: f64) -> String {
     }
 }
 
-/// `/youtube\.com|youtu\.be/i.test(text)` (`play2.js:970`) — regex tanpa
-/// flag `i`? Ada: `i` di sana, jadi pencocokan tidak membedakan huruf.
+/// `/youtube\.com|youtu\.be/i.test(text)` (`play2.js:970`).
 pub(crate) fn looks_like_youtube_url(text: &str) -> bool {
     let low = text.to_lowercase();
     low.contains("youtube.com") || low.contains("youtu.be")
 }
 
-/// `/[a-zA-Z0-9_-]{11}/` dari URL (`play2.js:1011`) — 11 karakter persis.
+/// `(?:v=|shorts\/|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})` (`play2.js:1010`)
+/// — kejadian pertama di URL, lalu tepat 11 karakter.
 pub(crate) fn video_id_dari(url: &str) -> Option<String> {
-    let kandidat: Vec<&str> = url
-        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
-        .filter(|s| s.len() >= 11)
+    let awalan = ["v=", "shorts/", "youtu.be/", "embed/"];
+    let mut kandidat: Option<(usize, &str)> = None;
+    for p in awalan {
+        if let Some(i) = url.find(p)
+            && kandidat.is_none_or(|(j, _)| i < j)
+        {
+            kandidat = Some((i, p));
+        }
+    }
+    let (i, p) = kandidat?;
+    let sisa = &url[i + p.len()..];
+    let id: String = sisa
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .take(11)
         .collect();
-    kandidat
-        .first()
-        .map(|s| (*s)[..11].to_string())
+    (id.len() == 11).then_some(id)
 }
 
-/// `ytmusic-api` tidak ada di crate ini; pencarian selalu gagal dengan pesan
-/// yang sama seperti saat YT Music tidak mengembalikan entri.
-fn yt_music_cari(_query: &str) -> Result<serde_json::Value, String> {
-    Err(LAGU_TIDAK_DITEMUKAN.to_string())
+/* LRCLIB (`play2.js:49-98`). */
+
+/// Bentuk jawaban `getLRCLyrics` yang dipakai plugin.
+pub(crate) struct LirikLagu {
+    pub plain: String,
+    pub synced: String,
+}
+
+/// `getLRCLyrics` (`play2.js:49-98`) — `None` = semua kegagalan (transport,
+/// status tidak ok, body rusak) di JS ditelan `catch`/pemeriksaan status.
+pub(crate) fn cari_lirik(
+    http: &dyn oktz_plugin_api::HttpGet,
+    judul: &str,
+    artis: &str,
+    durasi: f64,
+) -> Option<LirikLagu> {
+    if judul.is_empty() || artis.is_empty() {
+        return None;
+    }
+    // `new URLSearchParams({ track_name, artist_name })` — serialisasi
+    // x-www-form-urlencoded (spasi jadi `+`, persis `query_encode`).
+    let mut url = format!(
+        "{LRCLIB_API}/get?track_name={}&artist_name={}",
+        query_encode(judul.trim()),
+        query_encode(artis.trim())
+    );
+    // `Number.isFinite && 1 <= n <= 3600` → `String(Math.round(n))`.
+    if durasi.is_finite() && (1.0..=3600.0).contains(&durasi) {
+        url.push_str(&format!("&duration={}", durasi.round() as i64));
+    }
+
+    let res = http
+        .call(
+            &HttpCall::get(&url)
+                .header("accept", "application/json")
+                .header("user-agent", LRCLIB_USER_AGENT),
+        )
+        .ok()?;
+    // `if (res.status === 404 || res.status === 429 || !res.ok) return null`.
+    if res.status == 404 || res.status == 429 || !(200..300).contains(&res.status) {
+        return None;
+    }
+    let data = res.json()?;
+
+    let teks = |kunci: &str| -> String {
+        data.get(kunci)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+    Some(LirikLagu {
+        plain: teks("plainLyrics"),
+        synced: teks("syncedLyrics"),
+    })
+}
+
+/* AUDIO (`play2.js:281-479`, unduhan lewat rantai `ytmp3::unduh_audio`). */
+
+/// `downloadAudioBuffer` (`play2.js:375-389`).
+fn unduh_buffer(ctx: &Ctx, url: &str) -> Result<Vec<u8>, String> {
+    if url.is_empty() {
+        return Err("URL audio kosong".to_string());
+    }
+    let res = ctx
+        .http
+        .call(&HttpCall::get(url).header("user-agent", USER_AGENT))
+        .map_err(|_| DOWNLOAD_GAGAL.to_string())?;
+    if !(200..300).contains(&res.status) {
+        return Err(format!("Download audio gagal ({})", res.status));
+    }
+    let buffer = res.body.bytes().to_vec();
+    if buffer.is_empty() || buffer.len() > MAX_ORIGINAL_AUDIO_SIZE {
+        return Err("Buffer audio bermasalah".to_string());
+    }
+    Ok(buffer)
+}
+
+/// Argumen `compressAudio` (`play2.js:395-479`) — opus 16k/24kHz/mono/ogg.
+const ARGUMEN_FFMPEG: [&str; 18] = [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-i",
+    "pipe:0",
+    "-vn",
+    "-c:a",
+    "libopus",
+    "-b:a",
+    "16k",
+    "-ar",
+    "24000",
+    "-ac",
+    "1",
+    "-application",
+    "audio",
+    "-f",
+    "ogg",
+];
+
+/// `compressAudio` (`play2.js:395-479`) — stdin `pipe:0`, stdout `pipe:1`.
+/// Batas 6 MB keluaran diperiksa di [`proses`] supaya bisa diuji tanpa
+/// ffmpeg sungguhan.
+fn kompres_audio(input: &[u8]) -> Result<Vec<u8>, String> {
+    if input.is_empty() {
+        return Err("Input buffer kosong".to_string());
+    }
+    if oktz_plugin_api::ffmpeg::jalur_ffmpeg().is_none() {
+        return Err("FFmpeg tidak ditemukan.".to_string());
+    }
+    let output = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&ARGUMEN_FFMPEG, input)
+        .map_err(|_| "FFmpeg gagal".to_string())?;
+    if output.is_empty() {
+        return Err("FFmpeg menghasilkan audio kosong".to_string());
+    }
+    Ok(output)
+}
+
+/// Tipe fungsi kompresi — parameternya dibuka supaya test bisa memalsukan
+/// ffmpeg tanpa menyentuh env global.
+type Kompresor = fn(&[u8]) -> Result<Vec<u8>, String>;
+
+/* HANDLER (`play2.js:949-1107`). */
+
+/// Lirik versi statis pengganti kartu player: `[m:ss] baris`, format LRC yang
+/// sama seperti masukan `parseSyncedLyrics`.
+fn lirik_statis(lyrics: &[Baris]) -> String {
+    lyrics
+        .iter()
+        .map(|b| format!("[{}] {}", format_duration(b.time), b.text))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Alur `try` (`play2.js:960-1099`). `Err` memuat `error.message` untuk
+/// template `catch`.
+fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
+    // JS: judul → `ytmusic.search`, URL → `yts(ytUrl)`; di sini keduanya
+    // `ytsearch::search` (lihat catatan deviasi di header).
+    let adalah_url = looks_like_youtube_url(text);
+    let pesan_kosong = if adalah_url {
+        VIDEO_TIDAK_DITEMUKAN
+    } else {
+        LAGU_TIDAK_DITEMUKAN
+    };
+    let videos =
+        ytsearch::search(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?;
+    let video = videos.first().ok_or_else(|| pesan_kosong.to_string())?;
+
+    let title = if video.title.is_empty() {
+        "Unknown"
+    } else {
+        &video.title
+    };
+    let artist = if video.author_name.is_empty() {
+        "YouTube"
+    } else {
+        &video.author_name
+    };
+    let duration = if video.timestamp.is_empty() {
+        "0:00"
+    } else {
+        &video.timestamp
+    };
+    let duration_sec = seconds_from_timestamp(duration);
+
+    // Lirik: LRCLIB sinkron → LRCLIB polos. Fallback `ytm.getLyrics` tidak ada
+    // padanannya (deviasi di header).
+    let mut synced: Vec<Baris> = Vec::new();
+    if let Some(lrc) = cari_lirik(ctx.http.as_ref(), title, artist, duration_sec) {
+        if !lrc.synced.is_empty() {
+            synced = parse_synced_lyrics(&lrc.synced);
+        }
+        if synced.is_empty() && !lrc.plain.is_empty() {
+            synced = plain_lyrics_to_synced(&lrc.plain, duration_sec);
+        }
+    }
+    let synced = normalize_lyrics(synced);
+
+    // Unduhan audio: `savetubeRetry` di JS → rantai `unduh_audio` di sini.
+    let audio = unduh_audio(ctx, &video.url).map_err(|_| DOWNLOAD_GAGAL.to_string())?;
+    let asli = unduh_buffer(ctx, &audio.url)?;
+    let kompresi = kompres(&asli)?;
+    if kompresi.len() > MAX_COMPRESSED_AUDIO_SIZE {
+        return Err("Audio compress terlalu besar".to_string());
+    }
+
+    // `data:audio/ogg;base64,...` melebihi 8 MB → batas pesan WA.
+    let base64_len = kompresi.len().div_ceil(3) * 4;
+    if base64_len > MAX_BASE64_AUDIO_BYTES {
+        return Err(
+            "Audio Base64 masih terlalu besar, kurangi bitrate FFMPEG.".to_string(),
+        );
+    }
+
+    // `sendMusicPlayer(..., submessageText = "${title} - ${artist}")` di JS;
+    // pemain HTML diganti teks lirik statis + voice note (deviasi di header).
+    let daftar = if synced.is_empty() {
+        "Lirik belum tersedia untuk lagu ini.".to_string()
+    } else {
+        lirik_statis(&synced)
+    };
+    let teks = format!("🎵 *{title} - {artist}*\n\n{daftar}");
+
+    Ok(Reply::sequence(vec![
+        Reply::reaction("🎧"),
+        Reply::text(teks),
+        // `compressAudio` menghasilkan ogg/opus — mimetype sama dengan
+        // `mimetypeFor("opus")`.
+        Reply::voice_note(
+            MediaSource::bytes(kompresi).with_mimetype(mimetype_for("opus")),
+        ),
+        Reply::reaction("✅"),
+    ]))
 }
 
 #[plugin(
@@ -292,6 +545,10 @@ fn yt_music_cari(_query: &str) -> Result<serde_json::Value, String> {
     is_bot_admin = false
 )]
 pub fn play2(ctx: Ctx) -> Reply {
+    jalankan(ctx, kompres_audio)
+}
+
+fn jalankan(ctx: Ctx, kompres: Kompresor) -> Reply {
     let text = ctx.text.trim();
 
     if text.is_empty() {
@@ -299,38 +556,125 @@ pub fn play2(ctx: Ctx) -> Reply {
     }
 
     // `await m.react('🎧')` di `:958`; `catch` menggantinya dengan ❌.
-    let outcome: Result<serde_json::Value, String> = if looks_like_youtube_url(text) {
-        // `yts(ytUrl)` (`yt-search`) tidak ada; pesan kedua yang mungkin muncul.
-        Err(VIDEO_TIDAK_DITEMUKAN.to_string())
-    } else {
-        yt_music_cari(text)
-    };
-
-    match outcome {
+    match proses(&ctx, text, kompres) {
+        Ok(reply) => reply,
         Err(message) => Reply::text(gagal(&message)).with_reaction("❌"),
-        Ok(_) => {
-            // LRCLIB + `sharp` (thumbnail) + ffmpeg + `savetube` + kartu
-            // AIRICH: tidak ada padanannya di API plugin.
-            Reply::text(gagal(CDN_TIDAK_TERSEDIA)).with_reaction("❌")
-        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
+    use std::sync::{Arc, Mutex};
+
+    /// Stub HTTP multi-URL: pencarian YouTube (POST via `call`), LRCLIB,
+    /// rantai backend ytmp3, dan host audio `cdn.example` — dicocokkan dari
+    /// potongan URL. `None` = transport error.
+    #[derive(Debug)]
+    struct Stub {
+        per_url: Vec<(&'static str, Option<Value>)>,
+        /// Body biner untuk URL audio (bukan JSON).
+        audio: Option<Vec<u8>>,
+        seen: Mutex<Vec<String>>,
+    }
+
+    impl Stub {
+        fn baru(
+            per_url: Vec<(&'static str, Option<Value>)>,
+            audio: Option<Vec<u8>>,
+        ) -> Arc<Stub> {
+            Arc::new(Stub {
+                per_url,
+                audio,
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn jawab(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            if url.contains("cdn.example") {
+                let data = self
+                    .audio
+                    .as_ref()
+                    .ok_or(HttpError {
+                        message: "audio offline".into(),
+                    })?
+                    .as_slice();
+                return Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(data),
+                        mimetype: Some("audio/mpeg".into()),
+                    },
+                    headers: vec![],
+                });
+            }
+            let (_, nilai) = self
+                .per_url
+                .iter()
+                .find(|(penanda, _)| url.contains(penanda))
+                .ok_or(HttpError {
+                    message: format!("URL tak dikenal stub: {url}"),
+                })?;
+            let text = nilai
+                .clone()
+                .ok_or(HttpError { message: "offline".into() })?
+                .to_string();
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(text.into_bytes()),
+                    mimetype: Some("application/json".into()),
+                },
+                headers: vec![],
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_json(&self, url: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_form(&self, url: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            self.jawab(url)
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!("cuma GET/POST JSON")
+        }
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.url.clone());
+            self.jawab(&req.url)
+        }
+    }
+
+    fn run_http(http: Arc<Stub>, text: &str) -> Reply {
+        jalankan(
+            Ctx {
+                prefix: ".".into(),
+                command: "play2".into(),
+                sender: "628111@s.whatsapp.net".into(),
+                chat: "628111@s.whatsapp.net".into(),
+                text: text.into(),
+                args: text.split_whitespace().map(str::to_string).collect(),
+                http,
+                ..Default::default()
+            },
+            |b| Ok(b.to_vec()),
+        )
+    }
 
     fn run(text: &str) -> Reply {
-        let ctx = Ctx {
-            prefix: ".".into(),
-            command: "play2".into(),
-            sender: "628111@s.whatsapp.net".into(),
-            chat: "628111@s.whatsapp.net".into(),
-            text: text.into(),
-            args: text.split_whitespace().map(str::to_string).collect(),
-            ..Default::default()
-        };
-        (oktz_plugin_api::find("play2").unwrap().handler)(ctx)
+        run_http(Stub::baru(vec![("", None)], None), text)
     }
 
     fn text_of(r: &Reply) -> String {
@@ -349,6 +693,49 @@ mod tests {
                 _ => return None,
             }
         }
+    }
+
+    /// Hasil pencarian YouTube dengan satu video.
+    const HASIL: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+      {"itemSectionRenderer":{"contents":[
+        {"videoRenderer":{
+          "videoId":"aaaaaaaaaaa",
+          "title":{"runs":[{"text":"Lagu Uji"}]},
+          "ownerText":{"runs":[{"text":"Channel Uji"}]},
+          "viewCountText":{"simpleText":"1,234,567 views"},
+          "publishedTimeText":{"simpleText":"2 years ago"},
+          "lengthText":{"simpleText":"3:33"}
+        }}
+      ]}}
+    ]}}}}]}}"#;
+
+    const LIRIK: &str = r#"{"id":1,"trackName":"Lagu Uji","artistName":"Channel Uji","duration":213,"instrumental":false,"plainLyrics":"","syncedLyrics":"[00:12.00]Halo\n[00:15.50]Dunia"}"#;
+
+    fn stub_sukses() -> Arc<Stub> {
+        stub_dengan_audio(Some(b"ID3data-audio-palsu".to_vec()))
+    }
+
+    fn stub_dengan_audio(audio: Option<Vec<u8>>) -> Arc<Stub> {
+        Stub::baru(
+            vec![
+                ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
+                ("lrclib.net/api/get", Some(serde_json::from_str(LIRIK).unwrap())),
+                // ytdl-native gagal → jatuh ke izuka.
+                ("ymcdn", Some(serde_json::json!({"status": false}))),
+                (
+                    "izuka",
+                    Some(serde_json::json!({
+                        "status": true,
+                        "result": {
+                            "title": "Lagu Uji",
+                            "format": "mp3",
+                            "download_url": "https://cdn.example/lagu.mp3"
+                        }
+                    })),
+                ),
+            ],
+            audio,
+        )
     }
 
     #[test]
@@ -388,18 +775,157 @@ mod tests {
     }
 
     #[test]
-    fn a_title_search_reports_the_yt_music_miss() {
-        let r = run("another love tom odell");
+    fn alur_sukses_mengirim_lirik_sinkron_lalu_voice_note() {
+        let http = stub_sukses();
+        let r = run_http(http.clone(), "another love tom odell");
+        let Reply::Sequence(list) = r.without_mutations() else {
+            panic!("harus sequence, dapat {:?}", r.without_mutations());
+        };
+        assert_eq!(list.len(), 4);
+        assert!(matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🎧"));
+        let teks = match &list[1] {
+            Reply::Text { text, .. } => text,
+            lain => panic!("harus teks lirik, dapat {lain:?}"),
+        };
+        assert!(teks.starts_with("🎵 *Lagu Uji - Channel Uji*\n\n"), "{teks}");
+        assert!(teks.contains("[0:12] Halo\n"), "{teks}");
+        assert!(teks.contains("[0:15] Dunia"), "{teks}");
+        match &list[2] {
+            Reply::Audio { media, ptt } => {
+                assert!(ptt, "voice note = ptt true");
+                let m = media.as_ref().expect("audio harus punya sumber");
+                assert_eq!(m.mimetype(), Some("audio/ogg"));
+            }
+            lain => panic!("harus voice note, dapat {lain:?}"),
+        }
+        assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
+
+        let seen = http.seen.lock().unwrap().clone();
+        assert!(seen.iter().any(|u| u.contains("lrclib.net/api/get?track_name=Lagu+Uji&artist_name=Channel+Uji&duration=213")), "{seen:?}");
+        assert!(seen.iter().any(|u| u.contains("cdn.example/lagu.mp3")));
+    }
+
+    #[test]
+    fn tanpa_lirik_mengirim_pesan_kosong() {
+        let http = Stub::baru(
+            vec![
+                ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
+                // LRCLIB offline → tanpa lirik.
+                ("lrclib.net/api/get", None),
+                ("ymcdn", Some(serde_json::json!({"status": false}))),
+                (
+                    "izuka",
+                    Some(serde_json::json!({
+                        "status": true,
+                        "result": {
+                            "title": "Lagu Uji",
+                            "format": "mp3",
+                            "download_url": "https://cdn.example/lagu.mp3"
+                        }
+                    })),
+                ),
+            ],
+            Some(b"audio".to_vec()),
+        );
+        let r = run_http(http, "lagu tanpa lirik");
+        let Reply::Sequence(list) = r.without_mutations() else {
+            panic!("harus sequence");
+        };
+        let teks = match &list[1] {
+            Reply::Text { text, .. } => text,
+            lain => panic!("harus teks, dapat {lain:?}"),
+        };
+        assert!(teks.contains("Lirik belum tersedia untuk lagu ini."), "{teks}");
+    }
+
+    #[test]
+    fn lirik_polos_jadi_sinkron_dengan_interval_durasi() {
+        let http = Stub::baru(
+            vec![
+                ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
+                (
+                    "lrclib.net/api/get",
+                    Some(serde_json::json!({
+                        "id": 2,
+                        "plainLyrics": "satu\ndua\ntiga",
+                        "syncedLyrics": ""
+                    })),
+                ),
+                ("ymcdn", Some(serde_json::json!({"status": false}))),
+                (
+                    "izuka",
+                    Some(serde_json::json!({
+                        "status": true,
+                        "result": {
+                            "download_url": "https://cdn.example/lagu.mp3"
+                        }
+                    })),
+                ),
+            ],
+            Some(b"audio".to_vec()),
+        );
+        let r = run_http(http, "lagu polos");
+        let Reply::Sequence(list) = r.without_mutations() else {
+            panic!("harus sequence");
+        };
+        let teks = match &list[1] {
+            Reply::Text { text, .. } => text,
+            lain => panic!("harus teks, dapat {lain:?}"),
+        };
+        // 213 detik / 3 baris = 71 → clamp 8 detik.
+        assert!(teks.contains("[0:00] satu\n"), "{teks}");
+        assert!(teks.contains("[0:08] dua\n"), "{teks}");
+        assert!(teks.contains("[0:16] tiga"), "{teks}");
+    }
+
+    #[test]
+    fn audio_asli_terlalu_besar_ditolak_sebelum_ffmpeg() {
+        // > 25 MB → "Buffer audio bermasalah" (`downloadAudioBuffer`, JS:384).
+        let http = stub_dengan_audio(Some(vec![0u8; MAX_ORIGINAL_AUDIO_SIZE + 1]));
+        let r = run_http(http, "lagu besar");
+        assert_eq!(text_of(&r), gagal("Buffer audio bermasalah"));
+        assert_eq!(reaction_of(&r), Some("❌"));
+    }
+
+    #[test]
+    fn hasil_kompres_terlalu_besar_ditolak() {
+        let http = stub_sukses();
+        // Pemalsuan kompresor mengembalikan 7 MB — di atas batas 6 MB.
+        let r = jalankan(
+            Ctx {
+                prefix: ".".into(),
+                command: "play2".into(),
+                sender: "628111@s.whatsapp.net".into(),
+                chat: "628111@s.whatsapp.net".into(),
+                text: "lagu besar".into(),
+                args: vec!["lagu".into(), "besar".into()],
+                http,
+                ..Default::default()
+            },
+            |_| Ok(vec![0u8; MAX_COMPRESSED_AUDIO_SIZE + 1]),
+        );
+        assert_eq!(text_of(&r), gagal("Audio compress terlalu besar"));
+        assert_eq!(reaction_of(&r), Some("❌"));
+    }
+
+    #[test]
+    fn pencarian_kosong_memberi_pesan_sesuai_jenis_input() {
+        let http = Stub::baru(
+            vec![("youtubei/v1/search", Some(serde_json::json!({"contents": {}})))],
+            None,
+        );
+        let r = run_http(http, "tidak ada lagunya");
         assert_eq!(
             text_of(&r),
             "❌ Gagal memproses lagu.\n\n> Lagu tidak ditemukan di YT Music"
         );
         assert_eq!(reaction_of(&r), Some("❌"));
-    }
 
-    #[test]
-    fn a_url_input_reports_the_yt_search_miss() {
-        let r = run("https://www.youtube.com/watch?v=abc123XYZ_-");
+        let http = Stub::baru(
+            vec![("youtubei/v1/search", Some(serde_json::json!({"contents": {}})))],
+            None,
+        );
+        let r = run_http(http, "https://www.youtube.com/watch?v=abc123XYZ_-");
         assert_eq!(
             text_of(&r),
             "❌ Gagal memproses lagu.\n\n> Video tidak ditemukan"
@@ -577,6 +1103,10 @@ mod tests {
             Some("abc123XYZ_-".to_string())
         );
         assert_eq!(video_id_dari("https://youtu.be/abcdefghijk"), Some("abcdefghijk".to_string()));
+        assert_eq!(
+            video_id_dari("https://www.youtube.com/shorts/abc123XYZ_-"),
+            Some("abc123XYZ_-".to_string())
+        );
         assert_eq!(video_id_dari("pendek"), None);
         assert_eq!(video_id_dari(""), None);
     }
