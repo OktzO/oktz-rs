@@ -545,6 +545,36 @@ async fn send(
                         .as_deref(),
                     )
                     .message,
+                    // Tabel V2 (sendTableV2) — wire terbukti dirender WA.
+                    "tabel2" => oktz_wa::rich::rich_v2_to_message(
+                        &oktz_plugin_api::RichV2::baru("⚡ Test Tabel V2")
+                            .header(["Metric", "Value"])
+                            .baris(["Status", "Online"])
+                            .baris(["Source", "Rust produksi"])
+                            .heading("Tes tabel dari bot Rust 🧪")
+                            .footer("🍃 Realtime Monitoring"),
+                        None,
+                    ),
+                    // AIRich — submessage teks + tabel + unifiedResponse.
+                    "richai" => oktz_wa::rich::rich_ai_to_message(
+                        &oktz_plugin_api::RichAi {
+                            submessages: vec![
+                                oktz_plugin_api::AiSubMessage {
+                                    text: Some("🤖 *Test AIRich dari Rust*".into()),
+                                    tabel: None,
+                                },
+                                oktz_plugin_api::AiSubMessage {
+                                    text: None,
+                                    tabel: Some((
+                                        "Tabel Uji".into(),
+                                        vec![vec!["A".into(), "B".into()], vec!["1".into(), "2".into()]],
+                                        true,
+                                    )),
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                    ),
                     _ => oktz_wa::Message::text("Halo dari produksi Rust"),
                 };
 
