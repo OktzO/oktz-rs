@@ -1,11 +1,11 @@
 //! `plugins/main/totalfitur.js` — distribusi jumlah plugin per kategori.
 //!
 //! JS mengirim tabel WhatsApp asli lewat `sock.sendTable`
-//! (`src/lib/socket.js:1300`), yaitu `botForwardedMessage > richResponseMessage`
-//! (`src/lib/rich-messages.js:609-637`). Sistem tabelnya sudah ada di
-//! `oktz-wa::tables` (`build_table`) dan `Reply::table`
-//! (`oktz-plugin-api::registry`), jadi plugin ini memakai `Reply::Table` —
-//! bukan teks yang meniru tabel.
+//! (`src/lib/socket.js:1300`), yaitu `botForwardedMessage > richResponseMessage`.
+//! Wire V2 (`Reply::tabel_v2`) dipakai karena format itulah yang terbukti
+//! dirender WhatsApp produksi (lihat `oktz-wa::rich`; catatan di
+//! `oktz-md/src/lib/rich-messages.js`: format lama relay sukses tapi tidak
+//! muncul di chat).
 //!
 //! Reaksi `📊` dikirim sebelum tabel (`totalfitur.js:49`), jadi balasan
 //! dibungkus `Reply::with_reaction`. Cabang `catch` JS (`totalfitur.js:74-77`)
@@ -141,6 +141,8 @@ fn persen(bagian: usize, total: usize) -> String {
 /// Judul `Distribusi Fitur`, baris judul `Kategori | Jumlah | Persen`, lalu
 /// satu baris per kategori: ikon + nama besar, jumlah, dan persen. `headerText`
 /// dan `footer` mengikuti `options` (`src/lib/rich-messages.js:616`).
+/// Wire V2 dipakai (bukan V1) karena format itulah yang terbukti dirender
+/// WhatsApp produksi (lihat `oktz-wa::rich`, `stats.js`/`sendTableV2`).
 fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
     // `tableData` (`totalfitur.js:53-60`).
     let baris: Vec<Vec<String>> = daftar
@@ -154,19 +156,17 @@ fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
         })
         .collect();
 
-    {
-        let mut tabel = oktz_plugin_api::Tabel::baru("Distribusi Fitur")
-            .header(["Kategori", "Jumlah", "Persen"]);
-        for row in baris {
-            tabel = tabel.baris(row);
-        }
-        Reply::Tabel { tabel: tabel
-            .header_teks(format!(
-                "Total: {total} | Aktif: {aktif} | Kategori: {}",
-                daftar.len()
-            ))
-            .footer(format!("Total {total} fitur tersedia")) }
+    let mut tabel = Reply::tabel_v2("Distribusi Fitur")
+        .with_table_header(["Kategori", "Jumlah", "Persen"]);
+    for row in baris {
+        tabel = tabel.with_table_row(row);
     }
+    tabel
+        .with_table_header_text(format!(
+            "Total: {total} | Aktif: {aktif} | Kategori: {}",
+            daftar.len()
+        ))
+        .with_table_footer(format!("Total {total} fitur tersedia"))
 }
 
 /// `catch` (`totalfitur.js:74-77`) — `m.react('☢')` lalu `m.reply(te(...))`.
@@ -239,9 +239,9 @@ mod tests {
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
 
-        let Reply::Tabel { tabel } = balasan
+        let Reply::TabelV2(tabel) = balasan
         else {
-            panic!("harus Reply::Tabel, dapat {balasan:?}");
+            panic!("harus Reply::TabelV2, dapat {balasan:?}");
         };
 
         assert_eq!(tabel.judul, "Distribusi Fitur");
@@ -250,7 +250,7 @@ mod tests {
             ["Kategori", "Jumlah", "Persen"]
         );
         assert_eq!(
-            tabel.header_teks.as_deref(),
+            tabel.heading.as_deref(),
             Some(
                 format!(
                     "Total: {total} | Aktif: {aktif} | Kategori: {}",
@@ -285,7 +285,7 @@ mod tests {
         };
         assert_eq!(emoji, "📊");
         assert!(
-            matches!(**reply, Reply::Tabel { .. }),
+            matches!(**reply, Reply::TabelV2(_)),
             "reaksi tidak boleh menutupi tabel"
         );
         assert!(r.mutations().is_empty(), "plugin ini hanya membaca");
@@ -296,12 +296,12 @@ mod tests {
         let (daftar, total, aktif) = rekap().expect("registry tidak kosong");
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
-        let Reply::Tabel { tabel } = balasan
+        let Reply::TabelV2(tabel) = balasan
         else {
-            panic!("harus Reply::Tabel");
+            panic!("harus Reply::TabelV2");
         };
         let rows = &tabel.baris;
-        let header_text = &tabel.header_teks;
+        let header_text = &tabel.heading;
 
         assert!(header_text
             .as_deref()

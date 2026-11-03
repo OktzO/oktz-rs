@@ -11,3 +11,4 @@
 
 # Scratch agent.
 /.opencode
+node_modules/

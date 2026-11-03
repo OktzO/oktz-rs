@@ -29,10 +29,12 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const FILE_INI = fileURLToPath(import.meta.url);
 const AKAR = path.dirname(FILE_INI);
 const REPO = "OktzO/oktz-rs";
+const require = createRequire(import.meta.url);
 
 // Muat .env (jika ada) supaya setting env-first konsisten dengan binary Rust.
 try {
@@ -515,7 +517,26 @@ if (UTAMA) cekRegistry();
 let anak = null;
 let sudahUnduhUlang = false;
 
+// ffmpeg: bot Rust mencari biner lewat env OTKZ_FFMPEG_PATH lalu PATH.
+// Sama seperti bot JS (@ffmpeg-installer/ffmpeg) — bawa biner sendiri, jangan
+// bergantung PATH sistem: di VPS/panel ffmpeg sering tidak terpasang.
+function ffmpegPath() {
+  if (process.env.OTKZ_FFMPEG_PATH) return process.env.OTKZ_FFMPEG_PATH;
+  try {
+    const inst = require("@ffmpeg-installer/ffmpeg");
+    if (inst?.path && existsSync(inst.path)) return inst.path;
+  } catch {}
+  return undefined;
+}
+
 function jalankan(args, extraEnv = {}) {
+  const ff = ffmpegPath();
+  if (ff) {
+    extraEnv = { ...extraEnv, OTKZ_FFMPEG_PATH: ff };
+    console.log(`[launcher] ffmpeg: ${ff}`);
+  } else {
+    console.error("[launcher] ffmpeg tidak ditemukan: fitur audio (.play2/.tovn) akan gagal");
+  }
   console.log(`[launcher] jalankan ${BIN_ABS} ${args.join(" ")}`);
   // cwd = akar repo supaya config.json, database/, dan storage/ selalu relatif
   // ke sini, bukan ke direktori kerja panel.

@@ -467,7 +467,7 @@ mod tests {
         assert_eq!(http.permintaan.lock().unwrap().len(), 2);
         let body = isi_stream(&http, 1);
         assert_eq!(body[0][0], "halo", "message");
-        assert_eq!(body[26][2], SYSTEM_PROMPT, "instruction");
+        assert_eq!(body[24][2], SYSTEM_PROMPT, "instruction");
         assert_eq!(body[2][0], "", "tanpa sesi, resumeArray bawaan");
     }
 

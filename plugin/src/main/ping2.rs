@@ -1,10 +1,11 @@
 //! `plugins/main/ping2.js` — performa dan status sistem bot real-time.
 //!
-//! Balasan memakai tabel AI (`Reply::tabel`) — padanan `sock.sendTable` JS:
-//! judul tabel, baris heading, baris isi, teks sebelum tabel (`headerText`),
-//! dan teks setelah tabel (`footer`), isi serta urutannya sama dengan JS.
-//! `ponytail:` tabel versi 1 (`tableMetadata`), bukan versi 2 —
-//! `unifiedResponse` base64 dan `botMetadata` versi JS v2 belum di-port.
+//! Balasan memakai tabel V2 (`Reply::tabel_v2`) — padanan `sock.sendTable`
+//! JS: judul tabel, baris heading, baris isi, teks sebelum tabel
+//! (`headerText`), dan teks setelah tabel (`footer`), isi serta urutannya
+//! sama dengan JS. Wire V2 dipakai (bukan V1) karena format itulah yang
+//! terbukti dirender WhatsApp produksi (lihat `oktz-wa::rich`; bot JS
+//! `stats.js` juga jalan lewat `sendTableV2`).
 //! `ponytail:` data sistem dibaca dari `/proc` + `std`; `df` tetap dipanggil
 //! lewat `std::process::Command` karena `statvfs` tidak ada di `std`.
 //! `ponytail:` `process.memoryUsage()`, `process.version`, dan
@@ -240,7 +241,7 @@ fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
     (ctx.store_users, ctx.store_premium, ctx.store_groups)
 }
 
-/// Susun tabel AI — padanan `sock.sendTable` JS (`ping2.js:129-139`).
+/// Susun tabel V2 — padanan `sock.sendTable` JS (`ping2.js:129-139`).
 ///
 /// Urutan baris sama persis dengan `tableData` JS; tiap `.with_table_row`
 /// menambah satu baris.
@@ -259,7 +260,7 @@ fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
     let (users, premium, groups) = hitung_db(ctx);
     let total_exec = (mulai.elapsed().as_secs_f64() * 1000.0).round() as u64;
 
-    let mut t = Reply::tabel("⚡ System Performance")
+    let mut t = Reply::tabel_v2("⚡ System Performance")
         .with_table_header(["Metric", "Value"])
         .with_table_header_text(format!(
             "{nama_bot} *STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita"
@@ -354,13 +355,13 @@ mod tests {
     }
 
     /// Ambil tabel di dalam sequence.
-    fn tabel_dari(reply: &Reply) -> &oktz_plugin_api::Tabel {
+    fn tabel_dari(reply: &Reply) -> &oktz_plugin_api::RichV2 {
         let [_, tabel, _] = isi_sequence(reply) else {
             panic!("harus tiga elemen: reaksi, tabel, reaksi");
         };
         match tabel.tanpa_reaksi() {
-            Reply::Tabel { tabel } => tabel,
-            other => panic!("harus Tabel, dapat {other:?}"),
+            Reply::TabelV2(tabel) => tabel,
+            other => panic!("harus TabelV2, dapat {other:?}"),
         }
     }
 
@@ -377,7 +378,7 @@ mod tests {
             list[0]
         );
         assert!(
-            matches!(list[1].tanpa_reaksi(), Reply::Tabel { .. }),
+            matches!(list[1].tanpa_reaksi(), Reply::TabelV2(_)),
             "tabel harus dikirim SETELAH reaksi pembuka, dapat {:?}",
             list[1]
         );
@@ -451,7 +452,7 @@ mod tests {
         );
 
         assert_eq!(t.footer.as_deref(), Some("🍃 Realtime Monitoring"));
-        let header_teks = t.header_teks.as_deref().unwrap_or_default();
+        let header_teks = t.heading.as_deref().unwrap_or_default();
         assert!(
             header_teks.ends_with("*STATUS*\n\n- 🎄 Dibawah ini adalah statistik bot kita"),
             "{header_teks}"

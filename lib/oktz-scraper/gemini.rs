@@ -229,10 +229,8 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
         null,
         null,
         null,
-        null,
         [[0]],
         1,
-        null,
         null,
         null,
         null,
@@ -555,18 +553,18 @@ mod tests {
         assert_eq!(request_body[0][0], "hai");
         assert_eq!(request_body[1][0], "en-US");
         assert_eq!(request_body[2][0], "", "resumeArray bawaan saat session kosong");
-        assert_eq!(request_body[18][0][0], 0, "[[0]] pada indeks 18");
+        assert_eq!(request_body[17][0][0], 0, "[[0]] pada indeks 17 (JS gemini.js:58)");
         assert_eq!(
-            request_body[26][2], "Singkat.",
-            "blok instruction pada indeks 26"
+            request_body[24][2], "Singkat.",
+            "blok instruction pada indeks 24 (JS gemini.js:68)"
         );
         assert_eq!(
-            request_body[37].as_array().unwrap().len(),
+            request_body[35].as_array().unwrap().len(),
             20,
-            "[1..20] pada indeks 37"
+            "[1..20] pada indeks 35 (JS gemini.js:92)"
         );
-        assert_eq!(request_body[43], json!([1]), "ekor array adalah [1]");
-        assert_eq!(request_body.as_array().unwrap().len(), 44, "44 elemen seperti JS");
+        assert_eq!(request_body[41], json!([1]), "ekor array adalah [1]");
+        assert_eq!(request_body.as_array().unwrap().len(), 42, "42 elemen seperti JS");
         assert!(body.contains("f.req=%5Bnull%2C"), "quote di-encode: {body}");
 
         // `sessionId` = base64 `{resumeArray, cookie, instruction}` urut.
