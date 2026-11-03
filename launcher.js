@@ -40,7 +40,7 @@ const require = createRequire(import.meta.url);
 try {
   const envPath = path.join(AKAR, ".env");
   if (existsSync(envPath)) {
-    for (const baris of readFileSync(envPath, "utf8").split(/\\r?\\n/)) {
+    for (const baris of readFileSync(envPath, "utf8").split(/\r?\n/)) {
       const trimmed = baris.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
       const idx = trimmed.indexOf("=");
