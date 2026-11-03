@@ -3224,6 +3224,24 @@ impl Identity {
     pub fn is_admin(&self, jid: &str) -> bool {
         listed(&self.admins, jid)
     }
+
+    /// Versi ganda: cocokkan `jid` lalu `alt`. Grup ber-addressing LID
+    /// mengirim `sender` sebagai `NNNN@lid` dan menaruh PN asli di
+    /// `sender_alt` (wacore `messages.rs:1110-1123`), sedangkan roster
+    /// owner/premium menyimpan PN. Tanpa pemeriksaan ganda, owner terdeteksi
+    /// Free di grup LID.
+    pub fn is_owner_any(&self, jid: &str, alt: Option<&str>) -> bool {
+        self.is_owner(jid) || alt.is_some_and(|a| self.is_owner(a))
+    }
+    pub fn is_admin_any(&self, jid: &str, alt: Option<&str>) -> bool {
+        self.is_admin(jid) || alt.is_some_and(|a| self.is_admin(a))
+    }
+    pub fn is_premium_any(&self, jid: &str, alt: Option<&str>) -> bool {
+        self.is_premium(jid) || alt.is_some_and(|a| self.is_premium(a))
+    }
+    pub fn is_partner_any(&self, jid: &str, alt: Option<&str>) -> bool {
+        self.is_partner(jid) || alt.is_some_and(|a| self.is_partner(a))
+    }
 }
 
 /// Hasil satu pesan masuk — dipakai test untuk memastikan tahap mana yang menahan.
@@ -3493,6 +3511,13 @@ impl Pipeline {
     pub fn caller_of(&self, m: &InboundMessage) -> Caller {
         let s = &m.info.source;
         let sender = s.sender.to_string();
+        // Grup ber-addressing LID mengirim `sender` sebagai `NNNN@lid` dan
+        // menaruh PN asli di `sender_alt` (wacore `messages.rs:1110-1123`).
+        // Roster owner/premium menyimpan PN, jadi deteksi tier wajib mencoba
+        // kedua identitas — tanpa itu owner terdeteksi Free di grup LID.
+        let sender_alt = s.sender_alt.as_ref().map(|j| j.to_string());
+        let alt = sender_alt.as_deref();
+        let id = &self.identity;
         // Media pesan + jalur unduhnya. Pengirim stub (test) tidak punya
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
         // `NoMediaFetch` — `Ctx::media` tetap terisi supaya plugin bisa
@@ -3504,10 +3529,10 @@ impl Pipeline {
             chat: s.chat.to_string(),
             command: String::new(),
             is_group: s.is_group,
-            is_owner: self.identity.is_owner(&sender),
-            is_partner: self.identity.is_partner(&sender),
-            is_premium: self.identity.is_premium(&sender),
-            is_admin: s.is_group && self.identity.is_admin(&sender),
+            is_owner: id.is_owner_any(&sender, alt),
+            is_partner: id.is_partner_any(&sender, alt),
+            is_premium: id.is_premium_any(&sender, alt),
+            is_admin: s.is_group && id.is_admin_any(&sender, alt),
             is_bot_admin: false,
             push_name: m.info.push_name.clone(),
             mentioned: mentioned_jids(m),
@@ -4002,7 +4027,20 @@ impl Pipeline {
         // global. Samakan di sini supaya plugin `is_admin` bisa jalan untuk
         // admin grup sungguhan.
         if caller.is_group {
-            caller.is_admin = caller.is_admin || roster.participant_is_admin(&caller.sender);
+            // Grup LID: `sender` bisa `NNNN@lid` sementara `participants[].jid`
+            // memakai PN — coba juga `sender_alt` (wacore `messages.rs:1110-1123`).
+            let sender_alt = m
+                .info
+                .source
+                .sender_alt
+                .as_ref()
+                .map(|j| j.to_string());
+            caller.is_admin = caller.is_admin
+                || roster.participant_is_admin(&caller.sender)
+                || sender_alt
+                    .as_deref()
+                    .map(|a| roster.participant_is_admin(a))
+                    .unwrap_or(false);
             caller.is_bot_admin = roster.is_bot_admin;
         }
 
@@ -6279,6 +6317,20 @@ fn group_number_and_long_number_are_rejected() {
         let id = Identity { owners, ..Default::default() };
         assert!(id.is_owner("6281:9@s.whatsapp.net"), "cocok via nomor");
         assert!(!Identity::default().is_owner("6281@s.whatsapp.net"));
+    }
+
+    #[test]
+    fn owner_matched_via_sender_alt_in_lid_group() {
+        // Grup LID: `sender` = LID, `sender_alt` = PN asli. Roster owner
+        // menyimpan PN — deteksi wajib mencoba `sender_alt` juga.
+        let mut owners = HashSet::new();
+        owners.insert("6281".to_string());
+        let id = Identity { owners, ..Default::default() };
+        assert!(
+            id.is_owner_any("247957890850846@lid", Some("6281@s.whatsapp.net")),
+            "owner cocok lewat sender_alt (PN)"
+        );
+        assert!(!id.is_owner_any("247957890850846@lid", Some("6282@s.whatsapp.net")));
     }
 
     #[tokio::test]

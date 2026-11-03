@@ -85,7 +85,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.1.7 — paritas plugin (749/793) + seluruh test hijau.
 // v0.1.8 — paritas JS penuh: proteksi grup, downloader, command lookup.
 // v0.1.9 — plugin stalkdc parity JS + kartu menu native-flow.
-export const VERSI_BIN = "v0.2.14";
+// v0.2.14 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
+// v0.2.15 — config penuh lewat .env (config.json dihapus); owner/premium dan
+//           admin grup benar di grup ber-addressing LID (sender_alt).
+export const VERSI_BIN = "v0.2.15";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
@@ -199,72 +202,26 @@ function credsSiap(p) {
   }
 }
 
-/** config.js di akar repo (panel) atau satu tingkat di atas `rust/` (dev). */
-function pathKonfig() {
-  for (const p of [path.join(AKAR, "config.js"), path.join(AKAR, "../config.js")]) {
-    if (existsSync(p)) return p;
-  }
-  return path.join(AKAR, "config.js");
-}
-
-/** config.json (milik binary Rust) di akar repo atau satu tingkat di atas. */
-function pathKonfigJson() {
-  for (const p of [path.join(AKAR, "config.json"), path.join(AKAR, "../config.json")]) {
-    if (existsSync(p)) return p;
-  }
-  return path.join(AKAR, "config.json");
-}
-
-function bacaKonfigJson() {
-  const p = pathKonfigJson();
-  if (!existsSync(p)) return {};
-  try {
-    return JSON.parse(readFileSync(p, "utf8")) || {};
-  } catch (e) {
-    console.error(`[launcher] config.json tidak terbaca: ${e.message}`);
-    return {};
-  }
-}
-
-/** Baca nilai pairing dari config, tanpa meng-import config.js (ada efek samping). */
+/** Nilai pairing dari env (.env dimuat di awal file). */
 function bacaKonfig() {
-  const j = bacaKonfigJson();
-  if (j.session) {
-    return {
-      pairingNumber: j.session.pairingNumber,
-      usePairingCode: j.session.usePairingCode,
-    };
-  }
-  const p = pathKonfig();
-  if (!existsSync(p)) return {};
-  const t = readFileSync(p, "utf8");
-  const nomor = /pairingNumber\s*:\s*["'`]([^"'`]*)["'`]/.exec(t)?.[1];
-  const kode = /usePairingCode\s*:\s*(true|false)/.exec(t)?.[1];
   return {
-    pairingNumber: nomor,
-    usePairingCode: kode === undefined ? undefined : kode === "true",
+    pairingNumber: process.env.PAIRING_NUMBER,
+    usePairingCode:
+      process.env.USE_PAIRING_CODE === undefined
+        ? undefined
+        : process.env.USE_PAIRING_CODE !== "false",
   };
 }
 
-/** Nilai Turso: env menang, lalu config.json, lalu literal config.js. */
+/** Nilai Turso dari env (.env dimuat di awal file). */
 function bacaTurso() {
-  const j = bacaKonfigJson().turso || {};
-  const p = pathKonfig();
-  let blok = "";
-  if (existsSync(p)) {
-    const t = readFileSync(p, "utf8");
-    blok = /turso\s*:\s*\{([\s\S]*?)\n\s*\}/.exec(t)?.[1] || "";
-  }
-  const literal = (nama) => {
-    const m = new RegExp(
-      `${nama}\\s*:\\s*(?:process\\.env\\.[A-Z_]+\\s*\\|\\|\\s*)?["'\`]([^"'\`]*)["'\`]`
-    ).exec(blok);
-    return (m?.[1] || "").trim();
-  };
-  const url = (process.env.TURSO_URL || j.url || literal("url")).trim();
-  const token = (process.env.TURSO_AUTH_TOKEN || j.authToken || literal("authToken")).trim();
-  const mati = j.enabled === false || /enabled\s*:\s*false/.test(blok);
-  return { url, token, aktif: !mati && url !== "" };
+  const url = (process.env.TURSO_URL || "").trim();
+  const token = (process.env.TURSO_AUTH_TOKEN || "").trim();
+  const aktif =
+    process.env.TURSO_ENABLED === undefined
+      ? url !== ""
+      : ["true", "1", "yes"].includes(process.env.TURSO_ENABLED) && url !== "";
+  return { url, token, aktif };
 }
 
 function tursoEndpoint(url) {
@@ -538,7 +495,7 @@ function jalankan(args, extraEnv = {}) {
     console.error("[launcher] ffmpeg tidak ditemukan: fitur audio (.play2/.tovn) akan gagal");
   }
   console.log(`[launcher] jalankan ${BIN_ABS} ${args.join(" ")}`);
-  // cwd = akar repo supaya config.json, database/, dan storage/ selalu relatif
+  // cwd = akar repo supaya .env, database/, dan storage/ selalu relatif
   // ke sini, bukan ke direktori kerja panel.
   anak = spawn(BIN_ABS, args, {
     stdio: "inherit",
@@ -612,11 +569,8 @@ function spawnTunggu(args) {
 /** Pairing code/QR, lalu jalankan bot dengan sesi yang baru dibuat. */
 async function pairing(creds) {
   const konf = bacaKonfig();
-  const nomor = (process.env.PAIRING_NUMBER || konf.pairingNumber || "").replace(/\D/g, "");
-  const pakaiKode =
-    process.env.USE_PAIRING_CODE !== undefined
-      ? process.env.USE_PAIRING_CODE !== "false"
-      : konf.usePairingCode !== false;
+  const nomor = (konf.pairingNumber || "").replace(/\D/g, "");
+  const pakaiKode = konf.usePairingCode !== false;
   const db = path.resolve(
     AKAR,
     process.env.OKTZ_DB_DIR || "database/wa",
@@ -626,8 +580,8 @@ async function pairing(creds) {
   const args = pakaiKode ? ["pair-code", nomor, db] : ["pair-qr", db];
   if (pakaiKode && !nomor) {
     console.error(
-      "[launcher] belum ada sesi dan pairingNumber kosong. Isi config.js " +
-        "session.pairingNumber atau env PAIRING_NUMBER."
+      "[launcher] belum ada sesi dan PAIRING_NUMBER kosong. Isi PAIRING_NUMBER " +
+        "di .env."
     );
     process.exit(2);
   }

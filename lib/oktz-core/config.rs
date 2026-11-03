@@ -83,8 +83,8 @@ impl Default for Sticker {
     fn default() -> Self {
         Self {
             // `config.js:113` — nama pack sticker produksi.
-            packname: d("𝗙𝗢𝗧𝗢 𝗗𝗘𝗟𝗨𝗫𝗘"),
-            author: d("Zann"),
+            packname: d("𝗢𝗞𝗧𝗭 𝗟𝗢𝗟"),
+            author: d("Oktz"),
         }
     }
 }
@@ -542,7 +542,7 @@ impl Default for BotInfo {
         Self {
             name: d("Oktz Bot"),
             version: d("3.3.1"),
-            developer: d("Zann"),
+            developer: d("Oktz"),
             website: d("https://oktzz.xyz"),
         }
     }
@@ -930,11 +930,11 @@ mod tests {
 
         let prod = Runtime::from_config();
         assert_eq!(prod.bot.name, "Oktz Bot");
-        assert_eq!(prod.bot.developer, "Zann");
+        assert_eq!(prod.bot.developer, "Oktz");
         assert_eq!(prod.owner.name, "Oktz");
         assert_eq!(prod.owner.number, vec!["6285608953677".to_string()]);
         assert_eq!(prod.info.website, "https://oktzz.xyz");
-        assert_eq!(prod.sticker.author, "Zann");
+        assert_eq!(prod.sticker.author, "Oktz");
         assert_eq!(prod.saluran.id, "120363411617217441@newsletter");
         assert_eq!(
             prod.assets.get("mp4"),
@@ -1026,17 +1026,6 @@ mod tests {
         // Blok yang belum punya jalur file tetap bawaan `config.js`.
         assert_eq!(rt.payment.methods.len(), 4);
         assert_eq!(rt.assets.get("mp4"), Some("./assets/video/mp4.mp4"));
-    }
-
-    #[test]
-    fn config_contoh_yang_dikirim_bisa_dibaca() {
-        // File di `rust/config.json` ikut dikirim ke repo `oktz-rs`; kalau
-        // kuncinya salah ketik, loader-nya jangan sampai baru ketahuan saat
-        // user menjalankan bot.
-        let raw = include_str!("../../config.json");
-        let v: Value = serde_json::from_str(raw).expect("config.json harus JSON valid");
-        let mut cfg = Config::from_env();
-        cfg.apply_file(&v).expect("config.json harus lolos loader");
     }
 
     #[test]

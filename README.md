@@ -18,11 +18,11 @@ node launcher.js verify-db <path>  # cek db sesi
 Tanpa argumen launcher mengikuti urutan bot JS lama:
 
 1. `storage/session/creds.json` ada dan sudah paired → `run`.
-2. Belum ada sesi, Turso aktif (`TURSO_URL`/`TURSO_AUTH_TOKEN` atau
-   `turso.url`/`turso.authToken` di `config.json`) → pulihkan `session_creds`
-   + `session_keys` scope `main`, tulis creds + fixture, lalu `run`.
+2. Belum ada sesi, Turso aktif (`TURSO_URL`/`TURSO_AUTH_TOKEN` di `.env`) →
+   pulihkan `session_creds` + `session_keys` scope `main`, tulis creds +
+   fixture, lalu `run`.
 3. Belum ada sesi dan tidak ada Turso → pairing code (atau QR bila
-   `session.usePairingCode=false`), simpan `creds.json`, lalu `run`.
+   `USE_PAIRING_CODE=false`), simpan `creds.json`, lalu `run`.
 
 Launcher mencari `bin/oktz`, lalu `target/release/oktz`; kalau tidak ada, launcher
 mengunduh aset `oktz-linux-x64-static` dari release terbaru (fallback
@@ -46,21 +46,19 @@ ratchet di `database/wa/oktz-run.db`. Dua direktori itu harus persisten.
 3. Node 18+; tidak ada `npm install` (tanpa dependensi).
 4. Panel harus Linux x86_64; binary statis dipilih supaya tidak butuh loader glibc.
 5. Set `TZ=Asia/Jakarta` supaya tanggal/jam sapaan sama dengan bot JS.
-6. Isi `config.json` (lihat bawah). Kalau belum ada sesi, launcher pairing
-   sendiri lewat `session.pairingNumber`; kalau Turso diisi, sesi dipulihkan
+6. Isi `.env` (salin dari `.env.example`). Kalau belum ada sesi, launcher
+   pairing sendiri lewat `PAIRING_NUMBER`; kalau Turso diisi, sesi dipulihkan
    dulu.
 
 Sinyal stop panel diteruskan launcher ke binary; exit code binary = exit code
 launcher.
 
-## config.json
+## .env
 
-Sepadan `config.js`. Nilai yang **diisi** di file menang atas `.env`; string
-kosong berarti "jangan sentuh" (API key di `.env` tetap dipakai). Lokasi file
-bisa dipindah lewat `OKTZ_CONFIG`.
-
-Bagian penting: `owner`, `bot`, `session` (pairing/QR), `database`, `turso`,
-`sticker`, `saluran`, `apiKeys`.
+Semua config lewat `.env` (salin dari `.env.example`), dibaca binary Rust dan
+launcher. Kunci utama: `OWNER_NUMBERS`, `BOT_*`, `PAIRING_NUMBER`,
+`USE_PAIRING_CODE`, `DATABASE_PATH`, `TURSO_*`, `STICKER_*`, `SALURAN_*`,
+`APIKEY_*`. Config JSON kompleks masih bisa lewat `OKTZ_CONFIG_JSON`.
 
 ## Build ulang
 

@@ -4,6 +4,7 @@
 *.db
 /qr
 /bin/oktz
+.env
 
 # Bot JS (oktz-md) — repo git terpisah, dipakai sebagai sumber referensi
 # port, bukan bagian dari repo Rust.

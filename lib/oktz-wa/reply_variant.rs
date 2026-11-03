@@ -1029,7 +1029,7 @@ mod tests {
         assert_eq!(ext.title.as_deref(), Some("Oktz Bot"));
         assert_eq!(
             ext.description.as_deref(),
-            Some("Pengembang: Zann | Versi: 3.3.1")
+            Some("Pengembang: Oktz | Versi: 3.3.1")
         );
         assert_eq!(ext.preview_type, Some(PreviewType::NONE), "`previewType: 0`");
         assert_eq!(ext.jpeg_thumbnail.as_deref(), Some(&b"srt-image"[..]));

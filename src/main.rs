@@ -208,7 +208,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await;
     }
 
-    // `oktz pair [db] [hold]` — pilih pairing code/QR dari `config.json`
+    // `oktz pair [db] [hold]` — pilih pairing code/QR dari `PAIRING_NUMBER` di .env
     // (`session.usePairingCode`). `oktz pair-code [nomor] [db] [hold]` /
     // `oktz pair-qr [db] [hold]` tetap ada untuk memaksa salah satu.
     if mode == "pair" || mode == "pair-code" || mode == "pair-qr" {
@@ -240,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| cfg.session.pairing_number.clone());
             if nomor.is_empty() {
                 eprintln!("pemakaian: oktz pair-code <nomor> [db] [hold_secs]");
-                eprintln!("nomor belum diisi: lewat argumen atau session.pairingNumber di config.json");
+                eprintln!("nomor belum diisi: lewat argumen atau PAIRING_NUMBER di .env");
                 std::process::exit(2);
             }
             oktz_wa::pairing_run::pair_code_flow(&db, &nomor, hold).await
