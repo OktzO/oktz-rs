@@ -536,9 +536,17 @@ mod tests {
     #[test]
     fn a_waiting_room_just_inside_the_ttl_can_still_be_joined() {
         let s = new_session_store();
+        // Buffer 30 detik (pola `7ec234b`): `createdAt` tepat `now - TTL`
+        // akan gugur saat handler membaca `now_ms()` 1 ms lebih lambat,
+        // karena ceknya strict `>`.
         seed(
             &s,
-            waiting_room("ttt_1", SENDER, None, now_ms() - ROOM_TTL_MS),
+            waiting_room(
+                "ttt_1",
+                SENDER,
+                None,
+                now_ms() - ROOM_TTL_MS + 30_000,
+            ),
         );
         let r = run(OTHER, "", &s);
         assert!(
