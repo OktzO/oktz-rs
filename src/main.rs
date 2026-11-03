@@ -152,7 +152,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let to = args.get(3).cloned().unwrap_or_default();
         let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(60);
         let kind = mode.trim_start_matches("send-").to_string();
-        let db = db_arg(dev_db(&dev_dir(db_dir_env.as_deref()), "send", std::process::id()))?;
+        // Pakai db bot asli bila ada: kirim butuh sesi ratchet + prekey yang
+        // dikenal server. dev db baru per-proses menghapus semuanya — pesan
+        // "SENT" ke WS tapi server membuangnya (tidak pernah sampai).
+        let db = db_arg(if std::path::Path::new("database/wa/oktz-run.db").exists() {
+            std::path::PathBuf::from("database/wa/oktz-run.db")
+        } else {
+            dev_db(&dev_dir(db_dir_env.as_deref()), "send", std::process::id())
+        })?;
         return send(&creds, &to, hold, &kind, &db).await;
     }
 
@@ -524,8 +531,15 @@ async fn send(
                         return;
                     }
                 };
+                // Tabel/rich TIDAK pakai node biz (JS relayMessage pola);
+                // biz node hanya untuk kartu native-flow.
+                let biz_untuk = matches!(kind.as_str(), "card" | "list");
                 let opts = oktz_wa::SendOptions::default()
-                    .with_extra_stanza_nodes(vec![oktz_wa::biz_node()]);
+                    .with_extra_stanza_nodes(if biz_untuk {
+                        vec![oktz_wa::biz_node()]
+                    } else {
+                        Vec::new()
+                    });
 
                 let msg = match kind.as_str() {
                     "card" => {

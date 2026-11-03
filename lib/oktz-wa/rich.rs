@@ -333,6 +333,19 @@ fn v2_sections(input: &RichV2) -> Vec<serde_json::Value> {
 pub fn rich_v2_to_message(input: &RichV2, quote: Option<&QuoteSource>) -> wa::Message {
     let response_id = unique_id();
     let outer = MessageContextInfo {
+        // `deviceListMetadata` (`:1052-1057`): wire JS memuat
+        // `recipientKeyHash: ""` (f8, varint 0 di wire) dan
+        // `recipientTimestamp` (f9) detik sekarang; indexes kosong.
+        device_list_metadata: fld(Some(DeviceListMetadata {
+            recipient_key_hash: Some(Vec::new()),
+            recipient_timestamp: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0),
+            ),
+            ..Default::default()
+        })),
         device_list_metadata_version: Some(2),
         message_secret: Some(secret_32()),
         // `threadId: []` (`:1050`) — repeated kosong, proto tidak menuliskannya.
