@@ -86,9 +86,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.1.8 — paritas JS penuh: proteksi grup, downloader, command lookup.
 // v0.1.9 — plugin stalkdc parity JS + kartu menu native-flow.
 // v0.2.14 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
-// v0.2.15 — config penuh lewat .env (config.json dihapus); owner/premium dan
-//           admin grup benar di grup ber-addressing LID (sender_alt).
-export const VERSI_BIN = "v0.2.15";
+// v0.2.16 — config penuh lewat .env (config.json dihapus); owner/premium dan
+//           admin grup benar di grup ber-addressing LID (sender_alt);
+//           perbaiki loader .env (regex split salah escape).
+export const VERSI_BIN = "v0.2.16";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
