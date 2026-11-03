@@ -4592,13 +4592,8 @@ impl Pipeline {
         } else {
             grup_event::tipe_goodbye(&setting)
         };
-        if tipe != 1 {
-            tracing::warn!(
-                grup = %u.id,
-                tipe,
-                "welcome/goodbye tipe ini butuh kartu/album yang belum ada; dilewati"
-            );
-            return Ok(());
+        if !(1..=8).contains(&tipe) {
+            tracing::warn!(grup = %u.id, tipe, "welcome/goodbye tipe tidak dikenal; pakai tipe 1");
         }
 
         let meta = self
@@ -4669,6 +4664,68 @@ impl Pipeline {
                 sender: jid.clone(),
                 ..Default::default()
             };
+
+            // Tipe 2 = kartu + FOTO PROFIL peserta (`welcome.js:152-231`,
+            // `goodbye.js:173-252`): gambar PP (gagal → teks) + caption
+            // salam + mention + badge saluran (`saluranCtx()`,
+            // `context.js:50-62`: score 9, forwarded, newsletterInfo).
+            // Tipe lain (3..8) di JS bervariasi kartu/preview/gif; padanan
+            // wire-nya belum ada, jadi jatuh ke tipe 1 (teks + mention) —
+            // pesan tetap terkirim, bukan hilang.
+            if tipe == 2 && masuk {
+                let pp = self
+                    .plugin_src
+                    .sock
+                    .foto_profil(&jid, "image")
+                    .ok()
+                    .flatten()
+                    .filter(|url| !url.is_empty());
+                let url = match pp {
+                    Some(url) => url,
+                    None => {
+                        tracing::warn!(grup = %u.id, peserta = %nomor, "PP peserta gagal; sapaan jadi teks (JS fallback sama)");
+                        // jatuh ke jalur teks di bawah
+                        String::new()
+                    }
+                };
+                if !url.is_empty() {
+                    let caption = format!("👋 Welcome *@{nomor}*");
+                    let mut ci = context_info(&[jid.clone()], None);
+                    ci.is_forwarded = Some(true);
+                    ci.forwarding_score = Some(9);
+                    ci.forwarded_newsletter_message_info =
+                        MessageField::some(wa::context_info::ForwardedNewsletterMessageInfo {
+                            newsletter_jid: Some(self.plugin_src.config.saluran.id.clone()),
+                            newsletter_name: Some(self.plugin_src.config.saluran.name.clone()),
+                            server_message_id: Some(127),
+                            ..Default::default()
+                        });
+                    let pending = PendingMedia {
+                        kind: MediaKind::Image,
+                        source: MediaSource::Url {
+                            url,
+                            mimetype: Some("image/jpeg".to_string()),
+                        },
+                        caption,
+                        mentions: vec![jid.clone()],
+                        quote: None,
+                        gif_playback: false,
+                        ptt: false,
+                        file_name: None,
+                        jpeg_thumbnail: None,
+                        file_length: None,
+                        preview: None,
+                        sticker: None,
+                        sticker_pack: None,
+                    };
+                    if let Err(e) = self.sender.send_media(&u.id, pending).await {
+                        tracing::warn!(error = %e, grup = %u.id, "kartu welcome gagal; jatuh ke teks");
+                    } else {
+                        continue;
+                    }
+                }
+            }
+
             let rendered = render_reply(&Reply::text(teks), &target)?;
             if let Some(r) = rendered {
                 self.sender
@@ -8308,27 +8365,36 @@ fn a_null_access_field_keeps_the_existing_grant() {
     }
 
     #[tokio::test]
-    async fn update_grup_mati_atau_tipe_lain_tidak_mengirim() {
-        for (nama, isi) in [
-            ("grup-off", r#"{"groups": {"120363@g.us": {"welcome": false}}}"#),
-            (
-                "grup-tipe",
-                r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 2}}"#,
-            ),
-        ] {
-            let (p, sender, _sock) = pipa_grup(
-                nama,
-                isi,
-                meta_grup(json!([{"id": MEMBER, "admin": null}])),
-            );
-            p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
-                .await
-                .unwrap();
-            assert!(
-                sender.texts().is_empty(),
-                "{nama}: tidak boleh ada pesan terkirim"
-            );
-        }
+    async fn update_grup_mati_tidak_mengirim_dan_tipe_2_foto_profil() {
+        // Grup mati = tanpa pesan.
+        let (p, sender, _sock) = pipa_grup(
+            "grup-off",
+            r#"{"groups": {"120363@g.us": {"welcome": false}}}"#,
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
+        );
+        p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
+            .await
+            .unwrap();
+        assert!(
+            sender.texts().is_empty(),
+            "grup-off: tidak boleh ada pesan terkirim"
+        );
+
+        // Tipe 2: PP gagal (`SockUji.foto_profil` error) → fallback teks,
+        // persis cabang `catch {}` JS (`welcome.js:138-141`).
+        let (p, sender, _sock) = pipa_grup(
+            "grup-tipe",
+            r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 2}}"#,
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
+        );
+        p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
+            .await
+            .unwrap();
+        assert!(
+            sender.texts().iter().any(|t| t.contains("WELCOME")),
+            "PP gagal → teks fallback: {:?}",
+            sender.texts()
+        );
     }
 
     #[tokio::test]
