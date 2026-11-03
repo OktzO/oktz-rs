@@ -233,8 +233,14 @@ pub fn video_ke_stiker_webp(data: &[u8], opsi: &[OpsiS]) -> Result<Vec<u8>, Stri
         }
     }
     let vf = format!("{prefix}{STICKER_WEBP_VF}");
-    let args = [
+    // Output HARUS ke berkas, bukan `pipe:1`: muxer webp ffmpeg menulis
+    // RIFF size = 0 dan VP8X tanpa bit ANIM kalau output non-seekable —
+    // WA menolak hasilnya. Bot JS menulis ke file temp juga
+    // (`videoToWebp`, `socket.js:226`).
+    let keluar = nama_unik("oktz-stiker", "webp");
+    let args = vec![
         "-hide_banner",
+        "-y",
         "-loglevel",
         "error",
         "-i",
@@ -250,9 +256,13 @@ pub fn video_ke_stiker_webp(data: &[u8], opsi: &[OpsiS]) -> Result<Vec<u8>, Stri
         "-an",
         "-f",
         "webp",
-        "pipe:1",
+        keluar.to_str().unwrap_or("out.webp"),
     ];
-    crate::ffmpeg::jalankan_dengan_masukan(&args, data).map_err(|e| e.to_string())
+    let hasil = crate::ffmpeg::jalankan_dengan_masukan(&args, data).map(|_| ());
+    let baca = std::fs::read(&keluar).map_err(|e| format!("gagal baca webp sementara: {e}"));
+    let _ = std::fs::remove_file(&keluar);
+    hasil?;
+    baca
 }
 
 pub fn sticker_metadata_json(packname: &str, author: &str, emojis: &[&str]) -> Vec<u8> {
