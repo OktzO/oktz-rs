@@ -89,7 +89,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.16 — config penuh lewat .env (config.json dihapus); owner/premium dan
 //           admin grup benar di grup ber-addressing LID (sender_alt);
 //           perbaiki loader .env (regex split salah escape).
-export const VERSI_BIN = "v0.2.16";
+// v0.2.17 — .addpremium jalan (add/del/list premium); premium aktif tanpa
+//           restart; ffmpeg dari bin/ atau PATH, tanpa npm.
+export const VERSI_BIN = "v0.2.17";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
