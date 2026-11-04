@@ -475,15 +475,12 @@ if (UTAMA) cekRegistry();
 let anak = null;
 let sudahUnduhUlang = false;
 
-// ffmpeg: bot Rust mencari biner lewat env OTKZ_FFMPEG_PATH lalu PATH.
-// Sama seperti bot JS (@ffmpeg-installer/ffmpeg) — bawa biner sendiri, jangan
-// bergantung PATH sistem: di VPS/panel ffmpeg sering tidak terpasang.
+// ffmpeg: bot Rust sendiri mencari biner (OTKZ_FFMPEG_PATH → ./bin/ffmpeg → PATH).
+// Launcher hanya meneruskan env dari operator.
 function ffmpegPath() {
-  if (process.env.OTKZ_FFMPEG_PATH) return process.env.OTKZ_FFMPEG_PATH;
-  try {
-    const inst = require("@ffmpeg-installer/ffmpeg");
-    if (inst?.path && existsSync(inst.path)) return inst.path;
-  } catch {}
+  if (process.env.OTKZ_FFMPEG_PATH && existsSync(process.env.OTKZ_FFMPEG_PATH)) {
+    return process.env.OTKZ_FFMPEG_PATH;
+  }
   return undefined;
 }
 

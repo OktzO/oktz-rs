@@ -3078,6 +3078,11 @@ impl RosterCache {
     fn put(&mut self, chat: &str, roster: GroupRoster) {
         self.map.insert(chat.to_string(), (Instant::now(), roster));
     }
+
+    /// Buang satu grup — roster grup itu berubah.
+    fn invalidate(&mut self, chat: &str) {
+        self.map.remove(chat);
+    }
 }
 
 /// Apa yang boleh dibaca handler plugin untuk mengisi `Ctx`.
@@ -3323,7 +3328,9 @@ pub struct Pipeline {
     energi_settings: EnergiSettings,
     parse_opts: ParseOptions,
     bot_id: String,
-    identity: Identity,
+    /// `RwLock`: plugin `addprem`/`delprem` menulis daftar premium lewat
+    /// mutasi — identity harus bisa di-refresh tanpa restart.
+    identity: RwLock<Identity>,
     anti_spam_enabled: bool,
     auto_work_settings: AutoWorkSettings,
     /// Sumber roster grup. Default [`NoRoster`] supaya konstruktor tetap
@@ -3375,7 +3382,7 @@ impl Pipeline {
             energi_settings: EnergiSettings::default(),
             parse_opts,
             bot_id: bot_id.into(),
-            identity: Identity::default(),
+            identity: RwLock::new(Identity::default()),
             anti_spam_enabled: true,
             auto_work_settings: AutoWorkSettings::default(),
             roster: Arc::new(NoRoster),
@@ -3386,7 +3393,7 @@ impl Pipeline {
     }
 
     pub fn with_identity(mut self, identity: Identity) -> Self {
-        self.identity = identity;
+        *self.identity.get_mut().unwrap_or_else(|e| e.into_inner()) = identity;
         self
     }
 
@@ -3468,8 +3475,23 @@ impl Pipeline {
         &self.ctx
     }
 
-    pub fn identity(&self) -> &Identity {
-        &self.identity
+    pub fn identity(&self) -> Identity {
+        self.identity.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Semburkan daftar premium/partner baru ke identity tanpa restart.
+    ///
+    /// Dipanggil setelah mutasi `SetSetting { premiumUsers | partnerUsers }`
+    /// diterapkan — `.addpremium` harus langsung berlaku pada pesan berikutnya.
+    fn refresh_identity_premium(&self, premium: Vec<String>, partner: Vec<String>) {
+        let mut id = self.identity.write().unwrap_or_else(|e| e.into_inner());
+        id.premium = premium.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        id.partners = partner.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        // owner & partner ikut premium (config.js: sumber premium = owner ∪ partner ∪ premium).
+        let owners = id.owners.clone();
+        let partners = id.partners.clone();
+        for o in owners { id.premium.insert(o); }
+        for p in partners { id.premium.insert(p); }
     }
 
     /// Kuota auto-work untuk fitur yang memang memakainya. Dipanggil per-fitur,
@@ -3517,7 +3539,7 @@ impl Pipeline {
         // kedua identitas — tanpa itu owner terdeteksi Free di grup LID.
         let sender_alt = s.sender_alt.as_ref().map(|j| j.to_string());
         let alt = sender_alt.as_deref();
-        let id = &self.identity;
+        let id = self.identity();
         // Media pesan + jalur unduhnya. Pengirim stub (test) tidak punya
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
         // `NoMediaFetch` — `Ctx::media` tetap terisi supaya plugin bisa
@@ -4234,6 +4256,21 @@ impl Pipeline {
                     );
                     return Ok(Outcome::StoreWriteFailed);
                 }
+                // Daftar premium/partner berubah → identity langsung di-refresh,
+                // supaya `.addpremium` berlaku pada pesan berikutnya tanpa restart.
+                for m in &mutations {
+                    if let Mutation::SetSetting { key, .. } = m {
+                        if key == "premiumUsers" || key == "partnerUsers" {
+                            let s = self.ctx.settings_entry();
+                            let arr = |k: &str| {
+                                s.get(k).and_then(Value::as_array)
+                                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                    .unwrap_or_default()
+                            };
+                            self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
+                        }
+                    }
+                }
             }
 
             let mut target = reply_target(m, &caller.sender);
@@ -4442,7 +4479,7 @@ impl Pipeline {
         // yang mengundang tidak boleh dianggap orang asing
         // (`plugins/group/anticulik.js:100-109`).
         if !pelaku.is_empty()
-            && (self.identity.is_owner(&pelaku)
+            && (self.identity().is_owner(&pelaku)
                 || grup_event::nomor_jid(&pelaku) == self.bot_id)
         {
             return Ok(false);
@@ -4576,6 +4613,13 @@ impl Pipeline {
     /// (`src/handler.js:2090-2130`, butuh `config.assets`) — dilewati dengan
     /// `warn`, bukan diganti bentuk lain.
     async fn tangani_update_grup(&self, u: &UpdateGrup) -> Result<(), PipelineError> {
+        // Roster grup baru saja berubah — buang cache supaya cek isBotAdmin
+        // berikutnya baca ulang dari jaringan.
+        self.plugin_src
+            .rosters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .invalidate(&u.id);
         match u.aksi {
             AksiGrup::Promote | AksiGrup::Demote => {
                 tracing::warn!(grup = %u.id, aksi = ?u.aksi, "banner promote/demote belum ada jalur medianya; dilewati");
@@ -6354,6 +6398,23 @@ fn group_number_and_long_number_are_rejected() {
         drop(s);
     }
 
+    #[test]
+    fn refresh_identity_premium_tanpa_restart() {
+        let (p, _s) = pipeline_with("{}", Identity::default());
+        assert!(
+            !p.identity().is_premium("62899@s.whatsapp.net"),
+            "sebelum refresh: bukan premium"
+        );
+        p.refresh_identity_premium(
+            vec!["62899".into()],
+            vec![],
+        );
+        assert!(
+            p.identity().is_premium("62899@s.whatsapp.net"),
+            "premium baru harus aktif tanpa restart"
+        );
+    }
+
     #[tokio::test]
     async fn auto_work_gate_is_not_charged_by_ordinary_commands() {
         // Dedup memakai id berbeda, jadi semua perintah benar-benar lewat gate.
@@ -7009,6 +7070,45 @@ fn group_number_and_long_number_are_rejected() {
         // TTL habis -> dianggap tidak ada, supaya di-refresh.
         c.map.get_mut("g").unwrap().0 = Instant::now() - RosterCache::DEFAULT_TTL * 2;
         assert_eq!(c.get("g"), None, "roster basi tidak boleh dipakai selamanya");
+    }
+
+    #[tokio::test]
+    async fn a_group_participant_update_invalidates_the_roster_cache() {
+        let p = Pipeline::new(
+            StoreContext::new(store_with("pgi", "{}")),
+            Arc::new(RecordingSender::default()),
+            "bot",
+            ParseOptions::default(),
+        );
+        p.plugin_src.rosters.lock().unwrap().put(
+            "120363@g.us",
+            GroupRoster {
+                participants: vec![Participant {
+                    jid: "bot@s.whatsapp.net".into(),
+                    is_admin: false,
+                    is_owner: false,
+                    data: Value::Null,
+                }],
+                is_bot_admin: false,
+            },
+        );
+        let u = UpdateGrup {
+            id: "120363@g.us".into(),
+            aksi: AksiGrup::Promote,
+            peserta: vec![],
+            pelaku: None,
+            mode_lid: false,
+        };
+        p.tangani_update_grup(&u).await.unwrap();
+        assert!(
+            p.plugin_src
+                .rosters
+                .lock()
+                .unwrap()
+                .get("120363@g.us")
+                .is_none(),
+            "roster basi harus dibuang"
+        );
     }
 
     #[tokio::test]

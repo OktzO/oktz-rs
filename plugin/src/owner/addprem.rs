@@ -10,7 +10,8 @@
 //! `pub mod addprem;` di `src/owner/mod.rs` secara manual (mod.rs milik plugin
 //! lain — dilarang menyentuh per brief).
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 /// Energi default yang dipakai JS saat mempromosikan user ke premium
 /// (`config.energi?.premium || 999999`).
@@ -114,15 +115,17 @@ pub(crate) fn parse_durasi(args: &[String]) -> Durasi {
     }
     let angka: i64 = lowercase[..digit_len].parse().unwrap_or(0);
     let unit = &lowercase[digit_len..];
+    // JS Number = double, tak pernah overflow; i64 iya. saturating = perilaku
+    // "durasi hampir permanen" tetap, tanpa panic.
     let (ms, label) = if unit == "d" || unit == "detik" {
-        (angka * 1000, format!("{angka} detik"))
+        (angka.saturating_mul(1000), format!("{angka} detik"))
     } else if unit == "m" || unit == "menit" {
-        (angka * 60 * 1000, format!("{angka} menit"))
+        (angka.saturating_mul(60 * 1000), format!("{angka} menit"))
     } else if unit == "j" || unit == "jam" {
-        (angka * 60 * 60 * 1000, format!("{angka} jam"))
+        (angka.saturating_mul(60 * 60 * 1000), format!("{angka} jam"))
     } else {
         // unit kosong / "h" / "hari" → hari
-        (angka * 24 * 60 * 60 * 1000, format!("{angka} hari"))
+        (angka.saturating_mul(24 * 60 * 60 * 1000), format!("{angka} hari"))
     };
     Durasi { ms, label }
 }
@@ -170,8 +173,7 @@ pub fn addprem(ctx: Ctx) -> Reply {
     let is_list = matches!(cmd.as_str(), "listprem" | "premlist");
 
     if is_list {
-        // `db.data.premium` + `jadibotId`/`isJadibot` tidak tersedia di Ctx.
-        return Reply::text(error_templ(&ctx.prefix, &ctx.command)).with_reaction("☢");
+        return daftar_premium(&ctx);
     }
 
     let target = ekstrak_target(
@@ -193,15 +195,103 @@ pub fn addprem(ctx: Ctx) -> Reply {
         return Reply::text("❌ Format nomor tidak valid");
     }
 
-    // `db.data.premium`, `db.getUser`/`db.setUser`, `db.updateExp`,
-    // `db.updateKoin`, `db.save()` tidak tersedia di Ctx — operasi add/del
-    // tidak dapat dijalankan. Sama seperti swm.rs / delpanel.rs: berakhir di
-    // error template.
-    Reply::text(error_templ(&ctx.prefix, &ctx.command)).with_reaction("☢")
+    if is_add {
+        tambah_premium(&ctx, &target_number)
+    } else if is_del {
+        hapus_premium(&ctx, &target_number)
+    } else {
+        Reply::None
+    }
 }
 
-fn error_templ(prefix: &str, command: &str) -> String {
-    crate::common::error_template_bawaan(prefix, command)
+/// `.addprem` (`addprem.js:152-232`) — tulis daftar premium + flag user.
+fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
+    let mut daftar = baca_daftar(ctx);
+    let sudah_ada = daftar.iter().any(|p| p == target_number);
+    if !sudah_ada {
+        daftar.push(target_number.to_string());
+    }
+
+    // `user.energi === -1` tidak ditimpa (addprem.js:218).
+    let energi_sekarang = ctx
+        .berkas()
+        .baca_teks("database/main/settings.json")
+        .ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        .and_then(|root| root.get("users").cloned())
+        .and_then(|u| u.get(target_number).cloned())
+        .and_then(|u| u.get("energi").and_then(Value::as_i64).map(|e| e == -1));
+    let mut user_data = serde_json::json!({ "isPremium": true, "energi": PREMIUM_ENERGI_DEFAULT });
+    if energi_sekarang == Some(true) {
+        user_data["energi"] = Value::from(-1);
+    }
+
+    Reply::text(format!(
+        "✅ Berhasil {} premium *{target_number}* selama *{}*",
+        if sudah_ada { "memperpanjang" } else { "menambahkan" },
+        parse_durasi(&ctx.args).label
+    ))
+    .with_reaction("💎")
+    .mutating(vec![
+        Mutation::SetSetting {
+            key: "premiumUsers".into(),
+            value: serde_json::json!(daftar),
+        },
+        Mutation::SetUser {
+            jid: format!("{target_number}@s.whatsapp.net"),
+            data: user_data,
+        },
+    ])
+}
+
+/// `.delprem` (`addprem.js:233-253`).
+fn hapus_premium(ctx: &Ctx, target_number: &str) -> Reply {
+    let daftar = baca_daftar(ctx);
+    if !daftar.iter().any(|p| p == target_number) {
+        return Reply::text(format!("❌ *{target_number}* bukan premium"));
+    }
+    let next: Vec<String> = daftar.into_iter().filter(|p| p != target_number).collect();
+    Reply::text(format!("✅ Berhasil menghapus *{target_number}* dari premium"))
+        .with_reaction("✅")
+        .mutating(vec![
+            Mutation::SetSetting {
+                key: "premiumUsers".into(),
+                value: serde_json::json!(next),
+            },
+            Mutation::SetUser {
+                jid: format!("{target_number}@s.whatsapp.net"),
+                data: serde_json::json!({ "isPremium": false }),
+            },
+        ])
+}
+
+/// Sumber daftar premium: `settings.premiumUsers` — salah satu sumber
+/// `config.isPremium` (`config.js:455`) dan dibaca `load_identity`.
+fn baca_daftar(ctx: &Ctx) -> Vec<String> {
+    ctx.setting_list("premiumUsers")
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect()
+}
+
+/// `.listprem` (`addprem.js:85-110`).
+fn daftar_premium(ctx: &Ctx) -> Reply {
+    let daftar = baca_daftar(ctx);
+    if daftar.is_empty() {
+        return Reply::text(DAFTAR_KOSONG);
+    }
+    let mut txt = String::from("💎 *DAFTAR PREMIUM*\n\n");
+    let mut mentions = Vec::new();
+    for (i, p) in daftar.iter().enumerate() {
+        let number: String = p.chars().filter(|c| c.is_ascii_digit()).collect();
+        mentions.push(to_mention_jid(&number).unwrap_or_default());
+        txt.push_str(&format!("{}. @{}\n", i + 1, number));
+    }
+    txt.push_str(&format!("\nTotal: *{}* premium", daftar.len()));
+    Reply::Text {
+        text: txt,
+        mentions: mentions.into_iter().filter(|m| !m.is_empty()).collect(),
+    }
 }
 
 #[cfg(test)]
@@ -342,22 +432,73 @@ mod tests {
     }
 
     #[test]
-    fn nomor_valid_berakhir_error_template() {
-        // DB write tidak tersedia → error template + ☢.
+    fn nomor_valid_menulis_premium_users_dan_flag_user() {
         let mut c = ctx();
         c.args = vec!["6281234567890".into()];
         let r = addprem(c);
-        assert_eq!(
-            teks(&r),
-            error_templ(".", "addprem"),
-            "harus error_template karena db tidak tersedia"
-        );
         assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "☢"
-            ),
-            "harus bereaksi ☢"
+            teks(&r).starts_with("✅ Berhasil menambahkan premium *6281234567890*"),
+            "{}",
+            teks(&r)
         );
+        let mut set_setting = false;
+        let mut set_user = false;
+        for m in r.mutations() {
+            match m {
+                Mutation::SetSetting { key, value } => {
+                    set_setting = key == "premiumUsers";
+                    assert_eq!(value, &serde_json::json!(["6281234567890"]));
+                }
+                Mutation::SetUser { jid, data } => {
+                    set_user = jid == "6281234567890@s.whatsapp.net";
+                    assert_eq!(data["isPremium"], true);
+                    assert_eq!(data["energi"], PREMIUM_ENERGI_DEFAULT);
+                }
+                _ => {}
+            }
+        }
+        assert!(set_setting && set_user, "harus ada 2 mutasi");
+    }
+
+    #[test]
+    fn del_prem_menghapus_dari_daftar_dan_flag_user() {
+        let mut c = ctx();
+        c.command = "delprem".into();
+        c.args = vec!["6281234567890".into()];
+        c.settings = serde_json::json!({"premiumUsers": ["6281234567890", "628999"]});
+        let r = addprem(c);
+        assert!(teks(&r).contains("Berhasil menghapus *6281234567890*"), "{}", teks(&r));
+        for m in r.mutations() {
+            if let Mutation::SetSetting { key, value } = m {
+                assert_eq!(key, "premiumUsers");
+                assert_eq!(value, &serde_json::json!(["628999"]));
+            }
+        }
+    }
+
+    #[test]
+    fn del_prem_nomor_bukan_premium_ditolak() {
+        let mut c = ctx();
+        c.command = "delprem".into();
+        c.args = vec!["6281234567890".into()];
+        c.settings = serde_json::json!({"premiumUsers": []});
+        let r = addprem(c);
+        assert!(teks(&r).contains("bukan premium"), "{}", teks(&r));
+        assert!(r.mutations().is_empty());
+    }
+
+    #[test]
+    fn list_prem_kosong_dan_terisi() {
+        let mut c = ctx();
+        c.command = "listprem".into();
+        assert_eq!(teks(&addprem(c)), DAFTAR_KOSONG);
+
+        let mut c = ctx();
+        c.command = "listprem".into();
+        c.settings = serde_json::json!({"premiumUsers": ["628123", "628999"]});
+        let t = teks(&addprem(c));
+        assert!(t.contains("*DAFTAR PREMIUM*"));
+        assert!(t.contains("1. @628123"));
+        assert!(t.contains("Total: *2* premium"));
     }
 }

@@ -5,14 +5,15 @@
 //!
 //! Urutan resolusi biner:
 //!   1. env `OTKZ_FFMPEG_PATH` (hormati bila berkasnya ada dan dieksekusi)
-//!   2. `ffmpeg` yang tersedia di `PATH`
+//!   2. `bin/ffmpeg` di folder repo
+//!   3. `ffmpeg` yang tersedia di `PATH`
 
 use std::path::PathBuf;
 use std::process::Command;
 use std::io::Write;
 
 /// Jalur biner ffmpeg.
-/// Urutan: env `OTKZ_FFMPEG_PATH`, lalu `ffmpeg` di `PATH`.
+/// Urutan: env `OTKZ_FFMPEG_PATH`, `bin/ffmpeg`, lalu `PATH`.
 pub fn jalur_ffmpeg() -> Option<PathBuf> {
     // 1. override eksplisit dari operator melalui env.
     if let Some(nama) = std::env::var_os("OTKZ_FFMPEG_PATH") {
@@ -22,12 +23,17 @@ pub fn jalur_ffmpeg() -> Option<PathBuf> {
         }
     }
 
-    // 2. biner yang sudah ada di PATH.
+    // 2. biner di folder ./bin repo.
+    if let Some(j) = cari_di_bin("ffmpeg") {
+        return Some(j);
+    }
+
+    // 3. biner yang sudah ada di PATH.
     cari_di_path("ffmpeg")
 }
 
 /// Jalur biner ffprobe.
-/// Urutan: env `OTKZ_FFPROBE_PATH`, lalu `ffprobe` di `PATH`.
+/// Urutan: env `OTKZ_FFPROBE_PATH`, `bin/ffprobe`, lalu `PATH`.
 pub fn jalur_ffprobe() -> Option<PathBuf> {
     if let Some(nama) = std::env::var_os("OTKZ_FFPROBE_PATH") {
         let calon = PathBuf::from(nama);
@@ -35,7 +41,19 @@ pub fn jalur_ffprobe() -> Option<PathBuf> {
             return Some(calon);
         }
     }
+    if let Some(j) = cari_di_bin("ffprobe") {
+        return Some(j);
+    }
     cari_di_path("ffprobe")
+}
+
+/// Cari `nama` di folder `./bin` repo.
+fn cari_di_bin(nama: &str) -> Option<PathBuf> {
+    let calon = PathBuf::from("bin").join(nama);
+    if calon.is_file() {
+        return Some(std::fs::canonicalize(&calon).unwrap_or(calon));
+    }
+    None
 }
 
 /// Durasi media dalam detik dari stdin (`pipe:0`).
@@ -227,6 +245,28 @@ mod tests {
         let hasil = jalur_ffmpeg();
         assert_eq!(hasil.as_deref(), Some(Path::new(&bin)));
         bersihkan_env(&dir, &path_asal);
+    }
+
+    #[test]
+    fn jalur_ffmpeg_cari_di_folder_bin() {
+        let _kunci = ENV_KUNCI.lock().unwrap_or_else(|e| e.into_inner());
+        let cwd = env::current_dir().unwrap();
+        let bin_dir = cwd.join("bin");
+        let dummy = bin_dir.join("ffmpeg");
+        let sudah_ada = dummy.exists();
+        if !sudah_ada {
+            fs::create_dir_all(&bin_dir).unwrap();
+            File::create(&dummy).unwrap().write_all(b"# dummy").unwrap();
+        }
+        unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        let path_asal = env::var("PATH").unwrap_or_default();
+        unsafe { env::set_var("PATH", ""); }
+        let hasil = jalur_ffmpeg();
+        assert!(hasil.is_some(), "bin/ffmpeg harus ditemukan tanpa PATH");
+        unsafe { env::set_var("PATH", path_asal); }
+        if !sudah_ada {
+            let _ = fs::remove_file(&dummy);
+        }
     }
 
     #[test]
