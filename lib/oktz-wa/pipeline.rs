@@ -4373,6 +4373,48 @@ impl Pipeline {
         }
     }
 
+    /// Kirim pesan error ke user — `te(prefix, command, pushName)`
+    /// (`handler.js:571`, `src/lib/error.js:3-9`), lalu dirender lewat jalur
+    /// replyVariant yang sama dengan balasan sukses.
+    ///
+    /// Error saat mengirim error dibiarkan jadi log (TIDAK rekursif): yang
+    /// penting user tahu command-nya gagal, kalau jaringan mati ya log.
+    async fn kirim_pesan_error(&self, m: &InboundMessage, err: &PipelineError) {
+        let caller = self.caller_of(m);
+        let body = extract_body(&m.message).unwrap_or_default();
+        let parsed = parse_command(&body, &self.parse_opts);
+        let prefix = if body.starts_with(&self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())) {
+            self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())
+        } else {
+            ".".into()
+        };
+        let command = if parsed.command.is_empty() { preview_command(&body) } else { parsed.command };
+        let push_name = if caller.push_name.is_empty() { "User".to_string() } else { caller.push_name.clone() };
+        let tpl = {
+            let t = self.plugin_src.config.error_template.as_str();
+            if t.is_empty() {
+                "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
+            } else {
+                t
+            }
+        };
+        let text = tpl
+            .replace("{prefix}", &prefix)
+            .replace("{command}", &command)
+            .replace("{pushName}", &push_name);
+        let reply = Reply::text(text);
+        let target = reply_target(m, &caller.sender);
+        match self.render_with_reply_variant(&reply, &target) {
+            Ok(Some(rendered)) => {
+                if let Err(e2) = self.deliver(&caller.chat, rendered).await {
+                    tracing::error!(error = %e2, cause = %err, "gagal kirim pesan error ke user");
+                }
+            }
+            Ok(None) => {}
+            Err(e2) => tracing::error!(error = %e2, cause = %err, "render pesan error gagal"),
+        }
+    }
+
     /// Kapasitas antrean inbound. Fixed, bukan tak berbatas: `handle_event`
     /// sinkron dan dipanggil INLINE di bus event (wacore-0.7.0
     /// `src/types/events.rs:609-621`), jadi satu-satunya operasi yang aman di
@@ -4407,14 +4449,21 @@ impl Pipeline {
                     outcome = ?o,
                     "pesan inbound diproses"
                 ),
-                Err(e) => tracing::error!(
-                    error = %e,
-                    id = %m.info.id,
-                    chat = %m.info.source.chat,
-                    sender = %m.info.source.sender,
-                    body = %preview,
-                    "pipeline gagal memproses pesan"
-                ),
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        id = %m.info.id,
+                        chat = %m.info.source.chat,
+                        sender = %m.info.source.sender,
+                        body = %preview,
+                        "pipeline gagal memproses pesan"
+                    );
+                    // JS: handler error → `m.reply(te(prefix, command,
+                    // pushName))` (`handler.js:571`, `src/lib/error.js`).
+                    // Pesan error user JUGA ikut replyVariant — jalur render
+                    // yang sama dengan balasan sukses.
+                    self.kirim_pesan_error(&m, &e).await;
+                }
             }
         }
         tracing::debug!("antrean pesan ditutup; loop pipeline berhenti");
@@ -4934,6 +4983,17 @@ impl EventHandler for PipelineHandler {
         EventInterest::of(&[EventKind::Messages, EventKind::GroupUpdate])
     }
 }
+
+/// Kata command untuk pesan error — dari body mentah (parsed.command bisa
+/// kosong kalau parse gagal).
+fn preview_command(body: &str) -> String {
+    body.split_whitespace()
+        .next()
+        .map(|w| w.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '/').to_string())
+        .filter(|w| !w.is_empty())
+        .unwrap_or_else(|| "?".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5219,6 +5279,74 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&restored).unwrap();
         assert_eq!(v["users"]["628111"]["koin"], 9, "lokal harus ter-restore dari Turso");
         assert_eq!(v["settings"]["replyVariant"], 5);
+    }
+
+    // ---------- 9. error ikut replyVariant (plan Task 5) ----------
+
+    /// Kirim satu pesan lewat loop `run()` sungguhan — jalur yang sama dengan
+    /// produksi, supaya handler `Err` (kirim_pesan_error) ikut tereksekusi.
+    async fn run_one_for_test(p: &Arc<Pipeline>, m: InboundMessage) {
+        let (tx, rx) = whatsapp_rust::async_channel::bounded(1);
+        tx.send(m).await.unwrap();
+        drop(tx);
+        tokio::time::timeout(std::time::Duration::from_secs(2), p.clone().run(rx))
+            .await
+            .expect("run() harus selesai");
+    }
+
+    #[tokio::test]
+    async fn pipeline_error_sends_error_template_text() {
+        // Plugin yang mengembalikan Reply::TextQuotedPrevious tanpa kiriman
+        // sebelumnya = PipelineError → run() harus mengirim pesan error
+        // (template), bukan diam.
+        let s = Arc::new(RecordingSender::default());
+        let plugin = TestPlugin::with_reply(Reply::TextQuotedPrevious { text: "x".into() });
+        let p = Arc::new(Pipeline::new(
+            StoreContext::new(store_with("err-template", "{}")),
+            s.clone(),
+            BOT,
+            ParseOptions::default(),
+        )
+        .with_identity(Identity::default())
+        .with_plugin_lookup(plugin.lookup()));
+        let m = inbound(".apa", MEMBER, MEMBER, false, "ERR1");
+        run_one_for_test(&p, m).await;
+        let texts = s.texts();
+        assert!(
+            texts.iter().any(|t| t.contains("kendala") || t.contains("error")),
+            "pesan error template harus terkirim, dapat: {texts:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn pipeline_error_follows_reply_variant() {
+        // replyVariant = 5 (FakeOrderQuote) → pesan error dirender sebagai
+        // varian, bukan teks polos.
+        let path = store_with("err-variant", r#"{"settings":{"replyVariant":5}}"#);
+        let s = Arc::new(RecordingSender::default());
+        let plugin = TestPlugin::with_reply(Reply::TextQuotedPrevious { text: "x".into() });
+        let p = Arc::new(Pipeline::new(
+            StoreContext::new(path),
+            s.clone(),
+            BOT,
+            ParseOptions::default(),
+        )
+        .with_identity(Identity::default())
+        .with_plugin_lookup(plugin.lookup()));
+        let m = inbound(".apa", MEMBER, MEMBER, false, "ERR2");
+        run_one_for_test(&p, m).await;
+        // Varian 5 = teks + kutipan order palsu (`order_palsu_teks`) — pesan
+        // yang terkirim BUKAN teks polos: contextInfo-nya membawa
+        // quotedMessage.orderMessage.
+        let sent = s.sent.lock().unwrap();
+        let punya_order_quote = sent.iter().any(|(_, m, _)| {
+            m.extended_text_message
+                .as_option()
+                .and_then(|t| t.context_info.as_option())
+                .and_then(|ci| ci.quoted_message.as_option())
+                .is_some_and(|q| q.order_message.as_option().is_some())
+        });
+        assert!(punya_order_quote, "error harus dirender varian 5 (order quote), dapat: {sent:?}");
     }
 
     fn inbound(body: &str, sender: &str, chat: &str, is_group: bool, id: &str) -> InboundMessage {
