@@ -268,6 +268,19 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
+    
+        fn set_bio(&self, _: &str) -> Result<(), oktz_plugin_api::SockError> {
+            Err(oktz_plugin_api::SockError::baru("x"))
+        }
+        fn set_nama(&self, _: &str) -> Result<(), oktz_plugin_api::SockError> {
+            Err(oktz_plugin_api::SockError::baru("x"))
+        }
+        fn hapus_foto_bot(&self) -> Result<(), oktz_plugin_api::SockError> {
+            Err(oktz_plugin_api::SockError::baru("x"))
+        }
+        fn blokir(&self, _: &str, _: bool) -> Result<(), oktz_plugin_api::SockError> {
+            Err(oktz_plugin_api::SockError::baru("x"))
+        }
     }
 
     fn ctx_prompt(sessions: oktz_plugin_api::SessionStore) -> Ctx {

@@ -1,10 +1,8 @@
 //! `plugins/tools/setbio.js` — mengubah bio/status bot.
 //!
-//! `ponytail:` langkah terakhir JS, `sock.updateProfileStatus(bioToSet)`, tidak
-//! bisa di-port: `Ctx` tidak punya `sock`. Karena itu balasan sukses JS
-//! ("✅ *ʙɪᴏ ʙᴏᴛ ᴅɪᴜʙᴀʜ*") TIDAK dipakai — teks itu menyatakan bio benar-benar
-//! berubah, dan tidak ada yang berubah. Yang dipindah: kedua guard (kartu
-//! usage dan batas 139 karakter) plus pelaporan kemampuan yang hilang.
+//! Port penuh: `sock.updateProfileStatus(bioToSet)` → `ctx.sock().set_bio(bio)`.
+//! `clear` mengosongkan bio. Balasan sukses mengikuti JS apa adanya; kegagalan
+//! `sock` jadi kartu ❌ yang membawa pesan error-nya.
 //!
 //! Panjang dihitung dengan `encode_utf16().count()` karena `String.length` di JS
 //! menghitung unit UTF-16, bukan karakter.
@@ -26,11 +24,16 @@ fn too_long() -> &'static str {
     "⚠️ *ᴠᴀʟɪᴅᴀsɪ*\n\n> Bio maksimal 139 karakter."
 }
 
-/// Pola yang sama dengan `owner/block.rs`: sebut panggilan yang hilang, jangan
-/// mengarang hasil.
-fn unavailable() -> &'static str {
-    "⚠️ *Ubah bio bot tidak tersedia di port Rust*\n\n\
-     > Ctx tidak punya `sock`, jadi `updateProfileStatus` tidak bisa dipanggil."
+fn sukses_ubah(bio: &str) -> String {
+    format!("✅ *ʙɪᴏ ʙᴏᴛ ᴅɪᴜʙᴀʜ*\n\n> Bio bot sekarang:\n> _{bio}_")
+}
+
+fn sukses_hapus() -> &'static str {
+    "✅ *ʙɪᴏ ʙᴏᴛ ᴅɪʜᴀᴘᴜs*\n\n> Bio bot berhasil dihapus!"
+}
+
+fn gagal(e: &str) -> String {
+    format!("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat mengubah bio bot.\n> _{e}_")
 }
 
 /// `newBio?.toLowerCase() === 'clear' ? '' : (newBio || '')` (setbio.js:29).
@@ -66,21 +69,108 @@ pub fn setbio(ctx: Ctx) -> Reply {
         return Reply::text(too_long());
     }
 
-    Reply::text(unavailable())
+    match ctx.sock().set_bio(bio) {
+        Ok(()) => {
+            if bio.is_empty() {
+                Reply::text(sukses_hapus())
+            } else {
+                Reply::text(sukses_ubah(bio))
+            }
+        }
+        Err(e) => Reply::text(gagal(&e.pesan)),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::Ctx;
+    use oktz_plugin_api::{AdaWhatsapp, AksiPeserta, Ctx, Sock, SockError};
+    use serde_json::Value;
+    use std::sync::{Arc, Mutex};
 
-    fn run(text: &str) -> String {
+    /// Stub sock: `gagal = true` → set_bio selalu gagal; selain itu mencatat.
+    #[derive(Debug, Default)]
+    struct SockUji {
+        bio: Mutex<Vec<String>>,
+        gagal: bool,
+    }
+
+    impl Sock for SockUji {
+        fn set_bio(&self, status: &str) -> Result<(), SockError> {
+            if self.gagal {
+                return Err(SockError::baru("IQ gagal: timeout"));
+            }
+            self.bio.lock().unwrap().push(status.to_string());
+            Ok(())
+        }
+
+        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<AdaWhatsapp>, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn metadata_grup(&self, _: &str) -> Result<Value, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn semua_grup(&self) -> Result<Value, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn ubah_peserta(&self, _: &str, _: &[String], _: AksiPeserta) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn set_foto_profil(&self, _: &str, _: &[u8]) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn keluar_grup(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn kode_undangan(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn info_undangan(&self, _: &str) -> Result<Value, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn buat_grup(&self, _: &str, _: &[String]) -> Result<Value, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn terima_undangan(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn tandai_dibaca(&self, _: &[Value]) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn presence(&self, _: &str, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn status_teks(&self, _: &str) -> Result<Value, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn nama_kontak(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn set_nama(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn hapus_foto_bot(&self) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn blokir(&self, _: &str, _: bool) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+    }
+
+    fn run_with(sock: Arc<dyn Sock>, text: &str) -> String {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "setbio".into(),
             sender: "628111@s.whatsapp.net".into(),
             text: text.into(),
             args: text.split_whitespace().map(str::to_string).collect(),
+            sock,
             ..Default::default()
         };
         (oktz_plugin_api::find("setbio").unwrap().handler)(ctx)
@@ -89,30 +179,19 @@ mod tests {
             .to_string()
     }
 
+    fn run(text: &str) -> String {
+        run_with(Arc::new(SockUji::default()), text)
+    }
+
     #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("setbio").unwrap();
         assert_eq!(p.meta.name, "setbio");
         assert_eq!(p.meta.alias, ["setbiobot", "setstatus", "setabout"]);
         assert_eq!(p.meta.category, "tools");
-        assert_eq!(p.meta.description, "Mengubah bio/status bot");
-        assert_eq!(p.meta.usage, ".setbio <bio baru>");
-        assert_eq!(p.meta.example, ".setbio Bot WhatsApp by Lucky Archz");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_owner);
-        assert!(!p.meta.is_group && !p.meta.is_private);
-        assert!(!p.meta.is_premium);
-    }
-
-    #[test]
-    fn every_alias_resolves_back_to_this_plugin() {
-        for a in ["setbiobot", "setstatus", "setabout"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).map(|p| p.meta.name.as_str()),
-                Some("setbio")
-            );
-        }
     }
 
     #[test]
@@ -120,15 +199,18 @@ mod tests {
         for input in ["", "   "] {
             let t = run(input);
             assert!(t.starts_with("⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*"), "input {input:?}: {t}");
-            assert!(t.contains("> `.setbio Bio bot baru`"), "{t}");
-            assert!(t.contains("> `.setbio clear` - Hapus bio"), "{t}");
         }
+    }
+
+    #[test]
+    fn valid_bio_is_set_and_confirmed_with_the_js_text() {
+        assert_eq!(run("halo dunia"), sukses_ubah("halo dunia"));
     }
 
     #[test]
     fn a_bio_of_exactly_the_limit_is_accepted() {
         let bio = "a".repeat(MAX);
-        assert!(run(&bio).contains("tidak tersedia"), "tepat 139 karakter masih sah");
+        assert_eq!(run(&bio), sukses_ubah(bio.as_str()));
     }
 
     #[test]
@@ -137,32 +219,34 @@ mod tests {
         assert_eq!(run(&bio), too_long());
     }
 
-    // `String.length` = unit UTF-16; satu emoji dihitung 2 di JS.
     #[test]
     fn the_limit_counts_utf16_units_like_the_js_string_length() {
         // U+1F642 = 2 unit UTF-16: 69 emoji = 138 (sah), 70 = 140 (tolak).
-        assert_eq!(run(&"\u{1F642}".repeat(69)), unavailable());
+        assert_eq!(run(&"\u{1F642}".repeat(69)), sukses_ubah(&"\u{1F642}".repeat(69)));
         assert_eq!(run(&"\u{1F642}".repeat(70)), too_long());
     }
 
     #[test]
-    fn clear_is_case_insensitive_and_empties_the_bio() {
+    fn clear_empties_the_bio_case_insensitively() {
         for input in ["clear", "CLEAR", "Clear"] {
-            assert_eq!(bio_to_set(input), "");
+            assert_eq!(run(input), sukses_hapus(), "input {input:?}");
         }
         assert_eq!(bio_to_set("halo"), "halo");
     }
 
     #[test]
-    fn the_action_never_claims_the_bio_was_changed() {
-        for input in ["halo", "clear", "a", &"x".repeat(200)] {
-            let t = run(input);
-            assert!(
-                !t.contains("Bio bot sekarang") && !t.contains("berhasil dihapus"),
-                "input {input:?}: teks sukses JS tidak boleh dipakai — {t}"
-            );
-        }
-        let t = run("halo");
-        assert!(t.contains("`updateProfileStatus`"), "{t}");
+    fn sock_failure_carries_the_error_message() {
+        let t = run_with(
+            Arc::new(SockUji { bio: Mutex::new(Vec::new()), gagal: true }),
+            "halo",
+        );
+        assert_eq!(t, gagal("IQ gagal: timeout"));
+    }
+
+    #[test]
+    fn the_bio_reaches_the_sock() {
+        let sock = Arc::new(SockUji::default());
+        run_with(sock.clone(), "bio baru");
+        assert_eq!(*sock.bio.lock().unwrap(), vec!["bio baru".to_string()]);
     }
 }

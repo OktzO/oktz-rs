@@ -199,6 +199,19 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
+    
+        fn set_bio(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn set_nama(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn hapus_foto_bot(&self) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
+        fn blokir(&self, _: &str, _: bool) -> Result<(), SockError> {
+            Err(SockError::baru("tidak dipakai"))
+        }
     }
 
     fn run(teks: &str, grup: Value) -> Reply {
