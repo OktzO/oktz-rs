@@ -352,6 +352,40 @@ impl Sock for SockKlien {
             None => Ok(None),
         }
     }
+
+    /// `sock.updateProfileStatus(status)` — bio bot sendiri (`features/profile.rs:55`).
+    fn set_bio(&self, status: &str) -> Result<(), SockError> {
+        self.jalan(self.client.profile().set_status_text(status), "updateProfileStatus")
+    }
+
+    /// `sock.updateProfileName(nama)` — push name bot (`features/profile.rs:77`).
+    fn set_nama(&self, nama: &str) -> Result<(), SockError> {
+        self.jalan(self.client.profile().set_push_name(nama), "updateProfileName")
+    }
+
+    /// `sock.removeProfilePicture()` — foto profil bot sendiri
+    /// (`features/profile.rs:137`).
+    fn hapus_foto_bot(&self) -> Result<(), SockError> {
+        // `SetProfilePictureResponse` tidak diekspor publik; nilai identitas
+        // diambil tanpa menyebut tipenya.
+        let resp = self.jalan(
+            self.client.profile().remove_profile_picture(),
+            "removeProfilePicture",
+        )?;
+        let _ = resp.id;
+        Ok(())
+    }
+
+    /// `sock.updateBlockStatus(jid, "block" | "unblock")`
+    /// (`features/blocking.rs:60/72`).
+    fn blokir(&self, jid: &str, blokir: bool) -> Result<(), SockError> {
+        let j = ke_jid(jid, "updateBlockStatus")?;
+        if blokir {
+            self.jalan(self.client.blocking().block(&j), "block")
+        } else {
+            self.jalan(self.client.blocking().unblock(&j), "unblock")
+        }
+    }
 }
 
 #[cfg(test)]

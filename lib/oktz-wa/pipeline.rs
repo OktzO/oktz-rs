@@ -8695,6 +8695,10 @@ fn a_null_access_field_keeps_the_existing_grant() {
             status_teks(jid: &str) -> Value;
             nama_kontak(jid: &str) -> String;
             profil_bisnis(jid: &str) -> Option<Value>;
+            set_bio(status: &str) -> ();
+            set_nama(nama: &str) -> ();
+            hapus_foto_bot() -> ();
+            blokir(jid: &str, blokir: bool) -> ();
         }
     }
 

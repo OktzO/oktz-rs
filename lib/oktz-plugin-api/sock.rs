@@ -136,6 +136,19 @@ pub trait Sock: Send + Sync + std::fmt::Debug {
     /// `sock.getBusinessProfile(jid)` — `Value` atau `None` kalau bukan
     /// akun bisnis.
     fn profil_bisnis(&self, jid: &str) -> Result<Option<Value>, SockError>;
+
+    /// `sock.updateProfileStatus(status)` — bio/status teks bot sendiri.
+    fn set_bio(&self, status: &str) -> Result<(), SockError>;
+
+    /// `sock.updateProfileName(nama)` — nama tampilan (push name) bot.
+    fn set_nama(&self, nama: &str) -> Result<(), SockError>;
+
+    /// `sock.removeProfilePicture()` — hapus foto profil bot sendiri.
+    fn hapus_foto_bot(&self) -> Result<(), SockError>;
+
+    /// `sock.updateBlockStatus(jid, blockAction)` — `true` = blokir,
+    /// `false` = buka blokir.
+    fn blokir(&self, jid: &str, blokir: bool) -> Result<(), SockError>;
 }
 
 /// `Sock` yang selalu gagal — dipakai kalau bot berjalan tanpa klien
@@ -212,6 +225,22 @@ impl Sock for SockMati {
     fn profil_bisnis(&self, _jid: &str) -> Result<Option<Value>, SockError> {
         Err(SockError::baru("sock tidak tersedia"))
     }
+
+    fn set_bio(&self, _status: &str) -> Result<(), SockError> {
+        Err(SockError::baru("sock tidak tersedia"))
+    }
+
+    fn set_nama(&self, _nama: &str) -> Result<(), SockError> {
+        Err(SockError::baru("sock tidak tersedia"))
+    }
+
+    fn hapus_foto_bot(&self) -> Result<(), SockError> {
+        Err(SockError::baru("sock tidak tersedia"))
+    }
+
+    fn blokir(&self, _jid: &str, _blokir: bool) -> Result<(), SockError> {
+        Err(SockError::baru("sock tidak tersedia"))
+    }
 }
 
 #[cfg(test)]
@@ -247,5 +276,9 @@ mod tests {
         assert!(s.status_teks("628111@s.whatsapp.net").is_err());
         assert!(s.nama_kontak("628111@s.whatsapp.net").is_err());
         assert!(s.profil_bisnis("628111@s.whatsapp.net").is_err());
+        assert!(s.set_bio("halo").is_err());
+        assert!(s.set_nama("bot").is_err());
+        assert!(s.hapus_foto_bot().is_err());
+        assert!(s.blokir("628111@s.whatsapp.net", true).is_err());
     }
 }
