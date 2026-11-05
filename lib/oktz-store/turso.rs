@@ -180,6 +180,54 @@ impl TursoStore {
     ///
     /// `pub(crate)` juga dipakai `oktz-wa` yang membaca SQLite lokal via
     /// diesel lalu menyalinnya ke sini (mirror per-baris, plan Task 3).
+    ///
+    /// Nama tabel divalidasi `[a-zA-Z0-9_]` sebelum masuk SQL — pemanggil
+    /// memakai konstanta, tapi fungsi ini `pub` (review M5).
+    pub async fn upsert_mirror_rows(
+        &self,
+        conn: &libsql::Connection,
+        table: &str,
+        rows: &[(i64, &serde_json::Value)],
+    ) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        if !table.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') || table.is_empty() {
+            return Err(Error::Config(format!(
+                "turso: nama tabel mirror tidak sah: {table:?}"
+            )));
+        }
+        conn.execute(
+            &format!("CREATE TABLE IF NOT EXISTS {table} (k INTEGER PRIMARY KEY, v TEXT)"),
+            (),
+        )
+        .await
+        .map_err(turso_err(&format!("buat tabel {table}")))?;
+        // Satu statement multi-VALUES per chunk — N round-trip jadi N/chunk
+        // (review I2; ribuan row session = ribuan HTTP request kalau per-baris).
+        const CHUNK: usize = 100;
+        for chunk in rows.chunks(CHUNK) {
+            let mut sql = format!(
+                "INSERT INTO {table} (k, v) VALUES "
+            );
+            for (i, (_, json)) in chunk.iter().enumerate() {
+                if i > 0 {
+                    sql.push_str(", ");
+                }
+                // Escaping satu-satunya: kutip ganda di dalam JSON string.
+                let data = serde_json::to_string(json).map_err(Error::from)?;
+                let escaped = data.replace('\'', "''");
+                sql.push_str(&format!("({}, '{}')", chunk[i].0, escaped));
+            }
+            sql.push_str(" ON CONFLICT(k) DO UPDATE SET v = excluded.v");
+            conn.execute(&sql, ())
+                .await
+                .map_err(turso_err(&format!("upsert {table}")))?;
+        }
+        Ok(())
+    }
+
+    /// UPSERT satu baris (pembungkus `upsert_mirror_rows`).
     pub async fn upsert_mirror_row(
         &self,
         conn: &libsql::Connection,
@@ -187,25 +235,7 @@ impl TursoStore {
         k: i64,
         row_json: &serde_json::Value,
     ) -> Result<()> {
-        let data = serde_json::to_string(row_json).map_err(Error::from)?;
-        conn.execute(
-            &format!(
-                "CREATE TABLE IF NOT EXISTS {table} (k INTEGER PRIMARY KEY, v TEXT)"
-            ),
-            (),
-        )
-        .await
-        .map_err(turso_err(&format!("buat tabel {table}")))?;
-        conn.execute(
-            &format!(
-                "INSERT INTO {table} (k, v) VALUES (?1, ?2)
-                 ON CONFLICT(k) DO UPDATE SET v = excluded.v"
-            ),
-            [k.to_string().as_str(), data.as_str()],
-        )
-        .await
-        .map_err(turso_err(&format!("upsert {table}")))?;
-        Ok(())
+        self.upsert_mirror_rows(conn, table, &[(k, row_json)]).await
     }
 }
 

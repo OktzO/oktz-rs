@@ -333,19 +333,20 @@ impl PipelineWiring {
                 // Restore: taruh tiap store dari Turso ke JsonStore + disk.
                 // Kunci diambil dari TURSO (lokal kosong tidak tahu apa yang
                 // harus direstore).
-                let keys = t.list_store_keys(conn).await?;
-                for k in keys {
-                    let Some(v) = t.load_store(conn, &k).await? else {
-                        continue;
-                    };
-                    let mut s = JsonStore::open(&self.ctx.path)?;
-                    s.set(&k, v)?;
-                    s.write()?;
-                    // Snapshot pipeline ikut diganti supaya pesan berikut
-                    // membaca hasil restore.
-                    self.ctx.swap_snapshot(s);
+                let mut loads = Vec::new();
+                for k in t.list_store_keys(conn).await? {
+                    if let Some(v) = t.load_store(conn, &k).await? {
+                        loads.push((k, v));
+                    }
                 }
-                tracing::info!("[turso] restore stores ke lokal");
+                // Seluruh restore di bawah lock snapshot-write, satu buka+tulis
+                // file — sama seperti `StoreContext::apply`. Tanpa itu `apply`
+                // bisa menyisipkan mutasi baru di antara baca dan tulis restore
+                // dan mutasi itu hilang dari disk + snapshot (review I1).
+                let n = self.ctx.restore_all(loads)?;
+                if n > 0 {
+                    tracing::info!(n, "[turso] stores direstore dari Turso ke lokal");
+                }
             }
             (true, true) => tracing::info!("[turso] lokal & Turso terisi; lokal menang"),
             (false, false) => {}
@@ -831,14 +832,19 @@ pub async fn mirror_sqlite_table(
     .load::<BarisJson>(&mut conn_sqlite)
     .map_err(|e| anyhow::anyhow!("baca {table}: {e}"))?;
 
-    for (k, b) in rows.iter().enumerate() {
+    // Kumpulkan semua row dulu, kirim sekali batch (review I2: N round-trip
+    // HTTP per-baris bikin boot menit-an untuk tabel sessions yang besar).
+    let mut mirror_rows: Vec<(i64, serde_json::Value)> = Vec::with_capacity(rows.len());
+    for b in &rows {
         let v: serde_json::Value =
             serde_json::from_str(&b.j).context("json_object hasil sqlite tak valid")?;
         // json_quote menghasilkan string JSON per nilai; buka satu lapis kutip.
         let v = unwrap_json1_strings(v);
-        store.upsert_mirror_row(conn, table, b.rowid, &v).await?;
-        let _ = k;
+        mirror_rows.push((b.rowid, v));
     }
+    store
+        .upsert_mirror_rows(conn, table, mirror_rows.iter().map(|(k, v)| (*k, v)).collect::<Vec<_>>().as_slice())
+        .await?;
     Ok(rows.len())
 }
 

@@ -119,7 +119,7 @@ pub fn rvo(ctx: Ctx) -> Reply {
             };
             reply.with_reaction("✅")
         }
-        Ok(_) => Reply::text(gagal_unduh_saja()),
+        Ok(_) => Reply::text(gagal_buka(galat_kadaluarsa())),
         Err(e) => {
             let msg = if galat_mengarah_ke_kadaluarsa(&e.message) {
                 galat_kadaluarsa().to_string()
@@ -132,7 +132,7 @@ pub fn rvo(ctx: Ctx) -> Reply {
 }
 
 fn gagal_unduh_saja() -> String {
-    gagal_buka("Gagal download media")
+    gagal_buka(galat_kadaluarsa())
 }
 
 #[cfg(test)]
@@ -306,7 +306,9 @@ mod tests {
     }
 
     #[test]
-    fn empty_download_is_reported_as_gagal_membuka() {
+    fn empty_download_is_reported_as_expired() {
+        // JS: `if (!buffer) throw new Error("Gagal download media")` → catch
+        // match "Gagal download" → teks kadaluarsa. Unduhan kosong = sama.
         let stub = Stub {
             unduhan: Arc::new(Mutex::new(vec![])),
             hasil: Ok(vec![]),
@@ -319,6 +321,7 @@ mod tests {
         let r = run(ctx);
         let t = r.text_body().unwrap();
         assert!(t.contains("Gagal Membuka View Once"), "{t}");
+        assert!(t.contains("kadaluarsa"), "unduhan kosong = media hangus: {t}");
     }
 
     #[test]

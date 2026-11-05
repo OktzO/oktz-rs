@@ -441,6 +441,26 @@ impl StoreContext {
         *self.snapshot.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(store);
     }
 
+    /// Restore boot Turso: pasang semua `(store_key, value)` ke disk + snapshot
+    /// DI BAWAH lock snapshot-write, satu buka+tulis file. `apply` yang bersamaan
+    /// menunggu lock ini, jadi tidak ada mutasi yang hilang (review I1).
+    ///
+    /// Mengembalikan jumlah store yang benar-benar dipasang.
+    pub fn restore_all(&self, loads: Vec<(String, serde_json::Value)>) -> anyhow::Result<usize> {
+        if loads.is_empty() {
+            return Ok(0);
+        }
+        let n = loads.len();
+        let mut guard = self.snapshot.write().unwrap_or_else(|e| e.into_inner());
+        let mut fresh = JsonStore::open(&self.path)?;
+        for (k, v) in loads {
+            fresh.set(&k, v)?;
+        }
+        fresh.write()?;
+        *guard = Arc::new(fresh);
+        Ok(n)
+    }
+
     /// Kirim snapshot store ke Turso — blob JSON per store, sama seperti
     /// `writeToTurso` (`oktz-md/src/lib/database.js:401-411`).
     ///
@@ -4383,10 +4403,12 @@ impl Pipeline {
         let caller = self.caller_of(m);
         let body = extract_body(&m.message).unwrap_or_default();
         let parsed = parse_command(&body, &self.parse_opts);
-        let prefix = if body.starts_with(&self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())) {
-            self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())
+        // Prefix yang BENAR-BENAR di-match oleh parse (bisa prefix kedua, mis.
+        // `!`), bukan selalu `prefixes[0]` (review M4; JS `te(m.prefix, …)`).
+        let prefix = if parsed.is_command && !parsed.prefix.is_empty() {
+            parsed.prefix.clone()
         } else {
-            ".".into()
+            self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())
         };
         let command = if parsed.command.is_empty() { preview_command(&body) } else { parsed.command };
         let push_name = if caller.push_name.is_empty() { "User".to_string() } else { caller.push_name.clone() };
