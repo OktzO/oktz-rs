@@ -347,8 +347,10 @@ pub struct StoreContext {
     snapshot: Arc<RwLock<Arc<JsonStore>>>,
     /// Lokasi dokumen. Tulis selalu lewat buka-ulang file ini, jadi proses
     /// lain yang menulis file yang sama tidak diam-diam ditimpa.
-    path: PathBuf,
+    pub path: PathBuf,
     started: Instant,
+    /// Ada tulisan disk sejak flush Turso terakhir (plan Task 2).
+    dirty: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl StoreContext {
@@ -358,6 +360,7 @@ impl StoreContext {
             snapshot: Arc::new(RwLock::new(store)),
             path,
             started: Instant::now(),
+            dirty: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -370,6 +373,11 @@ impl StoreContext {
 
     fn read(&self) -> Arc<JsonStore> {
         Arc::clone(&self.snapshot.read().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// Snapshot untuk test & boot-restore Turso.
+    pub fn snapshot(&self) -> Arc<JsonStore> {
+        self.read()
     }
 
     /// Terapkan mutasi lalu PERSIST ke disk, sebelum pemanggil membalas.
@@ -409,7 +417,50 @@ impl StoreContext {
         // Snapshot ditukar HANYA setelah `write()` sukses. Kalau tulis
         // gagal, pipeline masih membaca state lama — sama dengan isi disk.
         *guard = Arc::new(fresh);
+        // Disk sudah konsisten → barulah mirror Turso boleh lebih baru.
+        // (Mirror lebih lama dari disk aman: flush berikutnya menulis ulang.)
+        self.dirty
+            .store(true, std::sync::atomic::Ordering::Release);
         Ok(mutations.len())
+    }
+
+    /// Ambil dan kosongkan flag kotor mirror Turso. `true` = ada tulisan disk
+    /// sejak take terakhir yang belum tentu sampai Turso.
+    pub fn take_dirty_turso(&self) -> bool {
+        self.dirty.swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+
+    /// Pasang lagi flag kotor — flush gagal, coba siklus berikutnya.
+    pub fn mark_dirty_turso(&self) {
+        self.dirty
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// Ganti snapshot pipeline (dipakai restore boot Turso).
+    pub fn swap_snapshot(&self, store: JsonStore) {
+        *self.snapshot.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(store);
+    }
+
+    /// Kirim snapshot store ke Turso — blob JSON per store, sama seperti
+    /// `writeToTurso` (`oktz-md/src/lib/database.js:401-411`).
+    ///
+    /// Kegagalan dibiarkan ke pemanggil: flush task mem-bypass-nya dengan
+    /// memasang kembali flag kotor (coba lagi siklus berikutnya), boot sync
+    /// melaporkannya sebagai warning.
+    pub async fn flush_turso(
+        &self,
+        t: &oktz_store::turso::TursoStore,
+        conn: &libsql::Connection,
+    ) -> oktz_core::error::Result<()> {
+        let store = self.read();
+        let root = store.all();
+        // Satu row per store level-atas — `users`, `groups`, `settings`, dst.
+        if let Some(obj) = root.as_object() {
+            for (key, value) in obj {
+                t.put_store(conn, key, value).await?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -5064,6 +5115,109 @@ mod tests {
                 })
             })
         }
+    }
+
+    // ---------- 8. mirror Turso (plan Task 2) ----------
+
+    #[tokio::test]
+    async fn apply_marks_store_dirty_and_flush_sends_to_turso() {
+        let path = std::env::temp_dir().join(format!("oktz-turso-dirty-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::write(&path, r#"{"users":{}}"#).unwrap();
+        let ctx = StoreContext::new(Arc::new(JsonStore::open(&path).unwrap()));
+
+        assert!(!ctx.take_dirty_turso(), "baru buka: belum kotor");
+
+        ctx.apply(
+            &[Mutation::SetUser {
+                jid: "628111@s.whatsapp.net".into(),
+                data: serde_json::json!({ "koin": 5 }),
+            }],
+            1_000,
+        )
+        .unwrap();
+        assert!(ctx.take_dirty_turso(), "setUser harus menandai kotor");
+        assert!(!ctx.take_dirty_turso(), "take mengosongkan flag");
+
+        // Flush: kirim snapshot ke Turso `:memory:`.
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+        ctx.flush_turso(&t, &conn).await.unwrap();
+        let users = t.load_store(&conn, "users").await.unwrap().unwrap();
+        assert_eq!(users["628111"]["koin"], 5, "RPG koin user harus termirror");
+    }
+
+    #[tokio::test]
+    async fn setgroup_antilink_marks_dirty_and_flush_mirrors_group_settings() {
+        let path = std::env::temp_dir().join(format!("oktz-turso-grp-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::write(&path, r#"{"groups":{}}"#).unwrap();
+        let ctx = StoreContext::new(Arc::new(JsonStore::open(&path).unwrap()));
+
+        ctx.apply(
+            &[Mutation::SetGroup {
+                jid: "120363@g.us".into(),
+                data: serde_json::json!({ "antilinkgc": "on", "antilinkgcMode": "kick" }),
+            }],
+            1_000,
+        )
+        .unwrap();
+        assert!(ctx.take_dirty_turso(), "setGroup harus menandai kotor");
+
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+        ctx.flush_turso(&t, &conn).await.unwrap();
+        let groups = t.load_store(&conn, "groups").await.unwrap().unwrap();
+        assert_eq!(groups["120363@g.us"]["antilinkgc"], "on");
+    }
+
+    #[tokio::test]
+    async fn apply_failure_does_not_mark_dirty() {
+        // `settings.json` berupa DIREKTORI → `JsonStore::write` gagal saat
+        // apply → TIDAK kotor (Turso jangan lebih baru dari disk).
+        let dir = std::env::temp_dir().join(format!("oktz-turso-nope-{}", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        std::fs::write(&path, "{}").unwrap();
+        let ctx = StoreContext::new(Arc::new(JsonStore::open(&path).unwrap()));
+        // Setelah open: file diganti direktori → write() saat apply gagal.
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir_all(&path).unwrap();
+        let r = ctx.apply(
+            &[Mutation::SetUser { jid: "628111@s.whatsapp.net".into(), data: serde_json::json!({"koin":1}) }],
+            1_000,
+        );
+        assert!(r.is_err(), "settings.json berupa direktori harus gagal ditulis");
+        assert!(!ctx.take_dirty_turso(), "gagal tulis disk = jangan mirror");
+    }
+
+    #[tokio::test]
+    async fn boot_sync_seeds_turso_from_local_and_restores_when_local_missing() {
+        // Cabang 1: lokal terisi, Turso kosong → seed Turso.
+        let path = std::env::temp_dir().join(format!("oktz-turso-seed-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::write(&path, r#"{"users":{"628111":{"koin":9}},"settings":{"replyVariant":5}}"#).unwrap();
+        let wiring = crate::bot::wiring_from(&path, Vec::<String>::new(), "bot").unwrap();
+
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+        wiring.boot_sync_turso(&t, &conn).await.unwrap();
+        assert_eq!(t.load_store(&conn, "users").await.unwrap().unwrap()["628111"]["koin"], 9);
+        assert_eq!(t.load_store(&conn, "settings").await.unwrap().unwrap()["replyVariant"], 5);
+
+        // Cabang 2: lokal hilang, Turso terisi → restore ke lokal.
+        let dir2 = std::env::temp_dir().join(format!("oktz-turso-restore-{}", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::create_dir_all(&dir2).unwrap();
+        let path2 = dir2.join("settings.json");
+        let wiring2 = crate::bot::wiring_from(&path2, Vec::<String>::new(), "bot").unwrap();
+        wiring2.boot_sync_turso(&t, &conn).await.unwrap();
+        let restored: String = std::fs::read_to_string(&path2).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&restored).unwrap();
+        assert_eq!(v["users"]["628111"]["koin"], 9, "lokal harus ter-restore dari Turso");
+        assert_eq!(v["settings"]["replyVariant"], 5);
     }
 
     fn inbound(body: &str, sender: &str, chat: &str, is_group: bool, id: &str) -> InboundMessage {

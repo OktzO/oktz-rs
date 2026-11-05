@@ -13,6 +13,15 @@ pub struct JsonStore {
     data: Value,
 }
 
+impl Clone for JsonStore {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            data: self.data.clone(),
+        }
+    }
+}
+
 /// Isi file top-level bukan object — owner.json/partner.json/premium.json
 /// top-level-nya array. Set key pada file seperti itu berarti menghapus seluruh
 /// isinya (mis. seluruh roster premium), jadi tolak eksplisit, jangan diam-diam.

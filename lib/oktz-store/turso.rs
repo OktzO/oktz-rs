@@ -11,8 +11,6 @@ use oktz_core::error::{Error, Result};
 ///   per store (`users`, `groups`, `settings`, ...).
 /// - `session_creds(scope TEXT PRIMARY KEY, creds TEXT, updated_at INTEGER)`.
 /// - `session_keys(scope, category, id, data, updated_at, PK(scope,category,id))`.
-use libsql::Value;
-
 pub struct TursoStore {
     pub url: String,
     pub auth_token: String,
@@ -38,6 +36,15 @@ impl TursoStore {
             url: String::new(),
             auth_token: String::new(),
             conn: Some(conn),
+        }
+    }
+
+    /// Produksi: URL + token dari `Config::load()` (bukan hanya env).
+    pub fn bare(url: String, auth_token: String) -> Self {
+        Self {
+            url,
+            auth_token,
+            conn: None,
         }
     }
 
@@ -136,6 +143,19 @@ impl TursoStore {
         Ok(rows.next().await.map_err(turso_err("has_any_store next"))?.is_some())
     }
 
+    /// Semua nama store di tabel `stores` — dipakai restore boot.
+    pub async fn list_store_keys(&self, conn: &libsql::Connection) -> Result<Vec<String>> {
+        let mut rows = conn
+            .query("SELECT key FROM stores ORDER BY key", ())
+            .await
+            .map_err(turso_err("list_store_keys"))?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await.map_err(turso_err("list_store_keys next"))? {
+            out.push(row.get::<String>(0).map_err(turso_err("list_store_keys get"))?);
+        }
+        Ok(out)
+    }
+
     /// `sessionKeyStats` (`plugins/owner/sessionstats.js`) — per kategori.
     pub async fn session_key_stats(&self, conn: &libsql::Connection, scope: &str) -> Result<Vec<(String, i64, i64)>> {
         let mut rows = conn
@@ -156,86 +176,41 @@ impl TursoStore {
         Ok(out)
     }
 
-    /// Mirror tabel SQLite lokal → Turso, JSON-per-row (lihat plan Task 3).
+    /// UPSERT generik tabel mirror session — `v` = seluruh row sebagai JSON.
     ///
-    /// Skema Turso generik: `CREATE TABLE IF NOT EXISTS <t> (k INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)`
-    /// — `v` = seluruh row sebagai JSON (BLOB → hex). Sederhana & selaras;
-    /// upgrade ke kolom asli kalau ukuran jadi masalah.
-    pub async fn mirror_sqlite_table(
+    /// `pub(crate)` juga dipakai `oktz-wa` yang membaca SQLite lokal via
+    /// diesel lalu menyalinnya ke sini (mirror per-baris, plan Task 3).
+    pub async fn upsert_mirror_row(
         &self,
         conn: &libsql::Connection,
-        local_path: &std::path::Path,
         table: &str,
-    ) -> Result<usize> {
-        let local = libsql::Builder::new_local(local_path)
-            .build()
-            .await
-            .map_err(turso_err("buka sqlite lokal"))?;
-        let lconn = local
-            .connect()
-            .map_err(turso_err("koneksi sqlite lokal"))?;
-        let mut rows = lconn
-            .query(&format!("SELECT * FROM {table}"), ())
-            .await
-            .map_err(turso_err(&format!("baca {table}")))?;
-        let columns: Vec<String> = (0..rows.column_count())
-            .filter_map(|i| rows.column_name(i).map(str::to_string))
-            .collect();
+        k: i64,
+        row_json: &serde_json::Value,
+    ) -> Result<()> {
+        let data = serde_json::to_string(row_json).map_err(Error::from)?;
         conn.execute(
             &format!(
-                "CREATE TABLE IF NOT EXISTS {table} (k INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT)"
+                "CREATE TABLE IF NOT EXISTS {table} (k INTEGER PRIMARY KEY, v TEXT)"
             ),
             (),
         )
         .await
         .map_err(turso_err(&format!("buat tabel {table}")))?;
-        let mut n = 0usize;
-        while let Some(row) = rows.next().await.map_err(turso_err(&format!("iter {table}")))? {
-            let mut obj = serde_json::Map::new();
-            for (i, col) in columns.iter().enumerate() {
-                let v: Value = row
-                    .get(i as i32)
-                    .map_err(turso_err(&format!("baca {col}")))?;
-                obj.insert(col.clone(), libsql_to_json(&v));
-            }
-            let v = serde_json::Value::Object(obj);
-            let data = serde_json::to_string(&v).map_err(Error::from)?;
-            conn.execute(
-                &format!(
-                    "INSERT INTO {table} (k, v) VALUES (?1, ?2)
-                     ON CONFLICT(k) DO UPDATE SET v = excluded.v"
-                ),
-                [n.to_string().as_str(), data.as_str()],
-            )
-            .await
-            .map_err(turso_err(&format!("upsert {table}")))?;
-            n += 1;
-        }
-        Ok(n)
+        conn.execute(
+            &format!(
+                "INSERT INTO {table} (k, v) VALUES (?1, ?2)
+                 ON CONFLICT(k) DO UPDATE SET v = excluded.v"
+            ),
+            [k.to_string().as_str(), data.as_str()],
+        )
+        .await
+        .map_err(turso_err(&format!("upsert {table}")))?;
+        Ok(())
     }
 }
 
 fn turso_err(konteks: impl Into<String>) -> impl FnOnce(libsql::Error) -> Error {
     move |e| Error::Config(format!("turso {}: {e}", konteks.into()))
-}
-
-/// `libsql::Value` → `serde_json::Value`. BLOB disalin base64 supaya aman di
-/// JSON; integer i64 yang kecil tetap angka.
-fn libsql_to_json(v: &Value) -> serde_json::Value {
-    match v {
-        Value::Null => serde_json::Value::Null,
-        Value::Integer(i) => serde_json::Value::from(*i),
-        Value::Real(f) => serde_json::Value::from(*f),
-        Value::Text(s) => serde_json::Value::from(s.clone()),
-        Value::Blob(b) => {
-            use std::fmt::Write as _;
-            let mut s = String::with_capacity(b.len() * 2);
-            for byte in b.iter() {
-                let _ = write!(s, "{byte:02x}");
-            }
-            serde_json::Value::from(s)
-        }
-    }
 }
 
 impl Clone for TursoStore {
@@ -318,33 +293,34 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mirror_sqlite_table_copies_rows_as_json() {
+    async fn upsert_mirror_row_upserts_not_duplicates() {
         let (store, conn) = mem().await;
-        let dir = std::env::temp_dir().join(format!("oktz-turso-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("lokal.db");
-        let _ = std::fs::remove_file(&path);
-        let local = libsql::Builder::new_local(&path).build().await.unwrap();
-        let l = local.connect().unwrap();
-        l.execute("CREATE TABLE identities (a TEXT, b BLOB)", ())
+        store
+            .upsert_mirror_row(&conn, "identities", 0, &serde_json::json!({"a":"satu","b":"0102"}))
             .await
             .unwrap();
-        l.execute("INSERT INTO identities VALUES ('satu', x'0102')", ())
+        store
+            .upsert_mirror_row(&conn, "identities", 1, &serde_json::json!({"a":"dua"}))
             .await
             .unwrap();
-        l.execute("INSERT INTO identities VALUES ('dua', x'0304')", ())
+        store
+            .upsert_mirror_row(&conn, "identities", 1, &serde_json::json!({"a":"dua-revisi"}))
             .await
             .unwrap();
-        let n = store.mirror_sqlite_table(&conn, &path, "identities").await.unwrap();
-        assert_eq!(n, 2);
         let mut rows = conn
-            .query("SELECT v FROM identities ORDER BY k", ())
+            .query("SELECT COUNT(*) FROM identities", ())
             .await
             .unwrap();
-        let r1: String = rows.next().await.unwrap().unwrap().get(0).unwrap();
-        let v1: serde_json::Value = serde_json::from_str(&r1).unwrap();
-        assert_eq!(v1["a"], "satu");
-        assert_eq!(v1["b"], "0102", "BLOB harus base64/hex di JSON");
+        let cnt: i64 = rows.next().await.unwrap().unwrap().get(0).unwrap();
+        assert_eq!(cnt, 2, "upsert tidak boleh menduplikasi row");
+        let mut rows2 = conn
+            .query("SELECT v FROM identities WHERE k = 1", ())
+            .await
+            .unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&rows2.next().await.unwrap().unwrap().get::<String>(0).unwrap())
+                .unwrap();
+        assert_eq!(v["a"], "dua-revisi");
     }
 
     #[tokio::test]

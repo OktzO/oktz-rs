@@ -202,6 +202,8 @@ pub struct PipelineWiring {
     /// memakai instance yang sama — membangun yang baru akan meninggalkan
     /// loop lama hidup dan membalas dua kali.
     live: Mutex<Option<Arc<Pipeline>>>,
+    /// Mirror Turso; `None` = fitur mati (TURSO_URL kosong / disabled).
+    turso: Mutex<Option<(oktz_store::turso::TursoStore, std::time::Duration)>>,
 }
 
 /// Bangun [`PipelineWiring`] dari lokasi store, owner, dan bot id.
@@ -240,10 +242,166 @@ pub fn wiring_from_with_config(
         config,
         db_owners: owner_entries(settings.parent().map(|p| p.join("owner.json")).as_deref().unwrap_or(Path::new("owner.json"))),
         live: Mutex::new(None),
+        turso: Mutex::new(None),
     })
 }
 
 impl PipelineWiring {
+    /// Pasang Turso: boot sync sekali lalu spawn task flush write-behind.
+    /// Dipanggil dari `connect_device` sebelum connect; Turso mati TIDAK
+    /// menggagalkan boot.
+    pub fn boot_and_spawn_turso(
+        self: &Arc<Self>,
+        store: oktz_store::turso::TursoStore,
+        interval: std::time::Duration,
+    ) {
+        *self.turso.lock().unwrap_or_else(|e| e.into_inner()) = Some((store.clone(), interval));
+        // Boot sync butuh runtime async; `connect_device` selalu dipanggil di
+        // dalam tokio, jadi spawn task sekali-jalan cukup — wiring-nya `Arc`.
+        let this = Arc::clone(self);
+        tokio::spawn(async move {
+            this.turso_boot_once(store).await;
+            this.spawn_flush_task();
+        });
+    }
+
+    /// Boot sync sekali: seed/restore/lewatkan, plus mirror tabel session.
+    /// Turso mati = warning.
+    async fn turso_boot_once(&self, store: oktz_store::turso::TursoStore) {
+        match store.connect().await {
+            Ok(conn) => {
+                if let Err(e) = store.ensure_tables(&conn).await {
+                    tracing::warn!(error = %e, "[turso] ensure_tables gagal; mirror dimatikan");
+                    return;
+                }
+                if let Err(e) = self.boot_sync_turso(&store, &conn).await {
+                    tracing::warn!(error = %e, "[turso] boot sync gagal; lanjut lokal");
+                }
+                // Mirror tabel session (plan Task 3/4) — best-effort.
+                if let Some(db_path) = self.session_db_path() {
+                    for table in SESSION_MIRROR_TABLES {
+                        match mirror_sqlite_table(&store, &conn, &db_path, table).await {
+                            Ok(0) => {}
+                            Ok(n) => tracing::info!(table, n, "[turso] tabel session termirror"),
+                            Err(e) => tracing::warn!(error = %e, table, "[turso] mirror tabel gagal"),
+                        }
+                    }
+                }
+            }
+            Err(e) => tracing::warn!(error = %e, "[turso] koneksi gagal; mirror dimatikan"),
+        }
+    }
+
+    /// Lokasi db session SQLite, kalau ada. `database/wa/oktz-run.db` mengikuti
+    /// `main.rs::run`.
+    fn session_db_path(&self) -> Option<PathBuf> {
+        // Turunan settings.json → database dir → sibling `wa/oktz-run.db`.
+        let dir = self.ctx.path.parent()?;
+        let p = dir.parent()?.join("wa").join("oktz-run.db");
+        p.exists().then_some(p)
+    }
+
+    /// Boot sync store JSON — tiga cabang (plan Review Focus #2/#3):
+    /// Turso kosong + lokal terisi → seed Turso; Turso terisi + lokal kosong →
+    /// restore ke lokal; keduanya terisi → lokal menang.
+    pub async fn boot_sync_turso(
+        &self,
+        t: &oktz_store::turso::TursoStore,
+        conn: &libsql::Connection,
+    ) -> anyhow::Result<()> {
+        let turso_ada = t.has_any_store(&conn).await?;
+        let lokal_terisi = self
+            .ctx
+            .snapshot()
+            .all()
+            .as_object()
+            .is_some_and(|o| !o.is_empty());
+        match (turso_ada, lokal_terisi) {
+            (false, true) => {
+                // Seed: salin seluruh store lokal ke Turso.
+                let root = self.ctx.snapshot().all().clone();
+                if let Some(obj) = root.as_object() {
+                    for (k, v) in obj {
+                        t.put_store(conn, k, v).await?;
+                    }
+                }
+                tracing::info!("[turso] seed data lokal ke stores");
+            }
+            (true, false) => {
+                // Restore: taruh tiap store dari Turso ke JsonStore + disk.
+                // Kunci diambil dari TURSO (lokal kosong tidak tahu apa yang
+                // harus direstore).
+                let keys = t.list_store_keys(conn).await?;
+                for k in keys {
+                    let Some(v) = t.load_store(conn, &k).await? else {
+                        continue;
+                    };
+                    let mut s = JsonStore::open(&self.ctx.path)?;
+                    s.set(&k, v)?;
+                    s.write()?;
+                    // Snapshot pipeline ikut diganti supaya pesan berikut
+                    // membaca hasil restore.
+                    self.ctx.swap_snapshot(s);
+                }
+                tracing::info!("[turso] restore stores ke lokal");
+            }
+            (true, true) => tracing::info!("[turso] lokal & Turso terisi; lokal menang"),
+            (false, false) => {}
+        }
+        Ok(())
+    }
+
+    /// Task flush write-behind: tiap interval, kalau kotor → kirim ke Turso.
+    /// Gagal = warning + flag kotor dipasang lagi (coba siklus berikutnya).
+    pub fn spawn_flush_task(self: &Arc<Self>) {
+        let this = Arc::clone(self);
+        tokio::spawn(async move {
+            loop {
+                let interval = this
+                    .turso
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .as_ref()
+                    .map(|(_, iv)| *iv)
+                    .unwrap_or(std::time::Duration::from_secs(15));
+                tokio::time::sleep(interval).await;
+                this.flush_once_turso().await;
+            }
+        });
+    }
+
+    /// Satu siklus flush. `pub(crate)` supaya test bisa memanggil langsung.
+    pub async fn flush_once_turso(&self) {
+        let Some((store, _)) = self
+            .turso
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        else {
+            return;
+        };
+        if !self.ctx.take_dirty_turso() {
+            return;
+        }
+        match store.connect().await {
+            Ok(conn) => {
+                if let Err(e) = store.ensure_tables(&conn).await {
+                    tracing::warn!(error = %e, "[turso] ensure_tables gagal saat flush");
+                    self.ctx.mark_dirty_turso();
+                    return;
+                }
+                if let Err(e) = self.ctx.flush_turso(&store, &conn).await {
+                    tracing::warn!(error = %e, "[turso] flush gagal; dicoba lagi siklus berikutnya");
+                    self.ctx.mark_dirty_turso();
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "[turso] koneksi flush gagal; dicoba lagi nanti");
+                self.ctx.mark_dirty_turso();
+            }
+        }
+    }
+
     /// Pasang pipeline ke bus event. Aman dipanggil berulang.
     fn attach(&self, client: &Arc<Client>) {
         let mut slot = self.live.lock().unwrap_or_else(|e| e.into_inner());
@@ -590,6 +748,114 @@ where
 /// terkuras dalam hitungan detik. Reconnect yang tertunda grace adalah
 /// perilaku yang benar, jadi wiring yang sudah direview itu dibiarkan apa
 /// adanya.
+/// Tabel session SQLite yang termirror ke Turso per-baris (plan Task 3).
+/// Creds utama sudah tercakup `device`/`identities`; prekeys/sessions/
+/// sender_keys/app_state_keys = inti dekripsi. Tabel turunan (`sent_messages`,
+/// `pending_inbound_messages`, `group_metadata`, dll) sengaja tidak — hilangnya
+/// tidak merusak sesi.
+pub const SESSION_MIRROR_TABLES: &[&str] = &[
+    "device",
+    "identities",
+    "sessions",
+    "prekeys",
+    "signed_prekeys",
+    "sender_keys",
+    "app_state_keys",
+];
+
+/// Salin satu tabel dari SQLite lokal (diesel) ke Turso — JSON-per-row.
+///
+/// Skema Turso generik `(k INTEGER PRIMARY KEY, v TEXT)`; `v` = seluruh row
+/// sebagai JSON (BLOB → hex). Sederhana & selaras; upgrade ke kolom asli
+/// kalau ukuran `msg_secrets` bermasalah.
+///
+/// Diesel dipakai untuk baca lokal (bukan libsql `core`) supaya `libsql`
+/// tetap remote-only — lihat komentar `Cargo.toml` soal duplicate symbol.
+pub async fn mirror_sqlite_table(
+    store: &oktz_store::turso::TursoStore,
+    conn: &libsql::Connection,
+    local_path: &Path,
+    table: &str,
+) -> anyhow::Result<usize> {
+    use diesel::prelude::*;
+    use diesel::sql_query;
+
+    #[derive(diesel::QueryableByName)]
+    struct Kolom {
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        name: String,
+    }
+
+    #[derive(diesel::QueryableByName)]
+    struct BarisJson {
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
+        rowid: i64,
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        j: String,
+    }
+
+    let mut conn_sqlite = diesel::sqlite::SqliteConnection::establish(
+        local_path.to_str().context("path tidak utf8")?,
+    )?;
+
+    // ponytail: baca kolom dinamis via pragma + JSON1 (bawaan sqlite), row
+    // diserialisasi `json_object`. Upgrade path: skema kolom asli per tabel.
+    let cols: Vec<String> = sql_query(&format!(
+        "SELECT name FROM pragma_table_info('{table}')"
+    ))
+    .load::<Kolom>(&mut conn_sqlite)
+    .map_err(|e| anyhow::anyhow!("pragma {table}: {e}"))?
+    .into_iter()
+    .map(|k| k.name)
+    .collect();
+
+    if cols.is_empty() {
+        return Ok(0);
+    }
+    let json_cols = cols
+        .iter()
+        .map(|c| format!("'{c}', json_quote(\"{c}\")"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let rows: Vec<BarisJson> = sql_query(&format!(
+        "SELECT rowid, json_object({json_cols}) AS j FROM \"{table}\" ORDER BY rowid"
+    ))
+    .load::<BarisJson>(&mut conn_sqlite)
+    .map_err(|e| anyhow::anyhow!("baca {table}: {e}"))?;
+
+    for (k, b) in rows.iter().enumerate() {
+        let v: serde_json::Value =
+            serde_json::from_str(&b.j).context("json_object hasil sqlite tak valid")?;
+        // json_quote menghasilkan string JSON per nilai; buka satu lapis kutip.
+        let v = unwrap_json1_strings(v);
+        store.upsert_mirror_row(conn, table, b.rowid, &v).await?;
+        let _ = k;
+    }
+    Ok(rows.len())
+}
+
+/// `json_object('a', json_quote(x))` menghasilkan nilai DOUBLE-ENCODED untuk
+/// teks (`"\"isi\""`). Buka satu lapis kutip per field.
+fn unwrap_json1_strings(v: serde_json::Value) -> serde_json::Value {
+    match v {
+        serde_json::Value::Object(m) => serde_json::Value::Object(
+            m.into_iter()
+                .map(|(k, val)| {
+                    let val = match val {
+                        serde_json::Value::String(s) => {
+                            serde_json::from_str::<serde_json::Value>(&s)
+                                .unwrap_or(serde_json::Value::String(s))
+                        }
+                        other => other,
+                    };
+                    (k, val)
+                })
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
 pub async fn connect_device<F, Fut>(store: SqliteStore, on_ready: F) -> Result<BotHandle>
 where
     F: Fn(Arc<Client>) -> Fut + Send + Sync + 'static,
@@ -602,13 +868,35 @@ where
         &cfg.database.path,
         oktz_core::env::Env::get(SETTINGS_ENV).as_deref(),
     );
+    let (turso_conn, interval) = if cfg.turso.enabled && !cfg.turso.url.is_empty() {
+        (
+            Some(oktz_store::turso::TursoStore::bare(
+                cfg.turso.url.clone(),
+                cfg.turso.auth_token.clone(),
+            )),
+            std::time::Duration::from_millis(cfg.turso.sync_interval.max(15_000)),
+        )
+    } else {
+        (None, std::time::Duration::from_secs(15))
+    };
     let wiring = match wiring_from_with_config(
         &settings,
         cfg.owner_numbers.clone(),
         bot_id_from(&creds),
         cfg.runtime(),
     ) {
-        Ok(w) => Some(Arc::new(w)),
+        Ok(w) => {
+            // Mirror Turso (Task 2/4 plan): boot sync sekali, lalu flush
+            // write-behind tiap interval. Turso mati = warning, bukan gagal
+            // boot.
+            if let Some(t) = turso_conn {
+                let wiring = Arc::new(w);
+                wiring.boot_and_spawn_turso(t, interval);
+                Some(wiring)
+            } else {
+                Some(Arc::new(w))
+            }
+        }
         Err(e) => {
             tracing::error!(
                 error = %e,

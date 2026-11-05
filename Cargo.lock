@@ -1381,7 +1381,6 @@ version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f111c8c41e7c61a49cd34e44c7619462967221a6443b0ec299e0ac30cfb9b1"
 dependencies = [
- "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -1695,6 +1694,8 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "chrono",
+ "diesel",
+ "libsql",
  "oktz-core",
  "oktz-plugin-api",
  "oktz-router",
@@ -3242,8 +3243,6 @@ dependencies = [
 [[package]]
 name = "whatsapp-rust-sqlite-storage"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee70216db150b33c1c7cb01dc81e37f70b3edf8c24cebcd75a7ade5c011720d1"
 dependencies = [
  "async-trait",
  "buffa",
@@ -3251,7 +3250,6 @@ dependencies = [
  "bytes",
  "diesel",
  "diesel_migrations",
- "libsqlite3-sys",
  "log",
  "scheduled-thread-pool",
  "serde_json",

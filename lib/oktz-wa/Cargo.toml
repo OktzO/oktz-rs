@@ -13,6 +13,12 @@ oktz-store = { path = "../oktz-store" }
 oktz-plugin-api = { path = "../oktz-plugin-api" }
 oktz-router = { path = "../oktz-router" }
 oktz-core = { path = "../oktz-core" }
+# Fitur `remote` saja: TANPA `core` (yang menarik `libsql-ffi` → compile
+# sqlite3.c sendiri → duplicate symbol dengan `libsqlite3-sys` milik diesel
+# di `sqlite-storage`). Mirror Turso kita remote-only; SQLite lokal dibaca
+# diesel (dependency `sqlite-storage`, sudah ada di tree).
+libsql = { version = "0.10", default-features = false, features = ["remote", "tls"] }
+diesel = { version = "2.3", default-features = false, features = ["sqlite", "r2d2", "32-column-tables"] }
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
@@ -29,3 +35,4 @@ whatsapp-rust = { version = "0.7", default-features = false, features = [
 # di-re-export whatsapp-rust. Versi sama → di-patch ke vendor/wacore bersama.
 wacore = { version = "0.7", default-features = false }
 wacore-libsignal = { version = "0.7", features = ["legacy-session-interop"] }
+

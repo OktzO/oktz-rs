@@ -57,4 +57,8 @@ panic = "unwind"
 # custom `OKTZZLAH` dari bot JS diterima. Detail di vendor/wacore/src/pair_code.rs.
 [patch.crates-io]
 wacore = { path = "vendor/wacore" }
+# `bundled-sqlite` default-nya compile sqlite3.c kedua kali → duplicate symbol
+# dengan `libsql-ffi` (mirror Turso). Diesel resolve simbol sqlite3 dari
+# libsql-ffi; lihat komentar `lib/oktz-wa/Cargo.toml`.
+whatsapp-rust-sqlite-storage = { path = "vendor/wa-sqlite-storage" }
 
