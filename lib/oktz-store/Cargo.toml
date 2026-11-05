@@ -13,3 +13,8 @@ oktz-core = { path = "../oktz-core" }
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+tokio = { version = "1.53", features = ["rt", "macros"] }
+# `remote` = pure HTTP (Hrana) tanpa C; `hrana` butuh untuk `remote`.
+# Tanpa `default` (replication/sync/tls) supaya dependency tree tetap ramping —
+# mirror Turso kita cuma butuh execute/query remote.
+libsql = { version = "0.10", default-features = false, features = ["core", "remote", "tls"] }
