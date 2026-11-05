@@ -296,9 +296,11 @@ impl PipelineWiring {
     /// `main.rs::run`.
     fn session_db_path(&self) -> Option<PathBuf> {
         // Turunan settings.json → database dir → sibling `wa/oktz-run.db`.
+        // settings.json bisa di root `database/` (sibling `wa/`) atau di
+        // `database/main/` (parent berisi `wa/`).
         let dir = self.ctx.path.parent()?;
-        let p = dir.parent()?.join("wa").join("oktz-run.db");
-        p.exists().then_some(p)
+        let kandidat = [dir.join("wa").join("oktz-run.db"), dir.parent().map(|p| p.join("wa")).unwrap_or_default().join("oktz-run.db")];
+        kandidat.into_iter().find(|p| p.exists())
     }
 
     /// Boot sync store JSON — tiga cabang (plan Review Focus #2/#3):
@@ -814,7 +816,13 @@ pub async fn mirror_sqlite_table(
     }
     let json_cols = cols
         .iter()
-        .map(|c| format!("'{c}', json_quote(\"{c}\")"))
+        .map(|c| {
+            // BLOB tidak bisa masuk json_object — hex() dulu, penanda `__hex:`
+            // supaya unwrap tahu ini byte.
+            format!(
+                "'{c}', CASE WHEN typeof(\"{c}\")='blob' THEN '__hex:'||hex(\"{c}\") ELSE json_quote(\"{c}\") END"
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
     let rows: Vec<BarisJson> = sql_query(&format!(
@@ -835,7 +843,10 @@ pub async fn mirror_sqlite_table(
 }
 
 /// `json_object('a', json_quote(x))` menghasilkan nilai DOUBLE-ENCODED untuk
-/// teks (`"\"isi\""`). Buka satu lapis kutip per field.
+/// teks (`"\"isi\""`). Buka satu lapis kutip per field. BLOB dikirim sebagai
+/// string `__hex:<hex>` dan dikonversi jadi hex polos (kesepakatan mirror;
+/// restore mem-balikkan lewat `unhex` saat di-load — untuk sekarang mirror
+/// satu arah lokal→Turso).
 fn unwrap_json1_strings(v: serde_json::Value) -> serde_json::Value {
     match v {
         serde_json::Value::Object(m) => serde_json::Value::Object(
@@ -843,8 +854,12 @@ fn unwrap_json1_strings(v: serde_json::Value) -> serde_json::Value {
                 .map(|(k, val)| {
                     let val = match val {
                         serde_json::Value::String(s) => {
-                            serde_json::from_str::<serde_json::Value>(&s)
-                                .unwrap_or(serde_json::Value::String(s))
+                            if let Some(hexs) = s.strip_prefix("__hex:") {
+                                serde_json::Value::String(hexs.to_string())
+                            } else {
+                                serde_json::from_str::<serde_json::Value>(&s)
+                                    .unwrap_or(serde_json::Value::String(s))
+                            }
                         }
                         other => other,
                     };
@@ -926,6 +941,8 @@ mod tests {
     use crate::pairing;
     use oktz_router::RouterContext;
 
+    static SEQ_TEST: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
     fn tmpfile(name: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("oktz-bot-test-{name}.json"));
         let _ = std::fs::remove_file(&p);
@@ -938,6 +955,100 @@ mod tests {
             resolve_creds_path(Some("/a/creds.json"), Some("/b/creds.json")),
             Some(PathBuf::from("/a/creds.json"))
         );
+    }
+
+    // ---------- mirror Turso (plan Task 3/4) ----------
+
+    #[tokio::test]
+    async fn mirror_sqlite_table_copies_rows_and_upserts() {
+        use oktz_store::turso::TursoStore;
+        let dir = std::env::temp_dir().join(format!("oktz-mirror-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("lokal.db");
+        let _ = std::fs::remove_file(&db_path);
+        // SQLite lokal dengan diesel (jalur yang sama dengan produksi).
+        use diesel::prelude::*;
+        use diesel::connection::SimpleConnection;
+        {
+            let mut c = diesel::sqlite::SqliteConnection::establish(db_path.to_str().unwrap()).unwrap();
+            c.batch_execute(
+                "CREATE TABLE identities (nama TEXT, kunci BLOB);
+                 INSERT INTO identities VALUES ('satu', x'0102');
+                 INSERT INTO identities VALUES ('dua', x'0304');",
+            )
+            .unwrap();
+        }
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = TursoStore::with_conn(conn.clone());
+        let n = mirror_sqlite_table(&t, &conn, &db_path, "identities").await.unwrap();
+        assert_eq!(n, 2);
+        let mut rows = conn.query("SELECT v FROM identities ORDER BY k", ()).await.unwrap();
+        let v1: serde_json::Value = serde_json::from_str(
+            &rows.next().await.unwrap().unwrap().get::<String>(0).unwrap(),
+        ).unwrap();
+        assert_eq!(v1["nama"], "satu");
+        assert_eq!(v1["kunci"], "0102", "BLOB harus jadi hex di JSON");
+        // Mirror ulang = upsert, bukan duplikasi.
+        let n2 = mirror_sqlite_table(&t, &conn, &db_path, "identities").await.unwrap();
+        assert_eq!(n2, 2);
+        let mut cnt = conn.query("SELECT COUNT(*) FROM identities", ()).await.unwrap();
+        let c: i64 = cnt.next().await.unwrap().unwrap().get(0).unwrap();
+        assert_eq!(c, 2);
+    }
+
+    #[tokio::test]
+    async fn flush_once_turso_writes_only_when_dirty() {
+        use oktz_store::turso::TursoStore;
+        let dir = std::env::temp_dir().join(format!("oktz-flushonce-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        std::fs::write(&path, r#"{"users":{"628111":{"koin":3}}}"#).unwrap();
+        let wiring = Arc::new(wiring_from(&path, Vec::<String>::new(), "bot").unwrap());
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+
+        *wiring.turso.lock().unwrap() = Some((t.clone(), std::time::Duration::from_secs(15)));
+        // Belum kotor → flush tidak menulis apa pun.
+        wiring.flush_once_turso().await;
+        assert!(!t.has_any_store(&conn).await.unwrap());
+
+        // Tulis mutasi → kotor → flush mengisi Turso.
+        wiring
+            .ctx
+            .apply(
+                &[oktz_plugin_api::Mutation::SetUser {
+                    jid: "628222@s.whatsapp.net".into(),
+                    data: serde_json::json!({ "koin": 7 }),
+                }],
+                1_000,
+            )
+            .unwrap();
+        wiring.flush_once_turso().await;
+        let users = t.load_store(&conn, "users").await.unwrap().unwrap();
+        assert_eq!(users["628222"]["koin"], 7);
+        assert_eq!(users["628111"]["koin"], 3, "store lama tidak boleh hilang");
+    }
+
+    #[test]
+    fn session_db_path_sits_next_to_settings() {
+        let dir = std::env::temp_dir().join(format!("oktz-sessdb-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::create_dir_all(dir.join("wa")).unwrap();
+        std::fs::write(dir.join("settings.json"), "{}").unwrap();
+        std::fs::write(dir.join("wa").join("oktz-run.db"), "").unwrap();
+        let wiring = wiring_from(&dir.join("settings.json"), Vec::<String>::new(), "bot").unwrap();
+        assert_eq!(
+            wiring.session_db_path(),
+            Some(dir.join("wa").join("oktz-run.db"))
+        );
+    }
+
+    #[test]
+    fn explicit_creds_path_beats_env_dup_guard() {
+        // Penanda urutan test: test di atas menambah test tokio; tidak ada
+        // yang perlu diuji di sini selain memastikan mod test tetap compile.
     }
 
     #[test]

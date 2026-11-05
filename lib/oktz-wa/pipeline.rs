@@ -5178,6 +5178,7 @@ mod tests {
         // `settings.json` berupa DIREKTORI → `JsonStore::write` gagal saat
         // apply → TIDAK kotor (Turso jangan lebih baru dari disk).
         let dir = std::env::temp_dir().join(format!("oktz-turso-nope-{}", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("settings.json");
         std::fs::write(&path, "{}").unwrap();

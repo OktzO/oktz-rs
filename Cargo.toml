@@ -61,4 +61,8 @@ wacore = { path = "vendor/wacore" }
 # dengan `libsql-ffi` (mirror Turso). Diesel resolve simbol sqlite3 dari
 # libsql-ffi; lihat komentar `lib/oktz-wa/Cargo.toml`.
 whatsapp-rust-sqlite-storage = { path = "vendor/wa-sqlite-storage" }
+# vendored: satu assert threading dilonggarkan — sqlite bisa sudah ter-init
+# oleh copy libsqlite3-sys (diesel) di proses yang sama; lihat
+# vendor/libsql/src/local/database.rs.
+libsql = { path = "vendor/libsql" }
 
