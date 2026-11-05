@@ -2,6 +2,10 @@
 //! terverifikasi end-to-end (impor 514/514 sesi, decrypt pesan nyata, tombol
 //! WA ter-render). Spike di `rust-spike/` adalah throwaway; ini yang dipakai bot.
 
+// Future `set_push_name` sangat dalam (app-state mutation); batasi recursion
+// limit supaya compute layout-nya selesai.
+#![recursion_limit = "256"]
+
 pub mod bot;
 pub mod cards;
 pub mod tabel;
