@@ -91,7 +91,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           perbaiki loader .env (regex split salah escape).
 // v0.2.17 — .addpremium jalan (add/del/list premium); premium aktif tanpa
 //           restart; ffmpeg dari bin/ atau PATH, tanpa npm.
-export const VERSI_BIN = "v0.2.17";
+// v0.2.18 — mirror Turso (lowdb + tabel session, boot sync seed/restore);
+//           pesan error ikut replyVariant; .toimg/.rvo/.ptv/.setbio/.setname/
+//           .setpp/.delpp/.block/.unblock fungsional penuh.
+export const VERSI_BIN = "v0.2.18";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
