@@ -35,8 +35,8 @@ pub mod kanvas;
 pub use kanvas::Kanvas;
 pub mod sticker;
 pub use sticker::{
-    EXIF_EMOJIS, OpsiS, StickerOpsi, STICKER_WEBP_VF, buat_kunci_media, gambar_ke_stiker_webp, opsi_s,
-    tempel_metadata_stiker, video_ke_stiker_webp,
+    EXIF_EMOJIS, OpsiS, StickerOpsi, STICKER_WEBP_VF, buat_kunci_media, gambar_ke_stiker_webp,
+    nama_unik, opsi_s, tempel_metadata_stiker, tulis_berkas_sementara, video_ke_stiker_webp,
 };
 
 // Plugin butuh menyusun `Runtime` sendiri di test (untuk menguji jalur
@@ -52,4 +52,7 @@ pub use registry::{
 };
 
 pub mod brat;
-pub use brat::{BratTema, is_blank, render_brat, render_frame_raw};
+pub use brat::{
+    BRAT_ANIM_FPS, BRAT_PROGRESIF_DURASI, BRAT_PROGRESIF_DURASI_AKHIR, BRAT_PROGRESIF_FPS,
+    BratAnimasi, BratProgresif, BratTema, is_blank, render_brat, render_frame_raw,
+};
