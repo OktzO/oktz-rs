@@ -65,4 +65,8 @@ whatsapp-rust-sqlite-storage = { path = "vendor/wa-sqlite-storage" }
 # oleh copy libsqlite3-sys (diesel) di proses yang sama; lihat
 # vendor/libsql/src/local/database.rs.
 libsql = { path = "vendor/libsql" }
+# vendored: tidak emit `rustc-link-lib=sqlite3` — libsql-ffi sudah compile
+# sqlite3.c sendiri; dua copy = duplicate symbol saat link (build statis CI).
+# Diesel resolve simbol sqlite3 dari libsql-ffi.
+libsqlite3-sys = { path = "vendor/libsqlite3-sys" }
 
