@@ -94,7 +94,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.18 — mirror Turso (lowdb + tabel session, boot sync seed/restore);
 //           pesan error ikut replyVariant; .toimg/.rvo/.ptv/.setbio/.setname/
 //           .setpp/.delpp/.block/.unblock fungsional penuh.
-export const VERSI_BIN = "v0.2.18";
+// v0.2.19 — perbaiki flag VP8X sticker/brat (alpha/animasi/EXIF) yang membuat
+//           WebP ditolak WA saat diunduh.
+export const VERSI_BIN = "v0.2.19";
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau
