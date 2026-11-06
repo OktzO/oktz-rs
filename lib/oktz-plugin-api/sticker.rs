@@ -355,7 +355,9 @@ pub fn tempel_metadata_stiker(
     // Recompute chunks from clean bytes.
     let chunks = parse_chunks(clean).ok_or_else(|| "WebP rusak".to_string())?;
 
-    let has_alpha = chunks.iter().any(|(id, _)| id == b"ALPH");
+    let has_alpha = chunks.iter().any(|(id, p)| {
+        id == b"ALPH" || (id == b"VP8L" && p.len() >= 5 && (p[4] >> 4) & 1 == 1)
+    });
     let has_anim = chunks.iter().any(|(id, _)| id == b"ANIM" || id == b"ANMF");
 
     let (width, height) = webp_dimensions(clean);
@@ -364,7 +366,18 @@ pub fn tempel_metadata_stiker(
 
     let mut body: Vec<u8> = Vec::new();
     if width > 0 && height > 0 {
-        let flags = 0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 });
+        // Flag VP8X (RFC 9649 §2.2): 0x20 ICCP, 0x10 alpha, 0x08 EXIF,
+        // 0x04 XMP, 0x02 animasi. Chunk XMP dibuang di bawah, jadi bit XMP
+        // dibersihkan; sisa flag asli dipertahankan supaya file animasi
+        // (ANIM/ANMF dari ffmpeg) tetap dikenali WA.
+        let flags = chunks
+            .iter()
+            .find(|(id, _)| id == b"VP8X")
+            .and_then(|(_, p)| p.first().copied())
+            .map(|f| (f & !0x04) | 0x08)
+            .unwrap_or(
+                0x08 | (if has_alpha { 0x10 } else { 0 }) | (if has_anim { 0x02 } else { 0 }),
+            );
         let mut vp8x = vec![flags, 0, 0, 0];
         let cw = (width.max(1) - 1).min(0x00FF_FFFF);
         let ch = (height.max(1) - 1).min(0x00FF_FFFF);
@@ -558,7 +571,56 @@ mod tests {
         let riff_size = u32::from_le_bytes([out[4], out[5], out[6], out[7]]) as usize;
         assert_eq!(riff_size + 8, out.len());
         let chunks = parse_chunks(&out).unwrap();
-        assert!(chunks.iter().any(|(id, _)| id == b"VP8X"));
-        assert!(chunks.iter().any(|(id, _)| id == b"EXIF"));
+        let vp8x = chunks
+            .iter()
+            .find(|(id, _)| id == b"VP8X")
+            .map(|(_, payload)| payload)
+            .unwrap();
+        // 0x08 = EXIF; alpha/animasi tidak boleh dikarang untuk VP8L opaque.
+        assert_eq!(vp8x[0], 0x08);
+    }
+
+    #[test]
+    fn alpha_sticker_sets_alpha_and_exif_flags_not_animation() {
+        let mut input = vp8l_riff();
+        let mut body = Vec::new();
+        let alpha = [0u8; 4];
+        put_chunk(&mut body, b"VP8X", &[0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        put_chunk(&mut body, b"ALPH", &alpha);
+        body.extend_from_slice(&input[12..]);
+        input.truncate(12);
+        input.extend_from_slice(&body);
+        input[4..8].copy_from_slice(&(4 + body.len() as u32).to_le_bytes());
+
+        let out = tempel_metadata_stiker(&input, "P", "A", &["🤖"]).unwrap();
+        let chunks = parse_chunks(&out).unwrap();
+        let vp8x = chunks
+            .iter()
+            .find(|(id, _)| id == b"VP8X")
+            .map(|(_, payload)| payload)
+            .unwrap();
+        assert_eq!(vp8x[0], 0x18, "alpha + EXIF, tanpa animasi/XMP");
+    }
+
+    #[test]
+    fn animated_sticker_keeps_animation_bit() {
+        let mut input = vp8l_riff();
+        let mut body = Vec::new();
+        put_chunk(&mut body, b"VP8X", &[0x12, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        put_chunk(&mut body, b"ANIM", &[0; 6]);
+        put_chunk(&mut body, b"ANMF", &[0; 16]);
+        put_chunk(&mut body, b"VP8L", &[0x2f, 1, 2, 3, 4]);
+        input.truncate(12);
+        input.extend_from_slice(&body);
+        input[4..8].copy_from_slice(&(4 + body.len() as u32).to_le_bytes());
+
+        let out = tempel_metadata_stiker(&input, "P", "A", &["🤖"]).unwrap();
+        let chunks = parse_chunks(&out).unwrap();
+        let vp8x = chunks
+            .iter()
+            .find(|(id, _)| id == b"VP8X")
+            .map(|(_, payload)| payload)
+            .unwrap();
+        assert_eq!(vp8x[0], 0x1A, "animasi + alpha + EXIF, XMP dibuang");
     }
 }
