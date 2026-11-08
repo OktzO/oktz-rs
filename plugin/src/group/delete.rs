@@ -272,7 +272,7 @@ mod tests {
         }));
         assert_eq!(body(&guest), NOT_ADMIN);
 
-        for _is_owner in [true, false] {
+        for is_owner in [true, false] {
             let allowed = (oktz_plugin_api::find("delete").unwrap().handler)(ctx_with(Opts {
                 quoted_sender: Some("628999@s.whatsapp.net"),
                 from_me: false,
