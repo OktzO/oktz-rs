@@ -149,7 +149,7 @@ impl GateState {
         // tidak pernah memengaruhi gate — aman dibuang agar map tidak tumbuh
         // tanpa batas untuk chat/sender yang sudah tidak aktif.
         data.last_message_ms
-            .retain(|_, &v| now_ms - v < 86_400_000 * 7);
+            .retain(|_, v| now_ms - v < 86_400_000 * 7);
         data.last_message_ms.insert(key.to_string(), now_ms);
     }
 }
