@@ -125,7 +125,7 @@ test("versiCocok bandingkan penanda versi", () => {
 
 test("fallback rilis launcher mengikuti rilis terbaru", async () => {
   const modul = await import("./launcher.js");
-  assert.equal(modul.VERSI_BIN, "v0.2.26");
+  assert.equal(modul.VERSI_BIN, "v0.2.27");
 });
 
 test("import launcher tanpa entry point tidak menjalankan bot", () => {
