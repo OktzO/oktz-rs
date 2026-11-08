@@ -1033,7 +1033,7 @@ mod tests {
             lain => panic!("harus voice note, dapat {lain:?}"),
         }
         // `with_reaction("✅")` membungkus di Mutate+Reaction; unwrap ke TabelAi.
-        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+        let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
         assert_eq!(rich.submessages[0].text.as_deref(), Some("Lagu Uji - Channel Uji"));
@@ -1081,7 +1081,7 @@ mod tests {
         };
         // Tanpa lirik: player HTML tetap dikirim, script-nya menampilkan
         // "Lirik belum tersedia" dari JSON kosong.
-        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+        let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
         let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
@@ -1122,7 +1122,7 @@ mod tests {
         };
         // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8):
         // JSON base64 di payload memuat time 0/8/16.
-        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+        let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
         let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
