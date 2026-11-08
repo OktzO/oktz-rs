@@ -1029,7 +1029,10 @@ mod tests {
     fn alur_sukses_mengirim_lirik_sinkron_lalu_voice_note() {
         let http = stub_sukses();
         let r = run_http(http.clone(), "another love tom odell");
-        let Reply::Sequence(list) = r.without_mutations() else {
+        // `with_reaction("✅")` kini di top-level sequence (bukan di elemen),
+        // jadi bentuknya Mutate(Reaction(Sequence)). Di dalam sequence tetap:
+        // 🎧 → voice note → kartu RichAi HTML.
+        let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
             panic!("harus sequence, dapat {:?}", r.without_mutations());
         };
         // 🎧 → voice note fallback → kartu RichAi HTML.
@@ -1043,7 +1046,6 @@ mod tests {
             }
             lain => panic!("harus voice note, dapat {lain:?}"),
         }
-        // `with_reaction("✅")` membungkus di Mutate+Reaction; unwrap ke TabelAi.
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
@@ -1054,7 +1056,7 @@ mod tests {
             serde_json::json!("GenAIaeacdsnwHtmlPrimitive")
         );
         let payload = prim["payload"].as_str().expect("payload html");
-        assert!(matches!(list[2].without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
+        assert!(matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
         assert!(payload.contains("Lagu Uji"), "{payload}");
         assert!(payload.contains("data:audio/ogg;base64,"), "{payload}");
         assert!(payload.contains("atob("), "lirik sinkron dari JSON base64");
@@ -1087,7 +1089,7 @@ mod tests {
             Some(b"audio".to_vec()),
         );
         let r = run_http(http, "lagu tanpa lirik");
-        let Reply::Sequence(list) = r.without_mutations() else {
+        let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
             panic!("harus sequence");
         };
         // Tanpa lirik: player HTML tetap dikirim, script-nya menampilkan
@@ -1128,7 +1130,7 @@ mod tests {
             Some(b"audio".to_vec()),
         );
         let r = run_http(http, "lagu polos");
-        let Reply::Sequence(list) = r.without_mutations() else {
+        let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
             panic!("harus sequence");
         };
         // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8):
