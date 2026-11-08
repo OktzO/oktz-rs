@@ -178,7 +178,7 @@ pub fn hd2(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{Ctx, QuotedKind, QuotedMessage, Reply as R};
+    use oktz_plugin_api::{Ctx, Reply as R};
     use serde_json::json;
 
     const ME: &str = "628111@s.whatsapp.net";

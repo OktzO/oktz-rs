@@ -99,7 +99,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
             "❌ *Nama produk terlalu pendek.*\n\nMinimal 2 karakter diperlukan agar mudah dikenali pelanggan 📝",
         );
     }
-    if price.map_or(true, |p| p < 1000) {
+    if price.is_none_or(|p| p < 1000) {
         return Reply::text(
             "❌ *Harga tidak valid.*\n\nHarga minimal *Rp 1.000* 💰 Pastikan Anda memasukkan angka yang benar.",
         );
@@ -118,7 +118,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
     };
 
     // ---- thumbnail: media reply / media langsung (`addproduk.js:67-88`) ----
-    let has_quoted_media = ctx.quoted().map_or(false, |q| q.is_media());
+    let has_quoted_media = ctx.quoted().is_some_and(|q| q.is_media());
     let is_direct_media =
         ctx.media.is_some() && (ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Image) || ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Video));
 
@@ -127,7 +127,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
     let mut upload_warning: Option<String> = None;
 
     if has_quoted_media || is_direct_media {
-        let is_video = ctx.quoted().map_or(false, |q| q.kind.is_video())
+        let is_video = ctx.quoted().is_some_and(|q| q.kind.is_video())
             || ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Video);
         let unduhan = if has_quoted_media {
             ctx.download_quoted_media().ok()
@@ -416,6 +416,6 @@ mod tests {
         let t = r.text_body().unwrap().to_string();
         assert!(t.contains("⚠️ *Gagal upload media:"), "{t}");
         assert!(t.contains("> Produk tetap disimpan TANPA thumbnail."));
-        assert!(t.contains("🖼️ Thumbnail: ✅") == false);
+        assert!(!t.contains("🖼️ Thumbnail: ✅"));
     }
 }

@@ -82,14 +82,13 @@ pub fn colongpp(ctx: Ctx) -> Reply {
     let mut pp_buffer: Option<Vec<u8>> = None;
     let mut source = SUMBER_PROFIL;
 
-    if let Ok(Some(url)) = ctx.sock().foto_profil(&target, "image") {
-        if let Ok(res) = ctx.http.get(&url) {
+    if let Ok(Some(url)) = ctx.sock().foto_profil(&target, "image")
+        && let Ok(res) = ctx.http.get(&url) {
             let byte = res.body.bytes().to_vec();
             if !byte.is_empty() {
                 pp_buffer = Some(byte);
             }
         }
-    }
 
     if pp_buffer.is_none() {
         // Fallback PP default (`colongpp.js:53-60`).
@@ -139,7 +138,7 @@ mod tests {
             text: String::new(),
             args: Vec::new(),
             mentioned: mentioned.into_iter().map(str::to_string).collect(),
-            quoted: quoted.map(|s| QuotedMessage {
+            quoted: quoted.map(|_| QuotedMessage {
                 id: "q1".into(),
                 sender: "628999@s.whatsapp.net".into(),
                 chat: "628111@s.whatsapp.net".into(),

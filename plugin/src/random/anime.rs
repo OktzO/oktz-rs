@@ -6,9 +6,10 @@
 //! `plugins.js:539-544`. Efeknya `waifu` milik `anime/mywaifu.js` (alias)
 //! kalah dari plugin ini, sama seperti di JS.
 //!
-//! `ponytail:` pengiriman view-once interaktif (`generateWAMessageFromContent`
-//! + `relayMessage`) dan tombol `quick_reply` "Lanjut Cari Lagi?" tidak ada
-//! di `Reply` — gambar dikirim biasa. Reaksi `🖼️` (`anime.js:53`) dibuang:
+//! `ponytail:` pengiriman view-once interaktif
+//! (`generateWAMessageFromContent` + `relayMessage`) dan tombol `quick_reply`
+//! "Lanjut Cari Lagi?" tidak ada di `Reply` — gambar dikirim biasa.
+//! Reaksi `🖼️` (`anime.js:53`) dibuang:
 //! membungkus media dengan `with_reaction` membuat gambar tidak pernah
 //! di-upload (lihat `random/cecanindo.rs`). Deteksi GIF tetap jalan: byte
 //! diambil lewat `ctx.http` lalu dicek magic `GIF` seperti `anime.js:56-57`,

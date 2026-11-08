@@ -13,8 +13,8 @@
 //! - `sock.groupFetchAllParticipating()` / `fetchGroupsSafe` / `onWhatsApp`:
 //!   `ctx.sock().ada_whatsapp()` dan `semua_grup()` tersedia, tapi logika
 //!   broadcast per grup dengan jeda + hide tag memang bukan `Reply` tunggal.
-//! - `onigis` + `generateWAMessageFromContent` + `proto.InteractiveMessage`
-//!   + `sock.relayMessage` untuk menu interaktif dengan tombol:
+//! - `onigis` + `generateWAMessageFromContent` + `proto.InteractiveMessage` +
+//!   `sock.relayMessage` untuk menu interaktif dengan tombol:
 //!   `Reply::Interactive` hanya punya `body`, tidak ada native flow/tombol.
 //! - `getBinaryNodeChild` + `sock.query` (newsletter subscribed): tidak ada
 //!   di `Sock` trait.

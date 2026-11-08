@@ -328,8 +328,8 @@ fn decode_entities(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
-        if s.as_bytes()[i] == b'&' {
-            if let Some(semi) = s[i + 1..].find(';').map(|p| p + i + 1).filter(|&p| p - i <= 10) {
+        if s.as_bytes()[i] == b'&'
+            && let Some(semi) = s[i + 1..].find(';').map(|p| p + i + 1).filter(|&p| p - i <= 10) {
                 let ent = &s[i + 1..semi];
                 let ganti = match ent {
                     "quot" => Some('"'),
@@ -355,7 +355,6 @@ fn decode_entities(s: &str) -> String {
                     continue;
                 }
             }
-        }
         let ch = s[i..].chars().next().unwrap();
         out.push(ch);
         i += ch.len_utf8();

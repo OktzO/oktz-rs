@@ -25,7 +25,7 @@ const STOPWORDS: [&str; 8] = ["page", "hal", "halaman", "search", "cari", "nama"
 
 /// Opsi hasil parse `parseListOptions` (`listdaftar.js:41-135`).
 #[derive(Debug, PartialEq)]
-struct Opsi {
+pub(crate) struct Opsi {
     page: usize,
     search: String,
     sort_terbaru: bool,
@@ -79,12 +79,11 @@ pub(crate) fn parse_opsi(input: &str) -> Opsi {
         }
 
         if token == "sort" || token == "urut" {
-            if let Some(next) = tokens.get(i + 1).map(|t| t.to_lowercase()) {
-                if next == "terbaru" || next == "newest" {
+            if let Some(next) = tokens.get(i + 1).map(|t| t.to_lowercase())
+                && (next == "terbaru" || next == "newest") {
                     opsi.sort_terbaru = true;
                     i += 1;
                 }
-            }
             i += 1;
             continue;
         }
@@ -385,7 +384,7 @@ mod tests {
             other => panic!("harus Text, dapat {other:?}"),
         }
         let t2 = r.text_body().unwrap().to_string();
-        assert!(t2.contains("628444") == false || !t.contains("628444"));
+        assert!(!t2.contains("628444") || !t.contains("628444"));
     }
 
     #[test]

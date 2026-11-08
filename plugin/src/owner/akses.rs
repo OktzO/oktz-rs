@@ -100,7 +100,7 @@ fn resolve_target(ctx: &Ctx) -> Option<String> {
 /// `m.args.filter(a => !a.includes("@") && !/^\d{10,}$/.test(a))`
 fn clean_args(args: &[String]) -> Vec<String> {
     args.iter()
-        .filter(|a| !a.contains('@') && !(a.len() >= 10 && a.chars().all(|c| c.is_ascii_digit())))
+        .filter(|a| !(a.contains('@') || a.len() >= 10 && a.chars().all(|c| c.is_ascii_digit())))
         .cloned()
         .collect()
 }

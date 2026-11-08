@@ -15,12 +15,15 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
+#[cfg(test)]
 use crate::common::days_from_civil;
 
 /// `TAHUN` (`kalender.js:22`).
+#[cfg(test)]
 pub(crate) const TAHUN: i64 = 2026;
 
 /// `NAMA_BULAN` (`kalender.js:24`).
+#[cfg(test)]
 pub(crate) const NAMA_BULAN: [&str; 12] = [
     "Januari",
     "Februari",
@@ -41,6 +44,7 @@ pub(crate) const NAMA_BULAN: [&str; 12] = [
 pub(crate) const NAMA_HARI: [&str; 7] = ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"];
 
 /// Hari libur 2026 — `LIBUR` (`kalender.js:27-53`), kunci `"bulan-tanggal"`.
+#[cfg(test)]
 pub(crate) const LIBUR: [(&str, &str, &str); 25] = [
     ("1-1", "Tahun Baru Masehi", "nasional"),
     ("1-16", "Isra Mi'raj Nabi Muhammad SAW", "keagamaan"),
@@ -89,6 +93,7 @@ pub(crate) fn nama_ke_nomor(nama: &str) -> Option<u32> {
 }
 
 /// `jumlahHariDiBulan` (`kalender.js:81-83`) — `new Date(2026, bulan, 0)`.
+#[cfg(test)]
 pub(crate) fn jumlah_hari_di_bulan(bulan: u32) -> u32 {
     match bulan {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -99,12 +104,14 @@ pub(crate) fn jumlah_hari_di_bulan(bulan: u32) -> u32 {
 }
 
 /// `offsetHariPertama` (`kalender.js:85-88`) — indeks SEN=0.
+#[cfg(test)]
 pub(crate) fn offset_hari_pertama(bulan: u32) -> u32 {
     let days = days_from_civil(TAHUN, bulan, 1);
     ((days + 3).rem_euclid(7)) as u32
 }
 
 /// Satu libur bulan tertentu — `liburDiBulan` (`kalender.js:90-95`), urut tgl.
+#[cfg(test)]
 pub(crate) fn libur_di_bulan(bulan: u32) -> Vec<(u32, &'static str, &'static str)> {
     let mut out: Vec<(u32, &'static str, &'static str)> = LIBUR
         .iter()
@@ -185,11 +192,10 @@ pub fn kalender(ctx: Ctx) -> Reply {
     let input = ctx.text.trim().to_lowercase();
 
     // `if (text)` — teks kosong jatuh ke mode tahun (`kalender.js:556-570`).
-    if !input.is_empty() && input != "tahun" && input != "2026" {
-        if nama_ke_nomor(&input).is_none() {
+    if !input.is_empty() && input != "tahun" && input != "2026"
+        && nama_ke_nomor(&input).is_none() {
             return Reply::text(FORMAT_SALAH);
         }
-    }
 
     // Jalur render `@napi-rs/canvas` tidak tersedia — jatuh ke blok `catch`
     // JS: reaksi ❌ + pesan gagal. Lihat catatan kepala.

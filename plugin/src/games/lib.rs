@@ -138,6 +138,12 @@ pub struct FotoGames {
     pub registry: HashMap<String, GameConfig>,
 }
 
+impl Default for FotoGames {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FotoGames {
     /// `constructor()` (`games.js:58-60`) — inisialisasi registry kosong.
     pub fn new() -> Self {
@@ -328,7 +334,7 @@ mod tests {
     fn pick_mengembalikan_satu_item_dari_array() {
         let arr = ["a", "b", "c"];
         let hasil = pick(&arr).expect("harus ada hasil");
-        assert!(arr.iter().any(|&s| s == hasil), "{hasil} harus ada di {arr:?}");
+        assert!(arr.contains(&hasil), "{hasil} harus ada di {arr:?}");
     }
 
     #[test]

@@ -134,16 +134,14 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
             .and_then(Value::as_str)
             .filter(|s| !s.is_empty())
             .map(String::from);
-        if status_ok {
-            if let Some(sticker_url) = sticker_url {
-                if let Ok(res) = ctx.http.get(&sticker_url) {
+        if status_ok
+            && let Some(sticker_url) = sticker_url
+                && let Ok(res) = ctx.http.get(&sticker_url) {
                     let buf = res.body.bytes().to_vec();
                     if !buf.is_empty() {
                         return Reply::sticker(MediaSource::bytes(buf)).with_reaction("✅");
                     }
                 }
-            }
-        }
     }
 
     // `smeme-animated.js:66-71` — API gagal: kirim gambar aslinya sebagai

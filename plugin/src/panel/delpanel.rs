@@ -26,15 +26,6 @@ const SERVER1: KonfigServer = KonfigServer { domain: "", apikey: "" };
 const SERVER2: KonfigServer = KonfigServer { domain: "", apikey: "" };
 const SERVER3: KonfigServer = KonfigServer { domain: "", apikey: "" };
 
-/// `getServerConfig` (`delpanel.js:20-27`) — kunci tak dikenal jatuh ke s1.
-fn konfig_server(kunci: &str) -> &'static KonfigServer {
-    match kunci {
-        "s2" => &SERVER2,
-        "s3" => &SERVER3,
-        _ => &SERVER1,
-    }
-}
-
 /// `validateServerConfig` (`delpanel.js:29-34`).
 fn field_hilang(cfg: &KonfigServer) -> Vec<&'static str> {
     let mut missing = Vec::new();
@@ -45,17 +36,6 @@ fn field_hilang(cfg: &KonfigServer) -> Vec<&'static str> {
         missing.push("apikey (PTLA)");
     }
     missing
-}
-
-/// `getAvailableServers` (`delpanel.js:36-42`).
-fn server_tersedia() -> Vec<&'static str> {
-    let mut out = Vec::new();
-    for (nama, cfg) in [("s1", &SERVER1), ("s2", &SERVER2), ("s3", &SERVER3)] {
-        if !cfg.domain.is_empty() && !cfg.apikey.is_empty() {
-            out.push(nama);
-        }
-    }
-    out
 }
 
 /// Header standar Pterodactyl (`delpanel.js:88-92`) — varian user GET hanya

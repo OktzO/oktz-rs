@@ -405,30 +405,27 @@ pub fn tempel_metadata_stiker(
 
 fn webp_dimensions(data: &[u8]) -> (u32, u32) {
     // VP8X
-    if let Some(pos) = find_chunk(data, b"VP8X") {
-        if pos + 18 <= data.len() {
+    if let Some(pos) = find_chunk(data, b"VP8X")
+        && pos + 18 <= data.len() {
             let w = u32::from_le_bytes([data[pos + 12], data[pos + 13], data[pos + 14], 0]) & 0x00FF_FFFF;
             let h = u32::from_le_bytes([data[pos + 15], data[pos + 16], data[pos + 17], 0]) & 0x00FF_FFFF;
             return (w + 1, h + 1);
         }
-    }
     // VP8 (lossy)
-    if let Some(pos) = find_chunk(data, b"VP8 ") {
-        if pos + 20 <= data.len() {
+    if let Some(pos) = find_chunk(data, b"VP8 ")
+        && pos + 20 <= data.len() {
             let w = u16::from_le_bytes([data[pos + 14], data[pos + 15]]) as u32 & 0x3FFF;
             let h = u16::from_le_bytes([data[pos + 16], data[pos + 17]]) as u32 & 0x3FFF;
             if w > 0 && h > 0 { return (w, h); }
         }
-    }
     // VP8L
-    if let Some(pos) = find_chunk(data, b"VP8L") {
-        if pos + 13 <= data.len() {
+    if let Some(pos) = find_chunk(data, b"VP8L")
+        && pos + 13 <= data.len() {
             let bits = u32::from_le_bytes([data[pos + 9], data[pos + 10], data[pos + 11], data[pos + 12]]);
             let w = (bits & 0x3FFF) + 1;
             let h = ((bits >> 14) & 0x3FFF) + 1;
             if w > 0 && h > 0 { return (w, h); }
         }
-    }
     (0, 0)
 }
 

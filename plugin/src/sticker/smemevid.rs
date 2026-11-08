@@ -39,6 +39,7 @@ pub(crate) fn format_salah(prefix: &str, command: &str) -> String {
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh video";
 
 /// `smemevid.js:153` — gagal memproses video.
+#[cfg(test)]
 pub(crate) const GAGAL_PROSES: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Terjadi kesalahan saat memproses video";
 
 /// `smemevid.js:123-134` — rantai filter ffmpeg TANPA bagian overlay teks

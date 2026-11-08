@@ -71,23 +71,19 @@ fn nama_named_export(code: &str) -> Option<String> {
     while let Some(rel) = code[dari..].find("export") {
         let idx = dari + rel;
         let rest = code[idx + "export".len()..].trim_start();
-        if let Some(r) = rest.strip_prefix("async").map(|r| r.trim_start()) {
-            if let Some(r) = r.strip_prefix("function").map(|r| r.trim_start()) {
-                if let Some(id) = ident_awal(r) {
+        if let Some(r) = rest.strip_prefix("async").map(|r| r.trim_start())
+            && let Some(r) = r.strip_prefix("function").map(|r| r.trim_start())
+                && let Some(id) = ident_awal(r) {
                     return Some(id.to_string());
                 }
-            }
-        }
-        if let Some(r) = rest.strip_prefix("function").map(|r| r.trim_start()) {
-            if let Some(id) = ident_awal(r) {
+        if let Some(r) = rest.strip_prefix("function").map(|r| r.trim_start())
+            && let Some(id) = ident_awal(r) {
                 return Some(id.to_string());
             }
-        }
-        if let Some(r) = rest.strip_prefix("const").map(|r| r.trim_start()) {
-            if let Some(id) = ident_awal(r) {
+        if let Some(r) = rest.strip_prefix("const").map(|r| r.trim_start())
+            && let Some(id) = ident_awal(r) {
                 return Some(id.to_string());
             }
-        }
         dari = idx + "export".len();
     }
     None
@@ -168,9 +164,9 @@ pub fn gantiscraper(ctx: Ctx) -> Reply {
                 .ukuran(&format!("{SCRAPER_DIR}/{s}"))
                 .unwrap_or(0);
             text.push_str(&format!(
-                "│ {}. `{s}` ({} KB)\n",
+                "│ {}. `{s}` ({:.1} KB)\n",
                 i + 1,
-                format!("{:.1}", size as f64 / 1024.0)
+                size as f64 / 1024.0
             ));
         }
         text.push_str(&format!(

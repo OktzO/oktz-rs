@@ -1,8 +1,7 @@
 //! `plugins/sticker/sticker.js` — command `.s`.
 
 
-use std::sync::Arc;
-use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaFetch, MediaOrigin, MediaSource, OpsiS, Reply, StickerOpsi, plugin};
+use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, OpsiS, Reply, StickerOpsi, plugin};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Jenis {
@@ -10,6 +9,10 @@ enum Jenis {
     Video,
 }
 
+#[cfg(test)]
+use oktz_plugin_api::{MediaError, MediaFetch, MediaOrigin};
+#[cfg(test)]
+use std::sync::Arc;
 
 #[cfg(test)]
 #[derive(Debug, Default, Clone)]
@@ -175,8 +178,8 @@ pub fn sticker(ctx: Ctx) -> Reply {
         if selected.len() >= 2 {
             let mut buffers = Vec::new();
             for item in selected {
-                if let Ok(bytes) = ctx.download_album_media(&item.id) {
-                    if let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]) {
+                if let Ok(bytes) = ctx.download_album_media(&item.id)
+                    && let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]) {
                         let (pn, au) = metadata(&ctx, Some(packname.clone()), Some(author.clone()));
                         let webp = oktz_plugin_api::tempel_metadata_stiker(
                             &webp,
@@ -187,7 +190,6 @@ pub fn sticker(ctx: Ctx) -> Reply {
                         .unwrap_or(webp);
                         buffers.push(webp);
                     }
-                }
             }
             if buffers.len() >= 2 {
                 let mut urutan = vec![

@@ -66,7 +66,7 @@ pub(crate) fn username_args(ctx: &Ctx) -> String {
 
 /// Cabang catch JS (`fakestory.js:241-244`): template error + reaksi `☢`.
 pub(crate) fn gagal(ctx: &Ctx) -> Reply {
-    Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+    Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
 /// `m.isImage || (m.quoted && m.quoted.isImage)` (`fakestory.js:210`).
@@ -126,7 +126,7 @@ pub(crate) mod tests {
     use super::*;
     use oktz_plugin_api::{
         HttpBody, HttpCall, HttpError, HttpResponse, IncomingMedia, MediaError, MediaFetch,
-        MediaOrigin, QuotedKind, QuotedMessage, Sock, SockError,
+        MediaOrigin, Sock, SockError,
     };
     use oktz_plugin_api::sock::{AdaWhatsapp, AksiPeserta};
     use serde_json::Value;

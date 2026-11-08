@@ -327,13 +327,6 @@ mod tests {
             .to_string()
     }
 
-    fn reaction_of(r: &Reply) -> Option<&str> {
-        match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji),
-            _ => None,
-        }
-    }
-
     fn video(sec: u64) -> Video {
         Video {
             url: "https://www.youtube.com/watch?v=aaaaaaaaaaa".into(),

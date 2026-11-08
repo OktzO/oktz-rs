@@ -200,18 +200,6 @@ mod tests {
     }
 
     impl Stub {
-        fn json(body: &str) -> Arc<Stub> {
-            Arc::new(Stub {
-                balasan: Mutex::new(Some((200, body.to_string()))),
-                seen: Mutex::new(Vec::new()),
-            })
-        }
-        fn kode(kode: u16) -> Arc<Stub> {
-            Arc::new(Stub {
-                balasan: Mutex::new(Some((kode, "{}".to_string()))),
-                seen: Mutex::new(Vec::new()),
-            })
-        }
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(None),

@@ -131,11 +131,10 @@ pub(crate) fn sukses(file: &str, folder: &str, ukuran: usize) -> String {
 /// di-reply (`addplugin.js:44-56`).
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
-        if q.kind.is_media() {
-            if let Ok(byte) = ctx.download_quoted_media() {
+        if q.kind.is_media()
+            && let Ok(byte) = ctx.download_quoted_media() {
                 return String::from_utf8_lossy(&byte).to_string();
             }
-        }
         return q.text.clone();
     }
     String::new()
@@ -245,8 +244,6 @@ pub(crate) fn success_text(file: &str, folder: &str, ukuran: usize) -> String {
 mod tests {
     use super::*;
     use oktz_plugin_api::QuotedMessage;
-
-    const KODE: &str = "import x from 'y';\nconst pluginConfig = { name: 'demo', category: 'owner' };\nexport { pluginConfig as config, handler };";
 
     fn ctx_dengan_quoted(text: &str, quoted_text: Option<&str>) -> Ctx {
         Ctx {

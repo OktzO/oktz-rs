@@ -131,10 +131,6 @@ pub fn rvo(ctx: Ctx) -> Reply {
     }
 }
 
-fn gagal_unduh_saja() -> String {
-    gagal_buka(galat_kadaluarsa())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,6 +13,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 /// Satu ayat dari halaman surah.
 #[derive(Clone, Debug)]
 struct Ayat {
+    #[allow(dead_code)] // dipakai test saja
     ayat: u32,
     arab: String,
     latin: String,
@@ -133,7 +134,7 @@ fn parse_ayat(html: &str) -> Vec<Ayat> {
         }
         let ayat_num: u32 = id_val.parse().unwrap_or(0);
         // Cari penutup div ini
-        let div_end_tag = format!("</div>");
+        let div_end_tag = "</div>".to_string();
         let after_div = &html[abs..];
         let gt_pos = after_div.find('>').unwrap_or(0);
         let content_start = abs + gt_pos + 1;
@@ -164,7 +165,7 @@ fn tag_text_by_class(html: &str, kelas: &str) -> Option<String> {
             // Cari tag penutup — cari tag pembuka yang sama sebelum konten
             let tag_start = html[..abs].rfind('<').unwrap_or(abs);
             let tag_name_end = html[tag_start + 1..]
-                .find(|c: char| c == ' ' || c == '>')
+                .find([' ', '>'])
                 .unwrap_or(0);
             let tag_name = &html[tag_start + 1..tag_start + 1 + tag_name_end];
             let close = format!("</{tag_name}>");

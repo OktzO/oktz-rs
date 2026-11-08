@@ -111,21 +111,6 @@ fn normalize_aggregator(body: &Value) -> Result<Track, AggregatorFailure> {
     track_dari(result).map_err(|_| AggregatorFailure::Normalization)
 }
 
-/// `spotifydl.js:31` — `${artist || "Spotify"} - ${title || "Audio"}.mp3`.
-pub(crate) fn filename(track: &Track) -> String {
-    let artist = if track.artist.is_empty() {
-        "Spotify"
-    } else {
-        &track.artist
-    };
-    let title = if track.title.is_empty() {
-        "Audio"
-    } else {
-        &track.title
-    };
-    format!("{artist} - {title}.mp3")
-}
-
 #[plugin(
     name = "spotifydl",
     alias = ["spdl", "spotify-dl", "spotdl"],
@@ -165,7 +150,7 @@ pub fn spotifydl(ctx: Ctx) -> Reply {
     let data = local.or_else(|| {
         let url = format!("{ENDPOINT}?url={}", query_encode(text));
         let body = ctx.http.get(&url).ok().and_then(|response| response.json());
-        match body.as_ref().map(|body| normalize_aggregator(body)) {
+        match body.as_ref().map(normalize_aggregator) {
             Some(Ok(track)) => Some(track),
             Some(Err(AggregatorFailure::Normalization)) => {
                 normalisasi_gagal = true;

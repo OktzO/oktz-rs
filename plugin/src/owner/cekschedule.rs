@@ -59,7 +59,7 @@ pub fn cekschedule(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::Value;
 
     fn run(settings: Value) -> Reply {
         let ctx = Ctx {

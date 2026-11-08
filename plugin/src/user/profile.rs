@@ -14,8 +14,8 @@
 //! - `user.rpg` yang JS tulis-ulang (level/health/mana/stamina) dikirim
 //!   lewat `Mutation::SetUser` dengan objek `rpg` utuh dari snapshot store.
 //! - `config.isOwner`/`config.isPremium` untuk TARGET ditiru dari
-//!   `config().owner.number` + `db.data.owner` + flag `isPremium` user
-//!   + `settings.premiumUsers` (salinan `config.js:364-446` yang
+//!   `config().owner.number` + `db.data.owner` + flag `isPremium` user +
+//!   `settings.premiumUsers` (salinan `config.js:364-446` yang
 //!   terjangkau `Ctx`).
 
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
@@ -74,7 +74,7 @@ fn target_premium(ctx: &Ctx, target: &str, user: &Value) -> bool {
     }
     let nomor = phone_of(target);
     ctx.setting_list("premiumUsers").iter().any(|p| {
-        p.as_str().map_or(false, |s| s.split('@').next().unwrap_or(s) == nomor)
+        p.as_str().is_some_and(|s| s.split('@').next().unwrap_or(s) == nomor)
     })
 }
 
@@ -133,10 +133,10 @@ pub fn profile(ctx: Ctx) -> Reply {
 
     let on_wa = ctx
         .sock()
-        .ada_whatsapp(&[phone.clone()])
+        .ada_whatsapp(std::slice::from_ref(&phone))
         .ok()
         .and_then(|v| v.into_iter().next());
-    let exists = on_wa.as_ref().map_or(false, |w| w.ada);
+    let exists = on_wa.as_ref().is_some_and(|w| w.ada);
     let canonical_jid = on_wa
         .as_ref()
         .map(|w| w.jid.clone())
@@ -194,7 +194,7 @@ pub fn profile(ctx: Ctx) -> Reply {
             str::to_string,
         );
     caption.push_str(&format!("- *Nama Asli:* {nama}\n"));
-    if user.get("isRegistered").is_some_and(|v| crate::common::js_truthy_value(v)) {
+    if user.get("isRegistered").is_some_and(crate::common::js_truthy_value) {
         let reg_name = user.get("regName").and_then(Value::as_str).unwrap_or("");
         let reg_age = user.get("regAge").map(|v| v.to_string()).unwrap_or_default();
         let reg_gender = user.get("regGender").and_then(Value::as_str).unwrap_or("");
@@ -213,23 +213,21 @@ pub fn profile(ctx: Ctx) -> Reply {
         "🆓 Free User"
     };
     caption.push_str(&format!("- *Status Akun:* {status_akun}\n"));
-    if user.get("isBanned").is_some_and(|v| crate::common::js_truthy_value(v)) {
+    if user.get("isBanned").is_some_and(crate::common::js_truthy_value) {
         caption.push_str("- *Banned:* 🚫 Ya (Tidak bisa akses fitur bot)\n");
     }
-    if let Some(registered_at) = user.get("registeredAt") {
-        if crate::common::js_truthy_value(registered_at) {
+    if let Some(registered_at) = user.get("registeredAt")
+        && crate::common::js_truthy_value(registered_at) {
             let ms = date_ke_ms(registered_at);
             if ms != 0 {
                 let (y, mo, d, _, _, _) = crate::common::jakarta_parts(ms);
                 caption.push_str(&format!("- *Tanggal Terdaftar:* {d:02}/{mo:02}/{y}\n"));
             }
         }
-    }
-    if let Some(clan) = user.get("clanId").and_then(Value::as_str) {
-        if !clan.is_empty() {
+    if let Some(clan) = user.get("clanId").and_then(Value::as_str)
+        && !clan.is_empty() {
             caption.push_str(&format!("- *Klan / Guild:* {clan}\n"));
         }
-    }
     let spouse = user
         .get("rpg")
         .and_then(|r| r.get("spouse"))
@@ -322,7 +320,7 @@ pub fn profile(ctx: Ctx) -> Reply {
     let inventory = user.get("inventory").and_then(Value::as_object);
     if let Some(inv) = inventory {
         let items: Vec<(&String, &Value)> =
-            inv.iter().filter(|(_, qty)| qty.as_i64().map_or(false, |q| q > 0)).collect();
+            inv.iter().filter(|(_, qty)| qty.as_i64().is_some_and(|q| q > 0)).collect();
         if !items.is_empty() {
             caption.push_str("\n*〔 🎒 ISI INVENTORY 〕*\n");
             caption.push_str("Barang-barang yang berhasil kakak kumpulkan:\n");
@@ -341,15 +339,14 @@ pub fn profile(ctx: Ctx) -> Reply {
     }
 
     let unlocked = user.get("unlockedFeatures").and_then(Value::as_array);
-    if let Some(list) = unlocked {
-        if !list.is_empty() {
+    if let Some(list) = unlocked
+        && !list.is_empty() {
             caption.push_str("\n*〔 🔓 FITUR PREMIUM TERBUKA 〕*\n");
             caption.push_str("Fitur eksklusif yang sudah kakak beli secara permanen:\n");
             for f in list {
                 caption.push_str(&format!("- *{}*\n", f.as_str().unwrap_or("")));
             }
         }
-    }
 
     let mut mentions = vec![target.clone()];
     if let Some(s) = &spouse {

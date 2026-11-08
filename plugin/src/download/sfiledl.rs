@@ -129,12 +129,10 @@ enum ResolveFailure {
 /// `neoxr` (`src/capabilities/sfile.js:125-141`). `aggregator.hit` melewati
 /// aggregator tanpa request bila key kosong.
 fn resolve_sfile(http: &dyn HttpGet, url: &str, apikey: &str) -> Result<SfileData, ResolveFailure> {
-    match oktz_scraper::sfiledl::sfile(http, url) {
-        Ok(body) => match normalize_sfile(&body) {
-            Ok(data) => return Ok(data),
-            Err(()) => {}
-        },
-        Err(_) => {}
+    if let Ok(body) = oktz_scraper::sfiledl::sfile(http, url)
+        && let Ok(data) = normalize_sfile(&body)
+    {
+        return Ok(data);
     }
 
     if apikey.is_empty() {

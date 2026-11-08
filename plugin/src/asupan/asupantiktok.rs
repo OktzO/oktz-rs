@@ -20,12 +20,6 @@ const USERNAMES: &[&str] = &[
     "shiraishi.ito", "itsceceh", "senpai_cj7",
 ];
 
-pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "📺 *ᴀsᴜᴘᴀɴᴛɪᴋᴛᴏᴋ*\n\n> Video TikTok dari username random atau spesifik\n\n`{prefix}asupantiktok [username]`"
-    )
-}
-
 #[plugin(
     name = "asupantiktok",
     alias = ["tiktokasupan", "ttasupan"],

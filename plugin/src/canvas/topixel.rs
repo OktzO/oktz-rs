@@ -58,11 +58,11 @@ pub(crate) fn parse_number(s: &str) -> Option<f64> {
         Some((b, p)) => (b, Some(p)),
         None => (mantissa, None),
     };
-    if bulat.is_empty() && pecahan.map_or(true, str::is_empty) {
+    if bulat.is_empty() && pecahan.is_none_or(str::is_empty) {
         return None;
     }
     let digit_ok = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
-    if !digit_ok(bulat) || !pecahan.map_or(true, digit_ok) {
+    if !digit_ok(bulat) || !pecahan.is_none_or(digit_ok) {
         return None;
     }
     let exp: Option<i32> = match eksponen {

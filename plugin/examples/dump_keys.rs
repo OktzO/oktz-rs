@@ -5,7 +5,6 @@ use std::io::Write;
 // Memaksa crate plugin di-link agar `linkme::distributed_slice` dari
 // `#[plugin]` ikut terkumpul ke registry.
 extern crate oktz_plugins;
-use oktz_plugins as _;
 
 fn main() {
     let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();

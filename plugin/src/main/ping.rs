@@ -305,6 +305,10 @@ fn caption(ping_ms: u128, bot_uptime: u64, data: &str) -> String {
     let up_bot = fmt_up(bot_uptime);
     let node = "N/A";
     let v8 = "N/A";
+    let platform = platform();
+    let l1 = format!("{:.2}", load[0]);
+    let l2 = format!("{:.2}", load[1]);
+    let l3 = format!("{:.2}", load[2]);
 
     format!(
         "🏓 *PONG!* ({ping_ms}ms)\n\n\
@@ -334,10 +338,6 @@ fn caption(ping_ms: u128, bot_uptime: u64, data: &str) -> String {
          > ◦ *Uptime Bot:* {up_bot}\n\n\
          Sistem berjalan stabil dan menyelesaikan kalkulasi dalam waktu eksekusi *{ping_ms}ms*\n{data}",
         model = cpu_model.trim(),
-        platform = platform(),
-        l1 = format!("{:.2}", load[0]),
-        l2 = format!("{:.2}", load[1]),
-        l3 = format!("{:.2}", load[2]),
         total_ram = fmt_size(total_mem),
         used_ram = fmt_size(used_mem),
         free_ram = fmt_size(free_mem),

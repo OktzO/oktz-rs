@@ -59,7 +59,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use oktz_plugin_api::find;
-    use oktz_plugin_api::{IncomingKind, IncomingMedia, QuotedKind, QuotedMessage};
+    use oktz_plugin_api::IncomingMedia;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";

@@ -12,7 +12,7 @@ use oktz_plugin_api::registry::{CardHeader, CardList, CardRow, CardSection, Inte
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 
 /// Satu variant allmenu (`setallmenu.js:19-44`).
-struct Variant {
+pub(crate) struct Variant {
     id: i64,
     key: &'static str,
     name: &'static str,

@@ -44,6 +44,7 @@ pub(crate) const LAGU_TIDAK_DITEMUKAN: &str = "Lagu tidak ditemukan di YT Music"
 pub(crate) const VIDEO_TIDAK_DITEMUKAN: &str = "Video tidak ditemukan";
 
 /// `play2.js:281-285` — regex ID video; pesan untuk ID yang tidak ketemu.
+#[cfg(test)]
 pub(crate) const URL_TIDAK_VALID: &str = "URL YouTube tidak valid";
 
 /// `play2.js:295` / `:308` / `:327` / `:345` — pesan savetube; rantai resolver
@@ -77,7 +78,7 @@ const MAX_BASE64_AUDIO_BYTES: usize = 8 * 1024 * 1024;
 
 /// `play2.js:104` — `parseLrcTimestamp`. Menolak `seconds >= 60`.
 pub(crate) fn parse_lrc_timestamp(menit: f64, detik: f64, pecahan: Option<&str>) -> Option<f64> {
-    if !menit.is_finite() || !detik.is_finite() || detik < 0.0 || detik >= 60.0 {
+    if !menit.is_finite() || !detik.is_finite() || !(0.0..60.0).contains(&detik) {
         return None;
     }
     let milidetik = match pecahan {
@@ -292,6 +293,7 @@ pub(crate) fn looks_like_youtube_url(text: &str) -> bool {
 
 /// `(?:v=|shorts\/|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})` (`play2.js:1010`)
 /// — kejadian pertama di URL, lalu tepat 11 karakter.
+#[cfg(test)]
 pub(crate) fn video_id_dari(url: &str) -> Option<String> {
     let awalan = ["v=", "shorts/", "youtu.be/", "embed/"];
     let mut kandidat: Option<(usize, &str)> = None;

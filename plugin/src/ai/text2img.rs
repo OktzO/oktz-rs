@@ -112,12 +112,6 @@ mod tests {
                 seen: Mutex::new(Vec::new()),
             })
         }
-        fn offline() -> Arc<Stub> {
-            Arc::new(Stub {
-                resp: None,
-                seen: Mutex::new(Vec::new()),
-            })
-        }
         fn respond(&self) -> Result<HttpResponse, HttpError> {
             let Some(text) = &self.resp else {
                 return Err(oktz_plugin_api::HttpError {

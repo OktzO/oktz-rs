@@ -98,12 +98,6 @@ mod tests {
     }
 
     impl HttpStub {
-        fn urutan(daftar: Vec<(u16, &str)>) -> Arc<HttpStub> {
-            Arc::new(HttpStub {
-                balasan: Mutex::new(daftar.into_iter().map(|(s, t)| (s, t.to_string())).collect()),
-                hitung: Mutex::new(0),
-            })
-        }
         fn offline() -> Arc<HttpStub> {
             Arc::new(HttpStub::default())
         }

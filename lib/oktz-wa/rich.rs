@@ -190,7 +190,6 @@ fn rich_with_unified(
             data: Some(unified_bytes(response_id, sections)),
         })),
         context_info: MessageField::some(ci),
-        ..Default::default()
     }
 }
 
@@ -301,7 +300,7 @@ fn v2_sections(input: &RichV2) -> Vec<serde_json::Value> {
         .heading
         .as_deref()
         .filter(|h| !h.is_empty())
-        .or_else(|| (!input.judul.is_empty()).then(|| input.judul.as_str()));
+        .or_else(|| (!input.judul.is_empty()).then_some(input.judul.as_str()));
     if let Some(h) = heading {
         sections.push(text_section(h));
     }
@@ -482,7 +481,6 @@ fn prepared_outer(response_id: &str, disclaimer: Option<&str>) -> MessageContext
         use_case: Some(BotSignatureUseCase::WA_BOT_MSG),
         signature: Some(secret_32()),
         certificate_chain: vec![secret_32(), secret_32()],
-        ..Default::default()
     };
     MessageContextInfo {
         bot_metadata: fld(Some(BotMetadata {

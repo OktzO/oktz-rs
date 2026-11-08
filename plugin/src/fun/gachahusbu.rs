@@ -400,8 +400,14 @@ const EVENTS: &[EventDef] = &[
         text: "🍀 Rezeki nomplok! Kamu dapat uang tak terduga." },
 ];
 
+/// Opsi menu: label + id aksi.
+type OpsiMenu = (&'static str, &'static str);
+
+/// Menu: key, judul, daftar opsi.
+type Menu = (&'static str, &'static str, &'static [OpsiMenu]);
+
 /// `MENUS` (`gachahusbu.js:298-322`).
-const MENUS: [(&str, &str, &[(&str, &str)]); 19] = [
+const MENUS: [Menu; 19] = [
     (
         "menu_jalanjalan",
         "🚶 Jalan-jalan ke...",

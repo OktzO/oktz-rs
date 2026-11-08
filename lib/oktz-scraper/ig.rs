@@ -229,10 +229,9 @@ fn igdl(http: &dyn HttpGet, url: &str) -> Value {
 pub fn instagram_download(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     let data = igdl(http, url);
     let gagal = !data.get("status").is_some_and(truthy)
-        || !data
+        || data
             .get("result")
-            .and_then(Value::as_array)
-            .is_some_and(|a| !a.is_empty());
+            .and_then(Value::as_array).is_none_or(|a| a.is_empty());
     if gagal {
         return Err(HttpError {
             message: GAGAL.to_string(),

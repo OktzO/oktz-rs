@@ -4,6 +4,7 @@
 //! di sini: dia butuh kemampuan yang tidak ada di registry plugin (lihat
 //! laporan batch E1).
 
+#[allow(clippy::module_inception)] // struktur folder mengikuti plugin JS
 pub mod ai;
 pub mod aiassist;
 #[path = "anime-gen.rs"]

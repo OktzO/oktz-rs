@@ -44,6 +44,8 @@ fn ya_tidak(v: bool) -> &'static str {
 }
 
 /// Kartu info plugin `searchplugin.js:133-151`.
+// Parameter mengikuti field metadata plugin di JS; kartu tetap mirroring `plugin.info`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn kartu_info(
     nama: &str,
     alias: &[String],

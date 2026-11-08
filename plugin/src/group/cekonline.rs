@@ -50,9 +50,8 @@ fn info_grup(subject: &str, total: usize, online: usize) -> String {
 /// `recording` → `🎤`.
 fn member_online(members: &[(String, bool, &str)]) -> String {
     let mut text = String::from("╭┈┈⬡「 🟢 *ᴍᴇᴍʙᴇʀ ᴏɴʟɪɴᴇ* 」\n");
-    let mut count = 0usize;
-    for (number, is_admin, ikon) in members {
-        if count >= 50 {
+    for (i, (number, is_admin, ikon)) in members.iter().enumerate() {
+        if i >= 50 {
             text.push_str(&format!(
                 "┃ ... dan {} member lainnya\n",
                 members.len() - 50
@@ -61,7 +60,6 @@ fn member_online(members: &[(String, bool, &str)]) -> String {
         }
         let admin_badge = if *is_admin { " 👑" } else { "" };
         text.push_str(&format!("┃ {ikon} @{number}{admin_badge}\n"));
-        count += 1;
     }
     text.push_str("╰┈┈⬡\n\n");
     text.push_str("> 🟢 Online | ⌨️ Mengetik | 🎤 Rekam Audio");

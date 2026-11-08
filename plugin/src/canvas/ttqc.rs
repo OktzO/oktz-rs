@@ -82,15 +82,13 @@ pub fn ttqc(ctx: Ctx) -> Reply {
     let _target_jid = ctx.sender.clone();
 
     // Reply pesan teks: pakai teks quote kalau argumen kosong (`ttqc.js:247-251`).
-    if let Some(q) = ctx.quoted() {
-        if !q.text.is_empty() {
-            if text.is_empty() {
+    if let Some(q) = ctx.quoted()
+        && !q.text.is_empty()
+            && text.is_empty() {
                 text = q.text.clone();
             }
             // `m.quoted.pushName` tidak ada di `QuotedMessage`; nama diambil
             // dari `sock.getName`, gagal → "User".
-        }
-    }
 
     if text.is_empty() {
         return Reply::text(pakai(&ctx.prefix));

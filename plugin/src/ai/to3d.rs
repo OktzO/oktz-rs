@@ -93,12 +93,6 @@ mod tests {
     }
 
     impl HttpStub {
-        fn urutan(daftar: Vec<(u16, &str)>) -> Arc<HttpStub> {
-            Arc::new(HttpStub {
-                balasan: Mutex::new(daftar.into_iter().map(|(s, t)| (s, t.to_string())).collect()),
-                hitung: Mutex::new(0),
-            })
-        }
         fn offline() -> Arc<HttpStub> {
             Arc::new(HttpStub::default())
         }
@@ -125,7 +119,7 @@ mod tests {
     }
 
     impl HttpGet for HttpStub {
-        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+        fn call(&self, _: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
             self.jawaban()
         }
         fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {

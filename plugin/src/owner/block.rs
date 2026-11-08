@@ -101,7 +101,7 @@ pub fn block(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{
-        AdaWhatsapp, AksiPeserta, PluginEntry, QuotedKind, QuotedMessage, Sock, SockError, find,
+        AdaWhatsapp, AksiPeserta, PluginEntry, QuotedMessage, Sock, SockError, find,
     };
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
@@ -178,20 +178,6 @@ mod tests {
         }
         fn hapus_foto_bot(&self) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
-        }
-    }
-
-    fn quote_of(sender: &str) -> QuotedMessage {
-        QuotedMessage {
-            id: "Q1".into(),
-            sender: sender.into(),
-            chat: "628111@s.whatsapp.net".into(),
-            text: String::new(),
-            kind: QuotedKind::Text,
-            mimetype: None,
-            file_name: None,
-            from_me: false,
-            timestamp: 0,
         }
     }
 

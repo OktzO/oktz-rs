@@ -91,7 +91,6 @@ mod tests {
         berkas::{Berkas, BerkasPalsu},
         HttpBody, HttpError, HttpGet, HttpResponse,
     };
-    use serde_json::json;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug, Default)]

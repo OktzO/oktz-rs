@@ -637,7 +637,7 @@ mod tests {
             Some("❌ Gagal mengirim pack sekaligus, mencoba mengirim satu per satu...")
         );
         assert_eq!(
-            stiker_dari(&list),
+            stiker_dari(list),
             vec![
                 "https://cdn.stickerly/1.webp",
                 "https://cdn.stickerly/2.webp",
@@ -658,7 +658,7 @@ mod tests {
             panic!("harus Sequence, dapat {:?}", r.without_mutations());
         };
         assert_eq!(list.len(), 23);
-        let stiker = stiker_dari(&list);
+        let stiker = stiker_dari(list);
         assert_eq!(stiker.len(), 20);
         assert_eq!(stiker[19], "https://cdn.stickerly/20.webp");
         assert_eq!(list[22].text_body(), Some("✅ Berhasil mengirim 20 sticker."));
@@ -782,7 +782,7 @@ mod tests {
         };
         assert_eq!(list.len(), 5);
         assert_eq!(
-            stiker_dari(&list),
+            stiker_dari(list),
             vec![
                 "https://cdn.stickerly/1.webp",
                 "https://cdn.stickerly/2.webp",

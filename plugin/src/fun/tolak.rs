@@ -78,12 +78,11 @@ pub fn tolak(ctx: Ctx) -> Reply {
         // Sesi dengan target = pengirim di chat ini.
         let map = ctx.sessions.lock().unwrap_or_else(|e| e.into_inner());
         map.iter()
-            .filter(|(k, v)| {
+            .find(|(k, v)| {
                 k.starts_with(&format!("{SESSION_PREFIX}:"))
                     && v.get("target").and_then(Value::as_str) == Some(ctx.sender.as_str())
                     && v.get("chat").and_then(Value::as_str) == Some(ctx.chat.as_str())
             })
-            .next()
             .and_then(|(_, v)| v.get("shooter").and_then(Value::as_str))
             .map(str::to_string)
     };
@@ -140,7 +139,7 @@ pub fn tolak(ctx: Ctx) -> Reply {
     ctx.session_take(&session_key(&ctx.chat, &ctx.sender));
 
     Reply::Text {
-        text: tolak_text(&shooter_num, &jid_number(&ctx.sender)),
+        text: tolak_text(&shooter_num, jid_number(&ctx.sender)),
         mentions: vec![ctx.sender.clone(), shooter_jid],
     }
     .mutating(mutations)

@@ -150,7 +150,7 @@ pub fn sulap_reply(ctx: Ctx) -> Option<Reply> {
 
     // `sock.groupParticipantsUpdate(m.chat, [targetJid], 'remove')`; kegagalan
     // jatuh ke `catch` JS: "😅 Sulapnya gagal...".
-    if let Err(e) = ctx.sock().ubah_peserta(&ctx.chat, &[target_jid.clone()], AksiPeserta::Keluar) {
+    if let Err(e) = ctx.sock().ubah_peserta(&ctx.chat, std::slice::from_ref(&target_jid), AksiPeserta::Keluar) {
         return Some(Reply::text(format!(
             "😅 Sulapnya gagal...\n\n> {}",
             e.pesan
@@ -398,7 +398,7 @@ mod tests {
         match &list[1] {
             Reply::Text { text, mentions } => {
                 let num = jid_number(ME);
-                assert!(text.contains(format!("🎯 @628222 telah menghilang!").as_str()), "{text}");
+                assert!(text.contains("🎯 @628222 telah menghilang!"), "{text}");
                 assert!(text.contains(format!("🎩 Pesulap: @{num}").as_str()), "{text}");
                 assert!(text.ends_with("> _Pertunjukan selesai~_ ✨"), "{text}");
                 assert_eq!(mentions, &[TARGET.to_string(), ME.to_string()]);

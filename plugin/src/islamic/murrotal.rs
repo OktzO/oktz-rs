@@ -16,8 +16,10 @@ use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 /// Satu entri surah dari halaman murottal.
 #[derive(Clone, Debug)]
 struct SurahItem {
+    #[allow(dead_code)] // dipakai test saja
     no: u32,
     surah: String,
+    #[allow(dead_code)] // dipakai test saja
     arti: String,
     audio: String,
 }

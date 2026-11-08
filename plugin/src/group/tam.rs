@@ -43,7 +43,7 @@ fn option(rank: usize, name: &str, juara: bool) -> String {
 pub(crate) fn limit_dari(text: &str) -> usize {
     let parsed = crate::common::parse_int(text).unwrap_or(0);
     let nilai = if parsed == 0 { 10 } else { parsed };
-    nilai.max(1).min(MAKS) as usize
+    nilai.clamp(1, MAKS) as usize
 }
 
 /// `db.getGroup(m.chat) || {}` → `group.name || "Grup"` (`tam.js:30`).

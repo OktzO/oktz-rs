@@ -23,10 +23,8 @@ const POLL_INTERVAL_MS: u64 = 3000;
 const POLL_TIMEOUT_MS: u64 = 60_000;
 const MAX_TRANSIEN: u32 = 5;
 
-fn cara_pakai(prefix: &str) -> String {
-    format!(
-        "✨ *FITUR HD ENHANCE V3 (UNBLUR)*\n\nFitur canggih untuk memperbaiki gambar yang buram (blur) menjadi jelas dan tajam kembali menggunakan kecerdasan buatan!\n\n*Cara Penggunaan:*\n- Kirim gambar dan tambahkan pesan *.hd3*\n- Atau balas (reply) gambar yang sudah terkirim dengan perintah *.hd3*\n\n_Proses rendering mungkin memerlukan waktu beberapa saat._"
-    )
+fn cara_pakai(_prefix: &str) -> String {
+    "✨ *FITUR HD ENHANCE V3 (UNBLUR)*\n\nFitur canggih untuk memperbaiki gambar yang buram (blur) menjadi jelas dan tajam kembali menggunakan kecerdasan buatan!\n\n*Cara Penggunaan:*\n- Kirim gambar dan tambahkan pesan *.hd3*\n- Atau balas (reply) gambar yang sudah terkirim dengan perintah *.hd3*\n\n_Proses rendering mungkin memerlukan waktu beberapa saat._".to_string()
 }
 
 fn gagal_unduh() -> &'static str {

@@ -3,6 +3,7 @@
 use oktz_plugin_api::{Ctx, Reply, Tombol, plugin};
 use serde_json::Value;
 
+#[allow(dead_code)] // padanan `handler.help` JS; dipakai plugin lain di batch ini
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🏆 *Lᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Lihat leaderboard global (koin, exp, energi)\n\n`{prefix}leaderboard`",
@@ -17,6 +18,7 @@ struct UserRow {
     exp: i64,
     energi: i64,
     level: i64,
+    #[allow(dead_code)] // data `name` JS masih disimpan; dipakai plugin lain di batch ini
     name: String,
 }
 
@@ -40,7 +42,7 @@ fn format_number(num: i64) -> String {
     let bytes = s.as_bytes();
     let len = bytes.len();
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
+        if i > 0 && (len - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(*b as char);
@@ -138,9 +140,7 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
 
     let users = load_users(&ctx);
     if users.is_empty() {
-        return Reply::text(format!(
-            "📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database."
-        ));
+        return Reply::text("📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database.".to_string());
     }
 
     let sender_jid = ctx.sender.split('@').next().unwrap_or(&ctx.sender).to_string();

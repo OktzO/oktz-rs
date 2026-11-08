@@ -35,6 +35,7 @@ pub(crate) fn gagal_posting(pesan: &str) -> String {
 }
 
 /// `swgcv2.js:133`.
+#[allow(dead_code)] // helper JS `swgcv2.js:133`; relayMessage belum ada
 pub(crate) fn berhasil(nama_grup: &str) -> String {
     format!("✅ Berhasil up sw (V2) ke grup {nama_grup}")
 }

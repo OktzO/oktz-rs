@@ -60,6 +60,7 @@ pub(crate) fn mengunduh(nama: &str, jumlah: usize) -> String {
 pub(crate) const UNDUH_GAGAL: &str = "── .✦ ──\n\n> Gagal mendownload sticker .☘︎ ݁˖";
 
 /// `stickerpack.js:169` — pack gagal, kirim satu per satu.
+#[cfg(test)]
 pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖";
 
 /// `stickerpack.js:201` — berhasil mengirim sebagian sticker.
@@ -70,6 +71,7 @@ pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
 }
 
 /// `stickerpack.js:205` — gagal mengirim sticker.
+#[cfg(test)]
 pub(crate) const KIRIM_GAGAL: &str = "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖";
 
 /// `stickerpack.js:29-49` — daftar hasil pencarian.

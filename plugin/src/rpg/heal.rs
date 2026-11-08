@@ -154,6 +154,7 @@ pub(crate) fn random_rare_frame() -> &'static str {
 ///
 /// `thousands_id` di `tools::kalkulatormbg` memakai `abs()`, jadi angka
 /// negatif kehilangan tanda minus; helper ini menutup celah itu.
+#[allow(dead_code)] // dipakai plugin rpg lain di batch ini
 pub(crate) fn idr(n: i64) -> String {
     let digits = n.unsigned_abs().to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
@@ -174,12 +175,14 @@ pub(crate) fn idr(n: i64) -> String {
 ///
 /// Yang tidak ikut: `title`, `description`, dan `jpegThumbnail` — Rust tidak
 /// punya varian `extendedTextMessage` dengan preview.
+#[allow(dead_code)] // dipakai plugin rpg lain di batch ini
 pub(crate) fn preview_caption(ctx: &Ctx, text: &str) -> String {
     format!("{} {}", ctx.config().info.website, text)
 }
 
 /// Semua teks balasan, urut. `Reply::Sequence` dipecah jadi beberapa teks;
 /// balasan biasa cukup satu.
+#[allow(dead_code)] // dipakai plugin rpg lain di batch ini
 pub(crate) fn reply_texts(reply: &Reply) -> Vec<String> {
     match reply.without_mutations() {
         Reply::Sequence(list) => list.iter().flat_map(reply_texts).collect(),

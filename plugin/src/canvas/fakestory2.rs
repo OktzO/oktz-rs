@@ -67,48 +67,11 @@ pub fn fakestory2(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{
-        HttpBody, HttpCall, HttpError, HttpResponse, IncomingMedia, MediaError, MediaFetch,
-        MediaOrigin,
+        IncomingMedia, MediaError, MediaFetch, MediaOrigin,
     };
-    use serde_json::Value;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
-
-    #[derive(Debug, Default)]
-    struct StubHttp {
-        pp: Option<Vec<u8>>,
-    }
-
-    impl oktz_plugin_api::HttpGet for StubHttp {
-        fn call(&self, _: &HttpCall) -> Result<HttpResponse, HttpError> {
-            unreachable!("cuma get")
-        }
-        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            let isi = if url.contains("pp.example") {
-                self.pp.clone().unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(isi),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
-        }
-        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unreachable!()
-        }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unreachable!()
-        }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
-            unreachable!()
-        }
-    }
 
     #[derive(Debug)]
     struct Unduh(Result<Vec<u8>, MediaError>);

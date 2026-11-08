@@ -12,7 +12,6 @@
 //! menentukan nama berkas untuk audio ini, dan `Reply::Audio` juga tidak punya
 //! kolom itu.
 
-use super::ALIAS;
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 
@@ -21,6 +20,7 @@ pub(crate) const DAFTAR: &str =
     "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
 
 /// `music.js:44` — gagal mengambil lagu.
+#[cfg(test)]
 pub(crate) const GAGAL: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Musik tidak ditemukan atau gagal diambil.";
 
 /// `music.js:32` — URL lagu ke-`n`.
@@ -84,6 +84,7 @@ pub fn music(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::media::ALIAS;
 
     fn ctx_of(command: &str) -> Ctx {
         Ctx {

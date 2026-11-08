@@ -9,6 +9,7 @@
 pub mod music;
 
 /// Semua alias `music1`..`music52` (`music.js:1-4`).
+#[cfg(test)]
 pub(crate) const ALIAS: [&str; 52] = [
     "music1", "music2", "music3", "music4", "music5", "music6", "music7", "music8",
     "music9", "music10", "music11", "music12", "music13", "music14", "music15", "music16",

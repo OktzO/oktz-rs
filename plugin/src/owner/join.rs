@@ -46,6 +46,7 @@ pub(crate) fn tanpa_link() -> String {
 }
 
 /// `join.js:120-121`.
+#[allow(dead_code)] // helper JS `join.js:120-121`; cek member belum ada
 pub(crate) fn sudah_member(subjek: &str) -> String {
     format!("❌ *Sudah Menjadi Member*\n\n> Bot sudah join di grup *{subjek}*")
 }
@@ -185,11 +186,10 @@ pub fn join(ctx: Ctx) -> Reply {
     // `m.args.join(" ").trim()` (`join.js:79`).
     let input = ctx.args.join(" ").trim().to_string();
     let mut sumber = input;
-    if sumber.is_empty() {
-        if let Some(q) = ctx.quoted() {
+    if sumber.is_empty()
+        && let Some(q) = ctx.quoted() {
             sumber = q.text.clone();
         }
-    }
 
     if sumber.is_empty() {
         return Reply::text(bantuan(&ctx.prefix));

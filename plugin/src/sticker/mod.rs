@@ -21,6 +21,9 @@ pub mod pinpack;
 pub mod qc;
 pub mod smeme;
 pub mod smemevid;
+// Folder `sticker/` meniru layout `plugins/sticker/` di JS, jadi modul
+// `sticker` di dalamnya memang sengaja bernama sama dengan folder induknya.
+#[allow(clippy::module_inception)]
 pub mod sticker;
 pub mod stickerly;
 pub mod stickerpack;

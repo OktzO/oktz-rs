@@ -110,13 +110,12 @@ pub fn load_identity<I: IntoIterator<Item = String>>(
     let dir = settings.parent().unwrap_or_else(|| std::path::Path::new("."));
 
     // owner.json
-    if let Ok(store) = JsonStore::open(dir.join("owner.json")) {
-        if let Some(arr) = store.all().as_array() {
+    if let Ok(store) = JsonStore::open(dir.join("owner.json"))
+        && let Some(arr) = store.all().as_array() {
             for v in arr {
                 if let Some(s) = v.as_str() { owners_set.insert(s.to_string()); }
             }
         }
-    }
 
     // premium.json / partner.json — bentuk objek {premium:[...]} atau array langsung.
     for (file, set) in [("premium.json", &mut premium_set), ("partner.json", &mut partner_set)] {
@@ -131,11 +130,10 @@ pub fn load_identity<I: IntoIterator<Item = String>>(
                 for v in arr {
                     if let Some(s) = v.as_str() {
                         set.insert(s.to_string());
-                    } else if let Some(obj) = v.as_object() {
-                        if let Some(s) = obj.get("jid").or_else(|| obj.get("number")).or_else(|| obj.get("id")).and_then(serde_json::Value::as_str) {
+                    } else if let Some(obj) = v.as_object()
+                        && let Some(s) = obj.get("jid").or_else(|| obj.get("number")).or_else(|| obj.get("id")).and_then(serde_json::Value::as_str) {
                             set.insert(s.to_string());
                         }
-                    }
                 }
             }
         }
@@ -311,7 +309,7 @@ impl PipelineWiring {
         t: &oktz_store::turso::TursoStore,
         conn: &libsql::Connection,
     ) -> anyhow::Result<()> {
-        let turso_ada = t.has_any_store(&conn).await?;
+        let turso_ada = t.has_any_store(conn).await?;
         let lokal_terisi = self
             .ctx
             .snapshot()
@@ -803,7 +801,7 @@ pub async fn mirror_sqlite_table(
 
     // ponytail: baca kolom dinamis via pragma + JSON1 (bawaan sqlite), row
     // diserialisasi `json_object`. Upgrade path: skema kolom asli per tabel.
-    let cols: Vec<String> = sql_query(&format!(
+    let cols: Vec<String> = sql_query(format!(
         "SELECT name FROM pragma_table_info('{table}')"
     ))
     .load::<Kolom>(&mut conn_sqlite)
@@ -826,7 +824,7 @@ pub async fn mirror_sqlite_table(
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let rows: Vec<BarisJson> = sql_query(&format!(
+    let rows: Vec<BarisJson> = sql_query(format!(
         "SELECT rowid, json_object({json_cols}) AS j FROM \"{table}\" ORDER BY rowid"
     ))
     .load::<BarisJson>(&mut conn_sqlite)

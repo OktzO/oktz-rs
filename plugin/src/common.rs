@@ -10,28 +10,6 @@ use oktz_plugin_api::{Ctx, PluginMeta, Reply, all_plugins};
 
 use rand::Rng as _;
 
-macro_rules! cek_plugin {
-    ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
-     $example:literal, $label:literal,
-     [$t0:literal, $t1:literal, $t2:literal, $t3:literal, $t4:literal]) => {
-        #[plugin(
-                    name = $name,
-                    alias = $alias,
-                    category = "cek",
-                    description = $desc,
-                    usage = $usage,
-                    example = $example,
-                    cooldown = 5,
-                    energi = 0,
-                    is_private = false
-                )]
-        pub fn $fn_name(ctx: Ctx) -> Reply {
-            cek_reply(&ctx, percent_101(), $label, [$t0, $t1, $t2, $t3, $t4])
-        }
-    };
-}
-
-
 macro_rules! data_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
      $example:literal, $data:expr) => {

@@ -441,7 +441,7 @@ pub(crate) fn ambil_media(ctx: &Ctx) -> Media {
 
 /// `gura.js:89` — kartu catch: template error + reaksi `☢`.
 pub(crate) fn gagal(ctx: &Ctx) -> Reply {
-    Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+    Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
 #[plugin(
@@ -476,7 +476,7 @@ pub fn gura(ctx: Ctx) -> Reply {
         return gagal(&ctx);
     };
 
-    let Ok(res) = ctx.http.call(&HttpCall::get(&api_url(&img_url))) else {
+    let Ok(res) = ctx.http.call(&HttpCall::get(api_url(&img_url))) else {
         return gagal(&ctx);
     };
     // `if (!res.ok) throw` (`gura.js:50`).

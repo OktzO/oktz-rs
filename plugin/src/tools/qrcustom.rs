@@ -40,8 +40,8 @@ fn tabel_gf() -> &'static (Vec<u8>, Vec<u8>) {
         let mut exp = vec![0u8; 512];
         let mut log = vec![0u8; 256];
         let mut x: u16 = 1;
-        for i in 0..255 {
-            exp[i] = x as u8;
+        for (i, e) in exp.iter_mut().take(255).enumerate() {
+            *e = x as u8;
             log[x as usize] = i as u8;
             x <<= 1;
             if x & 0x100 != 0 {
@@ -246,9 +246,9 @@ fn pola_finder(m: &mut Matriks) {
                 if col as i32 + c < 0 || size as i32 <= col as i32 + c {
                     continue;
                 }
-                let gelap = (r >= 0 && r <= 6 && (c == 0 || c == 6))
-                    || (c >= 0 && c <= 6 && (r == 0 || r == 6))
-                    || (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+                let gelap = ((0..=6).contains(&r) && (c == 0 || c == 6))
+                    || ((0..=6).contains(&c) && (r == 0 || r == 6))
+                    || ((2..=4).contains(&r) && (2..=4).contains(&c));
                 m.set_reserved(row as i32 + r, col as i32 + c, gelap);
             }
         }
@@ -275,7 +275,7 @@ fn koordinat_alignment(versi: usize) -> Vec<usize> {
     let intervals = if size == 145 {
         26
     } else {
-        ((size - 13)).div_ceil(2 * pos_count - 2) * 2
+        (size - 13).div_ceil(2 * pos_count - 2) * 2
     };
     let mut pos = vec![size - 7];
     for i in 1..pos_count - 1 {
@@ -389,14 +389,14 @@ fn pasang_data(m: &mut Matriks, data: &[u8]) {
 /// Nilai mask pada posisi (i, j) (`mask-pattern.js:156-171`).
 fn nilai_mask(p: usize, i: usize, j: usize) -> bool {
     match p {
-        0 => (i + j) % 2 == 0,
-        1 => i % 2 == 0,
-        2 => j % 3 == 0,
-        3 => (i + j) % 3 == 0,
-        4 => (i / 2 + j / 3) % 2 == 0,
+        0 => (i + j).is_multiple_of(2),
+        1 => i.is_multiple_of(2),
+        2 => j.is_multiple_of(3),
+        3 => (i + j).is_multiple_of(3),
+        4 => (i / 2 + j / 3).is_multiple_of(2),
         5 => (i * j) % 2 + (i * j) % 3 == 0,
-        6 => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
-        7 => ((i * j) % 3 + (i + j) % 2) % 2 == 0,
+        6 => ((i * j) % 2 + (i * j) % 3).is_multiple_of(2),
+        7 => ((i * j) % 3 + (i + j) % 2).is_multiple_of(2),
         _ => false,
     }
 }
@@ -526,7 +526,7 @@ fn mask_terbaik(m: &mut Matriks) -> usize {
 /// `createData` (`qrcode.js:259-316`) — satu segmen BYTE (mode bit 4).
 fn buat_data(versi: usize, data: &[u8]) -> Vec<u8> {
     let mut bits: Vec<bool> = Vec::new();
-    let mut taruh = |v: u32, n: u32, bits: &mut Vec<bool>| {
+    let taruh = |v: u32, n: u32, bits: &mut Vec<bool>| {
         for i in (0..n).rev() {
             bits.push((v >> i) & 1 == 1);
         }
@@ -543,7 +543,7 @@ fn buat_data(versi: usize, data: &[u8]) -> Vec<u8> {
     if bits.len() + 4 <= bit_data {
         taruh(0, 4, &mut bits);
     }
-    while bits.len() % 8 != 0 {
+    while !bits.len().is_multiple_of(8) {
         bits.push(false);
     }
     let sisa_byte = (bit_data - bits.len()) / 8;
@@ -564,10 +564,6 @@ fn buat_data(versi: usize, data: &[u8]) -> Vec<u8> {
         buf.push(b);
     }
     interleave(&buf, versi)
-}
-
-fn siva_kap(s: u16) -> usize {
-    s as usize
 }
 
 /// `createCodewords` (`qrcode.js:325-395`) — bagi blok, hitung EC, interleave.

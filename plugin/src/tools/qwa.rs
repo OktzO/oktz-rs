@@ -195,7 +195,7 @@ pub fn qwa(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{Ctx, QuotedKind, QuotedMessage, Reply as R};
+    use oktz_plugin_api::{Ctx, Reply as R};
 
     const ME: &str = "628111@s.whatsapp.net";
 
@@ -206,20 +206,6 @@ mod tests {
             prefix: ".".into(),
             command: "qwa".into(),
             ..Ctx::default()
-        }
-    }
-
-    fn quoted(text: &str) -> QuotedMessage {
-        QuotedMessage {
-            id: "q1".into(),
-            sender: "628999@s.whatsapp.net".into(),
-            chat: ME.into(),
-            text: text.into(),
-            kind: QuotedKind::Text,
-            mimetype: None,
-            file_name: None,
-            from_me: false,
-            timestamp: 0,
         }
     }
 

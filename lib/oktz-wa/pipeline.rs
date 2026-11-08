@@ -2406,7 +2406,6 @@ pub fn render_reply(
                                 })
                                 .collect(),
                             context_info: MessageField::some(ci),
-                            ..Default::default()
                         },
                     ),
                     ..Default::default()
@@ -2428,11 +2427,9 @@ pub fn render_reply(
                 )
             })?;
             if previous.message_id.is_empty() {
-                return Err(PipelineError::Other(format!(
-                    "Reply::TextQuotedPrevious butuh ID pesan yang baru dikirim; \
+                return Err(PipelineError::Other("Reply::TextQuotedPrevious butuh ID pesan yang baru dikirim; \
                      send_with_result melaporkan ID kosong. Pesan TIDAK dikirim — \
-                     kutipan dengan ID kosong menunjuk pesan yang tidak ada."
-                )));
+                     kutipan dengan ID kosong menunjuk pesan yang tidak ada.".to_string()));
             }
             let quote_prev = QuoteSource {
                 stanza_id: previous.message_id.clone(),
@@ -4330,8 +4327,8 @@ impl Pipeline {
                 // Daftar premium/partner berubah → identity langsung di-refresh,
                 // supaya `.addpremium` berlaku pada pesan berikutnya tanpa restart.
                 for m in &mutations {
-                    if let Mutation::SetSetting { key, .. } = m {
-                        if key == "premiumUsers" || key == "partnerUsers" {
+                    if let Mutation::SetSetting { key, .. } = m
+                        && (key == "premiumUsers" || key == "partnerUsers") {
                             let s = self.ctx.settings_entry();
                             let arr = |k: &str| {
                                 s.get(k).and_then(Value::as_array)
@@ -4340,7 +4337,6 @@ impl Pipeline {
                             };
                             self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
                         }
-                    }
                 }
             }
 
@@ -4894,7 +4890,7 @@ impl Pipeline {
                 };
                 if !url.is_empty() {
                     let caption = format!("👋 Welcome *@{nomor}*");
-                    let mut ci = context_info(&[jid.clone()], None);
+                    let mut ci = context_info(std::slice::from_ref(&jid), None);
                     ci.is_forwarded = Some(true);
                     ci.forwarding_score = Some(9);
                     ci.forwarded_newsletter_message_info =
@@ -6114,8 +6110,10 @@ fn group_number_and_long_number_are_rejected() {
             caption: "ping".into(),
             mentions: Vec::new(),
         };
-        let mut target = ReplyTarget::default();
-        target.sender = "628111@s.whatsapp.net".into();
+        let target = ReplyTarget {
+            sender: "628111@s.whatsapp.net".into(),
+            ..Default::default()
+        };
         let p = render_reply(&reply, &target).unwrap().unwrap().media.unwrap();
         assert!(p.mentions.is_empty(), "media eksplisit tanpa mention: {:?}", p.mentions);
         assert!(p.quote.is_none());
@@ -9161,20 +9159,21 @@ fn a_null_access_field_keeps_the_existing_grant() {
         // menampilkan "<non-teks>"; yang dikunci adalah ISI order-nya.
         let m = inbound_n(".varian", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
-        let terkirim = sender.sent.lock().unwrap();
-        assert_eq!(terkirim.len(), 1, "balasan biasa harus terkirim");
-        let order = terkirim[0]
-            .1
-            .order_message
-            .as_option()
-            .expect("balasan biasa harus lewat varian 9");
-        assert_eq!(order.message.as_deref(), Some("jawaban plugin"));
-        // `options?.mentions || [m?.sender]` (`serialize.js:987`).
-        assert_eq!(
-            order.context_info.as_option().unwrap().mentioned_jid,
-            vec![MEMBER.to_string()]
-        );
-        drop(terkirim);
+        {
+            let terkirim = sender.sent.lock().unwrap();
+            assert_eq!(terkirim.len(), 1, "balasan biasa harus terkirim");
+            let order = terkirim[0]
+                .1
+                .order_message
+                .as_option()
+                .expect("balasan biasa harus lewat varian 9");
+            assert_eq!(order.message.as_deref(), Some("jawaban plugin"));
+            // `options?.mentions || [m?.sender]` (`serialize.js:987`).
+            assert_eq!(
+                order.context_info.as_option().unwrap().mentioned_jid,
+                vec![MEMBER.to_string()]
+            );
+        }
 
         // --- penolakan energi ------------------------------------------
         let plug = TestPlugin::new(0, 0, false);
@@ -9186,22 +9185,24 @@ fn a_null_access_field_keeps_the_existing_grant() {
         // Energi 1 < biaya 5 → ditolak, balasannya tetap lewat dispatcher.
         let m2 = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
         assert_eq!(p2.process(&m2, 2_000).await.unwrap(), Outcome::EnergiDenied);
-        let terkirim = s2.sent.lock().unwrap();
-        assert_eq!(terkirim.len(), 1, "penolakan energi harus balas");
-        let order = terkirim[0]
-            .1
-            .order_message
-            .as_option()
-            .expect("penolakan energi harus lewat varian 9");
-        assert!(
-            order
-                .message
-                .as_deref()
-                .unwrap_or_default()
-                .contains("Energi"),
-            "isi tetap teks energi: {:?}",
-            order.message
-        );
+        {
+            let terkirim = s2.sent.lock().unwrap();
+            assert_eq!(terkirim.len(), 1, "penolakan energi harus balas");
+            let order = terkirim[0]
+                .1
+                .order_message
+                .as_option()
+                .expect("penolakan energi harus lewat varian 9");
+            assert!(
+                order
+                    .message
+                    .as_deref()
+                    .unwrap_or_default()
+                    .contains("Energi"),
+                "isi tetap teks energi: {:?}",
+                order.message
+            );
+        }
 
         // --- teks di dalam reaksi --------------------------------------
         let (p3, s3) = pipeline_for(
@@ -9400,12 +9401,14 @@ fn a_null_access_field_keeps_the_existing_grant() {
         // Pengirim tidak melaporkan ID (`send_with_result` default). Error
         // yang sama — bukan jatuh ke kutipan pemicu: pemicu adalah pesan orang
         // lain, dan mengutipnya berarti thread palsu.
-        let mut target = ReplyTarget::default();
-        target.quote = Some(pemicu());
-        target.previous_sent = Some(SentMessage {
-            message_id: String::new(),
-            message: wa::Message::text("kiriman bot"),
-        });
+        let target = ReplyTarget {
+            quote: Some(pemicu()),
+            previous_sent: Some(SentMessage {
+                message_id: String::new(),
+                message: wa::Message::text("kiriman bot"),
+            }),
+            ..Default::default()
+        };
         let err = render_reply(&reply, &target).unwrap_err();
         assert!(
             err.to_string().contains("TextQuotedPrevious"),

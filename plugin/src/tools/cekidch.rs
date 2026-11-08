@@ -292,9 +292,7 @@ pub fn cekidch(ctx: Ctx) -> Reply {
     // status verifikasi, jadi nilainya selalu "Unverified".
     let ch_verified = status_verifikasi(meta.verification.as_deref());
     let ch_created = format_date(None);
-    let ch_pic = if meta.preview == "https://mmg.whatsapp.net" {
-        "https://files.catbox.moe/lp9tpd.jpg".to_string()
-    } else if meta.preview.is_empty() {
+    let ch_pic = if meta.preview == "https://mmg.whatsapp.net" || meta.preview.is_empty() {
         "https://files.catbox.moe/lp9tpd.jpg".to_string()
     } else {
         meta.preview.clone()

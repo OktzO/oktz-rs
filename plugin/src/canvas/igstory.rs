@@ -135,9 +135,7 @@ mod tests {
         assert_eq!(p.meta.usage, ".igstory [kirim/reply gambar]");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 2);
-        for a in ["igstorypost"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "igstory");
-        }
+        assert_eq!(oktz_plugin_api::find("igstorypost").unwrap().meta.name, "igstory");
     }
 
     #[test]

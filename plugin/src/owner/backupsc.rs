@@ -22,6 +22,7 @@ pub(crate) const MEMPROSES: &str =
     "📦 *ʙᴀᴄᴋᴜᴘ sᴄʀɪᴘᴛ*\n\n> Memproses backup...\n> Mohon tunggu sebentar...";
 
 /// Caption dokumen berhasil `backupsc.js:196-204`.
+#[allow(dead_code)] // helper JS `backupsc.js:196-204`; kirim zip belum ada
 pub(crate) fn caption(nama_zip: &str, ukuran_mb: String, jumlah_berkas: usize, tanggal: &str) -> String {
     format!(
         "✅ *ʙᴀᴄᴋᴜᴘ sᴇʟᴇsᴀɪ*\n\n\
@@ -73,13 +74,6 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             ..Default::default()
         })
-    }
-
-    fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
     }
 
     #[test]

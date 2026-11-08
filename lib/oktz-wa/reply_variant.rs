@@ -167,6 +167,10 @@ pub struct VariantInput<'a> {
 /// jadi tidak bisa jadi `wa::Message` di sini — byte CDN-nya baru ada setelah
 /// `Client::upload`. Pemanggil (= pipeline) yang memutuskan jalur kirim.
 #[derive(Debug)]
+// `Wire` membawa `wa::Message` yang jauh lebih besar dari `PendingMedia`.
+// Boxing akan menambah alokasi pada setiap render balasan dan mengubah API
+// publik crate ini, jadi selisih ukuran dibiarkan.
+#[allow(clippy::large_enum_variant)]
 pub enum VariantRender {
     Wire(wa::Message),
     Media(PendingMedia),

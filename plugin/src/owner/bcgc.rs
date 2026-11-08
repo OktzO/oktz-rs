@@ -20,6 +20,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `bcgc.js:30-48` — `5s`/`2m`/`1h`/`1d` ke milidetik (case-insensitive,
 /// mirip `/^(\d+)(s|m|h|d)$/i`); satuan gabung seperti `15ms` → `None`.
+#[allow(dead_code)] // disalin dari JS `bcgc.js`; dipakai dari test saja
 pub(crate) fn parse_delay(input: &str) -> Option<i64> {
     let mut digits_end = 0;
     for (i, b) in input.bytes().enumerate() {
@@ -46,6 +47,7 @@ pub(crate) fn parse_delay(input: &str) -> Option<i64> {
 
 /// `bcgc.js:50-55` — format milidetik ke teks bahasa Indonesia.
 /// `toFixed(0)` di JS membulatkan (1,5 menit → "2"), bukan memotong.
+#[allow(dead_code)] // disalin dari JS `bcgc.js`; dipakai dari test saja
 pub(crate) fn format_delay(ms: i64) -> String {
     if ms >= 86_400_000 {
         format!("{} hari", (ms as f64 / 86_400_000.0).round())

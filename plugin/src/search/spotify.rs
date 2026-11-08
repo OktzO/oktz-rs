@@ -301,12 +301,6 @@ mod tests {
                 seen: Mutex::new(Vec::new()),
             })
         }
-        fn raw(text: &str) -> Arc<Stub> {
-            Arc::new(Stub {
-                body: Some(text.to_string()),
-                seen: Mutex::new(Vec::new()),
-            })
-        }
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
                 body: None,
@@ -379,8 +373,6 @@ mod tests {
     fn respons(track: Value) -> Value {
         serde_json::json!({ "status": true, "result": [track] })
     }
-
-    const LAGU: &str = r#"{"title":"Grateful","artist":"Neffex","url":"https://open.spotify.com/track/abc","thumbnail":"https://i.scdn.co/cover.jpg","duration":"3:12"}"#;
 
     #[test]
     fn registers_with_the_js_plugin_config() {

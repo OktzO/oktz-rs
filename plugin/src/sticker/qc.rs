@@ -149,15 +149,14 @@ pub fn qc(ctx: Ctx) -> Reply {
 
     // `if (m.quoted && !message) message = m.quoted.text || m.quoted.body || ''`
     // (`qc.js:97-99`).
-    if pesan.is_empty() {
-        if let Some(q) = ctx.quoted() {
+    if pesan.is_empty()
+        && let Some(q) = ctx.quoted() {
             pesan = if q.text.is_empty() {
                 String::new()
             } else {
                 q.text.clone()
             };
         }
-    }
 
     if pesan.is_empty() {
         return Reply::text(TEKS_KOSONG);

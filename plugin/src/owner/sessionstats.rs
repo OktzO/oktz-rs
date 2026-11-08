@@ -15,6 +15,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `fmtSize(bytes)` (`sessionstats.js:22-27`).
+#[allow(dead_code)] // padanan JS `fmtSize`; dipakai dari test saja
 pub(crate) fn fmt_size(bytes: u64) -> String {
     if bytes == 0 {
         return "0 B".to_string();

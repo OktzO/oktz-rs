@@ -149,11 +149,10 @@ pub(crate) fn cari_file_plugin(ctx: &Ctx, nama: &str) -> Option<(String, String)
 /// Kode yang diambil dari pesan yang di-reply (`ganticode.js:66-77`).
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
-        if q.kind.is_media() {
-            if let Ok(byte) = ctx.download_quoted_media() {
+        if q.kind.is_media()
+            && let Ok(byte) = ctx.download_quoted_media() {
                 return String::from_utf8_lossy(&byte).to_string();
             }
-        }
         return q.text.clone();
     }
     String::new()

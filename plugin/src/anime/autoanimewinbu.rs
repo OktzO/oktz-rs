@@ -347,7 +347,7 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
             ))
             .with_buttons(vec![
                 InteractiveButton::quick_reply(
-                    &jika(running, "🛑 Stop", "▶️ Start"),
+                    jika(running, "🛑 Stop", "▶️ Start"),
                     format!(
                         "{prefix}autoanimewinbu {}",
                         jika(running, "stop", "start"),

@@ -76,11 +76,10 @@ fn tabel_terlihat(ctx: &Ctx) -> Vec<(&'static str, Value)> {
     if crate::common::js_truthy_value(&ctx.settings) {
         out.push(("⚙️ Settings", ctx.settings.clone()));
     }
-    if let Some(sewa) = ctx.setting(DEFAULT_SEWA) {
-        if crate::common::js_truthy_value(sewa) {
+    if let Some(sewa) = ctx.setting(DEFAULT_SEWA)
+        && crate::common::js_truthy_value(sewa) {
             out.push(("🏪 Sewa", sewa.clone()));
         }
-    }
     out
 }
 
@@ -169,14 +168,14 @@ pub fn hapusdata(ctx: Ctx) -> Reply {
         let size = ukuran_byte(value);
         total_size += size;
         txt.push_str(&format!(
-            "> {label}: *{}* data ({} KB)\n",
+            "> {label}: *{}* data ({:.1} KB)\n",
             jumlah_entri(value),
-            format!("{:.1}", size as f64 / 1024.0)
+            size as f64 / 1024.0
         ));
     }
     txt.push_str(&format!(
-        "\n> 📦 Total: *{} KB*\n",
-        format!("{:.1}", total_size as f64 / 1024.0)
+        "\n> 📦 Total: *{:.1} KB*\n",
+        total_size as f64 / 1024.0
     ));
     txt.push_str("> 💾 Backup otomatis dibuat sebelum reset\n\n");
     txt.push_str(&format!(
@@ -298,7 +297,7 @@ mod tests {
 
     #[test]
     fn permintaan_kedua_menimpa_timestamp_lama() {
-        let mut ctx = Ctx {
+        let ctx = Ctx {
             text: String::new(),
             sender: ME.into(),
             chat: ME.into(),

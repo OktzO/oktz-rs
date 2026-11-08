@@ -148,13 +148,11 @@ fn versi_collector(ctx: &Ctx) -> Result<String, String> {
 /// `extractRresp(body)`.
 fn extract_rresp(body: &str) -> Option<String> {
     let bersih = body.trim_start_matches(")]}'").trim_start();
-    if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(bersih) {
-        if arr.first().and_then(Value::as_str) == Some("rresp") {
-            if let Some(t) = arr.get(1).and_then(Value::as_str) {
+    if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(bersih)
+        && arr.first().and_then(Value::as_str) == Some("rresp")
+            && let Some(t) = arr.get(1).and_then(Value::as_str) {
                 return Some(t.to_string());
             }
-        }
-    }
     ambil_antara(bersih, "\"rresp\",\"", '"').map(str::to_string)
 }
 

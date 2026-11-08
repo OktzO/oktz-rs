@@ -36,8 +36,8 @@ pub(crate) fn levenshtein(s1: &str, s2: &str) -> usize {
     for (i, row) in dp.iter_mut().enumerate() {
         row[0] = i;
     }
-    for j in 0..=n {
-        dp[0][j] = j;
+    for (j, cell) in dp[0].iter_mut().enumerate() {
+        *cell = j;
     }
     for i in 1..=m {
         for j in 1..=n {
@@ -213,10 +213,10 @@ pub fn carifitur(ctx: Ctx) -> Reply {
     for (i, (_, _, p)) in sorted[..detail].iter().enumerate() {
         let mut badges = String::new();
         if p.is_premium {
-            badges.push_str("💎");
+            badges.push('💎');
         }
         if p.is_owner {
-            badges.push_str("👑");
+            badges.push('👑');
         }
         text.push_str(&format!(
             "*{}. {}{}* {}\n",

@@ -135,8 +135,8 @@ pub fn tembak(ctx: Ctx) -> Reply {
     }
 
     // Target sudah pacaran dengan orang lain (`tembak.js:74-83`).
-    if let Some(pasangan_target) = pasangan(&target_data) {
-        if pasangan_target != ctx.sender {
+    if let Some(pasangan_target) = pasangan(&target_data)
+        && pasangan_target != ctx.sender {
             let partner_data = data_user(&ctx, pasangan_target);
             if pasangan(&partner_data) == Some(target_jid.as_str()) {
                 return Reply::Text {
@@ -148,7 +148,6 @@ pub fn tembak(ctx: Ctx) -> Reply {
                 };
             }
         }
-    }
 
     // Target pernah menembak pengirim (atau sudah pasangannya) → balasan
     // diterima langsung (`tembak.js:85-104`).
@@ -205,6 +204,8 @@ pub fn tembak(ctx: Ctx) -> Reply {
         }),
     );
 
+    let terima = format!("{}terima", ctx.prefix);
+    let tolak = format!("{}tolak", ctx.prefix);
     Reply::Text {
         text: format!(
             "💘 *ADA YANG NEMBAK NIHH*\n\n\
@@ -213,7 +214,9 @@ pub fn tembak(ctx: Ctx) -> Reply {
              gunakan: `{}` / `{}`",
             jid_number(&target_jid),
             jid_number(&ctx.sender),
-            format!("{}terima", ctx.prefix),
+            terima,
+            tolak
+        ),
             format!("{}tolak", ctx.prefix)
         ),
         mentions: vec![target_jid, ctx.sender.clone()],
@@ -230,9 +233,7 @@ pub fn tembak_answer(ctx: Ctx) -> Option<Reply> {
     if text != "terima" && text != "tolak" {
         return None;
     }
-    if ctx.quoted.is_none() {
-        return None;
-    }
+    ctx.quoted.as_ref()?;
 
     // Semua sesi dengan target = pengirim di chat ini (`tembak.js:151-153`),
     // yang belum kedaluwarsa satu jam (`:157-161`).
@@ -383,9 +384,10 @@ mod tests {
         assert_eq!(p.meta.energi, 1);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium && !p.meta.is_admin);
-        for a in ["nembak"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "tembak");
-        }
+        assert_eq!(
+            oktz_plugin_api::find("nembak").unwrap().meta.name,
+            "tembak"
+        );
     }
 
     #[test]

@@ -8,9 +8,7 @@
 //! `fs` temp + ffmpeg → `ctx.berkas()` + `oktz_plugin_api::ffmpeg`.
 //! `te(...)` → `crate::common::error_template(&ctx)`.
 
-use oktz_plugin_api::{
-    Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin,
-};
+use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use oktz_plugin_api::ffmpeg;
 use serde_json::Value;
 
@@ -79,10 +77,10 @@ fn cari_suara_elon(data: &Value) -> Option<String> {
     for item in daftar {
         let elon_ada = item
             .get("elon_musk")
-            .is_some_and(|v| crate::common::js_truthy_value(v));
+            .is_some_and(crate::common::js_truthy_value);
         let error_salah = item
             .get("error")
-            .map_or(true, |e| !crate::common::js_truthy_value(e));
+            .is_none_or(|e| !crate::common::js_truthy_value(e));
         if elon_ada && error_salah {
             return item.get("elon_musk").and_then(Value::as_str).map(|s| s.to_string());
         }
@@ -112,7 +110,7 @@ pub fn ttselon(ctx: Ctx) -> Reply {
         return Reply::text(bantuan(&ctx.prefix));
     }
 
-    let Ok(res) = ctx.http.call(&HttpCall::get(&api_url(text))) else {
+    let Ok(res) = ctx.http.call(&HttpCall::get(api_url(text))) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let data = res.json().unwrap_or(Value::Null);
@@ -143,8 +141,7 @@ pub fn ttselon(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
-    use serde_json::json;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
     use std::sync::{Arc, Mutex};
 
     const ME: &str = "628111@s.whatsapp.net";

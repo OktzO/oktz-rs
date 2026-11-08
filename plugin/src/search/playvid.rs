@@ -10,7 +10,6 @@
 //! `ponytail:` `sock.sendPreview` (pratinjau tautan) menjadi `Reply::Preview`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use oktz_plugin_api::registry::CardContext;
 
 use super::ytsearch::{self, format_views};
 
@@ -199,19 +198,6 @@ mod tests {
             _ => None,
         }
     }
-
-    const HASIL: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
-      {"itemSectionRenderer":{"contents":[
-        {"videoRenderer":{
-          "videoId":"aaaaaaaaaaa",
-          "title":{"runs":[{"text":"Lagu Uji"}]},
-          "ownerText":{"runs":[{"text":"Channel Uji"}]},
-          "viewCountText":{"simpleText":"1,234,567 views"},
-          "publishedTimeText":{"simpleText":"2 years ago"},
-          "lengthText":{"simpleText":"3:33"}
-        }}
-      ]}}
-    ]}}}}]}}"#;
 
     #[test]
     fn registers_with_the_js_plugin_config() {

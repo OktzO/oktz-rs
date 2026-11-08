@@ -10,6 +10,7 @@
 //!   (`done.js:180-196`) — alasan sama.
 //! - `contextInfo` newsletter forwarding pada invoice — `Reply::Text`
 //!   tidak membawa contextInfo.
+//!
 //! Kedua pengiriman yang hilang ada di `try/catch` terpisah di JS, jadi
 //! alur konfirmasi (mutasi stok + status transaksi + balasan admin) tetap
 //! utuh. Reaksi `✅` dilekatkan pada balasan konfirmasi seperti
@@ -72,14 +73,7 @@ pub(crate) fn iso_ke_ms(s: &str) -> i64 {
             None => waktu,
         };
         let bag: Vec<&str> = waktu.split(':').collect();
-        let angka = |x: &str| -> i64 {
-            // fraksi detik "56.789"
-            let mut it = x.split('.');
-            let bulat: i64 = it.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-            let fraksi: i64 = it.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-            bulat * if x.contains('.') { 1 } else { 1 } + if x.contains('.') { fraksi } else { 0 }
-        };
-        if bag.len() > 0 {
+        if !bag.is_empty() {
             jam = bag[0].parse().unwrap_or(0);
         }
         if bag.len() > 1 {
@@ -114,6 +108,7 @@ pub(crate) fn lokali(ms: i64) -> String {
 /// `toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year:
 /// "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })`
 /// — `dd/mm/yyyy, hh.mm`.
+#[cfg(test)]
 pub(crate) fn lokali_pendek(ms: i64) -> String {
     let (y, mo, d, h, mi, _) = crate::common::jakarta_parts(ms);
     format!("{d:02}/{mo:02}/{y}, {h:02}.{mi:02}")
@@ -280,14 +275,13 @@ pub fn done(ctx: Ctx) -> Reply {
         .to_string();
 
     // `if (m.quoted && m.isGroup)` — pembeli = pengirim pesan yang di-reply.
-    if let Some(quoted) = ctx.quoted() {
-        if ctx.is_group {
+    if let Some(quoted) = ctx.quoted()
+        && ctx.is_group {
             let quoted_sender = quoted.sender.clone();
             if !quoted_sender.is_empty() && quoted_sender != ctx.sender {
                 buyer_jid = quoted_sender;
             }
         }
-    }
 
     if buyer_jid.is_empty() {
         return Reply::text(
@@ -320,7 +314,7 @@ pub fn done(ctx: Ctx) -> Reply {
             let items_kosong = products[idx]
                 .get("stockItems")
                 .and_then(|v| v.as_array())
-                .map_or(true, |a| a.is_empty());
+                .is_none_or(|a| a.is_empty());
             if !items_kosong {
                 // `const item = product.stockItems.shift()` (`done.js:96-98`).
                 let item = products[idx]["stockItems"].as_array_mut().unwrap().remove(0);
@@ -336,7 +330,7 @@ pub fn done(ctx: Ctx) -> Reply {
                 });
             } else if products[idx]
                 .get("detail")
-                .is_some_and(|v| crate::common::js_truthy_value(v))
+                .is_some_and(crate::common::js_truthy_value)
             {
                 stock_item_detail =
                     products[idx].get("detail").cloned();
@@ -344,15 +338,14 @@ pub fn done(ctx: Ctx) -> Reply {
         } else {
             // Fisik: kurangi stok kecuali unlimited.
             let stock = products[idx].get("stock").and_then(|v| v.as_i64());
-            if let Some(stock) = stock {
-                if stock != -1 && stock > 0 {
+            if let Some(stock) = stock
+                && stock != -1 && stock > 0 {
                     products[idx]["stock"] = serde_json::json!(stock - 1);
                     mutations.push(Mutation::SetSetting {
                         key: PRODUK.into(),
                         value: serde_json::Value::Array(products.clone()),
                     });
                 }
-            }
         }
     }
 
@@ -547,10 +540,10 @@ mod tests {
         assert!(r.text_body().unwrap().contains("📱 Nomor: `628999`"));
         // buyerJid di transaksi ikut diganti
         for m in r.mutations() {
-            if let Mutation::SetSetting { key, value } = m {
-                if key == "storeTransactions" {
-                    assert_eq!(value["TRX-001"]["buyerJid"], "628999@s.whatsapp.net");
-                }
+            if let Mutation::SetSetting { key, value } = m
+                && key == "storeTransactions"
+            {
+                assert_eq!(value["TRX-001"]["buyerJid"], "628999@s.whatsapp.net");
             }
         }
     }
@@ -631,10 +624,10 @@ mod tests {
         let r = done(c);
         let mut stok_mutation = false;
         for m in r.mutations() {
-            if let Mutation::SetSetting { key, .. } = m {
-                if key == "storeProducts" {
-                    stok_mutation = true;
-                }
+            if let Mutation::SetSetting { key, .. } = m
+                && key == "storeProducts"
+            {
+                stok_mutation = true;
             }
         }
         assert!(!stok_mutation, "stok -1 tidak ditulis ulang");

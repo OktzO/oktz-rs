@@ -434,11 +434,10 @@ impl Reply {
 
     /// Kompatibilitas lama: satu tombol `InteractiveButton`.
     pub fn with_button_card(mut self, button: InteractiveButton) -> Self {
-        if let Self::Interactive { kartu } = &mut self {
-            if let Some(t) = crate::kartu::Tombol::dari_nama(&button.name, button.params) {
+        if let Self::Interactive { kartu } = &mut self
+            && let Some(t) = crate::kartu::Tombol::dari_nama(&button.name, button.params) {
                 kartu.buttons.push(t);
             }
-        }
         self
     }
 
@@ -456,11 +455,10 @@ impl Reply {
             if context.quote_trigger {
                 kartu.quote = true;
             }
-            if let Some(q) = &context.quote {
-                if let CardQuote::Text(t) = q.as_ref() {
+            if let Some(q) = &context.quote
+                && let CardQuote::Text(t) = q.as_ref() {
                     kartu.quote_teks = Some(t.clone());
                 }
-            }
             kartu.context_card = Some(Box::new(context));
         }
         self
@@ -560,13 +558,13 @@ impl Reply {
 
     /// AIRich baru (`builder.js` `AIRich`) — section + submessages mentah.
     pub fn tabel_ai() -> Self {
-        Self::TabelAi(Box::new(crate::rich::RichAi::default()))
+        Self::TabelAi(Box::default())
     }
 
     /// Prepared rich baru (`prepareRichResponseMessage`,
     /// `rich-messages.js:1502`) — section + submessages mentah, plus proof.
     pub fn prepared_rich() -> Self {
-        Self::PreparedRich(Box::new(crate::rich::PreparedRich::default()))
+        Self::PreparedRich(Box::default())
     }
 
     /// Baris heading tabel.

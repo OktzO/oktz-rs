@@ -628,11 +628,10 @@ fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
     if c.from_me || is_same_participant(&sender, &input.env.bot_number) {
         return GateOutcome::Pass;
     }
-    if let Some(lid) = &input.env.bot_lid {
-        if is_same_participant(c.participant.as_deref().unwrap_or(""), lid) {
+    if let Some(lid) = &input.env.bot_lid
+        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid) {
             return GateOutcome::Pass;
         }
-    }
     if !input.env.metadata_available {
         // JS: `await sock.groupMetadata(chatId)` gagal → `catch` (:2140) →
         // `return false` → gate dilewati SENYAP.
@@ -2116,7 +2115,7 @@ fn is_ip_url(text: &str) -> bool {
             }
             // `\b`: char sebelumnya digit (word) → boundary iff char di `j`
             // bukan word (termasuk akhir teks).
-            if !chars.get(j).copied().map_or(false, is_word) {
+            if !chars.get(j).copied().is_some_and(is_word) {
                 return true;
             }
         }
@@ -2162,14 +2161,13 @@ fn is_punycode(text: &str) -> bool {
     let chars: Vec<char> = lower.chars().collect();
     let n = chars.len();
     for i in 0..n.saturating_sub(4) {
-        if chars[i] == 'x' && chars[i + 1] == 'n' && chars[i + 2] == '-' && chars[i + 3] == '-' {
-            if chars[i + 4..]
+        if chars[i] == 'x' && chars[i + 1] == 'n' && chars[i + 2] == '-' && chars[i + 3] == '-'
+            && chars[i + 4..]
                 .iter()
                 .any(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
             {
                 return true;
             }
-        }
     }
     false
 }
@@ -2875,11 +2873,10 @@ fn class_matches(spec: &ClassSpec, c: char, fold: bool) -> bool {
         if let Some(lo) = c.to_lowercase().next() {
             hit = raw_hit(lo);
         }
-        if !hit {
-            if let Some(up) = c.to_uppercase().next() {
+        if !hit
+            && let Some(up) = c.to_uppercase().next() {
                 hit = raw_hit(up);
             }
-        }
     }
     hit != spec.negated
 }
@@ -3852,19 +3849,17 @@ fn analyze_branch(src: &[char], state: &mut AnalysisState) -> BranchRead {
         } else {
             next
         };
-        if let Some(previous) = items.last() {
-            if previous.expansive && sets_overlap(&previous.set, &item.set) {
+        if let Some(previous) = items.last()
+            && previous.expansive && sets_overlap(&previous.set, &item.set) {
                 if item.quantified {
                     if reason.is_none() {
                         reason = Some(reject_overlap_stacked());
                     }
-                } else if item.expansive || item.single_char {
-                    if reason.is_none() {
+                } else if (item.expansive || item.single_char)
+                    && reason.is_none() {
                         reason = Some(reject_overlap_swallow());
                     }
-                }
             }
-        }
         if unbounded {
             state.unbounded += 1;
         }
@@ -3974,11 +3969,10 @@ fn analyze_alternation(src: &[char]) -> Analysis {
         if result.items.iter().all(|i| i.can_match_empty) {
             can_match_empty = true;
         }
-        if let Some(pf) = &previous_first {
-            if sets_overlap(pf, &head.set) {
+        if let Some(pf) = &previous_first
+            && sets_overlap(pf, &head.set) {
                 overlapping_branches = true;
             }
-        }
         set_union(&mut first, &head.set);
         previous_first = Some(head.set.clone());
     }
@@ -6255,8 +6249,8 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(match_custom_rule("halo bro ini GOBLOK banget", &[rule.clone()]).is_some());
-        assert!(match_custom_rule("halo bro ini bersih", &[rule.clone()]).is_none());
+        assert!(match_custom_rule("halo bro ini GOBLOK banget", std::slice::from_ref(&rule)).is_some());
+        assert!(match_custom_rule("halo bro ini bersih", std::slice::from_ref(&rule)).is_none());
 
         // "regex aman tetap jalan".
         let re = cr(
@@ -6267,7 +6261,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(match_custom_rule("kamu anjing", &[re.clone()]).is_some());
+        assert!(match_custom_rule("kamu anjing", std::slice::from_ref(&re)).is_some());
         assert!(match_custom_rule("kamu baik", &[re]).is_none());
 
         // "flag g tidak lagi membuat hasil bolong-balik" (deterministik).
@@ -6279,7 +6273,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(match_custom_rule("anjing", &[sticky.clone()]).is_some());
+        assert!(match_custom_rule("anjing", std::slice::from_ref(&sticky)).is_some());
         assert!(match_custom_rule("anjing", &[sticky]).is_some());
 
         // `new RegExp(pattern, "uv")` throw di JS — rule harus inert.
@@ -6324,7 +6318,7 @@ mod tests {
             },
         );
         assert!(
-            match_custom_rule(&format!("{}zztoken", "x".repeat(600)), &[far.clone()]).is_none()
+            match_custom_rule(&format!("{}zztoken", "x".repeat(600)), std::slice::from_ref(&far)).is_none()
         );
         assert!(match_custom_rule(&format!("{}zztoken", "x".repeat(500)), &[far]).is_some());
 

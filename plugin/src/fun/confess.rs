@@ -19,7 +19,6 @@
 //! data menfess di `ctx.sessions`, dan membalas teks sukses.
 //! Answer handler menangani balasan ke pesan menfess.
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::Value;
 
 const CONFESS_SESSION_PREFIX: &str = "confess:";
 
@@ -42,14 +41,14 @@ fn clean_number(raw: &str) -> String {
 
 fn normalize_number(raw: &str) -> String {
     let num = clean_number(raw);
-    if num.starts_with('0') {
-        format!("62{}", &num[1..])
-    } else {
-        num
+    match num.strip_prefix('0') {
+        Some(rest) => format!("62{rest}"),
+        None => num,
     }
 }
 
 /// `confess.js:70-82` — teks yang dikirim ke nomor tujuan.
+#[cfg(test)]
 fn confess_text(message: &str) -> String {
     format!(
         "💌 *ADA PESAN RAHASIA BUAT KAMU KAK!* 💌\n\n\
@@ -235,6 +234,7 @@ pub fn confess_reply(ctx: Ctx) -> Option<Reply> {
 mod tests {
     use super::*;
     use oktz_plugin_api::{AdaWhatsapp, Sock, SockError};
+    use serde_json::Value;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";

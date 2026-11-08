@@ -57,15 +57,6 @@ pub(crate) struct Video {
     pub author_url: String,
 }
 
-impl Video {
-    /// `formatViews(n)` (`playvid.js:16-21`, `playch.js:31-36`).
-    ///
-    /// `if (!n) return "0"` jadi nol (dan `undefined`) jadi "0".
-    pub(crate) fn format_views(&self) -> String {
-        format_views(self.views)
-    }
-}
-
 /// `formatViews(n)` — dipakai `playvid.js` dan `playch.js`.
 pub(crate) fn format_views(n: u64) -> String {
     if n == 0 {

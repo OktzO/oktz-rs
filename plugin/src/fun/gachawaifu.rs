@@ -81,7 +81,7 @@ const IMAGE_FALLBACK: &str =
 
 /// Satu aksi `ACTIONS` (`src/lib/waifu.js:8-74`). `text` memakai placeholder
 /// `{n}` yang di-`replace` dengan nama waifu, padanan `text: (n) => ...`.
-struct ActionDef {
+pub(crate) struct ActionDef {
     key: &'static str,
     phase: &'static str,
     base: (f64, f64),
@@ -375,11 +375,17 @@ const EVENTS: &[EventDef] = &[
         text: "🍀 Rezeki nomplok! Kamu dapat uang tak terduga." },
 ];
 
+/// Opsi menu: label + id aksi.
+type OpsiMenu = (&'static str, &'static str);
+
+/// Menu: key, judul, daftar opsi.
+type Menu = (&'static str, &'static str, &'static [OpsiMenu]);
+
 /// `MENUS` (`gachawaifu.js:303-327`) — key, judul, dan opsi (label + id aksi).
 ///
 /// Opsi `menu_lainnya` bergantung pada `affection`, jadi isinya kosong di
 /// sini dan dihitung di [`menu_lainnya_options`].
-const MENUS: [(&str, &str, &[(&str, &str)]); 19] = [
+const MENUS: [Menu; 19] = [
     (
         "menu_jalanjalan",
         "🚶 Jalan-jalan ke...",
@@ -2036,7 +2042,6 @@ pub fn gachawaifu(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::error_template_bawaan;
     use std::collections::VecDeque;
 
     const ME: &str = "628111@s.whatsapp.net";

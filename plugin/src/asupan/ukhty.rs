@@ -11,7 +11,6 @@ use crate::common::random_index;
 const PATH: &str = "src/tiktok/ukhty.json";
 
 const ERR_KOSONG: &str = "❌ Data tidak tersedia";
-const ERR_TIDAK_DITEMUKAN: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Video tidak ditemukan";
 
 /// `loadJsonData('ukhty.json')` — `ukhty.js:19-27`.
 fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {

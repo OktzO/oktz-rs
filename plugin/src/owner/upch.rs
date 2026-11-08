@@ -24,18 +24,23 @@ pub(crate) fn bantuan(prefix: &str) -> String {
 }
 
 /// `upch.js:84`.
+#[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const TEKS_BERHASIL: &str = "✅ Teks berhasil dikirim ke saluran";
 
 /// `upch.js:96`.
+#[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const GAMBAR_BERHASIL: &str = "✅ Gambar berhasil dikirim ke saluran";
 
 /// `upch.js:107`.
+#[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const VIDEO_BERHASIL: &str = "✅ Video berhasil dikirim ke saluran";
 
 /// `upch.js:118`.
+#[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const AUDIO_BERHASIL: &str = "✅ Audio berhasil dikirim ke saluran";
 
 /// `upch.js:122`.
+#[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const TIPE_TIDAK_DIDUKUNG: &str = "❌ Tipe media tidak didukung";
 
 /// `m.text?.replace(/^\.upch\s+/i, '')` (`upch.js:55`).

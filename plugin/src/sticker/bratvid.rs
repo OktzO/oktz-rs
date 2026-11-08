@@ -196,7 +196,7 @@ fn run_progresif(ctx: Ctx) -> Reply {
         for kata_ke in 1..=total_kata {
             let raw = progresif
                 .frame_rgba(kata_ke)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(std::io::Error::other)?;
             let ulang = if kata_ke == total_kata {
                 oktz_plugin_api::BRAT_PROGRESIF_DURASI_AKHIR
             } else {

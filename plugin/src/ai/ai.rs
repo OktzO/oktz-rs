@@ -108,7 +108,11 @@ fn pecah(teks: &str) -> Vec<Blok> {
                 }
                 in_code = true;
                 // `line.trim().substring(3).trim() || 'text'` (`ai.js:111`).
-                let lang = trimmed[3..].trim().to_string();
+                let lang = trimmed
+                    .strip_prefix("```")
+                    .unwrap_or(trimmed)
+                    .trim()
+                    .to_string();
                 code_lang = if lang.is_empty() {
                     "text".to_string()
                 } else {

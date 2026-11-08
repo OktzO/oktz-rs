@@ -78,12 +78,10 @@ fn resolve_videy(
     apikey: &str,
 ) -> Result<String, ResolveFailure> {
     // 1. `lewatCdnVidey` — `videyShare` mengembalikan `{id, ext, url}` rata.
-    match oktz_scraper::videy::videy_share(http, url) {
-        Ok(value) => match url_video(&value) {
-            Some(video) => return Ok(video),
-            None => {}
-        },
-        Err(_) => {}
+    if let Ok(value) = oktz_scraper::videy::videy_share(http, url)
+        && let Some(video) = url_video(&value)
+    {
+        return Ok(video);
     }
 
     if apikey.is_empty() {

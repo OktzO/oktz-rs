@@ -111,7 +111,9 @@ pub fn toaudio(ctx: Ctx) -> Reply {
         })
     };
 
-    let Some(sumber) = sumber.filter(|s| s.video || s.ptt || s.dari_pemicu || true) else {
+    // JS hanya memakai media yang terdeteksi video/voice-note; `sumber`
+    // bernilai `None` kalau tidak ada media maupun reply media.
+    let Some(sumber) = sumber else {
         return Reply::text(tanpa_media(&ctx.prefix));
     };
 

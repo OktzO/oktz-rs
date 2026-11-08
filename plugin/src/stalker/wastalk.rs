@@ -16,7 +16,7 @@
 //!   `timeHelper.fromTimestamp` (Asia/Jakarta, id-ID).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use serde_json::{Value, Value as Json, json};
+use serde_json::{Value, Value as Json};
 
 use crate::common::{days_from_civil, jakarta_parts};
 
@@ -144,7 +144,7 @@ pub(crate) fn format_international(digits: &str, prefix_len: usize) -> String {
 
 /// `timeHelper.fromTimestamp(setAt, 'LLLL')` — `Senin, 5 Januari 2026 pukul
 /// HH.mm` di Asia/Jakarta (`time.js:45`).
-pub(crate) fn format_LLLL(ms: i64) -> String {
+pub(crate) fn format_llll(ms: i64) -> String {
     const HARI: [&str; 7] = [
         "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu",
     ];
@@ -261,7 +261,7 @@ pub fn wastalk(ctx: Ctx) -> Reply {
     let number = digits.clone();
 
     // `sock.onWhatsApp(num)` — entri pertama saja (`wastalk.js:33-36`).
-    match ctx.sock().ada_whatsapp(&[digits.clone()]) {
+    match ctx.sock().ada_whatsapp(std::slice::from_ref(&digits)) {
         Ok(list) => {
             let ada = list.first().is_some_and(|a| a.ada);
             if !ada {
@@ -318,7 +318,7 @@ pub fn wastalk(ctx: Ctx) -> Reply {
         .get("setAt")
         .and_then(Value::as_i64)
         .filter(|t| *t != 0)
-        .map(format_LLLL)
+        .map(format_llll)
         .unwrap_or_else(|| "-".to_string());
 
     let mut res = caption_utama(
@@ -346,6 +346,7 @@ pub fn wastalk(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{AdaWhatsapp, Sock, SockError};
+    use serde_json::json;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -598,13 +599,13 @@ mod tests {
     }
 
     #[test]
-    fn format_LLLL_meniru_time_js() {
+    fn format_llll_meniru_time_js() {
         // 2026-01-01T00:00:00Z → 07:00 WIB, hari Kamis.
         let ms = 1_767_225_600_000i64;
-        assert_eq!(format_LLLL(ms), "Kamis, 1 Januari 2026 pukul 07.00");
+        assert_eq!(format_llll(ms), "Kamis, 1 Januari 2026 pukul 07.00");
         // 2026-08-17T00:00 WIB = Senin.
         let ms = 1_786_899_600_000i64;
-        assert_eq!(format_LLLL(ms), "Senin, 17 Agustus 2026 pukul 00.00");
+        assert_eq!(format_llll(ms), "Senin, 17 Agustus 2026 pukul 00.00");
     }
 
     #[test]

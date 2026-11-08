@@ -53,6 +53,7 @@ pub(crate) fn mengunduh(jumlah: usize) -> String {
 pub(crate) const UNDUH_GAGAL: &str = "── .✦ ──\n\n> Gagal mendownload gambar .☘︎ ݁˖";
 
 /// `pinpack.js:118` — pack gagal, kirim satu per satu.
+#[cfg(test)]
 pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖";
 
 /// `pinpack.js:150` — berhasil mengirim sebagian sticker.
@@ -63,6 +64,7 @@ pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
 }
 
 /// `pinpack.js:154` — gagal mengirim sticker.
+#[cfg(test)]
 pub(crate) const KIRIM_GAGAL: &str = "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖";
 
 /// `pinpack.js:69` — endpoint pencarian.

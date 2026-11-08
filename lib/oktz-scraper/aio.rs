@@ -726,7 +726,7 @@ fn handle_capcut(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 fn handle_pinterest(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     let result = crate::pindl::scrape_pinterest(http, url)?;
     let daftar = result.get("media").and_then(Value::as_array);
-    if !daftar.is_some_and(|a| !a.is_empty()) {
+    if daftar.is_none_or(|a| a.is_empty()) {
         return Err(HttpError {
             message: "No media found".to_string(),
         });

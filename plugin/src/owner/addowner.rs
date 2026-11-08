@@ -33,7 +33,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_private = false,
     is_owner = true
 )]
-pub fn addowner(ctx: Ctx) -> Reply {
+pub fn addowner(_ctx: Ctx) -> Reply {
     Reply::text(
         "❌ *ADD OWNER — TIDAK TERSEDIA*\n\n\
          Port Rust tertunda karena butuh:\n\

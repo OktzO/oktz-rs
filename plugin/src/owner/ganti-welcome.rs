@@ -57,7 +57,6 @@ pub fn ganti_welcome(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::IncomingKind;
     use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use oktz_plugin_api::find;
     use oktz_plugin_api::IncomingMedia;

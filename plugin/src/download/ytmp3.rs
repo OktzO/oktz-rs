@@ -236,11 +236,10 @@ pub(crate) fn format_dilaporkan(isi: &Value, url: &str) -> Option<String> {
 /// ditulis eksplisit — `!raw.status` akan salah memblokir bentuk SaveTube yang
 /// tidak punya `status` sama sekali.
 pub(crate) fn normalize(raw: &Value) -> Result<AudioDownload, ()> {
-    if let Some(status) = raw.get("status") {
-        if status.as_bool() != Some(true) {
+    if let Some(status) = raw.get("status")
+        && status.as_bool() != Some(true) {
             return Err(());
         }
-    }
     let isi = match raw.get("result") {
         Some(r) if r.is_object() => r,
         _ => raw,
@@ -451,11 +450,10 @@ fn unduh_nexray(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
 pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     let kanonik = kanonik(url)?;
     // 1. `ytdl-native` — hanya untuk mp3 (`applies` backend, `youtube.js:399`).
-    if let Ok(v) = oktz_scraper::ytdl::ytdl(&*ctx.http, &kanonik, Some("mp3")) {
-        if let Ok(audio) = normalize(&v) {
+    if let Ok(v) = oktz_scraper::ytdl::ytdl(&*ctx.http, &kanonik, Some("mp3"))
+        && let Ok(audio) = normalize(&v) {
             return Ok(audio);
         }
-    }
     // 2. `izuka` (`youtube.js:409-413`).
     if let Ok(audio) = unduh_izuka(ctx, &kanonik) {
         return Ok(audio);

@@ -336,7 +336,6 @@ mod tests {
 
     #[test]
     fn teks_mulai_dari_atas_dan_kiri() {
-        use image::GenericImageView;
         let png = render_brat("halo", BratTema::Putih, 0).unwrap();
         let img = image::load_from_memory(&png).unwrap().to_rgba8();
         let mut min_x = u32::MAX;
@@ -367,5 +366,50 @@ mod tests {
         let f3 = p.frame_rgba(3).unwrap();
         assert_ne!(f1, f3);
         assert!(p.frame_rgba(0).is_err());
+    }
+
+    // -- .bratvid2 (port `plugins/sticker/bratvid2.js`) -----------------------
+    //
+    // `ponytail:` JS timing 60fps + scale bounce + sweep highlight di-frame
+    // per elemen tidak diport; port Rust ini fade+slide 30fps, test mengikuti
+    // implementasi Rust. Upgrade: port scale/sweep kalau parity visual
+    // dengan bratvid2.js dibutuhkan.
+
+    fn ke_gambar(px: &[u8]) -> RgbaImage {
+        RgbaImage::from_raw(KANVAS, KANVAS, px.to_vec()).unwrap()
+    }
+
+    #[test]
+    fn animasi_v2_total_frame_sesuai_port() {
+        let a = BratAnimasi::baru("satu dua tiga").unwrap();
+        // (kata-1)*stagger + fade + tahan
+        assert_eq!(a.total_frame(), (3 - 1) * 3 + 12 + 45);
+    }
+
+    #[test]
+    fn animasi_v2_fade_abu_ke_hitam_lalu_berteks_penuh() {
+        let a = BratAnimasi::baru("halo brat").unwrap();
+        // frame 0: kata pertama pudar (abu), belum hitam penuh.
+        let awal = ke_gambar(&a.frame_rgba(0));
+        assert!(
+            awal.pixels().any(|p| p[0] > 64 && p[0] < 250),
+            "frame awal harus ada teks pudar"
+        );
+        let akhir = ke_gambar(&a.frame_rgba(a.total_frame() - 1));
+        assert!(
+            akhir.pixels().any(|p| p[0] < 64),
+            "frame akhir harus teks hitam"
+        );
+    }
+
+    #[test]
+    fn animasi_v2_berbeda_dan_bratvid_progresif() {
+        let a = BratAnimasi::baru("satu dua tiga").unwrap();
+        let p = BratProgresif::baru("satu dua tiga").unwrap();
+        assert_ne!(
+            a.frame_rgba(0),
+            p.frame_rgba(1).unwrap(),
+            "bratvid2 fade bertahap harus beda dari bratvid reveal"
+        );
     }
 }

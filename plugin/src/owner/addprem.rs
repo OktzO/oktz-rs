@@ -23,6 +23,7 @@ const DURASI_DEFAULT_LABEL: &str = "30 hari";
 
 /// `formatDate(ts)` (`addprem.js:32-38`) — `id-ID`, hari numerik, bulan panjang,
 /// tahun numerik. Padanan [`crate::common::date_long`].
+#[allow(dead_code)] // padanan JS `formatDate`; dipakai dari test saja
 pub(crate) fn format_tanggal(ms: i64) -> String {
     crate::common::date_long(ms)
 }
@@ -59,15 +60,10 @@ pub(crate) fn to_mention_jid(value: &str) -> Option<String> {
 
 /// Hasil pemrosesan argumen durasi (`addprem.js:160-180`).
 pub(crate) struct Durasi {
+    #[allow(dead_code)] // durasi ms hanya dibaca test; produksi butuh `label`
     pub ms: i64,
     pub label: String,
 }
-
-/// Unit waktu yang dikenali JS (`h|hari|j|jam|m|menit|d|detik`).
-const UNIT_HARI: &[&str] = &["d", "detik"];
-const UNIT_MENIT: &[&str] = &["m", "menit"];
-const UNIT_JAM: &[&str] = &["h", "j", "jam"];
-const UNIT_DETIK: &[&str] = &["d", "detik"];
 
 /// Apakah seluruh argumen cocok `/^\d+(unit)?$/i` (argumen waktu).
 pub(crate) fn is_arg_waktu(s: &str) -> bool {
@@ -143,7 +139,8 @@ pub(crate) fn help_kerja(prefix: &str, tambah: bool) -> String {
 pub(crate) const DAFTAR_KOSONG: &str = "💎 Belum ada premium terdaftar";
 
 /// Teks daftar premium jadibot kosong (`addprem.js:66-69`).
-pub(crate) fn daftar_jadibot_kosong(jadibot_id: &str) -> String {
+#[allow(dead_code)] // helper JS `addprem.js:66-69`; jalur jadibot belum ada
+pub(crate) fn daftar_jadibot_kosong(_jadibot_id: &str) -> String {
     format!(
         "💎 Belum ada premium di jadibot ini\nGunakan `{prefix}addprem` untuk menambah",
         prefix = crate::common::CONFIG_PREFIX
