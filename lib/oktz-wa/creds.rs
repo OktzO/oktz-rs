@@ -198,12 +198,17 @@ pub fn device_ke_creds_json(d: &wacore::store::Device) -> serde_json::Value {
     // dibuang, jadi creds.json hasil pairing Rust kehilangannya selamanya dan
     // semua pesan masuk baru hilang setelah db sesi dibangun ulang.
     if let Some(a) = d.account.as_ref() {
-        doc["account"] = serde_json::json!({
-            "details": buf_json(&a.details),
-            "accountSignatureKey": buf_json(&a.account_signature_key),
-            "accountSignature": buf_json(&a.account_signature),
-            "deviceSignature": buf_json(&a.device_signature),
-        });
+        let mut acc = serde_json::Map::new();
+        let mut isi = |kunci: &str, byte: &Option<Vec<u8>>| {
+            if let Some(b) = byte {
+                acc.insert(kunci.to_string(), buf_json(b));
+            }
+        };
+        isi("details", &a.details);
+        isi("accountSignatureKey", &a.account_signature_key);
+        isi("accountSignature", &a.account_signature);
+        isi("deviceSignature", &a.device_signature);
+        doc["account"] = serde_json::Value::Object(acc);
     }
     doc
 }
