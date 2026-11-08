@@ -11,6 +11,27 @@
 use std::path::PathBuf;
 use std::process::Command;
 use std::io::Write;
+use std::sync::OnceLock;
+
+static FFMPEG_SEM: OnceLock<std::sync::Mutex<usize>> = OnceLock::new();
+fn ffmpeg_sem() -> &'static std::sync::Mutex<usize> {
+    FFMPEG_SEM.get_or_init(|| std::sync::Mutex::new(2))
+}
+struct FfmpegPermit;
+impl Drop for FfmpegPermit {
+    fn drop(&mut self) {
+        *ffmpeg_sem().lock().unwrap_or_else(|e| e.into_inner()) += 1;
+    }
+}
+fn ffmpeg_acquire() -> FfmpegPermit {
+    loop {
+        let mut g = ffmpeg_sem().lock().unwrap_or_else(|e| e.into_inner());
+        if *g > 0 { *g -= 1; break; }
+        drop(g);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    FfmpegPermit
+}
 
 /// Jalur biner ffmpeg.
 /// Urutan: env `OTKZ_FFMPEG_PATH` / `FFMPEG_PATH`, `bin/ffmpeg`, lalu `PATH`.
@@ -131,6 +152,7 @@ pub fn durasi_dari_masukan(masukan: &[u8]) -> Option<f64> {
 /// Jalankan ffmpeg dengan argumen mentah, kembalikan stdout biner.
 /// `Err` memuat stderr supaya bisa ditampilkan seperti JS.
 pub fn jalankan(argumen: &[&str]) -> Result<Vec<u8>, String> {
+    let _permit = ffmpeg_acquire();
     let biner = jalur_ffmpeg().unwrap_or_else(|| PathBuf::from("ffmpeg"));
     let keluaran = Command::new(&biner)
         .args(argumen)
@@ -153,6 +175,7 @@ pub fn jalankan(argumen: &[&str]) -> Result<Vec<u8>, String> {
 /// 25 MB dulu sambil ffmpeg memblokir di stdout, keduanya saling menunggu
 /// (deadlock). JS memakai `spawn` + `end()` yang setara.
 pub fn jalankan_dengan_masukan(argumen: &[&str], masukan: &[u8]) -> Result<Vec<u8>, String> {
+    let _permit = ffmpeg_acquire();
     let biner = jalur_ffmpeg().unwrap_or_else(|| PathBuf::from("ffmpeg"));
     let mut anak = Command::new(&biner)
         .args(argumen)
@@ -191,6 +214,7 @@ pub fn jalankan_dengan_masukan(argumen: &[&str], masukan: &[u8]) -> Result<Vec<u
 /// `-y -i <masuk> ...` dengan keluaran ditulis ke `keluar` (berkas terakhir
 /// dalam `argumen`). Mengembalikan `()` saat berhasil, `Err` memuat stderr.
 pub fn jalankan_ke_berkas(argumen: &[&str]) -> Result<(), String> {
+    let _permit = ffmpeg_acquire();
     let biner = jalur_ffmpeg().unwrap_or_else(|| PathBuf::from("ffmpeg"));
     let keluaran = Command::new(&biner)
         .args(argumen)

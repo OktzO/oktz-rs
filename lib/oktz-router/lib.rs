@@ -142,9 +142,14 @@ impl<'a, C: RouterContext> Router<'a, C> {
             }
         }
 
-        // 5. Dispatch.
         let c = self.build_ctx(caller, &parsed);
-        Decision::Handled((entry.handler)(c))
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (entry.handler)(c))) {
+            Ok(r) => Decision::Handled(r),
+            Err(_) => {
+                tracing::error!("plugin panik, ditahan di router");
+                Decision::Handled(Reply::text("❌ Plugin error, coba lagi nanti."))
+            }
+        }
     }
 
     /// Entry point kedua: `answerHandler(m, sock)` (`src/handler.js:440-473`).
@@ -384,6 +389,23 @@ mod tests {
         assert!(
             matches!(&d, Decision::DeniedPermission(msg) if msg == "*Akses Ditolak!* Fitur ini khusus untuk Owner bot.")
         );
+    }
+
+    #[test]
+    fn panicking_handler_is_caught_not_propagated() {
+        let s = stub();
+        let r = Router::new(&s, ParseOptions::default(), 1000);
+        let mut c = caller();
+        let e = Box::leak(Box::new(PluginEntry {
+            meta: PluginMeta {
+                name: "boom".into(),
+                category: "tools".into(),
+                ..Default::default()
+            },
+            handler: Arc::new(|_| panic!("boom")),
+        }));
+        let d = r.route(&mut c, ".boom", |_| Some(e));
+        assert!(matches!(d, Decision::Handled(ref rep) if rep.text_body().is_some_and(|t| t.contains("Plugin error"))));
     }
 
     #[test]

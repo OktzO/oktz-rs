@@ -380,47 +380,53 @@ impl StoreContext {
         self.read()
     }
 
-    /// Terapkan mutasi lalu PERSIST ke disk, sebelum pemanggil membalas.
-    ///
-    /// Urutan penting dan bukan pilihan: plugin JS menulis `db.save()` lalu
-    /// baru `m.reply(...)`, jadi saat user melihat "✅ tersimpan", datanya
-    /// sudah ada. Kalau pipeline membalas dulu dan menulis kemudian, user
-    /// bisa melihat konfirmasi untuk data yang hilang kalau proses mati di
-    /// antaranya.
-    ///
-    /// Kegagalan dikembalikan, TIDAK ditelan: pemanggil wajib melaporkannya
-    /// (lihat pemakaian di `Pipeline::process`).
-    ///
-    /// Mengembalikan jumlah mutasi yang benar-benar diterapkan.
     pub fn apply(&self, mutations: &[Mutation], now_ms: i64) -> Result<usize, StoreWriteError> {
         if mutations.is_empty() {
             return Ok(0);
         }
-        // Lock penuh: mutate + tulis + tukar snapshot satu transaksi. Dua
-        // pesan yang sama-sama menulis user yang sama tidak boleh saling
-        // menimpa snapshot di antara baca dan tulis.
         let mut guard = self.snapshot.write().unwrap_or_else(|e| e.into_inner());
-        let mut fresh = JsonStore::open(&self.path).map_err(|e| StoreWriteError {
-            path: self.path.clone(),
-            detail: format!("buka gagal: {e}"),
-        })?;
-
+        let inner: &mut JsonStore = match Arc::get_mut(&mut *guard) {
+            Some(s) => s,
+            None => {
+                let mut fresh = JsonStore::open(&self.path).map_err(|e| StoreWriteError {
+                    path: self.path.clone(),
+                    detail: format!("buka gagal: {e}"),
+                })?;
+                for m in mutations {
+                    apply_mutation(&mut fresh, m, now_ms, self.path.clone())?;
+                }
+                fresh.write().map_err(|e| StoreWriteError {
+                    path: self.path.clone(),
+                    detail: format!("tulis gagal: {e}"),
+                })?;
+                *guard = Arc::new(fresh);
+                self.dirty.store(true, std::sync::atomic::Ordering::Release);
+                return Ok(mutations.len());
+            }
+        };
+        let backup = serde_json::to_string(inner.all()).ok();
         for m in mutations {
-            apply_mutation(&mut fresh, m, now_ms, self.path.clone())?;
+            if let Err(e) = apply_mutation(inner, m, now_ms, self.path.clone()) {
+                if let Some(ref b) = backup {
+                    if let Ok(v) = serde_json::from_str::<Value>(b) {
+                        let _ = inner.replace(v);
+                    }
+                }
+                return Err(e);
+            }
         }
-
-        fresh.write().map_err(|e| StoreWriteError {
-            path: self.path.clone(),
-            detail: format!("tulis gagal: {e}"),
-        })?;
-
-        // Snapshot ditukar HANYA setelah `write()` sukses. Kalau tulis
-        // gagal, pipeline masih membaca state lama — sama dengan isi disk.
-        *guard = Arc::new(fresh);
-        // Disk sudah konsisten → barulah mirror Turso boleh lebih baru.
-        // (Mirror lebih lama dari disk aman: flush berikutnya menulis ulang.)
-        self.dirty
-            .store(true, std::sync::atomic::Ordering::Release);
+        if let Err(e) = inner.write() {
+            if let Some(ref b) = backup {
+                if let Ok(v) = serde_json::from_str::<Value>(b) {
+                    let _ = inner.replace(v);
+                }
+            }
+            return Err(StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("tulis gagal: {e}"),
+            });
+        }
+        self.dirty.store(true, std::sync::atomic::Ordering::Release);
         Ok(mutations.len())
     }
 
@@ -512,49 +518,31 @@ fn apply_mutation(
 ) -> Result<(), StoreWriteError> {
     match m {
         Mutation::SetUser { jid, data } => {
-            // `getUser` mengembalikan `null` untuk jid yang tidak bisa
-            // dinormalisasi (`database.js:530-531`), jadi `setUser` ikut
-            // `return null` — diam, tanpa menulis apa pun.
             let Some(key) = normalize_user_key(jid) else {
                 return Ok(());
             };
-            let mut users = store
-                .get("users")
-                .cloned()
-                .unwrap_or_else(|| Value::Object(Default::default()));
-            apply_set_user(&mut users, &key, data, now_ms);
-            store.set("users", users).map_err(|e| StoreWriteError {
-                path,
+            let users = store.get_or_insert_object("users").map_err(|e| StoreWriteError {
+                path: path.clone(),
                 detail: format!("setUser({key}) gagal: {e}"),
             })?;
+            apply_set_user(users, &key, data, now_ms);
         }
         Mutation::SetGroup { jid, data } => {
             if jid.is_empty() {
                 return Ok(());
             }
-            let mut groups = store
-                .get("groups")
-                .cloned()
-                .unwrap_or_else(|| Value::Object(Default::default()));
-            apply_set_group(&mut groups, jid, data);
-            store.set("groups", groups).map_err(|e| StoreWriteError {
-                path,
+            let groups = store.get_or_insert_object("groups").map_err(|e| StoreWriteError {
+                path: path.clone(),
                 detail: format!("setGroup({jid}) gagal: {e}"),
             })?;
+            apply_set_group(groups, jid, data);
         }
         Mutation::SetSetting { key, value } => {
-            let mut settings = store
-                .get("settings")
-                .cloned()
-                .unwrap_or_else(|| Value::Object(Default::default()));
-            if !settings.is_object() {
-                settings = Value::Object(Default::default());
-            }
-            settings[key] = value.clone();
-            store.set("settings", settings).map_err(|e| StoreWriteError {
-                path,
+            let settings = store.get_or_insert_object("settings").map_err(|e| StoreWriteError {
+                path: path.clone(),
                 detail: format!("setting({key}) gagal: {e}"),
             })?;
+            settings[key] = value.clone();
         }
     }
     Ok(())
@@ -1039,14 +1027,20 @@ impl Dedup {
         }
         self.entries.insert(key.to_string(), now_ms);
 
-        // Pembersihan berkala tiap 5 s tanpa syarat ukuran: tanpa ini, kunci
-        // basi menumpuk selamanya saat jumlah entri kecil (performance.js:20-26).
         if now_ms - self.last_clean > 5000 {
             self.last_clean = now_ms;
             let cutoff = now_ms - DEBOUNCE_MS * 2;
             self.entries.retain(|_, v| *v >= cutoff);
+            if self.entries.capacity() > 4 * self.entries.len().max(64) {
+                self.entries.shrink_to_fit();
+            }
         }
         false
+    }
+
+    pub fn is_stale_replay(ts_secs: i64, boot_ms: i64) -> bool {
+        let boot_secs = boot_ms / 1000;
+        ts_secs > 0 && ts_secs < boot_secs - 60
     }
 
     pub fn len(&self) -> usize {
@@ -1309,23 +1303,8 @@ impl MessageSender for ClientSender {
             jid.ok_or_else(|| "client belum punya JID bot (pairing belum selesai)".to_string())
         })
     }
-
-    /// Alur media nyata: `Client::upload` (`src/upload.rs:409`) → bangun
-    /// `wa::Message` dari `UploadResponse` → `send_message_with_options`.
-    ///
-    /// `preview` (`sendPreview`) lewat jalur TERPISAH: byte-nya di-upload
-    /// sebagai `thumbnail-link` (`mediaTypeOverride`, `socket.js:1224-1239`),
-    /// bukan sebagai gambar — WA menaruh link preview di endpoint lain, dan
-    /// kirim sebagai `MediaType::Image` menghasilkan bubble gambar, bukan
-    /// preview link.
-    ///
-    /// `ponytail:` endpoint upload preview masih `/mms/thumbnail-link`
-    /// (`MediaType::LinkThumbnail`), sedangkan callback upload onigis JS
-    /// mengirim byte gambar lewat path media image dengan label enkripsi
-    /// `thumbnail-link`. Perbedaannya belum diverifikasi live; butuh override
-    /// upstream atau percobaan ke server nyata — TIDAK diubah di sini.
     fn send_media(&self, to: &str, media: PendingMedia) -> SendBox<'_> {
-        let client = self.client.clone();
+    let client = self.client.clone();
         let to = to.to_string();
         Box::pin(async move {
             let jid: Jid = to
@@ -1342,9 +1321,12 @@ impl MessageSender for ClientSender {
                 patch_preview(preview, &upload)
             } else {
                 let data = load_media(&media.source).await.map_err(|e| e.to_string())?;
-                // `MediaType::Sticker` dan `MediaType::Image` sama-sama mendarat
-                // di `/mms/image` (`wacore-0.7.0/src/download.rs:91`) — persis
-                // seperti WA Web, tapi tetap pakai tipe yang jujur per jenis.
+                let mut media = media;
+                if media.jpeg_thumbnail.is_none() {
+                    if let Some(t) = buat_thumbnail(&data, media.kind) {
+                        media.jpeg_thumbnail = Some(t);
+                    }
+                }
                 let upload = client
                     .upload(data, media.kind.upload_type(), UploadOptions::default())
                     .await
@@ -2009,6 +1991,32 @@ fn patch_preview(preview: PendingPreview, up: &UploadResponse) -> wa::Message {
 /// Opsi per jenis media, dipisah dari `build_media_message` supaya bisa diuji
 /// tanpa jaringan: `UploadResponse` itu `#[non_exhaustive]`, jadi tidak bisa
 /// dibuat dari luar crate `whatsapp-rust`.
+fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
+    match kind {
+        MediaKind::Image | MediaKind::Document => {
+            let g = oktz_plugin_api::gambar::sharp(data).ok()?;
+            let meta = g.metadata();
+            let w = 32u32;
+            let h = (32u32 * meta.tinggi / meta.lebar.max(1)).clamp(1, 32);
+            g.ubah_ukuran(w, h).ke_jpeg(50).ok()
+        }
+        MediaKind::Video => {
+            let mut f = std::fs::File::create("/tmp/oktz-thumb-video.mp4").ok()?;
+            use std::io::Write;
+            f.write_all(data).ok()?;
+            drop(f);
+            let biner = oktz_plugin_api::ffmpeg::jalur_ffmpeg().unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
+            let out = std::process::Command::new(biner)
+                .args(["-ss", "0", "-i", "/tmp/oktz-thumb-video.mp4", "-vframes", "1", "-vf", "scale=32:32", "-f", "mjpeg", "-"])
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::null())
+                .output().ok()?;
+            if out.status.success() && !out.stdout.is_empty() { Some(out.stdout) } else { None }
+        }
+        _ => None,
+    }
+}
+
 fn image_options(
     media: &PendingMedia,
     caption: Option<String>,
@@ -3416,11 +3424,9 @@ pub struct Pipeline {
     /// Wajib disimpan: `Subscription` unsubscribe saat di-drop
     /// (wacore-0.7.0/src/types/events.rs:538-544).
     subscription: Mutex<Option<Subscription>>,
-    /// Handle task worker `run`/`run_grup` generasi attach terakhir.
-    /// `attach()` membatalkan (abort) worker generasi sebelumnya sebelum
-    /// spawn baru, supaya reconnect (attach ulang) tidak membocorkan
-    /// pipeline/task yang terus hidup dan memproses pesan duplikat.
     worker_tasks: Mutex<Vec<tokio::task::JoinHandle<()>>>,
+    boot_ms: std::sync::atomic::AtomicI64,
+    last_send: Mutex<Option<std::time::Instant>>,
 }
 
 impl Pipeline {
@@ -3466,7 +3472,13 @@ impl Pipeline {
             wrapped: Mutex::new(WrappedHandlers::default()),
             subscription: Mutex::new(None),
             worker_tasks: Mutex::new(Vec::new()),
+            boot_ms: std::sync::atomic::AtomicI64::new(0),
+            last_send: Mutex::new(None),
         }
+    }
+
+    pub fn set_boot_ms(&self, boot_ms: i64) {
+        self.boot_ms.store(boot_ms, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn with_identity(mut self, identity: Identity) -> Self {
@@ -3593,7 +3605,7 @@ impl Pipeline {
         }
         let settings = self.auto_work_settings;
         slot.guard.allow(|| {
-            let mut limiter = self.auto_work_limiter.lock().expect("auto_work limiter");
+            let mut limiter = self.auto_work_limiter.lock().unwrap_or_else(|e| e.into_inner());
             consume_auto_work(
                 &mut limiter,
                 caller,
@@ -3829,7 +3841,22 @@ impl Pipeline {
     /// terakhir ([`ReplyTarget::previous_sent`]). Jalur media dan kartu TIDAK
     /// tahu ID-nya — byte-nya dirakit di dalam pengirim — jadi keduanya
     /// membawa ID KOSONG, bukan karangan.
+    async fn throttle_send(&self) {
+        let wait = {
+            let mut g = self.last_send.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(t) = *g {
+                let elapsed = t.elapsed();
+                if elapsed < std::time::Duration::from_millis(300) {
+                    *g = Some(std::time::Instant::now());
+                    std::time::Duration::from_millis(300) - elapsed
+                } else { *g = Some(std::time::Instant::now()); std::time::Duration::ZERO }
+            } else { *g = Some(std::time::Instant::now()); std::time::Duration::ZERO }
+        };
+        if !wait.is_zero() { tokio::time::sleep(wait).await; }
+    }
+
     async fn deliver(&self, chat: &str, rendered: Rendered) -> Result<SentMessage, PipelineError> {
+        self.throttle_send().await;
         // `Rendered` untuk media sengaja punya `message` kosong, jadi TIDAK
         // mungkin terkirim apa adanya — harus lewat `send_media`.
         // Kartu ikut pola yang sama: proto-nya baru ada setelah media header
@@ -4156,6 +4183,13 @@ impl Pipeline {
         let mut caller = self.caller_of(m);
         self.record_recent_media(m);
 
+        // Filter replay: history-sync setelah (re)connect kirim pesan lama.
+        // Pesan >60s sebelum boot dibuang — perintah lama tidak dieksekusi ulang.
+        let boot_ms = self.boot_ms.load(std::sync::atomic::Ordering::Relaxed);
+        if boot_ms > 0 && Dedup::is_stale_replay(m.info.timestamp.timestamp(), boot_ms) {
+            return Ok(Outcome::Deduped);
+        }
+
         // Dedup: kunci persis handler.js:926.
         let dedup_key = format!(
             "{}_{}_{}_{}",
@@ -4167,7 +4201,7 @@ impl Pipeline {
         if self
             .dedup
             .lock()
-            .expect("dedup")
+            .unwrap_or_else(|e| e.into_inner())
             .debounce(&dedup_key, now_ms)
         {
             return Ok(Outcome::Deduped);
@@ -4246,7 +4280,7 @@ impl Pipeline {
         // Hanya untuk yang bukan owner/premium — dicek di dalam `is_spamming`.
         let spam_key = format!("{}_{}", self.bot_id, caller.sender);
         if is_spamming(
-            &mut self.spam.lock().expect("spam"),
+            &mut self.spam.lock().unwrap_or_else(|e| e.into_inner()),
             &caller,
             &spam_key,
             now_ms,
@@ -4262,7 +4296,7 @@ impl Pipeline {
             Some(
                 self.wrapped
                     .lock()
-                    .expect("wrapped handlers")
+                    .unwrap_or_else(|e| e.into_inner())
                     .get_or_insert(real, &self.plugin_src),
             )
         };
@@ -4526,39 +4560,29 @@ impl Pipeline {
     /// Berhenti hanya kalau semua `tx` di-drop, yaitu saat `Pipeline` beserta
     /// task ini dijatuhkan.
     pub async fn run(self: Arc<Self>, rx: IngestRx) {
+        use std::collections::HashMap;
+        use std::sync::Arc as StdArc;
+        let sem = StdArc::new(tokio::sync::Semaphore::new(8));
+        let mut tails: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
         while let Ok(m) = rx.recv().await {
-            let preview: String = extract_body(&m.message)
-                .unwrap_or_default()
-                .chars()
-                .filter(|c| !c.is_control())
-                .take(120)
-                .collect();
-            match self.process(&m, now_ms()).await {
-                Ok(o) => tracing::info!(
-                    id = %m.info.id,
-                    chat = %m.info.source.chat,
-                    sender = %m.info.source.sender,
-                    body = %preview,
-                    outcome = ?o,
-                    "pesan inbound diproses"
-                ),
-                Err(e) => {
-                    tracing::error!(
-                        error = %e,
-                        id = %m.info.id,
-                        chat = %m.info.source.chat,
-                        sender = %m.info.source.sender,
-                        body = %preview,
-                        "pipeline gagal memproses pesan"
-                    );
-                    // JS: handler error → `m.reply(te(prefix, command,
-                    // pushName))` (`handler.js:571`, `src/lib/error.js`).
-                    // Pesan error user JUGA ikut replyVariant — jalur render
-                    // yang sama dengan balasan sukses.
-                    self.kirim_pesan_error(&m, &e).await;
+            let chat = m.info.source.chat.to_string();
+            let prev = tails.remove(&chat);
+            let permit = sem.clone().acquire_owned().await.unwrap();
+            let this = self.clone();
+            let h = tokio::spawn(async move {
+                if let Some(p) = prev { let _ = p.await; }
+                let _permit = permit;
+                match this.process(&m, now_ms()).await {
+                    Ok(o) => tracing::info!(id = %m.info.id, chat = %m.info.source.chat, sender = %m.info.source.sender, outcome = ?o, "pesan inbound diproses"),
+                    Err(e) => {
+                        tracing::error!(error = %e, id = %m.info.id, "pipeline gagal memproses pesan");
+                        this.kirim_pesan_error(&m, &e).await;
+                    }
                 }
-            }
+            });
+            tails.insert(chat, h);
         }
+        for (_, h) in tails { let _ = h.await; }
         tracing::debug!("antrean pesan ditutup; loop pipeline berhenti");
     }
 

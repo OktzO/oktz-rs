@@ -413,6 +413,9 @@ impl EnergiBalance for InMemoryEnergi {
 
     fn set_energy(&mut self, user: &str, value: i64) {
         self.map.insert(user.to_string(), value);
+        if self.map.len() > 50_000 {
+            self.map.clear();
+        }
     }
 }
 

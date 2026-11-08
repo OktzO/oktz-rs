@@ -1284,10 +1284,11 @@ impl Ctx {
 
     /// `global.sessions.set(key, value)`.
     pub fn session_set(&self, key: &str, value: Value) {
-        self.sessions
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(key.to_string(), value);
+        let mut g = self.sessions.lock().unwrap_or_else(|e| e.into_inner());
+        g.insert(key.to_string(), value);
+        if g.len() > 10_000 {
+            g.clear();
+        }
     }
 
     /// Baca-kemudian-hapus dalam satu lock. `None` kalau key tidak ada.
@@ -1469,12 +1470,17 @@ pub fn all_answer_handlers() -> &'static [&'static [AnswerHandlerFn]] {
     ANSWER_CACHE.get_or_init(|| ANSWER_HANDLERS.iter().map(|f| f()).collect())
 }
 
-/// Jalankan rantai answer handler; `Some` dari yang pertama menang.
 pub fn run_answer_handlers(ctx: Ctx) -> Option<Reply> {
     all_answer_handlers()
         .iter()
         .flat_map(|list| list.iter())
-        .find_map(|f| f(ctx.clone()))
+        .find_map(|f| {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(ctx.clone())))
+                .unwrap_or_else(|_| {
+                    tracing::error!("answer handler panik, ditahan");
+                    None
+                })
+        })
 }
 
 /// State volatil antar-pesan. Pakai suffix `""` kalau mau menyimpan JSON

@@ -22,6 +22,7 @@ type PartMultipart = (String, Option<String>, Option<String>, Vec<u8>);
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const TIMEOUT_SECS: u64 = 20;
+pub const MAX_BODY: usize = 25 * 1024 * 1024;
 
 #[derive(Debug)]
 pub struct UreqHttp {
@@ -60,7 +61,10 @@ impl UreqHttp {
             })
             .collect();
         let mut body = res.into_body();
-        let data = body.read_to_vec().map_err(to_err)?;
+        let data = body.with_config().limit((MAX_BODY + 1) as u64).read_to_vec().map_err(to_err)?;
+        if data.len() > MAX_BODY {
+            return Err(HttpError { message: "response terlalu besar".into() });
+        }
         Ok(HttpResponse {
             status,
             body: HttpBody::Bytes {

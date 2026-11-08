@@ -69,26 +69,33 @@ fn fld<T: Default>(v: Option<T>) -> MessageField<T> {
 /// kriptografis, dan itu tidak mengubah kontrak yang dikunci test: panjang
 /// dan tipenya.
 fn secret_32() -> Vec<u8> {
-    let mut out = Vec::with_capacity(32);
+    let mut out = vec![0u8; 32];
+    use std::io::Read;
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        if f.read_exact(&mut out).is_ok() { return out; }
+    }
     let mut seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
-    for _ in 0..32 {
-        // xorshift64: deterministic dari seed, beda per pemanggilan.
+    for b in &mut out {
         seed ^= seed << 13;
         seed ^= seed >> 7;
         seed ^= seed << 17;
-        out.push(seed as u8);
+        *b = seed as u8;
     }
     out
 }
 
-/// ID unik berbasis waktu (padanan `randomUUID` JS tanpa dependensi baru).
-///
-/// `as_nanos` sudah membedakan pemanggilan dalam satu proses; counter
-/// atomik menutup kasio nano-detik yang sama persis.
 fn unique_id() -> String {
+    let mut buf = [0u8; 16];
+    use std::io::Read;
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        if f.read_exact(&mut buf).is_ok() {
+            let s: String = buf.iter().map(|b| format!("{b:02x}")).collect();
+            return format!("{}-{}", &s[..16], &s[16..]);
+        }
+    }
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -28,6 +28,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
@@ -97,6 +98,17 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.20 — .bratvid/.bratvid2 animasi + teks rata kiri; perbaiki flag VP8X sticker/brat (alpha/animasi/EXIF) yang membuat
 //           WebP ditolak WA saat diunduh.
 export const VERSI_BIN = "v0.2.26";
+export function sha256(data) {
+  return createHash("sha256").update(data).digest("hex");
+}
+export async function verifikasiChecksum(nama, tag, data, fetchImpl = fetch) {
+  try {
+    const r = await fetchImpl(urlAset(tag, `${nama}.sha256`));
+    if (!r.ok) return false;
+    const hex = Buffer.from(await r.arrayBuffer()).toString("utf8").trim().split(/\s+/)[0];
+    return hex.toLowerCase() === sha256(data).toLowerCase();
+  } catch { return false; }
+}
 
 /**
  * Tag rilis dari URL GitHub: `.../releases/tag/<tag>` atau

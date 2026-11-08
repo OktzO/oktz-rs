@@ -801,7 +801,13 @@ fn srt_dir(root: &Path) -> PathBuf {
 ///
 /// Dipakai pipeline untuk mengisi [`VariantInput::srt_image`]; nama asetnya
 /// menunjuk `assets/image/*.jpeg` sesuai `config.assets`.
+static THUMB_CACHE: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::sync::OnceLock::new();
 pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
+    let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(Vec::new()));
+    {
+        let g = c.lock().unwrap_or_else(|e| e.into_inner());
+        if !g.is_empty() { return Some(g.clone()); }
+    }
     let dir = srt_dir(root);
     if srt_enabled
         && let Ok(entries) = std::fs::read_dir(&dir)
@@ -824,11 +830,14 @@ pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
             files.sort();
             let idx = pseudo_random_index(files.len());
             if let Ok(b) = std::fs::read(&files[idx]) {
+                *c.lock().unwrap_or_else(|e| e.into_inner()) = b.clone();
                 return Some(b);
             }
         }
     }
-    std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()
+    let b = std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()?;
+    *c.lock().unwrap_or_else(|e| e.into_inner()) = b.clone();
+    Some(b)
 }
 
 /// `Math.floor(Math.random() * n)` tanpa dependency RNG.

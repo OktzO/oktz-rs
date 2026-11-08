@@ -54,6 +54,19 @@ impl JsonStore {
         self.data.as_object().and_then(|m| m.get(key))
     }
 
+    pub fn get_mut(&mut self, key: &str) -> Result<&mut Value> {
+        self.map_mut()?.get_mut(key).ok_or_else(|| Error::Config(format!("key tidak ada: {key}")))
+    }
+
+    pub fn get_or_insert_object(&mut self, key: &str) -> Result<&mut Value> {
+        let map = self.map_mut()?;
+        let v = map.entry(key.to_string()).or_insert_with(|| Value::Object(Map::new()));
+        if !v.is_object() {
+            *v = Value::Object(Map::new());
+        }
+        Ok(v)
+    }
+
     pub fn set(&mut self, key: &str, value: Value) -> Result<()> {
         self.map_mut()?.insert(key.to_string(), value);
         Ok(())

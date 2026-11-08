@@ -200,8 +200,8 @@ pub struct PipelineWiring {
     /// memakai instance yang sama — membangun yang baru akan meninggalkan
     /// loop lama hidup dan membalas dua kali.
     live: Mutex<Option<Arc<Pipeline>>>,
-    /// Mirror Turso; `None` = fitur mati (TURSO_URL kosong / disabled).
     turso: Mutex<Option<(oktz_store::turso::TursoStore, std::time::Duration)>>,
+    turso_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 /// Bangun [`PipelineWiring`] dari lokasi store, owner, dan bot id.
@@ -241,6 +241,7 @@ pub fn wiring_from_with_config(
         db_owners: owner_entries(settings.parent().map(|p| p.join("owner.json")).as_deref().unwrap_or(Path::new("owner.json"))),
         live: Mutex::new(None),
         turso: Mutex::new(None),
+        turso_task: Mutex::new(None),
     })
 }
 
@@ -355,8 +356,12 @@ impl PipelineWiring {
     /// Task flush write-behind: tiap interval, kalau kotor → kirim ke Turso.
     /// Gagal = warning + flag kotor dipasang lagi (coba siklus berikutnya).
     pub fn spawn_flush_task(self: &Arc<Self>) {
+        {
+            let mut slot = self.turso_task.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(h) = slot.take() { h.abort(); }
+        }
         let this = Arc::clone(self);
-        tokio::spawn(async move {
+        let h = tokio::spawn(async move {
             loop {
                 let interval = this
                     .turso
@@ -369,6 +374,7 @@ impl PipelineWiring {
                 this.flush_once_turso().await;
             }
         });
+        *self.turso_task.lock().unwrap_or_else(|e| e.into_inner()) = Some(h);
     }
 
     /// Satu siklus flush. `pub(crate)` supaya test bisa memanggil langsung.
