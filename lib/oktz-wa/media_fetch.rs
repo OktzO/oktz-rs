@@ -24,7 +24,7 @@
 //!   berkas lokal tetap terblokir seperti sebelumnya.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use oktz_plugin_api::{
     IncomingKind, IncomingMedia, MediaError, MediaFetch, MediaOrigin,
@@ -188,7 +188,7 @@ pub struct WaMediaFetch {
     client: Arc<Client>,
     trigger: Option<MediaData>,
     quoted: Option<MediaData>,
-    indexed: HashMap<String, MediaData>,
+    indexed: Arc<Mutex<HashMap<String, MediaData>>>,
 }
 
 impl std::fmt::Debug for WaMediaFetch {
@@ -204,9 +204,14 @@ impl std::fmt::Debug for WaMediaFetch {
 impl MediaFetch for WaMediaFetch {
     fn download(&self, origin: MediaOrigin) -> Result<Vec<u8>, MediaError> {
         let data = match origin {
-            MediaOrigin::Trigger => self.trigger.as_ref(),
-            MediaOrigin::Quoted => self.quoted.as_ref(),
-            MediaOrigin::Indexed(ref id) => self.indexed.get(id),
+            MediaOrigin::Trigger => self.trigger.clone(),
+            MediaOrigin::Quoted => self.quoted.clone(),
+            MediaOrigin::Indexed(ref id) => self
+                .indexed
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(id)
+                .cloned(),
         };
         let Some(data) = data else {
             return Err(MediaError {
@@ -217,7 +222,7 @@ impl MediaFetch for WaMediaFetch {
         // Lihat catatan modul: satu-satunya tempat menunggu I/O dari handler
         // sinkron, dan runtime produksi memang multi-thread.
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(client.download(data))
+            tokio::runtime::Handle::current().block_on(client.download(&data))
         })
         .map_err(|e| MediaError {
             message: format!("unduh media {} gagal: {e}", origin.label()),
@@ -261,18 +266,27 @@ fn quoted_media_of(m: &wa::Message) -> Option<MediaData> {
 pub fn ctx_media(
     client: Option<Arc<Client>>,
     m: &InboundMessage,
-    recent: &HashMap<String, MediaData>,
+    recent: &Arc<Mutex<HashMap<String, MediaData>>>,
 ) -> (Option<IncomingMedia>, Option<Arc<dyn MediaFetch>>) {
     let trigger = MediaData::of(&m.message);
     let quoted = quoted_media_of(&m.message);
     let info = trigger.as_ref().map(|d| d.info.clone());
     let fetch: Option<Arc<dyn MediaFetch>> = match client {
-        Some(client) if trigger.is_some() || quoted.is_some() || !recent.is_empty() => Some(Arc::new(WaMediaFetch {
-            client,
-            trigger,
-            quoted,
-            indexed: recent.clone(),
-        })),
+        Some(client)
+            if trigger.is_some()
+                || quoted.is_some()
+                || !recent
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .is_empty() =>
+        {
+            Some(Arc::new(WaMediaFetch {
+                client,
+                trigger,
+                quoted,
+                indexed: Arc::clone(recent),
+            }))
+        }
         _ => None,
     };
     (info, fetch)

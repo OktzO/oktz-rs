@@ -4,6 +4,7 @@ use ab_glyph::{Font, FontArc, ScaleFont};
 use image::{DynamicImage, RgbaImage};
 
 const FONT: &[u8] = include_bytes!("../../assets/fonts/arialnarrow.ttf");
+const FONT_IMPACT: &[u8] = include_bytes!("../../assets/fonts/impact.ttf");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BratTema {

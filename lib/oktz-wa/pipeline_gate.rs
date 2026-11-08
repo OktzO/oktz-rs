@@ -86,7 +86,9 @@ impl GateState {
         cooldown_secs: u32,
         now_ms: i64,
     ) -> Option<u64> {
-        check_cooldown(&self.lock().cooldowns, caller, cmd_key, cooldown_secs, now_ms)
+        let mut data = self.lock();
+        data.cooldowns.prune_expired(now_ms);
+        check_cooldown(&data.cooldowns, caller, cmd_key, cooldown_secs, now_ms)
     }
 
     /// `db.setCooldown` (`handler.js:1922-1924`) — dipanggil SETELAH handler
@@ -98,8 +100,10 @@ impl GateState {
         cooldown_secs: u32,
         now_ms: i64,
     ) {
+        let mut data = self.lock();
+        data.cooldowns.prune_expired(now_ms);
         set_cooldown(
-            &mut self.lock().cooldowns,
+            &mut data.cooldowns,
             caller,
             cmd_key,
             cooldown_secs,
@@ -140,7 +144,13 @@ impl GateState {
     /// `lastMessageTime.set(key, now)` — dipanggil HANYA saat rantai grup
     /// lolos, supaya pesan yang dibuang tidak memperlambat pesan berikutnya.
     pub fn record_message(&self, key: &str, now_ms: i64) {
-        self.lock().last_message_ms.insert(key.to_string(), now_ms);
+        let mut data = self.lock();
+        // Slowmode delay (detik) jauh di bawah 7 hari, jadi entri >7 hari
+        // tidak pernah memengaruhi gate — aman dibuang agar map tidak tumbuh
+        // tanpa batas untuk chat/sender yang sudah tidak aktif.
+        data.last_message_ms
+            .retain(|_, &v| now_ms - v < 86_400_000 * 7);
+        data.last_message_ms.insert(key.to_string(), now_ms);
     }
 }
 

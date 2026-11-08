@@ -1039,9 +1039,9 @@ impl Dedup {
         }
         self.entries.insert(key.to_string(), now_ms);
 
-        // Pembersihan malas: hanya saat >1000 entri DAN sudah 5 s sejaknowrap
-        // pembersihan sebelumnya (performance.js:20-26).
-        if self.entries.len() > 1000 && now_ms - self.last_clean > 5000 {
+        // Pembersihan berkala tiap 5 s tanpa syarat ukuran: tanpa ini, kunci
+        // basi menumpuk selamanya saat jumlah entri kecil (performance.js:20-26).
+        if now_ms - self.last_clean > 5000 {
             self.last_clean = now_ms;
             let cutoff = now_ms - DEBOUNCE_MS * 2;
             self.entries.retain(|_, v| *v >= cutoff);
@@ -3144,6 +3144,9 @@ impl RosterCache {
     }
 
     fn put(&mut self, chat: &str, roster: GroupRoster) {
+        // Entri kedaluwarsa dibuang saat insert berikutnya, supaya map tidak
+        // tumbuh tanpa batas untuk grup yang sudah tidak aktif.
+        self.map.retain(|_, (at, _)| at.elapsed() < self.ttl);
         self.map.insert(chat.to_string(), (Instant::now(), roster));
     }
 
@@ -3413,6 +3416,11 @@ pub struct Pipeline {
     /// Wajib disimpan: `Subscription` unsubscribe saat di-drop
     /// (wacore-0.7.0/src/types/events.rs:538-544).
     subscription: Mutex<Option<Subscription>>,
+    /// Handle task worker `run`/`run_grup` generasi attach terakhir.
+    /// `attach()` membatalkan (abort) worker generasi sebelumnya sebelum
+    /// spawn baru, supaya reconnect (attach ulang) tidak membocorkan
+    /// pipeline/task yang terus hidup dan memproses pesan duplikat.
+    worker_tasks: Mutex<Vec<tokio::task::JoinHandle<()>>>,
 }
 
 impl Pipeline {
@@ -3457,6 +3465,7 @@ impl Pipeline {
             plugin_lookup: Arc::new(oktz_plugin_api::find),
             wrapped: Mutex::new(WrappedHandlers::default()),
             subscription: Mutex::new(None),
+            worker_tasks: Mutex::new(Vec::new()),
         }
     }
 
@@ -3612,8 +3621,7 @@ impl Pipeline {
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
         // `NoMediaFetch` — `Ctx::media` tetap terisi supaya plugin bisa
         // memeriksa `m.isImage` tanpa sesi WA.
-        let recent = self.plugin_src.recent_media_data.lock().unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner()).clone();
-        let (media, media_fetch) = crate::media_fetch::ctx_media(self.sender.client(), m, &recent);
+        let (media, media_fetch) = crate::media_fetch::ctx_media(self.sender.client(), m, &self.plugin_src.recent_media_data);
         Caller {
             sender: sender.clone(),
             chat: s.chat.to_string(),
@@ -4053,14 +4061,28 @@ impl Pipeline {
         roster
     }
 
+    /// Batas atas cache media terakhir — tanpa ini jumlah chat (dan jumlah
+    /// `MediaData`) tumbuh tanpa batas seumur proses.
+    const RECENT_MEDIA_MAX_CHATS: usize = 512;
+    /// Jumlah item album per chat yang disimpan (`album_media` plugin).
+    const RECENT_MEDIA_PER_CHAT: usize = 30;
+    /// Batas atas `recent_media_data` (message-id → `MediaData`).
+    const RECENT_MEDIA_DATA_MAX: usize = 512;
+    /// Jumlah entri yang dibuang per eviksi — HashMap tanpa urutan, jadi
+    /// eviksi bersifat arbitrer; cache "recent" memang boleh kehilangan item.
+    const RECENT_MEDIA_EVICT_BATCH: usize = 128;
+    /// Chat yang item terbarunya lebih tua dari ini dianggap basi saat prune.
+    const RECENT_MEDIA_STALE_SECS: i64 = 300;
+
     fn record_recent_media(&self, m: &InboundMessage) {
         let Some(data) = crate::media_fetch::MediaData::of(&m.message) else {
             return;
         };
         let chat = m.info.source.chat.to_string();
+        let now_secs = m.info.timestamp.timestamp();
         let item = oktz_plugin_api::AlbumMedia {
             id: m.info.id.clone(),
-            timestamp: m.info.timestamp.timestamp(),
+            timestamp: now_secs,
             from_me: m.info.source.is_from_me,
             media: None,
         };
@@ -4069,16 +4091,50 @@ impl Pipeline {
             .recent_media
             .lock()
             .unwrap_or_else(|e| e.into_inner());
+        // Chat baru saat cache penuh: buang chat basi dulu (item terbaru
+        // lebih tua dari 300 dtk), lalu buang arbitrer 128 sebagai backstop.
+        if !guard.contains_key(&chat) && guard.len() >= Self::RECENT_MEDIA_MAX_CHATS {
+            guard.retain(|_, items| {
+                items
+                    .back()
+                    .is_some_and(|it| now_secs.saturating_sub(it.timestamp) < Self::RECENT_MEDIA_STALE_SECS)
+            });
+            if guard.len() >= Self::RECENT_MEDIA_MAX_CHATS {
+                let buang: Vec<String> = guard
+                    .keys()
+                    .take(Self::RECENT_MEDIA_EVICT_BATCH)
+                    .cloned()
+                    .collect();
+                for k in buang {
+                    guard.remove(&k);
+                }
+            }
+        }
         let entry = guard.entry(chat).or_default();
         entry.push_back(item);
-        while entry.len() > 30 {
+        while entry.len() > Self::RECENT_MEDIA_PER_CHAT {
             entry.pop_front();
         }
-        self.plugin_src
+        drop(guard);
+        let mut data_guard = self
+            .plugin_src
             .recent_media_data
             .lock()
-            .unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner())
-            .insert(m.info.id.clone(), data);
+            .unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
+        data_guard.insert(m.info.id.clone(), data);
+        // `MediaData` tidak punya timestamp — eviksi arbitrer 128 entri,
+        // kecuali entri yang baru dimasukkan.
+        if data_guard.len() > Self::RECENT_MEDIA_DATA_MAX {
+            let buang: Vec<String> = data_guard
+                .keys()
+                .filter(|k| *k != &m.info.id)
+                .take(Self::RECENT_MEDIA_EVICT_BATCH)
+                .cloned()
+                .collect();
+            for k in buang {
+                data_guard.remove(&k);
+            }
+        }
     }
 
     /// Satu pesan inbound → satu keputusan → satu pengiriman.
@@ -4509,8 +4565,18 @@ impl Pipeline {
         let mut slot = self.subscription.lock().unwrap_or_else(|e| e.into_inner());
         *slot = Some(sub);
         drop(slot);
-        tokio::spawn(self.clone().run(rx));
-        tokio::spawn(self.clone().run_grup(grup_rx));
+        // Batalkan worker generasi sebelumnya sebelum spawn baru, supaya
+        // reconnect/attach ulang tidak meninggalkan task yatim.
+        let mut tasks = self.worker_tasks.lock().unwrap_or_else(|e| e.into_inner());
+        for t in tasks.drain(..) {
+            t.abort();
+        }
+        drop(tasks);
+        let h1 = tokio::spawn(self.clone().run(rx));
+        let h2 = tokio::spawn(self.clone().run_grup(grup_rx));
+        let mut tasks = self.worker_tasks.lock().unwrap_or_else(|e| e.into_inner());
+        tasks.push(h1);
+        tasks.push(h2);
     }
 
     /// Drain antrean update peserta grup → [`Pipeline::tangani_update_grup`].

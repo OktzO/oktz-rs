@@ -107,6 +107,10 @@ impl RateLimiter {
 
     /// Satu operasi = satu titik. `now_ms` masuk sebagai parameter supaya test deterministik.
     pub fn consume(&mut self, key: &str, now_ms: i64) -> Result<ConsumeOk, ConsumeErr> {
+        // Entri kedaluwarsa dibuang supaya map tidak tumbuh tanpa batas untuk
+        // key yang sudah tidak aktif. `incr` sudah memperlakukan entri basi
+        // seperti tidak ada, jadi prune tidak mengubah perilaku.
+        self.entries.retain(|_, e| e.expires_at_ms > now_ms);
         let (consumed, _ms_before_next) = self.incr(key, now_ms);
         if consumed > i64::from(self.points) {
             // `blockDuration > 0 && consumedPoints <= points + pointsToConsume`
@@ -324,6 +328,12 @@ impl CooldownStore for InMemoryCooldowns {
     fn set_cooldown_end(&mut self, user: &str, cmd_key: &str, end_ms: i64) {
         self.map
             .insert((user.to_string(), cmd_key.to_string()), end_ms);
+    }
+}
+
+impl InMemoryCooldowns {
+    pub fn prune_expired(&mut self, now_ms: i64) {
+        self.map.retain(|_, &end| end > now_ms);
     }
 }
 
