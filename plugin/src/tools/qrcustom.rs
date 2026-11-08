@@ -292,7 +292,8 @@ fn pola_alignment(m: &mut Matriks, versi: usize) {
     let n = coords.len();
     for i in 0..n {
         for j in 0..n {
-            if (i == 0 && j == 0) || (i == 0 && j == n - 1) || (i == n - 1 && j == 0) {
+            let n1 = n - 1;
+            if (i, j) == (0, 0) || (i, j) == (0, n1) || (i, j) == (n1, 0) {
                 continue;
             }
             let (row, col) = (coords[i], coords[j]);
