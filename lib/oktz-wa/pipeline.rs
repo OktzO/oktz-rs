@@ -3943,6 +3943,15 @@ impl Pipeline {
                     }
                     self.deliver_reply(chat, inner, target, key).await
                 }
+                // `with_reaction` selalu membungkus balasan di `Mutate` (0 mutasi)
+                // — di top-level `process()` memisahnya via `into_parts()`, tapi
+                // di dalam `Sequence` tidak. Tanpa unwrap ini elemen seperti
+                // `TabelAi.with_reaction("✅")` jatuh ke `render_reply` dan
+                // ditolak `UnappliedMutation`. Yang 0 mutasi dibiarkan lewat;
+                // yang bermutasi tetap berisik (render akan error).
+                Reply::Mutate { reply: inner, mutations } if mutations.is_empty() => {
+                    self.deliver_reply(chat, inner, target, key).await
+                }
                 other => {
                     let Some(rendered) = self.render_with_reply_variant(other, target)? else {
                         return Ok(false);

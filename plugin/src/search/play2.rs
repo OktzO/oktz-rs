@@ -735,6 +735,10 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         quoted: false,
     };
 
+    // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`
+    // bersarang di dalam `Sequence` tidak pernah lewat `into_parts()` di
+    // `Pipeline::process`, jadi mencapai `render_reply` dan ditolak
+    // (`UnappliedMutation`). Di top-level, `proses` memisahnya dulu.
     Ok(Reply::sequence(vec![
         Reply::reaction("🎧"),
         // Fallback voice note untuk klien yang tidak merender primitif HTML.
@@ -743,8 +747,9 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         Reply::voice_note(
             MediaSource::bytes(kompresi).with_mimetype(mimetype_for("opus")),
         ),
-        Reply::TabelAi(Box::new(rich)).with_reaction("✅"),
-    ]))
+        Reply::TabelAi(Box::new(rich)),
+    ])
+    .with_reaction("✅"))
 }
 
 #[plugin(
