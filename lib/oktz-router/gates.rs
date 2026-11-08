@@ -333,7 +333,7 @@ impl CooldownStore for InMemoryCooldowns {
 
 impl InMemoryCooldowns {
     pub fn prune_expired(&mut self, now_ms: i64) {
-        self.map.retain(|_, &end| end > now_ms);
+        self.map.retain(|_, end| *end > now_ms);
     }
 }
 
