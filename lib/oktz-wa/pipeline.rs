@@ -7870,7 +7870,8 @@ impl TestPlugin {
         let out = p.process(&second, 2_000).await.unwrap();
         assert_eq!(out, Outcome::CooldownBlocked);
         assert_eq!(plug.calls(), 1, "plugin TIDAK boleh jalan dua kali");
-        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "⏱️".to_string())]);
+        // Reaksi proses 🕕 dari pemanggilan pertama + ⏱️ cooldown.
+        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "⏱️".to_string())]);
         assert_eq!(s.texts().len(), 1, "tidak boleh ada balasan kedua");
 
         // Setelah cooldown 3 detik habis, command boleh jalan lagi.
@@ -9310,7 +9311,8 @@ fn a_null_access_field_keeps_the_existing_grant() {
         );
         let m3 = inbound_n(".varian", MEMBER, MEMBER, false);
         assert_eq!(p3.process(&m3, 3_000).await.unwrap(), Outcome::Sent);
-        assert_eq!(s3.reacted(), vec![(MEMBER.to_string(), "✅".to_string())]);
+        // Reaksi proses 🕕 pipeline dulu, lalu ✅ dari plugin.
+        assert_eq!(s3.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "✅".to_string())]);
         let terkirim = s3.sent.lock().unwrap();
         assert_eq!(terkirim.len(), 1);
         assert!(
@@ -9431,9 +9433,11 @@ fn a_null_access_field_keeps_the_existing_grant() {
         let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
         let m = inbound_n(".seq", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
-        assert_eq!(s.log(), ["reaction 🕕", "sticker", "reaction ✅"]);
+        // Reaction "🕕" pertama = reaksi proses otomatis pipeline (sebelum handler);
+        // "🕕" kedua dari plugin itu sendiri.
+        assert_eq!(s.log(), ["reaction 🕕", "reaction 🕕", "sticker", "reaction ✅"]);
         // Reaksi memang lewat jalur reaksi, bukan pesan.
-        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "✅".to_string())]);
+        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "✅".to_string())]);
         assert_eq!(s.media.lock().unwrap().len(), 1);
     }
 
@@ -9457,8 +9461,8 @@ fn a_null_access_field_keeps_the_existing_grant() {
         p.process(&m, 1_000).await.unwrap();
         assert_eq!(
             s.log(),
-            ["reaction 🕕", "sticker", "reaction ✅"],
-            "reaksi di level manapun harus lewat jalur reaksi, urut apa adanya"
+            ["reaction 🕕", "reaction 🕕", "sticker", "reaction ✅"],
+            "reaksi di level manapun harus lewat jalur reaksi, urut apa adanya (pertama = reaksi proses pipeline)"
         );
         assert_eq!(s.texts(), vec![format!("{MEMBER}: tabelnya")]);
     }
@@ -9473,14 +9477,17 @@ fn a_null_access_field_keeps_the_existing_grant() {
             Reply::text("dua"),
             Reply::text("tiga"),
         ]));
-        let sender = Arc::new(RecordingSender::default().with_failure_at(2));
+        // `with_failure_at(3)`: percobaan ke-1 = reaksi proses 🕕 pipeline,
+        // ke-2 = "satu" (berhasil), ke-3 = "dua" (gagal), sehingga "tiga"
+        // tidak pernah dicoba.
+        let sender = Arc::new(RecordingSender::default().with_failure_at(3));
         let ctx = StoreContext::new(store_with(&format!("seqfail-{}", n()), "{}"));
         let p = Arc::new(plugin.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default()));
         let m = inbound_n(".seq", MEMBER, MEMBER, false);
         let err = p.process(&m, 1_000).await.unwrap_err();
         assert!(err.to_string().contains("gagal kirim"), "{err}");
         assert_eq!(sender.texts(), vec![format!("{MEMBER}: satu")]);
-        assert_eq!(sender.attempts(), 2, "kiriman ketiga tidak boleh dicoba");
+        assert_eq!(sender.attempts(), 3, "kiriman keempat (teks ketiga) tidak boleh dicoba");
     }
 
     #[test]
