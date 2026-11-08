@@ -310,7 +310,7 @@ mod tests {
     use serde_json::json;
     use wacore_libsignal::core::curve::{KeyPair, PrivateKey, PublicKey};
 
-    fn kp(pubb: u8, privv: u8) -> KeyPair {
+    fn kp_uji(pubb: u8, privv: u8) -> KeyPair {
         let mut pb = vec![0x05u8];
         pb.extend(std::iter::repeat_n(pubb, 32));
         KeyPair {
@@ -327,9 +327,9 @@ mod tests {
             pn: "6285143885645:59@s.whatsapp.net".parse().ok(),
             lid: "188412430651393:59@lid".parse().ok(),
             registration_id: 225,
-            noise_key: kp(0x01, 0x21),
-            identity_key: kp(0x02, 0x22),
-            signed_pre_key: kp(0x03, 0x23),
+            noise_key: kp_uji(0x01, 0x21),
+            identity_key: kp_uji(0x02, 0x22),
+            signed_pre_key: kp_uji(0x03, 0x23),
             signed_pre_key_id: 15555,
             signed_pre_key_signature: [0x11; 64],
             adv_secret_key: [0x07; 32],
