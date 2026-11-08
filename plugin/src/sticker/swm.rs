@@ -1,16 +1,21 @@
 //! `plugins/sticker/swm.js` — ganti packname/author sticker.
 //!
-//! Semua guard (reply, sticker, packname) dan pemecahan `packname|author`
-//! di-port apa adanya.Langkah media tidak bisa: `QuotedMessage` di
-//! `oktz-plugin-api` bacaan saja (`quoted.download()` butuh I/O Baileys),
-//! `addExifToWebp` butuh encoder WebP + EXIF, dan `sendImageAsSticker` /
-//! `sendVideoAsSticker` tidak punya padanan di `Reply`. Karena itu jalur
-//! setelah `m.react('🕕')` berakhir di cabang `catch` JS.
+//! Guard (reply, sticker, packname) dan pemecahan `packname|author` di-port
+//! apa adanya. `quoted.download()` → `Ctx::download_quoted_media()`;
+//! `addExifToWebp` → `oktz_plugin_api::tempel_metadata_stiker` dengan
+//! `EXIF_EMOJIS`, dan gambar/video non-WebP dikonversi lewat
+//! `gambar_ke_stiker_webp` / `video_ke_stiker_webp` sebelum ditempel —
+//! pola yang sama dengan `sticker::siapkan`. Kirim lewat
+//! `Reply::sticker_opsi` + `StickerOpsi::gambar()` (forwarded + skor 1,
+//! sama seperti `contextInfo` JS).
 //!
-//! `ponytail:` tambah `Ctx::download_quoted()` + `Reply::Sticker` di
-//! `oktz-plugin-api` untuk menghidupkan lagi langkah `swm.js:57-79`.
+//! `ponytail:` `contextInfo: { isForwarded: true, forwardingScore: 1 }` hanya
+//! tersimpan sebagai flag di `StickerOpsi`; kutipan `quoted: m` mengikuti
+//! default pipeline. Tag `☢` hanya di cabang `catch` JS (konversi gagal).
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{
+    Ctx, EXIF_EMOJIS, MediaSource, Reply, StickerOpsi, plugin,
+};
 
 use crate::search::applemusic::error_reply;
 
@@ -41,6 +46,34 @@ pub(crate) fn split_input(input: &str) -> (String, String) {
     }
 }
 
+/// `swm.js:66-69` — buffer kosong atau unduhan gagal.
+pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendownload sticker";
+
+/// `swm.js:72-74` — cek signature WebP (`RIFF....WEBP`).
+pub(crate) fn is_webp(bytes: &[u8]) -> bool {
+    bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP"
+}
+
+/// `swm.js:83-84` — cek signature video: byte 0..3 `000000` (hex) atau
+/// `ftyp` di byte 4..8.
+pub(crate) fn is_video(bytes: &[u8]) -> bool {
+    bytes.len() >= 8
+        && (&bytes[0..3] == [0u8; 3] || &bytes[4..8] == b"ftyp")
+}
+
+/// `swm.js:71-91` — tempel EXIF ke WebP, konversi gambar/video non-WebP
+/// dulu (pola `sticker::siapkan`). `Err` = cabang `catch` JS.
+fn siapkan(bytes: &[u8], packname: &str, author: &str) -> Result<Vec<u8>, String> {
+    let webp = if is_webp(bytes) {
+        bytes.to_vec()
+    } else if is_video(bytes) {
+        oktz_plugin_api::video_ke_stiker_webp(bytes, &[])?
+    } else {
+        oktz_plugin_api::gambar_ke_stiker_webp(bytes, &[])?
+    };
+    Ok(oktz_plugin_api::tempel_metadata_stiker(&webp, packname, author, &EXIF_EMOJIS)
+        .unwrap_or(webp))
+}
 #[plugin(
     name = "swm",
     alias = ["wm", "stickerwm", "stickermark", "colong"],
@@ -83,16 +116,65 @@ pub fn swm(ctx: Ctx) -> Reply {
         ));
     }
 
-    let (_packname, _author) = split_input(input);
+    let (packname, author) = split_input(input);
 
-    // `swm.js:53-79` butuh buffer sticker; lihat catatan `ponytail:` modul.
-    Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢")
+    // `swm.js:61-93` — `m.react('🕕')`, unduh, tempel EXIF, kirim sticker.
+    let Ok(bytes) = ctx.download_quoted_media() else {
+        return Reply::text(GAGAL_UNDUH).with_reaction("❌");
+    };
+    if bytes.is_empty() {
+        return Reply::text(GAGAL_UNDUH).with_reaction("❌");
+    }
+
+    match siapkan(&bytes, &packname, &author) {
+        Ok(webp) => {
+            let opsi = StickerOpsi::gambar()
+                .with_packname(packname)
+                .with_author(author);
+            Reply::sticker_opsi(MediaSource::bytes(webp).with_mimetype("image/webp"), opsi)
+                .with_reaction("✅")
+        }
+        // `swm.js:95-99` — `catch` → template error + ☢.
+        Err(_) => Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{QuotedKind, QuotedMessage};
+    use oktz_plugin_api::{
+        MediaError, MediaFetch, MediaOrigin, QuotedKind, QuotedMessage,
+    };
+    use std::sync::Arc;
+
+    /// WebP minimal `RIFF....WEBP` + chunk VP8L 5 byte (pola `sticker.rs`).
+    fn webp_bytes() -> Vec<u8> {
+        let payload = [0x2f, 0x01, 0x02, 0x03, 0x04];
+        let mut body = Vec::new();
+        body.extend_from_slice(b"VP8L");
+        body.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        body.extend_from_slice(&payload);
+        if payload.len() % 2 == 1 {
+            body.push(0);
+        }
+        let mut out = Vec::new();
+        out.extend_from_slice(b"RIFF");
+        out.extend_from_slice(&(4 + body.len() as u32).to_le_bytes());
+        out.extend_from_slice(b"WEBP");
+        out.extend_from_slice(&body);
+        out
+    }
+
+    #[derive(Debug)]
+    struct Unduh(Result<Vec<u8>, ()>);
+
+    impl MediaFetch for Unduh {
+        fn download(&self, _: MediaOrigin) -> Result<Vec<u8>, MediaError> {
+            self.0.clone().map_err(|()| MediaError {
+                message: "gagal unduh".into(),
+            })
+        }
+    }
 
     fn quoted(kind: QuotedKind) -> Option<QuotedMessage> {
         Some(QuotedMessage {
@@ -108,7 +190,7 @@ mod tests {
         })
     }
 
-    fn run(text: &str, q: Option<QuotedMessage>) -> Reply {
+    fn run(text: &str, q: Option<QuotedMessage>, fetch: Arc<Unduh>) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "swm".into(),
@@ -117,9 +199,14 @@ mod tests {
             text: text.into(),
             args: vec![text.into()],
             quoted: q,
+            media_fetch: fetch,
             ..Default::default()
         };
         (oktz_plugin_api::find("swm").unwrap().handler)(ctx)
+    }
+
+    fn run_ok(text: &str, q: Option<QuotedMessage>) -> Reply {
+        run(text, q, Arc::new(Unduh(Ok(webp_bytes()))))
     }
 
     fn text_of(r: &Reply) -> String {
@@ -156,7 +243,7 @@ mod tests {
 
     #[test]
     fn without_a_quote_it_prints_the_usage_card() {
-        let r = run("Foto-AI", None);
+        let r = run_ok("Foto-AI", None);
         assert_eq!(text_of(&r), usage_card("."));
         assert!(text_of(&r).contains("`.swm Foto-AI|LuckyArchz`"));
         assert!(matches!(r, Reply::Text { .. }), "tanpa mutasi apa pun");
@@ -188,7 +275,7 @@ mod tests {
             (QuotedKind::Text, "conversation"),
             (QuotedKind::Other(String::new()), "media lain"),
         ] {
-            let r = run("Foto-AI", quoted(kind));
+            let r = run_ok("Foto-AI", quoted(kind));
             assert_eq!(
                 text_of(&r),
                 format!("❌ *ɢᴀɢᴀʟ*\n\n> Reply pesan sticker, bukan {label}"),
@@ -199,7 +286,7 @@ mod tests {
 
     #[test]
     fn a_quote_without_a_packname_asks_for_one() {
-        let r = run("   ", quoted(QuotedKind::Sticker));
+        let r = run_ok("   ", quoted(QuotedKind::Sticker));
         let body = text_of(&r);
         assert!(body.starts_with("❌ *ɢᴀɢᴀʟ*\n\n> Masukkan packname"), "{body}");
         assert!(body.contains("> `.swm Foto-AI`"), "{body}");
@@ -233,16 +320,57 @@ mod tests {
     }
 
     #[test]
-    fn every_reachable_packname_falls_into_the_error_template() {
-        // Guard lolos, tapi langkah media belum bisa di-port (lihat
-        // `ponytail:` modul) — cabang `catch` JS yang dipakai.
-        for text in ["Foto-AI", "Foto-AI|LuckyArchz", "  Foto-AI  |  Lucky  "] {
-            let r = run(text, quoted(QuotedKind::Sticker));
-            assert_eq!(text_of(&r), error_reply(".", "swm"), "input {text:?}");
+    fn valid_inputs_send_a_sticker_with_the_packname_and_author() {
+        for (text, pack, author) in [
+            ("Foto-AI", "Foto-AI", None),
+            ("Foto-AI|LuckyArchz", "Foto-AI", Some("LuckyArchz")),
+            ("  Foto-AI  |  Lucky  ", "Foto-AI", Some("Lucky")),
+        ] {
+            let r = run_ok(text, quoted(QuotedKind::Sticker));
+            let inner = match r.without_mutations() {
+                Reply::Reaction { reply, .. } => reply.as_ref(),
+                lain => lain,
+            };
+            match inner {
+                Reply::Sticker { media, opsi } => {
+                    let bytes = match media.as_ref().expect("sticker butuh sumber") {
+                        MediaSource::Bytes { data, .. } => data.clone(),
+                        m => panic!("harus bytes: {m:?}"),
+                    };
+                    assert!(is_webp(&bytes), "input {text:?}");
+                    assert_eq!(opsi.packname.as_deref(), Some(pack), "input {text:?}");
+                    assert_eq!(opsi.author.as_deref(), author, "input {text:?}");
+                }
+                lain => panic!("harus sticker, dapat {lain:?}"),
+            }
             assert!(
-                matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "☢"),
-                "harus bereaksi ☢"
+                matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"),
+                "harus bereaksi ✅"
             );
         }
+    }
+
+    #[test]
+    fn a_failed_or_empty_download_reports_the_js_message() {
+        let r = run("Foto-AI", quoted(QuotedKind::Sticker), Arc::new(Unduh(Err(()))));
+        assert_eq!(text_of(&r), GAGAL_UNDUH);
+        assert!(
+            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
+            "harus bereaksi ❌"
+        );
+        let r = run("Foto-AI", quoted(QuotedKind::Sticker), Arc::new(Unduh(Ok(Vec::new()))));
+        assert_eq!(text_of(&r), GAGAL_UNDUH);
+    }
+
+    #[test]
+    fn signature_checks_follow_the_js_byte_rules() {
+        let webp = webp_bytes();
+        assert!(is_webp(&webp));
+        assert!(!is_webp(b"RIFFxxxxWEB"));
+        assert!(!is_webp(&[]));
+        assert!(is_video(&[0, 0, 0, 0x04, b'f', b't', b'y', b'p']));
+        assert!(is_video(&[0, 0, 0, b'x', b'f', b't', b'y', b'p']));
+        assert!(!is_video(b"RIFF"));
+        assert!(!is_video(&[]));
     }
 }

@@ -114,11 +114,11 @@
 - Consumes: `render_with_reply_variant` (pipeline.rs:3705), `config.error_template` (format JS `{prefix}/{command}/{pushName}`), `Outcome`, `caller` (chat/sender/push_name).
 - Produces: `Pipeline::kirim_pesan_error(&self, chat, prefix, command, push_name, err: &PipelineError)` — buat teks dari `error_template` (substitusi placeholder; default template kalau kosong), `Reply::text`, render varian, deliver; kegagalan di dalam = `tracing::error!`, TIDAK pernah panic/loop.
 
-- [ ] **Step 1: Test gagal** — test di `pipeline.rs` tests: stub sender yang gagal deliver reply pertama memicu `Err` → teks yang TERKIRIM berisi teks `error_template` + command; dengan `settings.replyVariant = 5` pesan error dirender sebagai wire `FakeOrderQuote` (cek `message.extended_text_message`/order ada, bukan teks polos).
-- [ ] **Step 2:** FAIL.
-- [ ] **Step 3:** Implement: di arm `Err` `run()` (run hanya tahu `m`): ekstrak command = kata pertama body, prefix `.` (dari `ParseOptions`/body), push_name dari caller → panggil `kirim_pesan_error`. Error saat KIRIM error dibiarkan jadi log (tanpa rekursi).
-- [ ] **Step 4:** `cargo test -p oktz-wa` → PASS.
-- [ ] **Step 5:** Commit `feat(wa): pesan error pipeline ikut replyVariant + error_template`.
+- [x] **Step 1: Test gagal** — test di `pipeline.rs` tests: stub sender yang gagal deliver reply pertama memicu `Err` → teks yang TERKIRIM berisi teks `error_template` + command; dengan `settings.replyVariant = 5` pesan error dirender sebagai wire `FakeOrderQuote` (cek `message.extended_text_message`/order ada, bukan teks polos).
+- [x] **Step 2:** FAIL.
+- [x] **Step 3:** Implement: di arm `Err` `run()` (run hanya tahu `m`): ekstrak command = kata pertama body, prefix `.` (dari `ParseOptions`/body), push_name dari caller → panggil `kirim_pesan_error`. Error saat KIRIM error dibiarkan jadi log (tanpa rekursi).
+- [x] **Step 4:** `cargo test -p oktz-wa` → PASS.
+- [x] **Step 5:** Commit `feat(wa): pesan error pipeline ikut replyVariant + error_template`.
 
 ### Task 6: `.toimg` penuh
 

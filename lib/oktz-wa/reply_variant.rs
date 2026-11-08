@@ -26,9 +26,10 @@
 //!
 //! # Dua aturan yang dijaga ketat
 //!
-//! 1. **Hanya ANGKA 2..11** punya builder sendiri. String, `0`, `1`, pecahan,
-//!    dan di luar rentang jatuh ke [`ReplyVariant::Basic`] — persis rangkaian
-//!    `===` angka di JS, di mana `"9"` dan `9.5` tidak pernah masuk cabang.
+//! 1. **Hanya ANGKA 2..11** punya builder sendiri. `0`, `1`, pecahan, dan di
+//!    luar rentang jatuh ke [`ReplyVariant::Basic`]. String angka (`"9"`)
+//!    diterima karena setting dari store bisa tersimpan sebagai string;
+//!    string lain (`"abc"`, `"9.5"`) dan `9.5` tetap `Basic`.
 //! 2. **Hanya balasan berbentuk teks** yang ikut varian. Kartu, tabel, dan
 //!    media punya wire contract sendiri (`render_reply`), dan `serialize.js`
 //!    hanya punya `text` untuk jalur varian.
@@ -92,7 +93,7 @@ const MP4: &str = "./assets/video/mp4.mp4";
 /// `db.setting("replyVariant")` → varian. HANYA angka bulat 2..11.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReplyVariant {
-    /// 1 (dan 0, string, pecahan, di luar rentang) — balasan teks biasa.
+    /// 1 (dan 0, pecahan, di luar rentang) — balasan teks biasa.
     Basic,
     /// 2 — dokumen `package.json` dengan kutipan kontak palsu.
     DocumentContact,
@@ -123,13 +124,16 @@ pub enum ReplyVariant {
 /// `serde_json` menyimpan angka bulat JSON sebagai integer, tapi `2.0` mendarat
 /// sebagai `f64` — dan `as_f64` menerima keduanya. Itu memang yang dibutuhkan:
 /// `2.0 === 2` di JS (`:995` dan seterusnya rangkaian `===`), jadi 2.0 tetap
-/// masuk cabang varian 2. Pecahan (`2.5`, `9.5`) dan string `"9"` TIDAK.
+/// masuk cabang varian 2. Pecahan (`2.5`, `9.5`) TIDAK.
+/// String angka (`"9"`) diterima: setting bisa tersimpan sebagai string.
+/// String lain (`"abc"`, `"9.5"`, `""`) tetap jatuh ke `Basic`.
 pub fn variant_from(settings: &serde_json::Value) -> ReplyVariant {
-    let angka = settings
-        .get("replyVariant")
-        .and_then(serde_json::Value::as_f64)
-        .filter(|f| f.fract() == 0.0 && f.is_finite())
-        .map(|f| f as i64);
+    let angka = settings.get("replyVariant").and_then(|v| {
+        v.as_f64()
+            .filter(|f| f.fract() == 0.0 && f.is_finite())
+            .map(|f| f as i64)
+            .or_else(|| v.as_str().and_then(|s| s.trim().parse::<i64>().ok()))
+    });
     match angka {
         Some(2) => ReplyVariant::DocumentContact,
         Some(3) => ReplyVariant::GifVideo,
@@ -919,15 +923,17 @@ mod tests {
     }
 
     #[test]
-    fn variant_missing_or_zero_or_string_selects_basic() {
-        // `serialize.js:995-1277` adalah rangkaian `===` angka: nilai non-angka
-        // tidak pernah masuk cabang varian, dan `0`/`1` tidak punya builder.
+    fn variant_missing_zero_or_invalid_string_selects_basic() {
+        // `0`/`1` tidak punya builder; string non-angka dan pecahan tidak
+        // masuk cabang varian apa pun.
         for nilai in [
             json!({}),
             json!({"replyVariant": 0}),
             json!({"replyVariant": 1}),
-            json!({"replyVariant": "9"}),
+            json!({"replyVariant": "abc"}),
+            json!({"replyVariant": "9.5"}),
             json!({"replyVariant": ""}),
+            json!({"replyVariant": " "}),
             json!({"replyVariant": null}),
             json!({"replyVariant": 2.5}),
             json!({"replyVariant": 12}),
@@ -938,6 +944,28 @@ mod tests {
         assert!(!needs_custom_render(ReplyVariant::Basic));
         let (t, c) = (target(), config());
         assert!(render(ReplyVariant::Basic, &input("hai", &t, &c)).is_none());
+    }
+
+    #[test]
+    fn variant_string_number_selects_same_as_integer() {
+        // Setting bisa tersimpan sebagai string angka; `"9"` harus sama
+        // dengan `9` (varian Order), bukan teks polos.
+        assert_eq!(
+            variant_from(&json!({ "replyVariant": "9" })),
+            ReplyVariant::Order
+        );
+        assert_eq!(
+            variant_from(&json!({ "replyVariant": "2" })),
+            ReplyVariant::DocumentContact
+        );
+        assert_eq!(
+            variant_from(&json!({ "replyVariant": " 11 " })),
+            ReplyVariant::FaviconPreview
+        );
+        // String angka di luar 2..11 tetap Basic.
+        for nilai in [json!({"replyVariant": "0"}), json!({"replyVariant": "1"}), json!({"replyVariant": "12"})] {
+            assert_eq!(variant_from(&nilai), ReplyVariant::Basic, "{nilai}");
+        }
     }
 
     #[test]

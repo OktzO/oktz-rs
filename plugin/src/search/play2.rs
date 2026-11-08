@@ -6,18 +6,27 @@
 //!   dipertahankan untuk jalur judul.
 //! - Savetube + `createDecipheriv` tidak diport: unduhan audio memakai rantai
 //!   `crate::download::ytmp3::unduh_audio` (`ytdl-native → izuka → nexray`).
-//! - Kartu HTML AIRICH (`botForwardedMessage` + `relayMessage`) + lirik yang
-//!   bergeser per detik di dalam player tidak ada padanannya di `Reply`: lagu
-//!   dikirim sebagai voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg)
-//!   dan lirik dikirim sebagai teks statis `[m:ss] baris` sebelum audio.
-//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dan thumbnail `sharp` dilewati.
+//! - Kartu player HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan
+//!   section `GenAIaeacdsnwHtmlPrimitive` — sama seperti `sendMusicPlayer`
+//!   (`play2.js:893-943`), submessage teksnya `"${title} - ${artist}"`.
+//!   Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
+//!   `timeupdate`), bukan WS — jadi sync lyrics live JS tidak butuh wire
+//!   baru. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
+//!   dikirim sebagai fallback untuk klien yang tidak merender primitif HTML.
+//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dan resize `sharp`
+//!   dilewati (`ponytail:` thumbnail dikirim apa adanya, tanpa resize
+//!   250x250 q50; upgrade path: tambah encoder image bila perlu).
 //!
 //! Yang dipor penuh karena murni dan bisa diuji: parser LRC, konversi lirik
 //! polos menjadi lirik bertime, normalisasi, pemformat durasi,
 //! `secondsFromTimestamp`, `escapeHtml`, dan kartu pakai.
 #![allow(clippy::collapsible_if)]
 
-use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+use oktz_plugin_api::{AiSubMessage, Ctx, HttpCall, MediaSource, Reply, RichAi, plugin};
+use serde_json::json;
 
 use crate::download::douyindl::query_encode;
 use crate::download::ytmp3::{mimetype_for, unduh_audio};
@@ -245,9 +254,96 @@ pub(crate) fn escape_html(text: &str) -> String {
 }
 
 /// `escapeAttr` = `escapeHtml` (`play2.js:244-246`).
-#[allow(dead_code)]
 pub(crate) fn escape_attr(text: &str) -> String {
     escape_html(text)
+}
+
+/// Encoder base64 standar (dengan padding) — crate `base64` tidak ada di
+/// workspace ini (`google.rs:180`).
+pub(crate) fn base64_encode(data: &[u8]) -> String {
+    const TABEL: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let n = chunk.len();
+        let b = [
+            chunk[0],
+            chunk.get(1).copied().unwrap_or(0),
+            chunk.get(2).copied().unwrap_or(0),
+        ];
+        out.push(TABEL[(b[0] >> 2) as usize] as char);
+        out.push(TABEL[(((b[0] & 3) << 4) | (b[1] >> 4)) as usize] as char);
+        out.push(if n > 1 {
+            TABEL[(((b[1] & 15) << 2) | (b[2] >> 6)) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if n > 2 {
+            TABEL[(b[2] & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Batas ukuran unduhan thumbnail poster.
+const MAX_POSTER_BYTES: usize = 100 * 1024;
+
+/// `getThumb` (`play2.js:485-500`) tanpa `sharp`: thumbnail apa adanya
+/// sebagai `data:image/jpeg;base64,...`. Gagal/unduhan > 100 KB → `""`
+/// (HTML memakai placeholder SVG, `play2.js:510-512`).
+pub(crate) fn poster_base64(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> String {
+    if url.is_empty() {
+        return String::new();
+    }
+    let res = match http.call(&HttpCall::get(url).header("user-agent", USER_AGENT)) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+    if !(200..300).contains(&res.status) {
+        return String::new();
+    }
+    let data = res.body.bytes();
+    if data.is_empty() || data.len() > MAX_POSTER_BYTES {
+        return String::new();
+    }
+    format!("data:image/jpeg;base64,{}", base64_encode(data))
+}
+
+fn cache_cari() -> &'static Mutex<HashMap<String, Vec<ytsearch::Video>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Vec<ytsearch::Video>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// `ytsearch::search` + cache ringan per-query (lowercase, trim).
+///
+/// Hanya hasil non-kosong yang disimpan; error/kosong tidak di-cache.
+/// `Max 64 entri, penuh → clear` — tanpa `shared` yang perlu diedit
+/// (`ytsearch.rs` di luar cakupan), tanpa dependency baru.
+/// `ponytail:` tanpa TTL; upgrade path: simpan waktu + evict per entri.
+pub(crate) fn cari_video(
+    http: &dyn oktz_plugin_api::HttpGet,
+    q: &str,
+) -> Result<Vec<ytsearch::Video>, oktz_plugin_api::HttpError> {
+    let kunci = q.trim().to_lowercase();
+    if let Some(v) = cache_cari()
+        .lock()
+        .ok()
+        .and_then(|m| m.get(&kunci).cloned())
+    {
+        return Ok(v);
+    }
+    let v = ytsearch::search(http, q)?;
+    if !v.is_empty()
+        && let Ok(mut m) = cache_cari().lock()
+    {
+        if m.len() >= 64 {
+            m.clear();
+        }
+        m.insert(kunci, v.clone());
+    }
+    Ok(v)
 }
 
 /// `secondsFromTimestamp` (`play2.js:248-257`) — 2 atau 3 bagian; selain itu 0.
@@ -435,17 +531,117 @@ fn kompres_audio(input: &[u8]) -> Result<Vec<u8>, String> {
 /// ffmpeg tanpa menyentuh env global.
 type Kompresor = fn(&[u8]) -> Result<Vec<u8>, String>;
 
-/* HANDLER (`play2.js:949-1107`). */
-
-/// Lirik versi statis pengganti kartu player: `[m:ss] baris`, format LRC yang
-/// sama seperti masukan `parseSyncedLyrics`.
-fn lirik_statis(lyrics: &[Baris]) -> String {
-    lyrics
+/// `createMusicPlayer` (`play2.js:506-887`) versi ringkas tapi fungsional:
+/// poster, title/artist, `<audio>` dari `data:audio/ogg;base64,...`, dan
+/// lirik sinkron dari JSON base64 (`timeupdate` menyorot baris aktif).
+/// Placeholder SVG sama dengan JS ketika poster kosong (`:510-512`).
+pub(crate) fn player_html(
+    title: &str,
+    artist: &str,
+    durasi: &str,
+    audio_src: &str,
+    poster: &str,
+    lyrics: &[Baris],
+) -> String {
+    let safe_title = escape_html(title);
+    let safe_artist = escape_html(artist);
+    let safe_dur = escape_html(durasi);
+    let poster = if poster.is_empty() {
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzFhMGQxMiIvPjx0ZXh0IHg9IjIwMCIgeT0iMjEwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TUFJTiBQQ0xAYVlFUlI8L3RleHQ+PC9zdmc+"
+    } else {
+        poster
+    };
+    let poster = escape_attr(poster);
+    let lirik_json: Vec<serde_json::Value> = lyrics
         .iter()
-        .map(|b| format!("[{}] {}", format_duration(b.time), b.text))
-        .collect::<Vec<_>>()
-        .join("\n")
+        .map(|b| json!({ "time": b.time, "text": b.text }))
+        .collect();
+    let lirik_b64 = base64_encode(serde_json::to_string(&lirik_json).unwrap_or_default().as_bytes());
+    format!(
+        r#"<style>
+*{{box-sizing:border-box;-webkit-tap-highlight-color:transparent}}
+body{{margin:0;background:#1a0d12;color:#fff;font-family:Arial,Helvetica,sans-serif}}
+.wrap{{display:flex;justify-content:center;padding:10px}}
+.player{{width:100%;max-width:330px;border-radius:18px;overflow:hidden;background:#1a0d12;box-shadow:0 18px 40px rgba(0,0,0,.5)}}
+.content{{padding:16px 18px}}
+.poster{{width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.06);margin-bottom:14px}}
+.poster img{{width:100%;height:100%;object-fit:cover;display:block}}
+.title{{font-size:17px;font-weight:600;line-height:1.3}}
+.artist{{font-size:12px;color:#b9b1b6;margin-top:3px}}
+.lyrics{{height:82px;overflow-y:auto;margin:10px 0;font-size:11px;line-height:1.5}}
+.ln{{color:rgba(255,255,255,.45);padding:2px 0}}
+.ln.on{{color:#fff;font-weight:700;font-size:12px}}
+.bar{{height:4px;border-radius:4px;background:rgba(255,255,255,.22);cursor:pointer;margin-bottom:6px}}
+.fill{{height:100%;width:0;background:#fff;border-radius:4px}}
+.time{{display:flex;justify-content:space-between;font-size:11px;color:#b9b1b6;margin-bottom:12px}}
+.ctrl{{display:flex;justify-content:center;gap:18px;align-items:center}}
+button{{width:52px;height:52px;border-radius:50%;background:#fff;color:#12070b;border:none;cursor:pointer;font-size:20px}}
+</style>
+<div class="wrap"><div class="player"><div class="content">
+<div class="poster"><img src="{poster}" alt="{safe_title}"></div>
+<div class="title">{safe_title}</div>
+<div class="artist">{safe_artist}</div>
+<div class="lyrics" id="ly"></div>
+<div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+<div class="time"><span id="cur">0:00</span><span>{safe_dur}</span></div>
+<div class="ctrl"><button id="btn" aria-label="Play">▶</button></div>
+</div></div></div>
+<audio id="au" preload="metadata" src="{audio_src}"></audio>
+<script>
+(function(){{
+'use strict';
+var au=document.getElementById('au'),btn=document.getElementById('btn'),
+fill=document.getElementById('fill'),cur=document.getElementById('cur'),
+ly=document.getElementById('ly'),bar=document.getElementById('bar'),lines=[],els=[];
+try{{
+var bin=atob('{lirik_b64}'),by=new Uint8Array(bin.length);
+for(var i=0;i<bin.length;i++)by[i]=bin.charCodeAt(i);
+lines=JSON.parse(new TextDecoder('utf-8').decode(by));
+}}catch(e){{lines=[];}}
+function fmt(s){{if(!isFinite(s)||s<0)s=0;var m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}}
+function render(){{
+ly.innerHTML='';els=[];
+if(!lines.length){{ly.innerHTML='<div class="ln">Lirik belum tersedia untuk lagu ini.</div>';return;}}
+var f=document.createDocumentFragment();
+lines.forEach(function(l){{var d=document.createElement('div');d.className='ln';d.textContent=l.text||'♪';f.appendChild(d);els.push(d);}});
+ly.appendChild(f);
+}}
+render();
+var act=-1;
+function upd(){{
+var t=au.currentTime||0,d=au.duration||0;
+cur.textContent=fmt(t);
+if(d>0)fill.style.width=(t/d*100)+'%';
+var ix=-1;for(var i=0;i<lines.length;i++){{if(lines[i].time<=t)ix=i;else break;}}
+if(ix!==act){{act=ix;els.forEach(function(e,i){{e.classList.toggle('on',i===ix);}});if(ix>=0&&els[ix])els[ix].scrollIntoView({{block:'center'}});}}
+}}
+btn.addEventListener('click',function(){{if(au.paused){{au.play();}}else{{au.pause();}}}});
+au.addEventListener('play',function(){{btn.textContent='❚❚';}});
+au.addEventListener('pause',function(){{btn.textContent='▶';}});
+au.addEventListener('timeupdate',upd);
+au.addEventListener('ended',function(){{act=-1;upd();}});
+bar.addEventListener('click',function(e){{var d=au.duration||0;if(d<=0)return;var r=bar.getBoundingClientRect();au.currentTime=(e.clientX-r.left)/r.width*d;upd();}});
+}})();
+</script>"#
+    )
 }
+
+/// Section HTML `GenAIaeacdsnwHtmlPrimitive` — `sendMusicPlayer`
+/// (`play2.js:916-927`).
+pub(crate) fn section_html(html: &str) -> serde_json::Value {
+    json!({
+        "view_model": {
+            "primitive": {
+                "__typename": "GenAIaeacdsnwHtmlPrimitive",
+                "payload": html,
+                "trusted_sources": [],
+            },
+            "__typename": "GenAISingleLayoutViewModel",
+        }
+    })
+}
+
+/* HANDLER (`play2.js:949-1107`). */
 
 /// Alur `try` (`play2.js:960-1099`). `Err` memuat `error.message` untuk
 /// template `catch`.
@@ -458,8 +654,7 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     } else {
         LAGU_TIDAK_DITEMUKAN
     };
-    let videos =
-        ytsearch::search(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?;
+    let videos = cari_video(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?;
     let video = videos.first().ok_or_else(|| pesan_kosong.to_string())?;
 
     let title = if video.title.is_empty() {
@@ -508,24 +703,41 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         );
     }
 
-    // `sendMusicPlayer(..., submessageText = "${title} - ${artist}")` di JS;
-    // pemain HTML diganti teks lirik statis + voice note (deviasi di header).
-    let daftar = if synced.is_empty() {
-        "Lirik belum tersedia untuk lagu ini.".to_string()
-    } else {
-        lirik_statis(&synced)
+    // `sendMusicPlayer(sock, m.chat, html, "${title} - ${artist}")`
+    // (`play2.js:1098`): poster `getThumb` → `imageSrc`, audio
+    // `data:audio/ogg;base64` dari buffer kompresi, lirik sinkron di
+    // player HTML browser.
+    let poster = poster_base64(ctx.http.as_ref(), &video.thumbnail);
+    let audio_src = format!(
+        "data:audio/ogg;base64,{}",
+        base64_encode(&kompresi)
+    );
+    let html = player_html(
+        title,
+        artist,
+        &format_duration(duration_sec),
+        &audio_src,
+        &poster,
+        &synced,
+    );
+    let rich = RichAi {
+        submessages: vec![AiSubMessage {
+            text: Some(format!("{title} - {artist}")),
+            tabel: None,
+        }],
+        sections: vec![section_html(&html)],
+        disclaimer: None,
     };
-    let teks = format!("🎵 *{title} - {artist}*\n\n{daftar}");
 
     Ok(Reply::sequence(vec![
         Reply::reaction("🎧"),
-        Reply::text(teks),
+        // Fallback voice note untuk klien yang tidak merender primitif HTML.
         // `compressAudio` menghasilkan ogg/opus — mimetype sama dengan
         // `mimetypeFor("opus")`.
         Reply::voice_note(
             MediaSource::bytes(kompresi).with_mimetype(mimetype_for("opus")),
         ),
-        Reply::reaction("✅"),
+        Reply::TabelAi(Box::new(rich)).with_reaction("✅"),
     ]))
 }
 
@@ -679,6 +891,32 @@ mod tests {
         run_http(Stub::baru(vec![("", None)], None), text)
     }
 
+    /// Decode base64 standar untuk memeriksa JSON lirik di payload HTML.
+    fn decode_base64_test(input: &str) -> Vec<u8> {
+        fn nilai(c: u8) -> u8 {
+            match c {
+                b'A'..=b'Z' => c - b'A',
+                b'a'..=b'z' => c - b'a' + 26,
+                b'0'..=b'9' => c - b'0' + 52,
+                b'+' => 62,
+                b'/' => 63,
+                _ => 0,
+            }
+        }
+        let bersih: Vec<u8> = input.bytes().filter(|&c| c != b'=').collect();
+        bersih
+            .chunks(4)
+            .flat_map(|c| {
+                let n = (nilai(c[0]) as u32) << 18
+                    | (nilai(c[1]) as u32) << 12
+                    | (nilai(*c.get(2).unwrap_or(&0)) as u32) << 6
+                    | nilai(*c.get(3).unwrap_or(&0)) as u32;
+                let b = [(n >> 16) as u8, (n >> 8) as u8, n as u8];
+                b[..c.len().saturating_sub(1)].to_vec()
+            })
+            .collect()
+    }
+
     fn text_of(r: &Reply) -> String {
         r.without_mutations()
             .text_body()
@@ -783,16 +1021,10 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus sequence, dapat {:?}", r.without_mutations());
         };
-        assert_eq!(list.len(), 4);
+        // 🎧 → voice note fallback → kartu RichAi HTML.
+        assert_eq!(list.len(), 3);
         assert!(matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🎧"));
-        let teks = match &list[1] {
-            Reply::Text { text, .. } => text,
-            lain => panic!("harus teks lirik, dapat {lain:?}"),
-        };
-        assert!(teks.starts_with("🎵 *Lagu Uji - Channel Uji*\n\n"), "{teks}");
-        assert!(teks.contains("[0:12] Halo\n"), "{teks}");
-        assert!(teks.contains("[0:15] Dunia"), "{teks}");
-        match &list[2] {
+        match &list[1] {
             Reply::Audio { media, ptt } => {
                 assert!(ptt, "voice note = ptt true");
                 let m = media.as_ref().expect("audio harus punya sumber");
@@ -800,7 +1032,21 @@ mod tests {
             }
             lain => panic!("harus voice note, dapat {lain:?}"),
         }
-        assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
+        // `with_reaction("✅")` membungkus di Mutate+Reaction; unwrap ke TabelAi.
+        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+            panic!("harus TabelAi");
+        };
+        assert_eq!(rich.submessages[0].text.as_deref(), Some("Lagu Uji - Channel Uji"));
+        let prim = &rich.sections[0]["view_model"]["primitive"];
+        assert_eq!(
+            prim["__typename"],
+            serde_json::json!("GenAIaeacdsnwHtmlPrimitive")
+        );
+        let payload = prim["payload"].as_str().expect("payload html");
+        assert!(matches!(list[2].without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
+        assert!(payload.contains("Lagu Uji"), "{payload}");
+        assert!(payload.contains("data:audio/ogg;base64,"), "{payload}");
+        assert!(payload.contains("atob("), "lirik sinkron dari JSON base64");
 
         let seen = http.seen.lock().unwrap().clone();
         assert!(seen.iter().any(|u| u.contains("lrclib.net/api/get?track_name=Lagu+Uji&artist_name=Channel+Uji&duration=213")), "{seen:?}");
@@ -833,11 +1079,15 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus sequence");
         };
-        let teks = match &list[1] {
-            Reply::Text { text, .. } => text,
-            lain => panic!("harus teks, dapat {lain:?}"),
+        // Tanpa lirik: player HTML tetap dikirim, script-nya menampilkan
+        // "Lirik belum tersedia" dari JSON kosong.
+        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+            panic!("harus TabelAi");
         };
-        assert!(teks.contains("Lirik belum tersedia untuk lagu ini."), "{teks}");
+        let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
+            .as_str()
+            .expect("payload html");
+        assert!(payload.contains("Lirik belum tersedia untuk lagu ini."), "{payload}");
     }
 
     #[test]
@@ -870,14 +1120,26 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus sequence");
         };
-        let teks = match &list[1] {
-            Reply::Text { text, .. } => text,
-            lain => panic!("harus teks, dapat {lain:?}"),
+        // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8):
+        // JSON base64 di payload memuat time 0/8/16.
+        let Reply::TabelAi(rich) = list[2].tanpa_reaksi() else {
+            panic!("harus TabelAi");
         };
-        // 213 detik / 3 baris = 71 → clamp 8 detik.
-        assert!(teks.contains("[0:00] satu\n"), "{teks}");
-        assert!(teks.contains("[0:08] dua\n"), "{teks}");
-        assert!(teks.contains("[0:16] tiga"), "{teks}");
+        let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
+            .as_str()
+            .expect("payload html");
+        let b64 = payload
+            .split("atob('")
+            .nth(1)
+            .and_then(|s| s.split('\'').next())
+            .expect("lirik base64 di payload");
+        let json: Vec<serde_json::Value> =
+            serde_json::from_slice(&decode_base64_test(b64)).unwrap();
+        assert_eq!(json[0]["time"], serde_json::json!(0.0));
+        assert_eq!(json[0]["text"], serde_json::json!("satu"));
+        assert_eq!(json[1]["time"], serde_json::json!(8.0));
+        assert_eq!(json[2]["time"], serde_json::json!(16.0));
+        assert_eq!(json[2]["text"], serde_json::json!("tiga"));
     }
 
     #[test]
@@ -1111,6 +1373,39 @@ mod tests {
         );
         assert_eq!(video_id_dari("pendek"), None);
         assert_eq!(video_id_dari(""), None);
+    }
+
+    #[test]
+    fn base64_encode_memakai_padding_standar() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"a"), "YQ==");
+        assert_eq!(base64_encode(b"ab"), "YWI=");
+        assert_eq!(base64_encode(b"abc"), "YWJj");
+        assert_eq!(base64_encode(b"ID3data-audio-palsu"), "SUQzZGF0YS1hdWRpby1wYWxzdQ==");
+        assert_eq!(decode_base64_test("YWJj"), b"abc".to_vec());
+    }
+
+    #[test]
+    fn player_html_memakai_judul_yang_diescape_dan_placeholder_poster() {
+        let html = player_html("<b>A</b>", "B & C", "3:33", "data:audio/ogg;base64,YQ==", "", &[]);
+        assert!(html.contains("&lt;b&gt;A&lt;/b&gt;"), "{html}");
+        assert!(html.contains("B &amp; C"), "{html}");
+        assert!(html.contains("data:image/svg+xml;base64,"), "placeholder SVG");
+        assert!(html.contains("data:audio/ogg;base64,YQ=="), "{html}");
+    }
+
+    #[test]
+    fn section_html_membawa_typename_aihtml() {
+        let s = section_html("<div>x</div>");
+        assert_eq!(
+            s["view_model"]["primitive"]["__typename"],
+            serde_json::json!("GenAIaeacdsnwHtmlPrimitive")
+        );
+        assert_eq!(s["view_model"]["primitive"]["payload"], serde_json::json!("<div>x</div>"));
+        assert_eq!(
+            s["view_model"]["primitive"]["trusted_sources"],
+            serde_json::json!([])
+        );
     }
 
     #[test]

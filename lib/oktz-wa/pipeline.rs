@@ -3772,8 +3772,9 @@ impl Pipeline {
     ///
     /// Yang ikut varian: balasan berbentuk TEKS saja (`Reply::Text` dan
     /// saudaranya) — di JS `m.reply` cuma menerima `text`, dan kartu/tabel/media
-    /// sudah punya wire contract sendiri. Varian `Basic` (0, 1, string, pecahan,
-    /// di luar 2..11) langsung jatuh ke [`render_reply`].
+    /// sudah punya wire contract sendiri. Varian `Basic` (0, 1, pecahan,
+    /// di luar 2..11, string non-angka) langsung jatuh ke [`render_reply`];
+    /// string angka (`"9"`) sudah dipetakan [`variant_from`] ke variannya.
     ///
     /// Teks kosong TIDAK dikirim: `if (!text && text !== 0) return null`
     /// (`serialize.js:966`). Akar aset & srt image diambil dari direktori
@@ -4600,6 +4601,11 @@ impl Pipeline {
 
     /// Kirim teks ke sebuah chat; `mention` mengisi `mentions` (peserta yang
     /// baru masuk/keluar), `None` = tanpa mention.
+    ///
+    /// Hanya untuk teks sistem grup (salam/anticulik/sewa). Bukan untuk pesan
+    /// error — error tetap lewat [`Pipeline::kirim_pesan_error`] yang dirender
+    /// [`Pipeline::render_with_reply_variant`], jadi sengaja tidak lewat
+    /// varian di sini.
     async fn kirim_teks(
         &self,
         chat: &str,

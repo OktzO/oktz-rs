@@ -6,17 +6,25 @@
 //! `isSameGroupMember(groupMembers, quotedSender, sender)` → pencocokan
 //! roster (`lid.js:454-482`).
 //!
-//! `ponytail:` `sock.sendMessage(m.chat, { delete: key })` tidak ada di API
-//! plugin, jadi `m.react('✅')` setelahnya juga tidak terjadi — plugin diam
-//! setelah gerbang lolos, bukan melapor penghapusan yang tidak terjadi.
-//! `botJids` dari `sock.user` juga tidak terbaca, jadi `isBotMessage` hanya
-//! bisa `true` lewat `fromMe`.
+//! `ponytail:` `sock.sendMessage(m.chat, { delete: key })` tidak ada di
+//! `Sock` maupun `Ctx` (`lib/oktz-plugin-api/sock.rs`, `registry.rs`), jadi
+//! penghapusan tidak bisa dieksekusi di sini. Gerbang lolos melaporkan
+//! ketiadaan itu secara jujur (teks + reaksi `❌`, bukan `Reply::None` diam
+//! dan bukan `✅` yang berbohong). Butuh `Sock::hapus_pesan(&self, chat,
+//! key)` atau `Mutation::Delete` dari pipeline — lalu kembalikan
+//! `Reply::reaction("✅")` seperti `delete.js:53`. `botJids` dari `sock.user`
+//! juga tidak terbaca, jadi `isBotMessage` hanya bisa `true` lewat
+//! `fromMe`.
 
 use oktz_plugin_api::{Ctx, Participant, Reply, plugin};
 
 pub(crate) const NO_QUOTE: &str = "⚠️ *Reply pesan yang ingin dihapus!*";
 pub(crate) const BOT_NOT_ADMIN: &str = "⚠️ *Bot harus jadi admin untuk hapus pesan orang lain!*";
 pub(crate) const NOT_ADMIN: &str = "⚠️ *Hanya admin yang bisa hapus pesan orang lain!*";
+/// Jalur lolos gerbang tanpa API hapus — pesan yang jujur, jadi user tahu
+/// pesan tidak dihapus (bukan `Reply::None` yang tampak diam-diam berhasil).
+pub(crate) const BELUM_DIDUKUNG: &str =
+    "❌ *Gagal menghapus!*\n> Fitur hapus pesan belum tersedia — menunggu dukungan pipeline.";
 
 /// `normalizeComparableJid` (`lid.js:438-452`) — buang device `:N` hanya
 /// untuk JID `@s.whatsapp.net`.
@@ -104,7 +112,11 @@ pub fn delete(ctx: Ctx) -> Reply {
         }
     }
 
-    Reply::None
+    // `delete.js:40-53` — key `remoteJid/id/fromMe/participant` disusun sini.
+    // `sock.sendMessage(chat, { delete: key })` tidak ada di API (lihat
+    // `ponytail:` modul), jadi: teks jujur + reaksi ❌, bukan diam. Reaksi
+    // ✅ JS hanya boleh menyala setelah hapus benar-benar terjadi.
+    Reply::text(BELUM_DIDUKUNG).with_reaction("❌")
 }
 
 #[cfg(test)]
@@ -165,6 +177,16 @@ mod tests {
         r.without_mutations().text_body().expect("harus ada teks")
     }
 
+    /// Gerbang lolos tanpa API hapus: teks jujur + reaksi ❌ (lihat
+    /// `BELUM_DIDUKUNG`) — bukan diam, bukan `✅` palsu.
+    fn assert_pending(r: &Reply) {
+        assert_eq!(body(r), BELUM_DIDUKUNG);
+        assert!(
+            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
+            "harus bereaksi ❌: {r:?}"
+        );
+    }
+
     #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("delete").unwrap();
@@ -210,7 +232,7 @@ mod tests {
             sender_admin: false,
             is_owner: false,
         }));
-        assert!(r.is_none(), "gerbang lolos; penghapusan tidak di-port");
+        assert_pending(&r);
         assert!(r.mutations().is_empty());
     }
 
@@ -224,7 +246,7 @@ mod tests {
             sender_admin: false,
             is_owner: false,
         }));
-        assert!(r.is_none(), "pesan sendiri tetap boleh dihapus");
+        assert_pending(&r);
     }
 
     #[test]
@@ -250,7 +272,7 @@ mod tests {
         }));
         assert_eq!(body(&guest), NOT_ADMIN);
 
-        for is_owner in [true, false] {
+        for _is_owner in [true, false] {
             let allowed = (oktz_plugin_api::find("delete").unwrap().handler)(ctx_with(Opts {
                 quoted_sender: Some("628999@s.whatsapp.net"),
                 from_me: false,
@@ -258,7 +280,7 @@ mod tests {
                 sender_admin: true,
                 is_owner,
             }));
-            assert!(allowed.is_none(), "is_owner={is_owner} harusnya lolos");
+            assert_pending(&allowed);
         }
     }
 
