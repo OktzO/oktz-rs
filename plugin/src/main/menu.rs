@@ -1064,7 +1064,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
 
     // smallcaps (`toSmallFont` JS) + emoji kategori (`categoryEmojis`).
     fn sc(teks: &str) -> String {
-        const PETA: &str = "ᴬᴮᶜᴰᴱᶠᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾꞯᴿꜱᴛᴜᴠᴡxʏᴢ";
+        const PETA: &str = "ᴬᴮᶜᴰᴇᶠᴳᴴᴵᴊᴷᴸᴍᴺᴼᴾꞯᴿꜱᴛᴜᴠᴡxʏᴢ";
         teks.chars().map(|c| {
             if c.is_ascii_alphabetic() {
                 let u = c.to_ascii_uppercase();
