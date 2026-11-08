@@ -1062,9 +1062,10 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
     let pref = prefix(ctx);
     let sub = ctx.args.first().map(|s| s.to_lowercase()).unwrap_or_default();
 
-    // smallcaps (`toSmallFont` JS) + emoji kategori (`categoryEmojis`).
+    // smallcaps (`toSmallFont` JS, `Rubby-MD/plugins/main/menu.js:56-65`) +
+    // emoji kategori (`categoryEmojis`).
     fn sc(teks: &str) -> String {
-        const PETA: &str = "ᴬᴮᶜᴰᴇᶠᴳᴴᴵᴊᴷᴸᴍᴺᴼᴾꞯᴿꜱᴛᴜᴠᴡxʏᴢ";
+        const PETA: &str = "\u{1D00}\u{0299}\u{1D04}\u{1D05}\u{1D07}\u{A730}\u{0262}\u{029C}\u{026A}\u{1D0A}\u{1D0B}\u{029F}\u{1D0D}\u{0274}\u{1D0F}\u{1D18}\u{A7AF}\u{0280}\u{A731}\u{1D1B}\u{1D1C}\u{1D20}\u{1D21}x\u{028F}\u{1D22}";
         teks.chars().map(|c| {
             if c.is_ascii_alphabetic() {
                 let u = c.to_ascii_uppercase();
@@ -1515,6 +1516,6 @@ mod tests {
         };
         let footer = kartu.footer.as_deref().unwrap_or_default();
         assert!(footer.contains("ᴛᴏᴛᴀʟ"), "{footer}");
-        assert!(footer.contains("ᴄᴏᴍᴍᴀɴᴅs"), "{footer}");
+        assert!(footer.contains("ᴄᴏᴍᴍᴀɴᴅꜱ"), "{footer}");
     }
 }
