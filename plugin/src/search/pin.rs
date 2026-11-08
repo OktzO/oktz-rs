@@ -68,9 +68,9 @@ pub(crate) fn pick_images(pins: &[serde_json::Value]) -> Vec<String> {
 /// `pinCari` (`src/capabilities/pinterest.js:140-153`) — `image || images_url`
 /// yang diawali `https?://`; yang lain dibuang menjadi `None`.
 fn pin_cari(entri: &serde_json::Value) -> Option<serde_json::Value> {
-    let teks = |v: Option<&serde_json::Value>| {
+    fn teks<'a>(v: Option<&'a serde_json::Value>) -> &'a str {
         v.and_then(serde_json::Value::as_str).unwrap_or("").trim()
-    };
+    }
     let image = teks(entri.get("image"));
     let image = if image.is_empty() {
         teks(entri.get("images_url"))
