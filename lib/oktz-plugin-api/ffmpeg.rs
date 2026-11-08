@@ -27,7 +27,14 @@ pub fn jalur_ffmpeg() -> Option<PathBuf> {
         return Some(j);
     }
 
-    // 3. biner yang sudah ada di PATH.
+    // 3. biner bawaan paket npm yang mungkin masih ada dari bot JS
+    //    (`@ffmpeg-installer` / `ffmpeg-static`) — panel umumnya belum
+    //    punya ffmpeg di PATH.
+    if let Some(j) = cari_di_node_modules("ffmpeg") {
+        return Some(j);
+    }
+
+    // 4. biner yang sudah ada di PATH.
     cari_di_path("ffmpeg")
 }
 
@@ -38,6 +45,9 @@ pub fn jalur_ffprobe() -> Option<PathBuf> {
         return Some(j);
     }
     if let Some(j) = cari_di_bin("ffprobe") {
+        return Some(j);
+    }
+    if let Some(j) = cari_di_node_modules("ffprobe") {
         return Some(j);
     }
     cari_di_path("ffprobe")
@@ -54,6 +64,25 @@ fn dari_env(kunci: &[&str]) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Cari biner bawaan paket npm (`node_modules`) — JS bot memakai
+/// `@ffmpeg-installer/ffmpeg` dan `ffmpeg-static`, jadi berkasnya sering masih
+/// ada di akar panel tempat bot Rust dijalankan. Tidak ada unduhan di sini.
+fn cari_di_node_modules(nama: &str) -> Option<PathBuf> {
+    let kandidat = [
+        format!("node_modules/ffmpeg-static/{nama}"),
+        format!("node_modules/@ffmpeg-installer/linux-x64/{nama}"),
+        format!("node_modules/@ffmpeg-installer/linux-arm64/{nama}"),
+        format!("node_modules/ffprobe-static/bin/linux/x64/{nama}"),
+        format!("node_modules/ffprobe-static/bin/linux/arm64/{nama}"),
+    ];
+    kandidat.into_iter().find_map(|k| {
+        let calon = PathBuf::from(k);
+        calon
+            .is_file()
+            .then(|| std::fs::canonicalize(&calon).unwrap_or(calon))
+    })
 }
 
 /// Cari `nama` di folder `./bin` repo.

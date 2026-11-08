@@ -482,11 +482,22 @@ if (UTAMA) cekRegistry();
 let anak = null;
 let sudahUnduhUlang = false;
 
-// ffmpeg: bot Rust sendiri mencari biner (OTKZ_FFMPEG_PATH → ./bin/ffmpeg → PATH).
-// Launcher hanya meneruskan env dari operator.
+// ffmpeg: bot Rust sendiri mencari biner (env → ./bin/ffmpeg → node_modules
+// paket JS lama → PATH). Launcher hanya meneruskan env dari operator, tapi
+// ikut memeriksa lokasi yang sama supaya peringatan di log tidak menyesatkan.
 function ffmpegPath() {
-  if (process.env.OTKZ_FFMPEG_PATH && existsSync(process.env.OTKZ_FFMPEG_PATH)) {
-    return process.env.OTKZ_FFMPEG_PATH;
+  const dariEnv = process.env.OTKZ_FFMPEG_PATH || process.env.FFMPEG_PATH;
+  if (dariEnv && existsSync(dariEnv)) return dariEnv;
+  const kandidat = [
+    path.join(AKAR, "bin/ffmpeg"),
+    path.join(AKAR, "node_modules/ffmpeg-static/ffmpeg"),
+    path.join(AKAR, "node_modules/@ffmpeg-installer/linux-x64/ffmpeg"),
+  ];
+  for (const p of kandidat) if (existsSync(p)) return p;
+  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
+    if (!dir) continue;
+    const p = path.join(dir, "ffmpeg");
+    if (existsSync(p)) return p;
   }
   return undefined;
 }

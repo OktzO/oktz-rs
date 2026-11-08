@@ -108,6 +108,7 @@ pub struct RoutingInfoJson {
 /// `account` di creds.json == protobuf `ADVSignedDeviceIdentity` (4 field bytes),
 /// pemetaannya 1:1. `details` sudah berupa bytes ter-serialize, pass-through.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AccountJson {
     #[serde(default, deserialize_with = "de_b64_any_opt")]
     pub details: Option<String>,
@@ -190,7 +191,27 @@ pub fn device_ke_creds_json(d: &wacore::store::Device) -> serde_json::Value {
     if let Some(h) = &d.props_hash {
         doc["lastPropHash"] = serde_json::Value::String(h.clone());
     }
+    // `account` = ADVSignedDeviceIdentity hasil pairing. WAJIB ikut diekspor:
+    // companion tanpa account tidak bisa mengirim pkmsg (node
+    // `<device-identity>`) dan retry receipt untuk pesan yang gagal didekripsi
+    // ditolak dengan `Missing device account info`. Sebelumnya field ini
+    // dibuang, jadi creds.json hasil pairing Rust kehilangannya selamanya dan
+    // semua pesan masuk baru hilang setelah db sesi dibangun ulang.
+    if let Some(a) = d.account.as_ref() {
+        doc["account"] = serde_json::json!({
+            "details": buf_json(&a.details),
+            "accountSignatureKey": buf_json(&a.account_signature_key),
+            "accountSignature": buf_json(&a.account_signature),
+            "deviceSignature": buf_json(&a.device_signature),
+        });
+    }
     doc
+}
+
+/// Byte → bentuk `BufferJSON` Baileys (`{"type":"Buffer","data":"<b64>"}`),
+/// sehingga creds.json tetap bisa dibaca balik bot JS.
+fn buf_json(bytes: &[u8]) -> serde_json::Value {
+    serde_json::json!({ "type": "Buffer", "data": b64_encode(bytes) })
 }
 
 /// creds.json onigis menyimpan public key Curve25519 sebagai 32 byte POLOS.
@@ -282,22 +303,21 @@ pub fn inspect_creds(raw: &str) -> Result<(DeviceMapping, Creds)> {
 mod tests {
     use super::*;
     use serde_json::json;
+    use wacore_libsignal::core::curve::{KeyPair, PrivateKey, PublicKey};
+
+    fn kp(pubb: u8, privv: u8) -> KeyPair {
+        let mut pb = vec![0x05u8];
+        pb.extend(std::iter::repeat_n(pubb, 32));
+        KeyPair {
+            public_key: PublicKey::try_from(&pb[..]).unwrap(),
+            private_key: PrivateKey::deserialize(&[privv; 32]).unwrap(),
+        }
+    }
 
     /// Roundtrip ekspor pairing: Device hasil PAIRED → creds.json →
     /// dibaca ulang `inspect_creds` (langkah pertama `prepare_store`).
     #[test]
     fn device_ke_creds_json_bisa_dibaca_ulang_inspect_creds() {
-        use wacore_libsignal::core::curve::{KeyPair, PrivateKey, PublicKey};
-
-        fn kp(pubb: u8, privv: u8) -> KeyPair {
-            let mut pb = vec![0x05u8];
-            pb.extend(std::iter::repeat_n(pubb, 32));
-            KeyPair {
-                public_key: PublicKey::try_from(&pb[..]).unwrap(),
-                private_key: PrivateKey::deserialize(&[privv; 32]).unwrap(),
-            }
-        }
-
         let d = wacore::store::Device {
             pn: "6285143885645:59@s.whatsapp.net".parse().ok(),
             lid: "188412430651393:59@lid".parse().ok(),
@@ -328,6 +348,42 @@ mod tests {
         assert!(m.has_routing_info);
         assert_eq!(doc["registered"], true);
         assert_eq!(c.me.as_ref().unwrap().lid.as_deref(), Some("188412430651393:59@lid"));
+    }
+
+    /// Regresi sesi "pesan masuk hilang": ekspor pairing DULU membuang
+    /// `account`, sehingga restart membangun device tanpa ADVSignedDeviceIdentity
+    /// dan setiap retry receipt / pkmsg ditolak (`Missing device account info`).
+    #[test]
+    fn account_adv_ikut_ekspor_dan_terbaca_dari_camel_case() {
+        let account = whatsapp_rust::waproto::whatsapp::ADVSignedDeviceIdentity {
+            details: Some(vec![0x0a, 0x01, 0x02]),
+            account_signature_key: Some(vec![0x09; 32]),
+            account_signature: Some(vec![0x08; 64]),
+            device_signature: Some(vec![0x07; 64]),
+        };
+        let d = wacore::store::Device {
+            account: Some(std::sync::Arc::new(account)),
+            ..Default::default()
+        };
+
+        let doc = device_ke_creds_json(&d);
+        // Baileys menulis byte sebagai BufferJSON; kunci camelCase.
+        assert_eq!(doc["account"]["details"]["type"], "Buffer");
+        assert_eq!(
+            doc["account"]["accountSignatureKey"]["data"],
+            b64_encode(&[0x09u8; 32])
+        );
+
+        let raw = serde_json::to_string(&doc).unwrap();
+        let (_m, c) = inspect_creds(&raw).expect("ekspor dengan account harus sah");
+        let a = c.account.expect("account wajib ikut terekspor");
+        assert_eq!(a.details.as_deref(), Some(b64_encode(&[0x0a, 0x01, 0x02]).as_str()));
+        assert_eq!(
+            a.account_signature_key.as_deref(),
+            Some(b64_encode(&[0x09u8; 32]).as_str())
+        );
+        assert_eq!(a.account_signature.as_deref(), Some(b64_encode(&[0x08u8; 64]).as_str()));
+        assert_eq!(a.device_signature.as_deref(), Some(b64_encode(&[0x07u8; 64]).as_str()));
     }
 
     /// creds.json produksi nyata, disanitasi: nilai kripto diganti dummy

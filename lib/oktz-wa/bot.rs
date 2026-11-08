@@ -501,29 +501,49 @@ pub async fn build_device(c: &creds::Creds) -> Result<whatsapp_rust::wacore::sto
     }
 
     // ADVSignedDeviceIdentity — tanpa ini PDO/retry receipt dan decrypt pesan
-    // grup yang gagal decrypt akan bermasalah.
-    if let Some(a) = c.account.as_ref() {
-        let nb = |s: &str| -> Result<Option<Vec<u8>>> {
-            if s.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(creds::b64(s)?))
-            }
-        };
-        d.account = Some(std::sync::Arc::new(
-            whatsapp_rust::waproto::whatsapp::ADVSignedDeviceIdentity {
-                details: nb(a.details.as_deref().unwrap_or(""))?,
-                account_signature_key: nb(a.account_signature_key.as_deref().unwrap_or(""))?,
-                account_signature: match &a.account_signature {
-                    Some(s) => nb(s)?,
-                    None => None,
+    // grup yang gagal decrypt akan bermasalah. Field wajib: `details` +
+    // `accountSignatureKey`; objek setengah jadi lebih berbahaya daripada None
+    // karena node `<device-identity>` tetap dikirim tapi tak bisa divalidasi peer.
+    let account_utuh = |a: &crate::creds::AccountJson| {
+        a.details.as_deref().is_some_and(|s| !s.is_empty())
+            && a.account_signature_key.as_deref().is_some_and(|s| !s.is_empty())
+    };
+    match c.account.as_ref() {
+        Some(a) if account_utuh(a) => {
+            let nb = |s: &str| -> Result<Option<Vec<u8>>> {
+                if s.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(creds::b64(s)?))
+                }
+            };
+            d.account = Some(std::sync::Arc::new(
+                whatsapp_rust::waproto::whatsapp::ADVSignedDeviceIdentity {
+                    details: nb(a.details.as_deref().unwrap_or(""))?,
+                    account_signature_key: nb(a.account_signature_key.as_deref().unwrap_or(""))?,
+                    account_signature: match &a.account_signature {
+                        Some(s) => nb(s)?,
+                        None => None,
+                    },
+                    device_signature: match &a.device_signature {
+                        Some(s) => nb(s)?,
+                        None => None,
+                    },
                 },
-                device_signature: match &a.device_signature {
-                    Some(s) => nb(s)?,
-                    None => None,
-                },
-            },
-        ));
+            ));
+        }
+        Some(_) => {
+            tracing::warn!(
+                "creds.json: `account` ada tapi tidak lengkap (details/accountSignatureKey kosong); \
+                 retry receipt & pkmsg ke perangkat lain akan gagal — pairing ulang"
+            );
+        }
+        None => {
+            tracing::warn!(
+                "creds.json tanpa `account` (ADVSignedDeviceIdentity): pesan masuk yang butuh \
+                 retry akan hilang. Pairing ulang sesi ini; ekspor Rust baru sudah menyertakan account"
+            );
+        }
     }
     Ok(d)
 }
