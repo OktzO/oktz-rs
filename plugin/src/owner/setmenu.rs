@@ -17,6 +17,10 @@ use oktz_plugin_api::registry::{CardHeader, CardList, CardRow, CardSection, Inte
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 
 /// `VARIANTS` (`setmenu.js:19-68`) — `(key, id, name, desc, emoji)`.
+///
+/// `v16` tambahan dari sesi ini: varian Rubby (menu utama ala
+/// `Rubby-MD/plugins/main/menu.js`) yang tata letaknya ditulis di
+/// `plugin/src/main/menu.rs` `varian_rubby`.
 const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v1", 1, "BASIC", "", "🖼️"),
     ("v2", 2, "PREMIUM", "", "✅"),
@@ -26,6 +30,13 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v6", 6, "LOCATION", "Location Message dengan Buttons", "📍"),
     ("v7", 7, "RA NGERTI", "Location Message dengan Buttons", "📍"),
     ("v8", 8, "THUMBNAIL", "Thumbnail Image", "📍"),
+    (
+        "v16",
+        16,
+        "RUBBY",
+        "Menu utama ala Rubby-MD (smallcaps + tombol kategori)",
+        "🎀",
+    ),
 ];
 
 /// Kunci setting untuk variant menu (`setmenu.js:79`).
@@ -53,13 +64,24 @@ pub(crate) fn nama_variant(id: i64) -> &'static str {
         .unwrap_or("Unknown")
 }
 
-/// Teks body kartu `setmenu.js:110-114`.
+/// Teks body kartu `setmenu.js:110-114` — gaya `setallmenu.js` (penjelasan
+/// per variant, supaya tampilan kartu mirip allmenu).
 pub(crate) fn body_teks(current: i64) -> String {
     format!(
         "🎨🖼️ *MENU VARIANT*\n\n\
-         Atur tampilan menu utama bot ketika user mengetik perintah menu 📋✨\n\
-         Variant aktif saat ini: *V{current} — {nama}* 🎯\n\n\
-         > Pilih variant menu dari tombol di bawah 👇",
+Atur tampilan menu utama bot ketika user mengetik perintah menu 📋✨\n\
+Variant aktif saat ini: *V{current} — {nama}* 🎯\n\n\
+*PENJELASAN VARIANT:*\n\n\
+- *V1 Basic* 🖼️ — Kartu menu dasar: header gambar + daftar kategori `single_select`.\n\n\
+- *V2 Premium* ✅ — Kartu menu premium dengan header gambar + footer informatif.\n\n\
+- *V3 Premium* ✅ — Bawaan produksi: kartu list menu + cuaca + tombol.\n\n\
+- *V4 LV* ✅ — Kartu list menu varian 4.\n\n\
+- *V5 LV 2* ✅ — Kartu list menu varian 5.\n\n\
+- *V6 Location* 📍 — Kartu dengan header lokasi + tombol.\n\n\
+- *V7 RA NGERTI* 📍 — Sama seperti V6, pesan lokasi + tombol.\n\n\
+- *V8 Thumbnail* 📍 — Kartu thumbnail dengan pratinjau tautan.\n\n\
+- *V16 Rubby* 🎀 — Menu utama ala Rubby-MD: smallcaps + tombol `single_select` kategori (`.menu <kategori>`) + tombol Owner.\n\n\
+> Pilih variant menu dari tombol di bawah 👇",
         nama = nama_variant(current)
     )
 }
@@ -197,6 +219,24 @@ mod tests {
     #[test]
     fn variant_v8_ada_dalam_konstanta() {
         assert!(VARIANTS.iter().any(|(k, _, _, _, _)| *k == "v8"));
+    }
+
+    #[test]
+    fn variant_rubby_v16_terdaftar() {
+        let r = run(&[], serde_json::json!({}));
+        let baris = baris_kartu(&r);
+        assert_eq!(baris.len(), 9, "v1..v8 + v16");
+        assert_eq!(baris[8]["id"], ".setmenu v16");
+        assert!(baris[8]["title"].as_str().unwrap().contains("V16"));
+    }
+
+    #[test]
+    fn setmenu_v16_menyimpan_id_16() {
+        let r = run(&["v16"], serde_json::json!({}));
+        match &r.mutations()[0] {
+            Mutation::SetSetting { value, .. } => assert_eq!(value, &serde_json::json!(16)),
+            other => panic!("harus SetSetting, dapat {other:?}"),
+        }
     }
 
     #[test]

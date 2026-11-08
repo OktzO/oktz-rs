@@ -1,9 +1,11 @@
 //! `plugins/main/menu.js` — menu utama.
 //!
-//! Port penuh: delapan varian tampilan yang dipilih lewat setting
+//! Port penuh: sembilan varian tampilan yang dipilih lewat setting
 //! `menuVariant`, lengkap dengan kartu native-flow, tombol `single_select` /
 //! `quick_reply` / `cta_url`, header media (gambar, video, lokasi), dan
-//! pesan yang dirujuk (kontak palsu, kartu cuaca).
+//! pesan yang dirujuk (kontak palsu, kartu cuaca). Varian 16 adalah port
+//! menu utama `Rubby-MD/plugins/main/menu.js` (smallcaps + tombol kategori
+//! `.menu <kategori>` + tombol Owner), dipilih lewat `.setmenu v16`.
 //!
 //! Yang diport apa adanya:
 //! - `CATEGORY_EMOJIS` (`menu.js:36-73`) dan urutan kategori
@@ -1048,6 +1050,252 @@ fn varian_aktif(ctx: &Ctx) -> i64 {
         .unwrap_or(DEFAULT_VARIANT)
 }
 
+/// Varian 16 — menu utama persis `Rubby-MD/plugins/main/menu.js` (pilih
+/// lewat `.setmenu v16`): header smallcaps + status, body "{bot} in here",
+/// menu di footer, dan tombol `single_select` kategori + quick Owner.
+///
+/// Rubby tidak menyaring kategori berdasarkan permission — semua kategori di
+/// registry tampil (termasuk `owner`). Command per kategori diurut
+/// alfabetis seperti `formatSection` JS.
+fn varian_rubby(ctx: &Ctx) -> Reply {
+    let bot = ctx.config();
+    let pref = prefix(ctx);
+    let sub = ctx.args.first().map(|s| s.to_lowercase()).unwrap_or_default();
+
+    // smallcaps (`toSmallFont` JS) + emoji kategori (`categoryEmojis`).
+    fn sc(teks: &str) -> String {
+        const PETA: &str = "ᴬᴮᶜᴰᴱᶠᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾꞯᴿˢᵀᵁⱽᵂˣᵞᶻ";
+        teks.chars().map(|c| {
+            if c.is_ascii_alphabetic() {
+                let u = c.to_ascii_uppercase();
+                PETA.chars()
+                    .nth((u as u8 - b'A') as usize)
+                    .unwrap_or(c)
+            } else {
+                c
+            }
+        }).collect()
+    }
+
+    fn emoji(kategori: &str) -> &'static str {
+        match kategori.to_lowercase().as_str() {
+            "ai" => "🤖",
+            "ai-image" => "🪄",
+            "asupan" => "💃",
+            "audio" => "🎧",
+            "cewerandom" => "👧",
+            "convert" => "🔄",
+            "downloader" => "📥",
+            "download" => "📥",
+            "ephoto" => "📸",
+            "example" => "💡",
+            "fun" => "🎲",
+            "github" => "🐙",
+            "group" | "grup" => "👥",
+            "info" => "ℹ️",
+            "islamic" => "🌙",
+            "main" => "🎀",
+            "maker" => "🎨",
+            "manga" => "📚",
+            "news" => "📰",
+            "novel" => "📖",
+            "nsfw" => "🔞",
+            "other" => "✨",
+            "owner" => "👑",
+            "panel" => "⚡",
+            "premium" => "💎",
+            "primbon" => "🔮",
+            "rpg" => "⚔️",
+            "search" => "🔍",
+            "stalk" | "stalker" => "🕵️",
+            "streaming" => "🎬",
+            "tools" => "🔧",
+            "webapi" => "🌐",
+            _ => "🌸",
+        }
+    }
+
+    // (kategori, daftar perintah aktif serupanya) — alfabetis, tanpa filter
+    // permission (paritas Rubby). Uniq + sort per `formatSection` JS.
+    let registry = |c: &Ctx| -> Vec<(String, Vec<String>)> {
+        let mut hitung: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for p in oktz_plugin_api::all_plugins() {
+            if !p.meta.is_enabled {
+                continue;
+            }
+            let cat = p.meta.category.clone();
+            if cat.is_empty() {
+                continue;
+            }
+            hitung.entry(cat).or_default().push(p.meta.name.clone());
+        }
+        let mut hasil: Vec<(String, Vec<String>)> = hitung
+            .into_iter()
+            .map(|(cat, mut cmds)| {
+                cmds.sort();
+                cmds.dedup();
+                (cat, cmds)
+            })
+            .collect();
+        let _ = c; // konteks argumen dipakai pemanggil; registry murni.
+        hasil.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        hasil
+    };
+
+    let cats = registry(ctx);
+    let total: usize = cats.iter().map(|(_, c)| c.len()).sum();
+
+    // Sapaan per jam (`getGreeting`), huruf smallcaps.
+    let greeting: String = match jakarta_parts(now_ms()).3 {
+        4..=10 => sc("Selamat Pagi") + " 🌄",
+        11..=14 => sc("Selamat Siang") + " ☀️",
+        15..=17 => sc("Selamat Sore") + " 🌇",
+        _ => sc("Selamat Malam") + " 🌙",
+    };
+
+    // Pengirim: @nomor kecuali JID LID (pakai pushName).
+    let display: String = if ctx.sender.ends_with("@lid") {
+        if ctx.push_name.is_empty() {
+            "User".to_string()
+        } else {
+            ctx.push_name.clone()
+        }
+    } else {
+        let num: String = ctx.sender.chars().filter(char::is_ascii_digit).collect();
+        if num.is_empty() {
+            if ctx.push_name.is_empty() {
+                "User".to_string()
+            } else {
+                ctx.push_name.clone()
+            }
+        } else {
+            format!("@{num}")
+        }
+    };
+
+    let status = if ctx.is_owner {
+        sc("Owner")
+    } else if ctx.is_premium {
+        sc("Premium")
+    } else {
+        sc("Free User")
+    };
+    let nama_bot = bot.bot.name.clone();
+    let galat_uptime = format!(
+        "• {} : *{}*\n• {} : {}\n• {} : {}\n• {} : {}\n• {} : {}",
+        sc("Status"),
+        status,
+        sc("Uptime"),
+        uptime(ctx.uptime_secs),
+        sc("Server Uptime"),
+        server_uptime(ctx.uptime_secs),
+        sc("Mode"),
+        sc("Public"),
+        sc("Prefix"),
+        pref
+    );
+
+    let section = |cat: &str, cmds: &[String]| {
+        let mut s = format!("{} *{}*\n", emoji(cat), sc(&cat.to_uppercase()));
+        for cmd in cmds {
+            s.push_str(&format!("• {pref}{}\n", sc(cmd)));
+        }
+        s.trim_end().to_string()
+    };
+
+    let menu_kategori: Vec<(String, Vec<String>)> = if sub == "all" {
+        cats.clone()
+    } else if let Some((c, cmds)) = cats.iter().find(|(c, _)| c.eq_ignore_ascii_case(&sub)) {
+        vec![(c.clone(), cmds.clone())]
+    } else {
+        Vec::new()
+    };
+
+    let footer = if sub == "all" {
+        let mut teks = format!(
+            "{greeting}, {display} 👋\n{}\n\n{galat_uptime}\n\n",
+            sc("Ini semua fitur")
+        );
+        for (cat, cmds) in &menu_kategori {
+            teks.push_str(&section(cat, cmds));
+            teks.push_str("\n\n");
+        }
+        teks.push_str(&format!("{}: {total} {}", sc("Total"), sc("Commands")));
+        teks
+    } else if let Some((cat, cmds)) = menu_kategori.first() {
+        format!(
+            "{greeting}, {display} 👋\n\n{galat_uptime}\n\n{}",
+            section(cat, cmds)
+        )
+    } else {
+        format!(
+            "{greeting}, {display} 👋\n{} *{}*!\n\n{galat_uptime}\n\n{}:\n{pref}menu <{}>\n{pref}menu all",
+            sc("Selamat Datang di"),
+            nama_bot,
+            sc("Pilih kategori di tombol bawah, atau ketik"),
+            sc("kategori")
+        )
+    };
+
+    // Baris `single_select` — sama dengan JS (`categoryRows`).
+    let mut rows: Vec<CardRow> = vec![CardRow::new(
+        format!("📑 {}", sc("semua menu")),
+        format!("{pref}menu all"),
+    )
+    .description(sc("tampilkan semua perintah bot"))];
+    for (cat, cmds) in &cats {
+        let _ = cmds;
+        rows.push(
+            CardRow::new(
+                format!("{} {}", emoji(cat), sc(&format!("menu {}", cat.to_lowercase()))),
+                format!("{pref}menu {}", cat.to_lowercase()),
+            )
+            .description(sc(&format!("daftar perintah {}", cat.to_lowercase()))),
+        );
+    }
+
+    let list = CardList::new(
+        sc("daftar menu"),
+        vec![CardSection::new(sc("kategori menu")).rows(rows)],
+    )
+    .icon("DEFAULT");
+
+    let header = CardHeader::new()
+        .title(nama_bot.clone())
+        .subtitle(bot.info.website.clone());
+    let mut reply = Reply::interactive(format!("{nama_bot} in here"))
+        .with_footer(footer)
+        .with_button_card(InteractiveButton::select(&list))
+        .with_button_card(InteractiveButton::quick_reply(
+            format!("👑 {}", sc("Owner")),
+            format!("{pref}owner"),
+        ))
+        .with_context(
+            CardContext::new()
+                .mention(ctx.sender.clone())
+                .quote_trigger(),
+        );
+    if let Some(aset) = ctx.config().assets.get("foto")
+        && ctx.berkas().ada(aset)
+    {
+        reply = reply.with_header_card(header.image(MediaSource::path(aset)));
+    } else {
+        reply = reply.with_header(header);
+    }
+    reply
+}
+
+/// Server uptime dari `/proc/uptime` (Linux); jatuh ke uptime bot.
+fn server_uptime(bot_uptime: u64) -> String {
+    if let Ok(isi) = std::fs::read_to_string("/proc/uptime")
+        && let Some(pertama) = isi.split_whitespace().next()
+        && let Ok(v) = pertama.parse::<f64>()
+    {
+        return uptime(v as u64);
+    }
+    uptime(bot_uptime)
+}
+
 #[plugin(
     name = "menu",
     alias = ["help", "bantuan", "commands", "m"],
@@ -1070,6 +1318,7 @@ pub fn menu(ctx: Ctx) -> Reply {
         6 => varian_6(&ctx),
         7 => varian_7(&ctx),
         8 => varian_8(&ctx),
+        16 => varian_rubby(&ctx),
         _ => Reply::text(build_menu_text(&ctx)),
     }
 }
@@ -1205,5 +1454,64 @@ mod tests {
         let t = teks(menu(c));
         assert!(t.contains("YOUR STATUS"), "{t}");
         assert!(t.contains("https://oktzz.xyz"), "{t}");
+    }
+
+    #[test]
+    fn varian_rubby_memakai_footer_dan_tombol_kategori() {
+        let mut c = ctx();
+        c.settings = json!({ "menuVariant": 16 });
+        c.args = vec![];
+        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+            panic!("varian 16 harus kartu interaktif");
+        };
+        // Body = "{bot} in here" (Rubby `setBody`), isi menu di footer.
+        assert_eq!(kartu.body, "Oktz Bot in here");
+        let footer = kartu.footer.as_deref().unwrap_or_default();
+        assert!(footer.contains("ꜱᴇʟᴀᴍᴀᴛ"), "{footer}"); // smallcaps greeting
+        assert!(footer.contains("ᴏᴋᴛᴢ"), "{footer}"); // smallcaps "Oktz"
+        assert!(footer.contains(".menu"), "{footer}");
+        // Tombol: single_select kategori + quick Owner.
+        assert_eq!(kartu.buttons.len(), 2);
+        assert_eq!(kartu.buttons[0].name, "single_select");
+        assert_eq!(kartu.buttons[1].name, "quick_reply");
+        // Baris pertama = semua menu (`.menu all`), berikutnya per kategori.
+        let rows = kartu.buttons[0]
+            .params
+            .nilai()["sections"][0]["rows"]
+            .as_array()
+            .unwrap();
+        assert_eq!(rows[0]["id"], ".menu all");
+        assert!(rows.iter().any(|r| r["id"] == ".menu main"));
+        // Header memuat nama bot.
+        let header = kartu.header.expect("varian rubby harus punya header");
+        assert_eq!(header.title.as_deref(), Some("Oktz Bot"));
+        assert_eq!(header.subtitle.as_deref(), Some("https://oktzz.xyz"));
+    }
+
+    #[test]
+    fn varian_rubby_sub_kategori_memuat_seksi_itu() {
+        let mut c = ctx();
+        c.settings = json!({ "menuVariant": 16 });
+        c.args = vec!["tools".to_string()];
+        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+            panic!("varian 16 harus kartu interaktif");
+        };
+        let footer = kartu.footer.as_deref().unwrap_or_default();
+        assert!(footer.contains("ꜱᴇʟᴀᴍᴀᴛ"), "{footer}");
+        // Tanggal Rubby memakai emoji sendiri, bukan map menu.js oktz.
+        assert!(footer.contains("🔧"), "{footer}");
+    }
+
+    #[test]
+    fn varian_rubby_sub_all_memuat_total() {
+        let mut c = ctx();
+        c.settings = json!({ "menuVariant": 16 });
+        c.args = vec!["all".to_string()];
+        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+            panic!("varian 16 harus kartu interaktif");
+        };
+        let footer = kartu.footer.as_deref().unwrap_or_default();
+        assert!(footer.contains("ᴛᴏᴛᴀʟ"), "{footer}");
+        assert!(footer.contains("ᴄᴏᴍᴍᴀɴᴅs"), "{footer}");
     }
 }
