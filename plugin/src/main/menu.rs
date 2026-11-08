@@ -1461,7 +1461,8 @@ mod tests {
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 16 });
         c.args = vec![];
-        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+        let r = menu(c);
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("varian 16 harus kartu interaktif");
         };
         // Body = "{bot} in here" (Rubby `setBody`), isi menu di footer.
@@ -1483,7 +1484,7 @@ mod tests {
         assert_eq!(rows[0]["id"], ".menu all");
         assert!(rows.iter().any(|r| r["id"] == ".menu main"));
         // Header memuat nama bot.
-        let header = kartu.header.expect("varian rubby harus punya header");
+        let header = kartu.header.as_ref().expect("varian rubby harus punya header");
         assert_eq!(header.title.as_deref(), Some("Oktz Bot"));
         assert_eq!(header.subtitle.as_deref(), Some("https://oktzz.xyz"));
     }
@@ -1493,7 +1494,8 @@ mod tests {
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 16 });
         c.args = vec!["tools".to_string()];
-        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+        let r = menu(c);
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("varian 16 harus kartu interaktif");
         };
         let footer = kartu.footer.as_deref().unwrap_or_default();
@@ -1507,7 +1509,8 @@ mod tests {
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 16 });
         c.args = vec!["all".to_string()];
-        let Reply::Interactive { kartu } = menu(c).without_mutations() else {
+        let r = menu(c);
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("varian 16 harus kartu interaktif");
         };
         let footer = kartu.footer.as_deref().unwrap_or_default();
