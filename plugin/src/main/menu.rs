@@ -1064,7 +1064,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
 
     // smallcaps (`toSmallFont` JS) + emoji kategori (`categoryEmojis`).
     fn sc(teks: &str) -> String {
-        const PETA: &str = "ᴬᴮᶜᴰᴱᶠᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾꞯᴿˢᵀᵁⱽᵂˣᵞᶻ";
+        const PETA: &str = "ᴬᴮᶜᴰᴱᶠᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾꞯᴿꜱᴛᴜᴠᴡxʏᴢ";
         teks.chars().map(|c| {
             if c.is_ascii_alphabetic() {
                 let u = c.to_ascii_uppercase();
@@ -1231,7 +1231,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
         format!(
             "{greeting}, {display} 👋\n{} *{}*!\n\n{galat_uptime}\n\n{}:\n{pref}menu <{}>\n{pref}menu all",
             sc("Selamat Datang di"),
-            nama_bot,
+            sc(&nama_bot),
             sc("Pilih kategori di tombol bawah, atau ketik"),
             sc("kategori")
         )

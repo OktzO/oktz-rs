@@ -283,7 +283,7 @@ mod tests {
     fn baris_kartu_menandai_variant_aktif_dengan_centang() {
         let r = run(&[], serde_json::json!({ "menuVariant": 5 }));
         let baris = baris_kartu(&r);
-        assert_eq!(baris.len(), 8);
+        assert_eq!(baris.len(), 9, "v1..v8 + v16");
         assert_eq!(baris[0]["title"], "🖼️ V1 — BASIC");
         assert_eq!(baris[4]["title"], "✅ V5 ✓ — LV 2");
         assert_eq!(baris[4]["id"], ".setmenu v5");
