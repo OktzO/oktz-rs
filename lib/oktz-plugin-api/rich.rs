@@ -147,6 +147,12 @@ pub struct RichAi {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
     pub disclaimer: Option<String>,
+    /// `AIRich.send(jid, { quoted })` (`builder.js:1490-1500`): pasang
+    /// `stanzaId`/`participant`/`quotedMessage` pemicu ke `contextInfo` dalam.
+    /// Default `false` supaya jalur yang TIDAK mengutip (mis. `ytplay.js`
+    /// memanggil `aiRich.send(m.chat, { includesUnifiedResponse: true })`)
+    /// tetap sama.
+    pub quoted: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -211,6 +217,7 @@ mod tests {
             }],
             sections: vec![serde_json::json!({"s": 1})],
             disclaimer: Some("d".into()),
+            quoted: false,
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),

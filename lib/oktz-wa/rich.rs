@@ -11,14 +11,15 @@
 //! | AIRich (`builder.js`) | 1 | `0@bot` | `deviceListMetadata` + `botMetadata` disclaimer |
 //! | prepared rich (`prepareRichResponseMessage`) | 1 | `867051314767696@bot` | proof + `botResponseId` |
 //!
-//! # `unifiedResponse.data` = byte JSON UTF-8 MENTAH
+//! # `unifiedResponse.data` = teks base64 dari JSON UTF-8
 //!
-//! Bukan base64 ASCII. JS `generateTableContentV2` menulis
+//! JS `generateTableContentV2`/`AIRich.build` menulis
 //! `Buffer.from(JSON.stringify(unifiedData)).toString("base64")`
-//! (`rich-messages.js:1030`) — itu byte teks base64, bukan byte JSON-nya.
-//! Proto field-nya `optional bytes data = 1`, dan yang harus dibandingkan
-//! klien adalah byte JSON-nya. Test `rich_v2_raw_utf8_unified_bytes_are_not_base64`
-//! mengunci itu.
+//! (`rich-messages.js:1030`, `builder.js:1521`) dan protobuf Baileys
+//! meng-encode string itu ke field `bytes` sebagai UTF-8. Klien WA
+//! men-decode base64 untuk mendapat JSON-nya — mengirim JSON mentah
+//! membuat kartu rich TIDAK dirender (pesan tampak hilang). Test
+//! `rich_v2_unified_bytes_are_base64_of_json` mengunci kontrak ini.
 //!
 //! `ponytail:` response ID & secret = waktu + counter, bukan RNG. JS pakai
 //! `randomUUID`/`randomBytes`. Upgrade path: tambah `rand` kalau task lain
@@ -166,13 +167,16 @@ fn wrap(rich: AIRichResponseMessage, outer: Option<MessageContextInfo>) -> wa::M
     }
 }
 
-/// Byte JSON UTF-8 dari `unifiedResponse` — mentah, bukan base64.
+/// `unifiedResponse.data` — base64 ASCII dari JSON UTF-8, persis
+/// `Buffer.from(JSON.stringify(...)).toString("base64")` JS.
 fn unified_bytes(response_id: &str, sections: Vec<serde_json::Value>) -> Vec<u8> {
+    use base64::Engine as _;
     let unified = serde_json::json!({
         "response_id": response_id,
         "sections": sections,
     });
-    serde_json::to_vec(&unified).unwrap_or_default()
+    let json = serde_json::to_vec(&unified).unwrap_or_default();
+    base64::engine::general_purpose::STANDARD.encode(json).into_bytes()
 }
 
 /// `richResponseMessage` bersejarah untuk builder yang memakai
@@ -449,14 +453,15 @@ fn ai_sections(input: &[serde_json::Value]) -> Vec<serde_json::Value> {
     input.to_vec()
 }
 
-pub fn rich_ai_to_message(input: &RichAi) -> wa::Message {
+pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Message {
     let response_id = unique_id();
+    let quote = if input.quoted { quote } else { None };
     wrap(
         rich_with_unified(
             ai_submessages(&input.submessages),
             &response_id,
             ai_sections(&input.sections),
-            ai_context(None),
+            ai_context(quote),
         ),
         Some(ai_outer(input.disclaimer.as_deref())),
     )
@@ -552,7 +557,11 @@ mod tests {
     }
 
     fn unified_json(msg: &wa::Message) -> serde_json::Value {
-        serde_json::from_slice(&unified_data(msg)).expect("data wajib JSON UTF-8")
+        use base64::Engine as _;
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(unified_data(msg))
+            .expect("data wajib base64");
+        serde_json::from_slice(&decoded).expect("isi base64 wajib JSON UTF-8")
     }
 
     fn inner_context(msg: &wa::Message) -> &ContextInfo {
@@ -642,22 +651,26 @@ mod tests {
     }
 
     #[test]
-    fn rich_v2_raw_utf8_unified_bytes_are_not_base64() {
+    fn rich_v2_unified_bytes_are_base64_of_json() {
+        // JS: `Buffer.from(JSON.stringify(...)).toString("base64")`
+        // (`rich-messages.js:1030`). Base64 ASCII, BUKAN JSON mentah —
+        // klien WA men-decode base64 sebelum membaca `sections`.
+        use base64::Engine as _;
         let input = RichV2::baru("Judul").header(["A"]).baris(["b"]);
         let msg = rich_v2_to_message(&input, None);
         let data = unified_data(&msg);
-        let parsed = unified_json(&msg);
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&data)
+            .expect("data wajib base64 valid");
 
-        // Byte == `serde_json::to_vec(&expected_json)`: JSON UTF-8 mentah.
         let expected = json!({
-            "response_id": parsed["response_id"].clone(),
+            "response_id": unified_json(&msg)["response_id"].clone(),
             "sections": v2_sections(&input),
         });
-        assert_eq!(data, serde_json::to_vec(&expected).unwrap());
+        assert_eq!(decoded, serde_json::to_vec(&expected).unwrap());
 
-        // DAN bukan base64 ASCII: base64 dari `{"response_id"...}` dimulai
-        // `eyJ` — byte pertama payload JSON adalah `{`.
-        assert_eq!(&data[..14], b"{\"response_id\"");
+        // JSON mentah dimulai `{`; base64 dari `{` selalu `ey`.
+        assert_eq!(&data[..2], b"ey", "byte pertama payload wajib base64");
     }
 
     #[test]
@@ -730,7 +743,7 @@ mod tests {
     fn ai_rich_context_score_and_bot_jid_are_distinct() {
         // AIRich: score 1 + `0@bot`. Bukan V2 (score 2, `259786046210223@bot`)
         // dan bukan prepared/V1 (score 1, `867051314767696@bot`).
-        let ai = rich_ai_to_message(&RichAi::default());
+        let ai = rich_ai_to_message(&RichAi::default(), None);
         let ci = inner_context(&ai);
         assert_eq!(ci.forwarding_score, Some(1), "AIRich pakai score 1");
         assert_eq!(ci.forward_origin, Some(wa::context_info::ForwardOrigin::META_AI));
@@ -739,7 +752,7 @@ mod tests {
 
     #[test]
     fn ai_rich_keeps_bot_metadata_without_verification_proof() {
-        let msg = rich_ai_to_message(&RichAi::default());
+        let msg = rich_ai_to_message(&RichAi::default(), None);
         let meta = bot_metadata(&msg);
         assert!(
             meta.verification_metadata.as_option().is_none(),
@@ -756,7 +769,7 @@ mod tests {
         let msg = rich_ai_to_message(&RichAi {
             disclaimer: Some("Syarat pakai".into()),
             ..Default::default()
-        });
+        }, None);
         assert_eq!(
             bot_metadata(&msg).message_disclaimer_text.as_deref(),
             Some("Syarat pakai")
@@ -775,8 +788,34 @@ mod tests {
         let msg = rich_ai_to_message(&RichAi {
             sections: sections.clone(),
             ..Default::default()
-        });
+        }, None);
         assert_eq!(unified_json(&msg)["sections"], json!(sections));
+    }
+
+    #[test]
+    fn ai_rich_quote_is_only_attached_when_the_plugin_asks() {
+        // `ytplay.js`/`play2.js` tidak mengutip pemicu; `ai.js:137` mengutip.
+        let tanpa = rich_ai_to_message(
+            &RichAi {
+                sections: vec![text_section("x")],
+                ..Default::default()
+            },
+            Some(&quote()),
+        );
+        let ci = inner_context(&tanpa);
+        assert!(ci.stanza_id.is_none(), "default tidak boleh mengutip");
+
+        let dengan = rich_ai_to_message(
+            &RichAi {
+                sections: vec![text_section("x")],
+                quoted: true,
+                ..Default::default()
+            },
+            Some(&quote()),
+        );
+        let ci = inner_context(&dengan);
+        assert_eq!(ci.stanza_id.as_deref(), Some("STANZA1"));
+        assert!(ci.quoted_message.as_option().is_some());
     }
 
     // ---------- prepared rich ----------
@@ -848,7 +887,7 @@ mod tests {
             }],
             ..Default::default()
         };
-        let msg = rich_ai_to_message(&input);
+        let msg = rich_ai_to_message(&input, None);
         let table = rich_response(&msg)
             .submessages
             .iter()
@@ -935,7 +974,7 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
         // Bukti separasi empat jalur: byte-nya tidak boleh sama walau isi
         // modelnya sama bentuknya.
         let input = RichAi::default();
-        let ai = rich_ai_to_message(&input);
+        let ai = rich_ai_to_message(&input, None);
         let prepared = prepared_rich_to_message(&PreparedRich::default());
         let v2 = rich_v2_to_message(&RichV2::baru("J"), None);
         let list = rich_list_to_message(&RichList::baru("J"), None);

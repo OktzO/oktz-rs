@@ -13,14 +13,13 @@ use std::process::Command;
 use std::io::Write;
 
 /// Jalur biner ffmpeg.
-/// Urutan: env `OTKZ_FFMPEG_PATH`, `bin/ffmpeg`, lalu `PATH`.
+/// Urutan: env `OTKZ_FFMPEG_PATH` / `FFMPEG_PATH`, `bin/ffmpeg`, lalu `PATH`.
 pub fn jalur_ffmpeg() -> Option<PathBuf> {
-    // 1. override eksplisit dari operator melalui env.
-    if let Some(nama) = std::env::var_os("OTKZ_FFMPEG_PATH") {
-        let calon = PathBuf::from(nama);
-        if calon.is_file() {
-            return Some(calon);
-        }
+    // 1. override eksplisit dari operator melalui env. `FFMPEG_PATH` adalah
+    //    nama yang dipakai bot JS (`src/lib/ffmpeg.js`), jadi ikut dihormati
+    //    supaya operator tidak perlu menyetel dua variabel.
+    if let Some(j) = dari_env(&["OTKZ_FFMPEG_PATH", "FFMPEG_PATH"]) {
+        return Some(j);
     }
 
     // 2. biner di folder ./bin repo.
@@ -33,18 +32,28 @@ pub fn jalur_ffmpeg() -> Option<PathBuf> {
 }
 
 /// Jalur biner ffprobe.
-/// Urutan: env `OTKZ_FFPROBE_PATH`, `bin/ffprobe`, lalu `PATH`.
+/// Urutan: env `OTKZ_FFPROBE_PATH` / `FFPROBE_PATH`, `bin/ffprobe`, lalu `PATH`.
 pub fn jalur_ffprobe() -> Option<PathBuf> {
-    if let Some(nama) = std::env::var_os("OTKZ_FFPROBE_PATH") {
-        let calon = PathBuf::from(nama);
-        if calon.is_file() {
-            return Some(calon);
-        }
+    if let Some(j) = dari_env(&["OTKZ_FFPROBE_PATH", "FFPROBE_PATH"]) {
+        return Some(j);
     }
     if let Some(j) = cari_di_bin("ffprobe") {
         return Some(j);
     }
     cari_di_path("ffprobe")
+}
+
+/// Ambil jalur biner pertama yang ada di env dan benar-benar berkas.
+fn dari_env(kunci: &[&str]) -> Option<PathBuf> {
+    for k in kunci {
+        if let Some(nama) = std::env::var_os(k) {
+            let calon = PathBuf::from(nama);
+            if calon.is_file() {
+                return Some(calon);
+            }
+        }
+    }
+    None
 }
 
 /// Cari `nama` di folder `./bin` repo.
@@ -109,6 +118,11 @@ pub fn jalankan(argumen: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 /// Sama seperti `jalankan`, tapi stdin diisi `masukan` (ffmpeg baca dari `pipe:0`).
+///
+/// Penulisan stdin dilakukan di thread terpisah: keluaran ffmpeg bisa jauh
+/// lebih besar dari buffer pipe (64 KiB), dan kalau thread pemanggil menulis
+/// 25 MB dulu sambil ffmpeg memblokir di stdout, keduanya saling menunggu
+/// (deadlock). JS memakai `spawn` + `end()` yang setara.
 pub fn jalankan_dengan_masukan(argumen: &[&str], masukan: &[u8]) -> Result<Vec<u8>, String> {
     let biner = jalur_ffmpeg().unwrap_or_else(|| PathBuf::from("ffmpeg"));
     let mut anak = Command::new(&biner)
@@ -119,19 +133,24 @@ pub fn jalankan_dengan_masukan(argumen: &[&str], masukan: &[u8]) -> Result<Vec<u
         .spawn()
         .map_err(|e| format!("gagal menjalankan ffmpeg: {e}"))?;
 
-    {
-        let stdin = anak
-            .stdin
-            .as_mut()
-            .ok_or_else(|| "tidak bisa membuka stdin ffmpeg".to_string())?;
-        stdin
-            .write_all(masukan)
-            .map_err(|e| format!("gagal menulis ke stdin ffmpeg: {e}"))?;
-    }
+    let mut stdin = anak
+        .stdin
+        .take()
+        .ok_or_else(|| "tidak bisa membuka stdin ffmpeg".to_string())?;
 
-    let keluaran = anak
-        .wait_with_output()
-        .map_err(|e| format!("gagal menunggu ffmpeg: {e}"))?;
+    // `wait_with_output` menutup stdout/stderr sampai habis; penulis stdin
+    // berjalan bersamaan supaya ffmpeg tidak tertahan di salah satu ujung.
+    let keluaran = std::thread::scope(move |s| {
+        let penulis = s.spawn(move || {
+            // Broken pipe = ffmpeg sudah berhenti; stderr yang menentukan hasil.
+            let _ = stdin.write_all(masukan);
+            drop(stdin);
+        });
+        let hasil = anak.wait_with_output();
+        penulis.join().ok();
+        hasil
+    })
+    .map_err(|e| format!("gagal menunggu ffmpeg: {e}"))?;
 
     if keluaran.status.success() {
         Ok(keluaran.stdout)
@@ -203,6 +222,7 @@ mod tests {
         unsafe { env::set_var("PATH", path_asal); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
         unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
     }
 
     #[test]
@@ -230,6 +250,7 @@ mod tests {
         unsafe { env::set_var("PATH", &kosong); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
         unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         assert!(jalur_ffmpeg().is_none());
         bersihkan_env(&dir, &path_asal);
     }
@@ -240,6 +261,7 @@ mod tests {
         let (dir, bin, path_asal) = siapkan_env();
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
         unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
         unsafe { env::set_var("PATH", &dir); }
         let hasil = jalur_ffmpeg();
@@ -259,6 +281,7 @@ mod tests {
             File::create(&dummy).unwrap().write_all(b"# dummy").unwrap();
         }
         unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         let path_asal = env::var("PATH").unwrap_or_default();
         unsafe { env::set_var("PATH", ""); }
         let hasil = jalur_ffmpeg();

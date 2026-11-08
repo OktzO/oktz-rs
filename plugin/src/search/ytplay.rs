@@ -9,8 +9,8 @@
 //!
 //! Kartu HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan section
 //! `FOAHtmlPrimitiveDemoDONOTUSE` — sama seperti `aiRich.addSection(...)
-//! ; aiRich.send` (`ytplay.js:891-905`), submessage teksnya ringkasan
-//! judul/channel/durasi/views (`ringkasan`).
+//! ; aiRich.send` (`ytplay.js:891-905`): HANYA section HTML, tanpa
+//! submessage teks (kartu JS tidak menampilkan ringkasan di luar player).
 //!
 //! `ponytail:` streaming WebSocket `wss://stream.kanara.my.id/?url=…`
 //! (`ytplay.js:879`, `startVideoStream`) tidak bisa dicapai dari API plugin
@@ -26,11 +26,11 @@
 //! poster base64 (download seperti `ytplay.js:864-873`), `<video controls>`
 //! dengan `src` direct, dan tombol putar/ganti kualitas minimal.
 
-use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
+use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use super::play2::{cari_video, poster_base64};
-use super::ytsearch::{self, format_views};
+use super::ytsearch;
 
 /// `ytplay.js:849-851` — judul/link kosong.
 pub(crate) fn tanpa_judul(prefix: &str) -> String {
@@ -45,26 +45,6 @@ pub(crate) fn judul_header(judul: &str) -> String {
 /// `ytplay.js:910` — gagal.
 pub(crate) fn gagal(pesan: &str) -> String {
     format!("Gagal memutar video YouTube.\n{pesan}")
-}
-
-/// Ringkasan video — memakai header yang sama dengan kartu JS.
-pub(crate) fn ringkasan(v: &ytsearch::Video, durasi: &str, direct: &str) -> String {
-    format!(
-        "🎬 *YOUTUBE PLAY - {}*\n\n\
-         📺 Channel: {}\n\
-         ⏱️ Durasi: {}\n\
-         👀 Views: {}\n\
-         📅 Upload: {}\n\n\
-         🔗 {}\n\
-         ▶️ Tonton: {}",
-        v.title,
-        v.author_name,
-        durasi,
-        format_views(v.views),
-        v.ago,
-        v.url,
-        direct
-    )
 }
 
 /// `info.duration` → `"m:ss"` (`ytplay.js:875-877`).
@@ -202,7 +182,6 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         .map(format_durasi)
         .unwrap_or_default();
 
-    let body = ringkasan(&video, &durasi, direct_url);
     let judul = direct
         .get("title")
         .and_then(|t| t.as_str())
@@ -231,12 +210,12 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     );
     let html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster);
     let rich = RichAi {
-        submessages: vec![AiSubMessage {
-            text: Some(body),
-            tabel: None,
-        }],
+        // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
+        // `submessages` kosong dan yang tampil murni kartu HTML.
+        submessages: Vec::new(),
         sections: vec![section_html(&judul_header(judul), &html)],
         disclaimer: None,
+        quoted: false,
     };
     Reply::TabelAi(Box::new(rich)).with_reaction("✅")
 }

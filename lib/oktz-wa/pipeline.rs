@@ -2505,7 +2505,7 @@ pub fn render_reply(
             Vec::new(),
         ))),
         Reply::TabelAi(ai) => Ok(Some(Rendered::wire(
-            crate::rich::rich_ai_to_message(ai),
+            crate::rich::rich_ai_to_message(ai, quote),
             Vec::new(),
         ))),
         Reply::PreparedRich(p) => Ok(Some(Rendered::wire(
@@ -6105,7 +6105,14 @@ fn group_number_and_long_number_are_rejected() {
         // V2 mengisi `sections` lewat unifiedResponse; submessages kosong.
         assert!(rich.submessages.is_empty());
         let data = rich.unified_response.as_option().unwrap().data.clone().unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&data).expect("JSON mentah");
+        // `unifiedResponse.data` = base64 ASCII (JS `Buffer...toString("base64")`).
+        let json: serde_json::Value = {
+            use base64::Engine as _;
+            let mentah = base64::engine::general_purpose::STANDARD
+                .decode(&data)
+                .expect("data wajib base64");
+            serde_json::from_slice(&mentah).expect("isi base64 wajib JSON")
+        };
         let sections = json["sections"].as_array().unwrap();
         let footer = sections
             .last()

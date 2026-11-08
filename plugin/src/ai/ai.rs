@@ -295,6 +295,9 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     if rich.submessages.is_empty() {
         return Reply::None;
     }
+    // `aiRich.send(m.chat, { quoted: m })` (`ai.js:137`) — kartu mengutip
+    // pesan pemicu, sama seperti pesan balasan biasa di JS.
+    rich.quoted = true;
     Reply::TabelAi(Box::new(rich))
 }
 

@@ -488,7 +488,10 @@ fn unduh_buffer(ctx: &Ctx, url: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Argumen `compressAudio` (`play2.js:395-479`) — opus 16k/24kHz/mono/ogg.
-const ARGUMEN_FFMPEG: [&str; 18] = [
+/// `pipe:1` WAJIB: ffmpeg menolak jalan tanpa berkas keluaran
+/// (`At least one output file must be specified`), dan JS selalu
+/// mengirimkannya (`play2.js:419`).
+const ARGUMEN_FFMPEG: [&str; 19] = [
     "-hide_banner",
     "-loglevel",
     "error",
@@ -507,6 +510,7 @@ const ARGUMEN_FFMPEG: [&str; 18] = [
     "audio",
     "-f",
     "ogg",
+    "pipe:1",
 ];
 
 /// `compressAudio` (`play2.js:395-479`) — stdin `pipe:0`, stdout `pipe:1`.
@@ -727,6 +731,8 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         }],
         sections: vec![section_html(&html)],
         disclaimer: None,
+        // `sendMusicPlayer` (`play2.js:896-943`) tidak mengutip pemicu.
+        quoted: false,
     };
 
     Ok(Reply::sequence(vec![
@@ -1406,6 +1412,14 @@ mod tests {
             s["view_model"]["primitive"]["trusted_sources"],
             serde_json::json!([])
         );
+    }
+
+    #[test]
+    fn argumen_ffmpeg_menulis_ke_pipe_stdout() {
+        // ffmpeg menolak jalan tanpa berkas keluaran; JS mengakhiri dengan
+        // `pipe:1` (`play2.js:419`).
+        assert_eq!(ARGUMEN_FFMPEG.last(), Some(&"pipe:1"));
+        assert!(ARGUMEN_FFMPEG.contains(&"pipe:0"));
     }
 
     #[test]
