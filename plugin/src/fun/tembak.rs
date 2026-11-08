@@ -217,8 +217,6 @@ pub fn tembak(ctx: Ctx) -> Reply {
             terima,
             tolak
         ),
-            format!("{}tolak", ctx.prefix)
-        ),
         mentions: vec![target_jid, ctx.sender.clone()],
     }
     .mutating(mutations)
