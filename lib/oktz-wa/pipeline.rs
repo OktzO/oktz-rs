@@ -4354,6 +4354,15 @@ impl Pipeline {
         }
 
         {
+            // `m.react('🕕')` seperti plugin JS berat (`ytplay.js:854`);
+            // penanda bahwa bot sedang memproses — reaksi akhir plugin
+            // (✅/❌/☢) menimpanya. Best-effort seperti reaksi lain: gagal
+            // bereaksi tidak boleh menggagalkan command.
+            if cooldown_key.is_some()
+                && let Err(e) = self.sender.react(&caller.chat, &message_key_of(m), "🕕").await
+            {
+                tracing::warn!(error = %e, "gagal bereaksi proses");
+            }
             // `&*self.ctx`: trait-nya diimplementasikan untuk `StoreContext`, bukan
             // `Arc<StoreContext>` — Arc cuma dipakai supaya bisa dipegang wrapper.
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
