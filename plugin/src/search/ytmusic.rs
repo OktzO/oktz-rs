@@ -7,8 +7,13 @@
 //! tidak ada vlog/podcast/episode. Bila YT Music gagal/kosong, pemanggil
 //! jatuh ke `ytsearch` dengan filter durasi lagu.
 //!
-//! `ponytail:` `X-Goog-Visitor-Id` dicache tanpa TTL; upgrade path:
-//! simpan waktu + refresh periodik bila Google mulai menolak ID basi.
+//! `ponytail:` `X-Goog-Visitor-Id` dicache dengan TTL 24 jam + batas
+//! pakai 100x per ID; fetch kosong/tak-sahih tidak mengisi cache (cache
+//! basi yang sahih tetap dipakai). Upgrade path: refresh proaktif bila
+//! Google mulai menolak ID basi.
+
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, SystemTime};
 
 use oktz_plugin_api::{HttpCall, HttpError, HttpGet};
 use serde_json::{Value, json};
@@ -24,10 +29,72 @@ const PARAMS_SONGS: &str = "EgWKAQIIAWoMEA4QChADEAQQCRAF";
 /// `initialize_context()` — versi tetap, tanpa tanggal dinamis.
 const CLIENT_VERSION: &str = "1.20250101.01.00";
 
+/// TTL cache `X-Goog-Visitor-Id`: 24 jam, lalu fetch ulang.
+const VISITOR_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+/// Batas pakai per ID: 100 — ID lama dipaksa refresh meski TTL belum lewat.
+const VISITOR_MAX_PAKAI: u32 = 100;
+/// ID sahih = tidak kosong dan panjang >= 10.
+const VISITOR_MIN_PANJANG: usize = 10;
+
+struct EntriVisitor {
+    nilai: String,
+    kedaluwarsa: SystemTime,
+    pakai: u32,
+}
+
+fn cache_visitor() -> &'static Mutex<Option<EntriVisitor>> {
+    static C: OnceLock<Mutex<Option<EntriVisitor>>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(None))
+}
+
+/// Bentuk ID yang layak dicache/dipakai.
+fn visitor_sahih(nilai: &str) -> bool {
+    !nilai.trim().is_empty() && nilai.len() >= VISITOR_MIN_PANJANG
+}
+
+/// Cache masih bisa dipakai: sahih, belum lewat TTL, pakai < batas.
+fn visitor_bisa_dipakai(e: &EntriVisitor) -> bool {
+    visitor_sahih(&e.nilai) && SystemTime::now() < e.kedaluwarsa && e.pakai < VISITOR_MAX_PAKAI
+}
+
 /// `get_visitor_id()` — `ytcfg.set({...});` → `VISITOR_DATA`.
-/// Gagal ambil = string kosong, request tetap jalan tanpa header itu.
-/// ponytail: tanpa cache; upgrade path: cache + TTL bila traffic tinggi.
+///
+/// Hasil dicache (TTL 24 jam, maks 100x pakai) supaya tiap pencarian tidak
+/// mengulang GET homepage `music.youtube.com`. Fetch gagal/kosong/tak-sahih
+/// tidak mengisi cache: cache basi yang sahih tetap dipakai, bila tidak
+/// request jalan tanpa header itu.
 fn visitor_id(http: &dyn HttpGet) -> String {
+    if let Ok(mut c) = cache_visitor().lock()
+        && let Some(e) = c.as_mut()
+        && visitor_bisa_dipakai(e)
+    {
+        e.pakai += 1;
+        return e.nilai.clone();
+    }
+    let baru = ambil_visitor_baru(http);
+    if visitor_sahih(&baru) {
+        if let Ok(mut c) = cache_visitor().lock() {
+            *c = Some(EntriVisitor {
+                nilai: baru.clone(),
+                kedaluwarsa: SystemTime::now() + VISITOR_TTL,
+                pakai: 1,
+            });
+        }
+        return baru;
+    }
+    cache_visitor()
+        .lock()
+        .ok()
+        .and_then(|c| {
+            c.as_ref()
+                .filter(|e| visitor_sahih(&e.nilai))
+                .map(|e| e.nilai.clone())
+        })
+        .unwrap_or_default()
+}
+
+/// Satu GET homepage → `VISITOR_DATA`, `""` bila tak dapat.
+fn ambil_visitor_baru(http: &dyn HttpGet) -> String {
     let v = http
         .call(
             &HttpCall::get(YTM_DOMAIN)
@@ -37,6 +104,26 @@ fn visitor_id(http: &dyn HttpGet) -> String {
         .map(|r| r.text())
         .unwrap_or_default();
     ambil_visitor_data(&v)
+}
+
+/// Hanya untuk test: kosongkan cache antar skenario.
+#[cfg(test)]
+pub(crate) fn visitor_cache_bersihkan() {
+    if let Ok(mut c) = cache_visitor().lock() {
+        *c = None;
+    }
+}
+
+/// Hanya untuk test: suntik entri cache (umur/kedaluwarsa + pakai palsu).
+#[cfg(test)]
+pub(crate) fn visitor_cache_suntik(nilai: &str, kedaluwarsa: SystemTime, pakai: u32) {
+    if let Ok(mut c) = cache_visitor().lock() {
+        *c = Some(EntriVisitor {
+            nilai: nilai.to_string(),
+            kedaluwarsa,
+            pakai,
+        });
+    }
 }
 
 /// Ambil `"VISITOR_DATA":"..."` dari `ytcfg.set(...)` tanpa regex.
@@ -307,14 +394,39 @@ mod tests {
 
     impl Stub {
         fn baru(body: String) -> Arc<Stub> {
+            Self::dengan_halaman(
+                body,
+                r#"<script>ytcfg.set({"VISITOR_DATA":"visitor-123"});</script>"#.to_string(),
+            )
+        }
+        fn dengan_halaman(body: String, halaman: String) -> Arc<Stub> {
             Arc::new(Stub {
                 body,
                 permintaan: Mutex::new(Vec::new()),
-                halaman: format!(
-                    r#"<script>ytcfg.set({{"VISITOR_DATA":"visitor-123"}});</script>"#
-                ),
+                halaman,
             })
         }
+    }
+
+    /// Serialisasi test cache di file ini (cache global, anti balapan).
+    fn kunci_cache() -> &'static Mutex<()> {
+        static K: OnceLock<Mutex<()>> = OnceLock::new();
+        K.get_or_init(|| Mutex::new(()))
+    }
+
+    fn hitung_get(p: &[HttpCall]) -> usize {
+        p.iter().filter(|r| r.method == HttpMethod::Get).count()
+    }
+
+    fn header_post(p: &[HttpCall], nama: &str) -> Option<String> {
+        p.iter()
+            .find(|r| r.method == HttpMethod::Post)
+            .and_then(|r| {
+                r.headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case(nama))
+                    .map(|(_, v)| v.clone())
+            })
     }
 
     impl HttpGet for Stub {
@@ -392,6 +504,8 @@ mod tests {
 
     #[test]
     fn hasil_search_memetakan_lagu_dari_item_yt_music() {
+        let _g = kunci_cache().lock().unwrap();
+        visitor_cache_bersihkan();
         let http = Stub::baru(HASIL.to_string());
         let v = search_lagu(http.as_ref(), "lagu uji").unwrap();
         assert_eq!(v.len(), 1);
@@ -404,16 +518,92 @@ mod tests {
         assert!(v[0].thumbnail.ends_with("hq.jpg"));
 
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(p[0].method, HttpMethod::Get, "visitor id dulu");
-        assert!(p[0].url.starts_with(YTM_DOMAIN));
-        let post = &p[1];
-        assert_eq!(post.method, HttpMethod::Post);
+        // Cache dikosongkan → GET homepage visitor dulu, lalu POST search.
+        assert_eq!(hitung_get(&p), 1, "visitor id diambil sekali: {p:?}");
+        for r in p.iter().filter(|r| r.method == HttpMethod::Get) {
+            assert!(r.url.starts_with(YTM_DOMAIN), "GET: {}", r.url);
+        }
+        let post = p
+            .iter()
+            .find(|r| r.method == HttpMethod::Post)
+            .expect("POST search");
         assert!(post.url.contains("music.youtube.com/youtubei/v1/search"));
         assert!(post.url.contains("alt=json"));
+        assert_eq!(
+            header_post(&p, "x-goog-visitor-id").as_deref(),
+            Some("visitor-123"),
+            "header visitor dikirim"
+        );
         let badan = String::from_utf8(post.body.as_ref().unwrap().bytes().to_vec()).unwrap();
         assert!(badan.contains("WEB_REMIX"), "{badan}");
         assert!(badan.contains("EgWKAQIIAWoMEA4QChADEAQQCRAF"), "{badan}");
         assert!(badan.contains("lagu uji"), "{badan}");
+    }
+
+    #[test]
+    fn cache_hit_tidak_refetch() {
+        let _g = kunci_cache().lock().unwrap();
+        visitor_cache_bersihkan();
+        visitor_cache_suntik(
+            "visitor-123",
+            SystemTime::now() + Duration::from_secs(3600),
+            1,
+        );
+        let http = Stub::baru(HASIL.to_string());
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        let p = http.permintaan.lock().unwrap();
+        assert_eq!(hitung_get(&p), 0, "cache hit: tanpa GET homepage: {p:?}");
+        assert_eq!(
+            header_post(&p, "x-goog-visitor-id").as_deref(),
+            Some("visitor-123")
+        );
+    }
+
+    #[test]
+    fn cache_expire_refetch() {
+        let _g = kunci_cache().lock().unwrap();
+        visitor_cache_bersihkan();
+        visitor_cache_suntik(
+            "visitor-123",
+            SystemTime::now() - Duration::from_secs(3600),
+            1,
+        );
+        let http = Stub::baru(HASIL.to_string());
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        let p = http.permintaan.lock().unwrap();
+        assert_eq!(hitung_get(&p), 1, "expire → refetch sekali: {p:?}");
+    }
+
+    #[test]
+    fn cache_habis_pakai_refetch() {
+        let _g = kunci_cache().lock().unwrap();
+        visitor_cache_bersihkan();
+        visitor_cache_suntik(
+            "visitor-123",
+            SystemTime::now() + Duration::from_secs(3600),
+            VISITOR_MAX_PAKAI,
+        );
+        let http = Stub::baru(HASIL.to_string());
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        let p = http.permintaan.lock().unwrap();
+        assert_eq!(hitung_get(&p), 1, "pakai habis → refetch: {p:?}");
+    }
+
+    #[test]
+    fn visitor_tidak_sahih_tidak_dicache() {
+        let _g = kunci_cache().lock().unwrap();
+        visitor_cache_bersihkan();
+        // ID di halaman < 10 char → tak-sahih, tidak dicache.
+        let http = Stub::dengan_halaman(
+            HASIL.to_string(),
+            r#"<script>ytcfg.set({"VISITOR_DATA":"pendek"});</script>"#.to_string(),
+        );
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        search_lagu(http.as_ref(), "lagu uji").unwrap();
+        let p = http.permintaan.lock().unwrap();
+        assert_eq!(hitung_get(&p), 2, "tak-sahih → GET tiap cari: {p:?}");
+        assert_eq!(header_post(&p, "x-goog-visitor-id"), None);
     }
 
     #[test]

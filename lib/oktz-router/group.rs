@@ -32,6 +32,20 @@ pub struct GroupCaller {
     pub from_me: bool,
     pub is_command: bool,
     pub is_document: bool,
+    /// `m.isImage` — `imageMessage` di wire.
+    pub is_image: bool,
+    /// `m.isVideo` — `videoMessage` di wire.
+    pub is_video: bool,
+    /// `m.isGif` — `videoMessage.gifPlayback`.
+    pub is_gif: bool,
+    /// `m.isAudio` — `audioMessage` di wire.
+    pub is_audio: bool,
+    /// `m.isSticker` — `stickerMessage` di wire.
+    pub is_sticker: bool,
+    /// `m.id` / `m.key.id` — dipakai `analyzeBotMessage` (antibot.js:56).
+    pub message_id: String,
+    /// `m.pushName` — dipakai `analyzeBotMessage` (`pushname-*`).
+    pub push_name: String,
     /// `m.type` — dipakai `checkAntidocument` (`documentMessage` /
     /// `documentWithCaptionMessage`).
     pub message_type: String,
@@ -90,6 +104,11 @@ pub struct GroupSettings {
     pub antihidetag: Option<String>,
     /// Gate ini pakai `!groupData.antidocument` (truthiness), bukan `"on"`.
     pub antidocument: bool,
+    /// `groupData.antimedia` / `groupData.antisticker` / `groupData.antibot`
+    /// — ketiganya truthiness boolean (`antimedia.js:37`, dll), bukan `"on"`.
+    pub antimedia: bool,
+    pub antisticker: bool,
+    pub antibot: bool,
     pub mute: bool,
     pub muted_members: Vec<String>,
     pub mutegc: bool,
@@ -293,13 +312,19 @@ pub fn default_gate_chain() -> GroupGuard {
         Gate::new("antihidetag", gate_hidetag),      // handler.js:791
         Gate::new("antiswgc", gate_anti_swgc),       // handler.js:794
         Gate::new("antidocument", gate_antidocument), // handler.js:797
-        Gate::new("mute", gate_mute),                // handler.js:809
-        Gate::new("mutedmember", gate_muted_member), // handler.js:818
-        Gate::new("mutegc", gate_mutegc),            // handler.js:827
-        Gate::new("slowmode", gate_slowmode),        // handler.js:844
-                                                     // Dilewati: detectBot (butuh `analyzeBotMessage` + `groupMetadata`),
-                                                     // checkSpam (butuh `spamTracker` lintas pesan + `handleSpamAction`),
-                                                     // isToxic (butuh `toxicWords` + counter `toxicWarns` per member di DB).
+        Gate::new("antibot", gate_antibot),           // handler.js:802
+        Gate::new("mute", gate_mute),                 // handler.js:809
+        Gate::new("mutedmember", gate_muted_member),  // handler.js:818
+        Gate::new("mutegc", gate_mutegc),             // handler.js:827
+        Gate::new("slowmode", gate_slowmode),         // handler.js:844
+        Gate::new("antisticker", gate_antisticker),   // handler.js:1458 (later)
+        Gate::new("antimedia", gate_antimedia),       // handler.js:1463 (later)
+                                                     // Dilewati: checkSpam (butuh `spamTracker`
+                                                     // lintas pesan + `handleSpamAction` yang
+                                                     // TIDAK return di JS → butuh Decision
+                                                     // "reply dan lanjut" yang belum ada),
+                                                     // isToxic (butuh `toxicWarns` per member
+                                                     // yang ditulis balik ke DB).
                                                      // AntiJudol/AntiPhising/AntiCustom/AntiSwGc kini ikut (sebelumnya
                                                      // dilewati — lihat git history).
     ])
@@ -715,6 +740,127 @@ fn gate_antidocument(input: &GateInput<'_>) -> GateOutcome {
     GateOutcome::Decide(Decision::DeleteAndReply(text))
 }
 
+/// `antimedia.js:32` `checkAntimedia` — `m.isImage || m.isVideo || m.isGif ||
+/// m.isAudio || m.isDocument`. Toggle truthiness; exemption admin/owner/fromMe.
+fn gate_antimedia(input: &GateInput<'_>) -> GateOutcome {
+    let c = input.caller;
+    if c.is_admin || c.is_owner || c.from_me {
+        return GateOutcome::Pass;
+    }
+    if !input.settings.antimedia {
+        return GateOutcome::Pass;
+    }
+    if !(c.is_image || c.is_video || c.is_gif || c.is_audio || c.is_document) {
+        return GateOutcome::Pass;
+    }
+    let text = msg(ANTIMEDIA, &sender_tag(&c.sender));
+    GateOutcome::Decide(Decision::DeleteAndReply(text))
+}
+
+/// `antisticker.js:32` `checkAntisticker` — `m.isSticker || m.type ===
+/// 'stickerMessage'`. Toggle truthiness; exemption admin/owner/fromMe.
+fn gate_antisticker(input: &GateInput<'_>) -> GateOutcome {
+    let c = input.caller;
+    if c.is_admin || c.is_owner || c.from_me {
+        return GateOutcome::Pass;
+    }
+    if !input.settings.antisticker {
+        return GateOutcome::Pass;
+    }
+    if !(c.is_sticker || c.message_type == "stickerMessage") {
+        return GateOutcome::Pass;
+    }
+    let text = msg(ANTISTICKER, &sender_tag(&c.sender));
+    GateOutcome::Decide(Decision::DeleteAndReply(text))
+}
+
+/// `antibot.js:226` `detectBot` + `analyzeBotMessage` (:56) — skor heuristik
+/// atas ID pesan, device participant, dan pushName; `score >= 5` = bot
+/// (kick admin). Toggle truthiness; exemption admin/owner di handler (:802)
+/// dan di `detectBot` (bot admin, target admin, pesan bot sendiri).
+///
+/// `ponytail:` cabang berbasis isi pesan mentah (externalAdReply,
+/// forwardingScore, invisible chars, isBaileys, botMessageTypes) TIDAK
+/// diport — caller tidak membawa subtree pesan, jadi skornya di bawah JS
+/// untuk bot yang hanya terdeteksi lewat sinyal itu.
+fn gate_antibot(input: &GateInput<'_>) -> GateOutcome {
+    let c = input.caller;
+    if c.is_owner || c.is_admin {
+        return GateOutcome::Pass;
+    }
+    if !input.settings.antibot {
+        return GateOutcome::Pass;
+    }
+    if !analyze_bot_message(c).is_bot {
+        return GateOutcome::Pass;
+    }
+    if c.from_me || is_same_participant(&c.sender, &input.env.bot_number) {
+        return GateOutcome::Pass;
+    }
+    if !input.env.metadata_available {
+        // JS: `if (!groupMeta) return false` (antibot.js:240).
+        return GateOutcome::Pass;
+    }
+    // Bot admin wajib (antibot.js:249); target admin bebas (antibot.js:256).
+    if !is_bot_admin_check(input.env) {
+        return GateOutcome::Pass;
+    }
+    if is_admin_check(&input.env.participants, c.participant.as_deref(), &c.sender) {
+        return GateOutcome::Pass;
+    }
+    let text = msg(ANTIBOT, &sender_tag(&c.sender));
+    GateOutcome::Decide(Decision::KickAndReply(text))
+}
+
+struct BotAnalysis {
+    is_bot: bool,
+}
+
+fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
+    let id = c.message_id.trim();
+    if id.is_empty() {
+        return BotAnalysis { is_bot: false };
+    }
+    if id.starts_with("WAMID.") || id.starts_with("false_") || id.starts_with("true_") {
+        return BotAnalysis { is_bot: false };
+    }
+    let mut score: u32 = 0;
+    let upper = id.to_ascii_uppercase();
+    if upper.starts_with("BAE5") || upper.starts_with("B24E") || upper.starts_with("94DD") || upper.starts_with("B1E") {
+        score += 5;
+    } else if upper.starts_with("3EB0") && upper.len() == 22 {
+        score += 4;
+    } else if id.chars().all(|ch| ch.is_ascii_hexdigit()) && (28..=40).contains(&id.len()) {
+        score += 2;
+    } else if id.len() == 16 {
+        score += 3;
+    } else if id.len() < 20 && !id.contains('-') {
+        score += 2;
+    }
+    if id.chars().any(|ch| ch.is_ascii_lowercase()) && !id.starts_with("3EB0") && !id.contains('-') {
+        score += 4;
+    }
+    if ![16, 20, 22, 32].contains(&id.len()) && !id.contains('-') {
+        score += 3;
+    }
+    // `extractSenderDevice` (antibot.js:41) — `:NN@` pada participant.
+    if let Some(part) = c.participant.as_deref()
+        && let Some(at) = part.find(':')
+        && part[at + 1..].starts_with(|ch: char| ch.is_ascii_digit())
+        && let Some(device) = part[at + 1..].split('@').next().and_then(|d| d.parse::<u32>().ok())
+        && device > 20
+    {
+        score += 2;
+    }
+    let push = c.push_name.trim().to_lowercase();
+    if push.is_empty() || push == "unknown" || push == "undefined" || push == "null" {
+        score += 1;
+    } else if ["bot", "system", "admin", "owner", "host", "panel"].iter().any(|w| push.contains(w)) {
+        score += 2;
+    }
+    BotAnalysis { is_bot: score >= 5 }
+}
+
 /// `handler.js:809-816` + `plugins/group/mute.js:31` `isMuted`.
 ///
 /// Exemption `!isAdmin && !isOwner` ada di handler, jadi bot bukan admin TIDAK
@@ -874,6 +1020,12 @@ pub const ANTILINK_ALL: &str = "⚠ *Antilink* — @%user% mengirim link.\nPesan
 pub const ANTILINK_ALL_KICK: &str = "⚠ *Antilink* — @%user% di-kick karena mengirim link.";
 pub const ANTIHIDETAG: &str = "⚠ *AntiHidetag* — Hidetag dari @%user% dihapus.";
 pub const ANTIDOCUMENT: &str = "⚠ *AntiDocument* — Dokumen dari @%user% dihapus.";
+/// `gpMsg("antimedia")` (antimedia.js:23).
+pub const ANTIMEDIA: &str = "⚠ *AntiMedia* — Media dari @%user% dihapus.";
+/// `gpMsg("antisticker")` (antisticker.js:23).
+pub const ANTISTICKER: &str = "⚠ *AntiSticker* — Sticker dari @%user% dihapus.";
+/// `gpMsg("antibot")` (antibot.js:28).
+pub const ANTIBOT: &str = "🤖 *AntiBot* — @%user% terdeteksi sebagai bot dan di-kick.";
 /// `gpMsg("antijudol")` (group-protection.js:38-44).
 pub const ANTIJUDOL: &str =
     "⚠ *AntiJudol* — @%user% terdeteksi kirim konten judol.\nPesan dihapus.";
@@ -4247,10 +4399,13 @@ mod tests {
                 "antihidetag",  // :791
                 "antiswgc",     // :794
                 "antidocument", // :797
+                "antibot",      // :802
                 "mute",         // :809
                 "mutedmember",  // :818
                 "mutegc",       // :827
                 "slowmode",     // :844
+                "antisticker",  // :1458 (later)
+                "antimedia",    // :1463 (later)
             ]
         );
     }
@@ -7038,6 +7193,100 @@ mod tests {
             }
             .reply_text(),
             Some("k")
+        );
+    }
+
+    // ==================================================================
+    // gate_antimedia / gate_antisticker / gate_antibot
+    // ==================================================================
+
+    #[test]
+    fn antimedia_deletes_media_types() {
+        let s = GroupSettings { antimedia: true, ..Default::default() };
+        for set in ["image", "video", "gif", "audio", "document"] {
+            let mut c = caller();
+            match set {
+                "image" => c.is_image = true,
+                "video" => c.is_video = true,
+                "gif" => c.is_gif = true,
+                "audio" => c.is_audio = true,
+                _ => c.is_document = true,
+            }
+            assert_eq!(
+                run_one(gate_antimedia, &c, &s, &env()),
+                GateOutcome::Decide(Decision::DeleteAndReply(
+                    ANTIMEDIA.replace("%user%", "628111")
+                )),
+                "{set} harus kena"
+            );
+        }
+    }
+
+    #[test]
+    fn antimedia_off_and_text_pass() {
+        let mut c = caller();
+        c.is_image = true;
+        assert_eq!(
+            run_one(gate_antimedia, &c, &GroupSettings::default(), &env()),
+            GateOutcome::Pass
+        );
+        let s = GroupSettings { antimedia: true, ..Default::default() };
+        assert_eq!(run_one(gate_antimedia, &caller(), &s, &env()), GateOutcome::Pass);
+    }
+
+    #[test]
+    fn antisticker_deletes_sticker() {
+        let s = GroupSettings { antisticker: true, ..Default::default() };
+        let mut c = caller();
+        c.is_sticker = true;
+        assert_eq!(
+            run_one(gate_antisticker, &c, &s, &env()),
+            GateOutcome::Decide(Decision::DeleteAndReply(
+                ANTISTICKER.replace("%user%", "628111")
+            ))
+        );
+        let mut c = caller();
+        c.message_type = "stickerMessage".into();
+        assert!(matches!(
+            run_one(gate_antisticker, &c, &s, &env()),
+            GateOutcome::Decide(Decision::DeleteAndReply(_))
+        ));
+    }
+
+    #[test]
+    fn antibot_bae5_id_is_kicked() {
+        let s = GroupSettings { antibot: true, ..Default::default() };
+        let mut c = caller();
+        c.message_id = "BAE5abc123def456ghi".into();
+        assert_eq!(
+            run_one(gate_antibot, &c, &s, &env()),
+            GateOutcome::Decide(Decision::KickAndReply(
+                ANTIBOT.replace("%user%", "628111")
+            ))
+        );
+    }
+
+    #[test]
+    fn antibot_normal_id_passes() {
+        let s = GroupSettings { antibot: true, ..Default::default() };
+        let mut c = caller();
+        c.message_id = "3EB0ABCD1234567890AB".into();
+        assert_eq!(run_one(gate_antibot, &c, &s, &env()), GateOutcome::Pass);
+        assert_eq!(run_one(gate_antibot, &caller(), &s, &env()), GateOutcome::Pass);
+    }
+
+    #[test]
+    fn antibot_admin_exempt_and_off_passes() {
+        let s = GroupSettings { antibot: true, ..Default::default() };
+        let mut c = caller();
+        c.message_id = "BAE5abc123def456ghi".into();
+        c.is_admin = true;
+        assert_eq!(run_one(gate_antibot, &c, &s, &env()), GateOutcome::Pass);
+        let mut c = caller();
+        c.message_id = "BAE5abc123def456ghi".into();
+        assert_eq!(
+            run_one(gate_antibot, &c, &GroupSettings::default(), &env()),
+            GateOutcome::Pass
         );
     }
 }

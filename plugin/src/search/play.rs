@@ -381,18 +381,16 @@ mod tests {
         }
         assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
 
+        // Balapan: ytdl gagal, izuka satu-satunya sukses → URL kanonik
+        // harus sampai ke backend aggregator. GET homepage visitor boleh
+        // ada (cache kosong) atau tidak (cache hit) — urutan tak tentu.
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 4, "visitor, pencarian, ytdl, lalu izuka");
         assert!(seen.iter().any(|u| u.contains("music.youtube.com/youtubei/v1/search")), "pencarian YT Music: {seen:?}");
         assert!(
-            seen[2].contains("d.ymcdn.org"),
-            "ytdl-native dicoba duluan: {}",
-            seen[2]
-        );
-        assert!(
-            seen[3].starts_with("https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"),
-            "{}",
-            seen[3]
+            seen.iter().any(|u| u.contains(
+                "/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"
+            )),
+            "backend menerima URL kanonik: {seen:?}"
         );
     }
 

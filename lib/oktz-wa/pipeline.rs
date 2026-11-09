@@ -2915,6 +2915,10 @@ fn wire_type_of(m: &wa::Message) -> &'static str {
         Some(K::Image)
     } else if b.video_message.as_option().is_some() {
         Some(K::Video)
+    } else if b.audio_message.as_option().is_some() {
+        return "audioMessage";
+    } else if b.sticker_message.as_option().is_some() {
+        return "stickerMessage";
     } else if b.document_message.as_option().is_some() {
         Some(K::Document)
     } else if b.buttons_response_message.as_option().is_some() {
@@ -3744,6 +3748,19 @@ impl Pipeline {
             from_me: m.info.source.is_from_me,
             is_command: parsed.is_command,
             is_document: wire_type_of(&m.message) == MessageKind::Document.wire_type(),
+            is_image: m.message.get_base_message().image_message.as_option().is_some(),
+            is_video: m.message.get_base_message().video_message.as_option().is_some(),
+            is_gif: m
+                .message
+                .get_base_message()
+                .video_message
+                .as_option()
+                .and_then(|v| v.gif_playback)
+                .unwrap_or(false),
+            is_audio: m.message.get_base_message().audio_message.as_option().is_some(),
+            is_sticker: m.message.get_base_message().sticker_message.as_option().is_some(),
+            message_id: m.info.id.clone(),
+            push_name: caller.push_name.clone(),
             message_type: wire_type_of(&m.message).to_string(),
             body: body.to_string(),
             mentioned_jid: m

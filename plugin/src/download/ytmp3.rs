@@ -15,7 +15,7 @@
 //! (`socket.js:743-747` hanya menyalin `audio`, `mimetype`, `ptt`), jadi
 //! `Reply::Audio` tanpa nama berkas tetap padan.
 
-use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpGet, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use super::douyindl::query_encode;
@@ -400,9 +400,9 @@ fn pola_id(s: &str) -> bool {
 
 /// `pastikanBentuk` + `lewatIzuka` (`youtube.js:238,257`) digabung: pemeriksaan
 /// bentuk aggregator diletakkan di sini juga karena `izuka` tidak butuh key.
-fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
+fn unduh_izuka(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
     let target = format!("{ENDPOINT}?url={}", query_encode(kanonik));
-    let respons = ctx.http.get(&target).map_err(|_| ())?;
+    let respons = http.get(&target).map_err(|_| ())?;
     let body = respons.json().ok_or(())?;
     if body.get("status").and_then(Value::as_bool) != Some(true) {
         return Err(());
@@ -421,12 +421,12 @@ fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
 /// `lewatNexray` (`youtube.js:279-291`) — backend mp3 terakhir. Nexray membawa
 /// `result.url`, dipetakan JS jadi `download` sebelum `normalize`; ampelnya
 /// dibuka [`normalize`], jadi di sini cukup status + `result.url`.
-fn unduh_nexray(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
+fn unduh_nexray(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
     let target = format!(
         "https://api.nexray.web.id/api/downloader/ytmp3?url={}",
         query_encode(kanonik)
     );
-    let respons = ctx.http.get(&target).map_err(|_| ())?;
+    let respons = http.get(&target).map_err(|_| ())?;
     let body = respons.json().ok_or(())?;
     if body.get("status").and_then(Value::as_bool) != Some(true) {
         return Err(());
@@ -442,24 +442,67 @@ fn unduh_nexray(ctx: &Ctx, kanonik: &str) -> Result<AudioDownload, ()> {
     normalize(result)
 }
 
+/// Backend `ytdl-native` — scraper lokal `d.ymcdn.org` (`ytdl.rs`).
+/// `ytdl` tidak pernah `Err` (catch di scraper), gagalnya jadi
+/// `{status:false}` yang ditolak [`normalize`].
+fn unduh_ytdl(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
+    let v = oktz_scraper::ytdl::ytdl(http, kanonik, Some("mp3")).map_err(|_| ())?;
+    normalize(&v)
+}
+
+/// Backend SaveTube mp3 — `get_youtube_direct_url` (`youtube.rs`).
+/// Bentuknya `{title, format, url}` tanpa `status`, jadi [`normalize`]
+/// membukanya langsung lewat cabang `url` polos.
+fn unduh_savetube(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
+    let v =
+        oktz_scraper::youtube::get_youtube_direct_url(http, kanonik, Some("mp3")).map_err(|_| ())?;
+    normalize(&v)
+}
+
 /// `getAudioDownload` (`ytmp3.js:55-59`) + resolver `resolve("youtube")` —
-/// rantai backend mp3: `ytdl-native` (lokal) → `izuka` → `nexray`
-/// (`youtube.js:395-432`). Scraper lokal tidak melempar (`{status:false,
-/// mess}`), jadi `normalize` yang menilai; aggregator yang gagal transport
-/// jatuh ke backend berikutnya.
+/// backend mp3 JS: `ytdl-native` (lokal) → `izuka` → `nexray`
+/// (`youtube.js:395-432`), ditambah SaveTube. Keempatnya jalan paralel di
+/// thread terpisah, yang pertama sukses menang (latensi = backend tercepat,
+/// bukan jumlah); semua gagal = `Err`. Thread yang kalah jalan sampai
+/// selesai lalu buang hasilnya via kanal putus.
+///
+/// `ponytail:` InnerTube `youtubei/v1/player` (ANDROID, `adaptiveFormats`
+/// audio) tidak ditambah: SaveTube sudah memberi URL langsung lewat
+/// scraper yang teruji, sedangkan player butuh pemeliharaan versi klien +
+/// risiko decipher `n`. Upgrade path: bila SaveTube melambat, tambah
+/// player langsung sebagai backend pertama dengan signature yang sama.
 pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     let kanonik = kanonik(url)?;
-    // 1. `ytdl-native` — hanya untuk mp3 (`applies` backend, `youtube.js:399`).
-    if let Ok(v) = oktz_scraper::ytdl::ytdl(&*ctx.http, &kanonik, Some("mp3"))
-        && let Ok(audio) = normalize(&v) {
-            return Ok(audio);
-        }
-    // 2. `izuka` (`youtube.js:409-413`).
-    if let Ok(audio) = unduh_izuka(ctx, &kanonik) {
-        return Ok(audio);
+    let http = ctx.http.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let backend: [fn(&dyn HttpGet, &str) -> Result<AudioDownload, ()>; 4] = [
+        unduh_ytdl,
+        unduh_savetube,
+        unduh_izuka,
+        unduh_nexray,
+    ];
+    for f in backend {
+        let tx = tx.clone();
+        let http = http.clone();
+        let kanonik = kanonik.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(f(http.as_ref(), &kanonik));
+        });
     }
-    // 3. `nexray` (`youtube.js:415-418`).
-    unduh_nexray(ctx, &kanonik)
+    drop(tx);
+    let mut gagal = 0;
+    while let Ok(hasil) = rx.recv() {
+        match hasil {
+            Ok(audio) => return Ok(audio),
+            Err(()) => {
+                gagal += 1;
+                if gagal == backend.len() {
+                    break;
+                }
+            }
+        }
+    }
+    Err(())
 }
 
 /// `ytmp3.js:64` — link hilang.
@@ -751,21 +794,15 @@ mod tests {
             }
             lain => panic!("harus audio, dapat {lain:?}"),
         }
+        // Balapan: ytdl gagal, izuka+nexray sama-sama sukses di stub, jadi
+        // pemenangnya tak tentu — yang pasti pemenang menyentuh URL baku
+        // kanonik (`kanonikDari`, youtube.js:129).
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 2, "ytdl lalu izuka, nexray tak dihubungi");
-        // Backend menerima URL kanonik, bukan teks mentah (`target()`,
-        // youtube.js:129) — spasi jadi +, byte lain %XX.
         assert!(
-            seen[0].starts_with("https://d.ymcdn.org"),
-            "ytdl-native harus dicoba duluan: {}",
-            seen[0]
-        );
-        assert!(
-            seen[1].starts_with(
-                "https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdQw4w9WgXcQ"
-            ),
-            "{}",
-            seen[1]
+            seen.iter().any(|u| u.contains(
+                "/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdQw4w9WgXcQ"
+            )),
+            "backend aggregator menerima URL kanonik: {seen:?}"
         );
     }
 
@@ -785,7 +822,7 @@ mod tests {
     }
 
     #[test]
-    fn nexray_is_the_last_mp3_backend() {
+    fn nexray_wins_when_it_is_the_only_successful_backend() {
         let gagal = serde_json::json!({"status": false});
         let http = Stub::per_backend(vec![
             ("ymcdn", Some(gagal.clone())),
@@ -799,11 +836,10 @@ mod tests {
         assert_eq!(reaksi(&r), Some("✅"));
         assert!(matches!(isi(&r), Reply::Audio { .. }));
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 3);
         assert!(
-            seen[2].contains("api.nexray.web.id/api/downloader/ytmp3"),
-            "{}",
-            seen[2]
+            seen.iter()
+                .any(|u| u.contains("api.nexray.web.id/api/downloader/ytmp3")),
+            "nexray dihubungi: {seen:?}"
         );
     }
 

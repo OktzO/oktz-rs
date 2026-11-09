@@ -240,6 +240,9 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
             .get("antidocument")
             .and_then(Value::as_bool)
             .unwrap_or(false),
+        antimedia: entry.get("antimedia").and_then(Value::as_bool).unwrap_or(false),
+        antisticker: entry.get("antisticker").and_then(Value::as_bool).unwrap_or(false),
+        antibot: entry.get("antibot").and_then(Value::as_bool).unwrap_or(false),
         mute: entry.get("mute").and_then(Value::as_bool).unwrap_or(false),
         muted_members: entry
             .get("mutedMembers")
