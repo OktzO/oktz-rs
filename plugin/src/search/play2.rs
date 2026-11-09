@@ -1,8 +1,9 @@
 //! `plugins/search/play2.js` — pemutar lagu dengan LIRIK SINKRON.
 //!
 //! PENYIMPANGAN (satu baris per butir):
-//! - `ytmusic-api` tidak ada: pencarian judul pakai `ytsearch::search` yang
-//!   sama dengan jalur URL di JS; pesan "Lagu tidak ditemukan di YT Music"
+//! - `ytmusic-api` diganti [`super::ytmusic::search_lagu`] (InnerTube
+//!   WEB_REMIX filter songs) untuk jalur judul; jalur URL tetap
+//!   `ytsearch::search`. Pesan "Lagu tidak ditemukan di YT Music"
 //!   dipertahankan untuk jalur judul.
 //! - Savetube + `createDecipheriv` tidak diport: unduhan audio memakai rantai
 //!   `crate::download::ytmp3::unduh_audio` (`ytdl-native → izuka → nexray`).
@@ -30,7 +31,7 @@ use serde_json::json;
 use crate::download::douyindl::query_encode;
 use crate::download::ytmp3::{mimetype_for, unduh_audio};
 
-use super::ytsearch;
+use super::{ytmusic, ytsearch};
 
 /// `play2.js:954` — kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
@@ -656,15 +657,19 @@ pub(crate) fn section_html(html: &str) -> serde_json::Value {
 /// Alur `try` (`play2.js:960-1099`). `Err` memuat `error.message` untuk
 /// template `catch`.
 fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
-    // JS: judul → `ytmusic.search`, URL → `yts(ytUrl)`; di sini keduanya
-    // `ytsearch::search` (lihat catatan deviasi di header).
+    // JS: judul → `ytmusic.search`, URL → `yts(ytUrl)`; di sini judul →
+    // `ytmusic::search_lagu`, URL → `ytsearch::search` (lihat deviasi header).
     let adalah_url = looks_like_youtube_url(text);
     let pesan_kosong = if adalah_url {
         VIDEO_TIDAK_DITEMUKAN
     } else {
         LAGU_TIDAK_DITEMUKAN
     };
-    let videos = cari_video(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?;
+    let videos = if adalah_url {
+        cari_video(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?
+    } else {
+        ytmusic::search_lagu(ctx.http.as_ref(), text).map_err(|_| pesan_kosong.to_string())?
+    };
     let video = videos.first().ok_or_else(|| pesan_kosong.to_string())?;
 
     let title = if video.title.is_empty() {
@@ -952,8 +957,12 @@ mod tests {
         }
     }
 
-    /// Hasil pencarian YouTube dengan satu video.
-    const HASIL: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+    /// Hasil YT Music dengan satu lagu (jalur judul).
+    const HASIL: &str = r#"{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[{"musicShelfRenderer":{"contents":[{"musicResponsiveListItemRenderer":{"flexColumns":[{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Lagu Uji"}]}}},{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Song"},{"text":" • "},{"text":"Channel Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"UC123"}}},{"text":" • "},{"text":"Album Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"MPREabc"}}},{"text":" • "},{"text":"3:33"}]}}}],"thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/a/hq.jpg"}]}}},"overlay":{"musicItemThumbnailOverlayRenderer":{"content":{"musicPlayButtonRenderer":{"playNavigationEndpoint":{"watchEndpoint":{"videoId":"aaaaaaaaaaa"}}}}}}}}]}}]}}}}]}}}"#;
+
+    /// Hasil `yt-search` (jalur URL YouTube).
+    #[allow(dead_code)]
+    const HASIL_VIDEO: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
       {"itemSectionRenderer":{"contents":[
         {"videoRenderer":{
           "videoId":"aaaaaaaaaaa",

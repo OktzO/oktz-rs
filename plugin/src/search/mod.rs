@@ -48,6 +48,7 @@ pub mod tiktokfoto;
 pub mod wikipedia;
 pub mod yts;
 pub mod ytplay;
+pub mod ytmusic;
 pub mod ytsearch;
 
 // Port batch paritas: ttsearch.

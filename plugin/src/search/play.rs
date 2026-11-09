@@ -1,10 +1,10 @@
-//! `plugins/search/play.js` — putar musik dari YouTube.
+//! `plugins/search/play.js` — putar musik dari YouTube Music.
 //!
-//! Pencarian memakai [`super::ytsearch::search`] (padanan paket npm
-//! `yt-search`), unduhan audio memakai [`crate::download::ytmp3::unduh_audio`]
-//! — padanan `resolve("youtube")` di JS. Deviasi: JS memanggil nexray
-//! langsung, versi ini lewat rantai `ytdl-native → izuka → nexray` yang sama
-//! dengan `.ytmp3`.
+//! ponytail: pencarian kini lewat [`super::ytmusic::search_lagu`]
+//! (InnerTube WEB_REMIX filter songs) — katalog musik, bukan semua video.
+//! JS memakai `yt-search` + nexray langsung; versi ini search musik dulu,
+//! jatuh ke `ytsearch` (filter durasi lagu) bila YT Music gagal/kosong, lalu
+//! unduhan audio lewat [`crate::download::ytmp3::unduh_audio`].
 //!
 //! Deviasi kedua: `sock.sendPreview` (kartu pratinjau tautan) belum punya
 //! padanan di `Reply`, jadi kartu NOW PLAYING dikirim sebagai teks biasa
@@ -16,7 +16,7 @@ use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 
 use crate::download::ytmp3::{AudioDownload, mimetype_for, unduh_audio};
 
-use super::ytsearch;
+use super::{ytmusic, ytsearch};
 
 /// `play.js:26` — kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
@@ -86,13 +86,10 @@ pub(crate) fn now_playing(
     info
 }
 
-/// `play.js:31-40` — `yts(query)` → `search.videos[0]`, lalu unduh audio.
-/// `Err` = semua jalur gagal (pencarian kosong/lempar, atau API audio gagal) —
-/// di JS semuanya jatuh ke `catch` yang sama.
+/// `play.js:31-40` — YT Music dulu, fallback `yt-search` berfilter lagu,
+/// lalu unduh audio. `Err` = semua jalur gagal.
 fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()> {
-    let videos = ytsearch::search(ctx.http.as_ref(), query).map_err(|_| ())?;
-    // `if (!search.videos.length) throw` (`play.js:32`).
-    let video = videos.first().ok_or(())?;
+    let video = cari_video_lagu(ctx, query)?;
     let audio = unduh_audio(ctx, &video.url)?;
     let info = now_playing(
         &video.title,
@@ -105,6 +102,33 @@ fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()>
         &video.url,
     );
     Ok((info, audio))
+}
+
+/// Fokus musik: YT Music (filter songs) → `yt-search` yang durasinya
+/// seperti lagu. URL YouTube langsung lewat jalur `yt-search` apa adanya.
+fn cari_video_lagu(ctx: &Ctx, query: &str) -> Result<ytsearch::Video, ()> {
+    if super::play2::looks_like_youtube_url(query) {
+        return ytsearch::search(ctx.http.as_ref(), query)
+            .map_err(|_| ())?
+            .into_iter()
+            .next()
+            .ok_or(());
+    }
+    if let Ok(lagu) = ytmusic::search_lagu(ctx.http.as_ref(), query)
+        && let Some(v) = lagu.into_iter().next()
+    {
+        return Ok(v);
+    }
+    let videos = ytsearch::search(ctx.http.as_ref(), query).map_err(|_| ())?;
+    // Lagu umumnya 30 detik – 10 menit; ambil yang pertama yang masuk.
+    if let Some(v) = videos
+        .iter()
+        .find(|v| (30..=600).contains(&v.seconds))
+        .cloned()
+    {
+        return Ok(v);
+    }
+    videos.into_iter().next().ok_or(())
 }
 
 #[plugin(
@@ -255,8 +279,11 @@ mod tests {
         }
     }
 
-    /// Hasil pencarian YouTube dengan satu video.
-    const HASIL: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+    /// Hasil YT Music dengan satu lagu (fokus musik, bukan video).
+    const HASIL: &str = r#"{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[{"musicShelfRenderer":{"contents":[{"musicResponsiveListItemRenderer":{"flexColumns":[{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Lagu Uji"}]}}},{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Song"},{"text":" • "},{"text":"Channel Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"UC123"}}},{"text":" • "},{"text":"Album Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"MPREabc"}}},{"text":" • "},{"text":"3:33"}]}}}],"thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/a/hq.jpg"}]}}},"overlay":{"musicItemThumbnailOverlayRenderer":{"content":{"musicPlayButtonRenderer":{"playNavigationEndpoint":{"watchEndpoint":{"videoId":"aaaaaaaaaaa"}}}}}}}}]}}]}}}}]}}}"#;
+
+    /// Hasil `yt-search` (fallback) dengan satu video.
+    const HASIL_VIDEO: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
       {"itemSectionRenderer":{"contents":[
         {"videoRenderer":{
           "videoId":"aaaaaaaaaaa",
@@ -341,7 +368,8 @@ mod tests {
             lain => panic!("harus teks NOW PLAYING, dapat {lain:?}"),
         };
         assert!(info.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Lagu Uji\n"), "{info}");
-        assert!(info.contains("👀 Views: *1.2M*\n"), "{info}");
+        assert!(info.contains("👤 Channel: *Channel Uji*\n"), "{info}");
+        assert!(info.contains("⏱️ Durasi: *3:33*\n"), "{info}");
         assert!(info.ends_with("_⏳ mengirim audio, harap tunggu..._"), "{info}");
         match &list[2] {
             Reply::Audio { media, ptt } => {
@@ -354,21 +382,17 @@ mod tests {
         assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
 
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 3, "pencarian, ytdl, lalu izuka");
+        assert_eq!(seen.len(), 4, "visitor, pencarian, ytdl, lalu izuka");
+        assert!(seen.iter().any(|u| u.contains("music.youtube.com/youtubei/v1/search")), "pencarian YT Music: {seen:?}");
         assert!(
-            seen[0].contains("youtubei/v1/search"),
-            "pencarian dulu: {}",
-            seen[0]
-        );
-        assert!(
-            seen[1].contains("d.ymcdn.org"),
+            seen[2].contains("d.ymcdn.org"),
             "ytdl-native dicoba duluan: {}",
-            seen[1]
+            seen[2]
         );
         assert!(
-            seen[2].starts_with("https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"),
+            seen[3].starts_with("https://my.izuka-api.xyz/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"),
             "{}",
-            seen[2]
+            seen[3]
         );
     }
 
@@ -393,6 +417,34 @@ mod tests {
         let r = run_http(http, "komang");
         assert_eq!(text_of(&r), GAGAL);
         assert_eq!(reaction_of(&r), Some("😭"));
+    }
+
+    #[test]
+    fn yt_music_kosong_jatuh_ke_yt_search_berfilter_lagu() {
+        // YT Music kosong → fallback yt-search; video durasi lagu dipakai.
+        let http = Stub::per_url(vec![
+            ("music.youtube.com", Some(serde_json::json!({"contents": {}}))),
+            ("ymcdn", Some(serde_json::json!({"status": false}))),
+            (
+                "izuka",
+                Some(serde_json::json!({
+                    "status": true,
+                    "result": {"title": "Lagu Uji", "format": "mp3", "download_url": "https://cdn.example/lagu.mp3"}
+                })),
+            ),
+            ("www.youtube.com", Some(serde_json::from_str(HASIL_VIDEO).unwrap())),
+        ]);
+        let r = run_http(http.clone(), "komang");
+        let Reply::Sequence(list) = r.without_mutations() else {
+            panic!("fallback harus kirim sequence, dapat {r:?}");
+        };
+        let info = match &list[1] {
+            Reply::Text { text, .. } => text,
+            lain => panic!("harus teks NOW PLAYING, dapat {lain:?}"),
+        };
+        assert!(info.contains("Lagu Uji"), "{info}");
+        assert!(info.contains("1.2M"), "{info}");
+        assert!(http.seen.lock().unwrap().iter().any(|u| u.contains("www.youtube.com/youtubei/v1/search")));
     }
 
     #[test]
