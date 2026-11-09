@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use oktz_plugin_api::{AdaWhatsapp, AksiPeserta, Sock, SockError};
 use serde_json::{Value, json};
+use whatsapp_rust::RevokeType;
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::wacore_binary::JidExt;
 use whatsapp_rust::{
@@ -385,6 +386,20 @@ impl Sock for SockKlien {
         } else {
             self.jalan(self.client.blocking().unblock(&j), "unblock")
         }
+    }
+
+    fn hapus_pesan(&self, chat: &str, message_id: &str, participant: &str, from_me: bool) -> Result<(), SockError> {
+        // `sendMessage(chat, { delete: key })` (`delete.js:49`): pesan bot
+        // sendiri = `RevokeType::Sender`, pesan orang lain = `Admin`.
+        let to = ke_jid(chat, "sendMessage{delete}")?;
+        let tipe = if from_me {
+            RevokeType::Sender
+        } else {
+            RevokeType::Admin {
+                original_sender: ke_jid(participant, "sendMessage{delete}")?,
+            }
+        };
+        self.jalan(self.client.revoke_message(to, message_id.to_string(), tipe), "sendMessage{delete}")
     }
 }
 

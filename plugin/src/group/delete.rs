@@ -6,25 +6,24 @@
 //! `isSameGroupMember(groupMembers, quotedSender, sender)` → pencocokan
 //! roster (`lid.js:454-482`).
 //!
-//! `ponytail:` `sock.sendMessage(m.chat, { delete: key })` tidak ada di
-//! `Sock` maupun `Ctx` (`lib/oktz-plugin-api/sock.rs`, `registry.rs`), jadi
-//! penghapusan tidak bisa dieksekusi di sini. Gerbang lolos melaporkan
-//! ketiadaan itu secara jujur (teks + reaksi `❌`, bukan `Reply::None` diam
-//! dan bukan `✅` yang berbohong). Butuh `Sock::hapus_pesan(&self, chat,
-//! key)` atau `Mutation::Delete` dari pipeline — lalu kembalikan
-//! `Reply::reaction("✅")` seperti `delete.js:53`. `botJids` dari `sock.user`
-//! juga tidak terbaca, jadi `isBotMessage` hanya bisa `true` lewat
-//! `fromMe`.
+//! `ponytail:` `botJids` (`sock.user.id`/`lid`, `delete.js:35,39-40`)
+//! tidak terbaca dari API plugin, jadi `isBotMessage` hanya bisa `true`
+//! lewat `fromMe`. Dampaknya hanya melonggarkan gerbang izin: pesan bot
+//! yang bukan `fromMe` diperlakukan seperti pesan orang lain (perlu admin).
 
 use oktz_plugin_api::{Ctx, Participant, Reply, plugin};
 
 pub(crate) const NO_QUOTE: &str = "⚠️ *Reply pesan yang ingin dihapus!*";
 pub(crate) const BOT_NOT_ADMIN: &str = "⚠️ *Bot harus jadi admin untuk hapus pesan orang lain!*";
 pub(crate) const NOT_ADMIN: &str = "⚠️ *Hanya admin yang bisa hapus pesan orang lain!*";
-/// Jalur lolos gerbang tanpa API hapus — pesan yang jujur, jadi user tahu
-/// pesan tidak dihapus (bukan `Reply::None` yang tampak diam-diam berhasil).
-pub(crate) const BELUM_DIDUKUNG: &str =
-    "❌ *Gagal menghapus!*\n> Fitur hapus pesan belum tersedia — menunggu dukungan pipeline.";
+/// `delete.js:58-60` — hapus gagal karena pesan hilang/terlalu lama.
+pub(crate) const GAGAL_HILANG: &str =
+    "❌ *Gagal menghapus!*\n> Pesan mungkin sudah dihapus atau terlalu lama.";
+/// `delete.js:59-60` — `err.message` menyebut `not found`/`forbidden`.
+pub(crate) fn pesan_hilang(error: &str) -> bool {
+    let e = error.to_lowercase();
+    e.contains("not found") || e.contains("forbidden")
+}
 
 /// `normalizeComparableJid` (`lid.js:438-452`) — buang device `:N` hanya
 /// untuk JID `@s.whatsapp.net`.
@@ -112,18 +111,105 @@ pub fn delete(ctx: Ctx) -> Reply {
         }
     }
 
-    // `delete.js:40-53` — key `remoteJid/id/fromMe/participant` disusun sini.
-    // `sock.sendMessage(chat, { delete: key })` tidak ada di API (lihat
-    // `ponytail:` modul), jadi: teks jujur + reaksi ❌, bukan diam. Reaksi
-    // ✅ JS hanya boleh menyala setelah hapus benar-benar terjadi.
-    Reply::text(BELUM_DIDUKUNG).with_reaction("❌")
+    // `delete.js:40-53` — key `remoteJid/id/fromMe/participant` disusun sini:
+    // `participant` = `rawParticipant || quotedSender`; di Rust `sender`
+    // sudah `ci.participant` (lihat `quoted_of` pipeline).
+    // `delete.js:54-56` — sukses: reaksi ✅.
+    match ctx.sock().hapus_pesan(&ctx.chat, &quoted.id, &quoted.sender, quoted.from_me) {
+        Ok(()) => Reply::reaction("✅"),
+        Err(e) if pesan_hilang(&e.pesan) => Reply::text(GAGAL_HILANG),
+        // `delete.js:58-61` — selain itu hanya reaksi ❌.
+        Err(_) => Reply::reaction("❌"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use oktz_plugin_api::registry::GroupRoster;
-    use oktz_plugin_api::{QuotedKind, QuotedMessage};
+    use oktz_plugin_api::{QuotedKind, QuotedMessage, Sock, SockError};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Debug, Default)]
+    struct StubSock {
+        err: Option<String>,
+        seen: Mutex<Vec<(String, String, String, bool)>>,
+    }
+
+    impl Sock for StubSock {
+        fn hapus_pesan(&self, chat: &str, message_id: &str, participant: &str, from_me: bool) -> Result<(), SockError> {
+            self.seen.lock().unwrap().push((
+                chat.to_string(),
+                message_id.to_string(),
+                participant.to_string(),
+                from_me,
+            ));
+            match &self.err {
+                Some(e) => Err(SockError::baru(e.clone())),
+                None => Ok(()),
+            }
+        }
+        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn metadata_grup(&self, _: &str) -> Result<serde_json::Value, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn semua_grup(&self) -> Result<serde_json::Value, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn ubah_peserta(&self, _: &str, _: &[String], _: oktz_plugin_api::AksiPeserta) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn set_foto_profil(&self, _: &str, _: &[u8]) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn keluar_grup(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn kode_undangan(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn info_undangan(&self, _: &str) -> Result<serde_json::Value, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn buat_grup(&self, _: &str, _: &[String]) -> Result<serde_json::Value, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn terima_undangan(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn tandai_dibaca(&self, _: &[serde_json::Value]) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn presence(&self, _: &str, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn status_teks(&self, _: &str) -> Result<serde_json::Value, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn nama_kontak(&self, _: &str) -> Result<String, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn set_bio(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn set_nama(&self, _: &str) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn hapus_foto_bot(&self) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+        fn blokir(&self, _: &str, _: bool) -> Result<(), SockError> {
+            Err(SockError::baru("x"))
+        }
+    }
 
     fn p(jid: &str, admin: bool) -> Participant {
         Participant {
@@ -143,6 +229,10 @@ mod tests {
     }
 
     fn ctx_with(o: Opts) -> Ctx {
+        ctx_with_sock(o, Arc::new(StubSock::default()))
+    }
+
+    fn ctx_with_sock(o: Opts, sock: Arc<StubSock>) -> Ctx {
         let roster = GroupRoster {
             participants: vec![
                 p("628111@s.whatsapp.net", o.sender_admin),
@@ -158,6 +248,7 @@ mod tests {
             is_group: true,
             is_owner: o.is_owner,
             roster,
+            sock,
             quoted: o.quoted_sender.map(|s| QuotedMessage {
                 id: "MSG1".into(),
                 sender: s.into(),
@@ -177,13 +268,11 @@ mod tests {
         r.without_mutations().text_body().expect("harus ada teks")
     }
 
-    /// Gerbang lolos tanpa API hapus: teks jujur + reaksi ❌ (lihat
-    /// `BELUM_DIDUKUNG`) — bukan diam, bukan `✅` palsu.
+    /// Gerbang lolos + hapus berhasil: reaksi ✅ (`delete.js:54-56`).
     fn assert_pending(r: &Reply) {
-        assert_eq!(body(r), BELUM_DIDUKUNG);
         assert!(
-            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
-            "harus bereaksi ❌: {r:?}"
+            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"),
+            "harus bereaksi ✅: {r:?}"
         );
     }
 
@@ -285,8 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn participant_matching_follows_the_js_number_rules() {
-        let roster = vec![p("628999@lid", false)];
+    fn participant_matching_follows_the_js_number_rules() {        let roster = vec![p("628999@lid", false)];
         assert!(is_same_participant("628999@s.whatsapp.net", "628999@lid"));
         assert!(is_same_participant("628999:5@s.whatsapp.net", "628999@s.whatsapp.net"));
         assert!(!is_same_participant("628999@s.whatsapp.net", "628111@s.whatsapp.net"));
@@ -298,5 +386,38 @@ mod tests {
         // lebih dulu, persis seperti JS sebelum menyentuh participants.
         assert!(is_same_group_member(&[], "628999@s.whatsapp.net", "628999@lid"));
         assert!(!is_same_group_member(&[], "628999@s.whatsapp.net", ""));
+    }
+
+    #[test]
+    fn hapus_gagal_karena_hilang_menampilkan_teks_js() {
+        let r = (oktz_plugin_api::find("delete").unwrap().handler)(ctx_with_sock(
+            Opts {
+                quoted_sender: Some("628999@s.whatsapp.net"),
+                from_me: false,
+                bot_admin: true,
+                sender_admin: true,
+                is_owner: false,
+            },
+            Arc::new(StubSock { err: Some("sendMessage{delete}: not found".into()), ..StubSock::default() }),
+        ));
+        assert_eq!(body(&r), GAGAL_HILANG);
+    }
+
+    #[test]
+    fn hapus_gagal_lainnya_hanya_reaksi_silang() {
+        let r = (oktz_plugin_api::find("delete").unwrap().handler)(ctx_with_sock(
+            Opts {
+                quoted_sender: Some("628999@s.whatsapp.net"),
+                from_me: false,
+                bot_admin: true,
+                sender_admin: true,
+                is_owner: false,
+            },
+            Arc::new(StubSock { err: Some("lainnya".into()), ..StubSock::default() }),
+        ));
+        assert!(
+            matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
+            "harus bereaksi ❌: {r:?}"
+        );
     }
 }

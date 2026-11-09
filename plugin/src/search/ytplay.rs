@@ -24,13 +24,12 @@
 //! HTML player `buildPlayerHtml` 800 baris (`ytplay.js:44-844`) tidak
 //! disalin utuh: versi ringkas di sini memuat title, channel, durasi,
 //! poster base64 (download seperti `ytplay.js:864-873`), `<video controls>`
-//! dengan `src` direct, dan tombol putar/ganti kualitas minimal.
+//! dengan `src` direct 360p, dan tombol ganti kualitas 360p/720p.
 
 use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use super::play2::{cari_video, poster_base64};
-use super::ytsearch;
 
 /// `ytplay.js:849-851` — judul/link kosong.
 pub(crate) fn tanpa_judul(prefix: &str) -> String {
@@ -67,9 +66,11 @@ pub(crate) fn escape_js(value: &str) -> String {
 }
 
 /// `buildPlayerHtml` (`ytplay.js:44-844`) versi ringkas: title, channel,
-/// durasi, poster base64, `<video controls src=direct>`, dan `wsUrl`
-/// sebagai teks fallback (streaming WS tidak tercapai — lihat `ponytail:`
-/// di header modul).
+/// durasi, poster base64, `<video controls src=direct>` + ganti kualitas
+/// 360p/720p (`hd_url` kosong = tanpa tombol), dan `wsUrl` sebagai teks
+/// fallback (streaming WS tidak tercapai — lihat `ponytail:` di header
+/// modul). Pause/seek/mute pakai kontrol native `<video controls>` (JS
+/// custom bar tidak disalin ulang).
 pub(crate) fn build_player_html(
     title: &str,
     channel: &str,
@@ -77,12 +78,21 @@ pub(crate) fn build_player_html(
     direct_url: &str,
     ws_url: &str,
     poster: &str,
+    hd_url: &str,
 ) -> String {
     let t = escape_js(title);
     let c = escape_js(channel);
     let d = escape_js(durasi);
     let v = escape_js(direct_url);
     let w = escape_js(ws_url);
+    let hd = escape_js(hd_url);
+    let tombol = if hd_url.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<div class="kualitas"><button onclick="gantiQ('{v}',this)">360p</button><button onclick="gantiQ('{hd}',this)">720p</button></div>"#
+        )
+    };
     format!(
         r#"<style>
 *{{box-sizing:border-box;-webkit-tap-highlight-color:transparent}}
@@ -95,14 +105,21 @@ body{{margin:0;background:#090a0f;color:#fff;font-family:Arial,Helvetica,sans-se
 .title{{font-size:15px;font-weight:700;line-height:1.35}}
 .meta{{font-size:12px;color:rgba(255,255,255,.65);margin-top:4px}}
 video{{width:100%;border-radius:12px;margin-top:12px;background:#000}}
+.kualitas{{display:flex;gap:8px;margin-top:10px}}
+.kualitas button{{flex:1;padding:8px;background:#1c1f27;color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:10px;font-size:13px}}
 .ws{{font-size:11px;color:rgba(255,255,255,.55);margin-top:10px;word-break:break-all}}
 </style>
+<script>
+const vid=document.getElementById('vid');
+function gantiQ(u,btn){{const t=vid.currentTime;vid.src=u;vid.onloadedmetadata=()=>{{vid.currentTime=t;}};vid.play();}}
+</script>
 <div class="wrap"><div class="player">
 <div class="poster"><img src="{poster}" alt="{t}"></div>
 <div class="pad">
 <div class="title">{t}</div>
 <div class="meta">{c} • {d}</div>
-<video controls preload="metadata" src="{v}"></video>
+<video id="vid" controls preload="metadata" src="{v}"></video>
+{tombol}
 <div class="ws">Stream WS: {w}</div>
 </div>
 </div></div>"#
@@ -208,7 +225,12 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         "wss://stream.kanara.my.id/?url={}",
         url_encode(direct_url)
     );
-    let html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster);
+    // Kualitas HD opsional — gagal diam-diam (tombol disembunyikan).
+    let hd_url = oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("720"))
+        .ok()
+        .and_then(|v| v.get("url").and_then(|u| u.as_str()).map(str::to_string))
+        .unwrap_or_default();
+    let html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster, &hd_url);
     let rich = RichAi {
         // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
         // `submessages` kosong dan yang tampil murni kartu HTML.
@@ -378,11 +400,14 @@ mod tests {
             "https://cdn.example/v.mp4",
             "wss://stream.kanara.my.id/?url=x",
             "data:image/jpeg;base64,QQ==",
+            "https://cdn.example/v720.mp4",
         );
         assert!(html.contains("A\\x3CB"), "judul di-escape: {html}");
         assert!(html.contains("data:image/jpeg;base64,QQ=="));
-        assert!(html.contains(r#"<video controls"#));
+        assert!(html.contains(r#"<video id="vid" controls"#));
         assert!(html.contains("https://cdn.example/v.mp4"));
+        assert!(html.contains("720p"));
+        assert!(html.contains("gantiQ"));
         assert!(html.contains("wss://stream.kanara.my.id/?url=x"));
     }
 

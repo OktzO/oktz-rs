@@ -13,9 +13,8 @@
 //!   `timeupdate`), bukan WS — jadi sync lyrics live JS tidak butuh wire
 //!   baru. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
 //!   dikirim sebagai fallback untuk klien yang tidak merender primitif HTML.
-//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dan resize `sharp`
-//!   dilewati (`ponytail:` thumbnail dikirim apa adanya, tanpa resize
-//!   250x250 q50; upgrade path: tambah encoder image bila perlu).
+//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dilewati (`ponytail:`;
+//!   LRCLIB cukup; upgrade path: tambah InnerTube timedtext bila perlu).
 //!
 //! Yang dipor penuh karena murni dan bisa diuji: parser LRC, konversi lirik
 //! polos menjadi lirik bertime, normalisasi, pemformat durasi,
@@ -290,9 +289,11 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
 /// Batas ukuran unduhan thumbnail poster.
 const MAX_POSTER_BYTES: usize = 100 * 1024;
 
-/// `getThumb` (`play2.js:485-500`) tanpa `sharp`: thumbnail apa adanya
-/// sebagai `data:image/jpeg;base64,...`. Gagal/unduhan > 100 KB → `""`
-/// (HTML memakai placeholder SVG, `play2.js:510-512`).
+/// `getThumb` (`play2.js:485-500`): `sharp.resize(250,250,{fit:'cover'})
+/// .jpeg({quality:50})` → `data:image/jpeg;base64,...` via
+/// `oktz_plugin_api::gambar::sharp` (tanpa dependensi baru). Gagal/unduhan
+/// di atas 100 KB/gambar tak dikenali → `""` (HTML memakai placeholder SVG,
+/// lihat `play2.js:510-512`).
 pub(crate) fn poster_base64(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> String {
     if url.is_empty() {
         return String::new();
@@ -308,7 +309,12 @@ pub(crate) fn poster_base64(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> S
     if data.is_empty() || data.len() > MAX_POSTER_BYTES {
         return String::new();
     }
-    format!("data:image/jpeg;base64,{}", base64_encode(data))
+    match oktz_plugin_api::gambar::sharp(data)
+        .and_then(|g| g.ubah_ukuran(250, 250).ke_jpeg(50))
+    {
+        Ok(jpeg) => format!("data:image/jpeg;base64,{}", base64_encode(&jpeg)),
+        Err(_) => String::new(),
+    }
 }
 
 fn cache_cari() -> &'static Mutex<HashMap<String, Vec<ytsearch::Video>>> {

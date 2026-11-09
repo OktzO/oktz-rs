@@ -149,6 +149,17 @@ pub trait Sock: Send + Sync + std::fmt::Debug {
     /// `sock.updateBlockStatus(jid, blockAction)` — `true` = blokir,
     /// `false` = buka blokir.
     fn blokir(&self, jid: &str, blokir: bool) -> Result<(), SockError>;
+
+    /// `sock.sendMessage(chat, { delete: key })` — hapus pesan untuk semua
+    /// orang di chat (`delete.js:49`). `participant` = `rawParticipant || sender`
+    /// (pengirim asli dalam addressing LID); `from_me` = pesan bot sendiri
+    /// (`RevokeType::Sender`), selain itu `RevokeType::Admin { original_sender }`.
+    ///
+    /// Default error: stub tanpa klien tidak bisa menghapus, dan diam berarti
+    /// pesan tetap terlihat — persis alasan default `delete_message` pipeline.
+    fn hapus_pesan(&self, _chat: &str, _message_id: &str, _participant: &str, _from_me: bool) -> Result<(), SockError> {
+        Err(SockError::baru("sock tidak mendukung hapus pesan"))
+    }
 }
 
 /// `Sock` yang selalu gagal — dipakai kalau bot berjalan tanpa klien
@@ -280,5 +291,6 @@ mod tests {
         assert!(s.set_nama("bot").is_err());
         assert!(s.hapus_foto_bot().is_err());
         assert!(s.blokir("628111@s.whatsapp.net", true).is_err());
+        assert!(s.hapus_pesan("120363@g.us", "ID1", "628111@s.whatsapp.net", false).is_err());
     }
 }
