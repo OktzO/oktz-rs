@@ -308,6 +308,8 @@ fn dokumen(input: &VariantInput<'_>, quote: Option<QuoteSource>) -> PendingMedia
         preview: None,
         sticker: None,
         sticker_pack: None,
+                        width: None,
+                        height: None,
     }
 }
 
@@ -339,6 +341,8 @@ fn video(input: &VariantInput<'_>) -> PendingMedia {
         preview: None,
         sticker: None,
         sticker_pack: None,
+                        width: None,
+                        height: None,
     }
 }
 
@@ -404,6 +408,8 @@ fn link_preview(input: &VariantInput<'_>) -> PendingMedia {
         }),
         sticker: None,
         sticker_pack: None,
+                        width: None,
+                        height: None,
     }
 }
 
@@ -748,6 +754,8 @@ fn favicon(input: &VariantInput<'_>) -> PendingMedia {
         }),
         sticker: None,
         sticker_pack: None,
+                        width: None,
+                        height: None,
     }
 }
 

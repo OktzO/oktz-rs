@@ -1327,6 +1327,12 @@ impl MessageSender for ClientSender {
                         media.jpeg_thumbnail = Some(t);
                     }
                 }
+                if media.width.is_none() && media.height.is_none() {
+                    if let Some((w, h)) = dimensi_asli(&data) {
+                        media.width = Some(w);
+                        media.height = Some(h);
+                    }
+                }
                 let upload = client
                     .upload(data, media.kind.upload_type(), UploadOptions::default())
                     .await
@@ -1439,16 +1445,18 @@ impl MessageSender for ClientSender {
             let header_image = match header_media {
                 Some(media) => {
                     let data = load_media(&media.source).await.map_err(|e| e.to_string())?;
+                    let data_for_thumb = data.clone();
                     let upload = client
                         .upload(data, MediaType::Image, UploadOptions::default())
                         .await
                         .map_err(|e| format!("upload header kartu gagal: {e}"))?;
+                    let thumb = buat_thumbnail(&data_for_thumb, MediaKind::Image);
                     let msg = image_message(
                         upload,
                         ImageOptions {
                             caption: None,
                             mimetype: media.source.mimetype().map(str::to_string),
-                            jpeg_thumbnail: None,
+                            jpeg_thumbnail: thumb,
                             context_info: None,
                         },
                     );
@@ -1773,7 +1781,7 @@ pub struct Rendered {
     pub card_header_media: Option<PendingMedia>,
     /// Pesan yang perlu di-quote di dalam kartu (JS `quoted: m`).
     pub card_quote: Option<QuoteSource>,
-}
+ }
 
 impl Rendered {
     pub(crate) fn wire(message: wa::Message, extra_nodes: Vec<Node>) -> Self {
@@ -1793,7 +1801,7 @@ impl Rendered {
     pub fn needs_media(&self) -> bool {
         self.media.is_some() || self.card_header_media.is_some()
     }
-}
+ }
 
 /// Jenis media yang di-upload dan dikirim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1847,6 +1855,8 @@ pub struct PendingMedia {
     pub sticker: Option<oktz_plugin_api::StickerOpsi>,
     /// Sticker pack yang menunggu upload ZIP/thumbnail.
     pub sticker_pack: Option<PendingStickerPack>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
 /// Sticker pack yang menunggu upload ZIP/thumbnail.
@@ -1907,6 +1917,12 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
     let override_length = |m: &mut wa::Message| {
         if let (Some(len), Some(dok)) = (media.file_length, m.document_message.as_option_mut()) {
             dok.file_length = Some(len);
+        }
+        if let (Some(w), Some(h)) = (media.width, media.height) {
+            if let Some(img) = m.image_message.as_option_mut() {
+                img.width = Some(w);
+                img.height = Some(h);
+            }
         }
     };
     let mut pesan = match kind {
@@ -1993,28 +2009,51 @@ fn patch_preview(preview: PendingPreview, up: &UploadResponse) -> wa::Message {
 /// dibuat dari luar crate `whatsapp-rust`.
 fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
     match kind {
-        MediaKind::Image | MediaKind::Document => {
-            let g = oktz_plugin_api::gambar::sharp(data).ok()?;
-            let meta = g.metadata();
-            let w = 32u32;
-            let h = (32u32 * meta.tinggi / meta.lebar.max(1)).clamp(1, 32);
-            g.ubah_ukuran(w, h).ke_jpeg(50).ok()
-        }
+        MediaKind::Image | MediaKind::Document => match oktz_plugin_api::gambar::sharp(data) {
+            Ok(g) => {
+                let meta = g.metadata();
+                let w = 32u32;
+                let h = (32u32 * meta.tinggi / meta.lebar.max(1)).clamp(1, 32);
+                g.ubah_ukuran(w, h).ke_jpeg(50).ok()
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "thumbnail gambar gagal, pakai fallback 1px");
+                use base64::Engine;
+                base64::engine::general_purpose::STANDARD.decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEDASIAAhEBAxEb/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AvwH/2Q==").ok()
+            }
+        },
         MediaKind::Video => {
-            let mut f = std::fs::File::create("/tmp/oktz-thumb-video.mp4").ok()?;
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let tmp = format!("/tmp/oktz-thumb-{}-{}.mp4", std::process::id(), n);
+            let mut f = std::fs::File::create(&tmp).ok()?;
             use std::io::Write;
             f.write_all(data).ok()?;
             drop(f);
             let biner = oktz_plugin_api::ffmpeg::jalur_ffmpeg().unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
             let out = std::process::Command::new(biner)
-                .args(["-ss", "0", "-i", "/tmp/oktz-thumb-video.mp4", "-vframes", "1", "-vf", "scale=32:32", "-f", "mjpeg", "-"])
+                .args(["-ss", "0", "-i", &tmp, "-vframes", "1", "-vf", "scale=32:-1", "-f", "mjpeg", "-"])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
-                .output().ok()?;
-            if out.status.success() && !out.stdout.is_empty() { Some(out.stdout) } else { None }
+                .output();
+            let _ = std::fs::remove_file(&tmp);
+            match out {
+                Ok(o) if o.status.success() && !o.stdout.is_empty() => Some(o.stdout),
+                _ => {
+                    tracing::warn!("thumbnail video gagal, pakai fallback 1px");
+                    use base64::Engine;
+                    base64::engine::general_purpose::STANDARD.decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEDASIAAhEBAxEb/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AvwH/2Q==").ok()
+                }
+            }
         }
         _ => None,
     }
+}
+
+fn dimensi_asli(data: &[u8]) -> Option<(u32, u32)> {
+    let g = oktz_plugin_api::gambar::sharp(data).ok()?;
+    let m = g.metadata();
+    Some((m.lebar, m.tinggi))
 }
 
 fn image_options(
@@ -2237,6 +2276,8 @@ pub fn render_reply(
             preview: None,
             sticker: None,
             sticker_pack: None,
+                        width: None,
+                        height: None,
         })
     };
     match reply {
@@ -2260,12 +2301,14 @@ pub fn render_reply(
                 preview: None,
                 sticker: Some(opsi.clone()),
                 sticker_pack: None,
+                width: None,
+                height: None,
             }),
             card: None,
             card_header_media: None,
             sticker_pack: None,
             card_quote: None,
-        })),
+         })),
         Reply::StickerPack {
             stickers,
             name,
@@ -2292,7 +2335,7 @@ pub fn render_reply(
                     emojis: emojis.clone(),
                 }),
                 card_quote: None,
-            }))
+             }))
         },
         Reply::Image {
             media: src,
@@ -2306,7 +2349,7 @@ pub fn render_reply(
             card_header_media: None,
             sticker_pack: None,
             card_quote: None,
-        })),
+         })),
         Reply::Video {
             media: src,
             caption,
@@ -2323,7 +2366,7 @@ pub fn render_reply(
                 card_header_media: None,
             sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         Reply::Audio { media: src, ptt } => {
             let mut media = pending(MediaKind::Audio, "Audio", src, "", &[])?;
@@ -2336,7 +2379,7 @@ pub fn render_reply(
                 card_header_media: None,
             sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         Reply::Document {
             media: src,
@@ -2354,7 +2397,7 @@ pub fn render_reply(
                 card_header_media: None,
             sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         // `quotedMsg = options.quoted !== false ? msg : undefined` — jadi
         // yang TANPA kutipan harus opt-out eksplisit.
@@ -2479,6 +2522,8 @@ pub fn render_reply(
                     preview: None,
                     sticker: None,
                     sticker_pack: None,
+                        width: None,
+                        height: None,
                 });
             Ok(Some(Rendered {
                 message: wa::Message::default(),
@@ -2488,7 +2533,7 @@ pub fn render_reply(
                 card_header_media: header_media,
                 sticker_pack: None,
                 card_quote: if kartu.quote { quote.cloned() } else { None },
-            }))
+             }))
         }
         Reply::Tabel { tabel } => {
             // `sendTable` JS: `relayMessage` tanpa node `biz`, dan
@@ -3830,7 +3875,7 @@ impl Pipeline {
                 card_header_media: None,
             sticker_pack: None,
                 card_quote: None,
-            }),
+             }),
         })
     }
 
@@ -5031,6 +5076,8 @@ impl Pipeline {
                         preview: None,
                         sticker: None,
                         sticker_pack: None,
+                        width: None,
+                        height: None,
                     };
                     if let Err(e) = self.sender.send_media(&u.id, pending).await {
                         tracing::warn!(error = %e, grup = %u.id, "kartu welcome gagal; jatuh ke teks");
@@ -6365,6 +6412,8 @@ fn group_number_and_long_number_are_rejected() {
             preview: None,
             sticker: None,
             sticker_pack: None,
+                        width: None,
+                        height: None,
         }
     }
 
