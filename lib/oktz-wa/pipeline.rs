@@ -4534,6 +4534,19 @@ impl Pipeline {
                 .deliver_reply(&caller.chat, &reply, &mut target, &key)
                 .await?;
 
+            // Reaksi proses 🕐/🕕 dari pipeline harus tidak jadi nanggung:
+            // plugin yang balasannya polos (tanpa reaksi ✅/❌/☢) tidak
+            // menimpanya, jadi cabut dengan reaksi kosong (WA = sender-revoke,
+            // `build_reaction_message`: emoji "" = remove). Kalau plugin sudah
+            // bereaksi sendiri di mana pun dalam `Sequence`, biarkan — reaksi
+            // terakhir plugin yang tampil. Best-effort, gagal hanya di-log.
+            if cooldown_key.is_some()
+                && !reply.punya_reaksi()
+                && let Err(e) = self.sender.react(&caller.chat, &key, "").await
+            {
+                tracing::warn!(error = %e, "gagal mencabut reaksi proses");
+            }
+
             // Cooldown baru mulai SETELAH handler selesai
             // (`handler.js:1922-1924`), jadi command yang gagal di tengah tidak
             // membekukan cooldown.
@@ -7960,8 +7973,9 @@ impl TestPlugin {
         let out = p.process(&second, 2_000).await.unwrap();
         assert_eq!(out, Outcome::CooldownBlocked);
         assert_eq!(plug.calls(), 1, "plugin TIDAK boleh jalan dua kali");
-        // Reaksi proses 🕕 dari pemanggilan pertama + ⏱️ cooldown.
-        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "⏱️".to_string())]);
+        // Reaksi proses 🕐 dari pemanggilan pertama, lalu revoke (plugin balas
+        // teks polos — reaksi proses dicabut), lalu ⏱️ cooldown.
+        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "".to_string()), (MEMBER.to_string(), "⏱️".to_string())]);
         assert_eq!(s.texts().len(), 1, "tidak boleh ada balasan kedua");
 
         // Setelah cooldown 3 detik habis, command boleh jalan lagi.
@@ -9555,6 +9569,63 @@ fn a_null_access_field_keeps_the_existing_grant() {
             "reaksi di level manapun harus lewat jalur reaksi, urut apa adanya (pertama = reaksi proses pipeline)"
         );
         assert_eq!(s.texts(), vec![format!("{MEMBER}: tabelnya")]);
+    }
+
+    #[tokio::test]
+    async fn plain_text_reply_revokes_processing_reaction() {
+        // Plugin yang balas teks polos tidak mengirim reaksi penutup — reaksi
+        // proses 🕐/🕕 pipeline dicabut dengan reaksi kosong (WA sender-revoke)
+        // supaya tidak nanggung selamanya.
+        let plugin = TestPlugin::with_reply(Reply::text("balasan polos"));
+        let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
+        let m = inbound_n(".seq", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(
+            s.reacted(),
+            vec![
+                (MEMBER.to_string(), "🕕".to_string()),
+                (MEMBER.to_string(), "".to_string()),
+            ],
+            "reaksi proses dikirim lalu dicabut"
+        );
+    }
+
+    #[tokio::test]
+    async fn plugin_reaction_keeps_processing_reaction_in_place() {
+        // Plugin yang bereaksi sendiri (✅) — reaksi terakhir plugin yang
+        // tampil; pipeline TIDAK menambah revoke setelahnya.
+        let plugin =
+            TestPlugin::with_reply(Reply::text("balasan").with_reaction("✅"));
+        let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
+        let m = inbound_n(".seq", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(
+            s.reacted(),
+            vec![
+                (MEMBER.to_string(), "🕕".to_string()),
+                (MEMBER.to_string(), "✅".to_string()),
+            ],
+            "tanpa revoke — ✅ plugin menimpa reaksi proses"
+        );
+    }
+
+    #[tokio::test]
+    async fn sequence_with_reaction_inside_skips_revoke() {
+        // Reaksi di dalam `Sequence` juga hitung — pipeline tidak revoke.
+        let plugin = TestPlugin::with_reply(Reply::sequence(vec![
+            Reply::text("satu"),
+            Reply::reaction("🔥"),
+        ]));
+        let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
+        let m = inbound_n(".seq", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(
+            s.reacted(),
+            vec![
+                (MEMBER.to_string(), "🕕".to_string()),
+                (MEMBER.to_string(), "🔥".to_string()),
+            ]
+        );
     }
 
     #[tokio::test]

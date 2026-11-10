@@ -812,6 +812,18 @@ impl Reply {
         }
     }
 
+    /// `true` kalau plugin mengirim reaksi apa pun — termasuk di dalam
+    /// `Sequence`. Dipakai pipeline: kalau tidak, reaksi proses 🕕/🕐 dari
+    /// pipeline dicabut dengan reaksi kosong (WA sender-revoke).
+    pub fn punya_reaksi(&self) -> bool {
+        match self {
+            Self::Reaction { .. } => true,
+            Self::Mutate { reply, .. } => reply.punya_reaksi(),
+            Self::Sequence(list) => list.iter().any(Self::punya_reaksi),
+            _ => false,
+        }
+    }
+
     /// Mutasi yang dibawa reply ini (Kosong kalau bukan `Mutate`).
     pub fn mutations(&self) -> &[Mutation] {
         match self {
