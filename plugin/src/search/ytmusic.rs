@@ -24,8 +24,10 @@ const YTM_DOMAIN: &str = "https://music.youtube.com";
 const YTM_KEY: &str = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30";
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0";
-/// `get_search_params("songs")` — `EgWKAQ` + `II` + `AWoMEA4QChADEAQQCRAF`.
-const PARAMS_SONGS: &str = "EgWKAQIIAWoMEA4QChADEAQQCRAF";
+/// `get_search_params("songs")` — `EgWKAQ` + `II` + `AWoKEAkQBRAKEAM`.
+/// `ponytail:` params baru ytmusicapi `AWoMEA4QChADEAQQCRAF` deprecated
+/// 2026-11 (Google balas "No results" HTTP 200); params lama masih hidup.
+const PARAMS_SONGS: &str = "EgWKAQIIAWoKEAkQBRAKEAM";
 /// `initialize_context()` — versi tetap, tanpa tanggal dinamis.
 const CLIENT_VERSION: &str = "1.20250101.01.00";
 
@@ -179,7 +181,32 @@ pub(crate) fn search_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Video>, Htt
     let data = res.json().unwrap_or(Value::Null);
     let mut item: Vec<&Value> = Vec::new();
     kumpulkan_item(data.get("contents"), &mut item);
+    if item.is_empty() {
+        // Top result (musicCardShelfRenderer) — bentuk search tanpa hasil
+        // shelf; satu item, sama kolomnya.
+        if let Some(card) = data
+            .get("contents")
+            .and_then(|c| c.pointer("/tabbedSearchResultsRenderer"))
+            .and_then(cari_card)
+        {
+            item.push(card);
+        }
+    }
     Ok(item.iter().filter_map(|v| lagu_dari_item(v)).collect())
+}
+
+/// Cari `musicCardShelfRenderer` (top result) di mana pun.
+fn cari_card(node: &Value) -> Option<&Value> {
+    match node {
+        Value::Object(m) => {
+            if let Some(c) = m.get("musicCardShelfRenderer") {
+                return Some(c);
+            }
+            m.values().find_map(cari_card)
+        }
+        Value::Array(a) => a.iter().find_map(cari_card),
+        _ => None,
+    }
 }
 
 /// Kumpulkan `musicResponsiveListItemRenderer` di mana pun.
@@ -206,21 +233,51 @@ fn kumpulkan_item<'a>(node: Option<&'a Value>, out: &mut Vec<&'a Value>) {
     }
 }
 
+/// `lagu_dari_item` — kolom kedua bentuk card/shelf bisa `Video • artist •
+/// 234M views • 3:59`; run views (`N views`) bukan artist.
+fn is_views(teks: &str) -> bool {
+    let t = teks.trim();
+    let Some(i) = t.rfind(' ') else { return false };
+    let angka = &t[..i];
+    // Suffix magnitudo K/M/B boleh (234M, 3.1K).
+    let inti = angka
+        .trim_end_matches(|c: char| c.eq_ignore_ascii_case(&'k') || c.eq_ignore_ascii_case(&'m') || c.eq_ignore_ascii_case(&'b'));
+    !inti.is_empty()
+        && inti
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '.' || c == ',')
+        && (t[i + 1..].eq_ignore_ascii_case("views")
+            || t[i + 1..].eq_ignore_ascii_case("plays"))
+}
+
 fn lagu_dari_item(item: &Value) -> Option<Video> {
     let video_id = video_id_dari_item(item)?;
     if !pola_id(&video_id) {
         return None;
     }
-    let flex = item.get("flexColumns")?.as_array()?;
-    let title = runs_teks(kolom_runs(flex.first()?));
+    let flex = item.get("flexColumns").and_then(Value::as_array);
+    fn runs_of(v: &Value) -> Vec<Option<&Value>> {
+        v.get("runs")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().map(Some).collect())
+            .unwrap_or_default()
+    }
+    let title = flex
+        .and_then(|f| f.first())
+        .map(|k| runs_teks(kolom_runs(k)))
+        .or_else(|| item.get("title").map(|t| runs_teks(runs_of(t))))
+        .unwrap_or_default();
     if title.is_empty() {
         return None;
     }
     // `parse_song_runs` — flexColumns[1]: [Song • artist • album • durasi].
     let mut artist: Vec<String> = Vec::new();
     let mut duration = String::new();
-    if let Some(kedua) = flex.get(1) {
-        let runs = kolom_runs(kedua);
+    let runs_kedua = flex
+        .and_then(|f| f.get(1))
+        .map(kolom_runs)
+        .or_else(|| item.get("subtitle").map(runs_of));
+    if let Some(runs) = runs_kedua {
         // Lewati penanda tipe ("Song") bila diikuti • dan run berikutnya
         // terkelasifikasi sebagai artist/duration/year (lihat songs.py).
         let mulai = if runs.len() > 2
@@ -242,7 +299,7 @@ fn lagu_dari_item(item: &Value) -> Option<Video> {
             }
             if is_durasi(teks) {
                 duration = teks.to_string();
-            } else if is_tahun(teks) {
+            } else if is_tahun(teks) || is_views(teks) {
                 continue;
             } else {
                 // Album = browseId MPRE; jangan jadikan artist.
@@ -536,7 +593,7 @@ mod tests {
         );
         let badan = String::from_utf8(post.body.as_ref().unwrap().bytes().to_vec()).unwrap();
         assert!(badan.contains("WEB_REMIX"), "{badan}");
-        assert!(badan.contains("EgWKAQIIAWoMEA4QChADEAQQCRAF"), "{badan}");
+        assert!(badan.contains("EgWKAQIIAWoKEAkQBRAKEAM"), "{badan}");
         assert!(badan.contains("lagu uji"), "{badan}");
     }
 
@@ -616,9 +673,34 @@ mod tests {
     }
 
     #[test]
+    fn top_result_card_dipakai_bila_shelf_kosong() {
+        let http = Stub::baru(
+            r#"{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"musicCardShelfRenderer":{"title":{"runs":[{"text":"Lagu Kartu","navigationEndpoint":{"watchEndpoint":{"videoId":"bbbbbbbbbbb"}}}]},"subtitle":{"runs":[{"text":"Video"},{"text":" • "},{"text":"Raim Laode"},{"text":" • "},{"text":"234M views"},{"text":" • "},{"text":"3:59"}]},"thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/b/hq.jpg"}]}}}}}]}}]}}}}]}}}"#
+                .to_string(),
+        );
+        let v = search_lagu(http.as_ref(), "lagu kartu").unwrap();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].video_id, "bbbbbbbbbbb");
+        assert_eq!(v[0].title, "Lagu Kartu");
+        assert_eq!(v[0].author_name, "Raim Laode", "views bukan artist");
+        assert_eq!(v[0].timestamp, "3:59");
+        assert_eq!(v[0].seconds, 239);
+    }
+
+    #[test]
+    fn hasil_kosong_mengembalikan_vec_kosong() {
+        let http = Stub::baru(
+            r#"{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"messageRenderer":{"text":{"runs":[{"text":"No results for "},{"text":"zzz"}]}}}]}}]}}}}]}}}"#
+                .to_string(),
+        );
+        assert!(search_lagu(http.as_ref(), "zzz").unwrap().is_empty());
+    }
+
+    #[test]
     fn klasifikasi_durasi_dan_tahun() {
         assert!(is_durasi("3:33") && is_durasi("1:02:03") && !is_durasi("Song"));
         assert!(is_tahun("2024") && !is_tahun("2024:01"));
+        assert!(is_views("234M views") && is_views("3.1M views") && !is_views("Raim Laode"));
         assert_eq!(parse_durasi("3:33"), 213);
     }
 }
