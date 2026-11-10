@@ -659,8 +659,9 @@ fn dekrip_blok(rk: &[u8; 176], blok: &[u8]) -> [u8; 16] {
 ///
 /// `final` melempar kalau panjang ciphertext bukan kelipatan 16 (`wrong final
 /// block length`) atau padding PKCS#7 rusak (`bad decrypt`); teks keduanya ikut
-/// disalin karena muncul di pesan `SaveTube gagal: …`.
-fn aes128_cbc_dekrip(key: &[u8], iv: &[u8], ct: &[u8]) -> Result<Vec<u8>, HttpError> {
+/// disalin karena muncul di pesan `SaveTube gagal: …`. Dipakai lintas modul
+/// oleh `playytmp3.rs` (sistem `.play` baru).
+pub(crate) fn aes128_cbc_dekrip(key: &[u8], iv: &[u8], ct: &[u8]) -> Result<Vec<u8>, HttpError> {
     if iv.len() != 16 {
         return Err(HttpError {
             message: "Invalid initialization vector".to_string(),

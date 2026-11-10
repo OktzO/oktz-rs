@@ -74,5 +74,6 @@ pub mod wallpapersearch;
 pub mod wink;
 pub mod wwchar;
 pub mod youtube;
+pub mod playytmp3;
 pub mod yt;
 pub mod ytdl;

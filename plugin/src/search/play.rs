@@ -1,9 +1,12 @@
 //! `plugins/search/play.js` — putar musik dari YouTube.
 //!
-//! ponytail: API sama persis JS (`play.js:31-40`): cari dengan padanan
-//! `yt-search` (ambil video PERTAMA, tanpa filter), lalu unduh lewat nexray
-//! (`api.nexray.web.id/api/downloader/ytmp3`). Tidak ada YT Music, tidak ada
-//! balapan backend — kalau nexray mati, `.play` gagal seperti JS.
+//! Jalur utama: sistem baru `play.js` (akar repo) lewat
+//! [`oktz_scraper::playytmp3::ytmp3`] — pencarian halaman `results`
+//! (`ytInitialData`) + backend savetube → ytmp3.ing.
+//!
+//! ponytail: fallback = jalur ourin (`play.js` produksi): `yt-search` +
+//! nexray ([`crate::download::ytmp3::unduh_audio_nexray`]), dipakai hanya
+//! bila sistem baru gagal semua.
 //!
 //! Deviasi: `sock.sendPreview` (kartu pratinjau tautan) belum punya
 //! padanan di `Reply`, jadi kartu NOW PLAYING dikirim sebagai teks biasa
@@ -85,10 +88,37 @@ pub(crate) fn now_playing(
     info
 }
 
-/// `play.js:31-40` — `yts(query)` → `videos[0]`, lalu `ytmp3` nexray.
-/// `Err` = pencarian kosong atau unduhan gagal (catch JS yang sama).
+/// Jalur utama: sistem baru `play.js` (`oktz_scraper::playytmp3`) —
+/// pencarian `results` + savetube → ytmp3ing. Gagal semua → fallback
+/// ourin: `yt-search` + nexray.
 fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()> {
-    // `yt-search` menerima query maupun URL; keduanya lewat jalur ini.
+    if let Ok(hasil) = oktz_scraper::playytmp3::ytmp3(ctx.http.as_ref(), query, "128") {
+        let video = &hasil.video;
+        let info = now_playing(
+            &video.title,
+            &video.author,
+            &video.duration,
+            0.0,
+            &video.published,
+            &video.id,
+            "",
+            &video.url,
+        );
+        let audio = AudioDownload {
+            title: video.title.clone(),
+            format: "mp3".to_string(),
+            url: hasil
+                .download
+                .get("downloadUrl")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+        };
+        if !audio.url.is_empty() {
+            return Ok((info, audio));
+        }
+    }
+    // --- Fallback ourin (`play.js` produksi): yt-search + nexray -------
     let video = ytsearch::search(ctx.http.as_ref(), query)
         .map_err(|_| ())?
         .into_iter()

@@ -575,13 +575,14 @@ fn body_varian_2(ctx: &Ctx) -> String {
     )
 }
 
-/// Varian 2 — kartu interaktif dengan footer berisi seluruh daftar command
-/// dan tombol "Kembali Ke Menu Utama" (`allmenu.js:238-293`).
-///
-/// `ponytail:` header gambar `foto` dibuang: kartu yang mengklaim header media
-/// hanya aman kalau uploadnya ikut; tanpa itu WA menampilkan placeholder ikon
-/// jam, dan aset yang hilang bikin seluruh command gagal.
+/// Varian 2 — kartu interaktif dengan header gambar `foto`, footer berisi
+/// seluruh daftar command, dan tombol "Kembali Ke Menu Utama"
+/// (`allmenu.js:238-293`).
 fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
+    let aset = ctx.config().assets.get("foto")?;
+    if !ctx.berkas().ada(aset) {
+        return None;
+    }
     let params = serde_json::json!({
         "limited_time_offer": {
             "text": sapa(),
@@ -594,6 +595,12 @@ fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
     Some(
         Reply::interactive(body_varian_2(ctx))
             .with_footer(txt.to_string())
+            .with_header_card(
+                CardHeader::new()
+                    .title("")
+                    .subtitle("")
+                    .image(MediaSource::path(aset)),
+            )
             .with_context(konteks_varian_2(ctx))
             .with_message_params(params)
             .with_button_card(InteractiveButton::quick_reply(
@@ -605,10 +612,12 @@ fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
 
 /// Varian 5 — kartu native-flow dengan header video `mp4`, tombol native
 /// (kosong + daftar kategori + menu utama), dan pesan yang dirujuk berupa
-/// Varian 5 — kartu native-flow, tombol native (kosong + daftar kategori +
-/// menu utama), dan pesan yang dirujuk berupa lokasi cuaca
-/// (`allmenu.js:295-358`). Header video dibuang seperti varian 2.
+/// lokasi cuaca (`allmenu.js:295-358`).
 fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
+    let aset = ctx.config().assets.get("mp4")?;
+    if !ctx.berkas().ada(aset) {
+        return None;
+    }
     let params = serde_json::json!({
         "limited_time_offer": {
             "text": sapa(),
@@ -642,6 +651,12 @@ fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
     Some(
         Reply::interactive(txt.to_string())
             .with_footer(FOOTER_VARIAN_5)
+            .with_header_card(
+                CardHeader::new()
+                    .title("")
+                    .subtitle("")
+                    .video(MediaSource::path(aset)),
+            )
             .with_context(context)
             .with_message_params(params)
             // Slot kosong pertama (`allmenu.js:343`) — WA butuh minimal satu
@@ -999,7 +1014,7 @@ mod tests {
     }
 
     #[test]
-    fn varian_dua_tanpa_header_media_dengan_footer_dan_tombol() {
+    fn varian_dua_membawa_header_gambar_footer_dan_tombol() {
         let r = allmenu(ctx(2));
         let (body, footer, buttons) = kartu(&r);
         assert!(body.starts_with("> Halo *Oktz* 👋"), "{body}");
@@ -1015,8 +1030,13 @@ mod tests {
         else {
             panic!("harus kartu");
         };
-        // Tanpa header media — lihat `kartu_varian_2`.
-        assert!(kartu.header_card.is_none(), "header media sudah dibuang");
+        let header = kartu.header_card.as_ref().expect("header wajib ada");
+        match header.media.as_ref().expect("media wajib ada") {
+            oktz_plugin_api::registry::CardMedia::Image { source } => {
+                assert_eq!(source.label(), "path");
+            }
+            other => panic!("harus gambar, dapat {other:?}"),
+        }
         let params = kartu.params.as_ref().expect("params wajib ada");
         assert_eq!(params["limited_time_offer"]["url"], "Hai");
         assert_eq!(params["limited_time_offer"]["copy_code"], "Dibuat oleh Zann");
@@ -1034,7 +1054,7 @@ mod tests {
     }
 
     #[test]
-    fn varian_lima_tanpa_header_video_tombol_kosong_dan_quote_lokasi() {
+    fn varian_lima_membawa_video_tombol_kosong_dan_quote_lokasi() {
         let r = allmenu(ctx(5));
         let (body, footer, buttons) = kartu(&r);
         assert!(body.contains("✦ *Informasi User*"), "{body}");
@@ -1050,8 +1070,11 @@ mod tests {
         else {
             panic!("harus kartu");
         };
-        // Tanpa header video — lihat `kartu_varian_5`.
-        assert!(kartu.header_card.is_none(), "header media sudah dibuang");
+        let header = kartu.header_card.as_ref().expect("header wajib ada");
+        assert!(matches!(
+            header.media.as_ref(),
+            Some(oktz_plugin_api::registry::CardMedia::Video { .. })
+        ));
         let params = kartu.params.as_ref().expect("params wajib ada");
         assert_eq!(params["bottom_sheet"]["list_title"], "Please select the menu");
         assert_eq!(params["tap_target_configuration"]["domain"], "shop.example.com");
@@ -1102,23 +1125,13 @@ mod tests {
     }
 
     #[test]
-    fn aset_yang_hilang_tetap_kirim_kartu_tanpa_header_media() {
+    fn aset_yang_hilang_menjatuh_ke_teks_polos() {
         let mut c = ctx(2);
         c.berkas = Arc::new(BerkasPalsu::baru());
         let r = allmenu(c);
-        // Kartu varian 2 tidak lagi bergantung aset `foto`: tetap terkirim,
-        // tanpa header media (yang dulu memicu placeholder ikon jam / gagal).
-        // Audio menu bisa menempel sebagai elemen kedua `Sequence`.
-        let mut kartu_reply = r.without_mutations();
-        if let Reply::Sequence(list) = kartu_reply {
-            kartu_reply = list.first().expect("sequence tidak kosong");
-        }
-        let Reply::Interactive { kartu } = kartu_reply else {
-            panic!("harus kartu, dapat {kartu_reply:?}");
-        };
-        assert!(kartu.header_card.is_none());
-        let footer = kartu.footer.as_deref().unwrap_or_default();
-        assert!(footer.contains("✦ *Informasi User*"), "{footer}");
+        // Aset `foto` hilang → tidak ada gambar cadangan → teks polos.
+        assert!(matches!(r.without_mutations(), Reply::Text { .. }));
+        assert!(teks(&r).contains("✦ *Informasi User*"));
     }
 
     // -- audio menu ---------------------------------------------------------
