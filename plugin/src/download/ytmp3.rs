@@ -505,6 +505,13 @@ pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     Err(())
 }
 
+/// `.play` — API persis JS (`play.js:35`): **hanya** nexray, tanpa balapan
+/// backend. Plugin lain (`play2`, `ytmp3`) tetap memakai [`unduh_audio`].
+pub(crate) fn unduh_audio_nexray(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
+    let kanonik = kanonik(url)?;
+    unduh_nexray(ctx.http.as_ref(), &kanonik)
+}
+
 /// `ytmp3.js:64` — link hilang.
 pub(crate) fn contoh(prefix: &str) -> String {
     format!("Contoh: {prefix}ytmp3 https://youtube.com/watch?v=xxx")

@@ -1,12 +1,11 @@
-//! `plugins/search/play.js` — putar musik dari YouTube Music.
+//! `plugins/search/play.js` — putar musik dari YouTube.
 //!
-//! ponytail: pencarian kini lewat [`super::ytmusic::search_lagu`]
-//! (InnerTube WEB_REMIX filter songs) — katalog musik, bukan semua video.
-//! JS memakai `yt-search` + nexray langsung; versi ini search musik dulu,
-//! jatuh ke `ytsearch` (filter durasi lagu) bila YT Music gagal/kosong, lalu
-//! unduhan audio lewat [`crate::download::ytmp3::unduh_audio`].
+//! ponytail: API sama persis JS (`play.js:31-40`): cari dengan padanan
+//! `yt-search` (ambil video PERTAMA, tanpa filter), lalu unduh lewat nexray
+//! (`api.nexray.web.id/api/downloader/ytmp3`). Tidak ada YT Music, tidak ada
+//! balapan backend — kalau nexray mati, `.play` gagal seperti JS.
 //!
-//! Deviasi kedua: `sock.sendPreview` (kartu pratinjau tautan) belum punya
+//! Deviasi: `sock.sendPreview` (kartu pratinjau tautan) belum punya
 //! padanan di `Reply`, jadi kartu NOW PLAYING dikirim sebagai teks biasa
 //! sebelum audio (urutan `Reply::sequence`).
 
@@ -14,9 +13,9 @@
 
 use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 
-use crate::download::ytmp3::{AudioDownload, mimetype_for, unduh_audio};
+use crate::download::ytmp3::{AudioDownload, mimetype_for, unduh_audio_nexray};
 
-use super::{ytmusic, ytsearch};
+use super::ytsearch;
 
 /// `play.js:26` — kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
@@ -86,11 +85,16 @@ pub(crate) fn now_playing(
     info
 }
 
-/// `play.js:31-40` — YT Music dulu, fallback `yt-search` berfilter lagu,
-/// lalu unduh audio. `Err` = semua jalur gagal.
+/// `play.js:31-40` — `yts(query)` → `videos[0]`, lalu `ytmp3` nexray.
+/// `Err` = pencarian kosong atau unduhan gagal (catch JS yang sama).
 fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()> {
-    let video = cari_video_lagu(ctx, query)?;
-    let audio = unduh_audio(ctx, &video.url)?;
+    // `yt-search` menerima query maupun URL; keduanya lewat jalur ini.
+    let video = ytsearch::search(ctx.http.as_ref(), query)
+        .map_err(|_| ())?
+        .into_iter()
+        .next()
+        .ok_or(())?;
+    let audio = unduh_audio_nexray(ctx, &video.url)?;
     let info = now_playing(
         &video.title,
         &video.author_name,
@@ -102,33 +106,6 @@ fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()>
         &video.url,
     );
     Ok((info, audio))
-}
-
-/// Fokus musik: YT Music (filter songs) → `yt-search` yang durasinya
-/// seperti lagu. URL YouTube langsung lewat jalur `yt-search` apa adanya.
-fn cari_video_lagu(ctx: &Ctx, query: &str) -> Result<ytsearch::Video, ()> {
-    if super::play2::looks_like_youtube_url(query) {
-        return ytsearch::search(ctx.http.as_ref(), query)
-            .map_err(|_| ())?
-            .into_iter()
-            .next()
-            .ok_or(());
-    }
-    if let Ok(lagu) = ytmusic::search_lagu(ctx.http.as_ref(), query)
-        && let Some(v) = lagu.into_iter().next()
-    {
-        return Ok(v);
-    }
-    let videos = ytsearch::search(ctx.http.as_ref(), query).map_err(|_| ())?;
-    // Lagu umumnya 30 detik – 10 menit; ambil yang pertama yang masuk.
-    if let Some(v) = videos
-        .iter()
-        .find(|v| (30..=600).contains(&v.seconds))
-        .cloned()
-    {
-        return Ok(v);
-    }
-    videos.into_iter().next().ok_or(())
 }
 
 #[plugin(
@@ -279,10 +256,7 @@ mod tests {
         }
     }
 
-    /// Hasil YT Music dengan satu lagu (fokus musik, bukan video).
-    const HASIL: &str = r#"{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[{"musicShelfRenderer":{"contents":[{"musicResponsiveListItemRenderer":{"flexColumns":[{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Lagu Uji"}]}}},{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Song"},{"text":" • "},{"text":"Channel Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"UC123"}}},{"text":" • "},{"text":"Album Uji","navigationEndpoint":{"browseEndpoint":{"browseId":"MPREabc"}}},{"text":" • "},{"text":"3:33"}]}}}],"thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/a/hq.jpg"}]}}},"overlay":{"musicItemThumbnailOverlayRenderer":{"content":{"musicPlayButtonRenderer":{"playNavigationEndpoint":{"watchEndpoint":{"videoId":"aaaaaaaaaaa"}}}}}}}}]}}]}}}}]}}}"#;
-
-    /// Hasil `yt-search` (fallback) dengan satu video.
+    /// Hasil `yt-search` dengan satu video.
     const HASIL_VIDEO: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
       {"itemSectionRenderer":{"contents":[
         {"videoRenderer":{
@@ -297,19 +271,21 @@ mod tests {
       ]}}
     ]}}}}]}}"#;
 
+    /// `play.js:31-40` — `yt-search` lalu nexray.
     fn stub_sukses() -> Arc<Stub> {
         Stub::per_url(vec![
-            ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
-            // ytdl-native gagal → jatuh ke izuka.
-            ("ymcdn", Some(serde_json::json!({"status": false}))),
             (
-                "izuka",
+                "youtubei/v1/search",
+                Some(serde_json::from_str(HASIL_VIDEO).unwrap()),
+            ),
+            (
+                "nexray",
                 Some(serde_json::json!({
                     "status": true,
                     "result": {
                         "title": "Lagu Uji",
                         "format": "mp3",
-                        "download_url": "https://cdn.example/lagu.mp3"
+                        "url": "https://cdn.example/lagu.mp3"
                     }
                 })),
             ),
@@ -381,16 +357,23 @@ mod tests {
         }
         assert!(matches!(&list[3], Reply::Reaction { emoji, .. } if emoji == "✅"));
 
-        // Balapan: ytdl gagal, izuka satu-satunya sukses → URL kanonik
-        // harus sampai ke backend aggregator. GET homepage visitor boleh
-        // ada (cache kosong) atau tidak (cache hit) — urutan tak tentu.
+        // Pencarian `yt-search` (video pertama) lalu nexray — tidak ada
+        // jalur YT Music.
         let seen = http.seen.lock().unwrap().clone();
-        assert!(seen.iter().any(|u| u.contains("music.youtube.com/youtubei/v1/search")), "pencarian YT Music: {seen:?}");
+        assert!(
+            seen.iter()
+                .any(|u| u.contains("www.youtube.com/youtubei/v1/search")),
+            "pencarian yt-search: {seen:?}"
+        );
+        assert!(
+            !seen.iter().any(|u| u.contains("music.youtube.com")),
+            "tidak boleh menyentuh YT Music: {seen:?}"
+        );
         assert!(
             seen.iter().any(|u| u.contains(
-                "/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"
+                "api.nexray.web.id/api/downloader/ytmp3?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Daaaaaaaaaaa"
             )),
-            "backend menerima URL kanonik: {seen:?}"
+            "nexray menerima URL kanonik: {seen:?}"
         );
     }
 
@@ -405,12 +388,13 @@ mod tests {
 
     #[test]
     fn a_backend_failure_falls_into_the_catch_branch() {
-        let gagal = serde_json::json!({"status": false});
+        // nexray satu-satunya backend `.play`; status false → catch JS.
         let http = Stub::per_url(vec![
-            ("youtubei/v1/search", Some(serde_json::from_str(HASIL).unwrap())),
-            ("ymcdn", Some(gagal.clone())),
-            ("izuka", Some(gagal.clone())),
-            ("nexray", Some(gagal)),
+            (
+                "youtubei/v1/search",
+                Some(serde_json::from_str(HASIL_VIDEO).unwrap()),
+            ),
+            ("nexray", Some(serde_json::json!({"status": false}))),
         ]);
         let r = run_http(http, "komang");
         assert_eq!(text_of(&r), GAGAL);
@@ -418,31 +402,21 @@ mod tests {
     }
 
     #[test]
-    fn yt_music_kosong_jatuh_ke_yt_search_berfilter_lagu() {
-        // YT Music kosong → fallback yt-search; video durasi lagu dipakai.
-        let http = Stub::per_url(vec![
-            ("music.youtube.com", Some(serde_json::json!({"contents": {}}))),
-            ("ymcdn", Some(serde_json::json!({"status": false}))),
-            (
-                "izuka",
-                Some(serde_json::json!({
-                    "status": true,
-                    "result": {"title": "Lagu Uji", "format": "mp3", "download_url": "https://cdn.example/lagu.mp3"}
-                })),
-            ),
-            ("www.youtube.com", Some(serde_json::from_str(HASIL_VIDEO).unwrap())),
-        ]);
-        let r = run_http(http.clone(), "komang");
-        let Reply::Sequence(list) = r.without_mutations() else {
-            panic!("fallback harus kirim sequence, dapat {r:?}");
+    fn query_url_youtube_tetap_lewat_search_dan_nexray() {
+        // `yts(url)` juga mengembalikan video (`play.js:31`); jalur sama.
+        let http = stub_sukses();
+        let r = run_http(http.clone(), "https://youtu.be/dQw4w9WgXcQ");
+        let Reply::Sequence(_) = r.without_mutations() else {
+            panic!("harus sequence, dapat {r:?}");
         };
-        let info = match &list[1] {
-            Reply::Text { text, .. } => text,
-            lain => panic!("harus teks NOW PLAYING, dapat {lain:?}"),
-        };
-        assert!(info.contains("Lagu Uji"), "{info}");
-        assert!(info.contains("1.2M"), "{info}");
-        assert!(http.seen.lock().unwrap().iter().any(|u| u.contains("www.youtube.com/youtubei/v1/search")));
+        assert!(
+            http.seen
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|u| u.contains("api.nexray.web.id")),
+            "URL tetap diunduh lewat nexray"
+        );
     }
 
     #[test]

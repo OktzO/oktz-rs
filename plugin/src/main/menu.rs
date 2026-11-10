@@ -37,7 +37,7 @@ use std::collections::BTreeMap;
 
 use oktz_plugin_api::registry::{
     CardContext, CardHeader, CardList, CardLocation, CardQuote, CardRow, CardSection,
-    InteractiveButton, MediaSource,
+    InteractiveButton,
 };
 use oktz_plugin_api::{Ctx, Reply, all_plugins, plugin};
 use serde_json::json;
@@ -141,19 +141,6 @@ fn mono_upper_bold(text: &str) -> String {
             }
         })
         .collect()
-}
-
-/// `getAssetBuffer("foto2")` + `sharp(...).resize(512, 512).webp()`
-/// (`menu.js:1144-1146`) — stiker palsu pada kutipan kartu varian 7.
-fn stiker_fake(ctx: &Ctx) -> Option<MediaSource> {
-    let aset = ctx.config().assets.get("foto2")?;
-    let byte = ctx.berkas().baca(aset).ok()?;
-    let webp = oktz_plugin_api::gambar::sharp(&byte)
-        .ok()?
-        .ubah_ukuran(512, 512)
-        .ke_webp(80)
-        .ok()?;
-    Some(MediaSource::bytes(webp).with_mimetype("image/webp"))
 }
 
 /// `getTimeGreeting()` (`formatter.js:508-515`), jam Asia/Jakarta.
@@ -595,9 +582,10 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
             .description("Tap dan klik kirim untuk melanjutkan"),
         );
 
+    // Tanpa header media: kartu yang mengaku header gambar tanpa upload
+    // membuat WA menampilkan placeholder (ikon jam) di header.
     Reply::interactive("")
         .with_footer(footer)
-        .with_header(CardHeader::new().image(aset_foto(ctx)))
         .with_button_card(InteractiveButton::select(
             &CardList::new("🍃 Menu Utama", [baris]).icon("DEFAULT"),
         ))
@@ -656,7 +644,6 @@ fn varian_2(ctx: &Ctx) -> Reply {
     let owner = bot.owner.number.first().cloned().unwrap_or_default();
     Reply::interactive(body)
         .with_footer("Pilih tombol dibawah untuk info lebih lanjut")
-        .with_header(CardHeader::new().image(aset_foto(ctx)))
         .with_button_card(InteractiveButton::url_merchant(
             "🍫 Owner Kami",
             format!("https://wa.me/{owner}"),
@@ -723,7 +710,7 @@ fn varian_3(ctx: &Ctx) -> Reply {
     let cuaca = cuaca(ctx, "Merangin");
     Reply::interactive(body)
         .with_footer("🍔 Silahkan pilih dari salah satu tombol di bawah")
-        .with_header(CardHeader::new().subtitle(bot.bot.name.clone()).image(aset_foto(ctx)))
+        .with_header(CardHeader::new().subtitle(bot.bot.name.clone()))
         .with_button_card(InteractiveButton::select(
             &CardList::new("🍃 List Menu", [baris]).icon("DEFAULT"),
         ))
@@ -789,7 +776,6 @@ Enjoy your use brother.",
 
     Reply::interactive(body)
         .with_footer("Please select the button in below")
-        .with_header(CardHeader::new().video(aset_mp4(ctx)))
         .with_message_params(params_bottom_sheet())
         .with_buttons(tombol)
         .with_context(
@@ -836,7 +822,6 @@ _i am an automated system (WhatsApp bot) that can help to do something search an
     let cuaca = cuaca(ctx, "Jakarta");
     Reply::interactive(body)
         .with_footer("Please select the button in below")
-        .with_header(CardHeader::new().video(aset_mp4(ctx)))
         .with_message_params(params_offer(sapa()))
         .with_button_card(InteractiveButton::empty(""))
         .with_button_card(InteractiveButton::quick_reply(
@@ -934,11 +919,10 @@ fn varian_7(ctx: &Ctx) -> Reply {
     body.push_str("╰╯");
 
     let owner = bot.owner.number.first().cloned().unwrap_or_default();
-    let kartu = Reply::interactive(body)
+    Reply::interactive(body)
         .with_footer(format!(
             "Use: {pref}menucat <category>\n\nIf you have any questions, please contact the owner."
         ))
-        .with_header(CardHeader::new().image(aset_foto(ctx)))
         .with_button_card(InteractiveButton::url_merchant(
             "🥐 Contact Owner",
             format!("http://wa.me/{owner}"),
@@ -947,17 +931,8 @@ fn varian_7(ctx: &Ctx) -> Reply {
         .with_context(
             CardContext::new()
                 .mention(ctx.sender.clone())
-                .forwarded(99)
-                .quote(CardQuote::Sticker {
-                    source: stiker_fake(ctx).unwrap_or_else(|| aset_foto2(ctx)),
-                }),
-        );
-    // `menu.js:1215-1229` — video kedua yang menempel pada kartu lewat
-    // `messageAssociation` (`associationType: 12`).
-    Reply::sequence(vec![
-        kartu,
-        Reply::video(aset_mp4(ctx), ""),
-    ])
+                .forwarded(99),
+        )
 }
 
 /// `menu.js:1233-1375` — pratinjau tautan (bukan kartu).
@@ -1013,37 +988,7 @@ Hello, my friend *\"{}\"*!\nHow are you today? You're feeling well, right?\n\nYo
     Reply::text(format!("{} {body}", bot.info.website))
 }
 
-/// Aset `foto` — `getAssetBuffer("foto")`.
-fn aset_foto(ctx: &Ctx) -> MediaSource {
-    MediaSource::path(
-        ctx.config()
-            .assets
-            .get("foto")
-            .unwrap_or("./assets/image/foto.jpeg"),
-    )
-}
-
-/// Aset `foto2` — `getAssetBuffer("foto2")`.
-fn aset_foto2(ctx: &Ctx) -> MediaSource {
-    MediaSource::path(
-        ctx.config()
-            .assets
-            .get("foto2")
-            .unwrap_or("./assets/image/foto2.jpeg"),
-    )
-}
-
-/// Aset `mp4` — `config.assets["mp4"]`.
-fn aset_mp4(ctx: &Ctx) -> MediaSource {
-    MediaSource::path(
-        ctx.config()
-            .assets
-            .get("mp4")
-            .unwrap_or("./assets/video/mp4.mp4"),
-    )
-}
-
-/// `db.setting("menuVariant") || config.ui?.menuVariant || 2` (`menu.js:337-338`).
+/// `menu.js:337-338` — `db.setting("menuVariant") || config.ui?.menuVariant || 2`.
 fn varian_aktif(ctx: &Ctx) -> i64 {
     ctx.setting_i64(SETTING_VARIANT)
         .filter(|v| *v > 0)
@@ -1264,7 +1209,9 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
     let header = CardHeader::new()
         .title(nama_bot.clone())
         .subtitle(bot.info.website.clone());
-    let mut reply = Reply::interactive(format!("{nama_bot} in here"))
+    // Tanpa header media: `foto` yang hilang/di luar cwd bikin kartu gagal
+    // terkirim (dan placeholder ikon jam kalau header diklaim tanpa upload).
+    let reply = Reply::interactive(format!("{nama_bot} in here"))
         .with_footer(footer)
         .with_button_card(InteractiveButton::select(&list))
         .with_button_card(InteractiveButton::quick_reply(
@@ -1276,14 +1223,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
                 .mention(ctx.sender.clone())
                 .quote_trigger(),
         );
-    if let Some(aset) = ctx.config().assets.get("foto")
-        && ctx.berkas().ada(aset)
-    {
-        reply = reply.with_header_card(header.image(MediaSource::path(aset)));
-    } else {
-        reply = reply.with_header(header);
-    }
-    reply
+    reply.with_header(header)
 }
 
 /// Server uptime dari `/proc/uptime` (Linux); jatuh ke uptime bot.
