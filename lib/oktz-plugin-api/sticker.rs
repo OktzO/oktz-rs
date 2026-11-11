@@ -366,17 +366,16 @@ pub fn tempel_metadata_stiker(
 
     let mut body: Vec<u8> = Vec::new();
     if width > 0 && height > 0 {
-        // Flag VP8X (RFC 9649 §2.2): 0x20 ICCP, 0x10 alpha, 0x08 EXIF,
-        // 0x04 XMP, 0x02 animasi. Chunk XMP dibuang di bawah, jadi bit XMP
-        // dibersihkan; sisa flag asli dipertahankan supaya file animasi
-        // (ANIM/ANMF dari ffmpeg) tetap dikenali WA.
+        // `exif.js:229-233` — bit flag JS muxer: EXIF 0x04, alpha 0x02,
+        // animasi 0x10 (bukan urutan RFC; WA mengabaikan bit ini dan membaca
+        // chunk per posisi, jadi paritas byte dipakai, bukan "koreksi" RFC).
+        // VP8X yang sudah ada (ffmpeg) dibiarkan apa adanya.
         let flags = chunks
             .iter()
             .find(|(id, _)| id == b"VP8X")
             .and_then(|(_, p)| p.first().copied())
-            .map(|f| (f & !0x04) | 0x08)
             .unwrap_or(
-                0x08 | (if has_alpha { 0x10 } else { 0 }) | (if has_anim { 0x02 } else { 0 }),
+                0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 }),
             );
         let mut vp8x = vec![flags, 0, 0, 0];
         let cw = (width.max(1) - 1).min(0x00FF_FFFF);
@@ -573,16 +572,16 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        // 0x08 = EXIF; alpha/animasi tidak boleh dikarang untuk VP8L opaque.
-        assert_eq!(vp8x[0], 0x08);
+        // `exif.js:233` — bit EXIF di muxer JS = 0x04 (bukan bit RFC 0x08);
+        // alpha/animasi tidak boleh dikarang untuk VP8L opaque.
+        assert_eq!(vp8x[0], 0x04);
     }
 
     #[test]
-    fn alpha_sticker_sets_alpha_and_exif_flags_not_animation() {
+    fn alpha_sticker_without_vp8x_sets_js_flag_bits() {
         let mut input = vp8l_riff();
         let mut body = Vec::new();
         let alpha = [0u8; 4];
-        put_chunk(&mut body, b"VP8X", &[0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         put_chunk(&mut body, b"ALPH", &alpha);
         body.extend_from_slice(&input[12..]);
         input.truncate(12);
@@ -596,7 +595,7 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(vp8x[0], 0x18, "alpha + EXIF, tanpa animasi/XMP");
+        assert_eq!(vp8x[0], 0x06, "EXIF 0x04 | alpha 0x02 — bit JS, tanpa animasi");
     }
 
     #[test]
@@ -618,6 +617,6 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(vp8x[0], 0x1A, "animasi + alpha + EXIF, XMP dibuang");
+        assert_eq!(vp8x[0], 0x12, "VP8X ffmpeg dibiarkan utuh — `exif.js:224`");
     }
 }

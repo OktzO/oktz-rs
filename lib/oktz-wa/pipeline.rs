@@ -1981,14 +1981,13 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
                     .sticker
                     .as_ref()
                     .and_then(|o| o.animated.then_some(true)),
-                // `premium` dan `emojis` sengaja TIDAK ditulis ke proto —
-                // onigis/Baileys tidak pernah mengirim keduanya di
-                // stickerMessage. `premium` membuat WA menampilkan sticker
-                // sebagai sticker WhatsApp Premium (kosong/blur + prompt
-                // langganan WA Plus); `emojis` tidak ada padanannya di jalur
-                // JS dan WA menolak merender sticker yang memakainya.
-                // Paritas field wire (isAnimated/premium/forwardingScore)
-                // dikunci test di `plugin/src/sticker/sticker.rs`.
+                // `premium` dan `emojis` sengaja TIDAK ditulis ke proto --
+                // `ContextInfo` tidak punya field `premium` (whatsapp.proto
+                // waproto 0.7.0 & WAProto onigis), jadi `premium:1` JS
+                // dibuang saat encode dan wire keduanya sama persis.
+                // `StickerMessage.emojis` juga tidak diisi JS (pack info
+                // lewat EXIF). Paritas field wire dikunci test di
+                // `plugin/src/sticker/sticker.rs`.
                 context_info: ci.map_or_else(MessageField::none, |c| MessageField::some(*c)),
                 ..Default::default()
             }),
