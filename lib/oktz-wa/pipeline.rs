@@ -66,6 +66,7 @@ use whatsapp_rust::upload::{UploadOptions, UploadResponse};
 use whatsapp_rust::waproto::buffa::MessageField;
 use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_response_message::InteractiveResponseMessage as IrOneof;
 use whatsapp_rust::wacore::download::MediaType;
+use whatsapp_rust::waproto::whatsapp::message::extended_text_message::PreviewType;
 use whatsapp_rust::wacore::proto_helpers::MessageExt;
 use whatsapp_rust::wacore_binary::Node;
 
@@ -1311,14 +1312,30 @@ impl MessageSender for ClientSender {
                 .parse()
                 .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
             let message = if let Some(preview) = media.preview {
-                let data = preview.bytes.clone();
+                let data = match preview.src.as_ref() {
+                    Some(src) => load_media(src).await.map_err(|e| e.to_string())?,
+                    None => preview.bytes.clone(),
+                };
                 // `MediaType::LinkThumbnail` = `thumbnail-link`
                 // (`wacore-0.7.0/src/download.rs:83,99`).
+                //
+                // `socket.js:1240-1242` — upload gagal BUKAN error: JS
+                // fallback `jpegThumbnail = imgBuf` (thumbnail mentah) lalu
+                // tetap mengirim kartunya.
+                let thumb = buat_thumbnail(&data, MediaKind::Image);
                 let upload = client
-                    .upload(data, MediaType::LinkThumbnail, UploadOptions::default())
-                    .await
-                    .map_err(|e| format!("upload thumbnail-link gagal: {e}"))?;
-                patch_preview(preview, &upload)
+                    .upload(data.clone(), MediaType::LinkThumbnail, UploadOptions::default())
+                    .await;
+                match upload {
+                    Ok(up) => patch_preview(preview, &up, thumb),
+                    Err(_) => {
+                        let mut message = preview.message;
+                        if let Some(ext) = message.extended_text_message.as_option_mut() {
+                            ext.jpeg_thumbnail = Some(data);
+                        }
+                        message
+                    }
+                }
             } else {
                 let data = load_media(&media.source).await.map_err(|e| e.to_string())?;
                 let mut media = media;
@@ -1889,6 +1906,9 @@ pub struct PendingPreview {
     pub message: wa::Message,
     /// Byte yang di-upload sebagai `thumbnail-link`.
     pub bytes: Vec<u8>,
+    /// Sumber byte yang belum di-fetch (`MediaSource::url`) — pipeline
+    /// `load_media` dulu, lalu upload. `None` = byte-nya sudah di `bytes`.
+    pub src: Option<oktz_plugin_api::MediaSource>,
     /// `true` = varian 11: hasil upload mengisi `faviconMMSMetadata`,
     /// bukan field thumbnail `extendedTextMessage` (`serialize.js:1294-1316`).
     pub favicon: bool,
@@ -1987,7 +2007,7 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
 /// mengisi field thumbnail pesan (WA menampilkannya sebagai gambar preview
 /// link), varian 11 mengisi `faviconMMSMetadata` (ikon kecil di daftar chat).
 /// Menukar keduanya berarti preview link kehilangan gambarnya.
-fn patch_preview(preview: PendingPreview, up: &UploadResponse) -> wa::Message {
+fn patch_preview(preview: PendingPreview, up: &UploadResponse, thumb: Option<Vec<u8>>) -> wa::Message {
     let mut message = preview.message;
     let Some(ext) = message.extended_text_message.as_option_mut() else {
         return message;
@@ -2011,6 +2031,10 @@ fn patch_preview(preview: PendingPreview, up: &UploadResponse) -> wa::Message {
         ext.thumbnail_enc_sha256 = Some(up.file_enc_sha256.to_vec());
         ext.media_key = Some(up.media_key.to_vec());
         ext.media_key_timestamp = Some(up.media_key_timestamp);
+        // `socket.js:1231` — jpegThumbnail ikut dari upload thumbnail-link.
+        if let Some(t) = thumb {
+            ext.jpeg_thumbnail = Some(t);
+        }
     }
     message
 }
@@ -2428,6 +2452,72 @@ pub fn render_reply(
             text_message(text, &[], quote),
             Vec::new(),
         ))),
+        // `sock.sendPreview` (`socket.js:1206-1274`) — `extendedTextMessage`
+        // link-preview. `matchedText` membawa URL (`socket.js:1209`), kutipan
+        // pemicu diisi kalau ada `{ quoted: m }` (`socket.js:1251-1260`).
+        // Thumbnail lewat jalur `send_media` (upload `thumbnail-link` +
+        // `patch_preview`), `previewType` dipetakan ke enum proto.
+        Reply::Preview { text, url, title, description, preview_type, thumbnail } => {
+            let mut ext = wa::message::ExtendedTextMessage {
+                text: Some(text.clone()),
+                matched_text: Some(url.clone()),
+                preview_type: Some(match *preview_type {
+                    1 => PreviewType::VIDEO,
+                    4 => PreviewType::PLACEHOLDER,
+                    5 => PreviewType::IMAGE,
+                    6 => PreviewType::PAYMENT_LINKS,
+                    7 => PreviewType::PROFILE,
+                    _ => PreviewType::NONE,
+                }),
+                ..Default::default()
+            };
+            if !title.is_empty() {
+                ext.title = Some(title.clone());
+            }
+            if !description.is_empty() {
+                ext.description = Some(description.clone());
+            }
+            if quote.is_some() {
+                ext.context_info = MessageField::some(context_info(&[], quote));
+            }
+            let message = wa::Message {
+                extended_text_message: MessageField::some(ext),
+                ..Default::default()
+            };
+            match thumbnail {
+                None => Ok(Some(Rendered::wire(message, Vec::new()))),
+                Some(src) => Ok(Some(Rendered {
+                    message: wa::Message::default(),
+                    extra_nodes: Vec::new(),
+                    media: Some(PendingMedia {
+                        kind: MediaKind::Image,
+                        source: MediaSource::bytes(Vec::new()),
+                        caption: String::new(),
+                        mentions: Vec::new(),
+                        quote: quote.cloned(),
+                        gif_playback: false,
+                        ptt: false,
+                        file_name: None,
+                        jpeg_thumbnail: None,
+                        file_length: None,
+                        preview: Some(PendingPreview {
+                            message,
+                            bytes: Vec::new(),
+                            src: Some(src.clone()),
+                            favicon: false,
+                        }),
+                        sticker: None,
+                        sticker_pack: None,
+                        width: None,
+                        height: None,
+                    }),
+                    card: None,
+                    card_header_media: None,
+                    sticker_pack: None,
+                    card_quote: None,
+                })),
+            }
+        }
         // Kartu kontak JS (`owner.js:63-68`): satu vCard →
         // `contactMessage`, lebih dari satu → `contactsArrayMessage`.
         // Baileys mengirim keduanya lewat `sock.sendMessage` yang sama, WA
@@ -5926,6 +6016,70 @@ fn group_number_and_long_number_are_rejected() {
         };
         let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         assert_eq!(body_of(&r.message), Some("tanpa quote"));
+    }
+
+    #[test]
+    fn preview_builds_extended_text_with_matched_text_title_and_video_type() {
+        // `socket.js:1207-1213` — text/matchedText/previewType/title/description.
+        let r = render_reply(
+            &Reply::preview("INFO", "https://youtu.be/x", "Judul", "YouTube Video", None),
+            &ReplyTarget::default(),
+        )
+        .unwrap()
+        .unwrap();
+        let ext = r
+            .message
+            .extended_text_message
+            .as_option()
+            .expect("harus extendedTextMessage");
+        assert_eq!(ext.text.as_deref(), Some("INFO"));
+        assert_eq!(ext.matched_text.as_deref(), Some("https://youtu.be/x"));
+        assert_eq!(ext.title.as_deref(), Some("Judul"));
+        assert_eq!(ext.description.as_deref(), Some("YouTube Video"));
+        assert_eq!(ext.preview_type, Some(PreviewType::VIDEO), "previewType: 1");
+        assert!(r.media.is_none(), "tanpa thumbnail = wire langsung");
+    }
+
+    #[test]
+    fn preview_with_thumbnail_waits_for_thumbnail_link_upload() {
+        // `socket.js:1216-1242` — thumbnail lewat upload `thumbnail-link`.
+        let r = render_reply(
+            &Reply::preview("INFO", "https://youtu.be/x", "Judul", "", Some(MediaSource::url("https://i.ytimg.com/vi/x/hq.jpg"))),
+            &ReplyTarget::default(),
+        )
+        .unwrap()
+        .unwrap();
+        assert!(r.message.extended_text_message.as_option().is_none(), "byte dulu di-upload");
+        let media = r.media.expect("jalur send_media");
+        let preview = media.preview.expect("preview thumbnail-link");
+        assert!(!preview.favicon, "varian sendPreview, bukan favicon");
+        assert!(matches!(
+            preview.src.as_ref().expect("sumber thumbnail"),
+            MediaSource::Url { .. }
+        ));
+    }
+
+    #[test]
+    fn preview_quotes_the_trigger_like_options_quoted() {
+        // `socket.js:1251-1260` — contextInfo dari `{ quoted: m }`.
+        let quote = QuoteSource {
+            stanza_id: "STANZA2".into(),
+            participant: Some("6281@s.whatsapp.net".into()),
+            message: Box::new(wa::Message::text("asal")),
+        };
+        let r = render_reply(
+            &Reply::preview("INFO", "https://youtu.be/x", "J", "", None),
+            &ReplyTarget {
+                quote: Some(quote),
+                sender: String::new(),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .unwrap();
+        let c = ctx_of(&r.message).expect("context_info");
+        assert_eq!(c.stanza_id.as_deref(), Some("STANZA2"));
+        assert!(c.quoted_message.as_option().is_some());
     }
 
     // ---------------------------------------------------------------

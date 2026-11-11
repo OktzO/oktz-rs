@@ -116,17 +116,13 @@ fn kartu_pakai(ctx: &Ctx, cmd: &str) -> Reply {
 }
 
 fn gagal(ctx: &Ctx) -> Reply {
-    Reply::sequence(vec![
-        Reply::text(crate::common::error_template(ctx)),
-        Reply::Reaction {
-            emoji: "☢".into(),
-            reply: Box::new(Reply::None),
-        },
-    ])
+    // `bratvid.js:67-69` — ☢ dulu, lalu `te()` (react-reply order JS).
+    Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
 /// MP4 → WebP animasi ber-EXIF sebagai sticker. JS:
-/// `sock.sendVideoAsSticker(...)`, bukan video biasa.
+/// `sock.sendVideoAsSticker(...)`, bukan video biasa. Urutan
+/// `bratvid.js:50-66`: 🕐 → sticker → ✅.
 fn jadi_stiker_video(ctx: &Ctx, mp4: Vec<u8>) -> Reply {
     let cfg = ctx.config();
     let (packname, author) = (
@@ -138,21 +134,25 @@ fn jadi_stiker_video(ctx: &Ctx, mp4: Vec<u8>) -> Reply {
         Err(_) => return gagal(ctx),
     };
     Reply::sequence(vec![
+        Reply::reaction("🕐"),
         Reply::sticker_opsi(
             MediaSource::bytes(webp).with_mimetype("image/webp"),
             oktz_plugin_api::StickerOpsi::video().with_packname(packname).with_author(author),
         ),
-        Reply::Reaction {
-            emoji: "✅".into(),
-            reply: Box::new(Reply::None),
-        },
+        Reply::reaction("✅"),
     ])
 }
 
 fn run(ctx: Ctx, width: u32, height: u32, fps: u32) -> Reply {
     let text = ctx.text.trim().to_string();
     if text.is_empty() {
-        return kartu_pakai(&ctx, "bratvid");
+        // `bratlocal.js:398` — kartu pakai pakai command yang dipanggil
+        // (bisa alias `bratgojo` dll.).
+        return Reply::text(format!(
+            "⚠️ Harap masukkan teksnya!\nContoh: `{prefix}{command} Halo semuanya`",
+            prefix = ctx.prefix,
+            command = ctx.command
+        ));
     }
     let Ok(mp4) = encode_mp4(&render_raw(&text, width, height), width, height, fps) else {
         return gagal(&ctx);
@@ -164,7 +164,11 @@ fn run(ctx: Ctx, width: u32, height: u32, fps: u32) -> Reply {
 fn run_animasi(ctx: Ctx) -> Reply {
     let text = ctx.text.trim();
     if text.is_empty() {
-        return kartu_pakai(&ctx, "bratvid2");
+        // `bratvid2.js:570-571` — contoh `hello world`, bukan `Hai semua`.
+        return Reply::text(format!(
+            "🎬 *ʙʀᴀᴛ ᴠɪᴅᴇᴏ ᴠ2*\n\n> Masukkan teks\n\n`Contoh: {prefix}bratvid2 hello world`",
+            prefix = ctx.prefix
+        ));
     }
     let Ok(animasi) = oktz_plugin_api::BratAnimasi::baru(text) else {
         return gagal(&ctx);
@@ -186,8 +190,7 @@ fn run_progresif(ctx: Ctx) -> Reply {
     let text = ctx.text.trim().to_string();
     if text.is_empty() {
         return kartu_pakai(&ctx, "bratvid");
-    }
-    let Ok(progresif) = oktz_plugin_api::BratProgresif::baru(&text) else {
+    }    let Ok(progresif) = oktz_plugin_api::BratProgresif::baru(&text) else {
         return gagal(&ctx);
     };
     let total_kata = progresif.jumlah_kata();
@@ -269,5 +272,61 @@ mod tests {
     fn frame_renderers_are_nonempty() {
         assert!(!render_frame_bratvid2("halo", 0, 1).is_empty());
         assert!(!render_frame_bratlocal("halo", 0, 1).is_empty());
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `bratvid.js:42` — kartu pakai, literal JS.
+        assert_eq!(
+            kartu_pakai(&ctx(), "bratvid").text_body().unwrap(),
+            "🎬 *ʙʀᴀᴛ ᴀɴɪᴍᴀᴛᴇᴅ*\n\n> Masukkan teks\n\n`Contoh: .bratvid Hai semua`"
+        );
+        // `bratvid2.js:570-571` — contoh `hello world`.
+        let v2 = run_animasi(ctx());
+        assert_eq!(
+            v2.text_body().unwrap(),
+            "🎬 *ʙʀᴀᴛ ᴠɪᴅᴇᴏ ᴠ2*\n\n> Masukkan teks\n\n`Contoh: .bratvid2 hello world`"
+        );
+        // `bratlocal.js:398` — kartu beda + pakai command aktif (`ctx()`
+        // dipanggil `.bratvid`).
+        let local = run(ctx(), 512, 512, 15);
+        assert_eq!(
+            local.text_body().unwrap(),
+            "⚠️ Harap masukkan teksnya!\nContoh: `.bratvid Halo semuanya`"
+        );
+        // Alias tetap memakai command yang dipanggil (`m.command` JS).
+        let alias = Ctx {
+            prefix: ".".into(),
+            command: "bratgojo".into(),
+            text: String::new(),
+            ..Default::default()
+        };
+        assert!(run(alias, 512, 512, 15).text_body().unwrap().contains("bratgojo"));
+    }
+
+    #[test]
+    fn gagal_reaksi_dulu_lalu_te_dan_sukses_sticker_lalu_ceklis() {
+        // `bratvid.js:67-69` — ☢ dulu lalu `te()`.
+        let g = gagal(&ctx());
+        let Reply::Mutate { reply: mutasi, .. } = g else {
+            panic!("gagal harus Mutate, dapat {g:?}")
+        };
+        let Reply::Reaction { emoji, reply: te } = &*mutasi else {
+            panic!("harus reaksi, dapat {mutasi:?}")
+        };
+        assert_eq!(emoji, "☢");
+        assert_eq!(
+            te.without_mutations().text_body().unwrap(),
+            crate::common::error_template(&ctx())
+        );
+    }
+
+    fn ctx() -> Ctx {
+        Ctx {
+            prefix: ".".into(),
+            command: "bratvid".into(),
+            text: String::new(),
+            ..Default::default()
+        }
     }
 }

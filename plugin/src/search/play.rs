@@ -7,10 +7,6 @@
 //! ponytail: fallback = jalur ourin (`play.js` produksi): `yt-search` +
 //! nexray ([`crate::download::ytmp3::unduh_audio_nexray`]), dipakai hanya
 //! bila sistem baru gagal semua.
-//!
-//! Deviasi: `sock.sendPreview` (kartu pratinjau tautan) belum punya
-//! padanan di `Reply`, jadi kartu NOW PLAYING dikirim sebagai teks biasa
-//! sebelum audio (urutan `Reply::sequence`).
 
 #![allow(clippy::too_many_arguments)]
 
@@ -91,7 +87,13 @@ pub(crate) fn now_playing(
 /// Jalur utama: sistem baru `play.js` (`oktz_scraper::playytmp3`) —
 /// pencarian `results` + savetube → ytmp3ing. Gagal semua → fallback
 /// ourin: `yt-search` + nexray.
-fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()> {
+///
+/// Kartu balik `(info, url, title, thumbnail)` — `thumbnail` untuk
+/// `Reply::preview` (`play.js:57-66`, `image: video.thumbnail`).
+fn cari_dan_unduh(
+    ctx: &Ctx,
+    query: &str,
+) -> Result<((String, String, String, String), AudioDownload), ()> {
     if let Ok(hasil) = oktz_scraper::playytmp3::ytmp3(ctx.http.as_ref(), query, "128") {
         let video = &hasil.video;
         let info = now_playing(
@@ -104,6 +106,7 @@ fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()>
             "",
             &video.url,
         );
+        let kartu = (info, video.url.clone(), video.title.clone(), video.thumbnail.clone());
         let audio = AudioDownload {
             title: video.title.clone(),
             format: "mp3".to_string(),
@@ -115,7 +118,7 @@ fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()>
                 .to_string(),
         };
         if !audio.url.is_empty() {
-            return Ok((info, audio));
+            return Ok((kartu, audio));
         }
     }
     // --- Fallback ourin (`play.js` produksi): yt-search + nexray -------
@@ -135,7 +138,7 @@ fn cari_dan_unduh(ctx: &Ctx, query: &str) -> Result<(String, AudioDownload), ()>
         &video.description,
         &video.url,
     );
-    Ok((info, audio))
+    Ok(((info, video.url, video.title, video.thumbnail), audio))
 }
 
 #[plugin(
@@ -164,12 +167,20 @@ pub fn play(ctx: Ctx) -> Reply {
     }
 
     match cari_dan_unduh(&ctx, query) {
-        // `play.js:42-86` — kartu NOW PLAYING lalu audio, lalu ✅. Reaksi
-        // tidak boleh membungkus `Reply::Sequence`, jadi 🕐/✅ jadi elemen
-        // urutan (pola `sticker.rs`).
-        Ok((info, audio)) => Reply::sequence(vec![
+        // `play.js:42-86` — kartu NOW PLAYING (preview-link ber-thumbnail,
+        // `play.js:57-70`), lalu audio, lalu ✅. Reaksi tidak boleh membungkus
+        // `Reply::Sequence`, jadi 🕐/✅ jadi elemen urutan (pola `sticker.rs`).
+        Ok((kartu, audio)) => Reply::sequence(vec![
             Reply::reaction("🕐"),
-            Reply::text(info),
+            // `socket.js:1216` — `if (preview.image)`: thumbnail kosong/falsy
+            // = kartu tanpa gambar.
+            Reply::preview(
+                kartu.0,
+                kartu.1,
+                kartu.2,
+                "YouTube Video",
+                (!kartu.3.is_empty()).then(|| Ms::url(kartu.3)),
+            ),
             Reply::audio(Ms::url(audio.url).with_mimetype(mimetype_for(&audio.format))),
             Reply::reaction("✅"),
         ]),
@@ -296,6 +307,7 @@ mod tests {
           "viewCountText":{"simpleText":"1,234,567 views"},
           "publishedTimeText":{"simpleText":"2 years ago"},
           "lengthText":{"simpleText":"3:33"},
+          "thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/aaaaaaaaaaa/hq.jpg"}]},
           "detailedMetadataSnippets":[{"snippetText":{"runs":[{"text":"Deskripsi video."}]}}]
         }}
       ]}}
@@ -369,14 +381,23 @@ mod tests {
         };
         assert_eq!(list.len(), 4);
         assert!(matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🕐"));
-        let info = match &list[1] {
-            Reply::Text { text, .. } => text,
-            lain => panic!("harus teks NOW PLAYING, dapat {lain:?}"),
+        // `play.js:57-70` — kartu preview-link: caption/info, URL video,
+        // judul, deskripsi "YouTube Video", thumbnail `video.thumbnail`.
+        let (info, url, judul) = match &list[1] {
+            Reply::Preview { text, url, title, description, preview_type, thumbnail } => {
+                assert_eq!(description, "YouTube Video");
+                assert_eq!(*preview_type, 1, "previewType: 1 (VIDEO)");
+                assert!(thumbnail.is_some(), "image: video.thumbnail");
+                (text.as_str(), url.clone(), title.clone())
+            }
+            lain => panic!("harus kartu preview, dapat {lain:?}"),
         };
         assert!(info.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Lagu Uji\n"), "{info}");
         assert!(info.contains("👤 Channel: *Channel Uji*\n"), "{info}");
         assert!(info.contains("⏱️ Durasi: *3:33*\n"), "{info}");
         assert!(info.ends_with("_⏳ mengirim audio, harap tunggu..._"), "{info}");
+        assert_eq!(url, "https://www.youtube.com/watch?v=aaaaaaaaaaa");
+        assert_eq!(judul, "Lagu Uji");
         match &list[2] {
             Reply::Audio { media, ptt } => {
                 assert!(!ptt, "JS kirim ptt: false");

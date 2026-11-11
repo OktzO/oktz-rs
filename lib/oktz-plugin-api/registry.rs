@@ -247,6 +247,24 @@ pub enum Reply {
         caption: String,
         mentions: Vec<String>,
     },
+    /// Kartu pratinjau tautan (WA `extendedTextMessage` + thumbnail) —
+    /// padanan `sock.sendPreview(jid, {...}, { quoted: m })`
+    /// (`socket.js:1206-1274`).
+    ///
+    /// `url` = `matchedText`, `preview_type` = `previewType` JS (0 default,
+    /// `.play` memakai 1 = `VIDEO`). `thumbnail: Some` = byte/URL gambar yang
+    /// di-upload sebagai `thumbnail-link`; `None` = kartu teks tanpa gambar
+    /// (`title`/`description` kosong tidak dikirim, `socket.js:1212-1213`).
+    /// Kutipan pemicu ikut kontrak `contextInfo` pipeline, seperti
+    /// `{ quoted: m }` JS (`socket.js:1251-1260`).
+    Preview {
+        text: String,
+        url: String,
+        title: String,
+        description: String,
+        preview_type: i32,
+        thumbnail: Option<MediaSource>,
+    },
     /// Kartu native-flow (WA `interactiveMessage`).
     ///
     /// Isinya [`crate::kartu::Kartu`]: body, footer, header (judul + media),
@@ -348,6 +366,26 @@ impl Reply {
     pub fn text_no_mention(text: impl Into<String>) -> Self {
         Self::TextNoMention {
             text: text.into(),
+        }
+    }
+
+    /// `previewType: 1` (WA `VIDEO`) — bentuk yang dipakai `.play`
+    /// (`play.js:57-70`); `thumbnail` bisa `Some(MediaSource::url(...))`
+    /// seperti `image: video.thumbnail` JS.
+    pub fn preview(
+        text: impl Into<String>,
+        url: impl Into<String>,
+        title: impl Into<String>,
+        description: impl Into<String>,
+        thumbnail: Option<MediaSource>,
+    ) -> Self {
+        Self::Preview {
+            text: text.into(),
+            url: url.into(),
+            title: title.into(),
+            description: description.into(),
+            preview_type: 1,
+            thumbnail,
         }
     }
 
@@ -847,6 +885,7 @@ impl Reply {
             | Self::TabelList { .. }
             | Self::TabelAi { .. }
             | Self::PreparedRich { .. }
+            | Self::Preview { .. }
             | Self::Reaction { .. }
             | Self::Mutate { .. } => false,
         }
@@ -883,7 +922,17 @@ impl Reply {
                 | Self::Video { .. }
                 | Self::Audio { .. }
                 | Self::Document { .. }
-        )
+        ) || self
+            .payload()
+            .has_media_preview()
+    }
+
+    /// Thumbnail kartu [`Reply::Preview`] menunggu upload `thumbnail-link`.
+    fn has_media_preview(&self) -> bool {
+        match self {
+            Self::Preview { thumbnail, .. } => thumbnail.is_some(),
+            _ => false,
+        }
     }
 
     /// Sumber media yang di-carry, kalau ada. `None` = tidak ada sumber yang
@@ -899,6 +948,8 @@ impl Reply {
             | Self::Video { media, .. }
             | Self::Audio { media, .. }
             | Self::Document { media, .. } => media.as_ref(),
+            // Thumbnail preview-link adalah satu-satunya media kartu.
+            Self::Preview { thumbnail, .. } => thumbnail.as_ref(),
             _ => None,
         }
     }
@@ -915,6 +966,8 @@ impl Reply {
             Self::Video { caption, .. } => Some(caption),
             Self::Document { caption, .. } => Some(caption),
             Self::Interactive { kartu } => Some(kartu.body.as_str()),
+            // Teks kartu preview-link (caption `.play`).
+            Self::Preview { text, .. } => Some(text),
             // Tabel AI tidak punya teks polos — isinya cuma baris tabel.
             Self::Tabel { .. } => None,
             // Rich replies juga tidak punya teks polos: judulnya ada di

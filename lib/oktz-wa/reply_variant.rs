@@ -404,6 +404,7 @@ fn link_preview(input: &VariantInput<'_>) -> PendingMedia {
                 ..Default::default()
             },
             bytes,
+            src: None,
             favicon: false,
         }),
         sticker: None,
@@ -750,6 +751,7 @@ fn favicon(input: &VariantInput<'_>) -> PendingMedia {
                 ..Default::default()
             },
             bytes,
+            src: None,
             favicon: true,
         }),
         sticker: None,

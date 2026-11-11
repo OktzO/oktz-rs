@@ -470,4 +470,34 @@ mod tests {
         };
         assert_eq!(metadata(&ctx, None, None), ("Foto-AI".to_string(), "Oktz".to_string()));
     }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `sticker.js:174-189` — kartu pakai, literal JS baris-per-baris.
+        assert_eq!(
+            pakai("."),
+            "🖼️ *sᴛɪᴄᴋᴇʀ ᴍᴀᴋᴇʀ*\n\n\
+Kirim/reply gambar atau video dengan caption:\n\
+`.s`\n\n\
+*ᴏᴘsɪ:*\n\
+> `--crop` - Crop jadi kotak\n\
+> `--resize WxH` - Resize ke ukuran\n\
+> `--circle` - Bentuk lingkaran\n\
+> `--rounded` - Sudut melengkung\n\n\
+*ᴄᴏɴᴛᴏʜ:*\n\
+> `.s --crop`\n\
+> `.s --resize 256x256`\n\
+> `.s --circle`\n\
+> `.s --rounded`\n\n\
+*ᴀʟʙᴜᴍ:*\n\
+> Reply pesan foto/video yang banyak → semua jadi sticker dalam 1 pesan"
+        );
+        // `sticker.js:228` — gagal download, literal JS.
+        assert_eq!(gagal_kirim(), "❌ Gagal mendownload media!");
+        // `sticker.js:247` — video kepanjangan, `toFixed(1)` JS.
+        assert_eq!(
+            terlalu_panjang(10.5),
+            "❌ Video terlalu panjang!\n\n> Durasi: 10.5 detik\n> Maksimal: 10 detik"
+        );
+    }
 }

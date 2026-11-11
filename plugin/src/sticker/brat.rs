@@ -120,58 +120,59 @@ pub fn brat(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix));
     }
 
+    // `brat.js:139-151` — packname/author dari config; kosong = DEFAULT
+    // `Sticker`/`Bot` (`exif.js:33-38` via `??`).
     let (parsed, blur) = parse_brat_args(&ctx.text);
-    let http_call = HttpCall::get(api_url(&parsed)).with_timeout(15000);
-    let res = match ctx.http.call(&http_call) {
-        Ok(res) => res,
-        Err(_) => {
-            let png = oktz_plugin_api::render_brat(&parsed, oktz_plugin_api::BratTema::Putih, blur).unwrap_or_default();
-            let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).unwrap_or(png.clone());
-            let cfg = ctx.config();
-            let (pn, au) = (
-                if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
-                if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
-            );
-            let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
-            return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
-        }
-    };
-    if res.status < 200 || res.status >= 300 {
-        let png = oktz_plugin_api::render_brat(&parsed, oktz_plugin_api::BratTema::Putih, blur).unwrap_or_default();
-        let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).unwrap_or(png.clone());
-        let cfg = ctx.config();
-        let (pn, au) = (
-            if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
-            if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
-        );
-        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
-        return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
-    }
-    let buf = res.body.bytes().to_vec();
-    if oktz_plugin_api::is_blank(&buf) {
-        let png = oktz_plugin_api::render_brat(&parsed, oktz_plugin_api::BratTema::Putih, blur).unwrap_or_default();
-        let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).unwrap_or(png.clone());
-        let cfg = ctx.config();
-        let (pn, au) = (
-            if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
-            if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
-        );
-        let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
-        return Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅");
-    }
-
     let cfg = ctx.config();
     let (pn, au) = (
         if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
         if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
     );
-    let webp = oktz_plugin_api::gambar_ke_stiker_webp(&buf, &[]).unwrap_or(buf.clone());
-    let buf = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
-    Reply::sticker_opsi(
-        MediaSource::bytes(buf).with_mimetype("image/webp"),
-        oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au),
-    )
-    .with_reaction("✅")
+
+    /// `brat.js:145` — fallback render lokal putih.
+    fn render_fallback(parsed: &str, blur: u8, pn: &str, au: &str) -> Result<Vec<u8>, ()> {
+        let png = oktz_plugin_api::render_brat(parsed, oktz_plugin_api::BratTema::Putih, blur)
+            .map_err(|_| ())?;
+        let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).map_err(|_| ())?;
+        // `addExifToWebp` gagal di JS hanya di-log (`socket.js:549-551`) —
+        // webp polos tetap terkirim.
+        match oktz_plugin_api::tempel_metadata_stiker(&webp, pn, au, &oktz_plugin_api::EXIF_EMOJIS) {
+            Ok(b) => Ok(b),
+            Err(_) => Ok(webp),
+        }
+    }
+
+    // `brat.js:141-146` — API (timeout 15s) gagal ATAU blank → fallback
+    // render. Konversi webp dari byte API gagal = `sendImageAsSticker`
+    // melempar → catch LUAR (`brat.js:154-157`), bukan fallback.
+    let hasil = match ctx.http.call(&HttpCall::get(api_url(&parsed)).with_timeout(15000)) {
+        Ok(res) if (200..300).contains(&res.status) && !oktz_plugin_api::is_blank(res.body.bytes()) => {
+            match oktz_plugin_api::gambar_ke_stiker_webp(res.body.bytes(), &[]) {
+                Ok(webp) => match oktz_plugin_api::tempel_metadata_stiker(
+                    &webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS,
+                ) {
+                    Ok(b) => Ok(b),
+                    // `addExifToWebp` gagal hanya di-log (`socket.js:549-551`).
+                    Err(_) => Ok(webp),
+                },
+                Err(_) => Err(()),
+            }
+        }
+        _ => render_fallback(&parsed, blur, &pn, &au),
+    };
+
+    // `brat.js:136-157` — 🕐 → sticker → ✅; gagal total → ☢ lalu te.
+    match hasil {
+        Ok(bytes) => Reply::sequence(vec![
+            Reply::reaction("🕐"),
+            Reply::sticker_opsi(
+                MediaSource::bytes(bytes).with_mimetype("image/webp"),
+                oktz_plugin_api::StickerOpsi::gambar().with_packname(&pn).with_author(&au),
+            ),
+            Reply::reaction("✅"),
+        ]),
+        Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
+    }
 }
 
 #[cfg(test)]
@@ -185,5 +186,32 @@ mod tests {
             panic!("harus interactive")
         };
         assert!(kartu.body.contains("silahkan pilih variant brat"));
+    }
+
+    #[test]
+    fn output_sama_dengan_js() {
+        // `brat.js:130-134` — kartu pakai, literal JS.
+        assert_eq!(
+            pakai("."),
+            "🖼️ *ʙʀᴀᴛ ɪᴍᴀɢᴇ*\n\n> Masukkan teks\n\n`Contoh: .bratimg Hai semua`"
+        );
+        // `brat.js:67` — caption menu, literal JS.
+        assert_eq!(
+            CAPTION_MENU,
+            "🌿 *kamu mau buat brat yak, silahkan pilih variant brat tombol dibawah*"
+        );
+        // `brat.js:57-63` — baris varian + ID `{prefix}{command} <text>`.
+        let baris = baris_varian(".", "hai");
+        assert_eq!(baris.len(), 6);
+        assert_eq!(
+            baris[0],
+            (
+                "Brat Default".to_string(),
+                "Sticker brat versi biasa • .bratimg <text>".to_string(),
+                ".bratimg hai".to_string()
+            )
+        );
+        // `brat.js:110-113` — ID baris terakhir tanpa spasi saat teks kosong.
+        assert_eq!(baris_varian(".", "").last().unwrap().2, ".bratvid2");
     }
 }
