@@ -98,7 +98,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           .setpp/.delpp/.block/.unblock fungsional penuh.
 // v0.2.20 — .bratvid/.bratvid2 animasi + teks rata kiri; perbaiki flag VP8X sticker/brat (alpha/animasi/EXIF) yang membuat
 //           WebP ditolak WA saat diunduh.
-export const VERSI_BIN = "v0.2.37";
+// v0.2.38 — paritas sticker (.bratimg/.bratvid/.s) + kartu thumbnail .play;
+//           ffmpeg+ffprobe statis otomatis dari aset rilis ke bin/ (tanpa npm).
+export const VERSI_BIN = "v0.2.38";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
