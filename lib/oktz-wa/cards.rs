@@ -31,7 +31,7 @@ use whatsapp_rust::{NodeBuilder, wacore_binary::Node};
 /// gambar (judul tetap tampil). JS: `interactiveMessage.header.imageMessage`.
 fn header_proto(
     kartu: &Kartu,
-    header_image: Option<wa::message::ImageMessage>,
+    header_media: Option<wa::Message>,
 ) -> wa::message::interactive_message::Header {
     use wa::message::interactive_message::header::Media;
 
@@ -39,7 +39,19 @@ fn header_proto(
         Some(h) => (h.title.clone(), h.subtitle.clone()),
         None => (None, None),
     };
-    let media = header_image.map(|img| Media::ImageMessage(Box::new(img)));
+    // JS `allmenu.js:329` — video masuk oneof `videoMessage`, gambar
+    // `imageMessage` (`menu.js:600`).
+    let media = header_media.and_then(|m| {
+        if kartu.header.as_ref().is_some_and(|h| h.video) {
+            m.video_message
+                .into_option()
+                .map(|v| Media::VideoMessage(Box::new(v)))
+        } else {
+            m.image_message
+                .into_option()
+                .map(|i| Media::ImageMessage(Box::new(i)))
+        }
+    });
     wa::message::interactive_message::Header {
         title,
         subtitle,
@@ -57,7 +69,7 @@ fn header_proto(
 /// gambar header. `context_info` diisi pipeline (mention + quote).
 pub fn kartu_to_message(
     kartu: &Kartu,
-    header_image: Option<wa::message::ImageMessage>,
+    header_media: Option<wa::Message>,
     context_info: Option<wa::ContextInfo>,
 ) -> wa::Message {
     use wa::message::interactive_message::{
@@ -74,7 +86,7 @@ pub fn kartu_to_message(
         .collect();
 
     let mut interactive = wa::message::InteractiveMessage {
-        header: MessageField::some(header_proto(kartu, header_image)),
+        header: MessageField::some(header_proto(kartu, header_media)),
         body: MessageField::some(Body {
             text: Some(kartu.body.clone()),
         }),
@@ -376,10 +388,45 @@ mod tests {
                     mimetype: None,
                 }),
         );
-        let msg = kartu_to_message(&kartu, Some(img), None);
+        let msg = kartu_to_message(
+            &kartu,
+            Some(wa::Message {
+                image_message: MessageField::some(img),
+                ..Default::default()
+            }),
+            None,
+        );
         let header = interactive(&msg).header.as_option().unwrap();
         assert_eq!(header.has_media_attachment, Some(true));
         assert!(header.media.is_some());
+    }
+
+    #[test]
+    fn header_video_masuk_oneof_video_message() {
+        // JS `allmenu.js:329` — header video pakai oneof `videoMessage`.
+        use wa::message::interactive_message::header::Media;
+        let vid = wa::message::VideoMessage {
+            url: Some("https://cdn.example/v.mp4".into()),
+            ..Default::default()
+        };
+        let kartu = Kartu::baru("body").header(
+            oktz_plugin_api::kartu::KartuHeader::baru()
+                .media(oktz_plugin_api::MediaSource::bytes(vec![1]))
+                .video(),
+        );
+        let msg = kartu_to_message(
+            &kartu,
+            Some(wa::Message {
+                video_message: MessageField::some(vid),
+                ..Default::default()
+            }),
+            None,
+        );
+        let header = interactive(&msg).header.as_option().unwrap();
+        assert!(
+            matches!(header.media, Some(Media::VideoMessage(_))),
+            "header video wajib masuk oneof videoMessage"
+        );
     }
 
     #[test]

@@ -42,6 +42,7 @@ fn menu_brat(prefix: &str, text: &str, subtitle: &str) -> Reply {
             title: Some(String::new()),
             subtitle: Some(subtitle.to_string()),
             media: Some(MediaSource::path("assets/image/foto.jpeg")),
+            video: false,
         })
         .with_footer("Pilih variant brat favorit kamu")
         .with_button(

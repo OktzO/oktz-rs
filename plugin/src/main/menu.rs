@@ -1020,7 +1020,15 @@ Hello, my friend *\"{}\"*!\nHow are you today? You're feeling well, right?\n\nYo
 fn aset_ada(ctx: &Ctx, nama: &str, bawaan: &str) -> Option<MediaSource> {
     // `config.assets` sudah punya default path untuk tiap kunci.
     let jalur = ctx.config().assets.get(nama).unwrap_or(bawaan);
-    ctx.berkas().ada(jalur).then(|| MediaSource::path(jalur))
+    match ctx.berkas().ada(jalur) {
+        true => Some(MediaSource::path(jalur)),
+        // Diagnos: JS juga diam (`catch(() => null)`, menu.js:597), tapi
+        // tanpa log hilangnya header tak bisa dibedakan dari bug kirim.
+        false => {
+            tracing::warn!(aset = %jalur, "aset header kartu tidak ada, kartu dikirim tanpa gambar");
+            None
+        }
+    }
 }
 
 /// Header gambar `foto` (atau header kosong bila aset hilang).

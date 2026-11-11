@@ -325,10 +325,17 @@ pub struct KartuHeader {
     pub subtitle: Option<String>,
     /// Media header. `None` = header tanpa gambar (WA tetap render judulnya).
     pub media: Option<MediaSource>,
+    /// `true` = media header video (`gifPlayback: true`, `allmenu.js:319`).
+    /// Harus terpisah dari `media` karena upload/kirim video beda jalur.
+    pub video: bool,
 }
 
 impl From<crate::registry::CardHeader> for KartuHeader {
     fn from(h: crate::registry::CardHeader) -> Self {
+        let video = matches!(
+            h.media,
+            Some(crate::registry::CardMedia::Video { .. })
+        );
         let media = match h.media {
             Some(crate::registry::CardMedia::Image { source }) => Some(source),
             Some(crate::registry::CardMedia::Video { source }) => Some(source),
@@ -337,6 +344,7 @@ impl From<crate::registry::CardHeader> for KartuHeader {
         Self {
             title: h.title,
             subtitle: h.subtitle,
+            video,
             media,
         }
     }
@@ -359,6 +367,11 @@ impl KartuHeader {
 
     pub fn media(mut self, media: MediaSource) -> Self {
         self.media = Some(media);
+        self
+    }
+
+    pub fn video(mut self) -> Self {
+        self.video = true;
         self
     }
 }

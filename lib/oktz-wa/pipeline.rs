@@ -1442,30 +1442,41 @@ impl MessageSender for ClientSender {
             let jid: Jid = to
                 .parse()
                 .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
-            let header_image = match header_media {
+            let header_media_msg = match header_media {
                 Some(media) => {
                     let data = load_media(&media.source).await.map_err(|e| e.to_string())?;
                     let data_for_thumb = data.clone();
-                    let upload = client
-                        .upload(data, MediaType::Image, UploadOptions::default())
-                        .await
-                        .map_err(|e| format!("upload header kartu gagal: {e}"))?;
-                    let thumb = buat_thumbnail(&data_for_thumb, MediaKind::Image);
-                    let msg = image_message(
-                        upload,
-                        ImageOptions {
-                            caption: None,
-                            mimetype: media.source.mimetype().map(str::to_string),
-                            jpeg_thumbnail: thumb,
-                            context_info: None,
-                        },
-                    );
-                    msg.image_message.as_option().cloned()
+                    // JS `allmenu.js:319-329` — header video di-upload sebagai
+                    // video (`gifPlayback: true`) lalu masuk oneof
+                    // `videoMessage`, bukan `imageMessage`.
+                    let msg = if media.kind == MediaKind::Video {
+                        let up = client
+                            .upload(data, MediaType::Video, UploadOptions::default())
+                            .await
+                            .map_err(|e| format!("upload header kartu gagal: {e}"))?;
+                        video_message(up, video_options(&media, None, None))
+                    } else {
+                        let up = client
+                            .upload(data, MediaType::Image, UploadOptions::default())
+                            .await
+                            .map_err(|e| format!("upload header kartu gagal: {e}"))?;
+                        let thumb = buat_thumbnail(&data_for_thumb, MediaKind::Image);
+                        image_message(
+                            up,
+                            ImageOptions {
+                                caption: None,
+                                mimetype: media.source.mimetype().map(str::to_string),
+                                jpeg_thumbnail: thumb,
+                                context_info: None,
+                            },
+                        )
+                    };
+                    Some(msg)
                 }
                 None => None,
             };
             let ci = kartu_context_info(&kartu, quote.as_ref());
-            let message = crate::cards::kartu_to_message(&kartu, header_image, ci);
+            let message = crate::cards::kartu_to_message(&kartu, header_media_msg, ci);
             let opts = if extra_nodes.is_empty() {
                 SendOptions::default()
             } else {
@@ -2500,21 +2511,27 @@ pub fn render_reply(
             )))
         }
         Reply::Interactive { kartu } => {
-            // Header kartu boleh punya gambar, dan gambarnya harus di-upload
-            // lebih dulu (JS `prepareWAMessageMedia`). Jadi kartu tidak
-            // dirakit di sini: `send_card` yang meng-upload lalu menyusun
-            // proto-nya, persis urutan JS.
+            // Header kartu boleh punya gambar/video, dan medianya harus
+            // di-upload lebih dulu (JS `prepareWAMessageMedia`). Jadi kartu
+            // tidak dirakit di sini: `send_card` yang meng-upload lalu
+            // menyusun proto-nya, persis urutan JS.
+            let header_video = kartu.header.as_ref().is_some_and(|h| h.video);
             let header_media = kartu
                 .header
                 .as_ref()
                 .and_then(|h| h.media.clone())
                 .map(|source| PendingMedia {
-                    kind: MediaKind::Image,
+                    kind: if header_video {
+                        MediaKind::Video
+                    } else {
+                        MediaKind::Image
+                    },
                     source,
                     caption: String::new(),
                     mentions: Vec::new(),
                     quote: None,
-                    gif_playback: false,
+                    // JS `allmenu.js:319` — header video pakai `gifPlayback`.
+                    gif_playback: header_video,
                     ptt: false,
                     file_name: None,
                     jpeg_thumbnail: None,
@@ -6041,6 +6058,24 @@ fn group_number_and_long_number_are_rejected() {
             .expect("media header harus nunggu upload");
         assert_eq!(pending.kind, MediaKind::Image);
         assert!(r.needs_media(), "kartu dengan header media butuh upload dulu");
+    }
+
+    #[test]
+    fn header_kartu_video_menunggu_upload_sebagai_video() {
+        // JS `allmenu.js:319` — header video di-upload sebagai video
+        // `gifPlayback: true`, bukan sebagai gambar.
+        let reply = Reply::interactive("pilih").with_header(
+            oktz_plugin_api::kartu::KartuHeader::baru()
+                .media(oktz_plugin_api::MediaSource::bytes(vec![1, 2, 3]))
+                .video(),
+        );
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
+        let pending = r
+            .card_header_media
+            .as_ref()
+            .expect("media header harus nunggu upload");
+        assert_eq!(pending.kind, MediaKind::Video);
+        assert!(pending.gif_playback, "header video wajib gifPlayback");
     }
 
     #[test]

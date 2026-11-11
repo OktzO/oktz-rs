@@ -413,6 +413,7 @@ impl Reply {
             kartu.header = Some(crate::kartu::KartuHeader {
                 title: header.title.clone(),
                 subtitle: header.subtitle.clone(),
+                video: matches!(header.media, Some(CardMedia::Video { .. })),
                 media,
             });
             kartu.header_card = Some(header);

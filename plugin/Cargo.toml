@@ -6,6 +6,7 @@ rust-version.workspace = true
 
 [dependencies]
 oktz-plugin-api = { path = "../lib/oktz-plugin-api" }
+tracing.workspace = true
 # Scraper hasil port `src/scraper/` JS. Plugin memanggil crate ini, bukan
 # menyalin logikanya — supaya hanya ada satu versi tiap scraper.
 oktz-scraper = { path = "../lib/oktz-scraper" }
