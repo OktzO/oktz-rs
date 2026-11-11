@@ -168,10 +168,10 @@ test("pasangFfmpeg unduh aset rilis, gunzip, tulis biner +x", async () => {
     assert.notEqual(statSync(path.join(dir, "ffmpeg")).mode & 0o111, 0, "harus +x");
     assert.equal(
       f.panggil[0],
-      "https://github.com/OktzO/oktz-rs/releases/download/v9.9.9/ffmpeg-linux-x64-static"
+      "https://github.com/OktzO/oktz-rs/releases/download/v9.9.9/ffmpeg-linux-x64-static.gz"
     );
     assert.match(f.panggil[1], /ffmpeg-linux-x64-static\.sha256$/);
-    assert.match(f.panggil[2], /ffprobe-linux-x64-static$/);
+    assert.match(f.panggil[2], /ffprobe-linux-x64-static\.gz$/);
     assert.match(f.panggil[3], /ffprobe-linux-x64-static\.sha256$/);
   } finally {
     rmSync(dir, { recursive: true, force: true });

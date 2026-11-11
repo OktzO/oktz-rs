@@ -100,7 +100,7 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           WebP ditolak WA saat diunduh.
 // v0.2.38 — paritas sticker (.bratimg/.bratvid/.s) + kartu thumbnail .play;
 //           ffmpeg+ffprobe statis otomatis dari aset rilis ke bin/ (tanpa npm).
-export const VERSI_BIN = "v0.2.38";
+export const VERSI_BIN = "v0.2.39";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
@@ -447,11 +447,12 @@ async function siapkanBinary() {
   }
 }
 
-// Aset ffmpeg/ffprobe statis di rilis ini (dipasang CI dari build
-// johnvansickle/ffmpeg-static; lihat .github/workflows/release.yml).
+// Aset ffmpeg/ffprobe statis di rilis ini, tetap gzip (launcher gunzip pakai
+// node zlib; checksum `.sha256` mengacu nama tanpa .gz). Dipasang CI dari
+// build johnvansickle/ffmpeg-static; lihat .github/workflows/release.yml.
 const ASET_FFMPEG = [
-  ["ffmpeg-linux-x64-static", "ffmpeg"],
-  ["ffprobe-linux-x64-static", "ffprobe"],
+  ["ffmpeg-linux-x64-static.gz", "ffmpeg"],
+  ["ffprobe-linux-x64-static.gz", "ffprobe"],
 ];
 
 /**
@@ -479,8 +480,9 @@ export async function pasangFfmpeg(
         throw new Error(`HTTP ${hasil.status} saat unduh ${aset}`);
       }
       const biner = gunzipSync(hasil.data);
-      // Checksum dari aset `.sha256` rilis; cek gagal = pasang tetap (log saja).
-      const sah = await verifikasiChecksum(aset, t, biner, fetchImpl);
+      // Checksum dari aset `.sha256` rilis (nama tanpa .gz, isi sudah
+      // gunzip); cek gagal = pasang tetap (log saja).
+      const sah = await verifikasiChecksum(aset.replace(/\.gz$/, ""), t, biner, fetchImpl);
       writeFileSync(path.join(dir, nama), biner, { mode: 0o755 });
       console.log(
         `[launcher] ${nama} terpasang dari rilis${sah ? "" : " (checksum tidak terverifikasi)"}`
