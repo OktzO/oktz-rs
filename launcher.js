@@ -31,6 +31,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { gunzipSync } from "node:zlib";
 
 const FILE_INI = fileURLToPath(import.meta.url);
 const AKAR = path.dirname(FILE_INI);
@@ -444,6 +445,53 @@ async function siapkanBinary() {
   }
 }
 
+// Aset ffmpeg/ffprobe statis di rilis ini (dipasang CI dari build
+// johnvansickle/ffmpeg-static; lihat .github/workflows/release.yml).
+const ASET_FFMPEG = [
+  ["ffmpeg-linux-x64-static", "ffmpeg"],
+  ["ffprobe-linux-x64-static", "ffprobe"],
+];
+
+/**
+ * Pasang ffmpeg+ffprobe statis dari aset rilis ke bin/ (sekali per panel,
+ * tanpa npm). Gagal unduh tidak menghentikan boot: bot tetap jalan, hanya
+ * fitur audio/video yang menurun — perilaku sama seperti bot JS lama.
+ *
+ * @param {string|null} tag tag rilis oktz (aset ikut tag ini).
+ * @param {typeof fetch} fetchImpl
+ * @param {string} dir folder tujuan biner (default `bin/` repo).
+ */
+export async function pasangFfmpeg(
+  tag = null,
+  fetchImpl = fetch,
+  dir = path.join(AKAR, "bin")
+) {
+  const sisa = ASET_FFMPEG.filter(([, nama]) => !existsSync(path.join(dir, nama)));
+  if (sisa.length === 0) return;
+  const t = tag || TAG_TERBARU || VERSI_BIN;
+  mkdirSync(dir, { recursive: true });
+  for (const [aset, nama] of sisa) {
+    try {
+      const hasil = await ambilAset(aset, t, fetchImpl);
+      if (!hasil.ok || !hasil.data || hasil.data.length === 0) {
+        throw new Error(`HTTP ${hasil.status} saat unduh ${aset}`);
+      }
+      const biner = gunzipSync(hasil.data);
+      // Checksum dari aset `.sha256` rilis; cek gagal = pasang tetap (log saja).
+      const sah = await verifikasiChecksum(aset, t, biner, fetchImpl);
+      writeFileSync(path.join(dir, nama), biner, { mode: 0o755 });
+      console.log(
+        `[launcher] ${nama} terpasang dari rilis${sah ? "" : " (checksum tidak terverifikasi)"}`
+      );
+    } catch (e) {
+      console.error(`[launcher] ${nama} tidak terpasang: ${e.message}`);
+      console.error(
+        "[launcher] fitur audio/video (.play/.bratvid/.s/.tovn) akan gagal tanpa ffmpeg"
+      );
+    }
+  }
+}
+
 if (UTAMA) await siapkanBinary();
 
 // Panel kadang menyimpan berkas tanpa bit eksekusi.
@@ -674,6 +722,7 @@ if (UTAMA) {
 }
 
 if (UTAMA) {
+  await pasangFfmpeg();
   if (ARGS.length > 0) {
     jalankan(ARGS);
   } else {

@@ -27,9 +27,27 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
       - run: cp target/x86_64-unknown-linux-gnu/release/oktz oktz-linux-x64-static && chmod +x oktz-linux-x64-static
       - run: "! readelf -l oktz-linux-x64-static | grep -q INTERP"
+      # ffmpeg+ffprobe statis: build johnvansickle dari source FFmpeg asli
+      # (tanpa modifikasi), diambil lewat mirror rilis ffmpeg-static b6.1.1
+      # di GitHub — situs johnvansickle ber-antibot, sedangkan aset release
+      # GitHub immutable sehingga byte-nya selalu sama untuk tag ini.
+      - run: |
+          curl -fsSL -o ffmpeg.gz  https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz
+          curl -fsSL -o ffprobe.gz https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-linux-x64.gz
+          gunzip ffmpeg.gz ffprobe.gz
+          chmod +x ffmpeg ffprobe
+          mv ffmpeg ffmpeg-linux-x64-static
+          mv ffprobe ffprobe-linux-x64-static
+          ./ffmpeg-linux-x64-static -version | head -1
+          sha256sum ffmpeg-linux-x64-static > ffmpeg-linux-x64-static.sha256
+          sha256sum ffprobe-linux-x64-static > ffprobe-linux-x64-static.sha256
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             oktz-linux-x64
             oktz-linux-x64-static
+            ffmpeg-linux-x64-static
+            ffprobe-linux-x64-static
+            ffmpeg-linux-x64-static.sha256
+            ffprobe-linux-x64-static.sha256
           generate_release_notes: true

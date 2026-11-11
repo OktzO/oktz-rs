@@ -4,11 +4,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { gzipSync } from "node:zlib";
 import {
   ambilAset,
   ambilVersiTerbaru,
+  pasangFfmpeg,
   tagDariUrl,
   urlAset,
   versiCocok,
@@ -123,9 +134,9 @@ test("versiCocok bandingkan penanda versi", () => {
   assert.equal(versiCocok("v0.1.7", "v0.1.8"), false);
 });
 
-test("fallback rilis launcher mengikuti rilis terbaru", async () => {
+test("VERSI_BIN fallback berbentuk tag semver (bukan penanda versi basi)", async () => {
   const modul = await import("./launcher.js");
-  assert.equal(modul.VERSI_BIN, "v0.2.29");
+  assert.match(modul.VERSI_BIN, /^v\d+\.\d+\.\d+$/);
 });
 
 test("import launcher tanpa entry point tidak menjalankan bot", () => {
@@ -142,4 +153,54 @@ test("import launcher tanpa entry point tidak menjalankan bot", () => {
   assert.equal(hasil.status, 0, hasil.stderr);
   assert.deepEqual(JSON.parse(hasil.stdout), { sigint: 0, sigterm: 0 });
   assert.doesNotMatch(hasil.stderr, /\[launcher\]/);
+});
+
+test("pasangFfmpeg unduh aset rilis, gunzip, tulis biner +x", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
+  try {
+    const isi = Buffer.from("biner uji");
+    const f = fetchPalsu((url) =>
+      url.endsWith(".sha256") ? { ok: false, status: 404 } : { data: gzipSync(isi) }
+    );
+    await pasangFfmpeg("v9.9.9", f, dir);
+    assert.equal(readFileSync(path.join(dir, "ffmpeg"), "utf8"), "biner uji");
+    assert.equal(readFileSync(path.join(dir, "ffprobe"), "utf8"), "biner uji");
+    assert.notEqual(statSync(path.join(dir, "ffmpeg")).mode & 0o111, 0, "harus +x");
+    assert.equal(
+      f.panggil[0],
+      "https://github.com/OktzO/oktz-rs/releases/download/v9.9.9/ffmpeg-linux-x64-static"
+    );
+    assert.match(f.panggil[1], /ffmpeg-linux-x64-static\.sha256$/);
+    assert.match(f.panggil[2], /ffprobe-linux-x64-static$/);
+    assert.match(f.panggil[3], /ffprobe-linux-x64-static\.sha256$/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pasangFfmpeg skip bila kedua biner sudah ada", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
+  try {
+    writeFileSync(path.join(dir, "ffmpeg"), "a");
+    writeFileSync(path.join(dir, "ffprobe"), "a");
+    const f = fetchPalsu({});
+    await pasangFfmpeg(null, f, dir);
+    assert.equal(f.panggil.length, 0, "tidak boleh ada unduhan");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pasangFfmpeg lanjut tanpa crash walau unduh gagal", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
+  try {
+    const f = async () => {
+      throw new Error("offline");
+    };
+    await pasangFfmpeg("v9.9.9", f, dir);
+    assert.equal(existsSync(path.join(dir, "ffmpeg")), false);
+    assert.equal(existsSync(path.join(dir, "ffprobe")), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
