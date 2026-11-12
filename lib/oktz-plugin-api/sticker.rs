@@ -5,7 +5,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use image::imageops::FilterType;
 use image::{ColorType, DynamicImage, ImageEncoder, RgbaImage};
-use serde_json::json;
 
 pub const STICKER_WEBP_VF: &str = "fps=12,scale='min(512,iw)':'min(512,ih)':force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,setsar=1";
 pub const EXIF_PACK_ID: &str = "com.foto.sticker";
@@ -266,16 +265,22 @@ pub fn video_ke_stiker_webp(data: &[u8], opsi: &[OpsiS]) -> Result<Vec<u8>, Stri
 }
 
 pub fn sticker_metadata_json(packname: &str, author: &str, emojis: &[&str]) -> Vec<u8> {
-    let value = json!({
-        "sticker-pack-id": EXIF_PACK_ID,
-        "sticker-pack-name": packname,
-        "sticker-pack-publisher": author,
-        "emojis": emojis,
-        "is-avatar-sticker": 0,
-        "android-app-store-link": "",
-        "ios-app-store-link": "",
-    });
-    serde_json::to_vec(&value).unwrap_or_default()
+    // Urutan & isi kunci persis `Rubby-MD/lib/exif.js:143-148` (empat kunci,
+    // pack-id dulu) — bot JS itu terbukti tampil normal di device yang sama.
+    let q = |s: &str| serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
+    let emoji_list = emojis
+        .iter()
+        .map(|e| q(e))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"sticker-pack-id\":{},\"sticker-pack-name\":{},\"sticker-pack-publisher\":{},\"emojis\":[{}]}}",
+        q(EXIF_PACK_ID),
+        q(packname),
+        q(author),
+        emoji_list
+    )
+    .into_bytes()
 }
 
 fn exif_payload(metadata_json: &[u8]) -> Vec<u8> {
@@ -366,17 +371,14 @@ pub fn tempel_metadata_stiker(
 
     let mut body: Vec<u8> = Vec::new();
     if width > 0 && height > 0 {
-        // `exif.js:229-233` — bit flag JS muxer: EXIF 0x04, alpha 0x02,
-        // animasi 0x10 (bukan urutan RFC; WA mengabaikan bit ini dan membaca
-        // chunk per posisi, jadi paritas byte dipakai, bukan "koreksi" RFC).
-        // VP8X yang sudah ada (ffmpeg) dibiarkan apa adanya.
+        // `Rubby-MD/lib/exif.js:185-197` — bit RFC: EXIF 0x08, alpha 0x10,
+        // animasi 0x02. VP8X lama (ffmpeg) di-OR 0x08 seperti `flags |= 0x08`.
         let flags = chunks
             .iter()
             .find(|(id, _)| id == b"VP8X")
             .and_then(|(_, p)| p.first().copied())
-            .unwrap_or(
-                0x04 | (if has_alpha { 0x02 } else { 0 }) | (if has_anim { 0x10 } else { 0 }),
-            );
+            .map(|f| f | 0x08)
+            .unwrap_or(0x08 | (if has_alpha { 0x10 } else { 0 }) | (if has_anim { 0x02 } else { 0 }));
         let mut vp8x = vec![flags, 0, 0, 0];
         let cw = (width.max(1) - 1).min(0x00FF_FFFF);
         let ch = (height.max(1) - 1).min(0x00FF_FFFF);
@@ -388,8 +390,8 @@ pub fn tempel_metadata_stiker(
         vp8x.push(((ch >> 16) & 0xFF) as u8);
         put_chunk(&mut body, b"VP8X", &vp8x);
     }
-    // copy non-exif/xmp/vp8x chunks
-    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"XMP " && *id != *b"VP8X") {
+    // copy non-exif/vp8x chunks (XMP dipertahankan — `Rubby-MD/lib/exif.js:179`)
+    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"VP8X") {
         put_chunk(&mut body, id, payload);
     }
     put_chunk(&mut body, b"EXIF", &exif);
@@ -572,13 +574,12 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        // `exif.js:233` — bit EXIF di muxer JS = 0x04 (bukan bit RFC 0x08);
-        // alpha/animasi tidak boleh dikarang untuk VP8L opaque.
-        assert_eq!(vp8x[0], 0x04);
+        // `Rubby-MD/lib/exif.js:187` — bit EXIF RFC 0x08; VP8L opaque tanpa alpha.
+        assert_eq!(vp8x[0], 0x08);
     }
 
     #[test]
-    fn alpha_sticker_without_vp8x_sets_js_flag_bits() {
+    fn alpha_sticker_without_vp8x_sets_rfc_flag_bits() {
         let mut input = vp8l_riff();
         let mut body = Vec::new();
         let alpha = [0u8; 4];
@@ -595,7 +596,7 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(vp8x[0], 0x06, "EXIF 0x04 | alpha 0x02 — bit JS, tanpa animasi");
+        assert_eq!(vp8x[0], 0x18, "EXIF 0x08 | alpha 0x10 — `Rubby-MD/lib/exif.js:197`");
     }
 
     #[test]
@@ -617,6 +618,6 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(vp8x[0], 0x12, "VP8X ffmpeg dibiarkan utuh — `exif.js:224`");
+        assert_eq!(vp8x[0], 0x1A, "VP8X ffmpeg 0x12 | EXIF 0x08 — `exif.js:188`");
     }
 }
