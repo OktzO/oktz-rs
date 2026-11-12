@@ -379,14 +379,13 @@ mod tests {
             panic!("harus sticker: {list:?}")
         };
         assert!(media.is_some());
-        assert!(opsi.forwarded);
-        assert_eq!(opsi.forwarding_score, Some(1));
-        assert!(opsi.premium);
+        // Ponytail: tanpa contextInfo (Rubby-MD `.s` tampil, ourin-md blank).
+        assert!(!opsi.forwarded);
         assert_eq!(opsi.packname.as_deref(), Some("Foto-AI"));
     }
 
     #[test]
-    fn video_sticker_context_is_forwarding_score_999() {
+    fn video_sticker_tanpa_context_info() {
         let _guard = STICKER_TEST_LOCK.lock().unwrap();
         let r = sticker(ctx_media(IncomingKind::Video, b"RIFF0000WEBP".to_vec(), Vec::new()));
         let Reply::Sequence(list) = r else {
@@ -395,9 +394,8 @@ mod tests {
         let Reply::Sticker { opsi, .. } = &list[1] else {
             panic!("harus sticker: {list:?}")
         };
-        assert!(opsi.forwarded);
-        assert_eq!(opsi.forwarding_score, Some(999));
-        assert!(!opsi.premium);
+        assert!(!opsi.forwarded);
+        assert!(opsi.animated);
     }
 
     #[test]

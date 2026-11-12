@@ -1350,11 +1350,25 @@ impl MessageSender for ClientSender {
                         media.height = Some(h);
                     }
                 }
+                // Diagnostik sticker blank: panjang + sha256 file, hanya
+                // kalau OKTZ_DEBUG_STIKER=1.
+                let dbg_len = std::env::var_os("OKTZ_DEBUG_STIKER")
+                    .map(|_| data.len());
                 let upload = client
                     .upload(data, media.kind.upload_type(), UploadOptions::default())
                     .await
                     .map_err(|e| format!("upload media gagal: {e}"))?;
-                build_media_message(media.kind, upload, &media)
+                let pesan = build_media_message(media.kind, upload, &media);
+                if let Some(len) = dbg_len {
+                    let b = whatsapp_rust::waproto::codec::message_to_vec(&pesan);
+                    let mut hex = String::with_capacity(b.len() * 2);
+                    for byte in &b {
+                        use std::fmt::Write;
+                        let _ = write!(hex, "{byte:02x}");
+                    }
+                    tracing::info!(target: "oktz_wa::stiker", len, hex, "stiker wire");
+                }
+                pesan
             };
             client
                 .send_message_with_options(jid, message, SendOptions::default())

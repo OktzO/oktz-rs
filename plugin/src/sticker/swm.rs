@@ -6,11 +6,10 @@
 //! `EXIF_EMOJIS`, dan gambar/video non-WebP dikonversi lewat
 //! `gambar_ke_stiker_webp` / `video_ke_stiker_webp` sebelum ditempel —
 //! pola yang sama dengan `sticker::siapkan`. Kirim lewat
-//! `Reply::sticker_opsi` + `StickerOpsi::gambar()` (forwarded + skor 1,
-//! sama seperti `contextInfo` JS).
+//! `Reply::sticker_opsi` + `StickerOpsi::gambar()` (tanpa contextInfo —
+//! Rubby-MD tampil, ourin-md blank).
 //!
-//! `ponytail:` `contextInfo: { isForwarded: true, forwardingScore: 1 }` hanya
-//! tersimpan sebagai flag di `StickerOpsi`; kutipan `quoted: m` mengikuti
+//! `ponytail:` `forwarded`/`premium` mati; kutipan `quoted: m` mengikuti
 //! default pipeline. Tag `☢` hanya di cabang `catch` JS (konversi gagal).
 
 use oktz_plugin_api::{
