@@ -1977,10 +1977,13 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
                         .unwrap_or("image/webp")
                         .to_string(),
                 ),
-                is_animated: media
-                    .sticker
-                    .as_ref()
-                    .and_then(|o| o.animated.then_some(true)),
+                // JS tidak pernah menulis isAnimated untuk sticker tunggal
+                // (socket.js:555-559, ruby-baileys) — klien deteksi animasi
+                // dari chunk ANMF di file.
+                is_animated: None,
+                // `stickerSentTs = Date.now()` (onigis messages.js:133,
+                // ruby-baileys messages.js:233) — keduanya menulis ms.
+                sticker_sent_ts: Some(now_ms()),
                 // `premium` dan `emojis` sengaja TIDAK ditulis ke proto --
                 // `ContextInfo` tidak punya field `premium` (whatsapp.proto
                 // waproto 0.7.0 & WAProto onigis), jadi `premium:1` JS
