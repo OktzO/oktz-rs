@@ -41,9 +41,9 @@ pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     let prefix = if prefix.is_empty() { "." } else { prefix };
     let command = if command.is_empty() { "?" } else { command };
     format!(
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, User\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, User\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     )
 }
 
@@ -283,9 +283,9 @@ mod tests {
     fn error_template_falls_back_like_the_js_replacements() {
         assert_eq!(
             error_template("", ""),
-            "☢ Kayaknya command `.?` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.?` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert!(error_template("#", "watercolorfx").contains("#watercolorfx"));
     }

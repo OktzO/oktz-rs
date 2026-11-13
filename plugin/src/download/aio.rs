@@ -165,9 +165,9 @@ mod tests {
         let r = run(http.clone(), "https://contoh.example/x");
         assert_eq!(
             text_of(&r),
-            "☢ Kayaknya command `.aio` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.aio` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert_eq!(reaction_of(&r), Some("☢".to_string()));
         assert!(http.seen.lock().unwrap().is_empty());

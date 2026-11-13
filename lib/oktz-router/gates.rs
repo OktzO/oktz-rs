@@ -1317,13 +1317,13 @@ mod tests {
     #[test]
     fn render_limit_deducted_fills_placeholders() {
         let msg = render_limit_deducted(
-            "🔋 Limit kau berkurang sebanyak {amount}. Sisa limit: {sisa}",
+            "🔋 Limit berkurang {amount}. Sisa: {sisa}. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)",
             7,
             43,
         );
         assert_eq!(
             msg,
-            "🔋 Limit kau berkurang sebanyak 7. Sisa limit: 43",
+            "🔋 Limit berkurang 7. Sisa: 43. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)",
             "handler.js:1886"
         );
     }

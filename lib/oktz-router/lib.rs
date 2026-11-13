@@ -387,7 +387,7 @@ mod tests {
         // `config.js:198`, bukan fallback `"🚫 Owner only!"` dari
         // `middleware.js:57` — fallback cuma aktif kalau config kosong.
         assert!(
-            matches!(&d, Decision::DeniedPermission(msg) if msg == "*Akses Ditolak!* Fitur ini khusus untuk Owner bot.")
+            matches!(&d, Decision::DeniedPermission(msg) if msg == "🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)")
         );
     }
 

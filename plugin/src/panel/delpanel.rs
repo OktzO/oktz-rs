@@ -337,7 +337,7 @@ mod tests {
         let cfg_ok = KonfigServer { domain: "http://panel.test", apikey: "k" };
         let r = kerjakan(&ctx("delpanel", &["5"]), &cfg_ok, &cfg_ok, &cfg_ok);
         assert!(
-            teks(&r).contains("Kayaknya command `.delpanel`"),
+            teks(&r).contains("Ehhh~ command `.delpanel`"),
             "{}",
             teks(&r)
         );

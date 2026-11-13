@@ -142,7 +142,7 @@ mod tests {
         // terpenuhi, jadi request tetap dikirim (dan di sini gagal).
         let r = run_with(Arc::new(NoHttp), &["x", "y", "z", "w"]);
         assert!(
-            reply_text(&r).starts_with("☢ Kayaknya command "),
+            reply_text(&r).starts_with("☢ Ehhh~ command "),
             "{}",
             reply_text(&r)
         );
@@ -196,7 +196,7 @@ mod tests {
     fn a_transport_error_uses_the_error_template() {
         let r = run_with(Arc::new(NoHttp), &["1", "1", "2000"]);
         let t = reply_text(&r);
-        assert!(t.starts_with("☢ Kayaknya command "), "{t}");
+        assert!(t.starts_with("☢ Ehhh~ command "), "{t}");
         assert!(t.contains(".sifatusahabisnis"), "{t}");
     }
 }

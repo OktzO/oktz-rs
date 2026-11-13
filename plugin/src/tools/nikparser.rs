@@ -458,9 +458,9 @@ mod tests {
         let r = nikparser(ctx("3517072109020003", Stub::offline(), ""));
         assert_eq!(
             text_of(&r),
-            "☢ Kayaknya command `.nikparser` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.nikparser` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert_eq!(reaction_of(&r), Some("☢"));
     }

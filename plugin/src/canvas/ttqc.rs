@@ -177,9 +177,9 @@ mod tests {
         // te(...) memakai template bawaan dengan pushName Budi.
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
-            "☢ Kayaknya command `.ttqc` lagi ada kendala\n\
-             Silahkan coba lagi nanti, Budi\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.ttqc` lagi ada kendala, Budi\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert!(matches!(
             r.without_mutations(),

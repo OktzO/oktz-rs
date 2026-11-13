@@ -718,13 +718,15 @@ pub(crate) fn scrub_nama_berkas(nama: &str) -> String {
 /// `config.errorTemplate` (`config.js:153`) selalu terisi di produksi, jadi
 /// teks fallback `☢ *ᴇʀʀᴏʀ*` di `error.js` adalah kode mati. Template
 /// runtime dibaca dari [`oktz_core::config::Runtime::error_template`];
-/// kosong berarti template bawaan JS di bawah.
+/// kosong berarti template bawaan di bawah.
+/// ponytail: fallback ini tsundere, beda dari template JS (lihat catatan di
+/// `oktz_core::config::Messages`).
 pub(crate) fn error_template(ctx: &oktz_plugin_api::Ctx) -> String {
     let tpl = ctx.config().error_template.as_str();
     let tpl = if tpl.is_empty() {
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, {pushName}\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, {pushName}\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     } else {
         tpl
     };
@@ -754,9 +756,9 @@ pub(crate) fn error_template(ctx: &oktz_plugin_api::Ctx) -> String {
 /// [`error_template`] supaya `config.errorTemplate` + `m.pushName` ikut.
 pub(crate) fn error_template_bawaan(prefix: &str, command: &str) -> String {
     format!(
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, User\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, User\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     )
 }
 
@@ -4664,7 +4666,7 @@ mod tests_error_template {
         // hanya saat nama kosong (`pushName || 'User'`).
         assert_eq!(
             error_template(&ctx(".", "ping", "Zann")),
-            "☢ Kayaknya command `.ping` lagi ada kendala\nSilahkan coba lagi nanti, Zann\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.ping` lagi ada kendala, Zann\nB-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n_Jika masalah berlanjut, hubungi owner bot_"
         );
         assert_eq!(
             error_template(&ctx(".", "ping", "")),
@@ -4685,7 +4687,7 @@ mod tests_error_template {
     #[test]
     fn prefix_dan_command_kosong_jadi_titik_dan_tanya() {
         // `te()` JS: `prefix || '.'`, `command || '?'`.
-        assert!(error_template(&ctx("", "", "")).starts_with("☢ Kayaknya command `.?` lagi"));
+        assert!(error_template(&ctx("", "", "")).starts_with("☢ Ehhh~ command `.?` lagi"));
     }
 }
 

@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn the_sign_is_lowercased_before_the_membership_check() {
         let r = run_with(Arc::new(NoHttp), Some("ARIES"));
-        assert!(reply_text(&r).starts_with("☢ Kayaknya command "), "tidak masuk daftar");
+        assert!(reply_text(&r).starts_with("☢ Ehhh~ command "), "tidak masuk daftar");
     }
 
     #[test]
@@ -221,7 +221,7 @@ mod tests {
     fn a_transport_error_uses_the_error_template() {
         let r = run_with(Arc::new(NoHttp), Some("aries"));
         let t = reply_text(&r);
-        assert!(t.starts_with("☢ Kayaknya command "), "{t}");
+        assert!(t.starts_with("☢ Ehhh~ command "), "{t}");
         assert!(t.contains("`.zodiak`"), "{t}");
     }
 }

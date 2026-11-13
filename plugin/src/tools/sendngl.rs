@@ -34,9 +34,9 @@ fn error_template(prefix: &str, command: &str) -> String {
     let prefix = if prefix.is_empty() { "." } else { prefix };
     let command = if command.is_empty() { "?" } else { command };
     format!(
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, User\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, User\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     )
 }
 
@@ -346,9 +346,9 @@ mod tests {
         let r = run(http.clone(), "https://ngl.link/x | hai");
         assert_eq!(
             text_of(&r),
-            "☢ Kayaknya command `.sendngl` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.sendngl` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
@@ -359,9 +359,9 @@ mod tests {
         // `crate::common::error_template` tidak punya fallback itu.
         assert_eq!(
             error_template("", ""),
-            "☢ Kayaknya command `.?` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.?` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
     }
 }

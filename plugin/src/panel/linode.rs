@@ -596,7 +596,7 @@ mod tests {
         ));
         let t = teks(&r);
         assert!(
-            t.contains("Kayaknya command"),
+            t.contains("Ehhh~ command"),
             "harus pakai te() template: {t}"
         );
     }

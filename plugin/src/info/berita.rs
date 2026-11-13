@@ -539,9 +539,9 @@ mod tests {
         let r = run(StubHttp::offline(), "", "cnn");
         assert_eq!(
             text_of(&r),
-            "☢ Kayaknya command `.cnn` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.cnn` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
     }
 }

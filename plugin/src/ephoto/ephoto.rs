@@ -240,9 +240,9 @@ pub(crate) const EFEK_TAK_ADA: &str = "❌ Efek tidak ditemukan";
 #[allow(dead_code)]
 pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     format!(
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, User\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, User\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     )
 }
 
@@ -935,9 +935,9 @@ mod tests {
         assert_eq!(reaksi(&r), Some("☢"));
         assert_eq!(
             text_of(&r),
-            "☢ Kayaknya command `.glitchtext` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_"
+            "☢ Ehhh~ command `.glitchtext` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_"
         );
     }
 

@@ -289,7 +289,7 @@ mod tests {
         // yang dipakai, bukan pesan sukses "diaktifkan di N grup".
         for args in [vec!["on", "all"], vec!["off", "all"]] {
             let r = run(&args, serde_json::json!({}), true);
-            assert!(text_of(&r).starts_with("☢ Kayaknya command `.goodbye`"), "{args:?}");
+            assert!(text_of(&r).starts_with("☢ Ehhh~ command `.goodbye`"), "{args:?}");
             assert!(r.mutations().is_empty(), "{args:?} tidak boleh menulis ke store");
             match r.without_mutations() {
                 Reply::Reaction { emoji, .. } => assert_eq!(emoji, "☢", "{args:?}"),

@@ -15,9 +15,9 @@ use crate::common::{jid_number, random_index};
 #[allow(dead_code)]
 pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     format!(
-        "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\n\
-         Silahkan coba lagi nanti, User\n\n\
-         _Jika masalah berlanjut, silahkan hubungi owner bot_"
+        "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, User\n\
+         B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+         _Jika masalah berlanjut, hubungi owner bot_"
     )
 }
 
@@ -279,7 +279,7 @@ mod tests {
         });
         let text = r.text_body().unwrap();
         assert!(text.contains("`!spin`"), "{text}");
-        assert!(text.ends_with("silahkan hubungi owner bot_"), "{text}");
+        assert!(text.ends_with("hubungi owner bot_"), "{text}");
     }
 
     #[test]

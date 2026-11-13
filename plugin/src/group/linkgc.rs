@@ -203,7 +203,7 @@ mod tests {
         let sock = Arc::new(StubSock { kode: None });
         let r = linkgc(ctx_dengan(sock));
         assert!(
-            teks(&r).contains("Silahkan coba lagi nanti, Budi"),
+            teks(&r).contains("coba lagi nanti ya"),
             "{:?}",
             teks(&r)
         );

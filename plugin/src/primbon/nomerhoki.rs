@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn an_input_with_at_least_one_digit_goes_to_http() {
         let r = run_with(Arc::new(NoHttp), &["+62-81"]);
-        assert!(reply_text(&r).starts_with("☢ Kayaknya command "), "{}", reply_text(&r));
+        assert!(reply_text(&r).starts_with("☢ Ehhh~ command "), "{}", reply_text(&r));
     }
 
     /// Argumen digabung tanpa spasi, lalu semua non-digit dibuang.
@@ -295,7 +295,7 @@ mod tests {
                 &["628123"],
             );
             assert!(
-                reply_text(&r).starts_with("☢ Kayaknya command "),
+                reply_text(&r).starts_with("☢ Ehhh~ command "),
                 "{data}: {}",
                 reply_text(&r)
             );
@@ -317,7 +317,7 @@ mod tests {
     fn a_transport_error_uses_the_error_template() {
         let r = run_with(Arc::new(NoHttp), &["628123"]);
         let t = reply_text(&r);
-        assert!(t.starts_with("☢ Kayaknya command "), "{t}");
+        assert!(t.starts_with("☢ Ehhh~ command "), "{t}");
         assert!(t.contains(".nomerhoki"), "{t}");
     }
 }

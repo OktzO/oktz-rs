@@ -433,9 +433,9 @@ mod tests {
         let r = npmstalk(ctx(http.clone(), "zann"));
         assert_eq!(
             r.without_mutations().text_body(),
-            Some("☢ Kayaknya command `.npmstalk` lagi ada kendala\n\
-             Silahkan coba lagi nanti, User\n\n\
-             _Jika masalah berlanjut, silahkan hubungi owner bot_")
+            Some("☢ Ehhh~ command `.npmstalk` lagi ada kendala, User\n\
+             B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
+             _Jika masalah berlanjut, hubungi owner bot_")
         );
         assert_eq!(reaction_of(&r), Some("☢"));
     }

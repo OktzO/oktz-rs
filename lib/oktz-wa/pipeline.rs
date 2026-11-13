@@ -4696,7 +4696,7 @@ impl Pipeline {
         let tpl = {
             let t = self.plugin_src.config.error_template.as_str();
             if t.is_empty() {
-                "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_"
+                "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, {pushName}\nB-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n_Jika masalah berlanjut, hubungi owner bot_"
             } else {
                 t
             }

@@ -347,7 +347,7 @@ mod tests {
     fn metadata_grup_gagal_menghasilkan_template_error() {
         let sock = Arc::new(StubSock { subject: None });
         let r = cekonline(ctx_dengan(sock, 2, "Budi"));
-        assert!(teks(&r).contains("Silahkan coba lagi nanti, Budi"), "{:?}", teks(&r));
+        assert!(teks(&r).contains("coba lagi nanti ya"), "{:?}", teks(&r));
         assert_eq!(reaksi(&r), Some("☢".to_string()));
     }
 

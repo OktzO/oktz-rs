@@ -361,7 +361,7 @@ impl Runtime {
             // Nilai `config.js:153` apa adanya, kecuali env override.
             error_template: Env::get_or(
                 "ERROR_TEMPLATE",
-                "☢ Kayaknya command `{prefix}{command}` lagi ada kendala\nSilahkan coba lagi nanti, {pushName}\n\n_Jika masalah berlanjut, silahkan hubungi owner bot_",
+                "☢ Ehhh~ command `{prefix}{command}` lagi ada kendala, {pushName}\nB-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n_Jika masalah berlanjut, hubungi owner bot_",
             ),
             digitalocean: DigitalOcean {
                 token: Env::get_or("DIGITALOCEAN_TOKEN", ""),
@@ -457,8 +457,9 @@ impl Default for Turso {
 
 /// `config.js` `messages`. Field `snake_case`, nilai verbatim dari JS.
 ///
-/// `private_only` dan `admin_only` sengaja dimulai U+FFFD: itulah yang ada
-/// di `config.js` (emoji rusak), dan parity berarti menyalinnya apa adanya.
+/// ponytail: teks tsundere disengaja beda dari `config.js` (permintaan owner,
+/// ganti gaya imut khusus bot Rust). Fixture `parity/config_text.json` tetap
+/// mengikuti nilai JS lama. Saat JS ikut diubah, samakan lagi keduanya.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Messages {
     pub success: String,
@@ -484,40 +485,22 @@ pub struct Messages {
 impl Default for Messages {
     fn default() -> Self {
         Self {
-            success: d("✅ *Berhasil!* Permintaan kamu sudah selesai."),
-            error: d("❌ *Error!* Ada masalah pada sistem, coba lagi nanti."),
-            owner_only: d("*Akses Ditolak!* Fitur ini khusus untuk Owner bot."),
-            premium_only: d(
-                "💎 *Premium Only!* Fitur ini khusus member Premium. Ketik *.benefitpremium* untuk info upgrade.",
-            ),
-            group_only: d("👥 *Group Only!* Fitur ini hanya bisa digunakan di dalam grup."),
-            private_only: d(
-                "\u{fffd} *Private Only!* Fitur ini hanya bisa digunakan di chat pribadi bot.",
-            ),
-            admin_only: d(
-                "\u{fffd}\u{fe0f} *Admin Only!* Kamu harus jadi Admin grup untuk pakai fitur ini.",
-            ),
-            bot_admin_only: d(
-                "🤖 *Bot Bukan Admin!* Jadikan bot sebagai Admin grup dulu biar bisa kerja.",
-            ),
-            cooldown: d(
-                "🕕 *Tunggu Dulu!* Kamu masih dalam cooldown. Tunggu %time% detik lagi ya.",
-            ),
-            energi_exceeded: d(
-                "⚡ *Energi Habis!* Energi kamu sudah habis. Tunggu reset besok atau beli Premium.",
-            ),
-            limit_deducted: d("🔋 Limit kau berkurang sebanyak {amount}. Sisa limit: {sisa}"),
-            banned: d(
-                "🚫 *Kamu Dibanned!* Kamu tidak bisa menggunakan bot ini karena telah melanggar aturan.",
-            ),
+            success: d("✅ *Done!* Hmph, berhasil kan? B-bukan karena kamu suruh loh! (˶˃⤙˂˶)"),
+            error: d("❌ *Error!* Uuugh, ada yang error... B-bukan salahku loh ya! Coba lagi nanti (,,>﹏<,,)"),
+            owner_only: d("🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)"),
+            premium_only: d("💎 *Premium Only!* Ehe~ ini khusus member Premium. Ketik *.benefitpremium* dulu yuk ⸜(｡˃ ᵕ ˂ )⸝♡"),
+            group_only: d("👥 *Group Only!* A-aaah, fitur ini cuma bisa di grup! Jangan nakal di chat pribadi (¬_¬')"),
+            private_only: d("📱 *Private Only!* Fitur ini cuma untuk chat pribadi bot. Masuk grup nanti ya~ ૮₍ ˃ ⤙ ˂ ₎ა"),
+            admin_only: d("👮 *Admin Only!* Hmph! Cuma admin grup yang bisa pakai ini. Promote dulu sana (¬⤙¬ )"),
+            bot_admin_only: d("🤖 *Bot Bukan Admin!* Hmph?! Bot-nya belum jadi admin ya... Y-yang gampang apa susahnya, promote dulu sana! Baka! (≧ヘ≦)"),
+            cooldown: d("🕕 *Tunggu Dulu!* Sabar ya, masih cooldown. Tunggu %time% detik lagi~ (｡•́︿•̀｡)"),
+            energi_exceeded: d("⚡ *Energi Habis!* Kyaa~ energimu habis semua... Tunggu reset besok atau beli Premium (╥﹏╥)"),
+            limit_deducted: d("🔋 Limit berkurang {amount}. Sisa: {sisa}. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)"),
+            banned: d("🚫 *Kamu Dibanned!* Hmph! Kamu udah langgar aturan, makanya dibanned. Feels bad right? (｀ε´)"),
             reject_call: d("🚫 JANGAN TELPON NOMOR INI WEH"),
-            game_disabled: d(
-                "🎮 Fitur Game sedang dinonaktifkan di grup ini oleh Admin!",
-            ),
-            rpg_disabled: d(
-                "⚔️ Fitur RPG sedang dinonaktifkan di grup ini oleh Admin!",
-            ),
-            partner_only: d("🤝 Partner only!"),
+            game_disabled: d("🎮 Fitur Game dimatiin admin grup ini! Minta aktifin dulu ya (｡•ˇ‸ˇ•｡)"),
+            rpg_disabled: d("⚔️ Fitur RPG dimatiin admin grup ini! Minta aktifin dulu ya (¬⤙¬ )"),
+            partner_only: d("🤝 *Partner Only!* Fitur ini cuma buat partner bot. Yare yare... (￣ω￣)"),
         }
     }
 }
@@ -1050,11 +1033,11 @@ mod tests {
         // `middleware.js:57` memakai fallback hanya kalau `config.messages`
         // kosong; di produksi nilainya selalu ada, jadi yang tampil ke user
         // adalah string dari `config.js`.
-        assert_eq!(m.owner_only, "*Akses Ditolak!* Fitur ini khusus untuk Owner bot.");
+        assert_eq!(m.owner_only, "🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)");
         assert_ne!(m.owner_only, "🚫 Owner only!");
         assert_eq!(
             m.energi_exceeded,
-            "⚡ *Energi Habis!* Energi kamu sudah habis. Tunggu reset besok atau beli Premium."
+            "⚡ *Energi Habis!* Kyaa~ energimu habis semua... Tunggu reset besok atau beli Premium (╥﹏╥)"
         );
     }
 

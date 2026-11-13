@@ -333,7 +333,7 @@ mod tests {
 
         let http = Stub::raw("<html>bukan json</html>");
         let t = owned(run(http.clone(), "x"));
-        assert!(t.starts_with("☢ Kayaknya command "), "{t}");
+        assert!(t.starts_with("☢ Ehhh~ command "), "{t}");
         assert!(t.contains("command `.applemusic`"), "{t}");
     }
 

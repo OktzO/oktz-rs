@@ -193,9 +193,9 @@ mod tests {
     fn an_offline_request_reaches_the_catch_branch_with_the_config_template() {
         // `res.status` tanpa `?.` pada `null` = TypeError -> `catch` -> `te()`.
         let r = run(Stub::offline());
-        assert!(text_of(&r).starts_with("☢ Kayaknya command `.puisi`"), "{r:?}");
+        assert!(text_of(&r).starts_with("☢ Ehhh~ command `.puisi`"), "{r:?}");
         assert!(
-            text_of(&r).ends_with("_Jika masalah berlanjut, silahkan hubungi owner bot_"),
+            text_of(&r).ends_with("_Jika masalah berlanjut, hubungi owner bot_"),
             "{}",
             text_of(&r)
         );
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn a_non_json_body_also_reaches_the_catch_branch() {
         let r = run(Stub::json("<html>error</html>"));
-        assert!(text_of(&r).starts_with("☢ Kayaknya command `.puisi`"));
+        assert!(text_of(&r).starts_with("☢ Ehhh~ command `.puisi`"));
         assert_eq!(reaction_of(&r), "☢");
     }
 

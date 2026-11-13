@@ -190,15 +190,15 @@ mod tests {
     fn an_offline_request_reaches_the_catch_branch_with_the_config_template() {
         let r = run(Stub::offline());
         let t = text_of(&r);
-        assert!(t.starts_with("☢ Kayaknya command `.senja`"), "{t}");
-        assert!(t.ends_with("_Jika masalah berlanjut, silahkan hubungi owner bot_"), "{t}");
+        assert!(t.starts_with("☢ Ehhh~ command `.senja`"), "{t}");
+        assert!(t.ends_with("_Jika masalah berlanjut, hubungi owner bot_"), "{t}");
         assert_eq!(reaction_of(&r), "☢");
     }
 
     #[test]
     fn a_non_json_body_also_reaches_the_catch_branch() {
         let r = run(Stub::json("<html>error</html>"));
-        assert!(text_of(&r).starts_with("☢ Kayaknya command `.senja`"));
+        assert!(text_of(&r).starts_with("☢ Ehhh~ command `.senja`"));
         assert_eq!(reaction_of(&r), "☢");
     }
 
