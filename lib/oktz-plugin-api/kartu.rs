@@ -410,6 +410,9 @@ pub struct Kartu {
     /// `contextInfo.quotedMessage` — teks yang dikutip. JS `menucat.js:290`
     /// mengutip `conversation` berisi nama bot, bukan pesan pemicu.
     pub quote_teks: Option<String>,
+    /// `contextInfo.forwardedNewsletterMessageInfo` — badge saluran
+    /// (`saluranCtx()`).
+    pub newsletter: Option<crate::registry::NewsletterInfo>,
     /// `contextInfo` model lama (kompatibilitas tes/plugin).
     pub context_card: Option<Box<crate::registry::CardContext>>,
     /// Teks cadangan kalau kartu gagal terkirim.
@@ -485,6 +488,16 @@ impl Kartu {
     /// Teks cadangan kalau kartu gagal terkirim (JS `catch` → `m.reply`).
     pub fn fallback_teks(mut self, teks: impl Into<String>) -> Self {
         self.fallback_teks = Some(teks.into());
+        self
+    }
+
+    /// Badge saluran (`saluranCtx()` — welcome.js:334-339).
+    pub fn saluran(mut self, jid: impl Into<String>, nama: impl Into<String>, server_id: i64) -> Self {
+        self.newsletter = Some(crate::registry::NewsletterInfo {
+            jid: jid.into(),
+            name: nama.into(),
+            server_message_id: server_id,
+        });
         self
     }
 }

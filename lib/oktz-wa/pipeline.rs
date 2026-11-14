@@ -2228,10 +2228,20 @@ fn kartu_context_info(
     if let Some(participant) = &kartu.participant {
         ci.participant = Some(participant.clone());
     }
+    if let Some(n) = &kartu.newsletter {
+        ci.forwarded_newsletter_message_info =
+            MessageField::some(wa::context_info::ForwardedNewsletterMessageInfo {
+                newsletter_jid: Some(n.jid.clone()),
+                newsletter_name: Some(n.name.clone()),
+                server_message_id: Some(n.server_message_id as i32),
+                ..Default::default()
+            });
+    }
     if ci.mentioned_jid.is_empty()
         && ci.quoted_message.as_option().is_none()
         && ci.is_forwarded.is_none()
         && ci.participant.is_none()
+        && kartu.newsletter.is_none()
     {
         None
     } else {
@@ -5155,38 +5165,34 @@ impl Pipeline {
                 ..Default::default()
             };
 
-            // Tipe 2 = kartu + FOTO PROFIL peserta (`welcome.js:152-231`,
-            // `goodbye.js:173-252`): gambar PP + caption salam + mention +
-            // badge saluran (`saluranCtx()`, `context.js:50-62`: score 9,
-            // forwarded, newsletterInfo). PP kosong/gagal → asset LOKAL
-            // `pp-kosong` (`config.assets`) supaya kartu tetap bergambar —
-            // konsep ourin yang menaruh gambar pp-kosong sebagai ppUrl
-            // default (`welcome.js:136-140`). Tipe lain (3..8) di JS
-            // bervariasi kartu/preview/gif; padanan wire-nya belum ada, jadi
-            // jatuh ke tipe 1 (teks + mention) — pesan tetap terkirim.
-            if tipe == 2 {
-                let pp = self
+            // FOTO PROFIL peserta (`welcome.js:136-140`, `goodbye.js:157-161`):
+            // PP kosong/gagal → asset LOKAL `pp-kosong` (`config.assets`)
+            // supaya kartu tetap bergambar — konsep ourin yang menaruh gambar
+            // pp-kosong sebagai ppUrl default. Tanpa asset → kartu/teks tanpa
+            // gambar.
+            let sumber = match self
+                .plugin_src
+                .sock
+                .foto_profil(&jid, "image")
+                .ok()
+                .flatten()
+                .filter(|url| !url.is_empty())
+            {
+                Some(url) => Some(MediaSource::Url {
+                    url,
+                    mimetype: Some("image/jpeg".to_string()),
+                }),
+                None => self
                     .plugin_src
-                    .sock
-                    .foto_profil(&jid, "image")
-                    .ok()
-                    .flatten()
-                    .filter(|url| !url.is_empty());
-                let sumber = match pp {
-                    Some(url) => Some(MediaSource::Url {
-                        url,
-                        mimetype: Some("image/jpeg".to_string()),
-                    }),
-                    // Tanpa PP → gambar pp-kosong lokal; tanpa asset →
-                    // jatuh ke teks (jalur catch JS, kartu tetap jalan).
-                    None => self
-                        .plugin_src
-                        .config
-                        .assets
-                        .get("pp-kosong")
-                        .map(|p| MediaSource::path(p.to_string())),
-                };
-                if let Some(sumber) = sumber {
+                    .config
+                    .assets
+                    .get("pp-kosong")
+                    .map(|p| MediaSource::path(p.to_string())),
+            };
+
+            // Tipe 2 = gambar + caption (`welcome.js:152-231`, `goodbye.js:173-252`).
+            if tipe == 2 {
+                if let Some(sumber) = &sumber {
                     let caption = if masuk {
                         format!("👋 Welcome *@{nomor}*") // welcome.js:188
                     } else {
@@ -5204,7 +5210,7 @@ impl Pipeline {
                         });
                     let pending = PendingMedia {
                         kind: MediaKind::Image,
-                        source: sumber,
+                        source: sumber.clone(),
                         caption,
                         mentions: vec![jid.clone()],
                         quote: None,
@@ -5225,6 +5231,80 @@ impl Pipeline {
                         continue;
                     }
                 }
+            }
+
+            // Tipe 7 = kartu interaktif + foto PP (welcome.js:289-359,
+            // goodbye.js:310-381): body = teks sapaan penuh, header foto,
+            // quick_reply, quote palsu dari peserta, badge saluran
+            // (`context.js:50-62` — score 9 + forwardedNewsletterMessageInfo).
+            if tipe == 7 {
+                let (kutipan, tombol_teks, tombol_id) = if masuk {
+                    ("Halo semuanya! 👋", "👋 Halo", "hi") // welcome.js:290-299, 344-349
+                } else {
+                    (
+                        "Selamat tinggal semuanya! 👋",
+                        "👋 Selamat Tinggal",
+                        "bye", // goodbye.js:311-320, 364-369
+                    )
+                };
+                let mut kartu = oktz_plugin_api::kartu::Kartu::baru(teks.clone())
+                    .footer(bot_nama.clone())
+                    .header(
+                        oktz_plugin_api::kartu::KartuHeader::baru()
+                            .judul("")
+                            .subjudul(""),
+                    )
+                    .tombol(oktz_plugin_api::kartu::Tombol::balas_cepat(
+                        tombol_teks, tombol_id,
+                    ))
+                    .mention(jid.clone())
+                    .forwarded()
+                    .forwarding_score(9)
+                    .participant(jid.clone())
+                    .quote_teks(kutipan)
+                    .saluran(
+                        self.plugin_src.config.saluran.id.clone(),
+                        self.plugin_src.config.saluran.name.clone(),
+                        127,
+                    );
+                kartu.fallback_teks = Some(teks.clone());
+                let header = sumber.map(|source| PendingMedia {
+                    kind: MediaKind::Image,
+                    source,
+                    caption: String::new(),
+                    mentions: Vec::new(),
+                    quote: None,
+                    gif_playback: false,
+                    ptt: false,
+                    file_name: None,
+                    jpeg_thumbnail: None,
+                    file_length: None,
+                    preview: None,
+                    sticker: None,
+                    sticker_pack: None,
+                    width: None,
+                    height: None,
+                });
+                // JS: upload PP gagal → kartu TANPA media tetap terkirim
+                // (`welcome.js:301-311` catch → media null). Kirim ulang
+                // tanpa gambar, kalau kartunya sendiri gagal → senyap
+                // (catch luar, `welcome.js:372-374`).
+                if let Err(e) = self
+                    .sender
+                    .send_card(&u.id, kartu.clone(), header, None, vec![biz_node()])
+                    .await
+                {
+                    tracing::warn!(error = %e, grup = %u.id, "header kartu welcome gagal; kirim tanpa gambar");
+                    if let Err(e2) = self
+                        .sender
+                        .send_card(&u.id, kartu, None, None, vec![biz_node()])
+                        .await
+                    {
+                        tracing::warn!(error = %e2, grup = %u.id, "kartu welcome gagal");
+                        continue;
+                    }
+                }
+                continue;
             }
 
             let rendered = render_reply(&Reply::text(teks), &target)?;
@@ -9158,6 +9238,30 @@ fn a_null_access_field_keeps_the_existing_grant() {
         (p, sender, sock)
     }
 
+    /// `pipa_grup` + `config.assets` berisi asset `pp-kosong` lokal.
+    fn pipa_grup_aset(
+        nama: &str,
+        isi_store: &str,
+        meta: Value,
+    ) -> (Arc<Pipeline>, Arc<RecordingSender>, Arc<SockUji>) {
+        let ctx = StoreContext::new(store_with(nama, isi_store));
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            meta: Some(meta),
+            ..Default::default()
+        });
+        let mut cfg = oktz_core::config::Runtime::default();
+        cfg.assets
+            .0
+            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
+        let p = Arc::new(
+            Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+                .with_sock(sock.clone())
+                .with_config(cfg),
+        );
+        (p, sender, sock)
+    }
+
     #[tokio::test]
     async fn update_grup_add_mengirim_welcome_dengan_mention_peserta() {
         let (p, sender, _sock) = pipa_grup(
@@ -9236,23 +9340,10 @@ fn a_null_access_field_keeps_the_existing_grant() {
         // Tipe 2: PP gagal (`SockUji.foto_profil` error) → gambar LOKAL
         // `pp-kosong` dari `config.assets` — kartu tetap bergambar, konsep
         // ourin (`welcome.js:136-140`). Tanpa asset → teks fallback.
-        let ctx = StoreContext::new(store_with(
+        let (p, sender, _sock) = pipa_grup_aset(
             "grup-tipe",
             r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 2}}"#,
-        ));
-        let sender = Arc::new(RecordingSender::default());
-        let sock = Arc::new(SockUji {
-            meta: Some(meta_grup(json!([{"id": MEMBER, "admin": null}]))),
-            ..Default::default()
-        });
-        let mut cfg = oktz_core::config::Runtime::default();
-        cfg.assets
-            .0
-            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
-        let p = Arc::new(
-            Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
-                .with_sock(sock.clone())
-                .with_config(cfg),
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
         );
         p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
             .await
@@ -9272,23 +9363,10 @@ fn a_null_access_field_keeps_the_existing_grant() {
     async fn update_grup_tipe_2_goodbye_juga_kartu_berfoto() {
         // goodbye.js:173-252 — tipe 2 goodbye strukturnya sama dengan
         // welcome; PP → foto, caption `👋 *Sayonara* *@{user}*` (:60).
-        let ctx = StoreContext::new(store_with(
+        let (p, sender, _sock) = pipa_grup_aset(
             "grup-tipe2-goodbye",
             r#"{"groups": {"120363@g.us": {"goodbye": true}}, "settings": {"goodbyeType": 2}}"#,
-        ));
-        let sender = Arc::new(RecordingSender::default());
-        let sock = Arc::new(SockUji {
-            meta: Some(meta_grup(json!([{"id": MEMBER, "admin": null}]))),
-            ..Default::default()
-        });
-        let mut cfg = oktz_core::config::Runtime::default();
-        cfg.assets
-            .0
-            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
-        let p = Arc::new(
-            Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
-                .with_sock(sock.clone())
-                .with_config(cfg),
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
         );
         p.tangani_update_grup(&update_grup(AksiGrup::Remove, MEMBER))
             .await
@@ -9297,6 +9375,44 @@ fn a_null_access_field_keeps_the_existing_grant() {
         assert_eq!(media.len(), 1, "{media:?}");
         assert!(media[0].1.caption.contains("Sayonara"), "{media:?}");
         assert_eq!(media[0].1.mentions, vec![MEMBER.to_string()]);
+    }
+
+    #[tokio::test]
+    async fn update_grup_tipe_7_welcome_kartu_interaktif() {
+        // welcome.js:289-359 — kartu interaktif + foto PP + quick_reply +
+        // quote palsu + badge saluran. Stub sender mengabaikan header, jadi
+        // cukup 1 pesan kartu dan body-nya teks sapaan penuh.
+        let (p, sender, _sock) = pipa_grup_aset(
+            "grup-tipe7",
+            r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 7}}"#,
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
+        );
+        p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
+            .await
+            .unwrap();
+        let sent = sender.sent.lock().unwrap();
+        assert_eq!(sent.len(), 1, "kartu = 1 pesan: {sent:?}");
+        let d = format!("{:?}", sent[0].1);
+        assert!(d.contains("WELCOME MEMBER BARU"), "body kartu = teks sapaan: {d}");
+        assert!(d.contains(MEMBER), "mention peserta: {d}");
+    }
+
+    #[tokio::test]
+    async fn update_grup_tipe_7_goodbye_juga_kartu_interaktif() {
+        // goodbye.js:310-381 — kartu interaktif dengan tombol
+        // `👋 Selamat Tinggal` dan quote `Selamat tinggal semuanya! 👋`.
+        let (p, sender, _sock) = pipa_grup_aset(
+            "grup-tipe7-goodbye",
+            r#"{"groups": {"120363@g.us": {"goodbye": true}}, "settings": {"goodbyeType": 7}}"#,
+            meta_grup(json!([{"id": MEMBER, "admin": null}])),
+        );
+        p.tangani_update_grup(&update_grup(AksiGrup::Remove, MEMBER))
+            .await
+            .unwrap();
+        let sent = sender.sent.lock().unwrap();
+        assert_eq!(sent.len(), 1, "{sent:?}");
+        let d = format!("{:?}", sent[0].1);
+        assert!(d.contains("SAYONARA"), "body kartu = teks sapaan: {d}");
     }
 
     #[tokio::test]
