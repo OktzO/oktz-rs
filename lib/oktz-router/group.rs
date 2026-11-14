@@ -102,6 +102,8 @@ pub struct GroupSettings {
     pub anticustom_rules: Vec<CustomRule>,
     pub antiswgc: Option<String>,
     pub antihidetag: Option<String>,
+    /// `group.antitagsw` (`handleAntiTagSW`, group-protection.js:1389).
+    pub antitagsw: Option<String>,
     /// Gate ini pakai `!groupData.antidocument` (truthiness), bukan `"on"`.
     pub antidocument: bool,
     /// `groupData.antimedia` / `groupData.antisticker` / `groupData.antibot`
@@ -310,6 +312,7 @@ pub fn default_gate_chain() -> GroupGuard {
         Gate::new("antilinkgc", gate_antilink_gc),   // handler.js:785
         Gate::new("antilinkall", gate_antilink_all), // handler.js:788
         Gate::new("antihidetag", gate_hidetag),      // handler.js:791
+        Gate::new("antitagsw", gate_antitagsw),      // connection.js:1479 (sebelum antiswgc)
         Gate::new("antiswgc", gate_anti_swgc),       // handler.js:794
         Gate::new("antidocument", gate_antidocument), // handler.js:797
         Gate::new("antibot", gate_antibot),           // handler.js:802
@@ -629,6 +632,66 @@ fn gate_anti_custom(input: &GateInput<'_>) -> GateOutcome {
 ///   komentar field).
 /// - Cek admin hanya memakai `key.participant` versi ternormalisasi
 ///   (`senderCand = [sender]`, :2106) — bukan `[participant, m.sender]`.
+///
+/// `gate_antitagsw` di atas memotong wrapper tag-status dulu (urutan JS
+/// connection.js:1479-53: `handleAntiTagSW` menang → antiswgc tidak jalan).
+/// `group-protection.js:1381` `handleAntiTagSW` — hanya wrapper tag-status
+/// (`groupStatusMentionMessage`/`statusMentionMessage`/`groupMentionedMessage`)
+/// yang dihapus; hidetag biasa lewat `gate_hidetag`. Di JS dipanggil
+/// connection.js SEBELUM `handleAntiSwGc` (`connection.js:1479-53`), jadi
+/// di chain juga diletakkan sebelum gate antiswgc.
+fn gate_antitagsw(input: &GateInput<'_>) -> GateOutcome {
+    let c = input.caller;
+    if input.settings.antitagsw.as_deref() != Some("on") {
+        return GateOutcome::Pass;
+    }
+    let Some(sw_type) = c.sw_group_type.as_deref() else {
+        return GateOutcome::Pass;
+    };
+    if !matches!(
+        sw_type,
+        "message.groupStatusMentionMessage"
+            | "message.statusMentionMessage"
+            | "message.groupMentionedMessage"
+    ) {
+        return GateOutcome::Pass;
+    }
+    if c.from_me {
+        return GateOutcome::Pass;
+    }
+    let sender = normalize_comparable_jid(c.participant.as_deref().unwrap_or(&c.sender));
+    if is_same_participant(&sender, &input.env.bot_number) {
+        return GateOutcome::Pass;
+    }
+    if let Some(lid) = &input.env.bot_lid
+        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid)
+    {
+        return GateOutcome::Pass;
+    }
+    if !input.env.metadata_available {
+        // JS: `groupMetadata` gagal → `catch` → `return false` → senyap.
+        return GateOutcome::Pass;
+    }
+    if is_admin_check(&input.env.participants, Some(&sender), "") {
+        return GateOutcome::Pass;
+    }
+    if !is_bot_admin_check(input.env) {
+        return GateOutcome::Decide(Decision::Reply(NOT_ADMIN.to_string()));
+    }
+    let tag_source = if sender.is_empty() {
+        if input.env.bot_number.is_empty() {
+            "Unknown".to_string()
+        } else {
+            input.env.bot_number.clone()
+        }
+    } else {
+        sender
+    };
+    GateOutcome::Decide(Decision::DeleteAndReply(
+        msg(ANTITAGSW, &sender_tag(&tag_source)),
+    ))
+}
+
 fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
     let c = input.caller;
     if input.settings.antiswgc.as_deref() != Some("on") {
@@ -1042,6 +1105,8 @@ pub const ANTICUSTOM_KICK: &str =
     "⚠ *AntiCustom* — @%user% di-kick karena melanggar rule custom *%rule%*.";
 /// `gpMsg("antiswgc")` — `%type%` diganti path tipe dari `detectSwGcType`.
 pub const ANTISWGC: &str = "⚠ *AntiSWGC* — SW group type *%type%* dari @%user% dihapus.";
+/// `gpMsg("antitagsw")` (group-protection.js:36).
+pub const ANTITAGSW: &str = "⚠ *AntiTagSW* — Tag status dari @%user% dihapus.";
 
 /// `gpMsg(key, { user })` — ganti `%user%` dengan nomor tanpa domain.
 fn msg(template: &str, sender_tag: &str) -> String {
@@ -4397,6 +4462,7 @@ mod tests {
                 "antilinkgc",   // :785
                 "antilinkall",  // :788
                 "antihidetag",  // :791
+                "antitagsw",    // connection.js:1479 (sebelum antiswgc)
                 "antiswgc",     // :794
                 "antidocument", // :797
                 "antibot",      // :802
@@ -6548,6 +6614,42 @@ mod tests {
             GateOutcome::Decide(Decision::DeleteAndReply(
                 ANTIJUDOL.replace("%user%", "628111")
             ))
+        );
+    }
+
+    #[test]
+    fn antitagsw_deletes_status_tag_and_replies() {
+        let mut c = caller();
+        c.sw_group_type = Some("message.groupStatusMentionMessage".into());
+        let s = GroupSettings {
+            antitagsw: Some("on".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            run_one(gate_antitagsw, &c, &s, &env()),
+            GateOutcome::Decide(Decision::DeleteAndReply(
+                ANTITAGSW.replace("%user%", "628111")
+            ))
+        );
+    }
+
+    #[test]
+    fn antitagsw_ignores_non_status_sw_types_and_off_state() {
+        // SW-group biasa (bukan tag status) bukan urusannya — antiswgc yang urus.
+        let mut c = caller();
+        c.sw_group_type = Some("message.groupStatusMessageV2".into());
+        let s = GroupSettings {
+            antitagsw: Some("on".into()),
+            ..Default::default()
+        };
+        assert_eq!(run_one(gate_antitagsw, &c, &s, &env()), GateOutcome::Pass);
+
+        // status tag tapi gate off → lolos.
+        let mut c = caller();
+        c.sw_group_type = Some("message.groupMentionedMessage".into());
+        assert_eq!(
+            run_one(gate_antitagsw, &c, &GroupSettings::default(), &env()),
+            GateOutcome::Pass
         );
     }
 

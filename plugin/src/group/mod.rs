@@ -103,6 +103,9 @@ pub mod welcome;
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod pinchat;
 
+#[cfg(test)]
+pub(crate) mod test_sock;
+
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod add;
 

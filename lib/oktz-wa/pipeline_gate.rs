@@ -236,6 +236,7 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
         antiphising: g("antiphising"),
         antiphising_mode: g("antiphisingMode"),
         antiswgc: g("antiswgc"),
+        antitagsw: g("antitagsw"),
         antidocument: entry
             .get("antidocument")
             .and_then(Value::as_bool)

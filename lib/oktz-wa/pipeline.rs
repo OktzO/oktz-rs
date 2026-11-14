@@ -5156,13 +5156,15 @@ impl Pipeline {
             };
 
             // Tipe 2 = kartu + FOTO PROFIL peserta (`welcome.js:152-231`,
-            // `goodbye.js:173-252`): gambar PP (gagal → teks) + caption
-            // salam + mention + badge saluran (`saluranCtx()`,
-            // `context.js:50-62`: score 9, forwarded, newsletterInfo).
-            // Tipe lain (3..8) di JS bervariasi kartu/preview/gif; padanan
-            // wire-nya belum ada, jadi jatuh ke tipe 1 (teks + mention) —
-            // pesan tetap terkirim, bukan hilang.
-            if tipe == 2 && masuk {
+            // `goodbye.js:173-252`): gambar PP + caption salam + mention +
+            // badge saluran (`saluranCtx()`, `context.js:50-62`: score 9,
+            // forwarded, newsletterInfo). PP kosong/gagal → asset LOKAL
+            // `pp-kosong` (`config.assets`) supaya kartu tetap bergambar —
+            // konsep ourin yang menaruh gambar pp-kosong sebagai ppUrl
+            // default (`welcome.js:136-140`). Tipe lain (3..8) di JS
+            // bervariasi kartu/preview/gif; padanan wire-nya belum ada, jadi
+            // jatuh ke tipe 1 (teks + mention) — pesan tetap terkirim.
+            if tipe == 2 {
                 let pp = self
                     .plugin_src
                     .sock
@@ -5170,16 +5172,26 @@ impl Pipeline {
                     .ok()
                     .flatten()
                     .filter(|url| !url.is_empty());
-                let url = match pp {
-                    Some(url) => url,
-                    None => {
-                        tracing::warn!(grup = %u.id, peserta = %nomor, "PP peserta gagal; sapaan jadi teks (JS fallback sama)");
-                        // jatuh ke jalur teks di bawah
-                        String::new()
-                    }
+                let sumber = match pp {
+                    Some(url) => Some(MediaSource::Url {
+                        url,
+                        mimetype: Some("image/jpeg".to_string()),
+                    }),
+                    // Tanpa PP → gambar pp-kosong lokal; tanpa asset →
+                    // jatuh ke teks (jalur catch JS, kartu tetap jalan).
+                    None => self
+                        .plugin_src
+                        .config
+                        .assets
+                        .get("pp-kosong")
+                        .map(|p| MediaSource::path(p.to_string())),
                 };
-                if !url.is_empty() {
-                    let caption = format!("👋 Welcome *@{nomor}*");
+                if let Some(sumber) = sumber {
+                    let caption = if masuk {
+                        format!("👋 Welcome *@{nomor}*") // welcome.js:188
+                    } else {
+                        format!("👋 *Sayonara* *@{nomor}*") // goodbye.js:60
+                    };
                     let mut ci = context_info(std::slice::from_ref(&jid), None);
                     ci.is_forwarded = Some(true);
                     ci.forwarding_score = Some(9);
@@ -5192,10 +5204,7 @@ impl Pipeline {
                         });
                     let pending = PendingMedia {
                         kind: MediaKind::Image,
-                        source: MediaSource::Url {
-                            url,
-                            mimetype: Some("image/jpeg".to_string()),
-                        },
+                        source: sumber,
                         caption,
                         mentions: vec![jid.clone()],
                         quote: None,
@@ -9224,21 +9233,70 @@ fn a_null_access_field_keeps_the_existing_grant() {
             "grup-off: tidak boleh ada pesan terkirim"
         );
 
-        // Tipe 2: PP gagal (`SockUji.foto_profil` error) → fallback teks,
-        // persis cabang `catch {}` JS (`welcome.js:138-141`).
-        let (p, sender, _sock) = pipa_grup(
+        // Tipe 2: PP gagal (`SockUji.foto_profil` error) → gambar LOKAL
+        // `pp-kosong` dari `config.assets` — kartu tetap bergambar, konsep
+        // ourin (`welcome.js:136-140`). Tanpa asset → teks fallback.
+        let ctx = StoreContext::new(store_with(
             "grup-tipe",
             r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 2}}"#,
-            meta_grup(json!([{"id": MEMBER, "admin": null}])),
+        ));
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            meta: Some(meta_grup(json!([{"id": MEMBER, "admin": null}]))),
+            ..Default::default()
+        });
+        let mut cfg = oktz_core::config::Runtime::default();
+        cfg.assets
+            .0
+            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
+        let p = Arc::new(
+            Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+                .with_sock(sock.clone())
+                .with_config(cfg),
         );
         p.tangani_update_grup(&update_grup(AksiGrup::Add, MEMBER))
             .await
             .unwrap();
-        assert!(
-            sender.texts().iter().any(|t| t.contains("WELCOME")),
-            "PP gagal → teks fallback: {:?}",
-            sender.texts()
+        let media = sender.media.lock().unwrap().clone();
+        assert_eq!(media.len(), 1, "PP gagal → asset pp-kosong: {media:?}");
+        match &media[0].1.source {
+            oktz_plugin_api::MediaSource::Path { path, .. } => {
+                assert!(path.contains("pp-kosong"), "{path}")
+            }
+            s => panic!("harus Path pp-kosong, dapat {s:?}"),
+        }
+        assert_eq!(media[0].1.mentions, vec![MEMBER.to_string()]);
+    }
+
+    #[tokio::test]
+    async fn update_grup_tipe_2_goodbye_juga_kartu_berfoto() {
+        // goodbye.js:173-252 — tipe 2 goodbye strukturnya sama dengan
+        // welcome; PP → foto, caption `👋 *Sayonara* *@{user}*` (:60).
+        let ctx = StoreContext::new(store_with(
+            "grup-tipe2-goodbye",
+            r#"{"groups": {"120363@g.us": {"goodbye": true}}, "settings": {"goodbyeType": 2}}"#,
+        ));
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            meta: Some(meta_grup(json!([{"id": MEMBER, "admin": null}]))),
+            ..Default::default()
+        });
+        let mut cfg = oktz_core::config::Runtime::default();
+        cfg.assets
+            .0
+            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
+        let p = Arc::new(
+            Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+                .with_sock(sock.clone())
+                .with_config(cfg),
         );
+        p.tangani_update_grup(&update_grup(AksiGrup::Remove, MEMBER))
+            .await
+            .unwrap();
+        let media = sender.media.lock().unwrap().clone();
+        assert_eq!(media.len(), 1, "{media:?}");
+        assert!(media[0].1.caption.contains("Sayonara"), "{media:?}");
+        assert_eq!(media[0].1.mentions, vec![MEMBER.to_string()]);
     }
 
     #[tokio::test]

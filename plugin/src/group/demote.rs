@@ -1,12 +1,11 @@
 //! `plugins/group/demote.js` — turunkan admin menjadi member biasa.
 //!
-//! Yang dipindah: seluruh gerbang (ambil target, cari peserta, tolak yang
-//! bukan admin, tolak owner). Penurunan sebenarnya
-//! `sock.groupParticipantsUpdate(m.chat, [id], 'demote')` (`demote.js:63`)
-//! tidak ada di API plugin, jadi setelah gerbang lolos plugin diam — bukan
-//! mengarang "sekarang bukan admin lagi".
+//! Gerbang (target, peserta, tolak yang bukan admin, tolak owner) + penurunan
+//! `sock.groupParticipantsUpdate(m.chat, [id], 'demote')` (`demote.js:63,360`)
+//! lewat `ctx.sock().ubah_peserta(.., Turunkan)`. Balasan memakai teks JS tanpa
+//! emoji awalan, mention `target`.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 
 use crate::group::kick::find_participant;
 
@@ -68,7 +67,16 @@ pub fn demote(ctx: Ctx) -> Reply {
         return Reply::text(IS_OWNER);
     }
 
-    Reply::None
+    let number = target.split('@').next().unwrap_or(&target);
+    match ctx.sock().ubah_peserta(
+        &ctx.chat,
+        std::slice::from_ref(&p.jid),
+        AksiPeserta::Turunkan,
+    ) {
+        Ok(()) => Reply::text(format!("@{number} sekarang bukan admin lagi."))
+            .with_mentions(vec![target]),
+        Err(_) => Reply::text(crate::common::error_template(&ctx)),
+    }
 }
 
 #[cfg(test)]
@@ -78,6 +86,9 @@ mod tests {
     use oktz_plugin_api::find;
     use oktz_plugin_api::registry::GroupRoster;
     use serde_json::Value;
+    use std::sync::Arc;
+
+    use crate::group::test_sock::CatatSock;
 
     fn p(jid: &str, admin: bool, owner: bool) -> Participant {
         Participant {
@@ -89,6 +100,18 @@ mod tests {
     }
 
     fn ctx_with(target: Option<&str>) -> Ctx {
+        ctx_with_sock(target, Arc::new(CatatSock::default()))
+    }
+
+    fn ctx_with_sock(target: Option<&str>, sock: Arc<CatatSock>) -> Ctx {
+        let roster = GroupRoster {
+            participants: vec![
+                p("628111@s.whatsapp.net", false, false),
+                p("628999@s.whatsapp.net", true, false),
+                p("628555@s.whatsapp.net", true, true),
+            ],
+            is_bot_admin: true,
+        };
         Ctx {
             prefix: ".".into(),
             command: "demote".into(),
@@ -96,14 +119,8 @@ mod tests {
             chat: "120363@g.us".into(),
             is_group: true,
             mentioned: target.map(|t| vec![t.to_string()]).unwrap_or_default(),
-            roster: GroupRoster {
-                participants: vec![
-                    p("628111@s.whatsapp.net", false, false),
-                    p("628999@s.whatsapp.net", true, false),
-                    p("628555@s.whatsapp.net", true, true),
-                ],
-                is_bot_admin: true,
-            },
+            roster,
+            sock,
             ..Default::default()
         }
     }
@@ -176,10 +193,30 @@ mod tests {
     }
 
     #[test]
-    fn a_real_admin_passes_every_guard_and_then_goes_silent() {
-        let r = run(ctx_with(Some("628999@s.whatsapp.net")));
-        assert!(r.is_none(), "penurunan tidak di-port; jangan mengarang");
-        assert!(r.mutations().is_empty());
+    fn a_real_admin_is_demoted_with_js_text() {
+        let sock = Arc::new(CatatSock::default());
+        let r = run(ctx_with_sock(Some("628999@s.whatsapp.net"), sock.clone()));
+        assert_eq!(body(&r), "@628999 sekarang bukan admin lagi.");
+        assert_eq!(
+            *sock.seen.lock().unwrap(),
+            vec![(
+                "120363@g.us".to_string(),
+                vec!["628999@s.whatsapp.net".to_string()],
+                AksiPeserta::Turunkan
+            )]
+        );
+    }
+
+    #[test]
+    fn a_failed_demote_reports_the_error_template() {
+        let r = run(ctx_with_sock(
+            Some("628999@s.whatsapp.net"),
+            Arc::new(CatatSock {
+                gagal: true,
+                ..Default::default()
+            }),
+        ));
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "demote"));
     }
 
     #[test]
@@ -197,6 +234,6 @@ mod tests {
             timestamp: 0,
         });
         let r = run(ctx);
-        assert!(r.is_none(), "quoted yang dipakai, jadi lolos gerbang admin");
+        assert_eq!(body(&r), "@628999 sekarang bukan admin lagi.");
     }
 }

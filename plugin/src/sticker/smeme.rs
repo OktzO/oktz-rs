@@ -13,17 +13,13 @@
 //! - Semua teks balasan (kartu pakai, format, gagal unduh, gagal upload)
 //!   persis seperti JS.
 //!
-//! `ponytail:`
-//! - JS mengubah gambar ke 512x512 `fit: "contain"` dengan latar transparan
-//!   sebelum diunggah (`smeme.js:58-67`). `oktz_plugin_api::gambar` tidak punya
-//!   mode "contain + pad transparan" (hanya `cover` dan `inside`), jadi gambar
-//!   diunggah apa adanya (dikonversi ke PNG kalau bisa). Memegen.link sendiri
-//!   menyesuaikan ukuran latar, jadi hasil akhirnya hampir sama.
-//! - `addExifToWebp` tidak ada di Rust, jadi metadata packname/author pada
-//!   sticker tidak ikut — sama seperti plugin sticker lain di repo ini.
+//! `ponytail:` JS mengunggah gambar 512x512 `contain` transparan ke Telegraph
+//! (`smeme.js:58-67`); `gambar` Rust tidak punya mode itu, jadi gambar
+//! diunggah apa adanya (dikonversi PNG kalau bisa) — memegen menyesuaikan
+//! ukuran latar sendiri.
 
 use oktz_plugin_api::registry::{IncomingKind, MultipartPart};
-use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, EXIF_EMOJIS, HttpCall, MediaSource, Reply, StickerOpsi, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
@@ -172,7 +168,23 @@ pub fn smeme(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
 
-    Reply::sticker(MediaSource::bytes(buf)).with_reaction("✅")
+    // `smeme.js:108-116` → `sendImageAsSticker` (`socket.js:523-560`): hasil
+    // memegen adalah PNG — WA menolak sticker yang byte-nya bukan WebP
+    // (mimetype wire selalu `image/webp`), jadi wajib konversi + EXIF dulu.
+    let (packname, author) = crate::sticker::sticker::metadata(&ctx, None, None);
+    let webp = match oktz_plugin_api::gambar_ke_stiker_webp(&buf, &[]) {
+        Ok(w) => w,
+        Err(_) => return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
+    };
+    let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &packname, &author, &EXIF_EMOJIS)
+        .unwrap_or(webp);
+    Reply::sticker_opsi(
+        MediaSource::bytes(bytes).with_mimetype("image/webp"),
+        StickerOpsi::gambar()
+            .with_packname(packname)
+            .with_author(author),
+    )
+    .with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -261,7 +273,7 @@ mod tests {
         }
     }
 
-    fn ctx_of(http: Arc<Stub>, gambar: bool, args: &[&str]) -> Ctx {
+    fn ctx_of(http: Arc<dyn HttpGet>, gambar: bool, args: &[&str]) -> Ctx {
         Ctx {
             text: args.join(" "),
             args: args.iter().map(|a| (*a).to_string()).collect(),
@@ -376,5 +388,67 @@ mod tests {
         let r = smeme(ctx);
         assert_eq!(teks(&r), GAGAL_UPLOAD);
         assert_eq!(reaksi(&r), Some("❌"));
+    }
+
+    #[test]
+    fn hasil_memegen_png_dikonversi_webp_dengan_exif() {
+        // sendImageAsSticker (smeme.js:58): PNG dari memegen wajib jadi WebP,
+        // bukan dikirim mentah — WA menolak sticker ber-byte PNG.
+        let png = std::fs::read("../assets/image/foto.jpeg").expect("baca foto.jpeg");
+        #[derive(Debug)]
+        struct MemegenStub(Vec<u8>);
+        impl HttpGet for MemegenStub {
+            fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {
+                Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(self.0.as_slice()),
+                        mimetype: Some("image/png".into()),
+                    },
+                    headers: vec![],
+                })
+            }
+            fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+                unimplemented!()
+            }
+            fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+                unimplemented!()
+            }
+            fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+                unimplemented!()
+            }
+            fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+                // POST = upload Telegraph; GET memegen bisa "membawa"
+                // telegra.ph di query background — bedakan per method.
+                if req.url.starts_with("https://telegra.ph") {
+                    return Ok(HttpResponse {
+                        status: 200,
+                        body: HttpBody::Bytes {
+                            data: Arc::from(br#"[{"src":"/file/abc.jpg"}]"#.to_vec()),
+                            mimetype: None,
+                        },
+                        headers: vec![],
+                    });
+                }
+                self.get(&req.url)
+            }
+        }
+        let mut ctx = ctx_of(Arc::new(MemegenStub(png)), true, &["a|b"]);
+        ctx.media_fetch = Arc::new(MediaStub);
+        let r = smeme(ctx);
+        assert_eq!(reaksi(&r), Some("✅"));
+        match r.without_mutations() {
+            Reply::Reaction { reply, .. } => match reply.as_ref() {
+                Reply::Sticker { media, .. } => {
+                    let bytes = match media.as_ref().expect("sticker butuh sumber") {
+                        MediaSource::Bytes { data, .. } => data.clone(),
+                        m => panic!("harus bytes: {m:?}"),
+                    };
+                    assert!(bytes.starts_with(b"RIFF"), "harus WebP, dapat {bytes:?}", bytes = &bytes[..16.min(bytes.len())]);
+                }
+                lain => panic!("harus sticker, dapat {lain:?}"),
+            },
+            lain => panic!("harus reaction sticker, dapat {lain:?}"),
+        }
     }
 }

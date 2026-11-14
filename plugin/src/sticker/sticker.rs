@@ -79,7 +79,7 @@ fn terlalu_panjang(durasi: f64) -> String {
     )
 }
 
-fn metadata(ctx: &Ctx, packname: Option<String>, author: Option<String>) -> (String, String) {
+pub(crate) fn metadata(ctx: &Ctx, packname: Option<String>, author: Option<String>) -> (String, String) {
     let cfg = ctx.config();
     let nama_pack = packname
         .or_else(|| (!cfg.sticker.packname.is_empty()).then(|| cfg.sticker.packname.clone()))

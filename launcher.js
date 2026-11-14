@@ -100,7 +100,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           WebP ditolak WA saat diunduh.
 // v0.2.38 — paritas sticker (.bratimg/.bratvid/.s) + kartu thumbnail .play;
 //           ffmpeg+ffprobe statis otomatis dari aset rilis ke bin/ (tanpa npm).
-export const VERSI_BIN = "v0.2.43";
+// v0.2.45 — .promote/.demote benar-benar jalan; .smeme PNG→WebP+EXIF (stiker
+//           tidak kosong lagi); gate antitagsw; welcome/goodbye tipe-2 kirim
+//           foto PP peserta, gagal → asset lokal pp-kosong.
+export const VERSI_BIN = "v0.2.45";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

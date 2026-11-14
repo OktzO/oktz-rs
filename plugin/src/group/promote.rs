@@ -1,12 +1,11 @@
 //! `plugins/group/promote.js` — jadikan member sebagai admin.
 //!
-//! Yang dipindah: seluruh gerbang (ambil target, cari peserta, tolak yang
-//! sudah admin). Pengangkatan sebenarnya
-//! `sock.groupParticipantsUpdate(m.chat, [id], 'promote')` (`promote.js:58`)
-//! tidak ada di API plugin, jadi setelah gerbang lolos plugin diam — bukan
-//! mengarang "sekarang menjadi admin".
+//! Gerbang (target, peserta, tolak yang sudah admin) + pengangkatan
+//! `sock.groupParticipantsUpdate(m.chat, [id], 'promote')` (`promote.js:58,286`)
+//! lewat `ctx.sock().ubah_peserta(.., Naikkan)`. Balasan sukses memakai teks JS
+//! dengan mention `target` (bukan `p.jid` — JS me-mention hasil resolve).
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 
 use crate::group::kick::find_participant;
 
@@ -60,7 +59,16 @@ pub fn promote(ctx: Ctx) -> Reply {
         return Reply::text(ALREADY_ADMIN);
     }
 
-    Reply::None
+    let number = target.split('@').next().unwrap_or(&target);
+    match ctx.sock().ubah_peserta(
+        &ctx.chat,
+        std::slice::from_ref(&p.jid),
+        AksiPeserta::Naikkan,
+    ) {
+        Ok(()) => Reply::text(format!("✅ @{number} sekarang menjadi admin!"))
+            .with_mentions(vec![target]),
+        Err(_) => Reply::text(crate::common::error_template(&ctx)),
+    }
 }
 
 #[cfg(test)]
@@ -72,6 +80,9 @@ mod tests {
     use oktz_plugin_api::find;
     use oktz_plugin_api::registry::GroupRoster;
     use serde_json::Value;
+    use std::sync::Arc;
+
+    use crate::group::test_sock::CatatSock;
 
     fn p(jid: &str, admin: bool) -> Participant {
         Participant {
@@ -83,6 +94,10 @@ mod tests {
     }
 
     fn ctx_with(target: Option<&str>) -> Ctx {
+        ctx_with_sock(target, Arc::new(CatatSock::default()))
+    }
+
+    fn ctx_with_sock(target: Option<&str>, sock: Arc<CatatSock>) -> Ctx {
         Ctx {
             prefix: ".".into(),
             command: "promote".into(),
@@ -97,6 +112,7 @@ mod tests {
                 ],
                 is_bot_admin: true,
             },
+            sock,
             ..Default::default()
         }
     }
@@ -165,10 +181,30 @@ mod tests {
     }
 
     #[test]
-    fn a_plain_member_passes_every_guard_and_then_goes_silent() {
-        let r = run(ctx_with(Some("628111@s.whatsapp.net")));
-        assert!(r.is_none(), "pengangkatan tidak di-port; jangan mengarang");
-        assert!(r.mutations().is_empty());
+    fn a_plain_member_gets_promoted_with_js_text() {
+        let sock = Arc::new(CatatSock::default());
+        let r = run(ctx_with_sock(Some("628111@s.whatsapp.net"), sock.clone()));
+        assert_eq!(body(&r), "✅ @628111 sekarang menjadi admin!");
+        assert_eq!(
+            *sock.seen.lock().unwrap(),
+            vec![(
+                "120363@g.us".to_string(),
+                vec!["628111@s.whatsapp.net".to_string()],
+                AksiPeserta::Naikkan
+            )]
+        );
+    }
+
+    #[test]
+    fn a_failed_promotion_reports_the_error_template() {
+        let r = run(ctx_with_sock(
+            Some("628111@s.whatsapp.net"),
+            Arc::new(CatatSock {
+                gagal: true,
+                ..Default::default()
+            }),
+        ));
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "promote"));
     }
 
     #[test]
