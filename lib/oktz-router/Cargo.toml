@@ -14,8 +14,12 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
+# spawn_blocking: handler plugin berat jalan di thread pool blocking, bukan
+# worker tokio — docs/superpowers/specs/2026-11-14-optimasi-worker-alokator-design.md
+tokio = { version = "1.53", features = ["rt"] }
 [dev-dependencies]
 # `#[answer_handler]` memancarkan `linkme::distributed_slice`, jadi crate yang
 # memakai macro WAJIB punya linkme sebagai direct dependency — termasuk untuk
 # unit test di crate ini.
 linkme = "0.3"
+tokio = { version = "1.53", features = ["rt", "macros"] }

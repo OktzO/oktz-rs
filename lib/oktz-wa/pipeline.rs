@@ -4509,7 +4509,7 @@ impl Pipeline {
         // tidak pernah menyentuh rantai ini.
         if !parse_command(&body, &self.parse_opts).is_command {
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
-            if let Some(reply) = router.answer(&caller, &body) {
+            if let Some(reply) = router.answer(&caller, &body).await {
                 let target = reply_target(m, &caller.sender);
                 if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
@@ -4586,7 +4586,7 @@ impl Pipeline {
             // `&*self.ctx`: trait-nya diimplementasikan untuk `StoreContext`, bukan
             // `Arc<StoreContext>` — Arc cuma dipakai supaya bisa dipegang wrapper.
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
-            let decision = router.route(&mut caller, &body, lookup);
+            let decision = router.route(&mut caller, &body, lookup).await;
             let reply = decision_to_reply(&decision);
 
             // --- Tulis mutasi SEBELUM balasan dikirim --------------------

@@ -83,7 +83,7 @@ impl<'a, C: RouterContext> Router<'a, C> {
     }
 
     /// Pipeline lengkap: parse → mode → lookup → permission → group mode → dispatch.
-    pub fn route(
+    pub async fn route(
         &self,
         caller: &mut Caller,
         body: &str,
@@ -143,10 +143,22 @@ impl<'a, C: RouterContext> Router<'a, C> {
         }
 
         let c = self.build_ctx(caller, &parsed);
-        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (entry.handler)(c))) {
-            Ok(r) => Decision::Handled(r),
-            Err(_) => {
+        // Handler jalan di thread pool blocking — HTTP/ffmpeg/image tidak
+        // menahan worker tokio (ureq timeout 20s, ffmpeg puluhan detik).
+        // catch_unwind tetap DI DALAM closure: panik plugin = balasan error,
+        // bukan JoinError yang telanjang.
+        let dipanik = tokio::task::spawn_blocking(move || {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (entry.handler)(c)))
+        })
+        .await;
+        match dipanik {
+            Ok(Ok(r)) => Decision::Handled(r),
+            Ok(Err(_)) => {
                 tracing::error!("plugin panik, ditahan di router");
+                Decision::Handled(Reply::text("❌ Plugin error, coba lagi nanti."))
+            }
+            Err(join) => {
+                tracing::error!(error = %join, "spawn_blocking handler gagal jalan");
                 Decision::Handled(Reply::text("❌ Plugin error, coba lagi nanti."))
             }
         }
@@ -158,7 +170,7 @@ impl<'a, C: RouterContext> Router<'a, C> {
     /// pertama mengembalikan `Some`. Tidak ada gate permission atau mode
     /// di sini, sama seperti JS: `handleGameAnswer` dipanggil dari
     /// `try` yang menutupi galat, dan memang tidak mengecek izin.
-    pub fn answer(&self, caller: &Caller, body: &str) -> Option<Reply> {
+    pub async fn answer(&self, caller: &Caller, body: &str) -> Option<Reply> {
         if all_answer_handlers().is_empty() {
             return None;
         }
@@ -170,7 +182,12 @@ impl<'a, C: RouterContext> Router<'a, C> {
             text: body.to_string(),
             ..parsed
         };
-        oktz_plugin_api::run_answer_handlers(self.build_ctx(caller, &parsed))
+        let ctx = self.build_ctx(caller, &parsed);
+        // JoinError = handler mati sebelum sempat panik-tertangkap → None,
+        // paritas try/catch JS (`handler.js:440-473`) yang menelan galat.
+        tokio::task::spawn_blocking(move || oktz_plugin_api::run_answer_handlers(ctx))
+            .await
+            .unwrap_or(None)
     }
 
     /// Isi `Ctx` dari `Caller` — sama untuk dispatch command dan answer
@@ -294,65 +311,92 @@ mod tests {
         Some(oktz_plugin_api::Reply::text("kedua menjawab"))
     }
 
-    #[test]
-    fn rantai_answer_berhenti_di_yang_pertama_membalas() {
+    #[tokio::test]
+    async fn handler_dijalankan_di_thread_bukan_tokio_worker() {
+        let s = stub();
+        let r = Router::new(&s, ParseOptions::default(), 1000);
+        let mut c = caller();
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let sink = seen.clone();
+        let e = Box::leak(Box::new(PluginEntry {
+            meta: PluginMeta {
+                name: "tnt".into(),
+                category: "tools".into(),
+                ..Default::default()
+            },
+            handler: Arc::new(move |_| {
+                *sink.lock().unwrap() = Some(std::thread::current().id());
+                Reply::None
+            }),
+        }));
+        let _ = r.route(&mut c, ".tnt", |_| Some(e)).await;
+        let got = seen.lock().unwrap().expect("handler harus jalan");
+        assert_ne!(
+            got,
+            std::thread::current().id(),
+            "handler harus di thread blocking, bukan thread tokio worker"
+        );
+    }
+
+    #[tokio::test]
+    async fn rantai_answer_berhenti_di_yang_pertama_membalas() {
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
-        let balasan = r.answer(&caller(), "jawab").expect("harus ada yang menjawab");
+        let balasan = r.answer(&caller(), "jawab").await.expect("harus ada yang menjawab");
         assert_eq!(balasan, oktz_plugin_api::Reply::text("pertama menjawab"));
         assert_eq!(*DITANGANI.lock().unwrap(), vec!["pertama"]);
     }
 
-    #[test]
-    fn jawaban_di_luar_pola_melewati_seluruh_rantai() {
+    #[tokio::test]
+    async fn jawaban_di_luar_pola_melewati_seluruh_rantai() {
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
-        assert!(r.answer(&caller(), "bukan jawaban").is_none());
+        assert!(r.answer(&caller(), "bukan jawaban").await.is_none());
         assert!(DITANGANI.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn answer_menerima_pesan_mentah_bukan_hasil_parse() {
+    #[tokio::test]
+    async fn answer_menerima_pesan_mentah_bukan_hasil_parse() {
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         // Command yang tidak dikenal diteruskan apa adanya ke handler.
-        assert!(r.answer(&caller(), "/tak-dikenal").is_none());
+        assert!(r.answer(&caller(), "/tak-dikenal").await.is_none());
         assert!(DITANGANI.lock().unwrap().is_empty());
     }
 
-    #[test]
-    fn non_command_returns_not_a_command() {
+    #[tokio::test]
+    async fn non_command_returns_not_a_command() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
-        let d = r.route(&mut c, "halo", |_| None);
+        let d = r.route(&mut c, "halo", |_| None).await;
         assert_eq!(d, Decision::NotACommand);
     }
 
-    #[test]
-    fn command_without_plugin_is_silent() {
+    #[tokio::test]
+    async fn command_without_plugin_is_silent() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
-        let d = r.route(&mut c, ".tidakada", |_| None);
+        let d = r.route(&mut c, ".tidakada", |_| None).await;
         assert_eq!(d, Decision::NoPlugin);
     }
 
-    #[test]
-    fn plugin_runs_and_returns_reply() {
+    #[tokio::test]
+    async fn plugin_runs_and_returns_reply() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
         let e = Box::leak(Box::new(entry("ping", "main", Reply::text("pong"))));
-        let d = r.route(&mut c, ".ping", |_| Some(e));
+        let d = r.route(&mut c, ".ping", |_| Some(e)).await;
         assert_eq!(d, Decision::Handled(Reply::text("pong")));
     }
 
-    #[test]
-    fn mode_denied_before_plugin_lookup() {
+    #[tokio::test]
+    async fn mode_denied_before_plugin_lookup() {
         // Mode self, caller bukan owner: embora plugin ada, mode menolak dulu.
         let s = Stub {
             mode: ModeSettings {
@@ -363,12 +407,12 @@ mod tests {
         };
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
-        let d = r.route(&mut c, ".ping", |_| None);
+        let d = r.route(&mut c, ".ping", |_| None).await;
         assert_eq!(d, Decision::DeniedMode(DenyMode::Silent));
     }
 
-    #[test]
-    fn permission_denied_returns_message() {
+    #[tokio::test]
+    async fn permission_denied_returns_message() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
@@ -383,7 +427,7 @@ mod tests {
                 handler: Arc::new(|_| Reply::text("x")),
             }))
         };
-        let d = r.route(&mut c, ".secret", |_| Some(owner_only));
+        let d = r.route(&mut c, ".secret", |_| Some(owner_only)).await;
         // `config.js:198`, bukan fallback `"🚫 Owner only!"` dari
         // `middleware.js:57` — fallback cuma aktif kalau config kosong.
         assert!(
@@ -391,8 +435,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn panicking_handler_is_caught_not_propagated() {
+    #[tokio::test]
+    async fn panicking_handler_is_caught_not_propagated() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
@@ -404,12 +448,12 @@ mod tests {
             },
             handler: Arc::new(|_| panic!("boom")),
         }));
-        let d = r.route(&mut c, ".boom", |_| Some(e));
+        let d = r.route(&mut c, ".boom", |_| Some(e)).await;
         assert!(matches!(d, Decision::Handled(ref rep) if rep.text_body().is_some_and(|t| t.contains("Plugin error"))));
     }
 
-    #[test]
-    fn ctx_carries_parsed_fields_to_handler() {
+    #[tokio::test]
+    async fn ctx_carries_parsed_fields_to_handler() {
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
         let mut c = caller();
@@ -426,7 +470,7 @@ mod tests {
                 Reply::None
             }),
         }));
-        r.route(&mut c, ".echo satu dua", |_| Some(e));
+        r.route(&mut c, ".echo satu dua", |_| Some(e)).await;
         let got = seen.lock().unwrap().clone().expect("handler harus jalan");
         assert_eq!(got.command, "echo");
         assert_eq!(got.args, vec!["satu", "dua"]);
