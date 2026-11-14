@@ -103,7 +103,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.45 — .promote/.demote benar-benar jalan; .smeme PNG→WebP+EXIF (stiker
 //           tidak kosong lagi); gate antitagsw; welcome/goodbye tipe-2 kirim
 //           foto PP peserta, gagal → asset lokal pp-kosong.
-export const VERSI_BIN = "v0.2.45";
+// v0.2.46 — welcome/goodbye tipe 7 = kartu interaktif berfoto PP seperti
+//           ourin (body teks sapaan penuh + quick_reply + badge saluran).
+export const VERSI_BIN = "v0.2.46";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
