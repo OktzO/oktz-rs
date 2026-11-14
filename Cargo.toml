@@ -42,6 +42,14 @@ oktz-plugins = { path = "plugin" }
 serde_json.workspace = true
 tracing.workspace = true
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "time", "signal"] }
+# Alokator jemalloc: halaman bebas dikembalikan ke OS via decay, bukan
+# ditahan glibc selamanya — akar RSS bot naik merangkak. override_... =
+# malloc/free jemalloc menggantikan milik libc, jadi alokasi C (sqlite,
+# diesel) ikut dikelola & decay-nya satu atap. Decay diset lewat malloc_conf
+# (simbol `malloc_conf` di main.rs), bukan mallctl runtime — decay runtime
+# hanya berlaku untuk arena baru.
+tikv-jemallocator = { version = "0.7", features = ["override_allocator_on_supported_platforms"] }
+tikv-jemalloc-ctl = "0.7"
 
 # panic=unwind (bukan abort) supaya catch_unwind per plugin handler bisa
 # menahan error plugin tanpa mematikan bot — syarat tests/handler-error-visibility.

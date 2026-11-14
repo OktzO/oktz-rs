@@ -4,6 +4,39 @@ use oktz_core::config::Config;
 use oktz_store::json_store::JsonStore;
 use oktz_wa::MessageBuilderExt;
 
+/// Alokator jemalloc — halaman bebas kembali ke OS via decay, bukan ditahan
+/// glibc (akar RSS naik merangkak; spec optimasi ronde 1-B).
+#[global_allocator]
+static ALOKATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+/// Konfigurasi jemalloc, dibaca C saat init (sebelum main) — satu-satunya
+/// cara menyetel decay global: mallctl `arenas.dirty_decay_ms` saat runtime
+/// hanya berlaku untuk arena baru. Pola union dari test `malloc_conf_set`
+/// crate sys.
+union KonfChar {
+    b: &'static u8,
+    c: &'static std::ffi::c_char,
+}
+
+#[allow(non_upper_case_globals)]
+#[unsafe(no_mangle)]
+pub static malloc_conf: Option<&'static std::ffi::c_char> = Some(unsafe {
+    KonfChar {
+        b: &b"dirty_decay_ms:5000,muzzy_decay_ms:5000,background_thread:true\0"[0],
+    }
+    .c
+});
+
+/// Verifikasi konfigurasi jemalloc benar-benar aktif. Gagal = warn, bukan
+/// panic — default decay (10 dtk) tetap jauh lebih baik daripada glibc.
+fn atur_jemalloc() {
+    match unsafe { tikv_jemalloc_ctl::raw::read::<i64>(b"arenas.dirty_decay_ms\0") } {
+        Ok(5000) => {}
+        Ok(v) => tracing::warn!("jemalloc dirty_decay_ms={} (harap 5000)", v),
+        Err(e) => tracing::warn!("jemalloc ctl gagal baca: {}", e),
+    }
+}
+
 /// Referensi eksplisit ke crate plugin.
 ///
 /// Rust membuang crate yang tidak dirujuk, sehingga statik `linkme`-nya ikut
@@ -105,6 +138,7 @@ fn db_arg(path: PathBuf) -> Result<String, std::io::Error> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     oktz_core::logging::init("info");
+    atur_jemalloc();
 
     let args: Vec<String> = std::env::args().collect();
     let mode = args.get(1).map(|s| s.as_str()).unwrap_or("boot");
@@ -632,6 +666,20 @@ async fn send(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jemalloc_decay_diset_via_malloc_conf() {
+        // malloc_conf dibaca jemalloc saat init (sebelum main) — satu-satunya
+        // cara menyetel decay global: mallctl arenas.dirty_decay_ms saat
+        // runtime hanya berlaku untuk arena baru. 5000 ms = halaman kotor
+        // kembali ke OS ~5 dtk setelah free (akar RSS naik merangkak).
+        let v = unsafe { tikv_jemalloc_ctl::raw::read::<i64>(b"arenas.dirty_decay_ms\0") }
+            .expect("arenas.dirty_decay_ms harus terbaca");
+        assert_eq!(v, 5000);
+        let bg = unsafe { tikv_jemalloc_ctl::raw::read::<bool>(b"background_thread\0") }
+            .expect("background_thread harus terbaca");
+        assert!(bg, "purge otomatis jemalloc harus aktif");
+    }
 
     #[test]
     fn pairing_db_default_is_a_persistent_dir_not_scratch() {
