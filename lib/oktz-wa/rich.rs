@@ -435,19 +435,27 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
     out
 }
 
-/// Outer AIRich: `deviceListMetadata: {}`, version 2, `botMetadata` dengan
-/// `messageDisclaimerText` — TANPA `verificationMetadata`
-/// (`builder.js:1504-1514`).
+/// Outer AIRich / play2 (`builder.js:1504-1514`, `play2.js:899-906`).
 ///
-/// `richResponseSourcesMetadata: { sources: [] }` ikut ditulis: JS selalu
-/// menaruh objek itu walau kosong.
-fn ai_outer(disclaimer: Option<&str>) -> MessageContextInfo {
+/// Keduanya: `deviceListMetadata` KOSONG (`{}`), version 2, `botMetadata`.
+/// Yang beda (dilihat `bot_response_id`): `AIRich.build` kirim
+/// `richResponseSourcesMetadata: { sources: [] }` TANPA `botResponseId`;
+/// play2 `sendMusicPlayer` kirim `botResponseId = response_id` TANPA sources,
+/// plus `messageDisclaimerText: ""`.
+fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
     MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
         device_list_metadata_version: Some(2),
         bot_metadata: fld(Some(BotMetadata {
-            message_disclaimer_text: disclaimer.map(str::to_string),
-            rich_response_sources_metadata: fld(Some(BotSourcesMetadata::default())),
+            message_disclaimer_text: input.disclaimer.clone(),
+            bot_response_id: input
+                .bot_response_id
+                .then(|| response_id.to_string()),
+            rich_response_sources_metadata: if input.bot_response_id {
+                MessageField::default()
+            } else {
+                fld(Some(BotSourcesMetadata::default()))
+            },
             ..Default::default()
         })),
         ..Default::default()
@@ -463,14 +471,26 @@ fn ai_sections(input: &[serde_json::Value]) -> Vec<serde_json::Value> {
 pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Message {
     let response_id = unique_id();
     let quote = if input.quoted { quote } else { None };
+    let mut ci = ai_context(quote);
+    // Override jalur play2 `sendMusicPlayer` (`play2.js:932-934`): score 999,
+    // botJid `867051314767696@bot` — bukan kontrak `AIRich.build` (1, `0@bot`).
+    if let Some(s) = input.skor {
+        ci.forwarding_score = Some(s);
+    }
+    if let Some(j) = &input.bot_jid {
+        ci.forwarded_ai_bot_message_info = MessageField::some(ForwardedAIBotMessageInfo {
+            bot_jid: Some(j.clone()),
+            ..Default::default()
+        });
+    }
     wrap(
         rich_with_unified(
             ai_submessages(&input.submessages),
             &response_id,
             ai_sections(&input.sections),
-            ai_context(quote),
+            ci,
         ),
-        Some(ai_outer(input.disclaimer.as_deref())),
+        Some(ai_outer(input, &response_id)),
     )
 }
 
@@ -826,6 +846,34 @@ mod tests {
     }
 
     // ---------- prepared rich ----------
+
+    #[test]
+    fn play2_send_music_player_contract_is_not_airich() {
+        // `play2.js:899-941` — play2 hand-rolled, BUKAN `AIRich`: inner score
+        // 999 + `867051314767696@bot`; outer `botMetadata` berisi
+        // `botResponseId = response_id` + `messageDisclaimerText: ""` dan
+        // TANPA `richResponseSourcesMetadata`.
+        let msg = rich_ai_to_message(
+            &RichAi {
+                disclaimer: Some(String::new()),
+                skor: Some(999),
+                bot_jid: Some("867051314767696@bot".into()),
+                bot_response_id: true,
+                ..Default::default()
+            },
+            None,
+        );
+        let ci = inner_context(&msg);
+        assert_eq!(ci.forwarding_score, Some(999));
+        assert_eq!(bot_jid(&msg).as_deref(), Some("867051314767696@bot"));
+        let meta = bot_metadata(&msg);
+        let response_id = unified_json(&msg)["response_id"].as_str().unwrap().to_string();
+        assert_eq!(meta.bot_response_id.as_deref(), Some(response_id.as_str()));
+        assert!(
+            meta.rich_response_sources_metadata.as_option().is_none(),
+            "play2 tidak kirim richResponseSourcesMetadata"
+        );
+    }
 
     #[test]
     fn prepared_rich_uses_separate_proof_and_bot_jid() {

@@ -236,8 +236,7 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         // `submessages` kosong dan yang tampil murni kartu HTML.
         submessages: Vec::new(),
         sections: vec![section_html(&judul_header(judul), &html)],
-        disclaimer: None,
-        quoted: false,
+        ..Default::default()
     };
     Reply::TabelAi(Box::new(rich)).with_reaction("✅")
 }

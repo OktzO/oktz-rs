@@ -153,6 +153,16 @@ pub struct RichAi {
     /// memanggil `aiRich.send(m.chat, { includesUnifiedResponse: true })`)
     /// tetap sama.
     pub quoted: bool,
+    /// Override `forwardingScore` context dalam — play2 `sendMusicPlayer`
+    /// (`play2.js:932`) pakai 999, bukan 1 ala `AIRich.build`.
+    pub skor: Option<u32>,
+    /// Override `botJid` context dalam — play2 (`play2.js:934`) pakai
+    /// `867051314767696@bot`, bukan `0@bot` (`builder.js:1470`).
+    pub bot_jid: Option<String>,
+    /// Tulis `botResponseId = response_id` di `botMetadata` dan TANPA
+    /// `richResponseSourcesMetadata` (play2 `play2.js:902-905`) — kebalikan
+    /// `AIRich.build` yang selalu kirim sources dan tanpa `botResponseId`.
+    pub bot_response_id: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -218,6 +228,9 @@ mod tests {
             sections: vec![serde_json::json!({"s": 1})],
             disclaimer: Some("d".into()),
             quoted: false,
+            skor: None,
+            bot_jid: None,
+            bot_response_id: false,
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),

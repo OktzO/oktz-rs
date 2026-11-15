@@ -741,9 +741,14 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
             tabel: None,
         }],
         sections: vec![section_html(&html)],
-        disclaimer: None,
-        // `sendMusicPlayer` (`play2.js:896-943`) tidak mengutip pemicu.
+        // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
+        // "", `botResponseId`, score 999, botJid `867051314767696@bot`, dan
+        // tidak mengutip pemicu.
+        disclaimer: Some(String::new()),
         quoted: false,
+        skor: Some(999),
+        bot_jid: Some("867051314767696@bot".into()),
+        bot_response_id: true,
     };
 
     // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`
