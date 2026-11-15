@@ -107,7 +107,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           ourin (body teks sapaan penuh + quick_reply + badge saluran).
 // v0.2.47 — handler plugin jalan di thread blocking (bukan worker tokio);
 //           alokator jemalloc: RSS kembali ke OS, multi-command tidak antre.
-export const VERSI_BIN = "v0.2.47";
+// v0.2.48 — store: serialisasi sekali per batch mutasi (clone-on-write);
+//           decode gambar eksternal dibatasi batas piksel sharp (16383²).
+export const VERSI_BIN = "v0.2.48";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
