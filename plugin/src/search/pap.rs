@@ -1,20 +1,17 @@
 //! `plugins/search/pap.js` — kirim foto dari Pinterest sesuai tipe.
 //!
-//! `ponytail:` `resolver.resolve("pinterest", { q })` (`src/lib/resolve.js`)
-//! belum di-port, jadi `fetch_urls` selalu `Err` dan yang menyala adalah
-//! cabang `catch` biasa — pola yang sama dengan `download::pindl`. Logika
-//! plugin sendiri dipindah semua: daftar query per tipe, validasi magic
-//! number, batas ukuran, dan susunan pesan.
+//! Daftar pin diambil lewat `rinn::pinterest`; provider lama (`resolver`
+//! bersama) sudah mati.
 //!
-//! `ponytail:` `prepareWAMessageMedia`, `generateWAMessageFromContent`,
-//! `viewOnceMessage`, `nativeFlowMessage`, `sock.waUploadToServer`, dan
-//! `sock.relayMessage` tidak punya padanan di `Reply`, jadi kartu interaktif
-//! yang dikirim JS tidak ikut.
+//! `ponytail:` tombol `nativeFlowMessage`, `viewOnceMessage`,
+//! `prepareWAMessageMedia`, dan `sock.relayMessage` dari JS tidak punya
+//! padanan di `Reply` — jadi yang dikirim cuma gambarnya, tanpa kartu
+//! interaktif.
 
-#![allow(dead_code)] // jalur unduh tidak terjangkau tanpa resolver
+#![allow(dead_code)] // `GAGAL_MENYIAPKAN` cuma dipakai test (tak ada prepare media)
 
-use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
-
+use oktz_plugin_api::{Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin};
+use oktz_scraper::rinn;
 
 /// `QUERIES` (`pap.js:31-35`) — urutan query per tipe; yang pertama yang
 /// menjawab dengan pin dipakai.
@@ -95,11 +92,54 @@ pub(crate) fn download_request(url: &str) -> HttpCall {
     HttpCall::get(url).header("Referer", "https://www.pinterest.com/")
 }
 
-/// `fetchImageUrls` (`pap.js:93-117`) — lapisan kapabilitas belum di-port,
-/// jadi selalu melempar. `Err` berarti tidak ada satu pun kapabilitas yang
-/// menjawab, persis kondisi yang membuat JS melempar `alasanGagal`.
-fn fetch_urls(_tipe: &str) -> Result<Vec<String>, ()> {
-    Err(())
+/// `fetchImageUrls` (`pap.js:93-117`) — loop query per tipe lewat
+/// `rinn::pinterest`; query pertama yang mengembalikan pin dipakai.
+///
+/// `Err` hanya kalau tidak ada satu pun query yang menjawab. Query yang
+/// menjawab tapi kosong tetap dianggap hasil kosong yang sah (`:115-116`),
+/// supaya user tidak disuruh retry ke host yang baru saja gagal.
+fn fetch_urls(tipe: &str, http: &dyn HttpGet) -> Result<Vec<String>, ()> {
+    let mut ada_menjawab = false;
+    let mut ada_gagal = false;
+    for &q in queries_for(tipe) {
+        match rinn::pinterest(http, q, 5) {
+            Ok(urls) if !urls.is_empty() => return Ok(urls),
+            Ok(_) => ada_menjawab = true,
+            Err(_) => ada_gagal = true,
+        }
+    }
+    if ada_gagal && !ada_menjawab {
+        Err(())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+/// `pap.js:169-186` — acak urutan, unduh satu per satu, terima buffer pertama
+/// yang lolos [`buffer_terima`]. Pinterest butuh `Referer` ([`download_request`]).
+fn ambil_gambar(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
+    for url in acak(urls) {
+        let Ok(res) = http.call(&download_request(url)) else {
+            continue;
+        };
+        let buf = res.body.bytes().to_vec();
+        if buffer_terima(&buf) {
+            return Some(buf);
+        }
+    }
+    None
+}
+
+/// Fisher-Yates untuk `sort(() => Math.random() - 0.5)` (`pap.js:171`).
+fn acak(urls: &[String]) -> Vec<&str> {
+    use rand::Rng as _;
+    let mut out: Vec<&str> = urls.iter().map(String::as_str).collect();
+    let mut rng = rand::rng();
+    for i in (1..out.len()).rev() {
+        let j = rng.random_range(0..=i);
+        out.swap(i, j);
+    }
+    out
 }
 
 #[plugin(
@@ -129,14 +169,20 @@ pub fn pap(ctx: Ctx) -> Reply {
         return Reply::text(pesan_tipe_invalid());
     }
 
-    // `safeReact(m, "🕕")` di `:153` — notifikasi opsional, tanpa teks.
-    match fetch_urls(&arg) {
+    // `safeReact(m, "🕕")` di `:153` — `Reply` cuma menyimpan satu reaksi,
+    // jadi yang dikirim reaksi penutup (❌/✅/☢).
+    match fetch_urls(&arg, ctx.http.as_ref()) {
         // `pap.js:161-169` — hasil kosong yang sah.
         Ok(urls) if urls.is_empty() => Reply::text(kosong(&arg)).with_reaction("❌"),
-        // `pap.js:171-186` — URL diacak lalu diunduh satu per satu; hanya
-        // buffer > 1000 byte dengan magic number JPEG/PNG/WebP yang diterima.
-        // Unduhan dan pengiriman/viewOnce tidak ada padanannya di `Reply`.
-        Ok(_urls) => Reply::text(GAMBAR_TIDAK_TERSEDIA).with_reaction("❌"),
+        // `pap.js:171-186` — unduh satu per satu sampai ada buffer valid.
+        Ok(urls) => match ambil_gambar(ctx.http.as_ref(), &urls) {
+            Some(buf) => Reply::image(
+                MediaSource::bytes(buf).with_mimetype("image/jpeg"),
+                format!("📸 *PAP {}*", arg.to_uppercase()),
+            )
+            .with_reaction("✅"),
+            None => Reply::text(GAMBAR_TIDAK_TERSEDIA).with_reaction("❌"),
+        },
         // `pap.js:266-273` — `CapabilityError` jadi template error biasa;
         // `m.pushName` tidak ada di `Ctx` sehingga tetap "User".
         Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
@@ -146,6 +192,8 @@ pub fn pap(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use std::sync::{Arc, Mutex};
 
     fn run(text: &str) -> Reply {
         let ctx = Ctx {
@@ -158,6 +206,94 @@ mod tests {
             ..Default::default()
         };
         (oktz_plugin_api::find("pap").unwrap().handler)(ctx)
+    }
+
+    /// Stub `call` berurutan; habis = offline.
+    #[derive(Debug)]
+    struct Stub {
+        balasan: Mutex<Vec<(u16, Vec<u8>)>>,
+        hitung: Mutex<usize>,
+        seen: Mutex<Vec<HttpCall>>,
+    }
+
+    impl Stub {
+        fn baru(balasan: Vec<(u16, Vec<u8>)>) -> Arc<Stub> {
+            Arc::new(Stub {
+                balasan: Mutex::new(balasan),
+                hitung: Mutex::new(0),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(req.clone());
+            let i = {
+                let mut hitung = self.hitung.lock().unwrap();
+                let i = *hitung;
+                *hitung += 1;
+                i
+            };
+            match self.balasan.lock().unwrap().get(i).cloned() {
+                Some((status, isi)) => Ok(HttpResponse {
+                    status,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(isi),
+                        mimetype: None,
+                    },
+                    headers: Vec::new(),
+                }),
+                None => Err(HttpError {
+                    message: "offline".into(),
+                }),
+            }
+        }
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.call(&HttpCall::get(url))
+        }
+        fn post_json(
+            &self,
+            _: &str,
+            _: &serde_json::Value,
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!("pakai call")
+        }
+    }
+
+    fn run_http(text: &str, http: Arc<Stub>) -> Reply {
+        let ctx = Ctx {
+            prefix: ".".into(),
+            command: "pap".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            text: text.into(),
+            args: text.split_whitespace().map(str::to_string).collect(),
+            http,
+            ..Default::default()
+        };
+        (oktz_plugin_api::find("pap").unwrap().handler)(ctx)
+    }
+
+    /// JPEG > [`MIN_BYTES`] — lolos `buffer_terima`.
+    fn gambar_jpeg() -> Vec<u8> {
+        let mut b = vec![b'x'; MIN_BYTES + 1];
+        b[0..3].copy_from_slice(&[0xff, 0xd8, 0xff]);
+        b
+    }
+
+    fn pin_json(url: &str) -> Vec<u8> {
+        format!(r#"{{"status":true,"data":[{{"image":"{url}"}}]}}"#).into_bytes()
     }
 
     fn text_of(r: &Reply) -> String {
@@ -216,12 +352,97 @@ mod tests {
     }
 
     #[test]
-    fn a_valid_type_reaches_the_error_branch_while_the_resolver_is_missing() {
+    fn a_valid_type_without_network_reaches_the_error_branch() {
         for tipe in VALID_TYPES {
             let r = run(tipe);
             assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pap"), "tipe {tipe}");
             assert_eq!(reaction_of(&r), Some("☢"), "tipe {tipe}");
         }
+    }
+
+    #[test]
+    fn a_successful_search_sends_the_pin_image() {
+        let http = Stub::baru(vec![
+            (200, pin_json("https://i.pinimg.com/a.jpg")),
+            (200, gambar_jpeg()),
+        ]);
+        let r = run_http("cewe", http.clone());
+
+        assert_eq!(text_of(&r), "📸 *PAP CEWE*");
+        assert_eq!(reaction_of(&r), Some("✅"));
+        match r.without_mutations().tanpa_reaksi() {
+            Reply::Image { media, .. } => match media {
+                Some(MediaSource::Bytes { mimetype, .. }) => {
+                    assert_eq!(mimetype.as_deref(), Some("image/jpeg"));
+                }
+                lain => panic!("harus bytes, dapat {lain:?}"),
+            },
+            lain => panic!("harus image, dapat {lain:?}"),
+        }
+
+        let seen = http.seen.lock().unwrap();
+        assert_eq!(seen.len(), 2, "query pertama sudah menjawab, tak lanjut");
+        assert!(seen[0].url.contains("/search/pinterest?q=cewe%20cantik%20indonesia"), "{}", seen[0].url);
+        assert_eq!(seen[1].url, "https://i.pinimg.com/a.jpg");
+        assert!(seen[1]
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/"));
+    }
+
+    #[test]
+    fn an_empty_answer_replies_with_the_empty_message() {
+        let pins_kosong = r#"{"status":true,"data":[]}"#.as_bytes().to_vec();
+        let http = Stub::baru(vec![
+            (200, pins_kosong.clone()),
+            (200, pins_kosong.clone()),
+            (200, pins_kosong),
+        ]);
+        let r = run_http("cowo", http.clone());
+        assert_eq!(text_of(&r), kosong("cowo"));
+        assert_eq!(reaction_of(&r), Some("❌"));
+        assert_eq!(http.seen.lock().unwrap().len(), 3, "ketiga query dijawab kosong");
+    }
+
+    #[test]
+    fn a_dead_pin_is_skipped_for_the_next_one() {
+        let http = Stub::baru(vec![
+            (
+                200,
+                br#"{"status":true,"data":[{"image":"https://i.pinimg.com/mati.jpg"},{"image":"https://i.pinimg.com/hidup.jpg"}]}"#.to_vec(),
+            ),
+            (200, b"<html>404</html>".to_vec()),
+            (200, gambar_jpeg()),
+        ]);
+        let r = run_http("femboy", http.clone());
+        assert_eq!(text_of(&r), "📸 *PAP FEMBOY*");
+        assert_eq!(reaction_of(&r), Some("✅"));
+        let seen = http.seen.lock().unwrap();
+        assert!(
+            (2..=3).contains(&seen.len()),
+            "satu pin ditolak lalu pin kedua dipakai: {} panggilan",
+            seen.len()
+        );
+    }
+
+    #[test]
+    fn all_queries_failing_reply_with_the_error_template() {
+        let http = Stub::baru(vec![(500, Vec::new()), (500, Vec::new()), (500, Vec::new())]);
+        let r = run_http("femboy", http.clone());
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pap"));
+        assert_eq!(reaction_of(&r), Some("☢"));
+        assert_eq!(http.seen.lock().unwrap().len(), 3, "ketiga query dicoba");
+    }
+
+    #[test]
+    fn a_fetch_of_urls_that_all_download_fail_replies_gambar_tidak_tersedia() {
+        let http = Stub::baru(vec![
+            (200, pin_json("https://i.pinimg.com/mati.jpg")),
+            (200, b"<html>404</html>".to_vec()),
+        ]);
+        let r = run_http("cewe", http.clone());
+        assert_eq!(text_of(&r), GAMBAR_TIDAK_TERSEDIA);
+        assert_eq!(reaction_of(&r), Some("❌"));
     }
 
     #[test]

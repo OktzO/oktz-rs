@@ -22,6 +22,7 @@ pub mod jokowi_ai;
 pub mod kobo_ai;
 pub mod matematika;
 pub mod muslimai;
+pub mod nanobanana;
 #[path = "prabowo-ai.rs"]
 pub mod prabowo_ai;
 pub mod quillbot;

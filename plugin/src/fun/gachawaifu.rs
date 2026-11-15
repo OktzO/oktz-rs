@@ -12,9 +12,10 @@
 //! 1. Pool `data/waifu/*.js` belum ter-port → `WAIFU_ENTRIES` kosong, jadi
 //!    cabang gacha selalu jatuh ke `te()` + reaksi ☢ seperti `waifupool.rs`.
 //! 2. Kartu `viewOnceMessage` + `nativeFlowMessage` + gambar Pinterest
-//!    (`getWaifuImage`/`getBuffer`) tidak ada di `Reply` → balasan teks polos
-//!    dengan isi `body` yang sama; opsi tombol dibuang, `imageUrl` di store
-//!    memakai konstanta fallback `gachawaifu.js:40`.
+//!    (`getBuffer`) tidak ada di `Reply` → balasan teks polos dengan isi
+//!    `body` yang sama; opsi tombol dibuang. URL gambarnya tetap diambil
+//!    lewat `getWaifuImage` (pinterest), `imageUrl` menyimpan URL itu —
+//!    `IMAGE_FALLBACK` cuma kalau gagal (`gachawaifu.js:40`).
 //! 3. Kartu level-up canvas di `checkAndNotifyLevelUp` tidak ikut — hanya
 //!    `exp`/`rpg` yang tersimpan (`apply_exp`).
 //! 4. `delete user.waifu` → `waifu: null` (SetUser merge, bukan delete).
@@ -74,8 +75,8 @@ const EVENT_CHANCE: f64 = 0.18;
 /// `ANGER_THRESHOLD` (`src/lib/romance.js:10`).
 const ANGER_THRESHOLD: f64 = 50.0;
 
-/// Fallback `getWaifuImage` (`plugins/fun/gachawaifu.js:40`) — dipakai sebagai
-/// `imageUrl` tersimpan karena HTTP Pinterest tidak tersedia di `Ctx`.
+/// Fallback `getWaifuImage` (`plugins/fun/gachawaifu.js:40`) — dipakai kalau
+/// pencarian Pinterest gagal/kosong.
 const IMAGE_FALLBACK: &str =
     "https://i.pinimg.com/736x/8f/3e/2a/8f3e2a77ec65cdbcfad4ff3bc17e825f.jpg";
 
@@ -1480,6 +1481,21 @@ fn guide(prefix: &str) -> String {
     )
 }
 
+/// `getWaifuImage` (`gachawaifu.js:25-41`) — satu URL Pinterest acak untuk
+/// `imageUrl`; `IMAGE_FALLBACK` kalau pencarian gagal atau kosong.
+fn gambar_waifu(ctx: &Ctx, keyword: &str, rng: &mut dyn FnMut() -> f64) -> String {
+    let Ok(urls) = oktz_scraper::rinn::pinterest(&*ctx.http, keyword, 5) else {
+        return IMAGE_FALLBACK.to_string();
+    };
+    if urls.is_empty() {
+        return IMAGE_FALLBACK.to_string();
+    }
+    let idx = (rng() * urls.len() as f64) as usize;
+    urls.get(idx.min(urls.len() - 1))
+        .cloned()
+        .unwrap_or_else(|| IMAGE_FALLBACK.to_string())
+}
+
 /// Cabang `gachawaifu`/`gachaistri` (`gachawaifu.js:231-287`).
 fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f64) -> Reply {
     if js_truthy(user.get("waifu")) {
@@ -1534,9 +1550,12 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     w.insert("rollWeight".into(), Value::from(picked.roll_weight));
     w.insert("affection".into(), jnum(50.0));
     w.insert("married".into(), Value::from(false));
-    // `getWaifuImage` (Pinterest) tidak dipanggil: tanpa HTTP, `imageUrl`
-    // langsung pakai konstanta fallback persis `gachawaifu.js:40`.
-    w.insert("imageUrl".into(), Value::from(IMAGE_FALLBACK));
+    // `getWaifuImage` (`gachawaifu.js:270`) — satu URL Pinterest segar,
+    // `IMAGE_FALLBACK` kalau gagal/kosong.
+    w.insert(
+        "imageUrl".into(),
+        Value::from(gambar_waifu(ctx, &picked.keyword, rng)),
+    );
 
     record_pull(
         &mut stats,
@@ -2042,10 +2061,54 @@ pub fn gachawaifu(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
     use std::collections::VecDeque;
+    use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
     const DAY: i64 = 86_400_000;
+
+    /// Stub pinterest: sukses memulangkan `data[].image`, `None` = gagal.
+    #[derive(Debug)]
+    struct Pinterest(Option<&'static str>);
+
+    impl HttpGet for Pinterest {
+        fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {
+            match self.0 {
+                Some(body) => Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(body.as_bytes().to_vec()),
+                        mimetype: None,
+                    },
+                    headers: Vec::new(),
+                }),
+                None => Err(HttpError { message: "pinterest mati".into() }),
+            }
+        }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("cuma GET")
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("cuma GET")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("cuma GET")
+        }
+    }
+
+    fn run_pinterest(command: &str, args: &[&str], user: Value, seq: Vec<f64>, p: Pinterest) -> Reply {
+        let mut rng = scripted(seq);
+        let ctx = Ctx {
+            http: Arc::new(p),
+            ..ctx_of(command, args, user)
+        };
+        dispatch(&ctx, &mut rng)
+    }
 
     /// RNG deterministik: tiap panggilan memakai angka berikutnya.
     fn scripted(values: Vec<f64>) -> impl FnMut() -> f64 {
@@ -2795,6 +2858,33 @@ mod tests {
         assert!(text_of(&r).starts_with("🎉 *SELAMAT! KAMU MENDAPATKAN WAIFU BARU!* 🎉"), "{}", text_of(&r));
         assert_eq!(reaction_of(&r).as_deref(), Some("✅"));
         assert!(!r.mutations().is_empty(), "gacha baru menyimpan user");
+    }
+
+    #[test]
+    fn gacha_start_memakai_url_pinterest_segar() {
+        let body = r#"{"status":true,"data":[{"image":"https://i.pinimg.com/a.jpg"},{"image":"https://i.pinimg.com/b.jpg"}]}"#;
+        let r = run_pinterest(
+            "gachawaifu",
+            &["start"],
+            serde_json::json!({ "exp": 0 }),
+            vec![0.0, 0.0],
+            Pinterest(Some(body)),
+        );
+        let waifu = patch_of(&r)["waifu"].clone();
+        assert_eq!(waifu["imageUrl"], "https://i.pinimg.com/a.jpg");
+    }
+
+    #[test]
+    fn gacha_start_pinterest_gagal_pakai_fallback() {
+        let r = run_pinterest(
+            "gachawaifu",
+            &["start"],
+            serde_json::json!({ "exp": 0 }),
+            vec![0.0],
+            Pinterest(None),
+        );
+        let waifu = patch_of(&r)["waifu"].clone();
+        assert_eq!(waifu["imageUrl"], IMAGE_FALLBACK);
     }
 
     #[test]

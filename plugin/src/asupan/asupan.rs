@@ -8,12 +8,13 @@
 //! `ctx.http.get()`. Reaksi `🕕` / `❌` dari JS diruntuhkan jadi satu reaksi
 //! terakhir karena `Reply::with_reaction` hanya boleh satu emoji.
 
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::random_index;
-
 const DIR: &str = "src/tiktok";
+
+/// Batas percobaan URL per command — sebagian URL pool sudah mati.
+const MAX_COBA: usize = 5;
 
 const FILES: [&str; 8] = [
     "bocil.json",
@@ -74,14 +75,35 @@ pub fn asupan(ctx: Ctx) -> Reply {
         return Reply::text(ERR_DATA_EMPTY);
     }
 
-    let url = &urls[random_index(urls.len())];
+    match ambil_video(ctx.http.as_ref(), &urls) {
+        Some(data) => Reply::video(MediaSource::bytes(data), ""),
+        None => Reply::text(ERR_AMBIL),
+    }
+}
 
-    let Ok(res) = ctx.http.get(url) else {
-        return Reply::text(ERR_AMBIL);
-    };
-    let data = res.body.bytes().to_vec();
-
-    Reply::video(MediaSource::bytes(data), "")
+/// Coba sampai [`MAX_COBA`] URL berbeda (acak) sampai ada respons 2xx berisi.
+fn ambil_video(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
+    use rand::Rng as _;
+    let mut idx: Vec<usize> = (0..urls.len()).collect();
+    let mut rng = rand::rng();
+    let ambil = MAX_COBA.min(idx.len());
+    for i in 0..ambil {
+        let j = rng.random_range(i..idx.len());
+        idx.swap(i, j);
+    }
+    for i in idx.into_iter().take(ambil) {
+        let Ok(res) = http.get(&urls[i]) else {
+            continue;
+        };
+        if !(200..300).contains(&res.status) {
+            continue;
+        }
+        let data = res.body.bytes().to_vec();
+        if !data.is_empty() {
+            return Some(data);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -96,6 +118,8 @@ mod tests {
     #[derive(Debug, Default)]
     struct Stub {
         body: Option<String>,
+        /// Berapa panggilan pertama yang dipaksa gagal (simulasi URL mati).
+        sisa_gagal: Mutex<usize>,
         seen: Mutex<Vec<String>>,
     }
 
@@ -103,12 +127,21 @@ mod tests {
         fn bytes(data: impl Into<Vec<u8>>) -> Arc<Stub> {
             Arc::new(Stub {
                 body: Some(String::from_utf8(data.into()).unwrap()),
+                sisa_gagal: Mutex::new(0),
                 seen: Mutex::new(Vec::new()),
             })
         }
         fn offline() -> Arc<Stub> {
             Arc::new(Stub {
                 body: None,
+                sisa_gagal: Mutex::new(0),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn gagal_awal(data: impl Into<Vec<u8>>, n: usize) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Some(String::from_utf8(data.into()).unwrap()),
+                sisa_gagal: Mutex::new(n),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -117,6 +150,20 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
+            let gagal = {
+                let mut sisa = self.sisa_gagal.lock().unwrap();
+                if *sisa > 0 {
+                    *sisa -= 1;
+                    true
+                } else {
+                    false
+                }
+            };
+            if gagal {
+                return Err(HttpError {
+                    message: "mati".into(),
+                });
+            }
             match &self.body {
                 Some(b) => Ok(HttpResponse {
                     status: 200,
@@ -211,6 +258,48 @@ mod tests {
         let _ = run(berkas, http.clone());
         let seen = http.seen.lock().unwrap().clone();
         assert!(seen == vec!["https://cdn/b.mp4"] || seen == vec!["https://cdn/c.mp4"] || seen == vec!["https://cdn/d.mp4"]);
+    }
+
+    #[test]
+    fn url_pertama_gagal_lalu_kedua_sukses() {
+        let berkas = berkas_dengan(&[(
+            "src/tiktok/ukhty.json",
+            r#"[{"url":"https://cdn/mati.mp4"},{"url":"https://cdn/hidup.mp4"}]"#,
+        )]);
+        let http = Stub::gagal_awal("VIDEO", 1);
+        let r = run(berkas, http.clone());
+        assert!(matches!(&r, Reply::Video { .. }), "harus Video: {r:?}");
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2, "harus coba dua URL: {seen:?}");
+        assert_ne!(seen[0], seen[1], "URL tidak boleh diulang");
+    }
+
+    #[test]
+    fn semua_url_gagal_jadi_pesan_error() {
+        let berkas = berkas_dengan(&[(
+            "src/tiktok/ukhty.json",
+            r#"[{"url":"https://cdn/a.mp4"},{"url":"https://cdn/b.mp4"}]"#,
+        )]);
+        let http = Stub::offline();
+        let r = run(berkas, http.clone());
+        assert_eq!(body_of(&r), ERR_AMBIL);
+        assert_eq!(http.seen.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn maksimal_lima_url_dicoba_tanpa_ulang() {
+        let isi: Vec<String> = (0..7)
+            .map(|i| format!(r#"{{"url":"https://cdn/{i}.mp4"}}"#))
+            .collect();
+        let json = format!("[{}]", isi.join(","));
+        let berkas = berkas_dengan(&[("src/tiktok/ukhty.json", json.as_str())]);
+        let http = Stub::offline();
+        let r = run(berkas, http.clone());
+        assert_eq!(body_of(&r), ERR_AMBIL);
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 5, "maksimal 5 percobaan");
+        let unik: std::collections::HashSet<_> = seen.iter().collect();
+        assert_eq!(unik.len(), 5, "tidak boleh mengulang URL");
     }
 
     #[test]

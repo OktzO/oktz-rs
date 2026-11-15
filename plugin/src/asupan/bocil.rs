@@ -3,12 +3,13 @@
 //! Urutan efek JS dipertahankan: `m.react('🕕')` SELALU jalan lebih dulu,
 //! termasuk saat ditolak atau data kosong, jadi balasannya `Sequence`.
 
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::random_index;
-
 const PATH: &str = "src/tiktok/bocil.json";
+
+/// Batas percobaan URL per command — sebagian URL pool sudah mati.
+const MAX_COBA: usize = 5;
 
 const ERR_KOSONG: &str = "❌ Data tidak tersedia";
 const ERR_VIDEO: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Video tidak ditemukan";
@@ -62,26 +63,135 @@ pub fn bocil(ctx: Ctx) -> Reply {
         return Reply::sequence(vec![reaksi("🕕"), reaksi("❌"), Reply::text(ERR_KOSONG)]);
     }
 
-    let item = &data[random_index(data.len())];
-    let Some(url) = item.get("url").and_then(Value::as_str) else {
-        // `sock.sendMedia(m.chat, undefined, ...)` melempar di JS → `catch`.
-        return Reply::sequence(vec![reaksi("🕕"), reaksi("❌"), Reply::text(ERR_VIDEO)]);
-    };
+    let urls: Vec<String> = data
+        .iter()
+        .filter_map(|item| item.get("url").and_then(Value::as_str).map(str::to_string))
+        .collect();
 
-    Reply::sequence(vec![
-        reaksi("🕕"),
-        Reply::video(MediaSource::url(url.to_string()), ""),
-        reaksi("✅"),
-    ])
+    match ambil_video(ctx.http.as_ref(), &urls) {
+        Some(bytes) => Reply::sequence(vec![
+            reaksi("🕕"),
+            Reply::video(MediaSource::bytes(bytes), ""),
+            reaksi("✅"),
+        ]),
+        // `sock.sendMedia` melempar di JS (URL mati/hilang) → `catch`.
+        None => Reply::sequence(vec![reaksi("🕕"), reaksi("❌"), Reply::text(ERR_VIDEO)]),
+    }
+}
+
+/// Coba sampai [`MAX_COBA`] URL berbeda (acak) sampai ada respons 2xx berisi.
+fn ambil_video(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
+    use rand::Rng as _;
+    let mut idx: Vec<usize> = (0..urls.len()).collect();
+    let mut rng = rand::rng();
+    let ambil = MAX_COBA.min(idx.len());
+    for i in 0..ambil {
+        let j = rng.random_range(i..idx.len());
+        idx.swap(i, j);
+    }
+    for i in idx.into_iter().take(ambil) {
+        let Ok(res) = http.get(&urls[i]) else {
+            continue;
+        };
+        if !(200..300).contains(&res.status) {
+            continue;
+        }
+        let data = res.body.bytes().to_vec();
+        if !data.is_empty() {
+            return Some(data);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
-    use std::sync::Arc;
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpResponse,
+        berkas::{Berkas, BerkasPalsu},
+    };
+    use std::sync::{Arc, Mutex};
 
-    fn ctx(berkas: BerkasPalsu, premium: bool, owner: bool) -> Ctx {
+    #[derive(Debug, Default)]
+    struct Stub {
+        body: Option<String>,
+        /// Berapa panggilan pertama yang dipaksa gagal (simulasi URL mati).
+        sisa_gagal: Mutex<usize>,
+        seen: Mutex<Vec<String>>,
+    }
+
+    impl Stub {
+        fn bytes(data: impl Into<Vec<u8>>) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Some(String::from_utf8(data.into()).unwrap()),
+                sisa_gagal: Mutex::new(0),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn offline() -> Arc<Stub> {
+            Arc::new(Stub {
+                body: None,
+                sisa_gagal: Mutex::new(0),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn gagal_awal(data: impl Into<Vec<u8>>, n: usize) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: Some(String::from_utf8(data.into()).unwrap()),
+                sisa_gagal: Mutex::new(n),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
+            self.seen.lock().unwrap().push(url.to_string());
+            let gagal = {
+                let mut sisa = self.sisa_gagal.lock().unwrap();
+                if *sisa > 0 {
+                    *sisa -= 1;
+                    true
+                } else {
+                    false
+                }
+            };
+            if gagal {
+                return Err(HttpError {
+                    message: "mati".into(),
+                });
+            }
+            match &self.body {
+                Some(b) => Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(b.as_bytes().to_vec()),
+                        mimetype: None,
+                    },
+                    headers: Vec::new(),
+                }),
+                None => Err(HttpError {
+                    message: "offline".into(),
+                }),
+            }
+        }
+        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
+            unreachable!()
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!()
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!()
+        }
+    }
+
+    fn ctx(berkas: BerkasPalsu, premium: bool, owner: bool, http: Arc<Stub>) -> Ctx {
         Ctx {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
@@ -90,6 +200,7 @@ mod tests {
             is_premium: premium,
             is_owner: owner,
             berkas: Arc::new(berkas),
+            http,
             ..Ctx::default()
         }
     }
@@ -137,7 +248,7 @@ mod tests {
 
     #[test]
     fn pengguna_biasa_ditolak_setelah_reaksi_jam() {
-        let r = bocil(ctx(https_berisi(), false, false));
+        let r = bocil(ctx(https_berisi(), false, false, Stub::bytes("X")));
         assert_eq!(emoji_ke(&r, 0).as_deref(), Some("🕕"));
         assert_eq!(
             teks_ke(&r, 1).as_deref(),
@@ -155,7 +266,7 @@ mod tests {
     #[test]
     fn premium_dan_owner_tembus_gate() {
         for (premium, owner) in [(true, false), (false, true)] {
-            let r = bocil(ctx(https_berisi(), premium, owner));
+            let r = bocil(ctx(https_berisi(), premium, owner, Stub::bytes("VID")));
             assert!(r.has_media(), "premium={premium} owner={owner}");
         }
     }
@@ -165,7 +276,7 @@ mod tests {
         let kosong = BerkasPalsu::baru();
         let _ = kosong.tulis_teks(PATH, "[]");
         for b in [BerkasPalsu::baru(), kosong] {
-            let r = bocil(ctx(b, true, false));
+            let r = bocil(ctx(b, true, false, Stub::bytes("VID")));
             assert_eq!(emoji_ke(&r, 0).as_deref(), Some("🕕"));
             assert_eq!(emoji_ke(&r, 1).as_deref(), Some("❌"));
             assert_eq!(teks_ke(&r, 2).as_deref(), Some(ERR_KOSONG));
@@ -176,7 +287,7 @@ mod tests {
     fn json_rusak_diperlakukan_seperti_data_kosong() {
         let b = BerkasPalsu::baru();
         let _ = b.tulis_teks(PATH, "bukan json");
-        let r = bocil(ctx(b, true, false));
+        let r = bocil(ctx(b, true, false, Stub::bytes("VID")));
         assert_eq!(teks_ke(&r, 2).as_deref(), Some(ERR_KOSONG));
     }
 
@@ -184,7 +295,7 @@ mod tests {
     fn item_tanpa_url_masuk_cabang_catch() {
         let b = BerkasPalsu::baru();
         let _ = b.tulis_teks(PATH, r#"[{"judul":"tanpa url"}]"#);
-        let r = bocil(ctx(b, true, false));
+        let r = bocil(ctx(b, true, false, Stub::bytes("VID")));
         assert_eq!(emoji_ke(&r, 1).as_deref(), Some("❌"));
         assert_eq!(teks_ke(&r, 2).as_deref(), Some(ERR_VIDEO));
         assert!(!r.has_media());
@@ -192,19 +303,41 @@ mod tests {
 
     #[test]
     fn url_terpilih_dikirim_sebagai_video_lalu_reaksi_centang() {
-        let r = bocil(ctx(https_berisi(), false, true));
+        let http = Stub::bytes("VIDEO_BYTES");
+        let r = bocil(ctx(https_berisi(), false, true, http.clone()));
         assert_eq!(emoji_ke(&r, 0).as_deref(), Some("🕕"));
 
         let Some(Reply::Video { media, .. }) = bagian(&r).get(1).cloned() else {
             panic!("pesan kedua harus video");
         };
         match media {
-            Some(MediaSource::Url { url, .. }) => {
-                assert!(url.ends_with(".mp4"), "url={url}");
+            Some(MediaSource::Bytes { data, .. }) => {
+                assert_eq!(&data[..], b"VIDEO_BYTES");
             }
-            lain => panic!("sumber harus URL, dapat {lain:?}"),
+            lain => panic!("sumber harus byte, dapat {lain:?}"),
         }
 
         assert_eq!(emoji_ke(&r, 2).as_deref(), Some("✅"));
+        assert_eq!(http.seen.lock().unwrap().len(), 1, "cukup satu URL");
+    }
+
+    #[test]
+    fn url_pertama_gagal_lalu_kedua_sukses() {
+        let http = Stub::gagal_awal("VIDEO", 1);
+        let r = bocil(ctx(https_berisi(), false, true, http.clone()));
+        assert!(r.has_media());
+        assert_eq!(emoji_ke(&r, 2).as_deref(), Some("✅"));
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2, "harus coba dua URL: {seen:?}");
+        assert_ne!(seen[0], seen[1], "URL tidak boleh diulang");
+    }
+
+    #[test]
+    fn semua_url_gagal_jadi_pesan_error() {
+        let r = bocil(ctx(https_berisi(), false, true, Stub::offline()));
+        assert_eq!(emoji_ke(&r, 0).as_deref(), Some("🕕"));
+        assert_eq!(emoji_ke(&r, 1).as_deref(), Some("❌"));
+        assert_eq!(teks_ke(&r, 2).as_deref(), Some(ERR_VIDEO));
+        assert!(!r.has_media());
     }
 }

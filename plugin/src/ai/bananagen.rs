@@ -3,15 +3,13 @@
 //! `ponytail:` JS bereaksi `🕕` lalu `✅`; `Reply::with_reaction` hanya satu
 //! emoji, jadi hanya `✅` dibawa pada sukses. `m.download()` /
 //! `m.quoted.download()` dipindah ke `ctx.download_media()` /
-//! `download_quoted_media()`. `live3d` dipanggil lewat
-//! `oktz_scraper::seaart::live3d`. Hasil dikirim sebagai `Reply::image`
-//! byte (MediaSource::bytes) tanpa quote.
-//!
-//! Catatan: baris `pub mod bananagen;` perlu ditambah ke `ai/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `download_quoted_media()`. Buffer diunggah lewat `unggah::gambar` (API
+//! rinn hanya menerima link), lalu diedit lewat `rinn::nanobanana`. Hasil
+//! dikirim sebagai `Reply::image` byte (MediaSource::bytes) + MIME hasil
+//! sniff (`unggah::mime_gambar`), tanpa quote.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use oktz_scraper::seaart::live3d;
+use oktz_scraper::unggah::{gambar, mime_gambar};
 
 #[plugin(
     name = "bananagen",
@@ -69,9 +67,21 @@ pub fn bananagen(ctx: Ctx) -> Reply {
         }
     };
 
-    match live3d(ctx.http.as_ref(), &buffer, &prompt) {
-        Ok(result) => Reply::image(MediaSource::bytes(result), String::new())
-            .with_reaction("✅"),
+    // Unggah dulu: `/ai-image/nanobanana` hanya menerima URL, bukan byte.
+    let Ok(url) = gambar(ctx.http.as_ref(), &buffer) else {
+        return Reply::text(
+            "🍀 *Waduhh, sepertinya ini ada kendala*\n\
+             Silahkan coba lagi nanti, dimohon jangan spam",
+        )
+        .with_reaction("❌");
+    };
+
+    match oktz_scraper::rinn::nanobanana(ctx.http.as_ref(), &url, &prompt) {
+        Ok(hasil) => {
+            let mime = mime_gambar(&hasil);
+            Reply::image(MediaSource::bytes(hasil).with_mimetype(mime), String::new())
+                .with_reaction("✅")
+        }
         Err(_) => Reply::text(
             "🍀 *Waduhh, sepertinya ini ada kendala*\n\
              Silahkan coba lagi nanti, dimohon jangan spam",
@@ -269,14 +279,11 @@ mod tests {
     #[test]
     fn sukses_kirim_gambar_byte() {
         let http = HttpStub::ordered(vec![
-            r#"{"result":{"url":"https://unggah.example/x","object_name":"obj/1"}}"#,
-            "",
-            r#"{"result":{"url":"https://signed.example/x.jpg"}}"#,
-            r#"{"status":true,"data":{"result_url":"https://hasil.example/y.png"}}"#,
+            r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "GAMBAR",
         ]);
         let r = run(http.clone(), Some(vec![9, 8, 7]), false, false, ".bananagen make it anime");
-        // live3d sukses -> Image dengan reaction ✅
+        // nanobanana sukses -> Image dengan reaction ✅
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "✅"),
             other => panic!("harus Reaction, dapat {other:?}"),
@@ -286,27 +293,51 @@ mod tests {
         };
         match isi.as_ref() {
             Reply::Image { media, .. } => match media {
-                Some(MediaSource::Bytes { data, .. }) => assert_eq!(data.as_ref(), b"GAMBAR"),
+                Some(MediaSource::Bytes { data, mimetype }) => {
+                    assert_eq!(data.as_ref(), b"GAMBAR");
+                    assert_eq!(mimetype.as_deref(), Some("image/jpeg"));
+                }
                 other => panic!("harus Bytes media, dapat {other:?}"),
             },
             other => panic!("harus Image, dapat {other:?}"),
         }
         assert!(r.mutations().is_empty());
+        // Urutan request: unggah (uguu) dulu, baru nanobanana.
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen.len(), 5);
+        assert_eq!(seen.len(), 2);
+        assert!(seen[0].contains("uguu.se"), "{}", seen[0]);
+        assert!(seen[1].contains("/ai-image/nanobanana"), "{}", seen[1]);
     }
 
     #[test]
-    fn live3d_gagal_kembalikan_pesan_kendala() {
-        // live3d sukses sampai nanobanana tapi status false -> error.
+    fn unggah_gagal_kembalikan_pesan_kendala() {
+        // Stub offline: uguu + kappa dua-duanya gagal -> unggah gagal.
+        let r = run(
+            HttpStub::offline(),
+            Some(vec![1, 2, 3]),
+            false,
+            false,
+            ".bananagen make it anime",
+        );
+        assert!(body(&r).contains("kendala"));
+        match r.without_mutations() {
+            Reply::Reaction { emoji, .. } => assert_eq!(emoji, "❌"),
+            other => panic!("harus Reaction ❌, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nanobanana_gagal_kembalikan_pesan_kendala() {
+        // Unggah sukses, tapi nanobanana membalas body kosong -> error.
         let http = HttpStub::ordered(vec![
-            r#"{"result":{"url":"https://unggah.example/x","object_name":"obj/1"}}"#,
+            r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "",
-            r#"{"result":{"url":"https://signed.example/x.jpg"}}"#,
-            r#"{"status":false}"#,
         ]);
         let r = run(http, Some(vec![1, 2, 3]), false, false, ".bananagen make it anime");
         assert!(body(&r).contains("kendala"));
-        assert!(r.mutations().is_empty());
+        match r.without_mutations() {
+            Reply::Reaction { emoji, .. } => assert_eq!(emoji, "❌"),
+            other => panic!("harus Reaction ❌, dapat {other:?}"),
+        }
     }
 }

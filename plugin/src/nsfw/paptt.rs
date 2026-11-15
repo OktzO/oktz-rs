@@ -1,5 +1,10 @@
 //! `plugins/nsfw/paptt.js` — gambar PAPTT acak dari API `kyzznekoo`.
 //!
+//! `ponytail:` plugin dimatikan (`is_enabled = false`) karena endpoint
+//! `kyzznekoo.zone.id/api/asupan/paptt` balas 404 sejak 2026-11-15 dan tidak
+//! ada penggantinya — API pengganti (`apiii-xrina.my.id`) tidak punya route
+//! NSFW. Nyalakan lagi kalau endpoint aslinya hidup.
+//!
 //! `ponytail:` axios di JS mengirim dua header per-request
 //! (`User-Agent` Chrome/150 dan `Content-Type: application/json`). `HttpGet`
 //! tidak punya setter header, jadi keduanya tidak ikut — `UreqHttp` sudah
@@ -30,7 +35,7 @@ const CAPTION: &str = "🔞 *PAPTT*";
     example = "",
     cooldown = 5,
     energi = 2,
-    is_enabled = true,
+    is_enabled = false,
     is_owner = false,
     is_premium = true,
     is_group = false,
@@ -140,7 +145,7 @@ mod tests {
         assert!(meta.is_premium, "paptt premium di JS");
         assert_eq!(meta.cooldown, 5);
         assert_eq!(meta.energi, 2);
-        assert!(meta.is_enabled);
+        assert!(!meta.is_enabled, "endpoint 404 sejak 2026-11-15");
         assert!(!meta.is_owner);
         assert!(!meta.is_group);
         assert!(!meta.is_private);
