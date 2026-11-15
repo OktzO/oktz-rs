@@ -34,6 +34,35 @@ use image::io::Reader as ImageReader;
 use image::{GenericImageView, ImageFormat, ImageOutputFormat};
 use std::io::Cursor;
 
+/// Batas decode = default `limitInputPixels` sharp (16383²). Semua titik
+/// `sharp(buffer)` JS memakai default ini; satu-satunya pengecualian
+/// `.topixel` (`topixel.js:27`, `limitInputPixels: false`) tidak lewat
+/// helper ini.
+pub(crate) const BATAS_PX: u64 = 268_402_689;
+
+pub(crate) fn lewat_batas_px(lebar: u32, tinggi: u32) -> bool {
+    (lebar as u64).saturating_mul(tinggi as u64) > BATAS_PX
+}
+
+/// Tolak gambar di atas batas piksel SEBELUM decode (baca header saja).
+/// Header yang tak terbaca diteruskan — biarkan decode menolaknya, supaya
+/// pesan error tetap milik titik pemanggil (tidak berubah).
+pub(crate) fn cek_batas(data: &[u8]) -> Result<(), String> {
+    let dim = ImageReader::new(Cursor::new(data))
+        .with_guessed_format()
+        .ok()
+        .and_then(|r| r.into_dimensions().ok());
+    let Some((lebar, tinggi)) = dim else {
+        return Ok(());
+    };
+    if lewat_batas_px(lebar, tinggi) {
+        return Err(format!(
+            "dimensi {lebar}x{tinggi} melebihi batas {BATAS_PX} piksel"
+        ));
+    }
+    Ok(())
+}
+
 /// Padanan `sharp(data)`.
 ///
 /// Mengembalikan `Err` bila `data` bukan berkas gambar yang dikenali
@@ -53,6 +82,7 @@ pub fn sharp(data: &[u8]) -> Result<Gambar, String> {
         _ => "unknown",
     }
     .to_string();
+    cek_batas(data).map_err(|e| format!("tidak bisa mendecode gambar: {e}"))?;
     let gambar = reader
         .decode()
         .map_err(|e| format!("tidak bisa mendecode gambar: {e}"))?;
@@ -216,6 +246,32 @@ mod tests {
         let mut buf = Cursor::new(Vec::new());
         rgb.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
         buf.into_inner()
+    }
+
+    #[test]
+    fn dimensi_di_atas_batas_ditolak() {
+        assert!(lewat_batas_px(16384, 16384));
+        assert!(lewat_batas_px(u32::MAX, 2));
+    }
+
+    #[test]
+    fn dimensi_persis_batas_lolos() {
+        // sharp: "exceeds pixel limit" = > batas, bukan >= — 16383² lolos.
+        assert!(!lewat_batas_px(16383, 16383));
+        assert!(!lewat_batas_px(0, 0));
+    }
+
+    #[test]
+    fn jpeg_raksasa_ditolak_sebelum_decode() {
+        // SOF0 40000x40000: header valid, decode tidak sampai jalan.
+        let d = vec![
+            0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x9C, 0x40, 0x9C, 0x40, 0x01, 0x01, 0x11,
+            0x00,
+        ];
+        let Err(e) = sharp(&d) else {
+            panic!("harus ditolak");
+        };
+        assert!(e.contains("melebihi batas"), "pesan: {e}");
     }
 
     #[test]

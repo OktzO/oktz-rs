@@ -109,6 +109,7 @@ pub fn opsi_s(teks: &str) -> (Vec<OpsiS>, Option<String>, Option<String>) {
 }
 
 fn to_rgba(data: &[u8]) -> Result<RgbaImage, String> {
+    crate::gambar::cek_batas(data).map_err(|e| format!("gagal decode gambar: {e}"))?;
     let img = image::load_from_memory(data).map_err(|e| format!("gagal decode gambar: {e}"))?;
     Ok(img.to_rgba8())
 }
