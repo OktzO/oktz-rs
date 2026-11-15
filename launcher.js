@@ -105,7 +105,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           foto PP peserta, gagal → asset lokal pp-kosong.
 // v0.2.46 — welcome/goodbye tipe 7 = kartu interaktif berfoto PP seperti
 //           ourin (body teks sapaan penuh + quick_reply + badge saluran).
-export const VERSI_BIN = "v0.2.46";
+// v0.2.47 — handler plugin jalan di thread blocking (bukan worker tokio);
+//           alokator jemalloc: RSS kembali ke OS, multi-command tidak antre.
+export const VERSI_BIN = "v0.2.47";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
