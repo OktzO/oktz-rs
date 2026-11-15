@@ -137,32 +137,29 @@ pub struct AiSubMessage {
     pub tabel: Option<(String, Vec<Vec<String>>, bool)>,
 }
 
-/// AI rich — `builder.js` `AIRich` (`build`, `builder.js:1504`).
+/// AI rich — kontrak ruby-baileys `AIRich` (`MessageBuilder/index.js:2174-2380`),
+/// bukan `AIRich` ourin-md. Alasan: kontrak ruby-baileys/rich-webui/play2
+/// yang terbukti render (botResponseId SELALU ada, botJid
+/// `867051314767696@bot`, TANPA `richResponseSourcesMetadata`, + sendEdit).
 ///
-/// Berbeda dari V2 di: outer `messageContextInfo` memakai
-/// `deviceListMetadata` KOSONG (`{}`), dan `botMetadata` ADA (disclaimer)
-/// tanpa `verificationMetadata`. Context dalam: score 1, `0@bot`.
+/// `ponytail:` `RichAi.bot_response_id`/`bot_jid` dihapus — bukan lagi opsi,
+/// melainkan bagian kontrak tetap (`ai_outer`). Kalau butuh variasi, tambah
+/// field lagi.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RichAi {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
+    /// `botMetadata.messageDisclaimerText` — play2 `""` (`play2.js:903`),
+    /// `None` = field tidak ditulis (ruby-baileys hanya menulis saat
+    /// `_title` non-kosong).
     pub disclaimer: Option<String>,
-    /// `AIRich.send(jid, { quoted })` (`builder.js:1490-1500`): pasang
-    /// `stanzaId`/`participant`/`quotedMessage` pemicu ke `contextInfo` dalam.
-    /// Default `false` supaya jalur yang TIDAK mengutip (mis. `ytplay.js`
-    /// memanggil `aiRich.send(m.chat, { includesUnifiedResponse: true })`)
-    /// tetap sama.
+    /// `AIRich.send(jid, { quoted })` (`ruby-baileys:2196-2204`): pasang
+    /// `stanzaId`/`participant`/`quotedType: 0`/`quotedMessage` pemicu ke
+    /// `contextInfo` dalam.
     pub quoted: bool,
     /// Override `forwardingScore` context dalam — play2 `sendMusicPlayer`
-    /// (`play2.js:932`) pakai 999, bukan 1 ala `AIRich.build`.
+    /// (`play2.js:932`) pakai 999, bukan 1.
     pub skor: Option<u32>,
-    /// Override `botJid` context dalam — play2 (`play2.js:934`) pakai
-    /// `867051314767696@bot`, bukan `0@bot` (`builder.js:1470`).
-    pub bot_jid: Option<String>,
-    /// Tulis `botResponseId = response_id` di `botMetadata` dan TANPA
-    /// `richResponseSourcesMetadata` (play2 `play2.js:902-905`) — kebalikan
-    /// `AIRich.build` yang selalu kirim sources dan tanpa `botResponseId`.
-    pub bot_response_id: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -229,8 +226,6 @@ mod tests {
             disclaimer: Some("d".into()),
             quoted: false,
             skor: None,
-            bot_jid: None,
-            bot_response_id: false,
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),

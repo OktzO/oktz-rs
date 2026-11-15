@@ -23,10 +23,9 @@
 //! TIDAK dirender (pesan tampak hilang). Test
 //! `rich_v2_unified_bytes_are_raw_json` mengunci kontrak ini.
 //!
-//! `ponytail:` response ID & secret = waktu + counter, bukan RNG. JS pakai
-//! `randomUUID`/`randomBytes`. Upgrade path: tambah `rand` kalau task lain
-//! sudah membutuhkannya, lalu ganti `unique_id`/`secret_32` — dua fungsi,
-//! kontrak yang dikunci tetap "string unik / 32 byte".
+//! `ponytail:` response ID & secret = urandom (fallback xorshift) — JS pakai
+//! `randomUUID`/`randomBytes`; bentuknya UUID v4 / 32 byte, kontrak terkunci
+//! test. Upgrade path: tambah `rand` bila dependency lain sudah memakainya.
 
 use oktz_plugin_api::rich::{AiSubMessage, PreparedRich, RichAi, RichList, RichV2};
 use whatsapp_rust::prelude::*;
@@ -37,22 +36,25 @@ use whatsapp_rust::waproto::whatsapp::{
     AIRichResponseMessage, AIRichResponseMessageType, AIRichResponseSubMessage,
     AIRichResponseSubMessageType, AIRichResponseTableMetadata,
     AIRichResponseUnifiedResponse, BotMetadata, BotMessageSharingInfo, BotMetricsEntryPoint,
-    BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof, BotSourcesMetadata,
+    BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof,
     ContextInfo, DeviceListMetadata, ForwardedAIBotMessageInfo, MessageContextInfo,
 };
 
 use crate::pipeline::QuoteSource;
 
-/// Bot JID tiap jalur. Konstanta bernama supaya salah salin-tempel (angka
-/// yang kedip di string literal) tidak diam-diam terjadi.
+/// Bot JID tiap jalur. Kontrak ruby-baileys `AIRich.DEFAULT_BOT_JID` —
+/// `867051314767696@bot` (`MessageBuilder/index.js:3152`) — SATU nilai untuk
+/// semua jalur AI rich (AIRich, play2, rich-webui). Nilai `0@bot` ourin-md
+/// tidak punya bukti render (oracle live replay pakai builder yang
+/// `botJid`-nya default `867051314767696@bot`).
 mod bot {
     /// V2 (`rich-messages.js:1036`).
     pub const V2: &str = "259786046210223@bot";
     /// `buildRichContextInfo` (`rich-messages.js:421`) — V1 table & list,
     /// dan prepared rich (`:1625`).
     pub const RICH: &str = "867051314767696@bot";
-    /// `builder.js:1470` (`AIRich.build` dengan `forwarded = true`).
-    pub const AI: &str = "0@bot";
+    /// ruby-baileys `AIRich.DEFAULT_BOT_JID` (bukan `0@bot` ourin-md).
+    pub const AI: &str = "867051314767696@bot";
 }
 
 /// Field proto opsional: `None` = field TIDAK ditulis sama sekali.
@@ -73,8 +75,10 @@ fn fld<T: Default>(v: Option<T>) -> MessageField<T> {
 fn secret_32() -> Vec<u8> {
     let mut out = vec![0u8; 32];
     use std::io::Read;
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        if f.read_exact(&mut out).is_ok() { return out; }
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom")
+        && f.read_exact(&mut out).is_ok()
+    {
+        return out;
     }
     let mut seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -92,19 +96,32 @@ fn secret_32() -> Vec<u8> {
 fn unique_id() -> String {
     let mut buf = [0u8; 16];
     use std::io::Read;
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        if f.read_exact(&mut buf).is_ok() {
-            let s: String = buf.iter().map(|b| format!("{b:02x}")).collect();
-            return format!("{}-{}", &s[..16], &s[16..]);
-        }
+    let ok = std::fs::File::open("/dev/urandom")
+        .map(|mut f| f.read_exact(&mut buf).is_ok())
+        .unwrap_or(false);
+    if !ok {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        buf[..8].copy_from_slice(&nanos.to_be_bytes());
+        buf[8..].copy_from_slice(&n.to_be_bytes());
     }
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    format!("{nanos:016x}-{n:08x}")
+    // Format UUID v4 (8-4-4-4-12, versi+varian diset) — `randomUUID` JS;
+    // klien bisa mengharapkan bentuk UUID, jangan format bebas.
+    buf[6] = (buf[6] & 0x0f) | 0x40;
+    buf[8] = (buf[8] & 0x3f) | 0x80;
+    let s: String = buf.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &s[..8],
+        &s[8..12],
+        &s[12..16],
+        &s[16..20],
+        &s[20..32]
+    )
 }
 
 /// Submessage teks (`messageType: 2`).
@@ -176,14 +193,29 @@ fn wrap(rich: AIRichResponseMessage, outer: Option<MessageContextInfo>) -> wa::M
     }
 }
 
-/// `unifiedResponse.data` — byte JSON mentah, persis hasil protobufjs
-/// `writer.bytes` atas string base64 di JS (string di-base64-decode dulu).
+/// `unifiedResponse.data` — byte JSON mentah (protobufjs `writer.bytes`
+/// meng-decode base64-nya dulu), dengan `\uXXXX` untuk non-ASCII —
+/// `Toolkit.stringifyEscaped` ruby-baileys (`MessageBuilder/index.js:561`).
 fn unified_bytes(response_id: &str, sections: Vec<serde_json::Value>) -> Vec<u8> {
     let unified = serde_json::json!({
         "response_id": response_id,
         "sections": sections,
     });
-    serde_json::to_vec(&unified).unwrap_or_default()
+    let json = serde_json::to_string(&unified).unwrap_or_default();
+    escape_ascii_7f(&json).into_bytes()
+}
+
+/// `[\u007f-\uffff]` → `\uXXXX` (ruby-baileys `stringifyEscaped`).
+fn escape_ascii_7f(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if ('\u{7f}'..='\u{ffff}').contains(&c) {
+            out.push_str(&format!("\\u{:04x}", c as u32));
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// `richResponseMessage` bersejarah untuk builder yang memakai
@@ -234,10 +266,10 @@ fn v2_context(quoted: Option<&QuoteSource>) -> ContextInfo {
     ci
 }
 
-/// AIRich (`builder.js:1523-1527`): score 1, `0@bot`, `META_AI`.
-///
-/// `0@bot` itu hasil `forwarded = true` di `AIRich.build`, BUKAN angka
-/// kosong yang boleh "diganti" bot JID lain. Score-nya 1, bukan 2 seperti V2.
+/// Context dalam AIRich (`ruby-baileys:2183-2189`): score 1, botJid
+/// `867051314767696@bot` (`DEFAULT_BOT_JID`), `META_AI`. Kutipan menulis
+/// `quotedType: 0` (`EXPLICIT`, `:2199`) — oracle JS konfirmasi field ini
+/// ADA di wire saat `quoted`.
 fn ai_context(quoted: Option<&QuoteSource>) -> ContextInfo {
     let mut ci = base_context(quoted);
     ci.forwarding_score = Some(1);
@@ -245,6 +277,9 @@ fn ai_context(quoted: Option<&QuoteSource>) -> ContextInfo {
         bot_jid: Some(bot::AI.to_string()),
         ..Default::default()
     });
+    if quoted.is_some() {
+        ci.quoted_type = Some(wa::context_info::QuotedType::EXPLICIT);
+    }
     ci
 }
 
@@ -435,27 +470,24 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
     out
 }
 
-/// Outer AIRich / play2 (`builder.js:1504-1514`, `play2.js:899-906`).
+/// Outer AIRich / play2 (`ruby-baileys:2243-2253`, `play2.js:899-906`).
 ///
 /// Keduanya: `deviceListMetadata` KOSONG (`{}`), version 2, `botMetadata`.
-/// Yang beda (dilihat `bot_response_id`): `AIRich.build` kirim
-/// `richResponseSourcesMetadata: { sources: [] }` TANPA `botResponseId`;
-/// play2 `sendMusicPlayer` kirim `botResponseId = response_id` TANPA sources,
-/// plus `messageDisclaimerText: ""`.
+/// Kontrak ruby-baileys: `botResponseId` SELALU ada (refresh per build,
+/// `:2251`), `messageDisclaimerText` hanya saat `_title` non-kosong,
+/// TANPA `richResponseSourcesMetadata`. play2 (`play2.js:902-905`) sama
+/// + `messageDisclaimerText: ""`.
 fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
     MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
         device_list_metadata_version: Some(2),
         bot_metadata: fld(Some(BotMetadata {
+            // ruby-baileys `:2248`: hanya saat `_title` non-kosong; play2
+            // `play2.js:903` `""`.
             message_disclaimer_text: input.disclaimer.clone(),
-            bot_response_id: input
-                .bot_response_id
-                .then(|| response_id.to_string()),
-            rich_response_sources_metadata: if input.bot_response_id {
-                MessageField::default()
-            } else {
-                fld(Some(BotSourcesMetadata::default()))
-            },
+            // ruby-baileys `:2251` — `botResponseId` SELALU ada (refresh per
+            // build); TANPA `richResponseSourcesMetadata`.
+            bot_response_id: Some(response_id.to_string()),
             ..Default::default()
         })),
         ..Default::default()
@@ -472,16 +504,10 @@ pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Me
     let response_id = unique_id();
     let quote = if input.quoted { quote } else { None };
     let mut ci = ai_context(quote);
-    // Override jalur play2 `sendMusicPlayer` (`play2.js:932-934`): score 999,
-    // botJid `867051314767696@bot` — bukan kontrak `AIRich.build` (1, `0@bot`).
+    // Override score context dalam — play2 `sendMusicPlayer` (`play2.js:932`)
+    // pakai 999, bukan 1.
     if let Some(s) = input.skor {
         ci.forwarding_score = Some(s);
-    }
-    if let Some(j) = &input.bot_jid {
-        ci.forwarded_ai_bot_message_info = MessageField::some(ForwardedAIBotMessageInfo {
-            bot_jid: Some(j.clone()),
-            ..Default::default()
-        });
     }
     wrap(
         rich_with_unified(
@@ -492,6 +518,34 @@ pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Me
         ),
         Some(ai_outer(input, &response_id)),
     )
+}
+
+/// Edit pesan rich — `AIRich.sendEdit`/`buildEdit` ruby-baileys
+/// (`MessageBuilder/index.js:2290-2345`): `ProtocolMessage type=MESSAGE_EDIT`
+/// yang `editedMessage` = pesan rich ASLI, key-nya pesan yang barusan
+/// di-relay. Kontrak ruby-baileys: kartu hanya ter-render setelah edit ini
+/// (`send()` selalu memanggilnya; `bypassDownload` default true).
+pub fn rich_ai_edit_to_message(rich_msg: &wa::Message, chat: &str, id: &str) -> wa::Message {
+    let protocol = wa::message::ProtocolMessage {
+        key: MessageField::some(wa::MessageKey {
+            remote_jid: Some(chat.to_string()),
+            from_me: Some(true),
+            id: Some(id.to_string()),
+            ..Default::default()
+        }),
+        r#type: Some(wa::message::protocol_message::Type::MESSAGE_EDIT),
+        edited_message: MessageField::some(rich_msg.clone()),
+        ..Default::default()
+    };
+    wa::Message {
+        bot_forwarded_message: MessageField::some(wa::message::FutureProofMessage {
+            message: MessageField::some(wa::Message {
+                protocol_message: MessageField::some(protocol),
+                ..Default::default()
+            }),
+        }),
+        ..Default::default()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -759,14 +813,14 @@ mod tests {
     // ---------- AIRich ----------
 
     #[test]
-    fn ai_rich_context_score_and_bot_jid_are_distinct() {
-        // AIRich: score 1 + `0@bot`. Bukan V2 (score 2, `259786046210223@bot`)
-        // dan bukan prepared/V1 (score 1, `867051314767696@bot`).
+    fn ai_rich_context_score_and_bot_jid_follow_the_proven_contract() {
+        // Kontrak ruby-baileys (terbukti render): score 1 +
+        // `867051314767696@bot` — SAMA dengan V1/prepared, berbeda dari V2.
         let ai = rich_ai_to_message(&RichAi::default(), None);
         let ci = inner_context(&ai);
         assert_eq!(ci.forwarding_score, Some(1), "AIRich pakai score 1");
         assert_eq!(ci.forward_origin, Some(wa::context_info::ForwardOrigin::META_AI));
-        assert_eq!(bot_jid(&ai).as_deref(), Some("0@bot"));
+        assert_eq!(bot_jid(&ai).as_deref(), Some("867051314767696@bot"));
     }
 
     #[test]
@@ -777,8 +831,13 @@ mod tests {
             meta.verification_metadata.as_option().is_none(),
             "AIRich tidak punya proof (itu khusus prepared rich)"
         );
-        assert!(meta.bot_response_id.is_none(), "botResponseId khusus prepared rich");
-        // `deviceListMetadata: {}` (`builder.js:1506`) — objek kosong, bukan None.
+        // `botResponseId` SELALU ada (ruby-baileys `:2251`).
+        assert!(meta.bot_response_id.is_some(), "botResponseId wajib");
+        assert!(
+            meta.rich_response_sources_metadata.as_option().is_none(),
+            "TANPA richResponseSourcesMetadata (ruby-baileys tidak kirim)"
+        );
+        // `deviceListMetadata: {}` — objek kosong, bukan None.
         assert!(outer(&msg).device_list_metadata.as_option().is_some());
         assert_eq!(outer(&msg).device_list_metadata_version, Some(2));
     }
@@ -835,6 +894,14 @@ mod tests {
         let ci = inner_context(&dengan);
         assert_eq!(ci.stanza_id.as_deref(), Some("STANZA1"));
         assert!(ci.quoted_message.as_option().is_some());
+        // `builder.js:1489` — `quotedType: 0` ditulis eksplisit saat quoted.
+        assert_eq!(
+            ci.quoted_type,
+            Some(wa::context_info::QuotedType::EXPLICIT),
+            "AIRich dengan kutipan wajib quotedType EXPLICIT"
+        );
+        // Tanpa kutipan: quotedType TIDAK ditulis.
+        assert_eq!(inner_context(&tanpa).quoted_type, None);
     }
 
     // ---------- prepared rich ----------
@@ -842,15 +909,13 @@ mod tests {
     #[test]
     fn play2_send_music_player_contract_is_not_airich() {
         // `play2.js:899-941` — play2 hand-rolled, BUKAN `AIRich`: inner score
-        // 999 + `867051314767696@bot`; outer `botMetadata` berisi
-        // `botResponseId = response_id` + `messageDisclaimerText: ""` dan
-        // TANPA `richResponseSourcesMetadata`.
+        // 999; outer `botMetadata` berisi `botResponseId = response_id` +
+        // `messageDisclaimerText: ""` dan TANPA `richResponseSourcesMetadata`.
+        // botJid sama dengan AIRich (kontrak ruby-baileys tunggal).
         let msg = rich_ai_to_message(
             &RichAi {
                 disclaimer: Some(String::new()),
                 skor: Some(999),
-                bot_jid: Some("867051314767696@bot".into()),
-                bot_response_id: true,
                 ..Default::default()
             },
             None,
@@ -861,6 +926,8 @@ mod tests {
         let meta = bot_metadata(&msg);
         let response_id = unified_json(&msg)["response_id"].as_str().unwrap().to_string();
         assert_eq!(meta.bot_response_id.as_deref(), Some(response_id.as_str()));
+        // `play2.js:903` — `messageDisclaimerText: ""` (field ditulis).
+        assert_eq!(meta.message_disclaimer_text.as_deref(), Some(""));
         assert!(
             meta.rich_response_sources_metadata.as_option().is_none(),
             "play2 tidak kirim richResponseSourcesMetadata"
@@ -1019,14 +1086,27 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
     #[test]
     fn each_builder_produces_a_distinct_wire_message() {
         // Bukti separasi empat jalur: byte-nya tidak boleh sama walau isi
-        // modelnya sama bentuknya.
+        // modelnya sama bentuknya. botJid AIRich kini SAMA dengan prepared
+        // (kontrak ruby-baileys), jadi pembedanya: sources metadata (AIRich
+        // TANPA) dan proof (prepared ADA).
         let input = RichAi::default();
         let ai = rich_ai_to_message(&input, None);
         let prepared = prepared_rich_to_message(&PreparedRich::default());
         let v2 = rich_v2_to_message(&RichV2::baru("J"), None);
         let list = rich_list_to_message(&RichList::baru("J"), None);
         assert_ne!(bot_jid(&ai), bot_jid(&v2));
-        assert_ne!(bot_jid(&ai), bot_jid(&prepared));
+        let ai_meta = bot_metadata(&ai);
+        assert!(
+            ai_meta.rich_response_sources_metadata.as_option().is_none(),
+            "AIRich TANPA sources"
+        );
+        assert!(
+            bot_metadata(&prepared)
+                .verification_metadata
+                .as_option()
+                .is_some(),
+            "prepared ADA proof"
+        );
         assert_ne!(
             ai.message_context_info.as_option().is_some(),
             list.message_context_info.as_option().is_some(),

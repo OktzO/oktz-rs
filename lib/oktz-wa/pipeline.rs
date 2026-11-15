@@ -4106,14 +4106,9 @@ impl Pipeline {
                 })
             }
             None => {
-                let message = rendered.message.clone();
                 self.sender
                     .send_with_result(chat, rendered.message, rendered.extra_nodes)
                     .await
-                    .map(|mut sent| {
-                        sent.message = message;
-                        sent
-                    })
                     .map_err(|e| PipelineError::Other(format!("gagal kirim: {e}")))
             }
         }
@@ -4169,7 +4164,23 @@ impl Pipeline {
                     let Some(rendered) = self.render_with_reply_variant(other, target)? else {
                         return Ok(false);
                     };
-                    target.previous_sent = Some(self.deliver(chat, rendered).await?);
+                    let sent = self.deliver(chat, rendered).await?;
+                    // Kontrak ruby-baileys `AIRich.send` (`MessageBuilder/
+                    // index.js:2366-2375`): kartu rich baru ter-render setelah
+                    // EDIT (ProtocolMessage type 14) yang membawa isi pesan
+                    // yang barusan di-relay.
+                    if matches!(other, Reply::TabelAi(_)) {
+                        let rich_msg = sent.message.clone();
+                        let edit = crate::rich::rich_ai_edit_to_message(
+                            &rich_msg,
+                            chat,
+                            &sent.message_id,
+                        );
+                        self.sender.send(chat, edit, Vec::new()).await.map_err(|e| {
+                            PipelineError::Other(format!("gagal kirim edit rich: {e}"))
+                        })?;
+                    }
+                    target.previous_sent = Some(sent);
                     Ok(true)
                 }
             }
@@ -6397,7 +6408,7 @@ fn group_number_and_long_number_are_rejected() {
             .forwarded_ai_bot_message_info
             .as_option()
             .and_then(|i| i.bot_jid.clone());
-        assert_eq!(jid_ai.as_deref(), Some("0@bot"));
+        assert_eq!(jid_ai.as_deref(), Some("867051314767696@bot"));
 
         let prepared = Reply::prepared_rich();
         let rp = render_reply(&prepared, &ReplyTarget::default()).unwrap().unwrap();

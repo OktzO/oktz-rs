@@ -591,6 +591,16 @@ where
     let bot = with_logout_guard(Bot::builder(), Arc::clone(&guard))
         .with_backend(store)
         .on_connected(on_ready)
+        // L1 recent_messages: tulis 8MB BLOB (kartu play2) jadi background
+        // via Arc shared, bukan await sinkron di jalur kirim (WA Web default
+        // capacity 0 = DB-only sinkron).
+        .with_cache_config(whatsapp_rust::CacheConfig {
+            recent_messages: whatsapp_rust::CacheEntryConfig::new(
+                Some(std::time::Duration::from_secs(300)),
+                16,
+            ),
+            ..Default::default()
+        })
         .build()
         .await?;
     Ok((bot.spawn(), guard))

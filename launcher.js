@@ -109,7 +109,7 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           alokator jemalloc: RSS kembali ke OS, multi-command tidak antre.
 // v0.2.48 — store: serialisasi sekali per batch mutasi (clone-on-write);
 //           decode gambar eksternal dibatasi batas piksel sharp (16383²).
-export const VERSI_BIN = "v0.2.50";
+export const VERSI_BIN = "v0.2.51";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
