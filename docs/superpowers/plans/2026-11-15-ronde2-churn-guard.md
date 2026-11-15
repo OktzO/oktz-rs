@@ -89,9 +89,9 @@ pub fn write_bytes(&self, body: &[u8]) -> Result<()> {
 
 Run: `cargo test --release -p oktz-store --lib` → PASS semua.
 
-- [ ] **Step 5: Rework `apply()` di `pipeline.rs:408-429`**
+- [ ] **Step 5: Rework `apply()` di `pipeline.rs:408-429` (clone-on-write)**
 
-`backup` = `serde_json::to_vec(inner.all()).ok()` (bukan `to_string`); restore gagal tetap `serde_json::from_str::<Value>` dari backup (ubah ke `from_slice(&b)`); sukses → tulis lewat byte: `match backup { Some(b) => inner.write_bytes(&b), None => inner.write() }`, error handling path sama seperti `inner.write()` sekarang.
+Mutasi dikerjakan pada salinan: `let mut kerja = inner.clone();` → `apply_mutation(&mut kerja, ...)?` (gagal → `Err` langsung, `inner` utuh = semantik backup lama) → `kerja.write().map_err(|e| StoreWriteError { detail: format!("tulis gagal: {e}"), ... })?` → sukses: `*inner = kerja;` lalu dirty flag seperti semula. `inner` yang ditulis ke disk adalah kondisi PASCA-mutasi — backup pramutasi TIDAK boleh ikut ke disk.
 
 - [ ] **Step 6: Test pipeline**
 

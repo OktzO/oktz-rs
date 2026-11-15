@@ -56,10 +56,12 @@ biaya per-pesan yang masih ada:
 - `JsonStore::write_bytes(&self, body: &[u8]) -> Result<()>` — path atomic yang sama
   dgn `write()` (tmp per-pid+seq, fs::write, rename). `write()` di-refactor jadi
   serialize + `write_bytes` (satu sumber kebenaran).
-- `apply()`: `backup = serde_json::to_vec(inner.all()).ok()` (1 serialisasi);
-  rollback gagal tetap parse backup; sukses → `inner.write_bytes(&backup)` (0
-  serialisasi tambahan). Jika `backup` `None` (serialisasi gagal, praktis mustahil
-  untuk `Value`) → jatuh ke `inner.write()` seperti perilaku lama.
+- `apply()` clone-on-write: mutasi dikerjakan pada salinan (`inner.clone()`), disk
+  ditulis dari salinan (`kerja.write()` — 1 serialisasi, kondisi PASCA-mutasi),
+  memori di-commit setelah disk sukses (`*inner = kerja`). Rollback = buang salinan:
+  semantik identik dengan backup serialisasi lama (inner pramutasi), tanpa serialisasi
+  kedua. REVISI: draft awal "tulis byte backup ke disk" salah — byte backup = kondisi
+  pramutasi, membuat disk stale; ditangkap test pipeline saat implementasi.
 
 ### D. Guard decode media (`lib/oktz-plugin-api`)
 

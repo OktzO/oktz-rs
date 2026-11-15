@@ -98,6 +98,14 @@ impl JsonStore {
     /// saling menimpa temp yang sama: rename pertama memindahkan file,
     /// rename kedua gagal `NotFound` dan proses mati.
     pub fn write(&self) -> Result<()> {
+        let body = serde_json::to_string(&self.data).map_err(Error::from)?;
+        self.write_bytes(body.as_bytes())
+    }
+
+    /// Tulis body JSON mentah atomik (tmp+rename sama seperti `write`) —
+    /// pemanggil yang sudah memegang byte serialisasi tidak perlu
+    /// serialisasi kedua.
+    pub fn write_bytes(&self, body: &[u8]) -> Result<()> {
         if let Some(parent) = self.path.parent()
             && !parent.as_os_str().is_empty()
         {
@@ -107,7 +115,6 @@ impl JsonStore {
         let tmp = self
             .path
             .with_extension(format!("{}-{seq}.tmp", std::process::id()));
-        let body = serde_json::to_string(&self.data).map_err(Error::from)?;
         std::fs::write(&tmp, body)?;
         std::fs::rename(&tmp, &self.path)?;
         Ok(())
@@ -233,6 +240,24 @@ mod tests {
             leftovers.is_empty(),
             "file tmp tidak boleh tertinggal: {leftovers:?}"
         );
+    }
+
+    #[test]
+    fn write_bytes_tulis_persis_dan_tanpa_tmp_sisa() {
+        let path = tmpfile("write-bytes");
+        let mut s = JsonStore::open(&path).unwrap();
+        s.set("a", Value::from(1)).unwrap();
+        s.write().unwrap();
+        // Isi file = body persis, bukan hasil serialisasi ulang.
+        s.write_bytes(br#"{"b":2}"#).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), br#"{"b":2}"#);
+        let leftovers: Vec<String> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with("oktz-store-test-write-bytes") && n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "tmp sisa: {leftovers:?}");
     }
 
     #[test]

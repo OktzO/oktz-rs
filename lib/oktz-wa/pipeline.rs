@@ -405,28 +405,19 @@ impl StoreContext {
                 return Ok(mutations.len());
             }
         };
-        let backup = serde_json::to_string(inner.all()).ok();
+        // Satu serialisasi per batch: mutasi dikerjakan pada salinan, disk
+        // ditulis dari salinan, memori di-commit setelah disk sukses.
+        // Rollback = buang salinan — semantik sama dengan backup
+        // serialisasi lama, tanpa biaya serialisasi kedua.
+        let mut kerja = inner.clone();
         for m in mutations {
-            if let Err(e) = apply_mutation(inner, m, now_ms, self.path.clone()) {
-                if let Some(ref b) = backup {
-                    if let Ok(v) = serde_json::from_str::<Value>(b) {
-                        let _ = inner.replace(v);
-                    }
-                }
-                return Err(e);
-            }
+            apply_mutation(&mut kerja, m, now_ms, self.path.clone())?;
         }
-        if let Err(e) = inner.write() {
-            if let Some(ref b) = backup {
-                if let Ok(v) = serde_json::from_str::<Value>(b) {
-                    let _ = inner.replace(v);
-                }
-            }
-            return Err(StoreWriteError {
-                path: self.path.clone(),
-                detail: format!("tulis gagal: {e}"),
-            });
-        }
+        kerja.write().map_err(|e| StoreWriteError {
+            path: self.path.clone(),
+            detail: format!("tulis gagal: {e}"),
+        })?;
+        *inner = kerja;
         self.dirty.store(true, std::sync::atomic::Ordering::Release);
         Ok(mutations.len())
     }
