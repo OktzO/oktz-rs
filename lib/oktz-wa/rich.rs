@@ -11,15 +11,17 @@
 //! | AIRich (`builder.js`) | 1 | `0@bot` | `deviceListMetadata` + `botMetadata` disclaimer |
 //! | prepared rich (`prepareRichResponseMessage`) | 1 | `867051314767696@bot` | proof + `botResponseId` |
 //!
-//! # `unifiedResponse.data` = teks base64 dari JSON UTF-8
+//! # `unifiedResponse.data` = byte JSON MENTAH, bukan base64
 //!
-//! JS `generateTableContentV2`/`AIRich.build` menulis
-//! `Buffer.from(JSON.stringify(unifiedData)).toString("base64")`
-//! (`rich-messages.js:1030`, `builder.js:1521`) dan protobuf Baileys
-//! meng-encode string itu ke field `bytes` sebagai UTF-8. Klien WA
-//! men-decode base64 untuk mendapat JSON-nya — mengirim JSON mentah
-//! membuat kartu rich TIDAK dirender (pesan tampak hilang). Test
-//! `rich_v2_unified_bytes_are_base64_of_json` mengunci kontrak ini.
+//! JS menulis `data: Buffer.from(JSON.stringify(...)).toString("base64")`
+//! — STRING base64 — tapi protobufjs `Writer.prototype.bytes` meng-encode
+//! nilai string dengan meng-DECODE base64-nya dulu (protobufjs
+//! `src/writer.js:376`), jadi byte di wire = JSON MENTAH. Rust langsung
+//! menulis `serde_json::to_vec`. Buktinya: dump wire oracle JS
+//! (`play2.js:893-943`) di-decode `proto.Message.decode` — data-nya byte
+//! JSON `{...`, bukan ASCII base64. Versi base64-ASCII membuat kartu rich
+//! TIDAK dirender (pesan tampak hilang). Test
+//! `rich_v2_unified_bytes_are_raw_json` mengunci kontrak ini.
 //!
 //! `ponytail:` response ID & secret = waktu + counter, bukan RNG. JS pakai
 //! `randomUUID`/`randomBytes`. Upgrade path: tambah `rand` kalau task lain
@@ -174,16 +176,14 @@ fn wrap(rich: AIRichResponseMessage, outer: Option<MessageContextInfo>) -> wa::M
     }
 }
 
-/// `unifiedResponse.data` — base64 ASCII dari JSON UTF-8, persis
-/// `Buffer.from(JSON.stringify(...)).toString("base64")` JS.
+/// `unifiedResponse.data` — byte JSON mentah, persis hasil protobufjs
+/// `writer.bytes` atas string base64 di JS (string di-base64-decode dulu).
 fn unified_bytes(response_id: &str, sections: Vec<serde_json::Value>) -> Vec<u8> {
-    use base64::Engine as _;
     let unified = serde_json::json!({
         "response_id": response_id,
         "sections": sections,
     });
-    let json = serde_json::to_vec(&unified).unwrap_or_default();
-    base64::engine::general_purpose::STANDARD.encode(json).into_bytes()
+    serde_json::to_vec(&unified).unwrap_or_default()
 }
 
 /// `richResponseMessage` bersejarah untuk builder yang memakai
@@ -584,11 +584,7 @@ mod tests {
     }
 
     fn unified_json(msg: &wa::Message) -> serde_json::Value {
-        use base64::Engine as _;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(unified_data(msg))
-            .expect("data wajib base64");
-        serde_json::from_slice(&decoded).expect("isi base64 wajib JSON UTF-8")
+        serde_json::from_slice(&unified_data(msg)).expect("data wajib JSON UTF-8")
     }
 
     fn inner_context(msg: &wa::Message) -> &ContextInfo {
@@ -678,26 +674,22 @@ mod tests {
     }
 
     #[test]
-    fn rich_v2_unified_bytes_are_base64_of_json() {
-        // JS: `Buffer.from(JSON.stringify(...)).toString("base64")`
-        // (`rich-messages.js:1030`). Base64 ASCII, BUKAN JSON mentah —
-        // klien WA men-decode base64 sebelum membaca `sections`.
-        use base64::Engine as _;
+    fn rich_v2_unified_bytes_are_raw_json() {
+        // JS mengirim string base64 lewat `writer.bytes` (protobufjs) yang
+        // meng-DECODE base64-nya dulu — wire-nya byte JSON mentah (`{`...),
+        // BUKAN ASCII base64. Dump oracle JS play2 membuktikan ini.
         let input = RichV2::baru("Judul").header(["A"]).baris(["b"]);
         let msg = rich_v2_to_message(&input, None);
         let data = unified_data(&msg);
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(&data)
-            .expect("data wajib base64 valid");
 
         let expected = json!({
             "response_id": unified_json(&msg)["response_id"].clone(),
             "sections": v2_sections(&input),
         });
-        assert_eq!(decoded, serde_json::to_vec(&expected).unwrap());
+        assert_eq!(data, serde_json::to_vec(&expected).unwrap());
 
-        // JSON mentah dimulai `{`; base64 dari `{` selalu `ey`.
-        assert_eq!(&data[..2], b"ey", "byte pertama payload wajib base64");
+        // JSON mentah dimulai `{`.
+        assert_eq!(&data[..1], b"{", "byte pertama payload wajib JSON");
     }
 
     #[test]

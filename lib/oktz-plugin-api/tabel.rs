@@ -23,7 +23,7 @@
 //! `sendTable` JS memakai `relayMessage` tanpa node `biz` — jadi tabel ini
 //! juga dikirim tanpa node itu.
 //!
-//! `ponytail:` `unifiedResponse` (base64 JSON) dan `botMetadata` tidak ada
+//! `ponytail:` `unifiedResponse` dan `botMetadata` tidak ada
 //! di jalur ini — `generateTableContent` v1 tidak memakainya. Jalur yang
 //! butuhnya `TabelV2` (`crate::rich`), bukan model ini.
 
