@@ -809,6 +809,14 @@ pub fn ttdown(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 
     let mut errors: Vec<String> = Vec::new();
 
+    // Provider baru paling depan: TikWM memulangkan 403 sejak 2026-11-15 dan
+    // savett/yuuLabs/musicaldown sering gagal; rinn melayani video, slide foto,
+    // dan audio sekaligus dengan tipe media eksplisit.
+    match crate::rinn::tiktok(http, &resolved) {
+        Ok(hasil) => return Ok(hasil),
+        Err(e) => errors.push(format!("rinn: {}", e.message)),
+    }
+
     match ttdown_from_tikwm(http, &resolved) {
         Ok(hasil) => return Ok(hasil),
         Err(e) => errors.push(format!("tikwm: {}", e.message)),
@@ -1690,20 +1698,21 @@ mod tests {
 
     #[test]
     fn ttdown_menggabungkan_semua_galat_berurutan() {
-        // Satu respons untuk semua permintaan: TikWM gagal, SaveTT gagal
-        // (token), lalu fallback.
+        // Satu respons untuk semua permintaan: rinn gagal (tanpa `status`),
+        // TikWM gagal, SaveTT gagal (token), lalu fallback.
         let http = StubHttp::tunggal(r#"{"code":1,"msg":"gagal"}"#);
         let err = ttdown(&http, "https://www.tiktok.com/@a/video/1").unwrap_err();
         assert_eq!(
             err.message,
-            "tikwm: gagal \
+            "rinn: rinn: status false \
+             | tikwm: gagal \
              | savett(raw): Gagal mendapatkan token saveTT \
              | yuulabs: YuuLabs response invalid \
              | musicaldown: MusicalDown tidak mengembalikan link download"
         );
-        // URL panjang tidak memicu GET resolve. Urutan: TikWM, SaveTT (GET
-        // token), YuuLabs, MusicalDown (GET + POST) = 5 permintaan.
-        assert_eq!(http.permintaan.lock().unwrap().len(), 5);
+        // URL panjang tidak memicu GET resolve. Urutan: rinn, TikWM, SaveTT
+        // (GET token), YuuLabs, MusicalDown (GET + POST) = 6 permintaan.
+        assert_eq!(http.permintaan.lock().unwrap().len(), 6);
     }
 
     #[test]
@@ -1716,7 +1725,12 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p[0].method, HttpMethod::Get);
         assert_eq!(p[0].url, "https://vt.tiktok.com/abc");
-        assert_eq!(p[1].method, HttpMethod::Post, "TikWM jalan setelah resolve");
+        assert!(
+            p[1].url.starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
+            "rinn dicoba dulu, dapat {}",
+            p[1].url
+        );
+        assert_eq!(p[2].method, HttpMethod::Post, "TikWM jalan setelah rinn gagal");
     }
 
     #[test]

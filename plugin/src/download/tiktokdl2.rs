@@ -600,6 +600,12 @@ mod tests {
     fn savett_gagal_jatuh_ke_ttdown() {
         let http = Stub::baru(vec![
             (200, "<p>tanpa form</p>".to_string(), Vec::new()),
+            // Provider pertama di `ttdown` sekarang rinn; paksa gagal dulu.
+            (
+                200,
+                r#"{"status":false,"message":"x"}"#.to_string(),
+                Vec::new(),
+            ),
             (200, TIKWM_VIDEO.to_string(), Vec::new()),
             (200, "VIDEO".to_string(), Vec::new()),
         ]);
@@ -616,13 +622,18 @@ mod tests {
             lain => panic!("harus video, dapat {lain:?}"),
         }
         let p = http.panggilan.lock().unwrap();
-        assert_eq!(p.len(), 3);
+        assert_eq!(p.len(), 4);
         assert!(
-            p[1].url.starts_with("https://www.tikwm.com/api/?url="),
-            "provider cadangan dipakai, dapat {}",
+            p[1].url.starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
+            "provider pertama harus rinn, dapat {}",
             p[1].url
         );
-        assert_eq!(p[2].url, "https://www.tikwm.com/sd.mp4");
+        assert!(
+            p[2].url.starts_with("https://www.tikwm.com/api/?url="),
+            "provider cadangan dipakai, dapat {}",
+            p[2].url
+        );
+        assert_eq!(p[3].url, "https://www.tikwm.com/sd.mp4");
     }
 
     #[test]
@@ -634,9 +645,9 @@ mod tests {
             crate::common::error_template_bawaan(".", "tiktok2")
         );
         assert_eq!(reaction_of(&r), Some("☢"));
-        // Urutannya: token savett, TikWM, savett, YuuLabs, MusicalDown — url
-        // panjang tidak punya varian `resolved`, jadi tepat 5 percobaan.
-        assert_eq!(http.panggilan.lock().unwrap().len(), 5);
+        // Urutannya: token savett, rinn, TikWM, savett, YuuLabs, MusicalDown —
+        // url panjang tidak punya varian `resolved`, jadi tepat 6 percobaan.
+        assert_eq!(http.panggilan.lock().unwrap().len(), 6);
     }
 
     #[test]
