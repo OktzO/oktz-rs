@@ -1130,6 +1130,13 @@ pub trait MessageSender: Send + Sync {
         None
     }
 
+    /// Peta timer disappearing per-chat (`jid -> detik`), dipelajari dari
+    /// `contextInfo.expiration` pesan masuk. Default: peta kosong (sender
+    /// uji tidak menerapkan timer apa pun).
+    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, u32>>> {
+        Arc::new(Mutex::new(HashMap::new()))
+    }
+
     /// Kirim media: baca sumbernya → upload ke CDN → kirim.
     ///
     /// Terpisah dari `send` karena butuh I/O (disk/HTTP/upload) yang `send`
@@ -1208,17 +1215,54 @@ pub trait MessageSender: Send + Sync {
 /// Sender sungguhan, membungkus `Arc<Client>`.
 pub struct ClientSender {
     client: Arc<Client>,
+    /// Timer disappearing per-chat, dibagi dengan `Pipeline` (lihat
+    /// [`MessageSender::chat_timers`]).
+    chat_timers: Arc<Mutex<HashMap<String, u32>>>,
+}
+
+/// Setel `contextInfo.expiration` pada pesan keluar supaya tidak merusak
+/// timer disappearing chat ("pesan ini tidak akan hilang / versi lama").
+///
+/// `SendOptions.ephemeral_expiration` sudah setel lewat
+/// `set_ephemeral_expiration`, tapi kartu (`interactiveMessage`) dibungkus
+/// `viewOnceMessage` sehingga field atasnya tidak terlihat — itu yang
+/// jadi fallback di sini.
+///
+/// ponytail: timer hanya di memori — setelah restart diajar lagi dari pesan
+/// masuk berikutnya; kalau bot kirim tanpa ada pesan masuk dulu, timer
+/// terlewat. Persist ke store kalau itu jadi masalah nyata.
+pub(crate) fn terapkan_timer_ephemeral(to: &str, exp: u32, message: &mut wa::Message) {
+    if exp == 0 || to.ends_with("@newsletter") || to.ends_with("@status") {
+        return;
+    }
+    if message.set_ephemeral_expiration(exp) {
+        return;
+    }
+    if let Some(inner) = message
+        .view_once_message
+        .as_option_mut()
+        .and_then(|v| v.message.as_option_mut())
+    {
+        inner.set_ephemeral_expiration(exp);
+    }
 }
 
 impl ClientSender {
     pub fn new(client: Arc<Client>) -> Self {
-        Self { client }
+        Self {
+            client,
+            chat_timers: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 }
 
 impl MessageSender for ClientSender {
     fn client(&self) -> Option<Arc<Client>> {
         Some(self.client.clone())
+    }
+
+    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, u32>>> {
+        self.chat_timers.clone()
     }
 
     fn send(&self, to: &str, message: wa::Message, extra_nodes: Vec<Node>) -> SendBox<'_> {
@@ -1228,6 +1272,15 @@ impl MessageSender for ClientSender {
             let jid: Jid = to
                 .parse()
                 .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
+            let mut message = message;
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
             let opts = if extra_nodes.is_empty() {
                 SendOptions::default()
             } else {
@@ -1257,6 +1310,15 @@ impl MessageSender for ClientSender {
             let jid: Jid = to
                 .parse()
                 .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
+            let mut message = message;
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
             let opts = if extra_nodes.is_empty() {
                 SendOptions::default()
             } else {
@@ -1361,6 +1423,15 @@ impl MessageSender for ClientSender {
                 }
                 pesan
             };
+            let mut message = message;
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
             client
                 .send_message_with_options(jid, message, SendOptions::default())
                 .await
@@ -1437,6 +1508,15 @@ impl MessageSender for ClientSender {
                 metadata,
             )
             .map_err(|e| format!("gagal rakit sticker pack: {e}"))?;
+            let mut message = message;
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
             client
                 .send_message_with_options(jid, message, SendOptions::default())
                 .await
@@ -1498,7 +1578,15 @@ impl MessageSender for ClientSender {
                 None => None,
             };
             let ci = kartu_context_info(&kartu, quote.as_ref());
-            let message = crate::cards::kartu_to_message(&kartu, header_media_msg, ci);
+            let mut message = crate::cards::kartu_to_message(&kartu, header_media_msg, ci);
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
             let opts = if extra_nodes.is_empty() {
                 SendOptions::default()
             } else {
@@ -4380,6 +4468,24 @@ impl Pipeline {
         let mut caller = self.caller_of(m);
         self.record_recent_media(m);
 
+        // Pelajari timer disappearing per-chat dari pesan masuk
+        // (`m.info.ephemeral_expiration` = `contextInfo.expiration` pesan).
+        // Pesan tanpa info timer tidak boleh menimpa nilai yang sudah
+        // diketahui (reaksi dll. juga tak membawa expiration); chat baru
+        // dianggap tanpa timer (0).
+        let timers = self.sender.chat_timers();
+        {
+            let mut timers = timers.lock().unwrap_or_else(|e| e.into_inner());
+            match m.info.ephemeral_expiration {
+                Some(exp) => {
+                    timers.insert(caller.chat.clone(), exp);
+                }
+                None => {
+                    timers.entry(caller.chat.clone()).or_insert(0);
+                }
+            }
+        }
+
         // Filter replay: history-sync setelah (re)connect kirim pesan lama.
         // Pesan >60s sebelum boot dibuang — perintah lama tidak dieksekusi ulang.
         let boot_ms = self.boot_ms.load(std::sync::atomic::Ordering::Relaxed);
@@ -4582,6 +4688,19 @@ impl Pipeline {
                 }
                 return Ok(Outcome::EnergiDenied);
             }
+
+            // autoTyping (`handler.js:1893`): composing sebelum plugin jalan.
+            // Setting store menang; tanpa setting, default `true`
+            // (config.features.autoTyping).
+            if self
+                .ctx
+                .settings_entry()
+                .get("autoTyping")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+            {
+                let _ = self.plugin_src.sock.presence("composing", &caller.chat);
+            }
         }
 
         {
@@ -4659,6 +4778,9 @@ impl Pipeline {
             let terkirim = self
                 .deliver_reply(&caller.chat, &reply, &mut target, &key)
                 .await?;
+
+            // autoTyping (`handler.js:1938`): paused setelah plugin selesai.
+            let _ = self.plugin_src.sock.presence("paused", &caller.chat);
 
             // Cooldown baru mulai SETELAH handler selesai
             // (`handler.js:1922-1924`), jadi command yang gagal di tengah tidak
@@ -10293,6 +10415,53 @@ fn a_null_access_field_keeps_the_existing_grant() {
         assert_eq!(
             ci.participant.as_deref(),
             Some("628999@s.whatsapp.net[628111@s.whatsapp.net]")
+        );
+    }
+
+    // ---------- timer disappearing per-chat ----------
+
+    #[test]
+    fn timer_ephemeral_chat_disetel_di_extended_text() {
+        let mut msg = wa::Message::text("hai");
+        terapkan_timer_ephemeral("6281@s.whatsapp.net", 86400, &mut msg);
+        let ext = msg.extended_text_message.as_option().expect("dipromosikan");
+        let ctx = ext.context_info.as_option().expect("contextInfo");
+        assert_eq!(ctx.expiration, Some(86400));
+    }
+
+    #[test]
+    fn timer_ephemeral_masuk_kartu_dalam_viewonce() {
+        let r = render_reply(
+            &Reply::interactive("pilih").with_button(Tombol::salin("📋 Copy", "copy", "hasil")),
+            &ReplyTarget::default(),
+        )
+        .unwrap()
+        .unwrap();
+        let kartu = r.card.as_ref().expect("kartu harus ada");
+        let mut msg = crate::cards::kartu_to_message(kartu, None, None);
+        terapkan_timer_ephemeral("6281@s.whatsapp.net", 604800, &mut msg);
+        let inner = msg
+            .view_once_message
+            .as_option()
+            .and_then(|v| v.message.as_option())
+            .expect("dibungkus viewOnceMessage");
+        let im = inner.interactive_message.as_option().expect("interactive");
+        let ctx = im.context_info.as_option().expect("contextInfo kartu");
+        assert_eq!(ctx.expiration, Some(604800));
+    }
+
+    #[test]
+    fn timer_ephemeral_nol_dan_newsletter_mengubah_pesan() {
+        let mut msg = wa::Message::text("hai");
+        terapkan_timer_ephemeral("6281@s.whatsapp.net", 0, &mut msg);
+        assert!(
+            msg.conversation.is_some(),
+            "exp 0 tidak boleh memodifikasi pesan"
+        );
+        terapkan_timer_ephemeral("1234@newsletter", 86400, &mut msg);
+        assert!(
+            msg.conversation.is_some(),
+            "newsletter tidak boleh diberi timer"
         );
     }
 }
