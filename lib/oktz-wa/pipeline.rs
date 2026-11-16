@@ -50,6 +50,7 @@ use oktz_router::{
 };
 use oktz_store::json_store::JsonStore;
 use serde_json::Value;
+use crate::cards::biz_node;
 use crate::grup_event::{self, AksiGrup, UpdateGrup};
 use crate::pesan_grup::{self, KonteksPesan};
 use crate::reply_variant;
@@ -2749,12 +2750,10 @@ pub fn render_reply(
                 });
             Ok(Some(Rendered {
                 message: wa::Message::default(),
-                // Kartu plugin JS (`menu.js:529`, `allmenu.js:242`, dst.)
-                // `relayMessage` TANPA `additionalNodes`. Node `<biz>` hanya
-                // dipakai jalur legacy `interactiveButtons` (`socket.js:405`),
-                // dan kehadirannya membikin WhatsApp memasang label bisnis +
-                // notice "layanan aman dari Meta" / enkripsi di tiap DM.
-                extra_nodes: Vec::new(),
+                // Node `<biz>` wajib: tanpa itu server menerima stanza tapi
+                // klien tidak merender kartu (`onigis` auto-inject lewat
+                // `getAdditionalNode`). Bentuk node meminimalkan label bisnis.
+                extra_nodes: vec![biz_node()],
                 media: None,
                 card: Some((**kartu).clone()),
                 card_header_media: header_media,
@@ -5491,13 +5490,13 @@ impl Pipeline {
                 // (catch luar, `welcome.js:372-374`).
                 if let Err(e) = self
                     .sender
-                    .send_card(&u.id, kartu.clone(), header, None, Vec::new())
+                    .send_card(&u.id, kartu.clone(), header, None, vec![biz_node()])
                     .await
                 {
                     tracing::warn!(error = %e, grup = %u.id, "header kartu welcome gagal; kirim tanpa gambar");
                     if let Err(e2) = self
                         .sender
-                        .send_card(&u.id, kartu, None, None, Vec::new())
+                        .send_card(&u.id, kartu, None, None, vec![biz_node()])
                         .await
                     {
                         tracing::warn!(error = %e2, grup = %u.id, "kartu welcome gagal");
@@ -6452,15 +6451,13 @@ fn group_number_and_long_number_are_rejected() {
     }
 
     #[test]
-    fn interactive_reuses_card_tanpa_biz_node() {
+    fn interactive_reuses_card_dengan_biz_node() {
         let r = render_reply(&Reply::interactive("pilih"), &ReplyTarget::default())
             .unwrap()
             .unwrap();
-        // JS `menu.js:529`/`allmenu.js:242`: relayMessage tanpa additionalNodes.
-        assert!(
-            r.extra_nodes.is_empty(),
-            "kartu plugin tidak boleh membawa node biz"
-        );
+        // Wajib untuk render kartu; `onigis` menambahkannya otomatis.
+        assert_eq!(r.extra_nodes.len(), 1, "kartu wajib membawa node biz");
+        assert_eq!(r.extra_nodes[0].tag.as_ref(), "biz");
         let kartu = r.card.as_ref().expect("kartu harus ada");
         assert_eq!(kartu.body, "pilih");
         let msg = crate::cards::kartu_to_message(kartu, None, None);

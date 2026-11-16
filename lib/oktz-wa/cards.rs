@@ -152,14 +152,17 @@ pub fn build_list() -> wa::Message {
 
 /// Extra stanza node wajib supaya WA merender kartu native-flow.
 ///
-/// Bentuknya meniru `onigis` (`lib/WABinary/generic-utils.js:139`
-/// `getAdditionalNode`): `biz` dengan `engagement` + `interactive/native_flow`.
-/// Tanpa node ini kartu tidak muncul di chat.
+/// Bentuknya mengikuti `getAdditionalNode` onigis
+/// (`lib/WABinary/generic-utils.js:139`): `biz` dengan `interactive/native_flow`.
+/// Tanpa node ini server menerima stanza tapi klien tidak merender kartu.
+///
+/// `attrs` bisnis (`actual_actors`/`host_storage`/`privacy_mode_ts`) dan anak
+/// `engagement{customer_service_state:open}` SENGAJA tidak dikirim: keduanya
+/// menandai DM sebagai sesi layanan pelanggan "hosted by Meta", dan WhatsApp
+/// lalu menempel notice "Bisnis ini menggunakan layanan aman dari perusahaan
+/// Meta..." + notice enkripsi tiap pesan. Yang tersisa = bentuk minimal yang
+/// dipakai helper tombol komunitas (`biz > interactive > native_flow`).
 pub fn biz_node() -> Node {
-    let engagement = NodeBuilder::new("engagement")
-        .attr("customer_service_state", "open")
-        .attr("conversation_state", "open")
-        .build();
     let native_flow = NodeBuilder::new("native_flow")
         .attr("v", "9")
         .attr("name", "mixed")
@@ -169,17 +172,7 @@ pub fn biz_node() -> Node {
         .attr("v", "1")
         .children([native_flow])
         .build();
-    // `privacy_mode_ts` = sekarang - 77_980_457 detik (nilai onigis).
-    let privacy_mode_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64 - 77_980_457)
-        .unwrap_or_default();
-    NodeBuilder::new("biz")
-        .attr("actual_actors", "2")
-        .attr("host_storage", "2")
-        .attr("privacy_mode_ts", privacy_mode_ts.to_string())
-        .children([engagement, interactive])
-        .build()
+    NodeBuilder::new("biz").children([interactive]).build()
 }
 
 /// `messageParamsJson` — `bottom_sheet`, `limited_time_offer`, dan
@@ -430,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn biz_node_mirip_onigis() {
+    fn biz_node_bentuk_minimal_tombol() {
         let node = biz_node();
         assert_eq!(node.tag, "biz");
         let children = match node.content.as_ref().expect("biz punya anak") {
@@ -438,6 +431,9 @@ mod tests {
             lain => panic!("anak biz harus node, bukan {lain:?}"),
         };
         let tags: Vec<&str> = children.iter().map(|n| n.tag.as_ref()).collect();
-        assert_eq!(tags, vec!["engagement", "interactive"]);
+        assert_eq!(tags, vec!["interactive"]);
+        // Attrs bisnis + `engagement` bikin WhatsApp menempel notice
+        // "layanan aman Meta" di DM — tidak boleh muncul lagi.
+        assert!(node.attrs.is_empty(), "biz tidak boleh punya attrs bisnis");
     }
 }
