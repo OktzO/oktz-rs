@@ -109,7 +109,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           alokator jemalloc: RSS kembali ke OS, multi-command tidak antre.
 // v0.2.48 — store: serialisasi sekali per batch mutasi (clone-on-write);
 //           decode gambar eksternal dibatasi batas piksel sharp (16383²).
-export const VERSI_BIN = "v0.2.54";
+// v0.2.55 — UI log terminal baru: rail pesan `HH:MM:SS │ nama ~ chat`,
+//           status kirim ✓/✕ (hanya saat bot benar-benar mengirim), log
+//           sistem `[tag]` berwarna per subsistem; mati otomatis saat pipe.
+export const VERSI_BIN = "v0.2.55";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
