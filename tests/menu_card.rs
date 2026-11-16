@@ -2,9 +2,10 @@
 //!
 //! `tests/live_route.rs` membuktikan command mencapai plugin sungguhan.
 //! Test ini melanjutkan dari situ: balasan `.menu` harus sampai ke WA
-//! sebagai `interactiveMessage` (dibungkus `viewOnceMessage`) plus extra
-//! stanza node `biz` — bukan teks biasa. Tanpa node `biz`, WA diam-diam
-//! membuang kartu (pola `onigis/lib/WABinary/generic-utils.js:139`).
+//! sebagai `interactiveMessage` (dibungkus `viewOnceMessage`) TANPA extra
+//! stanza node `biz` — bukan teks biasa. JS `menu.js:529` juga
+//! `relayMessage` polos; node `biz` hanya dipakai jalur legacy
+//! `interactiveButtons` dan memicu notice "layanan aman Meta" di DM.
 //!
 //! Batas: `MessageSender` di sini tiruan, jadi soket WA belum tersentuh.
 //! Yang terbukti: pipeline merakit kartu native-flow yang benar dan
@@ -93,7 +94,7 @@ fn inbound(body: &str) -> InboundMessage {
 }
 
 #[tokio::test]
-async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
+async fn menu_dikirim_sebagai_kartu_native_flow_tanpa_node_biz() {
     let rec = Arc::new(Recorder::default());
     let p = Pipeline::new(
         StoreContext::new(store_kosong()),
@@ -111,9 +112,12 @@ async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
     let (chat, pesan, node) = &terkirim[0];
     assert_eq!(chat, CHAT, "balasan harus dikirim ke chat asal");
 
-    // Node `biz` wajib; tanpa itu WA membuang kartu.
-    let tag_biz = node.iter().any(|n| n.tag == "biz");
-    assert!(tag_biz, "node biz wajib ada: {node:?}");
+    // Paritas `menu.js:529`: relayMessage tanpa `additionalNodes`, jadi
+    // tidak boleh ada node `biz` (pemicu notice bisnis Meta di DM).
+    assert!(
+        node.iter().all(|n| n.tag != "biz"),
+        "kartu .menu tidak boleh membawa node biz: {node:?}"
+    );
 
     // Kartu dibungkus `viewOnceMessage` (tipe `FutureProofMessage`).
     let view = pesan.view_once_message.as_option().expect("viewOnceMessage");

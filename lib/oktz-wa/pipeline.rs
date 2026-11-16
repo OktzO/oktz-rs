@@ -70,7 +70,6 @@ use whatsapp_rust::waproto::whatsapp::message::extended_text_message::PreviewTyp
 use whatsapp_rust::wacore::proto_helpers::MessageExt;
 use whatsapp_rust::wacore_binary::Node;
 
-use crate::cards::biz_node;
 use crate::pipeline_gate::{self, GateState};
 
 // =============================================================================
@@ -1563,7 +1562,7 @@ impl MessageSender for ClientSender {
                             .await
                             .map_err(|e| format!("upload header kartu gagal: {e}"))?;
                         let thumb = buat_thumbnail(&data_for_thumb, MediaKind::Image);
-                        image_message(
+                        let mut msg = image_message(
                             up,
                             ImageOptions {
                                 caption: None,
@@ -1571,7 +1570,17 @@ impl MessageSender for ClientSender {
                                 jpeg_thumbnail: thumb,
                                 context_info: None,
                             },
-                        )
+                        );
+                        // Tanpa `width`/`height` klien WA merender kotak ABU
+                        // sampai media diunduh; `prepareWAMessageMedia` JS
+                        // selalu menyertakannya.
+                        if let Some((w, h)) = dimensi_asli(&data_for_thumb)
+                            && let Some(img) = msg.image_message.as_option_mut()
+                        {
+                            img.width = Some(w);
+                            img.height = Some(h);
+                        }
+                        msg
                     };
                     Some(msg)
                 }
@@ -2739,7 +2748,12 @@ pub fn render_reply(
                 });
             Ok(Some(Rendered {
                 message: wa::Message::default(),
-                extra_nodes: vec![biz_node()],
+                // Kartu plugin JS (`menu.js:529`, `allmenu.js:242`, dst.)
+                // `relayMessage` TANPA `additionalNodes`. Node `<biz>` hanya
+                // dipakai jalur legacy `interactiveButtons` (`socket.js:405`),
+                // dan kehadirannya membikin WhatsApp memasang label bisnis +
+                // notice "layanan aman dari Meta" / enkripsi di tiap DM.
+                extra_nodes: Vec::new(),
                 media: None,
                 card: Some((**kartu).clone()),
                 card_header_media: header_media,
@@ -5415,13 +5429,13 @@ impl Pipeline {
                 // (catch luar, `welcome.js:372-374`).
                 if let Err(e) = self
                     .sender
-                    .send_card(&u.id, kartu.clone(), header, None, vec![biz_node()])
+                    .send_card(&u.id, kartu.clone(), header, None, Vec::new())
                     .await
                 {
                     tracing::warn!(error = %e, grup = %u.id, "header kartu welcome gagal; kirim tanpa gambar");
                     if let Err(e2) = self
                         .sender
-                        .send_card(&u.id, kartu, None, None, vec![biz_node()])
+                        .send_card(&u.id, kartu, None, None, Vec::new())
                         .await
                     {
                         tracing::warn!(error = %e2, grup = %u.id, "kartu welcome gagal");
@@ -6376,11 +6390,15 @@ fn group_number_and_long_number_are_rejected() {
     }
 
     #[test]
-    fn interactive_reuses_card_and_adds_biz_node() {
+    fn interactive_reuses_card_tanpa_biz_node() {
         let r = render_reply(&Reply::interactive("pilih"), &ReplyTarget::default())
             .unwrap()
             .unwrap();
-        assert_eq!(r.extra_nodes.len(), 1, "node biz wajib untuk native-flow");
+        // JS `menu.js:529`/`allmenu.js:242`: relayMessage tanpa additionalNodes.
+        assert!(
+            r.extra_nodes.is_empty(),
+            "kartu plugin tidak boleh membawa node biz"
+        );
         let kartu = r.card.as_ref().expect("kartu harus ada");
         assert_eq!(kartu.body, "pilih");
         let msg = crate::cards::kartu_to_message(kartu, None, None);
