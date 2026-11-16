@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use oktz_core::config::Config;
 use oktz_store::json_store::JsonStore;
 use oktz_wa::MessageBuilderExt;
+use oktz_wa::ui;
 
 /// Alokator jemalloc — halaman bebas kembali ke OS via decay, bukan ditahan
 /// glibc (akar RSS naik merangkak; spec optimasi ronde 1-B).
@@ -330,7 +331,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use_plugin_crates();
 
     let plugins = oktz_plugin_api::all_plugins();
-    tracing::info!(count = plugins.len(), "plugin dimuat");
+    // ponytail: hitungan plugin tampil gaya UI baru (ui.rs), bukan tracing
+    let kategori = plugins
+        .iter()
+        .map(|p| p.meta.category.as_str())
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    ui::sistem(
+        "plugin",
+        ui::VIOLET,
+        &format!(
+            "{} {} · {} {}",
+            plugins.len(),
+            ui::f(ui::ABU, "plugin dimuat"),
+            kategori,
+            ui::f(ui::ABU, "kategori")
+        ),
+    );
     for p in plugins {
         tracing::debug!(name = %p.meta.name, category = %p.meta.category, "plugin");
     }
@@ -478,9 +495,12 @@ async fn run(
     }
 
     let handle = oktz_wa::connect_device(store, |client| async move {
-        println!(
-            "{}",
-            serde_json::json!({"phase":"CONNECTED","pipeline":true,"rss_kb":oktz_wa::rss::current_kb()})
+        // ponytail: fase JSON diganti gaya UI baru; launcher tidak mem-parse
+        // stdout (pairing selesai dideteksi dari creds.json, exit code saja)
+        ui::sistem(
+            "pairing",
+            ui::CYAN_TERANG,
+            &format!("device tersambung · rss {}", ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))),
         );
         let _ = &client;
     })
@@ -495,9 +515,10 @@ async fn run(
             _ = tunggu_sinyal() => {}
         }
     }
-    println!(
-        "{}",
-        serde_json::json!({"phase":"done","rss_kb":oktz_wa::rss::current_kb()})
+    ui::sistem(
+        "launcher",
+        ui::KUNING,
+        &format!("selesai · rss {}", ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))),
     );
     handle.shutdown().await;
     Ok(())

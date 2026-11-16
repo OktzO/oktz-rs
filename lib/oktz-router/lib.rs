@@ -30,6 +30,15 @@ pub use permission::{
 
 use oktz_plugin_api::{Ctx, PluginEntry, Reply, all_answer_handlers};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+
+/// Ditandai router kalau handler plugin panik/gagal jalan (2 jalur catch_unwind).
+/// Dibaca + di-reset pipeline tepat setelah `route()` balik, khusus untuk
+/// tanda ✕ di UI log (oktz-wa/ui.rs). Ponytail: flag global, bukan field
+/// Decision — supaya bentuk enum & 11 titik match `Decision::Handled` tak
+/// tersentuh; jendela race antar pesan yang bersamaan hanya salah label
+/// tampilan, bukan salah perilaku.
+pub static PLUGIN_GAGAL: AtomicBool = AtomicBool::new(false);
 
 /// Keputusan router untuk satu pesan — router yang memutuskan; ini yang
 /// differentiate "diam" (drop) dari "reply".
@@ -155,10 +164,14 @@ impl<'a, C: RouterContext> Router<'a, C> {
             Ok(Ok(r)) => Decision::Handled(r),
             Ok(Err(_)) => {
                 tracing::error!("plugin panik, ditahan di router");
+                // ponytail: tanda UI ✓/✕ (oktz-wa/ui.rs) butuh tahu plugin error;
+                // dibaca+direset pipeline tepat setelah route() balik.
+                PLUGIN_GAGAL.store(true, std::sync::atomic::Ordering::Relaxed);
                 Decision::Handled(Reply::text("❌ Plugin error, coba lagi nanti."))
             }
             Err(join) => {
                 tracing::error!(error = %join, "spawn_blocking handler gagal jalan");
+                PLUGIN_GAGAL.store(true, std::sync::atomic::Ordering::Relaxed);
                 Decision::Handled(Reply::text("❌ Plugin error, coba lagi nanti."))
             }
         }

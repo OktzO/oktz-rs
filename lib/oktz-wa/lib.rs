@@ -24,6 +24,7 @@ pub mod rich;
 pub mod rss;
 pub mod session;
 pub mod sock_client;
+pub mod ui;
 
 pub use bot::{build_device, connect_device, prepare_store};
 pub use cards::{biz_node, build_card, build_list};

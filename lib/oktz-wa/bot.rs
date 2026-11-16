@@ -11,6 +11,7 @@ use whatsapp_rust::prelude::*;
 use crate::creds;
 use crate::pairing_run::{self, FalseLogoutGuard};
 use crate::pipeline::{ClientSender, Identity, Pipeline, StoreContext};
+use crate::ui;
 
 /// Env yang memberi tahu jalur produksi di mana `creds.json` berada.
 ///
@@ -326,7 +327,8 @@ impl PipelineWiring {
                         t.put_store(conn, k, v).await?;
                     }
                 }
-                tracing::info!("[turso] seed data lokal ke stores");
+                // ponytail: log turso tampil gaya UI baru (ui.rs)
+                ui::sistem("turso", ui::CYAN, "seed data lokal ke store");
             }
             (true, false) => {
                 // Restore: taruh tiap store dari Turso ke JsonStore + disk.
@@ -344,10 +346,15 @@ impl PipelineWiring {
                 // dan mutasi itu hilang dari disk + snapshot (review I1).
                 let n = self.ctx.restore_all(loads)?;
                 if n > 0 {
-                    tracing::info!(n, "[turso] stores direstore dari Turso ke lokal");
+                    // ponytail: log turso tampil gaya UI baru (ui.rs)
+                    ui::sistem(
+                        "turso",
+                        ui::CYAN,
+                        &format!("restore {} store dari turso", ui::f("", &n.to_string())),
+                    );
                 }
             }
-            (true, true) => tracing::info!("[turso] lokal & Turso terisi; lokal menang"),
+            (true, true) => ui::sistem("turso", ui::CYAN, "lokal & turso terisi; lokal menang"),
             (false, false) => {}
         }
         Ok(())

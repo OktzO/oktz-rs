@@ -44,7 +44,7 @@ use oktz_router::gates::{
 use oktz_router::group::{self, GateEnv, GroupCaller};
 use oktz_router::serialize::{MessageKind, MessageParams, get_message_body, resolve_message_type};
 use oktz_router::{
-    AccessGrant, Caller, Decision, DenyMode, GroupOverrides, GroupState, ModeSettings,
+    PLUGIN_GAGAL, AccessGrant, Caller, Decision, DenyMode, GroupOverrides, GroupState, ModeSettings,
     ParseOptions, RateLimiter, Router, RouterContext, UserState, consume_auto_work, is_spamming,
     parse_command,
 };
@@ -53,6 +53,7 @@ use serde_json::Value;
 use crate::grup_event::{self, AksiGrup, UpdateGrup};
 use crate::pesan_grup::{self, KonteksPesan};
 use crate::reply_variant;
+use crate::ui;
 use whatsapp_rust::RevokeType;
 use whatsapp_rust::http::{HttpClient, HttpRequest, UreqHttpClient};
 use whatsapp_rust::media::{
@@ -4524,6 +4525,27 @@ impl Pipeline {
             return Ok(Outcome::Deduped);
         }
 
+        // ponytail: UI log rail (ui.rs, desain khusus Rust) — pesan masuk
+        // dicetak di sini (setelah dedup/replay) supaya pesan lama & duplikat
+        // tidak dobel. Status ✓/✕ menyusul di titik kirim.
+        let ui_t0 = Instant::now();
+        let label_chat = if caller.is_group {
+            self.ctx
+                .group_entry(&caller.chat)
+                .get("subject")
+                .and_then(Value::as_str)
+                .unwrap_or("(grup)")
+                .to_string()
+        } else {
+            "pribadi".to_string()
+        };
+        let nama_tampil = if caller.push_name.is_empty() {
+            ui::nomor(&caller.sender)
+        } else {
+            caller.push_name.clone()
+        };
+        ui::pesan_masuk(m.info.timestamp, &nama_tampil, &label_chat, &body);
+
         // Roster dimuat SEBELUM gate grup supaya `isBotAdmin` (yang menentukan
         // boleh/tidaknya bot menghapus pesan) benar, dan supaya plugin pertama
         // yang jalan melihat `Ctx` lengkap. Router tidak punya Client maupun
@@ -4635,6 +4657,14 @@ impl Pipeline {
                 let target = reply_target(m, &caller.sender);
                 if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
+                    // ponytail: jawaban game/main non-command tetap kirim bot → ✓
+                    ui::status_kirim(
+                        m.info.timestamp,
+                        true,
+                        &nama_tampil,
+                        ui_t0.elapsed().as_secs_f64() * 1000.0,
+                        None,
+                    );
                 }
                 return Ok(Outcome::Sent);
             }
@@ -4722,6 +4752,9 @@ impl Pipeline {
             // `Arc<StoreContext>` — Arc cuma dipakai supaya bisa dipegang wrapper.
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
             let decision = router.route(&mut caller, &body, lookup).await;
+            // Baca+reset tanda panik plugin — jendela antar route sempit,
+            // salah label ✕ hanya kosmetik (lihat ponytail di PLUGIN_GAGAL).
+            let plugin_gagal = PLUGIN_GAGAL.swap(false, std::sync::atomic::Ordering::Relaxed);
             let reply = decision_to_reply(&decision);
 
             // --- Tulis mutasi SEBELUM balasan dikirim --------------------
@@ -4751,6 +4784,14 @@ impl Pipeline {
                         sender = %caller.sender,
                         mutations = mutations.len(),
                         "gagal menyimpan mutasi plugin; balasan tidak dikirim"
+                    );
+                    // ponytail: mutasi gagal + balasan dibatalkan = error, tampil ✕
+                    ui::status_kirim(
+                        m.info.timestamp,
+                        false,
+                        &nama_tampil,
+                        ui_t0.elapsed().as_secs_f64() * 1000.0,
+                        Some("simpan data gagal, balasan dibatalkan"),
                     );
                     return Ok(Outcome::StoreWriteFailed);
                 }
@@ -4793,6 +4834,18 @@ impl Pipeline {
                 .deliver_reply(&caller.chat, &reply, &mut target, &key)
                 .await?;
 
+            // ponytail: status kirim — ✓ normal, ✕ kalau plugin panik.
+            // Chat tanpa balasan (Reply::None) sengaja tak ber-tanda.
+            if terkirim {
+                ui::status_kirim(
+                    m.info.timestamp,
+                    !plugin_gagal,
+                    &nama_tampil,
+                    ui_t0.elapsed().as_secs_f64() * 1000.0,
+                    plugin_gagal.then_some("plugin: error"),
+                );
+            }
+
             // autoTyping (`handler.js:1938`): paused setelah plugin selesai.
             let _ = self.plugin_src.sock.presence("paused", &caller.chat);
 
@@ -4830,6 +4883,15 @@ impl Pipeline {
     /// penting user tahu command-nya gagal, kalau jaringan mati ya log.
     async fn kirim_pesan_error(&self, m: &InboundMessage, err: &PipelineError) {
         let caller = self.caller_of(m);
+        // ponytail: error pipeline (media/kirim) selalu ✕ di UI, meski pesan
+        // "kendala"-nya sendiri terkirim ke user.
+        ui::status_kirim(
+            m.info.timestamp,
+            false,
+            &if caller.push_name.is_empty() { ui::nomor(&caller.sender) } else { caller.push_name.clone() },
+            0.0,
+            Some(err.to_string().as_str()),
+        );
         let body = extract_body(&m.message).unwrap_or_default();
         let parsed = parse_command(&body, &self.parse_opts);
         // Prefix yang BENAR-BENAR di-match oleh parse (bisa prefix kedua, mis.
