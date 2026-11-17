@@ -24,7 +24,7 @@ pub use rich::{AiSubMessage, PreparedRich, RichAi, RichList, RichV2};
 // Port `extractIE` (builder.js) — inline entity link/sitasi/LaTeX untuk
 // builder kartu AI.
 pub mod airich;
-pub use airich::{Flag, HasilEkstrak, extract_ie};
+pub use airich::{Flag, HasilEkstrak, Highlight, KodeToken, extract_ie, tokenize_kode};
 
 // `sock` JS (cek nomor, foto profil, operasi grup). Kontraknya di sini,
 // implementasinya di crate `oktz-wa`.

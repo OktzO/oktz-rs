@@ -174,9 +174,368 @@ fn potong(chars: &[char], a: usize, b: usize) -> String {
     chars[a..b].iter().collect()
 }
 
+// Port `tokenizer` — builder.js:1540-2203.
+
+/// Jenis highlight token (padanan `TYPE_MAP` builder.js:2042-2049).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Highlight {
+    Default,
+    Keyword,
+    Method,
+    Str,
+    Number,
+    Comment,
+}
+
+impl Highlight {
+    pub fn nama(&self) -> &'static str {
+        match self {
+            Highlight::Default => "DEFAULT",
+            Highlight::Keyword => "KEYWORD",
+            Highlight::Method => "METHOD",
+            Highlight::Str => "STR",
+            Highlight::Number => "NUMBER",
+            Highlight::Comment => "COMMENT",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KodeToken {
+    pub isi: String,
+    pub jenis: Highlight,
+}
+
+/// 12 set kata kunci — disalin persis dari builder.js:1541-2022.
+fn kata_kunci(lang_lower: &str) -> &'static [&'static str] {
+    match lang_lower {
+        "javascript" => &[
+            "break", "case", "catch", "continue", "debugger", "delete", "do", "else", "finally",
+            "for", "function", "if", "in", "instanceof", "new", "return", "switch", "this",
+            "throw", "try", "typeof", "var", "void", "while", "with", "true", "false", "null",
+            "undefined", "class", "const", "let", "super", "extends", "export", "import", "yield",
+            "static", "constructor", "async", "await", "get", "set",
+        ],
+        "typescript" => &[
+            "abstract", "any", "as", "asserts", "bigint", "boolean", "declare", "enum",
+            "implements", "infer", "interface", "is", "keyof", "module", "namespace", "never",
+            "readonly", "require", "number", "object", "override", "private", "protected",
+            "public", "satisfies", "string", "symbol", "type", "unknown", "using", "from",
+            "break", "case", "catch", "continue", "do", "else", "finally", "for", "function",
+            "if", "new", "return", "switch", "this", "throw", "try", "var", "void", "while",
+            "class", "const", "let", "extends", "import", "export", "async", "await",
+        ],
+        "python" => &[
+            "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class",
+            "continue", "def", "del", "elif", "else", "except", "finally", "for", "from",
+            "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass",
+            "raise", "return", "try", "while", "with", "yield",
+        ],
+        "java" => &[
+            "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class",
+            "const", "continue", "default", "do", "double", "else", "enum", "extends", "final",
+            "finally", "float", "for", "goto", "if", "implements", "import", "instanceof", "int",
+            "interface", "long", "native", "new", "package", "private", "protected", "public",
+            "return", "short", "static", "strictfp", "super", "switch", "synchronized", "this",
+            "throw", "throws", "transient", "try", "void", "volatile", "while",
+        ],
+        "golang" => &[
+            "break", "case", "chan", "const", "continue", "default", "defer", "else",
+            "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map",
+            "package", "range", "return", "select", "struct", "switch", "type", "var",
+        ],
+        "c" => &[
+            "auto", "break", "case", "char", "const", "continue", "default", "do", "double",
+            "else", "enum", "extern", "float", "for", "goto", "if", "int", "long", "register",
+            "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
+            "union", "unsigned", "void", "volatile", "while",
+        ],
+        "cpp" => &[
+            "alignas", "alignof", "and", "auto", "bool", "break", "case", "catch", "class",
+            "const", "constexpr", "continue", "delete", "do", "double", "else", "enum",
+            "explicit", "export", "extern", "false", "float", "for", "friend", "if", "inline",
+            "int", "long", "mutable", "namespace", "new", "noexcept", "nullptr", "operator",
+            "private", "protected", "public", "return", "short", "signed", "sizeof", "static",
+            "struct", "switch", "template", "this", "throw", "true", "try", "typedef",
+            "typename", "union", "unsigned", "using", "virtual", "void", "while",
+        ],
+        "php" => &[
+            "abstract", "and", "array", "as", "break", "callable", "case", "catch", "class",
+            "clone", "const", "continue", "declare", "default", "do", "echo", "else", "elseif",
+            "empty", "enddeclare", "endfor", "endforeach", "endif", "endswitch", "endwhile",
+            "extends", "final", "finally", "fn", "for", "foreach", "function", "global", "goto",
+            "if", "implements", "include", "include_once", "instanceof", "interface", "match",
+            "namespace", "new", "null", "or", "private", "protected", "public", "require",
+            "require_once", "return", "static", "switch", "throw", "trait", "try", "use", "var",
+            "while", "yield",
+        ],
+        "rust" => &[
+            "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false",
+            "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut",
+            "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait",
+            "true", "type", "unsafe", "use", "where", "while",
+        ],
+        "html" => &[
+            "html", "head", "body", "div", "span", "p", "a", "img", "video", "audio", "script",
+            "style", "link", "meta", "form", "input", "button", "table", "tr", "td", "th",
+            "ul", "ol", "li", "section", "article", "header", "footer", "nav", "main",
+        ],
+        "bash" => &[
+            "if", "then", "else", "elif", "fi", "for", "while", "do", "done", "case", "esac",
+            "function", "in", "select", "until", "break", "continue", "return", "export",
+            "readonly", "local", "declare",
+        ],
+        "markdown" => &["#", "##", "###", "####", "#####", "######"],
+        _ => &[],
+    }
+}
+
+/// `\s` JS persis (bukan `char::is_whitespace` Rust — beda di beberapa codepoint).
+fn spasi_js(c: char) -> bool {
+    matches!(
+        c,
+        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}'
+            | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
+    )
+}
+
+fn dorong(tokens: &mut Vec<KodeToken>, isi: &str, jenis: Highlight) {
+    if isi.is_empty() {
+        return;
+    }
+    match tokens.last_mut() {
+        Some(t) if t.jenis == jenis => t.isi.push_str(isi),
+        _ => tokens.push(KodeToken { isi: isi.to_string(), jenis }),
+    }
+}
+
+pub fn tokenize_kode(kode: &str, bahasa: &str) -> Vec<KodeToken> {
+    // builder.js:2025-2040 — perbandingan `lang` MENTAH (peka huruf besar).
+    if bahasa.is_empty() || bahasa == "txt" || bahasa == "text" || bahasa == "plaintext" {
+        return vec![KodeToken { isi: kode.into(), jenis: Highlight::Default }];
+    }
+
+    // builder.js:2051 — lookup keyword pakai lowercase.
+    let lang_lower = bahasa.to_lowercase();
+    let kata = kata_kunci(&lang_lower);
+    let chars: Vec<char> = kode.chars().collect();
+    let n = chars.len();
+    let mut tokens: Vec<KodeToken> = Vec::new();
+    // builder.js:2071-2082 — kelas identifier per `lang.toLowerCase()`.
+    let is_ident = |c: char| match lang_lower.as_str() {
+        "css" => c.is_ascii_alphanumeric() || matches!(c, '_' | '$' | '-'),
+        "html" => c.is_ascii_alphanumeric() || matches!(c, '_' | '$' | ':' | '-'),
+        _ => c.is_ascii_alphanumeric() || matches!(c, '_' | '$'),
+    };
+    let mut i = 0usize;
+
+    while i < n {
+        let c = chars[i];
+
+        if spasi_js(c) {
+            // builder.js:2087-2096
+            let s = i;
+            while i < n && spasi_js(chars[i]) {
+                i += 1;
+            }
+            let isi: String = chars[s..i].iter().collect();
+            dorong(&mut tokens, &isi, Highlight::Default);
+            continue;
+        }
+
+        // builder.js:2098-2107 — `#` komentar hanya utk python/bash (lang mentah).
+        if (c == '/' && i + 1 < n && chars[i + 1] == '/')
+            || (c == '#' && (bahasa == "python" || bahasa == "bash"))
+        {
+            let s = i;
+            while i < n && chars[i] != '\n' {
+                i += 1;
+            }
+            let isi: String = chars[s..i].iter().collect();
+            dorong(&mut tokens, &isi, Highlight::Comment);
+            continue;
+        }
+
+        if c == '"' || c == '\'' || c == '`' {
+            // builder.js:2109-2128
+            let s = i;
+            let q = c;
+            i += 1;
+            while i < n {
+                if chars[i] == '\\' && i + 1 < n {
+                    i += 2;
+                } else if chars[i] == q {
+                    i += 1;
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            let isi: String = chars[s..i].iter().collect();
+            dorong(&mut tokens, &isi, Highlight::Str);
+            continue;
+        }
+
+        if c.is_ascii_digit() {
+            // builder.js:2130-2139
+            let s = i;
+            while i < n && (chars[i].is_ascii_digit() || matches!(chars[i], '.' | '_')) {
+                i += 1;
+            }
+            let isi: String = chars[s..i].iter().collect();
+            dorong(&mut tokens, &isi, Highlight::Number);
+            continue;
+        }
+
+        if c.is_ascii_alphabetic() || matches!(c, '_' | '$') {
+            // builder.js:2141-2190
+            let s = i;
+            while i < n && is_ident(chars[i]) {
+                i += 1;
+            }
+            let word: String = chars[s..i].iter().collect();
+            let mut jenis = Highlight::Default;
+
+            if kata.contains(&word.as_str()) {
+                jenis = Highlight::Keyword;
+            } else if bahasa == "css" {
+                // builder.js:2154-2163 — css branch pakai lang mentah.
+                let mut j = i;
+                while j < n && spasi_js(chars[j]) {
+                    j += 1;
+                }
+                if j < n && chars[j] == ':' {
+                    jenis = Highlight::Keyword;
+                }
+            } else if bahasa == "html" {
+                // builder.js:2164-2174 — html branch pakai lang mentah.
+                let mut p = s as isize - 1;
+                while p >= 0 && spasi_js(chars[p as usize]) {
+                    p -= 1;
+                }
+                if p >= 0 {
+                    let pc = chars[p as usize];
+                    if pc == '<' || (pc == '/' && p >= 1 && chars[(p - 1) as usize] == '<') {
+                        jenis = Highlight::Keyword;
+                    }
+                }
+            }
+
+            if jenis == Highlight::Default {
+                // builder.js:2176-2186
+                let mut j = i;
+                while j < n && spasi_js(chars[j]) {
+                    j += 1;
+                }
+                if j < n && chars[j] == '(' {
+                    jenis = Highlight::Method;
+                }
+            }
+
+            dorong(&mut tokens, &word, jenis);
+            continue;
+        }
+
+        // builder.js:2192-2193
+        dorong(&mut tokens, &c.to_string(), Highlight::Default);
+        i += 1;
+    }
+
+    tokens
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nama_highlight() {
+        assert_eq!(Highlight::Default.nama(), "DEFAULT");
+        assert_eq!(Highlight::Keyword.nama(), "KEYWORD");
+        assert_eq!(Highlight::Method.nama(), "METHOD");
+        assert_eq!(Highlight::Str.nama(), "STR");
+        assert_eq!(Highlight::Number.nama(), "NUMBER");
+        assert_eq!(Highlight::Comment.nama(), "COMMENT");
+    }
+
+    // Vektor verbatim dari brief task-2 (oracle builder.js:1540-2203).
+    #[test]
+    fn tokenizer_sama_dengan_js() {
+        let cek = |kode: &str, bahasa: &str, harap: &[(&str, Highlight)]| {
+            let got = tokenize_kode(kode, bahasa);
+            let got: Vec<(&str, Highlight)> =
+                got.iter().map(|t| (t.isi.as_str(), t.jenis)).collect();
+            assert_eq!(got, harap, "kode={kode:?} bahasa={bahasa:?}");
+        };
+        cek(
+            "const app = createApp({});\napp.mount(\"#app\"); // hi",
+            "javascript",
+            &[
+                ("const", Highlight::Keyword),
+                (" app = ", Highlight::Default),
+                ("createApp", Highlight::Method),
+                ("({});\napp.", Highlight::Default),
+                ("mount", Highlight::Method),
+                ("(", Highlight::Default),
+                ("\"#app\"", Highlight::Str),
+                ("); ", Highlight::Default),
+                ("// hi", Highlight::Comment),
+            ],
+        );
+        cek(
+            "def f(x):\n  # kom\n  return 1",
+            "python",
+            &[
+                ("def", Highlight::Keyword),
+                (" ", Highlight::Default),
+                ("f", Highlight::Method),
+                ("(x):\n  ", Highlight::Default),
+                ("# kom", Highlight::Comment),
+                ("\n  ", Highlight::Default),
+                ("return", Highlight::Keyword),
+                (" ", Highlight::Default),
+                ("1", Highlight::Number),
+            ],
+        );
+        cek(
+            ".a { color: red; }",
+            "css",
+            &[(".a { ", Highlight::Default), ("color", Highlight::Keyword), (": red; }", Highlight::Default)],
+        );
+        cek(
+            "<div class=\"x\">hi</div>",
+            "html",
+            &[
+                ("<", Highlight::Default),
+                ("div", Highlight::Keyword),
+                (" class=", Highlight::Default),
+                ("\"x\"", Highlight::Str),
+                (">hi</", Highlight::Default),
+                ("div", Highlight::Keyword),
+                (">", Highlight::Default),
+            ],
+        );
+        cek("halo", "text", &[("halo", Highlight::Default)]);
+        cek("", "text", &[("", Highlight::Default)]);
+        cek("let x = \"1\"", "zzz", &[("let x = ", Highlight::Default), ("\"1\"", Highlight::Str)]);
+        cek("a() color: x", "js", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
+        cek("a() color: x", "Text", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
+        cek("a() color: x", "text", &[("a() color: x", Highlight::Default)]);
+        cek("a() color: x", "CSS", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
+        cek(
+            "a() color: x",
+            "css",
+            &[
+                ("a", Highlight::Method),
+                ("() ", Highlight::Default),
+                ("color", Highlight::Keyword),
+                (": x", Highlight::Default),
+            ],
+        );
+        cek("a  b", "javascript", &[("a  b", Highlight::Default)]);
+    }
+
 
     fn cek(input: &str, flag: Flag, teks: &str, entities: &str) {
         let h = extract_ie(input, &flag);
