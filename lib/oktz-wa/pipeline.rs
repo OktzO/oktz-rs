@@ -6589,7 +6589,7 @@ fn group_number_and_long_number_are_rejected() {
         assert_eq!(jid2.as_deref(), Some("259786046210223@bot"));
 
         let ai = Reply::TabelAi(Box::new(RichAi {
-            submessages: vec![AiSubMessage { text: Some("t".into()), tabel: None }],
+            submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
             ..Default::default()
         }));
         let rai = render_reply(&ai, &ReplyTarget::default()).unwrap().unwrap();

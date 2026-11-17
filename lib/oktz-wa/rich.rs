@@ -30,11 +30,12 @@
 use oktz_plugin_api::rich::{AiSubMessage, PreparedRich, RichAi, RichList, RichV2};
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::waproto::buffa::MessageField;
+use whatsapp_rust::waproto::whatsapp::ai_rich_response_code_metadata::AIRichResponseCodeBlock;
 use whatsapp_rust::waproto::whatsapp::ai_rich_response_table_metadata::AIRichResponseTableRow;
 use whatsapp_rust::waproto::whatsapp::bot_signature_verification_use_case_proof::BotSignatureUseCase;
 use whatsapp_rust::waproto::whatsapp::{
-    AIRichResponseMessage, AIRichResponseMessageType, AIRichResponseSubMessage,
-    AIRichResponseSubMessageType, AIRichResponseTableMetadata,
+    AIRichResponseCodeMetadata, AIRichResponseMessage, AIRichResponseMessageType,
+    AIRichResponseSubMessage, AIRichResponseSubMessageType, AIRichResponseTableMetadata,
     AIRichResponseUnifiedResponse, BotMetadata, BotMessageSharingInfo, BotMetricsEntryPoint,
     BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof,
     ContextInfo, DeviceListMetadata, ForwardedAIBotMessageInfo, MessageContextInfo,
@@ -202,15 +203,22 @@ fn unified_bytes(response_id: &str, sections: Vec<serde_json::Value>) -> Vec<u8>
         "sections": sections,
     });
     let json = serde_json::to_string(&unified).unwrap_or_default();
-    escape_ascii_7f(&json).into_bytes()
+    stringify_escaped(&json).into_bytes()
 }
 
-/// `[\u007f-\uffff]` → `\uXXXX` (ruby-baileys `stringifyEscaped`).
-fn escape_ascii_7f(s: &str) -> String {
+/// Escape per UTF-16 code unit — `Toolkit.stringifyEscaped` ruby-baileys
+/// (`MessageBuilder/index.js:561`). Char > U+FFFF dipecah jadi dua surrogate
+/// (`\ud83d\ude80`); U+007F–U+FFFF satu escape; lain push langsung.
+fn stringify_escaped(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
-        if ('\u{7f}'..='\u{ffff}').contains(&c) {
-            out.push_str(&format!("\\u{:04x}", c as u32));
+        let n = c as u32;
+        if n > 0xffff {
+            let mut buf = [0u16; 2];
+            c.encode_utf16(&mut buf);
+            out.push_str(&format!("\\u{:04x}\\u{:04x}", buf[0], buf[1]));
+        } else if n >= 0x7f {
+            out.push_str(&format!("\\u{:04x}", n));
         } else {
             out.push(c);
         }
@@ -432,39 +440,57 @@ pub fn rich_list_to_message(input: &RichList, quote: Option<&QuoteSource>) -> wa
 // 3. AIRich — `builder.js` `AIRich.build` (`:1504`)
 // ---------------------------------------------------------------------------
 
-/// Submessage AIRich: teks / tabel.
-///
-/// JS `prepareRichResponseMessage` menerima `richResponse` mentah dan
-/// menerjemahkan tiga bentuk (`text`, `code`, `table`); sisanya dikirim apa
-/// adanya. Yang dimodelkan di sini cuma dua bentuk yang benar-benar dipakai
-/// plugin repo — `code` butuh tokenizer yang utuh (`rich-messages.js:842`),
-/// dan itu bukan milik task ini.
-///
-/// `ponytail:` submessage tanpa text/tabel tidak dirender. JS mengirim
-/// bentuk mentahnya; memetakan bentuk yang belum ada pemakainya berarti
-/// menebak field. Upgrade path: tambah varian di `AiSubMessage`.
+/// Submessage AIRich: teks / tabel / kode (`builder.js:1037-1115`).
 fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
+    use oktz_plugin_api::airich::Highlight;
+    use whatsapp_rust::waproto::whatsapp::ai_rich_response_code_metadata::AIRichResponseCodeHighlightType as HT;
+    let hl = |h: Highlight| match h {
+        Highlight::Default => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT,
+        Highlight::Keyword => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD,
+        Highlight::Method  => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_METHOD,
+        Highlight::Str     => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_STRING,
+        Highlight::Number  => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_NUMBER,
+        Highlight::Comment => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_COMMENT,
+    };
     let mut out = Vec::with_capacity(input.len());
     for s in input {
-        if let Some(t) = &s.text {
-            out.push(sub_text(t));
-        } else if let Some((title, rows, heading)) = &s.tabel {
-            let rows: Vec<AIRichResponseTableRow> = rows
-                .iter()
-                .enumerate()
-                .map(|(i, r)| AIRichResponseTableRow {
-                    items: r.clone(),
-                    is_heading: (*heading && i == 0).then_some(true),
-                })
-                .collect();
-            out.push(AIRichResponseSubMessage {
-                message_type: Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_TABLE),
-                table_metadata: MessageField::some(AIRichResponseTableMetadata {
-                    title: Some(title.clone()),
-                    rows,
-                }),
-                ..Default::default()
-            });
+        match s {
+            AiSubMessage::Teks { teks } => out.push(sub_text(teks)),
+            AiSubMessage::Tabel { judul, baris, heading } => {
+                let rows: Vec<AIRichResponseTableRow> = baris
+                    .iter()
+                    .enumerate()
+                    .map(|(i, r)| AIRichResponseTableRow {
+                        items: r.clone(),
+                        is_heading: (*heading && i == 0).then_some(true),
+                    })
+                    .collect();
+                out.push(AIRichResponseSubMessage {
+                    message_type: Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_TABLE),
+                    table_metadata: MessageField::some(AIRichResponseTableMetadata {
+                        title: Some(judul.clone()),
+                        rows,
+                    }),
+                    ..Default::default()
+                });
+            }
+            AiSubMessage::Kode { bahasa, blok } => {
+                let code_blocks: Vec<AIRichResponseCodeBlock> = blok
+                    .iter()
+                    .map(|t| AIRichResponseCodeBlock {
+                        highlight_type: Some(hl(t.jenis)),
+                        code_content: Some(t.isi.clone()),
+                    })
+                    .collect();
+                out.push(AIRichResponseSubMessage {
+                    message_type: Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_CODE),
+                    code_metadata: MessageField::some(AIRichResponseCodeMetadata {
+                        code_language: Some(bahasa.clone()),
+                        code_blocks,
+                    }),
+                    ..Default::default()
+                });
+            }
         }
     }
     out
@@ -482,9 +508,8 @@ fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
         device_list_metadata_version: Some(2),
         bot_metadata: fld(Some(BotMetadata {
-            // ruby-baileys `:2248`: hanya saat `_title` non-kosong; play2
-            // `play2.js:903` `""`.
-            message_disclaimer_text: input.disclaimer.clone(),
+            // kedua lineage (play2 dan ruby-baileys) selalu menulis field ini.
+            message_disclaimer_text: Some(input.disclaimer.clone()),
             // ruby-baileys `:2251` — `botResponseId` SELALU ada (refresh per
             // build); TANPA `richResponseSourcesMetadata`.
             bot_response_id: Some(response_id.to_string()),
@@ -845,7 +870,7 @@ mod tests {
     #[test]
     fn ai_rich_disclaimer_lands_in_bot_metadata() {
         let msg = rich_ai_to_message(&RichAi {
-            disclaimer: Some("Syarat pakai".into()),
+            disclaimer: "Syarat pakai".into(),
             ..Default::default()
         }, None);
         assert_eq!(
@@ -914,7 +939,7 @@ mod tests {
         // botJid sama dengan AIRich (kontrak ruby-baileys tunggal).
         let msg = rich_ai_to_message(
             &RichAi {
-                disclaimer: Some(String::new()),
+                disclaimer: String::new(),
                 skor: Some(999),
                 ..Default::default()
             },
@@ -995,9 +1020,10 @@ mod tests {
     #[test]
     fn ai_submessage_table_marks_first_row_heading() {
         let input = RichAi {
-            submessages: vec![AiSubMessage {
-                text: None,
-                tabel: Some(("J".into(), vec![vec!["a".into()], vec!["b".into()]], true)),
+            submessages: vec![AiSubMessage::Tabel {
+                judul: "J".into(),
+                baris: vec![vec!["a".into()], vec!["b".into()]],
+                heading: true,
             }],
             ..Default::default()
         };
@@ -1015,10 +1041,7 @@ mod tests {
     #[test]
     fn prepared_rich_submessage_text_is_sent_as_text() {
         let input = PreparedRich {
-            submessages: vec![AiSubMessage {
-                text: Some("halo".into()),
-                tabel: None,
-            }],
+            submessages: vec![AiSubMessage::Teks { teks: "halo".into() }],
             ..Default::default()
         };
         let msg = prepared_rich_to_message(&input);
@@ -1112,5 +1135,49 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
             list.message_context_info.as_option().is_some(),
             "list V1 tidak punya messageContextInfo, AIRich punya"
         );
+    }
+
+    #[test]
+    fn rich_ai_to_message_kode_submessage() {
+        use oktz_plugin_api::airich::{Highlight, KodeToken};
+        use whatsapp_rust::waproto::whatsapp::ai_rich_response_code_metadata::AIRichResponseCodeHighlightType as HT;
+        let blok = vec![
+            KodeToken { isi: "const".into(), jenis: Highlight::Keyword },
+            KodeToken { isi: " x".into(),   jenis: Highlight::Default },
+        ];
+        let input = RichAi {
+            submessages: vec![AiSubMessage::Kode { bahasa: "javascript".into(), blok }],
+            ..Default::default()
+        };
+        let msg = rich_ai_to_message(&input, None);
+        let sub = &rich_response(&msg).submessages[0];
+        assert_eq!(sub.message_type, Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_CODE));
+        let cm = sub.code_metadata.as_option().expect("code_metadata");
+        assert_eq!(cm.code_language.as_deref(), Some("javascript"));
+        assert_eq!(cm.code_blocks[0].highlight_type, Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD));
+        assert_eq!(cm.code_blocks[1].highlight_type, Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT));
+    }
+
+    #[test]
+    fn ai_rich_disclaimer_selalu_ditulis() {
+        let msg = rich_ai_to_message(&RichAi::default(), None);
+        assert_eq!(bot_metadata(&msg).message_disclaimer_text.as_deref(), Some(""));
+        let msg2 = rich_ai_to_message(&RichAi { disclaimer: "Syarat".into(), ..Default::default() }, None);
+        assert_eq!(bot_metadata(&msg2).message_disclaimer_text.as_deref(), Some("Syarat"));
+    }
+
+    #[test]
+    fn stringify_escaped_utf16_surrogate() {
+        assert_eq!(stringify_escaped("a\x7fb\u{1F680}"), "a\\u007fb\\ud83d\\ude80");
+        let input = RichAi {
+            sections: vec![serde_json::json!({"text": "\u{1F680}"})],
+            ..Default::default()
+        };
+        let msg = rich_ai_to_message(&input, None);
+        let data = unified_data(&msg);
+        let s = std::str::from_utf8(&data).unwrap();
+        assert!(s.contains(r"\ud83d\ude80"), "surrogate pair wajib ada: {s}");
+        let v: serde_json::Value = serde_json::from_slice(&data).expect("JSON valid");
+        assert_eq!(v["sections"][0]["text"].as_str().unwrap(), "\u{1F680}");
     }
 }
