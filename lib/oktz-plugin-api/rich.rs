@@ -169,7 +169,7 @@ pub struct RichAi {
 pub struct PreparedRich {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
-    pub disclaimer: String,
+    pub disclaimer: Option<String>,
 }
 
 #[cfg(test)]
@@ -225,11 +225,11 @@ mod tests {
         let p = PreparedRich {
             submessages: ai.submessages.clone(),
             sections: ai.sections.clone(),
-            disclaimer: ai.disclaimer.clone(),
+            disclaimer: Some(ai.disclaimer.clone()),
         };
         assert_eq!(ai.submessages, p.submessages);
         assert_eq!(ai.sections, p.sections);
-        assert_eq!(Some(ai.disclaimer.clone()), Some(p.disclaimer.clone()));
+        assert_eq!(Some(ai.disclaimer.clone()), p.disclaimer);
         // Section mentah diteruskan apa adanya — plugin bisa saja
         // membawa bentuk `view_model` yang belum dimodelkan di sini.
         assert_eq!(ai.sections[0], serde_json::json!({"s": 1}));
