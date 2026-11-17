@@ -21,6 +21,11 @@ pub use tabel::Tabel;
 pub mod rich;
 pub use rich::{AiSubMessage, PreparedRich, RichAi, RichList, RichV2};
 
+// Port `extractIE` (builder.js) — inline entity link/sitasi/LaTeX untuk
+// builder kartu AI.
+pub mod airich;
+pub use airich::{Flag, HasilEkstrak, extract_ie};
+
 // `sock` JS (cek nomor, foto profil, operasi grup). Kontraknya di sini,
 // implementasinya di crate `oktz-wa`.
 pub mod sock;
