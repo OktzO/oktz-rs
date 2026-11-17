@@ -6,26 +6,18 @@
 //!
 //! `AIRich` mengirim SATU pesan `botForwardedMessage >
 //! richResponseMessage` yang berisi beberapa submessage + `unifiedResponse`.
-//! Blok markdown dipecah jadi `RichAi` (`Reply::TabelAi`): teks → submessage
-//! teks + section `GenAIMarkdownTextUXPrimitive`, tabel → submessage tabel +
-//! section `GenATableUXPrimitive`, fence kode → submessage teks ber-fence +
-//! section `GenAICodeUXPrimitive`.
-//!
-//! `ponytail:` tokenizer JS (`builder.js:1540`, highlight per-token) diskip:
-//! section kode membawa satu token `DEFAULT` berisi seluruh kode, sama
-//! seperti cabang `text`/`txt` di JS. Upgrade path: port tokenizer bila
-//! highlight kartu kode dibutuhkan.
-//!
-//! `ponytail:` `extractIE` (`builder.js`) memecah inline entity (link, sitasi,
-//! LaTeX) dari teks sebelum dikirim. Rust tidak punya parser itu, jadi teks
-//! mentah dipakai apa adanya.
+//! Blok markdown dipecah jadi `RichAi` (`Reply::TabelAi`) lewat builder
+//! `RichAi::{teks,kode,tabel}`: teks → section `GenAIMarkdownTextUXPrimitive`
+//! (+ `inline_entities` dari `extractIE`), tabel → `GenATableUXPrimitive`
+//! (`markdown_cells` bila ada entity), fence kode → submessage kode +
+//! `GenAICodeUXPrimitive` dengan highlight per-token.
 //!
 //! `ponytail:` `sessions` di JS adalah `Map` modul-local yang di-evict kalau
 //! lewat 500 entri. `Ctx::sessions` adalah `HashMap` global tanpa urutan,
 //! jadi eviction tidak bisa disalin; kunci dipakai berawalan `ai:gemini:`
 //! supaya tidak bentrok dengan plugin lain.
 
-use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
+use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
 use serde_json::{Value, json};
 
 /// `systemPrompt` (`ai.js:32-37`).
@@ -183,65 +175,6 @@ fn flush_tabel_teks(current_table: &mut Vec<String>) -> Option<Blok> {
     }
 }
 
-/// Section `GenAIMarkdownTextUXPrimitive` — `AIRich.addText`
-/// (`builder.js:1037-1064`). `extractIE` (inline entity link/sitasi/LaTeX)
-/// tidak diport, jadi teks mentah dipakai apa adanya.
-fn section_teks(t: &str) -> Value {
-    json!({
-        "view_model": {
-            "primitive": {
-                "text": t,
-                "__typename": "GenAIMarkdownTextUXPrimitive",
-            },
-            "__typename": "GenAISingleLayoutViewModel",
-        }
-    })
-}
-
-/// Section `GenAICodeUXPrimitive` — `AIRich.addCode` (`builder.js:1066-1090`)
-/// dengan satu token `DEFAULT`. Lihat `ponytail:` tokenizer di header modul.
-fn section_kode(bahasa: &str, kode: &str) -> Value {
-    json!({
-        "view_model": {
-            "primitive": {
-                "language": bahasa,
-                "code_blocks": [{ "content": kode, "type": "DEFAULT" }],
-                "__typename": "GenAICodeUXPrimitive",
-            },
-            "__typename": "GenAISingleLayoutViewModel",
-        }
-    })
-}
-
-/// `unified_rows` untuk `GenATableUXPrimitive` — padding `""` sampai
-/// panjang terpanjang (`builder.js:2212-2225`).
-fn unified_rows(rows: &[Vec<String>]) -> Vec<Value> {
-    let lebar = rows.iter().map(Vec::len).max().unwrap_or(0);
-    rows.iter()
-        .enumerate()
-        .map(|(i, r)| {
-            let mut cells: Vec<Value> = r.iter().map(|c| Value::String(c.clone())).collect();
-            while cells.len() < lebar {
-                cells.push(Value::String(String::new()));
-            }
-            json!({ "is_header": i == 0, "cells": cells })
-        })
-        .collect()
-}
-
-/// Section `GenATableUXPrimitive` — `AIRich.addTable` (`builder.js:1092-1115`).
-fn section_tabel(rows: &[Vec<String>]) -> Value {
-    json!({
-        "view_model": {
-            "primitive": {
-                "rows": unified_rows(rows),
-                "__typename": "GenATableUXPrimitive",
-            },
-            "__typename": "GenAISingleLayoutViewModel",
-        }
-    })
-}
-
 /// Blocks → satu `Reply::TabelAi` (`AIRich.send`, `ai.js:137`).
 fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     let mut rich = RichAi::default();
@@ -253,40 +186,13 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
                 if t.is_empty() {
                     continue;
                 }
-                rich.sections.push(section_teks(&t));
-                rich.submessages.push(AiSubMessage {
-                    text: Some(t),
-                    tabel: None,
-                });
+                rich.teks(&t);
             }
             Blok::Kode { bahasa, kode } => {
-                // Submessage kode (`messageType: 5`) belum dimodelkan di
-                // `AiSubMessage`; bentuk terdekat yang wire-nya sudah jadi
-                // adalah teks ber-fence polos.
-                rich.sections.push(section_kode(&bahasa, &kode));
-                rich.submessages.push(AiSubMessage {
-                    text: Some(format!("```{bahasa}\n{kode}\n```")),
-                    tabel: None,
-                });
+                rich.kode(&bahasa, &kode);
             }
             Blok::Tabel(rows) => {
-                // `toTableMetadata` menyamakan panjang baris dengan header
-                // (`builder.js:2212-2214`); judulnya `''` (`:2246-2249`).
-                let lebar = rows.iter().map(Vec::len).max().unwrap_or(0);
-                let rows: Vec<Vec<String>> = rows
-                    .into_iter()
-                    .map(|mut r| {
-                        while r.len() < lebar {
-                            r.push(String::new());
-                        }
-                        r
-                    })
-                    .collect();
-                rich.sections.push(section_tabel(&rows));
-                rich.submessages.push(AiSubMessage {
-                    text: None,
-                    tabel: Some((String::new(), rows, true)),
-                });
+                rich.tabel(rows);
             }
         }
     }
@@ -298,6 +204,7 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     // `aiRich.send(m.chat, { quoted: m })` (`ai.js:137`) — kartu mengutip
     // pesan pemicu, sama seperti pesan balasan biasa di JS.
     rich.quoted = true;
+    rich.kirim_edit = true;
     Reply::TabelAi(Box::new(rich))
 }
 
@@ -357,7 +264,9 @@ pub fn ai(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpGet, HttpResponse};
+    use oktz_plugin_api::{
+        AiSubMessage, Highlight, HttpBody, HttpCall, HttpError, HttpGet, HttpResponse, KodeToken,
+    };
     use std::sync::{Arc, Mutex};
 
     /// Stub HTTP: scraper `gemini` memakai `HttpCall::call` dengan body form,
@@ -462,7 +371,10 @@ mod tests {
             Reply::TabelAi(rich) => rich
                 .submessages
                 .iter()
-                .filter_map(|s| s.text.clone())
+                .filter_map(|s| match s {
+                    AiSubMessage::Teks { teks } => Some(teks.clone()),
+                    _ => None,
+                })
                 .collect(),
             lain => lain
                 .without_mutations()
@@ -592,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn blok_kode_dibungkus_fence() {
+    fn fence_jadi_satu_blok_kode() {
         let blok = pecah("```js\nconsole.log(1)\n```");
         assert_eq!(blok.len(), 1);
         match &blok[0] {
@@ -637,14 +549,14 @@ mod tests {
         let blok = pecah("| A | B |\n| 1 | 2 |");
         let rich = rich_of(&blocks_ke_reply(blok));
         assert_eq!(rich.submessages.len(), 1);
-        let Some((judul, rows, heading)) = &rich.submessages[0].tabel else {
+        let AiSubMessage::Tabel { judul, baris, heading } = &rich.submessages[0] else {
             panic!("harus submessage tabel");
         };
         assert_eq!(judul, "");
-        assert!(heading, "baris pertama = heading (`toTableMetadata`)");
+        assert!(*heading, "baris pertama = heading (`toTableMetadata`)");
         assert_eq!(
-            rows.clone(),
-            vec![
+            baris,
+            &vec![
                 vec!["A".to_string(), "B".to_string()],
                 vec!["1".to_string(), "2".to_string()]
             ]
@@ -671,9 +583,15 @@ mod tests {
         // `AIRich.send` satu pesan: submessage + section sejalan berurutan.
         assert_eq!(rich.submessages.len(), 3);
         assert_eq!(rich.sections.len(), 3);
-        assert_eq!(rich.submessages[0].text.as_deref(), Some("Intro"));
-        assert!(rich.submessages[1].tabel.is_some());
-        assert_eq!(rich.submessages[2].text.as_deref(), Some("Outro"));
+        assert!(matches!(
+            &rich.submessages[0],
+            AiSubMessage::Teks { teks } if teks == "Intro"
+        ));
+        assert!(matches!(&rich.submessages[1], AiSubMessage::Tabel { .. }));
+        assert!(matches!(
+            &rich.submessages[2],
+            AiSubMessage::Teks { teks } if teks == "Outro"
+        ));
         assert_eq!(
             rich.sections[0]["view_model"]["primitive"]["__typename"],
             serde_json::json!("GenAIMarkdownTextUXPrimitive")
@@ -689,21 +607,68 @@ mod tests {
     }
 
     #[test]
-    fn kode_jadi_section_code_satu_token_default() {
+    fn kode_jadi_submessage_kode() {
         let blok = pecah("```js\nconsole.log(1)\n```");
         let rich = rich_of(&blocks_ke_reply(blok));
         assert_eq!(rich.submessages.len(), 1);
+        let AiSubMessage::Kode { bahasa, blok } = &rich.submessages[0] else {
+            panic!("harus submessage kode");
+        };
+        assert_eq!(bahasa, "js");
         assert_eq!(
-            rich.submessages[0].text.as_deref(),
-            Some("```js\nconsole.log(1)\n```")
+            blok[1],
+            KodeToken {
+                isi: "log".into(),
+                jenis: Highlight::Method
+            }
+        );
+        assert!(
+            !rich.submessages.iter().any(
+                |s| matches!(s, AiSubMessage::Teks { teks } if teks.contains("```"))
+            ),
+            "kode tidak lagi dibungkus fence"
         );
         let prim = &rich.sections[0]["view_model"]["primitive"];
         assert_eq!(prim["__typename"], serde_json::json!("GenAICodeUXPrimitive"));
         assert_eq!(prim["language"], serde_json::json!("js"));
-        assert_eq!(
-            prim["code_blocks"],
-            serde_json::json!([{ "content": "console.log(1)", "type": "DEFAULT" }])
-        );
+    }
+
+    #[test]
+    fn sections_sama_dengan_oracle_js() {
+        let jawaban = r##"Halo! Ini **contoh** dari [Vue](https://vuejs.org).
+| Nama | Link |
+|---|---|
+| Vue | [Vue](https://vuejs.org) |
+| React | https://react.dev |
+```js
+const app = createApp({});
+app.mount("#app"); // hi
+```
+Penutup."##;
+        let rich = rich_of(&blocks_ke_reply(pecah(jawaban)));
+        // Kontrak Lampiran A: keluaran oracle JS, satu baris, byte-per-byte.
+        let oracle = r##"[{"view_model":{"primitive":{"text":"Halo! Ini **contoh** dari {{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}}.","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}],"__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["Nama","Link"]},{"is_header":false,"cells":["Vue","[Vue](https://vuejs.org)"],"markdown_cells":[{"text":"Vue"},{"text":"{{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}}","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}]}]},{"is_header":false,"cells":["React","https://react.dev"]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"language":"js","code_blocks":[{"content":"const app = ","type":"DEFAULT"},{"content":"createApp","type":"METHOD"},{"content":"({});\napp.","type":"DEFAULT"},{"content":"mount","type":"METHOD"},{"content":"(","type":"DEFAULT"},{"content":"\"#app\"","type":"STR"},{"content":"); ","type":"DEFAULT"},{"content":"// hi","type":"COMMENT"}],"__typename":"GenAICodeUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"text":"Penutup.","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}]"##;
+        assert_eq!(serde_json::to_string(&rich.sections).unwrap(), oracle);
+
+        assert!(matches!(
+            &rich.submessages[0],
+            AiSubMessage::Teks { teks } if teks.contains("{{NIXEL_HYPERLINK_0}}")
+        ));
+        let AiSubMessage::Tabel { baris, heading, .. } = &rich.submessages[1] else {
+            panic!("harus submessage tabel");
+        };
+        assert_eq!(baris.len(), 3);
+        assert!(heading);
+        let AiSubMessage::Kode { bahasa, blok } = &rich.submessages[2] else {
+            panic!("harus submessage kode");
+        };
+        assert_eq!(bahasa, "js");
+        assert_eq!(blok.len(), 8);
+        assert!(matches!(
+            &rich.submessages[3],
+            AiSubMessage::Teks { teks } if teks == "Penutup."
+        ));
+        assert!(rich.quoted && rich.kirim_edit);
     }
 
     #[test]

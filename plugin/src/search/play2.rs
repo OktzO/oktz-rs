@@ -736,17 +736,16 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         &synced,
     );
     let rich = RichAi {
-        submessages: vec![AiSubMessage {
-            text: Some(format!("{title} - {artist}")),
-            tabel: None,
+        // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
+        // "", score 999, tidak mengutip pemicu, tanpa stanza edit.
+        submessages: vec![AiSubMessage::Teks {
+            teks: format!("{title} - {artist}"),
         }],
         sections: vec![section_html(&html)],
-        // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
-        // "", score 999, tidak mengutip pemicu. `botResponseId` + botJid
-        // `867051314767696@bot` sudah kontrak tetap di `oktz-wa::rich`.
-        disclaimer: Some(String::new()),
+        disclaimer: String::new(),
         quoted: false,
         skor: Some(999),
+        kirim_edit: false,
     };
 
     // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`
@@ -1067,7 +1066,10 @@ mod tests {
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
-        assert_eq!(rich.submessages[0].text.as_deref(), Some("Lagu Uji - Channel Uji"));
+        let AiSubMessage::Teks { teks } = &rich.submessages[0] else {
+            panic!("harus submessage teks");
+        };
+        assert_eq!(teks, "Lagu Uji - Channel Uji");
         let prim = &rich.sections[0]["view_model"]["primitive"];
         assert_eq!(
             prim["__typename"],

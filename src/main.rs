@@ -628,17 +628,16 @@ async fn send(
                     "richai" => oktz_wa::rich::rich_ai_to_message(
                         &oktz_plugin_api::RichAi {
                             submessages: vec![
-                                oktz_plugin_api::AiSubMessage {
-                                    text: Some("🤖 *Test AIRich dari Rust*".into()),
-                                    tabel: None,
+                                oktz_plugin_api::AiSubMessage::Teks {
+                                    teks: "🤖 *Test AIRich dari Rust*".into(),
                                 },
-                                oktz_plugin_api::AiSubMessage {
-                                    text: None,
-                                    tabel: Some((
-                                        "Tabel Uji".into(),
-                                        vec![vec!["A".into(), "B".into()], vec!["1".into(), "2".into()]],
-                                        true,
-                                    )),
+                                oktz_plugin_api::AiSubMessage::Tabel {
+                                    judul: "Tabel Uji".into(),
+                                    baris: vec![
+                                        vec!["A".into(), "B".into()],
+                                        vec!["1".into(), "2".into()],
+                                    ],
+                                    heading: true,
                                 },
                             ],
                             ..Default::default()
