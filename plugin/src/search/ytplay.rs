@@ -234,8 +234,11 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     let rich = RichAi {
         // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
         // `submessages` kosong dan yang tampil murni kartu HTML.
+        // `await aiRich.send(...)` (`ytplay.js:901`) = AIRich, kirim stanza
+        // edit seperti `.ai`.
         submessages: Vec::new(),
         sections: vec![section_html(&judul_header(judul), &html)],
+        kirim_edit: true,
         ..Default::default()
     };
     Reply::TabelAi(Box::new(rich)).with_reaction("✅")

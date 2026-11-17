@@ -4270,8 +4270,10 @@ impl Pipeline {
                     // Kontrak ruby-baileys `AIRich.send` (`MessageBuilder/
                     // index.js:2366-2375`): kartu rich baru ter-render setelah
                     // EDIT (ProtocolMessage type 14) yang membawa isi pesan
-                    // yang barusan di-relay.
-                    if matches!(other, Reply::TabelAi(_)) {
+                    // yang barusan di-relay. Edit HANYA milik `AIRich.send`
+                    // (`.ai`, `.ytplay`) — `sendMusicPlayer` play2
+                    // (`play2.js:893-943`) tidak mengirimnya.
+                    if let Reply::TabelAi(ai) = other && ai.kirim_edit {
                         let rich_msg = sent.message.clone();
                         let edit = crate::rich::rich_ai_edit_to_message(
                             &rich_msg,
@@ -6636,6 +6638,51 @@ fn group_number_and_long_number_are_rejected() {
         let table = rich_list.submessages[0].table_metadata.as_option().expect("tableMetadata");
         assert_eq!(table.rows.len(), 1, "list V1 tidak punya baris heading");
         assert_eq!(table.rows[0].is_heading, None);
+    }
+
+    // =====================================================================
+    // Stanza edit AIRich — hanya `RichAi.kirim_edit` (`AIRich.send`:
+    // `.ai`/`.ytplay`); `sendMusicPlayer` play2 tidak mengirimnya.
+    // =====================================================================
+
+    fn kartu_ai(kirim_edit: bool) -> Reply {
+        use oktz_plugin_api::rich::{AiSubMessage, RichAi};
+        Reply::TabelAi(Box::new(RichAi {
+            submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
+            kirim_edit,
+            ..Default::default()
+        }))
+    }
+
+    #[tokio::test]
+    async fn kirim_edit_true_mengirim_stanza_edit() {
+        let (p, sender) = pipeline_for(EMPTY_STORE, entry_named("kartu", |_c: Ctx| kartu_ai(true)));
+        let m = inbound_n(".kartu", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 10_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(sender.sent.lock().unwrap().len(), 2, "kartu + edit");
+        let edit = sender.sent.lock().unwrap()[1].1.clone();
+        let proto = edit
+            .bot_forwarded_message
+            .as_option()
+            .unwrap()
+            .message
+            .as_option()
+            .unwrap()
+            .protocol_message
+            .as_option()
+            .unwrap();
+        assert_eq!(
+            proto.r#type,
+            Some(wa::message::protocol_message::Type::MESSAGE_EDIT)
+        );
+    }
+
+    #[tokio::test]
+    async fn kirim_edit_false_tidak_mengirim_stanza_edit() {
+        let (p, sender) = pipeline_for(EMPTY_STORE, entry_named("kartu", |_c: Ctx| kartu_ai(false)));
+        let m = inbound_n(".kartu", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 10_000).await.unwrap(), Outcome::Sent);
+        assert_eq!(sender.sent.lock().unwrap().len(), 1, "tanpa stanza edit");
     }
 
     /// Tabel V1 (`Reply::tabel`) tetap jalur lama: tanpa `unifiedResponse`
