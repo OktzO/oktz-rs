@@ -121,20 +121,17 @@ impl RichList {
     }
 }
 
-/// Submessage untuk AIRich dan prepared rich — `rich-messages.js:1416` (`toUnified`)
-/// dan `:1517` (`prepareRichResponseMessage`).
+use crate::airich::KodeToken;
+
+/// Submessage untuk AIRich dan prepared rich — `builder.js:1037-1115`.
 ///
-/// Dua bentuk yang benar-benar dipakai plugin JS: teks (`messageType: 2`)
-/// dan tabel (`messageType: 4`). Pdf/map/contact ada di proto tapi TIDAK
-/// dipakai satu plugin pun di repo, jadi tidak dimodelkan — yang dibangun
-/// dari tebakan lebih berbahaya daripada absen.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct AiSubMessage {
-    /// `messageText` — teks polos.
-    pub text: Option<String>,
-    /// Tabel: judul + baris (tiap baris = sel). Baris pertama `heading: true`
-    /// hanya kalau pemanggil memintanya.
-    pub tabel: Option<(String, Vec<Vec<String>>, bool)>,
+/// Tiga varian inilah yang dipakai `builder.js`: teks (`messageType: 2`),
+/// tabel (`messageType: 4`), kode (`messageType: 5`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AiSubMessage {
+    Teks { teks: String },
+    Tabel { judul: String, baris: Vec<Vec<String>>, heading: bool },
+    Kode { bahasa: String, blok: Vec<KodeToken> },
 }
 
 /// AI rich — kontrak ruby-baileys `AIRich` (`MessageBuilder/index.js:2174-2380`),
@@ -149,10 +146,9 @@ pub struct AiSubMessage {
 pub struct RichAi {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
-    /// `botMetadata.messageDisclaimerText` — play2 `""` (`play2.js:903`),
-    /// `None` = field tidak ditulis (ruby-baileys hanya menulis saat
-    /// `_title` non-kosong).
-    pub disclaimer: Option<String>,
+    /// `botMetadata.messageDisclaimerText` — kedua lineage (play2 dan
+    /// ruby-baileys) selalu menulis field ini; default `""`.
+    pub disclaimer: String,
     /// `AIRich.send(jid, { quoted })` (`ruby-baileys:2196-2204`): pasang
     /// `stanzaId`/`participant`/`quotedType: 0`/`quotedMessage` pemicu ke
     /// `contextInfo` dalam.
@@ -160,6 +156,7 @@ pub struct RichAi {
     /// Override `forwardingScore` context dalam — play2 `sendMusicPlayer`
     /// (`play2.js:932`) pakai 999, bukan 1.
     pub skor: Option<u32>,
+    pub kirim_edit: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -172,7 +169,7 @@ pub struct RichAi {
 pub struct PreparedRich {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
-    pub disclaimer: Option<String>,
+    pub disclaimer: String,
 }
 
 #[cfg(test)]
@@ -218,14 +215,12 @@ mod tests {
         // Bentuk identik DISENGAJA — plugin melihat satu bentuk. Tipe
         // terpisah supaya builder tidak bisa tertukar di kompilasi.
         let ai = RichAi {
-            submessages: vec![AiSubMessage {
-                text: Some("t".into()),
-                tabel: None,
-            }],
+            submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
             sections: vec![serde_json::json!({"s": 1})],
-            disclaimer: Some("d".into()),
+            disclaimer: "d".into(),
             quoted: false,
             skor: None,
+            kirim_edit: false,
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),
@@ -234,7 +229,7 @@ mod tests {
         };
         assert_eq!(ai.submessages, p.submessages);
         assert_eq!(ai.sections, p.sections);
-        assert_eq!(ai.disclaimer, p.disclaimer);
+        assert_eq!(Some(ai.disclaimer.clone()), Some(p.disclaimer.clone()));
         // Section mentah diteruskan apa adanya — plugin bisa saja
         // membawa bentuk `view_model` yang belum dimodelkan di sini.
         assert_eq!(ai.sections[0], serde_json::json!({"s": 1}));
@@ -242,11 +237,12 @@ mod tests {
 
     #[test]
     fn ai_submessage_table_carries_title_rows_and_heading_flag() {
-        let s = AiSubMessage {
-            text: None,
-            tabel: Some(("J".into(), vec![vec!["a".into()]], true)),
+        let s = AiSubMessage::Tabel {
+            judul: "J".into(),
+            baris: vec![vec!["a".into()]],
+            heading: true,
         };
-        let Some((judul, rows, heading)) = s.tabel.as_ref() else {
+        let AiSubMessage::Tabel { judul, baris: rows, heading } = &s else {
             panic!("tabel harus terisi");
         };
         assert_eq!(judul, "J");

@@ -1,5 +1,6 @@
 // Port `extractIE` — builder.js:40-212.
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
+use crate::rich::{AiSubMessage, RichAi};
 
 /// Flag jenis inline entity yang diekstrak (default semua aktif).
 #[derive(Debug, Clone, Copy)]
@@ -445,6 +446,115 @@ pub fn tokenize_kode(kode: &str, bahasa: &str) -> Vec<KodeToken> {
 }
 
 
+// builder.js:2253-2261 — newLayout('Single', primitive).
+fn new_layout(primitive: Value) -> Value {
+    json!({
+        "view_model": {
+            "primitive": primitive,
+            "__typename": "GenAISingleLayoutViewModel",
+        }
+    })
+}
+
+impl RichAi {
+    // builder.js:1037-1064
+    pub fn teks(&mut self, teks: &str) -> &mut Self {
+        let h = extract_ie(teks, &Flag::default());
+        self.submessages.push(AiSubMessage::Teks { teks: h.teks.clone() });
+        let mut prim: Map<String, Value> = Map::new();
+        prim.insert("text".into(), Value::String(h.teks));
+        if !h.entities.is_empty() {
+            prim.insert("inline_entities".into(), Value::Array(h.entities));
+        }
+        prim.insert("__typename".into(), Value::String("GenAIMarkdownTextUXPrimitive".into()));
+        self.sections.push(new_layout(Value::Object(prim)));
+        self
+    }
+
+    // builder.js:1066-1090
+    pub fn kode(&mut self, bahasa: &str, kode: &str) -> &mut Self {
+        let blok = tokenize_kode(kode, bahasa);
+        self.submessages.push(AiSubMessage::Kode { bahasa: bahasa.into(), blok: blok.clone() });
+        let code_blocks: Vec<Value> = blok.iter().map(|t| {
+            json!({"content": t.isi, "type": t.jenis.nama()})
+        }).collect();
+        let mut prim: Map<String, Value> = Map::new();
+        prim.insert("language".into(), Value::String(bahasa.into()));
+        prim.insert("code_blocks".into(), Value::Array(code_blocks));
+        prim.insert("__typename".into(), Value::String("GenAICodeUXPrimitive".into()));
+        self.sections.push(new_layout(Value::Object(prim)));
+        self
+    }
+
+    // builder.js:1092-1115, 2205-2251
+    pub fn tabel(&mut self, baris: Vec<Vec<String>>) -> &mut Self {
+        if baris.is_empty() {
+            return self;
+        }
+        let (header, sisa) = baris.split_first().unwrap();
+        let max_len = std::iter::once(header.len())
+            .chain(sisa.iter().map(|r| r.len()))
+            .max()
+            .unwrap_or(0);
+        let pad = |r: &Vec<String>| -> Vec<String> {
+            let mut v = r.clone();
+            v.resize(max_len, String::new());
+            v
+        };
+        let header_pad = pad(header);
+        let sisa_pad: Vec<Vec<String>> = sisa.iter().map(pad).collect();
+
+        // baris padded: header dulu, lalu sisa
+        let mut semua_padded = vec![header_pad.clone()];
+        semua_padded.extend(sisa_pad.clone());
+
+        self.submessages.push(AiSubMessage::Tabel {
+            judul: String::new(),
+            baris: semua_padded,
+            heading: true,
+        });
+
+        // bangun unified_rows — is_header → cells → markdown_cells (bila ada entity)
+        let mut unified_rows: Vec<Value> = Vec::new();
+        let buat_row = |is_header: bool, cells: &Vec<String>| -> Value {
+            let markdown_cells: Vec<Value> = cells.iter().map(|sel| {
+                let h = extract_ie(sel, &Flag::default());
+                let mut m: Map<String, Value> = Map::new();
+                m.insert("text".into(), Value::String(h.teks));
+                if !h.entities.is_empty() {
+                    m.insert("inline_entities".into(), Value::Array(h.entities));
+                }
+                Value::Object(m)
+            }).collect();
+            let ada_entity = markdown_cells.iter().any(|c| {
+                c.get("inline_entities").map_or(false, |v| !v.as_array().unwrap().is_empty())
+            });
+            let mut row: Map<String, Value> = Map::new();
+            row.insert("is_header".into(), Value::Bool(is_header));
+            row.insert("cells".into(), Value::Array(cells.iter().map(|s| Value::String(s.clone())).collect()));
+            if ada_entity {
+                row.insert("markdown_cells".into(), Value::Array(markdown_cells));
+            }
+            Value::Object(row)
+        };
+        unified_rows.push(buat_row(true, &header_pad));
+        for r in &sisa_pad {
+            unified_rows.push(buat_row(false, r));
+        }
+
+        let mut prim: Map<String, Value> = Map::new();
+        prim.insert("rows".into(), Value::Array(unified_rows));
+        prim.insert("__typename".into(), Value::String("GenATableUXPrimitive".into()));
+        self.sections.push(new_layout(Value::Object(prim)));
+        self
+    }
+
+    pub fn section(&mut self, section: Value) -> &mut Self {
+        self.sections.push(section);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -677,5 +787,81 @@ mod tests {
             "{{NIXEL_HYPERLINK_0}}https://x{{/NIXEL_HYPERLINK_0}}",
             r#"[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"esc \\(x\\)","is_trusted":true,"url":"https://x","__typename":"GenAIInlineLinkItem"}}]"#,
         );
+    }
+
+    // --- builder RichAi ---
+
+    fn sj(v: &Value) -> String { serde_json::to_string(v).unwrap() }
+
+    #[test]
+    fn builder_teks_polos() {
+        let mut r = RichAi::default();
+        r.teks("Halo dunia");
+        assert_eq!(r.submessages, vec![AiSubMessage::Teks { teks: "Halo dunia".into() }]);
+        let want = r#"{"view_model":{"primitive":{"text":"Halo dunia","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
+        assert_eq!(sj(&r.sections[0]), want);
+    }
+
+    #[test]
+    fn builder_teks_link() {
+        let mut r = RichAi::default();
+        r.teks("[Vue](https://vuejs.org) bagus");
+        let want = r#"{"view_model":{"primitive":{"text":"{{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}} bagus","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}],"__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
+        assert_eq!(sj(&r.sections[0]), want);
+        assert!(matches!(&r.submessages[0], AiSubMessage::Teks { teks } if teks.contains("NIXEL_HYPERLINK_0")));
+    }
+
+    #[test]
+    fn builder_kode() {
+        let mut r = RichAi::default();
+        r.kode("js", "const app = createApp({});");
+        let AiSubMessage::Kode { bahasa, blok } = &r.submessages[0] else { panic!() };
+        assert_eq!(bahasa, "js");
+        assert!(blok.iter().any(|t| t.isi == "createApp" && t.jenis == Highlight::Method));
+        let want = r#"{"view_model":{"primitive":{"language":"js","code_blocks":[{"content":"const app = ","type":"DEFAULT"},{"content":"createApp","type":"METHOD"},{"content":"({});","type":"DEFAULT"}],"__typename":"GenAICodeUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
+        assert_eq!(sj(&r.sections[0]), want);
+    }
+
+    #[test]
+    fn builder_tabel_padding() {
+        let mut r = RichAi::default();
+        r.tabel(vec![
+            vec!["A".into(), "B".into()],
+            vec!["1".into()],
+        ]);
+        assert_eq!(r.submessages, vec![AiSubMessage::Tabel {
+            judul: "".into(),
+            baris: vec![vec!["A".into(), "B".into()], vec!["1".into(), "".into()]],
+            heading: true,
+        }]);
+        let want = r#"{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["A","B"]},{"is_header":false,"cells":["1",""]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
+        assert_eq!(sj(&r.sections[0]), want);
+    }
+
+    #[test]
+    fn builder_tabel_link_oracle() {
+        let mut r = RichAi::default();
+        r.tabel(vec![
+            vec!["Nama".into(), "Link".into()],
+            vec!["Vue".into(), "[Vue](https://vuejs.org)".into()],
+            vec!["React".into(), "https://react.dev".into()],
+        ]);
+        let want = r#"{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["Nama","Link"]},{"is_header":false,"cells":["Vue","[Vue](https://vuejs.org)"],"markdown_cells":[{"text":"Vue"},{"text":"{{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}}","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}]}]},{"is_header":false,"cells":["React","https://react.dev"]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
+        assert_eq!(sj(&r.sections[0]), want);
+    }
+
+    #[test]
+    fn builder_tabel_kosong_noop() {
+        let mut r = RichAi::default();
+        r.tabel(Vec::new());
+        assert!(r.submessages.is_empty());
+        assert!(r.sections.is_empty());
+    }
+
+    #[test]
+    fn builder_section_passthrough() {
+        let mut r = RichAi::default();
+        r.section(json!({"a": 1}));
+        assert_eq!(r.sections[0], json!({"a": 1}));
     }
 }
