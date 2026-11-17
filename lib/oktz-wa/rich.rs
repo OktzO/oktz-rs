@@ -500,9 +500,9 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
 ///
 /// Keduanya: `deviceListMetadata` KOSONG (`{}`), version 2, `botMetadata`.
 /// Kontrak ruby-baileys: `botResponseId` SELALU ada (refresh per build,
-/// `:2251`), `messageDisclaimerText` hanya saat `_title` non-kosong,
-/// TANPA `richResponseSourcesMetadata`. play2 (`play2.js:902-905`) sama
-/// + `messageDisclaimerText: ""`.
+/// `:2251`), SELALU ada `messageDisclaimerText` (kedua lineage menulisnya:
+/// play2 `""`, ruby-baileys nilai `_title`-nya), TANPA
+/// `richResponseSourcesMetadata`.
 fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
     MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
