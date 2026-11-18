@@ -527,7 +527,7 @@ impl RichAi {
                 Value::Object(m)
             }).collect();
             let ada_entity = markdown_cells.iter().any(|c| {
-                c.get("inline_entities").map_or(false, |v| !v.as_array().unwrap().is_empty())
+                c.get("inline_entities").is_some_and(|v| !v.as_array().unwrap().is_empty())
             });
             let mut row: Map<String, Value> = Map::new();
             row.insert("is_header".into(), Value::Bool(is_header));
