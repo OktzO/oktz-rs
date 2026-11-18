@@ -112,10 +112,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.55 — UI log terminal baru: rail pesan `HH:MM:SS │ nama ~ chat`,
 //           status kirim ✓/✕ (hanya saat bot benar-benar mengirim), log
 //           sistem `[tag]` berwarna per subsistem; mati otomatis saat pipe.
-// v0.2.57 — AIRich: inline entity (link/sitasi/LaTeX), highlight kode per
-//           token (`codeMetadata`), tabel `markdown_cells`; stanza edit hanya
-//           untuk `.ai`/`.ytplay` (play2 tidak).
-export const VERSI_BIN = "v0.2.57";
+// v0.2.58 — `.play2` unduh audio lewat jalur `.play` (savetube → ytmp3.ing,
+//           fallback rantai `unduh_audio`); `messageDisclaimerText` hanya
+//           dikirim bila diisi (`.ai`/`.ytplay` sama seperti JS).
+export const VERSI_BIN = "v0.2.58";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
