@@ -500,16 +500,15 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
 ///
 /// Keduanya: `deviceListMetadata` KOSONG (`{}`), version 2, `botMetadata`.
 /// Kontrak ruby-baileys: `botResponseId` SELALU ada (refresh per build,
-/// `:2251`), SELALU ada `messageDisclaimerText` (kedua lineage menulisnya:
-/// play2 `""`, ruby-baileys nilai `_title`-nya), TANPA
+/// `:2251`), `messageDisclaimerText` = `_title` (`builder.js:1509`) — untuk
+/// `.ai`/`.ytplay` `undefined` jadi field tidak dikirim; play2 `""`. TANPA
 /// `richResponseSourcesMetadata`.
 fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
     MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
         device_list_metadata_version: Some(2),
         bot_metadata: fld(Some(BotMetadata {
-            // kedua lineage (play2 dan ruby-baileys) selalu menulis field ini.
-            message_disclaimer_text: Some(input.disclaimer.clone()),
+            message_disclaimer_text: input.disclaimer.clone(),
             // ruby-baileys `:2251` — `botResponseId` SELALU ada (refresh per
             // build); TANPA `richResponseSourcesMetadata`.
             bot_response_id: Some(response_id.to_string()),
@@ -870,7 +869,7 @@ mod tests {
     #[test]
     fn ai_rich_disclaimer_lands_in_bot_metadata() {
         let msg = rich_ai_to_message(&RichAi {
-            disclaimer: "Syarat pakai".into(),
+            disclaimer: Some("Syarat pakai".into()),
             ..Default::default()
         }, None);
         assert_eq!(
@@ -939,7 +938,7 @@ mod tests {
         // botJid sama dengan AIRich (kontrak ruby-baileys tunggal).
         let msg = rich_ai_to_message(
             &RichAi {
-                disclaimer: String::new(),
+                disclaimer: Some(String::new()),
                 skor: Some(999),
                 ..Default::default()
             },
@@ -1159,10 +1158,12 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
     }
 
     #[test]
-    fn ai_rich_disclaimer_selalu_ditulis() {
+    fn ai_rich_disclaimer_hanya_saat_diisi() {
+        // `builder.js:1509` — `messageDisclaimerText: this._title`; `.ai`/
+        // `.ytplay` tanpa judul → `undefined` → field TIDAK dikirim.
         let msg = rich_ai_to_message(&RichAi::default(), None);
-        assert_eq!(bot_metadata(&msg).message_disclaimer_text.as_deref(), Some(""));
-        let msg2 = rich_ai_to_message(&RichAi { disclaimer: "Syarat".into(), ..Default::default() }, None);
+        assert_eq!(bot_metadata(&msg).message_disclaimer_text, None);
+        let msg2 = rich_ai_to_message(&RichAi { disclaimer: Some("Syarat".into()), ..Default::default() }, None);
         assert_eq!(bot_metadata(&msg2).message_disclaimer_text.as_deref(), Some("Syarat"));
     }
 

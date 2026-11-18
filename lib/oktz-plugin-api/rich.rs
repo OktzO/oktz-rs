@@ -146,9 +146,10 @@ pub enum AiSubMessage {
 pub struct RichAi {
     pub submessages: Vec<AiSubMessage>,
     pub sections: Vec<serde_json::Value>,
-    /// `botMetadata.messageDisclaimerText` — kedua lineage (play2 dan
-    /// ruby-baileys) selalu menulis field ini; default `""`.
-    pub disclaimer: String,
+    /// `botMetadata.messageDisclaimerText` — `AIRich.send` menulis `_title`
+    /// (`builder.js:1509`) yang untuk `.ai`/`.ytplay` `undefined` → field
+    /// TIDAK dikirim; play2 (`sendMusicPlayer`) menulis `""` eksplisit.
+    pub disclaimer: Option<String>,
     /// `AIRich.send(jid, { quoted })` (`ruby-baileys:2196-2204`): pasang
     /// `stanzaId`/`participant`/`quotedType: 0`/`quotedMessage` pemicu ke
     /// `contextInfo` dalam.
@@ -217,7 +218,7 @@ mod tests {
         let ai = RichAi {
             submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
             sections: vec![serde_json::json!({"s": 1})],
-            disclaimer: "d".into(),
+            disclaimer: Some("d".into()),
             quoted: false,
             skor: None,
             kirim_edit: false,
@@ -225,11 +226,11 @@ mod tests {
         let p = PreparedRich {
             submessages: ai.submessages.clone(),
             sections: ai.sections.clone(),
-            disclaimer: Some(ai.disclaimer.clone()),
+            disclaimer: ai.disclaimer.clone(),
         };
         assert_eq!(ai.submessages, p.submessages);
         assert_eq!(ai.sections, p.sections);
-        assert_eq!(Some(ai.disclaimer.clone()), p.disclaimer);
+        assert_eq!(ai.disclaimer, p.disclaimer);
         // Section mentah diteruskan apa adanya — plugin bisa saja
         // membawa bentuk `view_model` yang belum dimodelkan di sini.
         assert_eq!(ai.sections[0], serde_json::json!({"s": 1}));

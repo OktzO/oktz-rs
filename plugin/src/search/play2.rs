@@ -5,8 +5,11 @@
 //!   WEB_REMIX filter songs) untuk jalur judul; jalur URL tetap
 //!   `ytsearch::search`. Pesan "Lagu tidak ditemukan di YT Music"
 //!   dipertahankan untuk jalur judul.
-//! - Savetube + `createDecipheriv` tidak diport: unduhan audio memakai rantai
-//!   `crate::download::ytmp3::unduh_audio` (`ytdl-native → izuka → nexray`).
+//! - Savetube/ytmp3.ing tidak diport ulang di sini: unduhan audio memakai
+//!   [`oktz_scraper::playytmp3::savetube_download`] →
+//!   [`oktz_scraper::playytmp3::ytmp3ing_download`] (jalur sama dengan
+//!   `.play`), lalu fallback `crate::download::ytmp3::unduh_audio`
+//!   (`ytdl-native → savetube → izuka → nexray`).
 //! - Kartu player HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan
 //!   section `GenAIaeacdsnwHtmlPrimitive` — sama seperti `sendMusicPlayer`
 //!   (`play2.js:893-943`), submessage teksnya `"${title} - ${artist}"`.
@@ -702,9 +705,26 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     }
     let synced = normalize_lyrics(synced);
 
-    // Unduhan audio: `savetubeRetry` di JS → rantai `unduh_audio` di sini.
-    let audio = unduh_audio(ctx, &video.url).map_err(|_| DOWNLOAD_GAGAL.to_string())?;
-    let asli = unduh_buffer(ctx, &audio.url)?;
+    // Unduhan audio: unduhan `.play` dulu (`playytmp3`: savetube →
+    // ytmp3.ing), lalu fallback rantai `unduh_audio` (`ytdl-native →
+    // savetube → izuka → nexray`).
+    let audio_url_utama =
+        oktz_scraper::playytmp3::savetube_download(ctx.http.as_ref(), &video.url, "128")
+            .or_else(|_| oktz_scraper::playytmp3::ytmp3ing_download(ctx.http.as_ref(), &video.url))
+            .ok()
+            .and_then(|v| {
+                v.get("downloadUrl")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|u| !u.is_empty())
+                    .map(str::to_string)
+            });
+    let asli = match audio_url_utama.and_then(|u| unduh_buffer(ctx, &u).ok()) {
+        Some(b) => b,
+        None => {
+            let audio = unduh_audio(ctx, &video.url).map_err(|_| DOWNLOAD_GAGAL.to_string())?;
+            unduh_buffer(ctx, &audio.url)?
+        }
+    };
     let kompresi = kompres(&asli)?;
     if kompresi.len() > MAX_COMPRESSED_AUDIO_SIZE {
         return Err("Audio compress terlalu besar".to_string());
@@ -742,7 +762,7 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
             teks: format!("{title} - {artist}"),
         }],
         sections: vec![section_html(&html)],
-        disclaimer: String::new(),
+        disclaimer: Some(String::new()),
         quoted: false,
         skor: Some(999),
         kirim_edit: false,
@@ -1083,6 +1103,11 @@ mod tests {
         assert!(payload.contains("atob("), "lirik sinkron dari JSON base64");
 
         let seen = http.seen.lock().unwrap().clone();
+        assert!(
+            seen.iter()
+                .any(|u| u.contains("media.savetube.vip/api/random-cdn")),
+            "unduhan harus lewat jalur .play dulu: {seen:?}"
+        );
         assert!(seen.iter().any(|u| u.contains("lrclib.net/api/get?track_name=Lagu+Uji&artist_name=Channel+Uji&duration=213")), "{seen:?}");
         assert!(seen.iter().any(|u| u.contains("cdn.example/lagu.mp3")));
     }
