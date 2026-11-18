@@ -478,14 +478,30 @@ pub(crate) fn cari_lirik(
 
 /* AUDIO (`play2.js:281-479`, unduhan lewat rantai `ytmp3::unduh_audio`). */
 
+/// Ringkas pesan galat tahap unduhan supaya muat di satu baris balasan.
+fn ringkas(pesan: &str) -> String {
+    let bersih = pesan.replace('\n', " ");
+    if bersih.chars().count() > 120 {
+        format!("{}…", bersih.chars().take(120).collect::<String>())
+    } else {
+        bersih
+    }
+}
+
 /// `downloadAudioBuffer` (`play2.js:375-389`).
 fn unduh_buffer(ctx: &Ctx, url: &str) -> Result<Vec<u8>, String> {
     if url.is_empty() {
         return Err("URL audio kosong".to_string());
     }
+    // Berkas audio bisa >3 MB; default `UreqHttp` 20 detik terlalu ketat di
+    // panel lambat (gagal → fallback rantai unduh yang juga lambat).
     let res = ctx
         .http
-        .call(&HttpCall::get(url).header("user-agent", USER_AGENT))
+        .call(
+            &HttpCall::get(url)
+                .header("user-agent", USER_AGENT)
+                .with_timeout(60_000),
+        )
         .map_err(|_| DOWNLOAD_GAGAL.to_string())?;
     if !(200..300).contains(&res.status) {
         return Err(format!("Download audio gagal ({})", res.status));
@@ -705,23 +721,59 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     }
     let synced = normalize_lyrics(synced);
 
-    // Unduhan audio: unduhan `.play` dulu (`playytmp3`: savetube →
-    // ytmp3.ing), lalu fallback rantai `unduh_audio` (`ytdl-native →
-    // savetube → izuka → nexray`).
-    let audio_url_utama =
-        oktz_scraper::playytmp3::savetube_download(ctx.http.as_ref(), &video.url, "128")
-            .or_else(|_| oktz_scraper::playytmp3::ytmp3ing_download(ctx.http.as_ref(), &video.url))
-            .ok()
-            .and_then(|v| {
-                v.get("downloadUrl")
-                    .and_then(serde_json::Value::as_str)
-                    .filter(|u| !u.is_empty())
-                    .map(str::to_string)
-            });
-    let asli = match audio_url_utama.and_then(|u| unduh_buffer(ctx, &u).ok()) {
+    // Unduhan audio: jalur `.play` dulu (`playytmp3`: savetube → ytmp3.ing),
+    // lalu fallback rantai `unduh_audio`. Alasan tiap tahap dikumpulkan —
+    // "Download gagal" polos tidak memberi tahu tahap mana yang mati.
+    let mut sebab: Vec<String> = Vec::new();
+    let ambil_url = |v: &serde_json::Value| -> Option<String> {
+        v.get("downloadUrl")
+            .and_then(serde_json::Value::as_str)
+            .filter(|u| !u.is_empty())
+            .map(str::to_string)
+    };
+    let mut audio_utama = match oktz_scraper::playytmp3::savetube_download(
+        ctx.http.as_ref(),
+        &video.url,
+        "128",
+    ) {
+        Ok(v) => {
+            let u = ambil_url(&v);
+            if u.is_none() {
+                sebab.push("savetube: downloadUrl kosong".to_string());
+            }
+            u
+        }
+        Err(e) => {
+            sebab.push(format!("savetube: {}", ringkas(&e.message)));
+            None
+        }
+    };
+    if audio_utama.is_none() {
+        match oktz_scraper::playytmp3::ytmp3ing_download(ctx.http.as_ref(), &video.url) {
+            Ok(v) => {
+                audio_utama = ambil_url(&v);
+                if audio_utama.is_none() {
+                    sebab.push("ytmp3.ing: downloadUrl kosong".to_string());
+                }
+            }
+            Err(e) => sebab.push(format!("ytmp3.ing: {}", ringkas(&e.message))),
+        }
+    }
+    let asli = match audio_utama.and_then(|u| match unduh_buffer(ctx, &u) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            sebab.push(format!("unduh buffer: {e}"));
+            None
+        }
+    }) {
         Some(b) => b,
         None => {
-            let audio = unduh_audio(ctx, &video.url).map_err(|_| DOWNLOAD_GAGAL.to_string())?;
+            let audio = match unduh_audio(ctx, &video.url) {
+                Ok(a) => a,
+                Err(()) => {
+                    return Err(format!("{DOWNLOAD_GAGAL} [{}]", sebab.join("; ")));
+                }
+            };
             unduh_buffer(ctx, &audio.url)?
         }
     };

@@ -181,11 +181,41 @@ test("pasangFfmpeg unduh aset rilis, gunzip, tulis biner +x", async () => {
 test("pasangFfmpeg skip bila kedua biner sudah ada", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
   try {
-    writeFileSync(path.join(dir, "ffmpeg"), "a");
-    writeFileSync(path.join(dir, "ffprobe"), "a");
+    // Biner wajar = besar; berkas kecil dianggap sisa unduhan terpotong.
+    writeFileSync(path.join(dir, "ffmpeg"), Buffer.alloc(2 << 20));
+    writeFileSync(path.join(dir, "ffprobe"), Buffer.alloc(2 << 20));
     const f = fetchPalsu({});
     await pasangFfmpeg(null, f, dir);
     assert.equal(f.panggil.length, 0, "tidak boleh ada unduhan");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pasangFfmpeg pasang ulang biner terpotong dan buang yang rusak", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
+  try {
+    // Sisa unduhan yang terpotong.
+    writeFileSync(path.join(dir, "ffmpeg"), "a");
+    const isi = Buffer.alloc(2 << 20, 7);
+    const f = fetchPalsu((url) =>
+      url.endsWith(".sha256") ? { ok: false, status: 404 } : { data: gzipSync(isi) }
+    );
+    await pasangFfmpeg("v9.9.9", f, dir);
+    assert.equal(readFileSync(path.join(dir, "ffmpeg")).length, isi.length, "harus dipasang ulang");
+    assert.equal(existsSync(path.join(dir, "ffprobe")), true);
+
+    // Gagal unduh + berkas rusak → berkas dibuang supaya bot jatuh ke PATH.
+    const dir2 = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
+    try {
+      writeFileSync(path.join(dir2, "ffmpeg"), "a");
+      await pasangFfmpeg("v9.9.9", async () => {
+        throw new Error("offline");
+      }, dir2);
+      assert.equal(existsSync(path.join(dir2, "ffmpeg")), false, "berkas rusak harus dibuang");
+    } finally {
+      rmSync(dir2, { recursive: true, force: true });
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

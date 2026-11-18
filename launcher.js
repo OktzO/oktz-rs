@@ -24,6 +24,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -112,10 +113,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.55 — UI log terminal baru: rail pesan `HH:MM:SS │ nama ~ chat`,
 //           status kirim ✓/✕ (hanya saat bot benar-benar mengirim), log
 //           sistem `[tag]` berwarna per subsistem; mati otomatis saat pipe.
-// v0.2.58 — `.play2` unduh audio lewat jalur `.play` (savetube → ytmp3.ing,
-//           fallback rantai `unduh_audio`); `messageDisclaimerText` hanya
-//           dikirim bila diisi (`.ai`/`.ytplay` sama seperti JS).
-export const VERSI_BIN = "v0.2.58";
+// v0.2.59 — `.play2`: timeout unduh audio 60 dtk + pesan galat memuat sebab
+//           tiap tahap; launcher memasang ulang `bin/ffmpeg` yang terpotong.
+export const VERSI_BIN = "v0.2.59";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
@@ -471,6 +471,22 @@ const ASET_FFMPEG = [
 ];
 
 /**
+ * Biner ffmpeg/ffprobe asli ~70 MB; berkas ada tapi jauh lebih kecil =
+ * sisa unduhan yang terpotong. Tanpa cek ini, satu unduhan gagal membuat
+ * `bin/ffmpeg` rusak dipakai selamanya (`existsSync` cukup untuk skip) dan
+ * fitur audio (`play2`) gagal terus tanpa sebab yang jelas di log.
+ */
+const MIN_BINER_BYTES = 1 << 20;
+
+function binerTerpasang(p) {
+  try {
+    return statSync(p).size >= MIN_BINER_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Pasang ffmpeg+ffprobe statis dari aset rilis ke bin/ (sekali per panel,
  * tanpa npm). Gagal unduh tidak menghentikan boot: bot tetap jalan, hanya
  * fitur audio/video yang menurun — perilaku sama seperti bot JS lama.
@@ -484,7 +500,7 @@ export async function pasangFfmpeg(
   fetchImpl = fetch,
   dir = path.join(AKAR, "bin")
 ) {
-  const sisa = ASET_FFMPEG.filter(([, nama]) => !existsSync(path.join(dir, nama)));
+  const sisa = ASET_FFMPEG.filter(([, nama]) => !binerTerpasang(path.join(dir, nama)));
   if (sisa.length === 0) return;
   const t = tag || TAG_TERBARU || VERSI_BIN;
   mkdirSync(dir, { recursive: true });
@@ -507,6 +523,16 @@ export async function pasangFfmpeg(
       console.error(
         "[launcher] fitur audio/video (.play/.bratvid/.s/.tovn) akan gagal tanpa ffmpeg"
       );
+      // Berkas rusak yang sudah ada jangan ditinggal: `jalur_ffmpeg()` bot
+      // akan memilihnya dan gagal, bukan jatuh ke node_modules/PATH.
+      const tujuan = path.join(dir, nama);
+      if (!binerTerpasang(tujuan)) {
+        try {
+          rmSync(tujuan, { force: true });
+        } catch {
+          /* diabaikan */
+        }
+      }
     }
   }
 }
