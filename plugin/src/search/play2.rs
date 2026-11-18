@@ -1066,6 +1066,7 @@ mod tests {
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
+        assert!(!rich.kirim_edit, "play2 pakai sendMusicPlayer, bukan AIRich");
         let AiSubMessage::Teks { teks } = &rich.submessages[0] else {
             panic!("harus submessage teks");
         };

@@ -234,7 +234,7 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     let rich = RichAi {
         // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
         // `submessages` kosong dan yang tampil murni kartu HTML.
-        // `await aiRich.send(...)` (`ytplay.js:901`) = AIRich, kirim stanza
+        // `await aiRich.send(...)` (`ytplay.js:905`) = AIRich, kirim stanza
         // edit seperti `.ai`.
         submessages: Vec::new(),
         sections: vec![section_html(&judul_header(judul), &html)],
@@ -268,6 +268,8 @@ mod tests {
     #[derive(Debug)]
     struct Stub {
         body: String,
+        /// Balasan berurutan per panggilan; kosong → `body`.
+        urut: Mutex<Vec<String>>,
         seen: Mutex<Vec<String>>,
     }
 
@@ -275,8 +277,20 @@ mod tests {
         fn body(v: &str) -> Arc<Stub> {
             Arc::new(Stub {
                 body: v.to_string(),
+                urut: Mutex::new(Vec::new()),
                 seen: Mutex::new(Vec::new()),
             })
+        }
+        fn urut(v: Vec<String>) -> Arc<Stub> {
+            Arc::new(Stub {
+                body: String::new(),
+                urut: Mutex::new(v),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+        fn balasan(&self) -> String {
+            let mut u = self.urut.lock().unwrap();
+            if u.is_empty() { self.body.clone() } else { u.remove(0) }
         }
     }
 
@@ -286,7 +300,7 @@ mod tests {
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
-                    data: Arc::from(self.body.clone().into_bytes()),
+                    data: Arc::from(self.balasan().into_bytes()),
                     mimetype: None,
                 },
                 headers: vec![],
@@ -310,7 +324,7 @@ mod tests {
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
-                    data: Arc::from(self.body.clone().into_bytes()),
+                    data: Arc::from(self.balasan().into_bytes()),
                     mimetype: None,
                 },
                 headers: vec![],
@@ -344,6 +358,43 @@ mod tests {
             Reply::Reaction { emoji, .. } => Some(emoji),
             _ => None,
         }
+    }
+
+    /// Hasil `yt-search` satu video (jalur URL YouTube).
+    const HASIL_VIDEO: &str = r#"{"contents":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+      {"itemSectionRenderer":{"contents":[
+        {"videoRenderer":{
+          "videoId":"aaaaaaaaaaa",
+          "title":{"runs":[{"text":"Lagu Uji"}]},
+          "ownerText":{"runs":[{"text":"Channel Uji"}]},
+          "lengthText":{"simpleText":"3:33"}
+        }}
+      ]}}
+    ]}}}}]}}"#;
+
+    /// Payload SaveTube terenkripsi (sama dengan uji `oktz-scraper`).
+    const INFO_B64: &str = "ABEiM0RVZneImaq7zN3u/ySRS+noY6Ay7XJ1nsZrbPP+2RcuGwwaev1qt4NlUA72hdBgn3XNiSl7QfGCo62X8B9A/hxp+1z3KaAFgGgptf1W9l6yzPe64HY5MMw0+o0UIV9n44ophBe+83JkcPivUaDXq2VdkgkvfkNkCj8KBaSrAXnP+WsnSmzRTPJUDJp/Ho+m4WSj/2N97wh2sdHfkQ==";
+
+    #[test]
+    fn kartu_player_meminta_stanza_edit() {
+        // Urutan: cari → cdn/info/download 360p → poster → cdn/info/download 720p.
+        let info = format!(r#"{{"data":"{INFO_B64}"}}"#);
+        let http = Stub::urut(vec![
+            HASIL_VIDEO.to_string(),
+            r#"{"cdn":"c"}"#.to_string(),
+            info.clone(),
+            r#"{"data":{"downloadUrl":"https://cdn.example/v.mp4"}}"#.to_string(),
+            "bukan-gambar".to_string(),
+            r#"{"cdn":"c"}"#.to_string(),
+            info,
+            r#"{"data":{"downloadUrl":"https://cdn.example/v720.mp4"}}"#.to_string(),
+        ]);
+        let balasan = run(http, "kartu edit uji");
+        let Reply::TabelAi(rich) = balasan.without_mutations().tanpa_reaksi() else {
+            panic!("harus TabelAi");
+        };
+        // `ytplay.js:905` — `aiRich.send` = AIRich, kirim stanza edit.
+        assert!(rich.kirim_edit, "kartu player harus meminta edit");
     }
 
     #[test]

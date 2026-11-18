@@ -157,8 +157,10 @@ pub fn extract_ie(teks: &str, flag: &Flag) -> HasilEkstrak {
                 citation_index += 1;
             }
 
-            // builder.js:190-201
-            teks_hasil.push_str(&potong(&chars, last, start));
+            // builder.js:190-201 — `slice(last, start)` = "" bila `last > start`.
+            if last <= start {
+                teks_hasil.push_str(&potong(&chars, last, start));
+            }
             teks_hasil.push_str(&tag);
             last = end;
             entities.push(entity);
@@ -780,6 +782,13 @@ mod tests {
             Flag::default(),
             "{{NIXEL_HYPERLINK_0}}https://x{{/NIXEL_HYPERLINK_0}}",
             r#"[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"nested (kurung)","is_trusted":true,"url":"https://x","__typename":"GenAIInlineLinkItem"}}]"#,
+        );
+        // Link bersarang: match kedua mulai sebelum `last`; JS `slice` = "".
+        cek(
+            "[[1](a)](b)",
+            Flag::default(),
+            "[{{NIXEL_HYPERLINK_0}}a{{/NIXEL_HYPERLINK_0}}{{NIXEL_HYPERLINK_1}}b{{/NIXEL_HYPERLINK_1}}",
+            r#"[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"1","is_trusted":true,"url":"a","__typename":"GenAIInlineLinkItem"}},{"key":"NIXEL_HYPERLINK_1","metadata":{"display_name":"[1](a)","is_trusted":true,"url":"b","__typename":"GenAIInlineLinkItem"}}]"#,
         );
         cek(
             "[esc \\(x\\)](https://x)",
