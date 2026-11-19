@@ -341,3 +341,37 @@ klien Android dan **tidak punya akses jaringan** (catatan `zaileys`), jadi
 `<video src=googlevideo>`/`<audio src=...>` di dalam kartu tidak bisa
 streaming. Untuk `ytplay`, memutar video sebaiknya lewat pesan video biasa
 (`Reply::Video`, seperti `playvid`), bukan kartu HTML.
+
+## Adendum 2026-11-19 (4) — `messageSecret` wajib untuk `unifiedResponse`
+
+Setelah batas muatan dan typename dibetulkan, kartu HTML **tetap**
+ditolak. Pemeriksaan wire menemukan satu beda yang tersisa dan bersih:
+balasan AIRich tidak membawa `messageContextInfo.messageSecret`.
+
+Bukti:
+
+- `rich_ai_to_message` (`.ai`, `.play2`, `.ytplay`) → `ai_outer` tanpa
+  `messageSecret`. Jalur kirim wacore **tidak** menambahkannya:
+  `reporting_token::generate_reporting_token` mengembalikan `None` untuk
+  `botForwardedMessage` (diuji langsung; `should_include_reporting_token`
+  true, tapi konten token kosong), jadi `extra_context` absen.
+- `Reply::tabel_v2` (`.ping2`) MENULIS `messageSecret` sendiri
+  (`rich.rs` V2 / `rich-messages.js:1059`) — dan kartu `.ping2` adalah
+  satu-satunya balasan lintas-plugin yang isinya HANYA
+  `unifiedResponse.sections` (submessages kosong) dan **terbukti render**.
+- Generator publik yang jalan selalu mengirimnya: GamesWhats
+  `html-transport.ts:40` (`messageSecret: randomBytes(32)`), dan catatan
+  pemilik sendiri di commit `0634f3f`: "messageContextInfo wajib
+  messageSecret+threadId+deviceListMetadata berisi (pola sendTableV2
+  terbukti)" — persis pola V2 yang render.
+- Sumber komunitas memperingatkan hal yang sama: "menambahkan metadata
+  yang tidak perlu bisa membuat klien menampilkan 'Update WhatsApp'"
+  (GamesWhats `WHATSAPP_HTML_TRANSPORT.md`), jadi amplop harus persis
+  pola yang terbukti.
+
+Perbaikan: `ai_outer` menulis `message_secret: secret_32()` (32 byte
+acak, baru per pesan) untuk SEMUA balasan AIRich. Test
+`ai_rich_membawa_message_secret_32_byte` juga men-decode plaintext
+penerima hasil `MessageUtils::encode_dm_plaintexts` untuk memastikan
+`messageSecret` dan `botMetadata` dua-duanya sampai (merge reporting
+tidak menghapus salah satunya).

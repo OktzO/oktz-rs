@@ -118,7 +118,7 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.60 — AIRich (`.ai`, `.ytplay`, play2) akhirnya muncul di chat: stanza
 //           `botForwardedMessage` salah diklasifikasi `media` tanpa
 //           `mediatype` sehingga server ACK tapi klien render kosong.
-export const VERSI_BIN = "v0.2.62";
+export const VERSI_BIN = "v0.2.63";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

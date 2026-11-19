@@ -503,10 +503,22 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
 /// `:2251`), `messageDisclaimerText` = `_title` (`builder.js:1509`) — untuk
 /// `.ai`/`.ytplay` `undefined` jadi field tidak dikirim; play2 `""`. TANPA
 /// `richResponseSourcesMetadata`.
+///
+/// `messageSecret` 32 byte acak WAJIB ada: tanpa itu klien menerima stanza
+/// tapi menolak merender `unifiedResponse` — tampil "versi WhatsApp Anda
+/// tidak mendukungnya". Bukti: `Reply::tabel_v2` (pola V2
+/// `rich-messages.js:1059`) MEMANG mengirim `messageSecret` dan kartunya
+/// render, sementara balasan AIRich tidak (reporting token tidak pernah
+/// dibuat untuk `botForwardedMessage`, jadi jalur kirim wacore tidak
+/// menambahkannya sendiri — lihat `debug` di `rich.rs`/`reporting_token.rs`).
+/// Pemilik juga sudah mencatat ini di riwayat: "messageSecret wajib (pola
+/// sendTableV2 terbukti)". Generator publik lain (GamesWhats
+/// `html-transport.ts:40`) juga selalu mengirim `randomBytes(32)`.
 fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
     MessageContextInfo {
         device_list_metadata: fld(Some(DeviceListMetadata::default())),
         device_list_metadata_version: Some(2),
+        message_secret: Some(secret_32()),
         bot_metadata: fld(Some(BotMetadata {
             message_disclaimer_text: input.disclaimer.clone(),
             // ruby-baileys `:2251` — `botResponseId` SELALU ada (refresh per
@@ -856,6 +868,44 @@ mod tests {
         // `deviceListMetadata: {}` — objek kosong, bukan None.
         assert!(outer(&msg).device_list_metadata.as_option().is_some());
         assert_eq!(outer(&msg).device_list_metadata_version, Some(2));
+    }
+
+    /// `messageSecret` 32 byte: tanpa ini klien menolak merender
+    /// `unifiedResponse` (kartu HTML tampil "tidak mendukung"). Pola V2
+    /// (`rich-messages.js:1059`) mengirimnya dan kartunya render; jalur
+    /// reporting token wacore tidak pernah membuatnya untuk
+    /// `botForwardedMessage`.
+    #[test]
+    fn ai_rich_membawa_message_secret_32_byte() {
+        let a = rich_ai_to_message(&RichAi::default(), None);
+        let b = rich_ai_to_message(&RichAi::default(), None);
+        let sa = outer(&a).message_secret.clone().expect("messageSecret wajib");
+        let sb = outer(&b).message_secret.clone().expect("messageSecret wajib");
+        assert_eq!(sa.len(), 32, "messageSecret harus 32 byte");
+        assert_ne!(sa, sb, "messageSecret harus acak per pesan");
+        // Sampai ke penerima: jalur kirim tidak boleh membuang mci.
+        let extra = wa::MessageContextInfo {
+            message_secret: Some(vec![1u8; 32]),
+            reporting_token_version: Some(1),
+            ..Default::default()
+        };
+        let pt = whatsapp_rust::wacore::messages::MessageUtils::encode_dm_plaintexts(
+            &a,
+            Some(&extra),
+            "628111@s.whatsapp.net",
+        );
+        let n = whatsapp_rust::wacore::messages::MessageUtils::unpadded_message_len(
+            &pt.recipient,
+            2,
+        )
+        .unwrap();
+        let back = whatsapp_rust::waproto::codec::message_decode(&pt.recipient[..n]).unwrap();
+        let mci = back.message_context_info.as_option().expect("mci sampai");
+        assert_eq!(mci.message_secret.as_ref().map(Vec::len), Some(32));
+        assert!(
+            mci.bot_metadata.as_option().is_some(),
+            "merge reporting tidak boleh menghapus botMetadata"
+        );
     }
 
     #[test]
