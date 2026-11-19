@@ -544,34 +544,6 @@ pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Me
     )
 }
 
-/// Edit pesan rich — `AIRich.sendEdit`/`buildEdit` ruby-baileys
-/// (`MessageBuilder/index.js:2290-2345`): `ProtocolMessage type=MESSAGE_EDIT`
-/// yang `editedMessage` = pesan rich ASLI, key-nya pesan yang barusan
-/// di-relay. Kontrak ruby-baileys: kartu hanya ter-render setelah edit ini
-/// (`send()` selalu memanggilnya; `bypassDownload` default true).
-pub fn rich_ai_edit_to_message(rich_msg: &wa::Message, chat: &str, id: &str) -> wa::Message {
-    let protocol = wa::message::ProtocolMessage {
-        key: MessageField::some(wa::MessageKey {
-            remote_jid: Some(chat.to_string()),
-            from_me: Some(true),
-            id: Some(id.to_string()),
-            ..Default::default()
-        }),
-        r#type: Some(wa::message::protocol_message::Type::MESSAGE_EDIT),
-        edited_message: MessageField::some(rich_msg.clone()),
-        ..Default::default()
-    };
-    wa::Message {
-        bot_forwarded_message: MessageField::some(wa::message::FutureProofMessage {
-            message: MessageField::some(wa::Message {
-                protocol_message: MessageField::some(protocol),
-                ..Default::default()
-            }),
-        }),
-        ..Default::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // 4. prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`)
 // ---------------------------------------------------------------------------
@@ -835,6 +807,26 @@ mod tests {
     }
 
     // ---------- AIRich ----------
+
+    #[test]
+    fn ai_rich_classified_as_text_bukan_media() {
+        // Regresi inti: `botForwardedMessage` dulu jatuh ke default media →
+        // stanza `type="media"` tanpa `mediatype`, server ACK, klien render
+        // kosong. Klasifikasi wajib text (upstream whatsapp-rust #1366).
+        let msg = rich_ai_to_message(
+            &RichAi {
+                submessages: vec![AiSubMessage::Teks { teks: "halo".into() }],
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(
+            wacore::send::stanza_type_from_message(&msg),
+            "text",
+            "AIRich wajib text, bukan media"
+        );
+        assert_eq!(wacore::send::media_type_from_message(&msg), None);
+    }
 
     #[test]
     fn ai_rich_context_score_and_bot_jid_follow_the_proven_contract() {

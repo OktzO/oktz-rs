@@ -234,11 +234,9 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     let rich = RichAi {
         // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
         // `submessages` kosong dan yang tampil murni kartu HTML.
-        // `await aiRich.send(...)` (`ytplay.js:905`) = AIRich, kirim stanza
-        // edit seperti `.ai`.
+        // `await aiRich.send(...)` (`ytplay.js:905`) = AIRich, satu stanza.
         submessages: Vec::new(),
         sections: vec![section_html(&judul_header(judul), &html)],
-        kirim_edit: true,
         ..Default::default()
     };
     Reply::TabelAi(Box::new(rich)).with_reaction("✅")
@@ -376,7 +374,7 @@ mod tests {
     const INFO_B64: &str = "ABEiM0RVZneImaq7zN3u/ySRS+noY6Ay7XJ1nsZrbPP+2RcuGwwaev1qt4NlUA72hdBgn3XNiSl7QfGCo62X8B9A/hxp+1z3KaAFgGgptf1W9l6yzPe64HY5MMw0+o0UIV9n44ophBe+83JkcPivUaDXq2VdkgkvfkNkCj8KBaSrAXnP+WsnSmzRTPJUDJp/Ho+m4WSj/2N97wh2sdHfkQ==";
 
     #[test]
-    fn kartu_player_meminta_stanza_edit() {
+    fn kartu_player_satu_stanza_tanpa_edit() {
         // Urutan: cari → cdn/info/download 360p → poster → cdn/info/download 720p.
         let info = format!(r#"{{"data":"{INFO_B64}"}}"#);
         let http = Stub::urut(vec![
@@ -393,8 +391,8 @@ mod tests {
         let Reply::TabelAi(rich) = balasan.without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
-        // `ytplay.js:905` — `aiRich.send` = AIRich, kirim stanza edit.
-        assert!(rich.kirim_edit, "kartu player harus meminta edit");
+        // `ytplay.js:905` — `aiRich.send` = AIRich, satu stanza tanpa edit.
+        assert_eq!(rich.sections.len(), 1, "kartu player hanya satu section HTML");
     }
 
     #[test]

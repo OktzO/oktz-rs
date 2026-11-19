@@ -204,7 +204,6 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     // `aiRich.send(m.chat, { quoted: m })` (`ai.js:137`) — kartu mengutip
     // pesan pemicu, sama seperti pesan balasan biasa di JS.
     rich.quoted = true;
-    rich.kirim_edit = true;
     Reply::TabelAi(Box::new(rich))
 }
 
@@ -668,7 +667,7 @@ Penutup."##;
             &rich.submessages[3],
             AiSubMessage::Teks { teks } if teks == "Penutup."
         ));
-        assert!(rich.quoted && rich.kirim_edit);
+        assert!(rich.quoted);
     }
 
     #[test]

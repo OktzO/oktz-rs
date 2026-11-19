@@ -115,7 +115,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           sistem `[tag]` berwarna per subsistem; mati otomatis saat pipe.
 // v0.2.59 — `.play2`: timeout unduh audio 60 dtk + pesan galat memuat sebab
 //           tiap tahap; launcher memasang ulang `bin/ffmpeg` yang terpotong.
-export const VERSI_BIN = "v0.2.59";
+// v0.2.60 — AIRich (`.ai`, `.ytplay`, play2) akhirnya muncul di chat: stanza
+//           `botForwardedMessage` salah diklasifikasi `media` tanpa
+//           `mediatype` sehingga server ACK tapi klien render kosong.
+export const VERSI_BIN = "v0.2.60";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

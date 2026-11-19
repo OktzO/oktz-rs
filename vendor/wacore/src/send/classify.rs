@@ -56,6 +56,10 @@ pub(crate) fn unwrap_message(msg: &wa::Message) -> &wa::Message {
         newsletter_admin_profile_message,
         newsletter_admin_profile_message_v2,
         poll_creation_message_v4,
+        // WA Web tidak mengklasifikasi wrapper ini, tapi menurun ke pesan
+        // dalamnya (upstream whatsapp-rust #1366). Tanpa ini AIRich jadi
+        // `type="media"` tanpa `mediatype` → server ACK, klien render kosong.
+        bot_forwarded_message,
     );
     if let Some(dsm) = msg.device_sent_message.as_option()
         && let Some(inner) = dsm.message.as_option()
@@ -107,6 +111,10 @@ pub fn stanza_type_from_message(msg: &wa::Message) -> &'static str {
         || msg.newsletter_follower_invite_message_v2.is_set()
         || msg.message_history_notice.is_set()
         || msg.album_message.is_set()
+        || msg.rich_response_message.is_set()
+        // Wrapper tanpa isi: WA Web menjawab text; dengan isi, unwrap di atas
+        // sudah menurun dan pesan dalam yang menentukan tipe.
+        || msg.bot_forwarded_message.is_set()
         // Payment family. WA Web's typeAttributeFromProtobuf leaves these at the media
         // default, but media-without-mediatype is dropped by the server (so is a bare
         // "pay" stanza); text is what delivers and renders on Android.
@@ -164,7 +172,16 @@ pub fn media_type_from_message(msg: &wa::Message) -> Option<&'static str> {
     // WA Web's mediaTypeFromProtobuf treats a top-level lottieStickerMessage as a
     // terminal "sticker" and does NOT recurse into it (unlike typeAttributeFromProtobuf,
     // which unwraps it via getUnwrappedProtobufMessage). Check before the shared unwrap.
-    if msg.lottie_sticker_message.is_set() {
+    // `mediaTypeFromProtobuf` tidak memuat wrapper `bot_forwarded_message`,
+    // padahal unwrap bersama menuruninya. Lottie di dalam wrapper harus tetap
+    // "sticker"; kalau tidak, stanza keluar `media` tanpa mediatype.
+    if msg.lottie_sticker_message.is_set()
+        || msg
+            .bot_forwarded_message
+            .as_option()
+            .and_then(|w| w.message.as_option())
+            .is_some_and(|inner| inner.lottie_sticker_message.is_set())
+    {
         return Some("sticker");
     }
 

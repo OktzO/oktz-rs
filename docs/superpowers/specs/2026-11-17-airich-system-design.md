@@ -1,0 +1,262 @@
+# Sistem AIRich Rust — desain
+
+Tanggal: 2026-11-17
+Status: disetujui 2026-11-17
+Cakupan: `plugin/src/ai/ai.rs`, `plugin/src/search/ytplay.rs`,
+`plugin/src/search/play2.rs`, `lib/oktz-plugin-api/`, `lib/oktz-wa/`
+
+## Niat
+
+Plugin `.ai`, `.ytplay`, dan `.play2` di ourin-md mengirim kartu lewat
+`AIRich` (`src/lib/builder.js`). Port Rust sudah punya amplop wire-nya,
+tetapi lapisan isi belum lengkap: link/sitasi/LaTeX tidak jadi inline
+entity, blok kode tidak jadi submessage kode ber-highlight, dan `.play2`
+ikut mengirim stanza edit yang di JS tidak ada.
+
+Tujuan: **perilaku yang dilihat user sama dengan ourin-md untuk ketiga
+plugin itu**, dengan amplop wire yang sudah terbukti render.
+
+## Keputusan yang sudah dikunci bukti
+
+Amplop tidak diubah. Nilainya sudah diverifikasi ke sumber luar:
+
+| Field | Nilai | Alasan |
+|---|---|---|
+| `botJid` | `867051314767696@bot` | JID asli Meta AI (Baileys PR #2857, `ai-groups.js`). `0@bot` placeholder. |
+| `forwardingScore` | 1 | v4.6 & v4.7 |
+| `forwardOrigin` | 4 (`META_AI`) | v4.6 & v4.7 |
+| `quotedType` | `EXPLICIT` saat quoted | `builder.js:1489`, v4.7 |
+| `botResponseId` | UUID v4 per build | v4.7 |
+| `verificationMetadata` | **tidak dikirim** | README ruby-baileys: proof palsu = `FAILED` = kartu termasker; tanpa proof = `UNKNOWN` = aman |
+| `richResponseSourcesMetadata` | tidak dikirim | v4.7 menghapusnya |
+| `unifiedResponse.data` | byte JSON (bukan ASCII base64) | protobufjs `writer.bytes` men-decode base64 |
+| stanza ke-2 | `protocolMessage type=14` di dalam `botForwardedMessage` | "unified response baru tergambar setelah stanza kedua" (README ruby-baileys; NIXCODE v4.7) |
+
+`messageType: 1` dan `botResponseId` tetap. `PreparedRich` tidak disentuh
+(tidak dipakai plugin mana pun), tetapi tidak dijadikan contoh.
+
+## Non-goal
+
+- **Tidak menambah alias bahasa** (`js`→`javascript`, `ts`→`typescript`,
+  `py`→`python`, `sh`→`bash`). JS tidak punya alias; parity ketat diikut
+  apa adanya walau blok ` ```js ` tidak dapat highlight keyword.
+  Perbaikan hanya bila muncul bug nyata saat pengujian owner, sebagai
+  commit terpisah dengan `ponytail:` + alasan + test deviasi.
+- Tidak menambah API AIRich yang tidak dipakai ketiga plugin:
+  `addImage`, `addVideo`, `addReels`, `addProduct`, `addPost`,
+  `addSource`, `addTip`, `addSuggest`, `notification`/
+  `sessionTransparency`, `setTitle`/`setSubtitle`/`setBody`/`setFooter`,
+  `loadFrom`, streaming.
+- Tidak mengubah scraper (`gemini`, `youtube`), isi HTML player, atau
+  teks plugin.
+- Tidak menyentuh `ourin-md/` dan tidak mengubah `scripts/paritas-audit.py`.
+
+## Anti-goal
+
+- Kartu berubah bentuk di klien yang sebelumnya render.
+- `.play2` kehilangan audio/voice-note fallback.
+- Section dibangun di dua tempat dan bisa menyimpang lagi.
+
+## Pendekatan
+
+Dua opsi disodorkan:
+
+- **A. Permukaan yang dipakai saja + `addSection` mentah** — teks, kode,
+  tabel, kutipan, flag include. Semua kebutuhan ketiga plugin, tanpa kode
+  spekulatif. **Dipilih.**
+- B. Seluruh API AIRich 4.6/4.7. Ditolak: 2–3x kerja, tidak ada pemakai.
+
+Cara membangun: satu modul builder di `oktz-plugin-api` yang meniru
+metode `AIRich.addText/addCode/addTable` (submessage + section sekaligus),
+supaya plugin tidak lagi menyusun JSON section sendiri.
+
+Konten mengikuti **ourin-md v4.6** (sumber perilaku ketiga plugin);
+amplop mengikuti v4.7 yang terbukti render. Hybrid ini disengaja: yang
+dilihat user (section + teks) sama dengan JS lama, sedangkan envelope
+memakai kontrak yang paint di klien.
+
+## Bagian yang dibangun
+
+### 1. `oktz_plugin_api::airich` (baru)
+
+`extract_ie` — port `builder.js:40-212`:
+
+- `[label](url)` → hyperlink; `[label](!url)` → `is_trusted: false`;
+  `[](url)` → citation; `[txt|w|h|fh|pad]<url>` → LaTeX.
+- Key: `NIXEL_HYPERLINK_{n}`, `NIXEL_CITATION_{n}`, `NIXEL_LATEX_{n}`.
+- Teks hasil: `{{key}}...{{/key}}`.
+- Entity: `GenAIInlineLinkItem`, `GenAISearchCitationItem`,
+  `GenAILatexItem` persis `createIE`.
+- Bug-for-bug: stack `[`, escape `\[`, `continue` saat jenis dimatikan
+  (teks asli dibiarkan), `depth` untuk url berkurung, trim label/url,
+  `Number(x) || default` untuk LaTeX.
+- Iterasi per `char`; hasil sama dengan index UTF-16 JS karena pemisah
+  yang relevan semuanya ASCII.
+
+`tokenize_kode` — port `builder.js:1540-2203`:
+
+- Peta kata kunci 12 bahasa (javascript, typescript, python, java, golang,
+  c, cpp, php, rust, html, bash, markdown).
+- `text`/`txt`/`plaintext`/kosong → satu token `DEFAULT`.
+- Aturan token sama: whitespace, komentar `//` (dan `#` untuk python/bash),
+  string `"'\``, angka `[0-9._]`, identifier `[a-zA-Z0-9_$]`
+  (+ `-` css, `:` html), method bila diikuti `(`, css `prop:`, html
+  `<tag>`.
+- `lang.toLowerCase()` untuk lookup kata kunci dan kelas identifier;
+  `lang` mentah untuk cabang css/html. Token bersebelahan dengan jenis
+  sama digabung.
+- Hasil: `Vec<KodeToken>` (`isi`, `jenis`) + konversi ke
+  `{content, type}` dengan `DEFAULT|KEYWORD|METHOD|STR|NUMBER|COMMENT`
+  (`STR`, bukan `STRING`).
+
+Builder di `impl RichAi`:
+
+```rust
+pub fn teks(&mut self, teks: &str) -> &mut Self;       // addText
+pub fn kode(&mut self, bahasa: &str, kode: &str);      // addCode
+pub fn tabel(&mut self, baris: Vec<Vec<String>>);      // addTable
+pub fn section(&mut self, section: Value);             // addSection mentah
+```
+
+- `teks`: submessage `Teks { teks: extracted }` — `builder.js:1048-1051`
+  mengirim teks SETELAH `extractIE` (bukan markdown asli); section
+  `{text: extracted, inline_entities?, __typename:
+  GenAIMarkdownTextUXPrimitive}`.
+- `kode`: submessage `Kode { bahasa, blok }` + section
+  `{language, code_blocks, __typename: GenAICodeUXPrimitive}`.
+- `tabel`: padding sel ke lebar maksimum dulu (seperti `toTableMetadata`),
+  lalu:
+  - submessage `Tabel { judul: "", baris: padded, heading: true }`
+  - section `{rows: [{is_header, cells, markdown_cells?}], __typename:
+    GenATableUXPrimitive}` dengan `markdown_cells` hanya bila ada sel
+    ber-entity.
+
+### 2. Model (`oktz-plugin-api::rich`)
+
+`AiSubMessage` menjadi enum:
+
+```rust
+pub enum AiSubMessage {
+    Teks { teks: String },
+    Tabel { judul: String, baris: Vec<Vec<String>>, heading: bool },
+    Kode { bahasa: String, blok: Vec<KodeToken> },
+}
+
+pub struct KodeToken { pub isi: String, pub jenis: Highlight }
+pub enum Highlight { Default, Keyword, Method, Str, Number, Comment }
+```
+
+`RichAi`:
+
+```rust
+pub struct RichAi {
+    pub submessages: Vec<AiSubMessage>,
+    pub sections: Vec<serde_json::Value>,
+    pub disclaimer: String,   // default "" — selalu ditulis
+    pub quoted: bool,
+    pub skor: Option<u32>,
+    pub kirim_edit: bool,     // default false
+}
+```
+
+- `disclaimer` berubah dari `Option<String>` ke `String` karena kedua
+  lineage JS selalu menulis `messageDisclaimerText` (walau `""`).
+- `kirim_edit` memisahkan AIRich (`true`) dari kartu play2 hand-rolled
+  (`false`). Bukan opsi bebas: nilainya ditentukan jalur JS masing-masing.
+
+### 3. Wire (`oktz-wa::rich`)
+
+- `ai_submessages` mencocokkan enum:
+  - `Teks` → `messageType 2`, `messageText`.
+  - `Tabel` → `messageType 4`, `tableMetadata {title, rows}`, `isHeading`
+    hanya baris pertama.
+  - `Kode` → `messageType 5`, `codeMetadata {codeLanguage, codeBlocks}`.
+- `ai_outer` selalu menulis `message_disclaimer_text: Some(...)`.
+- `escape_ascii_7f` menjadi `stringify_escaped`: iterasi **UTF-16 code
+  unit** agar emoji menjadi `\ud83d\ude80` seperti JS
+  (`JSON.stringify` lalu replace `[\u007f-\uffff]`). Nilai JSON tetap
+  valid; yang diperbaiki hanya byte parity.
+
+### 4. Pipeline
+
+`deliver_reply` hanya mengirim stanza edit bila
+`Reply::TabelAi(ai)` dan `ai.kirim_edit`. `.play2` tidak lagi mengirim
+edit. Reaksi/urutan lain tidak berubah.
+
+### 5. Plugin
+
+- `ai.rs`: `blocks_ke_reply` memakai `RichAi::teks/kode/tabel`;
+  `quoted = true`, `kirim_edit = true`. Blok teks kosong tetap dilewati
+  (deviasi sadar: pesan kosong ditolak WA).
+- `ytplay.rs`: `kirim_edit = true`; hanya `section()` seperti sekarang.
+- `play2.rs`: `kirim_edit = false` (default); `disclaimer` tetap `""`,
+  `skor: Some(999)`, `quoted: false`.
+
+## Test
+
+1. `extract_ie`: teks polos, hyperlink, untrusted, citation, LaTeX,
+   escape `\[`, dua link, label bersarang, bracket tak tertutup, emoji
+   sebelum link, flag dimatikan.
+2. `tokenize_kode`: js (keyword/method/string/number/komentar), python
+   `#`, css `prop:`, html `<div>`, `text` → satu `DEFAULT`, bahasa tak
+   dikenal, penggabungan token.
+3. Section builder: JSON persis (key order) untuk teks+link, tabel
+   ber-link (`markdown_cells` hanya saat perlu), kode.
+4. Wire: submessage `messageType 5` + `codeMetadata`; `isHeading` baris
+   isi `None`; disclaimer `""`; emoji ter-escape sebagai surrogate pair.
+5. Pipeline: AIRich mengirim edit; play2 tidak.
+6. Oracle: fungsi `extractIE`/`tokenizer` disalin apa adanya dari
+   `ourin-md/src/lib/builder.js` ke skrip Node sementara; keluaran JSON
+   disalin ke test dengan komentar sumber (pola yang sudah dipakai
+   `v2_sections_byte_for_byte_match_the_js_oracle`). Oracle membandingkan
+   **submessages dan sections**, termasuk submessage teks yang berisi
+   sentinel `{{NIXEL_…}}` setelah `extractIE`.
+7. Regresi: `cargo test --release` (semua test lama), lalu
+   `cargo clippy --release --all-targets`.
+
+## Risiko
+
+- **Kartu yang sudah render bisa berubah**: perubahan isi hanya menambah
+  `inline_entities`/`markdown_cells` dan mengganti submessage kode — hal
+  yang memang dilakukan JS. Amplop tidak berubah.
+- **Emoji escape** mengubah byte `unifiedResponse.data`; nilainya sama
+  setelah di-parse. Diuji round-trip.
+- **`AiSubMessage` enum** menyentuh ~15 literal di test/`main.rs`;
+  kompilasi akan menangkap semua yang terlewat.
+- **`.play2` tanpa edit**: sesuai JS. Kalau ternyata kartu play2 butuh
+  edit di klien tertentu, cukup set `kirim_edit = true` di satu tempat.
+
+## Yang diserahkan ke builder
+
+- Nama/penempatan persis modul `airich` dan apakah helper diekspor publik.
+- Bentuk test oracle (skrip sementara vs vektor hardcoded).
+- Urutan pengerjaan dan pemecahan commit.
+
+## Adendum 2026-11-19 — akar kartu tidak pernah muncul
+
+Laporan owner pasca-v0.2.58: `.ai` hanya reaksi, kartu tidak tampil sama
+sekali. Ternyata bukan isi `AIRich`, melainkan klasifikasi stanza di
+`vendor/wacore/src/send/classify.rs`: `botForwardedMessage` tidak di-unwrap
+dan `richResponseMessage` tidak punya cabang, jadi stanza keluar
+`type="media"` TANPA `mediatype`. Server tetap ACK; semua penerima
+me-render kosong. Ini persis kegagalan yang dilaporkan upstream
+`oxidezap/whatsapp-rust` PR #1366 dan `vinikjkkj/zapo` #272 → #273.
+
+Perbaikan (mengikuti upstream #1366):
+
+- `bot_forwarded_message` masuk daftar `unwrap_message`, sehingga pesan
+  dalam yang menentukan tipe; `rich_response_message` dan wrapper kosong
+  dijawab `text`.
+- Lottie di dalam wrapper tetap `sticker` (kalau tidak: `media` tanpa
+  `mediatype`).
+- Test di `vendor/wacore/src/send/tests.rs` + regression test
+  `ai_rich_classified_as_text_bukan_media` di `lib/oktz-wa/rich.rs`.
+
+Klaim lama di dokumen ini bahwa kartu baru tergambar setelah stanza
+`protocolMessage type=14` **salah**. Tipe 14 = `MESSAGE_EDIT`; ruby-baileys
+memakainya untuk update streaming, bukan syarat render. ourin-md tidak
+pernah mengirimnya. Karena itu `RichAi.kirim_edit`,
+`rich_ai_edit_to_message`, dan pengiriman stanza edit dihapus — `.ai` dan
+`.ytplay` kini satu stanza, sama seperti JS. Perbaikan yang sama juga
+menghidupkan kartu V2/prepared rich/play2 karena semuanya memakai
+`botForwardedMessage`.

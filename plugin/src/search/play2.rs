@@ -809,7 +809,7 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     );
     let rich = RichAi {
         // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
-        // "", score 999, tidak mengutip pemicu, tanpa stanza edit.
+        // "", score 999, tidak mengutip pemicu, satu stanza.
         submessages: vec![AiSubMessage::Teks {
             teks: format!("{title} - {artist}"),
         }],
@@ -817,7 +817,6 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         disclaimer: Some(String::new()),
         quoted: false,
         skor: Some(999),
-        kirim_edit: false,
     };
 
     // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`
@@ -1138,7 +1137,6 @@ mod tests {
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
-        assert!(!rich.kirim_edit, "play2 pakai sendMusicPlayer, bukan AIRich");
         let AiSubMessage::Teks { teks } = &rich.submessages[0] else {
             panic!("harus submessage teks");
         };

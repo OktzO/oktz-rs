@@ -137,7 +137,9 @@ pub enum AiSubMessage {
 /// AI rich — kontrak ruby-baileys `AIRich` (`MessageBuilder/index.js:2174-2380`),
 /// bukan `AIRich` ourin-md. Alasan: kontrak ruby-baileys/rich-webui/play2
 /// yang terbukti render (botResponseId SELALU ada, botJid
-/// `867051314767696@bot`, TANPA `richResponseSourcesMetadata`, + sendEdit).
+/// `867051314767696@bot`, TANPA `richResponseSourcesMetadata`). Satu stanza
+/// saja — `sendEdit` ruby-baileys adalah edit streaming (`MESSAGE_EDIT`),
+/// bukan syarat render (ourin-md tidak mengirimnya).
 ///
 /// `ponytail:` `RichAi.bot_response_id`/`bot_jid` dihapus — bukan lagi opsi,
 /// melainkan bagian kontrak tetap (`ai_outer`). Kalau butuh variasi, tambah
@@ -157,7 +159,6 @@ pub struct RichAi {
     /// Override `forwardingScore` context dalam — play2 `sendMusicPlayer`
     /// (`play2.js:932`) pakai 999, bukan 1.
     pub skor: Option<u32>,
-    pub kirim_edit: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -221,7 +222,6 @@ mod tests {
             disclaimer: Some("d".into()),
             quoted: false,
             skor: None,
-            kirim_edit: false,
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),
