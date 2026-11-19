@@ -84,8 +84,6 @@ const MAX_ORIGINAL_AUDIO_SIZE: usize = MAX_ORIGINAL_AUDIO_MB * 1024 * 1024;
 const MAX_COMPRESSED_AUDIO_MB: usize = 6;
 const MAX_COMPRESSED_AUDIO_SIZE: usize = MAX_COMPRESSED_AUDIO_MB * 1024 * 1024;
 
-const MAX_BASE64_AUDIO_BYTES: usize = 8 * 1024 * 1024;
-
 /* LIRIK (`play2.js:104-215`). */
 
 /// `play2.js:104` — `parseLrcTimestamp`. Menolak `seconds >= 60`.
@@ -561,15 +559,29 @@ fn kompres_audio(input: &[u8]) -> Result<Vec<u8>, String> {
 /// ffmpeg tanpa menyentuh env global.
 type Kompresor = fn(&[u8]) -> Result<Vec<u8>, String>;
 
-/// `createMusicPlayer` (`play2.js:506-887`) versi ringkas tapi fungsional:
-/// poster, title/artist, `<audio>` dari `data:audio/ogg;base64,...`, dan
-/// lirik sinkron dari JSON base64 (`timeupdate` menyorot baris aktif).
-/// Placeholder SVG sama dengan JS ketika poster kosong (`:510-512`).
+/// Poster bawaan kalau thumbnail kosong/gagal — sama dengan `createMusicPlayer`
+/// (`play2.js:510-512`).
+pub(crate) const POSTER_PLACEHOLDER: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzFhMGQxMiIvPjx0ZXh0IHg9IjIwMCIgeT0iMjEwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TUFJTiBQQ0xAYVlFUlI8L3RleHQ+PC9zdmc+";
+
+/// Batas muatan HTML primitif yang diterima klien. Capture pesan nyata
+/// menulis "native limit is 60000" (`Vanta-effect/lib/richhtml.js:25`);
+/// port whatsmeow membatasi 64 KiB (`kotonehara/rich_html.go:17`). Di atas
+/// batas itu klien menampilkan "versi WhatsApp Anda tidak mendukungnya".
+pub(crate) const MAX_HTML_PAYLOAD_BYTES: usize = 60 * 1024;
+
+/// `createMusicPlayer` (`play2.js:506-887`) versi Rust: poster, judul/artis,
+/// durasi, dan daftar lirik.
+///
+/// `ponytail:` audio TIDAK lagi ditanam sebagai `data:audio/ogg;base64,...`
+/// seperti JS. Lagu penuh (±0,5 MB base64) melewati
+/// [`MAX_HTML_PAYLOAD_BYTES`] dan klien MENOLAK SELURUH kartu — bukan cuma
+/// mematikan audionya. Audio penuh tetap dikirim sebagai voice note di pesan
+/// terpisah. Tanam audio lagi hanya kalau bisa dipangkas < ~40 KB
+/// (mis. potongan preview), bukan seekor lagu.
 pub(crate) fn player_html(
     title: &str,
     artist: &str,
     durasi: &str,
-    audio_src: &str,
     poster: &str,
     lyrics: &[Baris],
 ) -> String {
@@ -577,16 +589,23 @@ pub(crate) fn player_html(
     let safe_artist = escape_html(artist);
     let safe_dur = escape_html(durasi);
     let poster = if poster.is_empty() {
-        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzFhMGQxMiIvPjx0ZXh0IHg9IjIwMCIgeT0iMjEwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TUFJTiBQQ0xAYVlFUlI8L3RleHQ+PC9zdmc+"
+        POSTER_PLACEHOLDER
     } else {
         poster
     };
     let poster = escape_attr(poster);
-    let lirik_json: Vec<serde_json::Value> = lyrics
-        .iter()
-        .map(|b| json!({ "time": b.time, "text": b.text }))
-        .collect();
-    let lirik_b64 = base64_encode(serde_json::to_string(&lirik_json).unwrap_or_default().as_bytes());
+    // Lirik dirender diam (tanpa `<script>`): tidak ada audio di kartu, jadi
+    // tidak ada `timeupdate` untuk menyorot baris.
+    let mut lirik = String::new();
+    if lyrics.is_empty() {
+        lirik.push_str(r#"<div class="ln">Lirik belum tersedia untuk lagu ini.</div>"#);
+    } else {
+        for b in lyrics {
+            lirik.push_str(r#"<div class="ln">"#);
+            lirik.push_str(&escape_html(&b.text));
+            lirik.push_str("</div>");
+        }
+    }
     format!(
         r#"<style>
 *{{box-sizing:border-box;-webkit-tap-highlight-color:transparent}}
@@ -598,62 +617,32 @@ body{{margin:0;background:#1a0d12;color:#fff;font-family:Arial,Helvetica,sans-se
 .poster img{{width:100%;height:100%;object-fit:cover;display:block}}
 .title{{font-size:17px;font-weight:600;line-height:1.3}}
 .artist{{font-size:12px;color:#b9b1b6;margin-top:3px}}
-.lyrics{{height:82px;overflow-y:auto;margin:10px 0;font-size:11px;line-height:1.5}}
-.ln{{color:rgba(255,255,255,.45);padding:2px 0}}
-.ln.on{{color:#fff;font-weight:700;font-size:12px}}
-.bar{{height:4px;border-radius:4px;background:rgba(255,255,255,.22);cursor:pointer;margin-bottom:6px}}
-.fill{{height:100%;width:0;background:#fff;border-radius:4px}}
-.time{{display:flex;justify-content:space-between;font-size:11px;color:#b9b1b6;margin-bottom:12px}}
-.ctrl{{display:flex;justify-content:center;gap:18px;align-items:center}}
-button{{width:52px;height:52px;border-radius:50%;background:#fff;color:#12070b;border:none;cursor:pointer;font-size:20px}}
+.lyrics{{max-height:132px;overflow-y:auto;margin:10px 0;font-size:11px;line-height:1.5}}
+.ln{{color:rgba(255,255,255,.75);padding:2px 0}}
+.time{{display:flex;justify-content:space-between;font-size:11px;color:#b9b1b6;margin-bottom:10px}}
+.note{{font-size:11px;color:#b9b1b6;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}}
 </style>
 <div class="wrap"><div class="player"><div class="content">
 <div class="poster"><img src="{poster}" alt="{safe_title}"></div>
 <div class="title">{safe_title}</div>
 <div class="artist">{safe_artist}</div>
-<div class="lyrics" id="ly"></div>
-<div class="bar" id="bar"><div class="fill" id="fill"></div></div>
-<div class="time"><span id="cur">0:00</span><span>{safe_dur}</span></div>
-<div class="ctrl"><button id="btn" aria-label="Play">▶</button></div>
-</div></div></div>
-<audio id="au" preload="metadata" src="{audio_src}"></audio>
-<script>
-(function(){{
-'use strict';
-var au=document.getElementById('au'),btn=document.getElementById('btn'),
-fill=document.getElementById('fill'),cur=document.getElementById('cur'),
-ly=document.getElementById('ly'),bar=document.getElementById('bar'),lines=[],els=[];
-try{{
-var bin=atob('{lirik_b64}'),by=new Uint8Array(bin.length);
-for(var i=0;i<bin.length;i++)by[i]=bin.charCodeAt(i);
-lines=JSON.parse(new TextDecoder('utf-8').decode(by));
-}}catch(e){{lines=[];}}
-function fmt(s){{if(!isFinite(s)||s<0)s=0;var m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}}
-function render(){{
-ly.innerHTML='';els=[];
-if(!lines.length){{ly.innerHTML='<div class="ln">Lirik belum tersedia untuk lagu ini.</div>';return;}}
-var f=document.createDocumentFragment();
-lines.forEach(function(l){{var d=document.createElement('div');d.className='ln';d.textContent=l.text||'♪';f.appendChild(d);els.push(d);}});
-ly.appendChild(f);
-}}
-render();
-var act=-1;
-function upd(){{
-var t=au.currentTime||0,d=au.duration||0;
-cur.textContent=fmt(t);
-if(d>0)fill.style.width=(t/d*100)+'%';
-var ix=-1;for(var i=0;i<lines.length;i++){{if(lines[i].time<=t)ix=i;else break;}}
-if(ix!==act){{act=ix;els.forEach(function(e,i){{e.classList.toggle('on',i===ix);}});if(ix>=0&&els[ix])els[ix].scrollIntoView({{block:'center'}});}}
-}}
-btn.addEventListener('click',function(){{if(au.paused){{au.play();}}else{{au.pause();}}}});
-au.addEventListener('play',function(){{btn.textContent='❚❚';}});
-au.addEventListener('pause',function(){{btn.textContent='▶';}});
-au.addEventListener('timeupdate',upd);
-au.addEventListener('ended',function(){{act=-1;upd();}});
-bar.addEventListener('click',function(e){{var d=au.duration||0;if(d<=0)return;var r=bar.getBoundingClientRect();au.currentTime=(e.clientX-r.left)/r.width*d;upd();}});
-}})();
-</script>"#
+<div class="lyrics">{lirik}</div>
+<div class="time"><span>Durasi</span><span>{safe_dur}</span></div>
+<div class="note">🎧 Lagu lengkap dikirim sebagai pesan suara tepat di atas kartu ini.</div>
+</div></div></div>"#
     )
+}
+
+/// `player_html` dengan poster dilepas kalau muatannya masih melewati batas
+/// klien ([`MAX_HTML_PAYLOAD_BYTES`]). Jaring pengaman, bukan jalur utama:
+/// poster ±20 KB dan lirik satu lagu ±3 KB, jadi normalnya langsung muat.
+fn player_html_aman(title: &str, artist: &str, durasi: &str, poster: &str, lyrics: &[Baris]) -> String {
+    let html = player_html(title, artist, durasi, poster, lyrics);
+    if html.len() <= MAX_HTML_PAYLOAD_BYTES {
+        html
+    } else {
+        player_html(title, artist, durasi, "", lyrics)
+    }
 }
 
 /// Section HTML `GenAIaeacdsnwHtmlPrimitive` — `sendMusicPlayer`
@@ -782,31 +771,23 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         return Err("Audio compress terlalu besar".to_string());
     }
 
-    // `data:audio/ogg;base64,...` melebihi 8 MB → batas pesan WA.
-    let base64_len = kompresi.len().div_ceil(3) * 4;
-    if base64_len > MAX_BASE64_AUDIO_BYTES {
-        return Err(
-            "Audio Base64 masih terlalu besar, kurangi bitrate FFMPEG.".to_string(),
-        );
-    }
-
     // `sendMusicPlayer(sock, m.chat, html, "${title} - ${artist}")`
-    // (`play2.js:1098`): poster `getThumb` → `imageSrc`, audio
-    // `data:audio/ogg;base64` dari buffer kompresi, lirik sinkron di
-    // player HTML browser.
+    // (`play2.js:1098`): kartu memuat poster `getThumb` → `imageSrc` dan
+    // lirik; audio penuh dikirim sebagai voice note (lihat `Reply::sequence`
+    // di bawah), bukan ditanam di HTML — alasannya di [`player_html`].
     let poster = poster_base64(ctx.http.as_ref(), &video.thumbnail);
-    let audio_src = format!(
-        "data:audio/ogg;base64,{}",
-        base64_encode(&kompresi)
-    );
-    let html = player_html(
+    let html = player_html_aman(
         title,
         artist,
         &format_duration(duration_sec),
-        &audio_src,
         &poster,
         &synced,
     );
+    if html.len() > MAX_HTML_PAYLOAD_BYTES {
+        // Mestinya tidak tercapai (poster sudah dilepas di `player_html_aman`),
+        // tapi jangan pernah kirim kartu yang bakal ditolak klien.
+        return Err("Kartu HTML terlalu besar untuk klien WhatsApp.".to_string());
+    }
     let rich = RichAi {
         // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
         // "", score 999, tidak mengutip pemicu, satu stanza.
@@ -1149,8 +1130,14 @@ mod tests {
         let payload = prim["payload"].as_str().expect("payload html");
         assert!(matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
         assert!(payload.contains("Lagu Uji"), "{payload}");
-        assert!(payload.contains("data:audio/ogg;base64,"), "{payload}");
-        assert!(payload.contains("atob("), "lirik sinkron dari JSON base64");
+        // Kartu tidak lagi menanam audio: lagu penuh ±0,5 MB melewati batas
+        // muatan primitif HTML klien (~60 KiB).
+        assert!(!payload.contains("data:audio"), "audio tidak ditanam lagi");
+        assert!(
+            payload.len() <= MAX_HTML_PAYLOAD_BYTES,
+            "muatan {} > batas {MAX_HTML_PAYLOAD_BYTES}",
+            payload.len()
+        );
 
         let seen = http.seen.lock().unwrap().clone();
         assert!(
@@ -1188,8 +1175,8 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
             panic!("harus sequence");
         };
-        // Tanpa lirik: player HTML tetap dikirim, script-nya menampilkan
-        // "Lirik belum tersedia" dari JSON kosong.
+        // Tanpa lirik: kartu HTML tetap dikirim dengan baris "Lirik belum
+        // tersedia".
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
@@ -1229,26 +1216,20 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations().tanpa_reaksi() else {
             panic!("harus sequence");
         };
-        // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8):
-        // JSON base64 di payload memuat time 0/8/16.
+        // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8); kartu
+        // merender tiap baris sebagai `<div class="ln">`, urut.
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
         let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
             .as_str()
             .expect("payload html");
-        let b64 = payload
-            .split("atob('")
-            .nth(1)
-            .and_then(|s| s.split('\'').next())
-            .expect("lirik base64 di payload");
-        let json: Vec<serde_json::Value> =
-            serde_json::from_slice(&decode_base64_test(b64)).unwrap();
-        assert_eq!(json[0]["time"], serde_json::json!(0.0));
-        assert_eq!(json[0]["text"], serde_json::json!("satu"));
-        assert_eq!(json[1]["time"], serde_json::json!(8.0));
-        assert_eq!(json[2]["time"], serde_json::json!(16.0));
-        assert_eq!(json[2]["text"], serde_json::json!("tiga"));
+        let pos = ["satu", "dua", "tiga"].map(|t| {
+            payload
+                .find(&format!("<div class=\"ln\">{t}</div>"))
+                .unwrap_or_else(|| panic!("baris {t:?} tidak ada: {payload}"))
+        });
+        assert!(pos[0] < pos[1] && pos[1] < pos[2], "urutan lirik: {pos:?}");
     }
 
     #[test]
@@ -1496,11 +1477,22 @@ mod tests {
 
     #[test]
     fn player_html_memakai_judul_yang_diescape_dan_placeholder_poster() {
-        let html = player_html("<b>A</b>", "B & C", "3:33", "data:audio/ogg;base64,YQ==", "", &[]);
+        let html = player_html("<b>A</b>", "B & C", "3:33", "", &[]);
         assert!(html.contains("&lt;b&gt;A&lt;/b&gt;"), "{html}");
         assert!(html.contains("B &amp; C"), "{html}");
         assert!(html.contains("data:image/svg+xml;base64,"), "placeholder SVG");
-        assert!(html.contains("data:audio/ogg;base64,YQ=="), "{html}");
+        assert!(html.contains("Lirik belum tersedia"), "{html}");
+        assert!(!html.contains("<audio"), "audio tidak ditanam: {html}");
+        assert!(!html.contains("<script"), "tanpa script: {html}");
+    }
+
+    #[test]
+    fn player_html_aman_membuang_poster_yang_membuat_muatan_kelebihan() {
+        let besar = format!("data:image/jpeg;base64,{}", "A".repeat(MAX_HTML_PAYLOAD_BYTES));
+        let html = player_html_aman("T", "A", "3:33", &besar, &[]);
+        assert!(html.len() <= MAX_HTML_PAYLOAD_BYTES, "{}", html.len());
+        assert!(html.contains("data:image/svg+xml;base64,"), "poster diganti placeholder");
+        assert!(html.contains(">T</div>"), "judul tetap ada: {html}");
     }
 
     #[test]

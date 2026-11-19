@@ -8,9 +8,16 @@
 //! `wss://stream.kanara.my.id/?url=…`.
 //!
 //! Kartu HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan section
-//! `FOAHtmlPrimitiveDemoDONOTUSE` — sama seperti `aiRich.addSection(...)
-//! ; aiRich.send` (`ytplay.js:891-905`): HANYA section HTML, tanpa
-//! submessage teks (kartu JS tidak menampilkan ringkasan di luar player).
+//! `GenAIaeacdsnwHtmlPrimitive` — bentuk `aiRich.addSection(...) ; aiRich.send`
+//! (`ytplay.js:891-905`), tapi typenamenya BUKAN `FOAHtmlPrimitiveDemoDONOTUSE`
+//! yang dipakai JS: capture pesan nyata yang bekerja
+//! (`Vanta-effect/lib/richhtml.js:24`, 2026-11-18) dan empat implementasi
+//! publik lain memakai `GenAIaeacdsnwHtmlPrimitive`, sementara `*DEMO*`
+//! hanya muncul di contoh mainan. TANPA submessage teks (kartu JS tidak
+//! menampilkan ringkasan di luar player).
+//!
+//! Muatan HTML dibatasi `play2::MAX_HTML_PAYLOAD_BYTES` (~60 KiB, batas asli
+//! klien): poster dibuang kalau masih kelebihan.
 //!
 //! `ponytail:` streaming WebSocket `wss://stream.kanara.my.id/?url=…`
 //! (`ytplay.js:879`, `startVideoStream`) tidak bisa dicapai dari API plugin
@@ -29,7 +36,7 @@
 use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
-use super::play2::{cari_video, poster_base64};
+use super::play2::{MAX_HTML_PAYLOAD_BYTES, POSTER_PLACEHOLDER, cari_video, poster_base64};
 
 /// `ytplay.js:849-851` — judul/link kosong.
 pub(crate) fn tanpa_judul(prefix: &str) -> String {
@@ -126,7 +133,8 @@ function gantiQ(u,btn){{const t=vid.currentTime;vid.src=u;vid.onloadedmetadata=(
     )
 }
 
-/// Section `FOAHtmlPrimitiveDemoDONOTUSE` — `ytplay.js:892-904`.
+/// Section kartu HTML — bentuk `ytplay.js:892-904` dengan primitive
+/// `GenAIaeacdsnwHtmlPrimitive` (lihat catatan modul).
 /// `view_model.title` = `titleHeader` (`YOUTUBE PLAY - <judul>`).
 pub(crate) fn section_html(title_header: &str, payload: &str) -> serde_json::Value {
     json!({
@@ -136,7 +144,7 @@ pub(crate) fn section_html(title_header: &str, payload: &str) -> serde_json::Val
             "__typename": "GenAISingleLayoutViewModel",
             "title": title_header,
             "primitive": {
-                "__typename": "FOAHtmlPrimitiveDemoDONOTUSE",
+                "__typename": "GenAIaeacdsnwHtmlPrimitive",
                 "trusted_sources": [],
                 "payload": payload.trim(),
             }
@@ -230,7 +238,26 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         .ok()
         .and_then(|v| v.get("url").and_then(|u| u.as_str()).map(str::to_string))
         .unwrap_or_default();
-    let html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster, &hd_url);
+    let mut html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster, &hd_url);
+    if html.len() > MAX_HTML_PAYLOAD_BYTES {
+        // Poster ±20 KB; kalau masih kelebihan, kirim kartu tanpa poster
+        // daripada menyerahkan payload yang bakal ditolak klien.
+        html = build_player_html(
+            judul,
+            channel,
+            &durasi,
+            direct_url,
+            &ws_url,
+            POSTER_PLACEHOLDER,
+            &hd_url,
+        );
+    }
+    if html.len() > MAX_HTML_PAYLOAD_BYTES {
+        // Jalur yang mestinya tidak pernah tercapai: poster sudah dibuang dan
+        // sisa HTML ±3 KB. Balas teks gagal, jangan kirim kartu yang ditolak.
+        return Reply::text(gagal("Kartu HTML terlalu besar untuk klien WhatsApp."))
+            .with_reaction("☢");
+    }
     let rich = RichAi {
         // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
         // `submessages` kosong dan yang tampil murni kartu HTML.
@@ -463,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    fn section_html_membawa_typename_foa_dan_judul_header() {
+    fn section_html_membawa_primitive_html_dan_judul_header() {
         let s = section_html("YOUTUBE PLAY - Lagu", "<div>x</div>");
         assert_eq!(
             s["__typename"],
@@ -471,7 +498,7 @@ mod tests {
         );
         assert_eq!(
             s["view_model"]["primitive"]["__typename"],
-            serde_json::json!("FOAHtmlPrimitiveDemoDONOTUSE")
+            serde_json::json!("GenAIaeacdsnwHtmlPrimitive")
         );
         assert_eq!(
             s["view_model"]["primitive"]["payload"],

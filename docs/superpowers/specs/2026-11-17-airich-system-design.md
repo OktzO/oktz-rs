@@ -299,3 +299,45 @@ Sisa risiko: `.ytplay` di JS memakai `messageId` acak
 (`AIRich.send`), jadi belum pernah terbukti render di klien mana pun;
 `.ytplay` Rust sekarang ikut memakai `botResponseId` dan perlu retest
 perangkat.
+
+## Adendum 2026-11-19 (3) — batas muatan primitif HTML + typename demo
+
+Setelah ID stanza disamakan, `.play2`/`.ytplay` **masih** "tidak
+mendukung", sementara `.ai` dan `.ping2` normal (`.ping2` bahkan sudah
+membuktikan klien benar-benar merender `unifiedResponse.sections`:
+`submessages`-nya kosong). Jadi bug-nya spesifik primitif HTML.
+
+Bukti dari implementasi publik + capture pesan nyata:
+
+- Batas muatan HTML asli klien ~60 KiB. Capture pesan nyata 2026-11-18
+  menulis "native limit is 60000" (`Vanta-effect/lib/richhtml.js:25`);
+  port whatsmeow memakai `maxRichHTMLPayloadBytes = 64 << 10`
+  (`kotonehara/rich_html.go:17`). Di atas batas, klien menampilkan
+  "versi WhatsApp Anda tidak mendukungnya" untuk **seluruh** kartu.
+- Diukur di sini: `player_html` `.play2` **563 941 B** (audio lagu penuh
+  `data:audio/ogg;base64,...` = 560 KB) — jauh di atas batas. `ytplay`
+  **25 453 B** (poster 20 KB) — di bawah batas, jadi batas bukan
+  penyebabnya.
+- Penyebab `.ytplay` yang lain: typenamenya `FOAHtmlPrimitiveDemoDONOTUSE`
+  (nama "DEMO" — di repo publik hanya muncul di contoh mainan), sedangkan
+  capture nyata + 4 implementasi lain memakai `GenAIaeacdsnwHtmlPrimitive`.
+- `messageSecret` BUKAN syarat: Baileys hanya menyuntiknya di
+  `generateWAMessageContent` (`Utils/messages.js:543-546`); jalur
+  `relayMessage` mentah memakai `encodeWAMessage` (`Utils/generics.js:59`)
+  tanpa suntikan, dan capture nyata di atas juga tanpa `messageSecret`.
+
+Perbaikan:
+
+- `.play2`: kartu TIDAK menanam audio lagi (lirik dirender statis, tanpa
+  `<script>`); audio penuh tetap dikirim sebagai voice note yang sudah ada.
+  Tambah `MAX_HTML_PAYLOAD_BYTES = 60 KiB` + `player_html_aman` (buang
+  poster kalau kelebihan) dan guard di handler.
+- `.ytplay`: primitive diganti `GenAIaeacdsnwHtmlPrimitive`; muatan
+  dibatasi `MAX_HTML_PAYLOAD_BYTES` (poster dibuang kalau kelebihan,
+  jatuh ke placeholder).
+
+Catatan desain yang belum diambil: WebView primitif HTML hanya ada di
+klien Android dan **tidak punya akses jaringan** (catatan `zaileys`), jadi
+`<video src=googlevideo>`/`<audio src=...>` di dalam kartu tidak bisa
+streaming. Untuk `ytplay`, memutar video sebaiknya lewat pesan video biasa
+(`Reply::Video`, seperti `playvid`), bukan kartu HTML.
