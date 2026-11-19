@@ -260,3 +260,42 @@ pernah mengirimnya. Karena itu `RichAi.kirim_edit`,
 `.ytplay` kini satu stanza, sama seperti JS. Perbaikan yang sama juga
 menghidupkan kartu V2/prepared rich/play2 karena semuanya memakai
 `botForwardedMessage`.
+
+## Adendum 2026-11-19 (2) — `.ai` tampil, kartu HTML tidak
+
+Setelah klasifikasi stanza dibetulkan, `.ai` benar-benar tampil sebagai
+kartu AIRich. Dua plugin lain tetap gagal dengan gelembung *"versi
+WhatsApp Anda tidak mendukungnya"*, dan **tidak ada kartu sama sekali**:
+`.play2` dan `.ytplay` — keduanya pemakai primitif HTML
+(`GenAIaeacdsnwHtmlPrimitive` / `FOAHtmlPrimitiveDemoDONOTUSE`).
+
+Bukti yang mengunci arah:
+
+- Reaksi ✅ tetap muncul dan log bersih → seluruh urutan terkirim sukses.
+  Jadi bukan kegagalan upload/kirim; klien yang menolak merender.
+- Amplop `.play2` di-encode ulang di Rust dan dibandingkan byte-per-byte
+  dengan `proto.Message.encode` Baileys 7.0.0-rc14: **identik** kecuali
+  UUID `response_id` (termasuk urutan kunci JSON, `forwardingScore: 999`,
+  `forwardOrigin: 4`, `deviceListMetadata: {}`, `messageType: 1/2`).
+  Jadi isi `richResponseMessage`/`unifiedResponse` bukan penyebabnya.
+- Satu-satunya delta yang tersisa vs JS `sendMusicPlayer`
+  (`play2.js:941`) adalah **ID stanza**: JS memakai
+  `relayMessage(jid, msg, { messageId: responseId })`, Rust memakai ID
+  acak baru.
+
+Perbaikan: `MessageSender::send_with_id` (default delegasi ke
+`send_with_result`, jadi stub lama tetap aman). `deliver` memakai
+`mci.botMetadata.botResponseId` sebagai ID stanza untuk semua balasan
+AIRich, dan `ClientSender` menurunkan itu ke
+`SendOptions::with_message_id`. Dengan begitu `response_id` di JSON
+unified = `botResponseId` amplop = ID stanza, persis yang diterima klien
+dari JS. `.ai` tidak terpengaruh (primitif teks/markdown/tabel tidak
+butuh pengikatan respons).
+
+Test: `kartu_ai_dikirim_dengan_id_sama_dengan_bot_response_id`
+(`lib/oktz-wa/pipeline.rs`).
+
+Sisa risiko: `.ytplay` di JS memakai `messageId` acak
+(`AIRich.send`), jadi belum pernah terbukti render di klien mana pun;
+`.ytplay` Rust sekarang ikut memakai `botResponseId` dan perlu retest
+perangkat.

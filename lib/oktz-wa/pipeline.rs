@@ -1105,6 +1105,22 @@ pub trait MessageSender: Send + Sync {
         })
     }
 
+    /// Kirim dengan ID stanza yang DITENTUKAN. JS
+    /// `relayMessage(jid, msg, { messageId: responseId })` (`play2.js:941`)
+    /// memakai `botResponseId` juga sebagai ID stanza; default di sini
+    /// mendelegasikan ke [`Self::send_with_result`] supaya stub lama tetap
+    /// jalan.
+    fn send_with_id(
+        &self,
+        to: &str,
+        message: wa::Message,
+        extra_nodes: Vec<Node>,
+        message_id: String,
+    ) -> SendMessageBox<'_> {
+        let _ = message_id;
+        self.send_with_result(to, message, extra_nodes)
+    }
+
     /// JID yang dipakai bot untuk MENGALAMATKAN DIRINYA SENDIRI di `chat` —
     /// `contextInfo.participant` saat yang dikutip adalah kiriman bot.
     ///
@@ -1255,6 +1271,54 @@ impl ClientSender {
             chat_timers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+
+    /// Satu jalur kirim untuk [`Self::send_with_result`] dan
+    /// [`Self::send_with_id`]. `message_id` `Some` = kunci stanza memakai ID
+    /// itu (`SendOptions::message_id`), bukan ID buatan klien.
+    fn kirim(
+        &self,
+        to: &str,
+        message: wa::Message,
+        extra_nodes: Vec<Node>,
+        message_id: Option<String>,
+    ) -> SendMessageBox<'_> {
+        let client = self.client.clone();
+        let to = to.to_string();
+        let message_for_result = message.clone();
+        Box::pin(async move {
+            let jid: Jid = to
+                .parse()
+                .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
+            let mut message = message;
+            let exp = self
+                .chat_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&to)
+                .copied()
+                .unwrap_or(0);
+            terapkan_timer_ephemeral(&to, exp, &mut message);
+            let mut opts = if extra_nodes.is_empty() {
+                SendOptions::default()
+            } else {
+                SendOptions::default().with_extra_stanza_nodes(extra_nodes)
+            };
+            if let Some(id) = message_id {
+                opts = opts.with_message_id(id);
+            }
+            let sent = client
+                .send_message_with_options(jid, message, opts)
+                .await
+                .map_err(|e| e.to_string())?;
+            // `SendResult::message_id` (`send/mod.rs:425-429`) — ID stanza
+            // yang benar-benar terbit. Kalau kosong, jangan dikarang:
+            // `TextQuotedPrevious` akan gagal eksplisit.
+            Ok(SentMessage {
+                message_id: sent.message_id,
+                message: message_for_result,
+            })
+        })
+    }
 }
 
 impl MessageSender for ClientSender {
@@ -1304,39 +1368,17 @@ impl MessageSender for ClientSender {
         message: wa::Message,
         extra_nodes: Vec<Node>,
     ) -> SendMessageBox<'_> {
-        let client = self.client.clone();
-        let to = to.to_string();
-        let message_for_result = message.clone();
-        Box::pin(async move {
-            let jid: Jid = to
-                .parse()
-                .map_err(|e| format!("JID tidak valid {to}: {e}"))?;
-            let mut message = message;
-            let exp = self
-                .chat_timers
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .get(&to)
-                .copied()
-                .unwrap_or(0);
-            terapkan_timer_ephemeral(&to, exp, &mut message);
-            let opts = if extra_nodes.is_empty() {
-                SendOptions::default()
-            } else {
-                SendOptions::default().with_extra_stanza_nodes(extra_nodes)
-            };
-            let sent = client
-                .send_message_with_options(jid, message, opts)
-                .await
-                .map_err(|e| e.to_string())?;
-            // `SendResult::message_id` (`send/mod.rs:425-429`) — ID stanza
-            // yang benar-benar terbit. Kalau kosong, jangan dikarang:
-            // `TextQuotedPrevious` akan gagal eksplisit.
-            Ok(SentMessage {
-                message_id: sent.message_id,
-                message: message_for_result,
-            })
-        })
+        self.kirim(to, message, extra_nodes, None)
+    }
+
+    fn send_with_id(
+        &self,
+        to: &str,
+        message: wa::Message,
+        extra_nodes: Vec<Node>,
+        message_id: String,
+    ) -> SendMessageBox<'_> {
+        self.kirim(to, message, extra_nodes, Some(message_id))
     }
 
     /// `client.pn()` / `client.lid()`
@@ -4196,6 +4238,17 @@ impl Pipeline {
                 message: wa::Message::default(),
             });
         }
+        // `sendMusicPlayer` (`play2.js:941`) mengirim kartu dengan
+        // `messageId: responseId` — ID stanza SAMA dengan `botResponseId`
+        // amplop dan `response_id` unified. Klien memakai ID itu untuk
+        // mengikat primitif HTML ke respons bot; beda ID → kartu ditolak
+        // sebagai pesan tak dikenal.
+        let id_kartu = rendered
+            .message
+            .message_context_info
+            .as_option()
+            .and_then(|m| m.bot_metadata.as_option())
+            .and_then(|b| b.bot_response_id.clone());
         match rendered.media {
             Some(pending) => {
                 self.sender
@@ -4208,10 +4261,19 @@ impl Pipeline {
                 })
             }
             None => {
-                self.sender
-                    .send_with_result(chat, rendered.message, rendered.extra_nodes)
-                    .await
-                    .map_err(|e| PipelineError::Other(format!("gagal kirim: {e}")))
+                let sent = match id_kartu {
+                    Some(id) => {
+                        self.sender
+                            .send_with_id(chat, rendered.message, rendered.extra_nodes, id)
+                            .await
+                    }
+                    None => {
+                        self.sender
+                            .send_with_result(chat, rendered.message, rendered.extra_nodes)
+                            .await
+                    }
+                };
+                sent.map_err(|e| PipelineError::Other(format!("gagal kirim: {e}")))
             }
         }
     }
@@ -6621,6 +6683,79 @@ fn group_number_and_long_number_are_rejected() {
         let table = rich_list.submessages[0].table_metadata.as_option().expect("tableMetadata");
         assert_eq!(table.rows.len(), 1, "list V1 tidak punya baris heading");
         assert_eq!(table.rows[0].is_heading, None);
+    }
+
+    /// `play2.js:941` — kartu dikirim dengan `messageId: responseId`, dan
+    /// `botResponseId` amplop adalah ID yang sama. ID stanza TIDAK boleh
+    /// berupa ID acak terpisah seperti pesan biasa.
+    #[tokio::test]
+    async fn kartu_ai_dikirim_dengan_id_sama_dengan_bot_response_id() {
+        use oktz_plugin_api::rich::{AiSubMessage, RichAi};
+        use std::ops::Deref;
+
+        #[derive(Default)]
+        struct IdRec {
+            inner: RecordingSender,
+            ids: Mutex<Vec<String>>,
+        }
+        impl Deref for IdRec {
+            type Target = RecordingSender;
+            fn deref(&self) -> &RecordingSender {
+                &self.inner
+            }
+        }
+        impl MessageSender for IdRec {
+            fn send(&self, to: &str, message: wa::Message, extra: Vec<Node>) -> SendBox<'_> {
+                self.inner.send(to, message, extra)
+            }
+            fn send_with_id(
+                &self,
+                to: &str,
+                message: wa::Message,
+                extra: Vec<Node>,
+                id: String,
+            ) -> SendMessageBox<'_> {
+                self.ids.lock().unwrap().push(id.clone());
+                let to = to.to_string();
+                Box::pin(async move {
+                    self.inner.send(&to, message.clone(), extra).await?;
+                    Ok(SentMessage {
+                        message_id: id,
+                        message,
+                    })
+                })
+            }
+        }
+
+        let plugin = TestPlugin::with_reply(Reply::TabelAi(Box::new(RichAi {
+            submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
+            ..Default::default()
+        })));
+        let sender = Arc::new(IdRec::default());
+        let ctx = StoreContext::new(store_with(&format!("idkartu-{}", n()), "{}"));
+        let p = Arc::new(
+            Pipeline::new(
+                ctx,
+                sender.clone() as Arc<dyn MessageSender>,
+                BOT,
+                ParseOptions::default(),
+            )
+            .with_identity(Identity::default())
+            .with_plugin_lookup(plugin.lookup()),
+        );
+        let m = inbound_n(".kartu", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 10_000).await.unwrap(), Outcome::Sent);
+
+        let ids = sender.ids.lock().unwrap().clone();
+        assert_eq!(ids.len(), 1, "satu kartu = satu kiriman ber-ID");
+        let terkirim = sender.sent.lock().unwrap()[0].1.clone();
+        let response_id = terkirim
+            .message_context_info
+            .as_option()
+            .and_then(|m| m.bot_metadata.as_option())
+            .and_then(|b| b.bot_response_id.clone())
+            .expect("kartu AIRich punya botResponseId");
+        assert_eq!(ids[0], response_id, "ID stanza = botResponseId");
     }
 
     /// Tabel V1 (`Reply::tabel`) tetap jalur lama: tanpa `unifiedResponse`
