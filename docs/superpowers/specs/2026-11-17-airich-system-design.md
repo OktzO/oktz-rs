@@ -679,3 +679,40 @@ Retest owner: `.play2` harus tampil persis oktz-md — tombol play
 memutar lagu di dalam kartu, bar bisa di-seek, lirik menyorot mengikuti
 audio. Kalau WebView menolak autoplay/data-URI audio di build ini
 (belum teruji — probe audio berikutnya), fallback ladder sudah ada.
+
+## Adendum 2026-11-20 (12) — visual OK, AUDIO bisu di WebView WhatsApp
+
+Owner (v0.2.72): kartu player tampil, tapi pencet play **tidak ada
+suara** (diminta memastikan juga terhadap oktz-md).
+
+Verifikasi lokal (bukan tebakan): template `PLAYER_TEMPLATE` Rust
+diekstrak apa adanya, diisi audio sine 6 dtk opus 16k/24kHz/mono (hasil
+`ffmpeg` argumen identik `ARGUMEN_FFMPEG`) sebagai data URI, dijalankan
+di Chromium (puppeteer) — **bunyi normal**: `readyState=4`,
+`duration=6.0065`, setelah klik play `paused=false currentTime=2.44`,
+ikon pause tampil, fill 38%, satu baris lirik aktif, nol error. Artinya
+kode player + data URI opus TIDAK salah; oktz-md juga memakai bentuk
+yang sama. Selisihnya di lingkungan WebView WhatsApp Android
+2.26.45.99 (kemungkinan: media data-URI diblokir/kebijakan media,
+`play()` ditolak, atau kartu di-reload oleh edit susulan sehingga
+audio mati — zaileys mendokumentasikan reload kartu saat keyboard
+dibuka).
+
+Ronde 5 `.cekkartu`: player mini yang MELAPORKAN statusnya sendiri di
+dalam kartu (kotak hijau, 8 event terakhir): readyState/networkState,
+duration, `error.code`+message, event play/pause, hasil `play()`
+(OK/REJECT name+message), muted/volume, tick `currentTime`.
+
+- Z: data URI ogg langsung (tanpa edit) — baseline.
+- AA: Z + edit susulan — uji hipotesis reload membunuh audio.
+- AB: data URI → `fetch` → blob URL dulu — uji blokir skema `data:`
+  (CSP/WebView).
+
+Interpretasi: Z bunyi → biang = edit susulan (lepas dari play2).
+Z `REJECT NotSupportedError` → codec/container ditolak (probe
+WAV/MP3 berikut). `REJECT NotAllowedError` → kebijakan gesture/host.
+`error.code=4` (SRC_NOT_SUPPORTED) → ditto. Semua REJECT sama +
+networkState NO_SOURCE → WebView tidak memuat media lokal sama
+sekali → satu-satunya audio di WhatsApp = voice note (kartu tinggal
+kontrol visual yang menandai "putar lewat pesan suara"), atau AB
+bunyi kalau cuma `data:` yang diblokir.

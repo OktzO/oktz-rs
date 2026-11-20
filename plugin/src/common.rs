@@ -2288,8 +2288,8 @@ mod tests_batch_g {
             // `plugins/anime/autoanimewinbu.js` (isOwner: true).
             "autoanimewinbu",
 
-            // Diagnostik sementara, BUKAN plugin JS: uji 25 variasi payload/
-            // amplop/ukuran kartu HTML AIRich (lihat `tools/cekkartu.rs`).
+            // Diagnostik sementara, BUKAN plugin JS: uji 28 variasi payload/
+            // amplop/ukuran/audio kartu HTML AIRich (lihat `tools/cekkartu.rs`).
             "cekkartu",
         ];
         for m in oktz_plugin_api::all_plugins().iter().map(|p| &p.meta) {
