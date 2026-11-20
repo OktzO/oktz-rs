@@ -2287,6 +2287,10 @@ mod tests_batch_g {
 
             // `plugins/anime/autoanimewinbu.js` (isOwner: true).
             "autoanimewinbu",
+
+            // Diagnostik sementara, BUKAN plugin JS: uji 9 variasi payload
+            // kartu HTML AIRich (lihat `tools/cekkartu.rs`).
+            "cekkartu",
         ];
         for m in oktz_plugin_api::all_plugins().iter().map(|p| &p.meta) {
             if m.is_owner && m.is_enabled {

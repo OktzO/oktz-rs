@@ -375,3 +375,35 @@ acak, baru per pesan) untuk SEMUA balasan AIRich. Test
 penerima hasil `MessageUtils::encode_dm_plaintexts` untuk memastikan
 `messageSecret` dan `botMetadata` dua-duanya sampai (merge reporting
 tidak menghapus salah satunya).
+
+## Adendum 2026-11-19 (5) — kode klien + diagnostik `.cekkartu`
+
+Riset lanjutan membaca kode klien WhatsApp (dump `wa-diff`) dan pengukuran
+di perangkat (repo `elaina-baileys`, `Tederby/Whatsapp-Multi-Bots`):
+
+- `WAWebParseRichResponseMessageProto.js` — jalur yang benar-benar
+  menghasilkan "versi WhatsApp tidak mendukung" (`MSG_TYPE.UNKNOWN`) untuk
+  pengirim nomor biasa: `u(contextInfo)` harus true
+  (`isForwarded === true` DAN `forwardedAiBotMessageInfo.botJid != null`),
+  lalu `if (u(ctx) && !isRichResponseForwardReceivingEnabled()) return
+  UNKNOWN`. Amplop kita sudah memenuhi syarat pertama; `.ai`/`.ping2`
+  render, jadi flag penerimaan di klien owner menyala.
+- `WAWebRichResponseParseUtils.parseUnifiedResponse` = `TextDecoder` +
+  `JSON.parse` **atas byte mentah** `unifiedResponse.data` — jadi JSON
+  mentah kita benar (bukan base64).
+- Batas ukuran: tidak ada validasi di klien; ambang empiris ±1,35 MB
+  (diukur per perangkat). Batas 60 KiB yang dipakai banyak builder cuma
+  tebakan. **Ukuran bukan penyebab.**
+- `data:` gambar justru satu-satunya yang bisa dimuat di WebView primitif;
+  `https://` tidak pernah (walau ada di `trusted_sources`). `<script>` dan
+  `<style>` diterima; `eval`/WASM diblok.
+- `E()` di parser submessages melempar "No fragments parsed" kalau
+  `submessages` kosong — kartu `.ytplay` (tanpa submessage) masuk jalur itu.
+
+Karena kandidat "amplop" sudah tersingkir dan kandidatnya tinggal isi
+payload/renderer, satu perintah diagnostik dibuat: `.cekkartu`
+(`plugin/src/tools/cekkartu.rs`) mengirim sembilan kartu yang hanya
+berbeda satu variabel (A baseline, B `img` data-URI, C `<script>`,
+D `trusted_sources` terisi, E dokumen utuh, F non-ASCII, G payload ~30 KB,
+H section dibungkus + `title`, I `submessages` kosong). Jawaban owner
+(huruf mana yang tampil) menentukan perbaikan tanpa menebak lagi.
