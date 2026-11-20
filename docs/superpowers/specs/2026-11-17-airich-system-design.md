@@ -705,8 +705,18 @@ duration, `error.code`+message, event play/pause, hasil `play()`
 
 - Z: data URI ogg langsung (tanpa edit) — baseline.
 - AA: Z + edit susulan — uji hipotesis reload membunuh audio.
-- AB: data URI → `fetch` → blob URL dulu — uji blokir skema `data:`
-  (CSP/WebView).
+- AB: data URI → `fetch` → blob URL — uji blokir skema `data:`.
+- AC: Web Audio (`decodeAudioData` dari ArrayBuffer atob) — tanpa URL.
+- AD: blob in-document dari atob (bukan fetch) — origin = dokumen.
+
+Sumber persis (Blink `html_media_element.cc`): `IsSafeToLoadURL` →
+`SecurityOrigin::CanReadContent(url)`; dokumen kartu ber-origin OPAQUE
+(WebView memuat HTML mentah), origin opaque tidak bisa membaca URL
+apa pun → `MEDIA_ELEMENT_ERROR: Media load rejected by URL safety
+check`, `code=4`. Bukan codec/CSP/ukuran/edit. Karena itu AC/AD:
+keduanya melewati pemeriksaan URL (AC tanpa URL; AD blob milik origin
+dokumen). Diverifikasi lokal di Chromium: AC `decode OK dur=6.000` +
+tick, AD `OK paused=false` + tick.
 
 Interpretasi: Z bunyi → biang = edit susulan (lepas dari play2).
 Z `REJECT NotSupportedError` → codec/container ditolak (probe

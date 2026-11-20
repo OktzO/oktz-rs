@@ -2288,7 +2288,7 @@ mod tests_batch_g {
             // `plugins/anime/autoanimewinbu.js` (isOwner: true).
             "autoanimewinbu",
 
-            // Diagnostik sementara, BUKAN plugin JS: uji 28 variasi payload/
+            // Diagnostik sementara, BUKAN plugin JS: uji 30 variasi payload/
             // amplop/ukuran/audio kartu HTML AIRich (lihat `tools/cekkartu.rs`).
             "cekkartu",
         ];

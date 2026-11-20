@@ -47,18 +47,29 @@
 //! tangga ukuran 60/128/256/512/768 KB di amplop L: kartu terbesar yang
 //! render = langit-langit nyata; itu menentukan panjang audio yang bisa
 //! ditanam di kartu player (16 kbps opus ≈ 2 KB/detik mentah).
-//! Ronde 5 (adendum 12): player v0.2.72 tampil tapi PLAY tanpa suara.
-//! HTML+audio yang sama TERBUKTI bunyi di Chromium lokal (puppeteer,
-//! data URI opus) → masalah di WebView WhatsApp. Z/AA/AB = player mini
-//! yang MELAPORKAN statusnya sendiri di dalam kartu (error code audio,
-//! hasil `play()`, tick waktu): Z data-URI tanpa edit, AA + edit susulan
-//! (uji reload membunuh audio), AB data-URI diubah ke blob URL dulu.
+//! - Z: data URI ogg langsung (tanpa edit) — baseline.
+//! - AA: Z + edit susulan — uji hipotesis reload membunuh audio.
+//! - AB: data URI → `fetch` → blob URL — uji blokir skema `data:`.
+//!
+//! Hasil owner (v0.2.73): Z/AA/AB `error.code=4`,
+//! "Media load rejected by URL safety check"; AB `fetch REJECT TypeError`.
+//! Itu `HTMLMediaElement::IsSafeToLoadURL` → `SecurityOrigin::CanReadContent`
+//! GAGAL: dokumen kartu ber-origin OPAQUE, jadi SEMUA URL media ditolak di
+//! level origin (bukan codec, bukan CSP media, bukan edit susulan).
+//!
+//! Ronde 6: dua jalur yang tidak lewat URL media sama sekali / membawa
+//! origin dokumen:
+//!
+//! AC. Web Audio: `atob` → ArrayBuffer → `decodeAudioData` → BufferSource
+//!     (tanpa `<audio src>`, tanpa URL → tak tersentuh IsSafeToLoadURL).
+//! AD. blob dibuat IN-DOCUMENT dari `atob` (bukan fetch): origin blob =
+//!     origin dokumen → kandidat lolos `CanReadContent`.
 use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use crate::search::play2::{Baris, base64_encode, player_html};
 
-const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nDua puluh delapan kartu: A–Y (payload/amplop/ukuran), Z/AA/AB (uji AUDIO).\nKhusus Z/AA/AB: pencet tombol ▶ PLAY di kartunya, lalu laporkan (1) ada suara atau tidak, (2) tulisan hijau di bawah tombol — itu diagnosis mandiri player-nya.";
+const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nTiga puluh kartu: A–Y (payload/amplop/ukuran), Z–AD (uji AUDIO).\nKhusus Z–AD: pencet tombol ▶ PLAY di kartunya, lalu laporkan (1) ada suara atau tidak, (2) tulisan hijau di bawah tombol — itu diagnosis mandiri player-nya. Prioritas: AC dan AD.";
 
 /// Opus 6 detik (sine 440 Hz, 16k/24kHz/mono/ogg — argumen ffmpeg yang
 /// sama dengan `.play2`) untuk probe audio Z/AA/AB.
@@ -243,8 +254,94 @@ pub(crate) fn semua_kartu() -> Reply {
         kartu_audio("Z", false, false),
         kartu_audio("AA", false, true),
         kartu_audio("AB", true, false),
+        kartu_audio_wa("AC"),
+        kartu_audio_blob("AD"),
     ])
 }
+
+/// Player mini berbasis **Web Audio** — tanpa URL media sama sekali
+/// (`decodeAudioData` dari ArrayBuffer atob). Melewati
+/// `IsSafeToLoadURL` yang menolak origin opaque.
+fn kartu_audio_wa(huruf: &str) -> Reply {
+    let html = AUDIO_PROBE_WA
+        .replace("__HURUF__", huruf)
+        .replace("__B64__", AUDIO_UJI);
+    kartu_l(huruf, html, |_| {})
+}
+
+/// Player mini `<audio>` dengan blob URL dibuat **in-document** dari atob
+/// (bukan `fetch`): origin blob = origin dokumen, kandidat lolos
+/// `CanReadContent`.
+fn kartu_audio_blob(huruf: &str) -> Reply {
+    let html = AUDIO_PROBE_BLOB
+        .replace("__HURUF__", huruf)
+        .replace("__B64__", AUDIO_UJI);
+    kartu_l(huruf, html, |_| {})
+}
+
+const AUDIO_PROBE_WA: &str = r#"<div style="font:700 18px sans-serif;padding:10px">KARTU __HURUF__ — uji WebAudio</div>
+<button id="p" style="font-size:20px;padding:16px 32px;margin:10px">▶ PLAY</button>
+<div id="s" style="font:12px monospace;padding:10px;background:#000;color:#0f0;white-space:pre-wrap">init</div>
+<script>
+(function(){
+var s=document.getElementById('s'),log=[],ctx=null,buf=null,src=null,t0=0,tick=null;
+function t(x){log.push(x);if(log.length>8)log.shift();s.textContent=log.join('\n');}
+var b64='__B64__';
+function bytes(){var bin=atob(b64),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+var AC=window.AudioContext||window.webkitAudioContext;
+t('AudioContext='+(AC?'ada':'TIDAK ADA'));
+document.getElementById('p').addEventListener('click',function(){
+try{
+if(!AC){t('berhenti: tanpa AudioContext');return;}
+if(!ctx){ctx=new AC();t('ctx='+ctx.state);}
+if(ctx.state==='suspended'){ctx.resume().then(function(){t('resume='+ctx.state);});}
+if(!buf){ctx.decodeAudioData(bytes().buffer,function(b){buf=b;t('decode OK dur='+b.duration.toFixed(3));mulai();},function(e){t('decode GAGAL '+(e&&e.message||e));});}
+else{mulai();}
+}catch(e){t('EXC '+e.name+': '+e.message);}
+});
+function mulai(){
+if(!ctx||!buf){return;}
+try{
+if(src){src.stop();}
+src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);
+var mulaiAt=ctx.currentTime+0.05;src.start(mulaiAt);t0=mulaiAt;
+t('start ctx='+ctx.state+' sampleRate='+ctx.sampleRate);
+if(tick){clearInterval(tick);}
+tick=setInterval(function(){t('wb='+(ctx.currentTime-t0).toFixed(2));},500);
+}catch(e){t('EXC start '+e.name+': '+e.message);}
+}
+})();
+</script>
+"#;
+
+const AUDIO_PROBE_BLOB: &str = r#"<div style="font:700 18px sans-serif;padding:10px">KARTU __HURUF__ — uji blob atob</div>
+<button id="p" style="font-size:20px;padding:16px 32px;margin:10px">▶ PLAY</button>
+<div id="s" style="font:12px monospace;padding:10px;background:#000;color:#0f0;white-space:pre-wrap">init</div>
+<audio id="a" preload="metadata"></audio>
+<script>
+(function(){
+var a=document.getElementById('a'),s=document.getElementById('s'),log=[];
+function t(x){log.push(x);if(log.length>8)log.shift();s.textContent=log.join('\n');}
+var b64='__B64__';
+function bytes(){var bin=atob(b64),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+t('rs='+a.readyState+' ns='+a.networkState);
+a.addEventListener('loadedmetadata',function(){t('dur='+a.duration);});
+a.addEventListener('error',function(){t('ERR code='+(a.error?a.error.code:'?')+' '+(a.error?a.error.message:''));});
+a.addEventListener('play',function(){t('event play');});
+a.addEventListener('pause',function(){t('event pause');});
+var tickCount=0;a.addEventListener('timeupdate',function(){if(tickCount++<5)t('t='+a.currentTime.toFixed(2));});
+document.getElementById('p').addEventListener('click',function(){
+try{
+var u=bytes();t('atob len='+u.length);
+var b=new Blob([u],{type:'audio/ogg'});
+var url=URL.createObjectURL(b);t('blob url dibikin');
+a.src=url;
+a.play().then(function(){t('OK paused='+a.paused+' muted='+a.muted+' vol='+a.volume);}).catch(function(e){t('REJECT '+e.name+': '+e.message);});
+}catch(e){t('EXC '+e.name+': '+e.message);}
+});
+})();
+</script>
+"#;
 
 /// Player mini pelapor-status: tombol PLAY + kotak hijau berisi event
 /// audio (error code, hasil `play()`, tick waktu). `blob` = data URI
@@ -325,7 +422,7 @@ fn payload_ukuran(huruf: &str, target: usize) -> String {
     name = "cekkartu",
     alias = ["ujikartu", "airichtest"],
     category = "tools",
-    description = "Diagnostik kartu HTML AIRich (28 variasi payload/amplop/ukuran/audio)",
+    description = "Diagnostik kartu HTML AIRich (30 variasi payload/amplop/ukuran/audio)",
     usage = ".cekkartu",
     example = ".cekkartu",
     cooldown = 5,
@@ -374,10 +471,10 @@ mod tests {
     }
 
     #[test]
-    fn dua_puluh_delapan_kartu_menguji_satu_variabel_per_kartu() {
+    fn tiga_puluh_kartu_menguji_satu_variabel_per_kartu() {
         let r = semua_kartu();
         let list = cards(&r);
-        assert_eq!(list.len(), 28, "A..AB");
+        assert_eq!(list.len(), 30, "A..AD");
         assert!(payload(list[0]).contains("KARTU A"));
         assert!(payload(list[1]).contains("data:image/svg+xml;base64,"), "B gambar");
         assert!(payload(list[2]).contains("<script>"), "C skrip");
@@ -475,6 +572,16 @@ mod tests {
         assert!(list[26].edit_susulan, "AA edit susulan");
         assert!(payload(list[27]).contains("createObjectURL"), "AB blob");
         assert!(!payload(list[25]).contains("createObjectURL"), "Z data URI");
+        // AC: WebAudio — tak ada URL media, decode dari atob.
+        let ac = payload(list[28]);
+        assert!(ac.contains("decodeAudioData"), "AC decode");
+        assert!(ac.contains("AudioContext"), "AC context");
+        assert!(!ac.contains("<audio"), "AC tanpa elemen audio");
+        // AD: blob in-document dari atob (bukan fetch).
+        let ad = payload(list[29]);
+        assert!(ad.contains("new Blob"), "AD blob");
+        assert!(ad.contains("createObjectURL"), "AD object URL");
+        assert!(!ad.contains("fetch("), "AD tanpa fetch");
         for (i, ai) in list.iter().enumerate() {
             if i == 13 {
                 continue; // N typename demo
