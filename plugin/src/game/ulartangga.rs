@@ -17,6 +17,10 @@
 //!
 //! `ponytail:` saat state game + canvas board tersedia, implementasikan ulang
 //! dan tambahkan `pub mod ulartangga;` di `src/game/mod.rs` secara manual.
+//!
+//! Catatan ronde ini: jalur answer handler sudah diisi `Ctx` (store, sessions,
+//! media) oleh pipeline, jadi jawaban teks biasa kini terbaca; sisa blokiran
+//! `drawBoard`/`sendPreview` belum berubah.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

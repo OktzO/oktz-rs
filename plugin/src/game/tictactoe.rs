@@ -1,11 +1,9 @@
 //! `plugins/game/tictactoe.js` — buat/join room TicTacToe di grup.
 //!
-//! `ponytail:` hanya `handler` yang dipindah. `answerHandler` (balasan angka
-//! 1-9, menyerah, deteksi pemenang, hadiah koin) dipanggil router global
-//! lewat `plugin.answerHandler` (`src/handler.js:453`), sedangkan
-//! `PluginEntry` hanya punya satu `handler` — tidak ada tempat untuk fungsi
-//! kedua itu. Akibatnya room yang dibuat di sini belum bisa dimainan; sama
-//! seperti `suitpvp.rs` dan `kyubigame.rs`.
+//! Jawaban angka 1-9 dan `nyerah` ditangani `tictactoe_answer`
+//! (`#[answer_handler]`), dipanggil router global untuk pesan non-command.
+//! Room menyimpan `cells` + `currentTurn` supaya langkah bisa dilanjutkan
+//! lintas pesan.
 //!
 //! `ponytail:` JS menghapus room `WAITING` lewat `setTimeout(..., 300000)`.
 //! Tanpa timer, room yang sudah lewat 5 menit diabaikan saat handler
@@ -17,8 +15,8 @@
 //! retry rate-limit dan `delay()`. `Ctx` sinkron tanpa I/O, jadi retry itu
 //! hilang; isi pesannya tidak berubah.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Map, Value};
+use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
+use serde_json::{Map, Value, json};
 
 use crate::common::{jid_number, now_ms};
 
@@ -175,6 +173,9 @@ fn decide(
             if let Some(obj) = room.as_object_mut() {
                 obj.insert("playerO".into(), serde_json::json!(sender));
                 obj.insert("state".into(), serde_json::json!("PLAYING"));
+                obj.insert("cells".into(), serde_json::json!(fresh_cells()));
+                obj.insert("currentTurn".into(), serde_json::json!(sender));
+                obj.insert("turns".into(), serde_json::json!(0));
             }
             Decision::Joined {
                 player_x: room
@@ -266,6 +267,207 @@ pub fn tictactoe(ctx: Ctx) -> Reply {
         }
         .with_reaction("🎮"),
     }
+}
+
+const WIN_LINES: [[usize; 3]; 8] = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+];
+
+fn room_of(rooms: &Map<String, Value>, sender: &str, chat: &str) -> Option<(String, Value)> {
+    rooms
+        .iter()
+        .find(|(_, r)| {
+            r.get("state").and_then(Value::as_str) == Some("PLAYING")
+                && r.get("chat").and_then(Value::as_str) == Some(chat)
+                && ["playerX", "playerO"]
+                    .iter()
+                    .filter_map(|k| r.get(*k).and_then(Value::as_str))
+                    .any(|p| p == sender)
+        })
+        .map(|(id, r)| (id.clone(), r.clone()))
+}
+
+fn winner_of(cells: &[Value]) -> Option<&'static str> {
+    for line in WIN_LINES {
+        let sym = cells[line[0]].as_str()?;
+        if sym != "X" && sym != "O" {
+            continue;
+        }
+        if line.iter().all(|i| cells[*i].as_str() == Some(sym)) {
+            return Some(if sym == "X" { "X" } else { "O" });
+        }
+    }
+    None
+}
+
+fn koin_of(ctx: &Ctx, jid: &str) -> i64 {
+    ctx.roster
+        .participants
+        .iter()
+        .find(|p| p.jid == jid)
+        .and_then(|p| p.data.get("koin"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+}
+
+/// `answerHandler` (`tictactoe.js:233-334`) — balasan angka 1-9 atau
+/// `nyerah` untuk room yang sedang berjalan.
+#[answer_handler]
+pub fn tictactoe_answer(ctx: Ctx) -> Option<Reply> {
+    let text = ctx.text.trim().to_lowercase();
+    if text.is_empty() {
+        return None;
+    }
+    let (room_id, room) = {
+        let rooms = ctx.session_get(GAMES_KEY)?;
+        room_of(rooms.as_object()?, &ctx.sender, &ctx.chat)?
+    };
+
+    let player_x = room.get("playerX").and_then(Value::as_str)?.to_string();
+    let player_o = room.get("playerO").and_then(Value::as_str)?.to_string();
+    let remove_room = {
+        let rooms = ctx.sessions.clone();
+        let id = room_id.clone();
+        move || {
+            if let Some(map) = rooms
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_mut(GAMES_KEY)
+                .and_then(Value::as_object_mut)
+            {
+                map.remove(&id);
+            }
+        }
+    };
+
+    if matches!(text.as_str(), "nyerah" | "surrender" | "give up") {
+        let winner = if ctx.sender == player_x {
+            player_o.clone()
+        } else {
+            player_x.clone()
+        };
+        remove_room();
+        let text = format!(
+            "🏳️ *MENYERAH!*\n\n@{} menyerah!\n@{} menang! +Rp 500",
+            jid_number(&ctx.sender),
+            jid_number(&winner)
+        );
+        return Some(
+            Reply::Text {
+                text,
+                mentions: vec![winner.clone(), ctx.sender.clone()],
+            }
+            .mutating(vec![Mutation::SetUser {
+                jid: winner.clone(),
+                data: json!({ "koin": koin_of(&ctx, &winner) + 500 }),
+            }])
+            .with_reaction("🏳️"),
+        );
+    }
+
+    let mv = crate::common::parse_int(&text)?;
+    if !(1..=9).contains(&mv) {
+        return None;
+    }
+
+    let current_turn = room
+        .get("currentTurn")
+        .and_then(Value::as_str)
+        .unwrap_or(&player_x);
+    if current_turn != ctx.sender {
+        return Some(Reply::text("❌ Bukan giliranmu!"));
+    }
+
+    let mut cells: Vec<Value> = room
+        .get("cells")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| fresh_cells().into_iter().map(Value::String).collect());
+    let idx = (mv - 1) as usize;
+    if matches!(cells[idx].as_str(), Some("X" | "O")) {
+        return Some(Reply::text("❌ Posisi sudah terisi!"));
+    }
+
+    let symbol = if ctx.sender == player_x { "X" } else { "O" };
+    cells[idx] = json!(symbol);
+    let board_cells: [String; 9] = std::array::from_fn(|i| {
+        cells[i]
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| (i + 1).to_string())
+    });
+    let board = render_board(&board_cells);
+
+    let winner = winner_of(&cells);
+    let full = cells.iter().all(|c| matches!(c.as_str(), Some("X" | "O")));
+
+    if let Some(sym) = winner {
+        let winner_jid = if sym == "X" { &player_x } else { &player_o };
+        let loser = if winner_jid == &player_x {
+            &player_o
+        } else {
+            &player_x
+        };
+        remove_room();
+        let text = format!(
+            "🎉 *GAME OVER!*\n\n{board}\n\n🏆 @{} menang! +Rp 1.000",
+            jid_number(winner_jid)
+        );
+        return Some(
+            Reply::Text {
+                text,
+                mentions: vec![winner_jid.clone(), loser.clone()],
+            }
+            .mutating(vec![Mutation::SetUser {
+                jid: winner_jid.clone(),
+                data: json!({ "koin": koin_of(&ctx, winner_jid) + 1000 }),
+            }])
+            .with_reaction("🎉"),
+        );
+    }
+
+    if full {
+        remove_room();
+        return Some(
+            Reply::Text {
+                text: format!("🤝 *SERI!*\n\n{board}\n\n> Tidak ada pemenang!"),
+                mentions: vec![player_x, player_o],
+            }
+            .with_reaction("🤝"),
+        );
+    }
+
+    let next = if ctx.sender == player_x {
+        player_o.clone()
+    } else {
+        player_x.clone()
+    };
+    let id = room_id.clone();
+    ctx.session_update(GAMES_KEY, |slot| {
+        if let Some(room) = slot.as_object_mut().and_then(|m| m.get_mut(&id)) {
+            room["cells"] = Value::Array(cells.clone());
+            room["currentTurn"] = json!(next);
+            room["turns"] = json!(room.get("turns").and_then(Value::as_i64).unwrap_or(0) + 1);
+        }
+    });
+
+    Some(
+        Reply::Text {
+            text: format!(
+                "🎮 *ᴛɪᴄ ᴛᴀᴄ ᴛᴏᴇ*\n\n{board}\n\n> Giliran: @{}",
+                jid_number(&next)
+            ),
+            mentions: vec![next],
+        }
+        .with_reaction("🎮"),
+    )
 }
 
 #[cfg(test)]
@@ -481,7 +683,10 @@ mod tests {
         run(OTHER, "ruang 2", &s);
         let list = rooms(&s);
         assert_eq!(list.len(), 2, "nama room berbeda → dua room terpisah");
-        assert!(list.iter().all(|(_, r)| r["state"] == serde_json::json!("WAITING")));
+        assert!(
+            list.iter()
+                .all(|(_, r)| r["state"] == serde_json::json!("WAITING"))
+        );
         // Dua perintah berurutan bisa jatuh di milidetik yang sama; kalau key
         // room tidak dibedakan, room pertama tertimpa dan hanya tersisa satu.
         for (id, room) in &list {
@@ -541,12 +746,7 @@ mod tests {
         // karena ceknya strict `>`.
         seed(
             &s,
-            waiting_room(
-                "ttt_1",
-                SENDER,
-                None,
-                now_ms() - ROOM_TTL_MS + 30_000,
-            ),
+            waiting_room("ttt_1", SENDER, None, now_ms() - ROOM_TTL_MS + 30_000),
         );
         let r = run(OTHER, "", &s);
         assert!(
@@ -578,10 +778,10 @@ mod tests {
     }
 
     /// Awalan `ttt_` hanya mengecek "masih dalam game" (`tictactoe.js:158-162`).
-/// Pencarian room yang menunggu (`tictactoe.js:173-178`) tidak memfilter
-/// awalan sama sekali, jadi room waiting milik plugin lain di chat yang sama
-/// tetap di-join.
-#[test]
+    /// Pencarian room yang menunggu (`tictactoe.js:173-178`) tidak memfilter
+    /// awalan sama sekali, jadi room waiting milik plugin lain di chat yang sama
+    /// tetap di-join.
+    #[test]
     fn a_waiting_room_without_the_prefix_is_still_joinable() {
         let s = new_session_store();
         s.lock().unwrap().insert(
@@ -636,7 +836,11 @@ mod tests {
             );
         }
         // `│ c0 │ c1 │ c2 │` = 4 garis tegak per baris sel, 3 baris sel.
-        assert_eq!(board.matches('│').count(), 12, "4 garis tegak per baris × 3 baris");
+        assert_eq!(
+            board.matches('│').count(),
+            12,
+            "4 garis tegak per baris × 3 baris"
+        );
     }
 
     #[test]
@@ -668,5 +872,147 @@ mod tests {
             "nama panjang harus utuh"
         );
         assert_eq!(rooms(&s)[0].1["name"], serde_json::json!(name));
+    }
+
+    fn answer_ctx(sender: &str, text: &str, sessions: &SessionStore) -> Ctx {
+        Ctx {
+            text: text.into(),
+            ..ctx(sender, text, sessions)
+        }
+    }
+
+    fn seeding(sessions: &SessionStore, cells: Value, turn: &str) {
+        sessions.lock().unwrap().insert(
+            GAMES_KEY.into(),
+            serde_json::json!({
+                "ttt_1": {
+                    "id": "ttt_1",
+                    "chat": CHAT,
+                    "playerX": SENDER,
+                    "playerO": OTHER,
+                    "state": "PLAYING",
+                    "cells": cells,
+                    "currentTurn": turn,
+                    "turns": 0,
+                    "createdAt": now_ms(),
+                }
+            }),
+        );
+    }
+
+    #[test]
+    fn a_valid_move_marks_the_cell_and_hands_the_turn_over() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(SENDER, "1", &s)).expect("langkah ditangani");
+        let t = text_of(&r);
+        assert!(t.contains("│ ❌ │ 2️⃣ │ 3️⃣ │"), "{t}");
+        assert!(t.contains("> Giliran: @628999"), "{t}");
+        let room = &rooms(&s)[0].1;
+        assert_eq!(room["cells"][0], serde_json::json!("X"));
+        assert_eq!(room["currentTurn"], serde_json::json!(OTHER));
+    }
+
+    #[test]
+    fn a_move_outside_your_turn_is_rejected() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(OTHER, "1", &s)).expect("ditolak");
+        assert!(text_of(&r).contains("Bukan giliranmu"));
+    }
+
+    #[test]
+    fn an_occupied_cell_is_rejected() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["X", "2", "3", "4", "5", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(SENDER, "1", &s)).expect("ditolak");
+        assert!(text_of(&r).contains("Posisi sudah terisi"));
+    }
+
+    #[test]
+    fn a_winning_move_ends_the_game_and_rewards_the_winner() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["X", "X", "3", "O", "O", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(SENDER, "3", &s)).expect("menang");
+        let t = text_of(&r);
+        assert!(t.contains("GAME OVER!"), "{t}");
+        assert!(t.contains("@628111 menang"), "{t}");
+        assert!(rooms(&s).is_empty(), "room selesai harus dibuang");
+        let m = r.mutations();
+        assert_eq!(m.len(), 1);
+        match &m[0] {
+            Mutation::SetUser { jid, data } => {
+                assert_eq!(jid, SENDER);
+                assert_eq!(
+                    data["koin"],
+                    serde_json::json!(1000),
+                    "roster kosong → 0+1000"
+                );
+            }
+            other => panic!("harus SetUser, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_full_board_without_a_line_is_a_tie() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            // X menang? tidak: barisan penuh tanpa tiga simbol sama.
+            serde_json::json!(["X", "O", "X", "X", "O", "O", "O", "X", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(SENDER, "9", &s)).expect("seri");
+        assert!(text_of(&r).contains("SERI!"), "{}", text_of(&r));
+        assert!(rooms(&s).is_empty());
+    }
+
+    #[test]
+    fn surrender_ends_the_room_and_pays_the_other_player() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        let r = tictactoe_answer(answer_ctx(SENDER, "nyerah", &s)).expect("menyerah");
+        let t = text_of(&r);
+        assert!(t.contains("MENYERAH!"), "{t}");
+        assert!(t.contains("@628999 menang!"), "{t}");
+        assert!(rooms(&s).is_empty());
+        match &r.mutations()[0] {
+            Mutation::SetUser { jid, data } => {
+                assert_eq!(jid, OTHER);
+                assert_eq!(data["koin"], serde_json::json!(500));
+            }
+            other => panic!("harus SetUser, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_non_numeric_text_in_a_live_room_is_ignored() {
+        let s = new_session_store();
+        seeding(
+            &s,
+            serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+            SENDER,
+        );
+        assert!(tictactoe_answer(answer_ctx(SENDER, "halo", &s)).is_none());
     }
 }

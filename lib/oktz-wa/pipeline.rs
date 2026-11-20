@@ -4742,7 +4742,45 @@ impl Pipeline {
         // tidak pernah menyentuh rantai ini.
         if !parse_command(&body, &self.parse_opts).is_command {
             let router = Router::new(&*self.ctx, self.parse_opts.clone(), now_ms);
-            if let Some(reply) = router.answer(&caller, &body).await {
+            let src = self.plugin_src.clone();
+            if let Some(reply) = router
+                .answer_with(&caller, &body, move |c| src.fill(c))
+                .await
+            {
+                let (reply, mutations) = reply.into_parts();
+                if !mutations.is_empty() {
+                    if let Err(e) = self.ctx.apply(&mutations, now_ms) {
+                        tracing::error!(
+                            error = %e,
+                            chat = %caller.chat,
+                            sender = %caller.sender,
+                            mutations = mutations.len(),
+                            "gagal menyimpan mutasi answer handler; balasan tidak dikirim"
+                        );
+                        ui::status_kirim(
+                            m.info.timestamp,
+                            false,
+                            &nama_tampil,
+                            ui_t0.elapsed().as_secs_f64() * 1000.0,
+                            Some("simpan data gagal, balasan dibatalkan"),
+                        );
+                        return Ok(Outcome::StoreWriteFailed);
+                    }
+                    for m in &mutations {
+                        if let Mutation::SetSetting { key, .. } = m
+                            && (key == "premiumUsers" || key == "partnerUsers")
+                        {
+                            let s = self.ctx.settings_entry();
+                            let arr = |k: &str| {
+                                s.get(k)
+                                    .and_then(Value::as_array)
+                                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                    .unwrap_or_default()
+                            };
+                            self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
+                        }
+                    }
+                }
                 let target = reply_target(m, &caller.sender);
                 if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;

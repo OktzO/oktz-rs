@@ -21,13 +21,10 @@
 //!   sana (`oktz-wa/src/pipeline.rs:2999-3008`, penolakan di `:1647-1649`) —
 //!   seluruh balasan jadi error. Sticker pack dikirim sebagai `Sequence`
 //!   TANPA reaksi `✅`; mengirim sticker lebih penting daripada reaksi.
-//! - `stickerlyAnswerHandler` (`stickerly.js:74-112`) ikut diport, tapi BELUM
-//!   BISA JALAN di produksi: `Router::answer` membangun `Ctx` lewat
-//!   `oktz-router/src/lib.rs:170-196` tanpa pembungkus `PluginCtxSource::fill`
-//!   (`oktz-wa/src/pipeline.rs:2151-2170`), jadi `user_data` Null dan
-//!   `http`/`sessions` default; selain itu pipeline jalur answer
-//!   (`oktz-wa/src/pipeline.rs:2881-2889`) tidak menulis mutasi balasan.
-//!   Perbaikannya ada di crate `lib/` — di luar berkas ini.
+//! - `stickerlyAnswerHandler` (`stickerly.js:74-112`) diport sebagai
+//!   `answer_handler`. Pipeline `oktz-wa` mengisi `Ctx` (store, sessions,
+//!   http) untuk jalur answer lewat `PluginCtxSource::fill`, dan mutasi
+//!   balasan ikut ditulis, jadi balasan angka/batal sudah terbaca.
 //!
 //! `delete user.stickerly_session` (`stickerly.js:86,95,107`) ditulis sebagai
 //! `null` karena `Mutation::SetUser` menggabung, bukan menghapus key. Untuk

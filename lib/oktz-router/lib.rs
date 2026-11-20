@@ -24,9 +24,7 @@ pub use gates::{
     consume_auto_work, is_spamming,
 };
 pub use mode::{BotMode, DenyMode, GroupBotMode, GroupOverrides, ModeSettings};
-pub use permission::{
-    AccessGrant, Caller, DenyReason, GroupState, PermissionInput, UserState,
-};
+pub use permission::{AccessGrant, Caller, DenyReason, GroupState, PermissionInput, UserState};
 
 use oktz_plugin_api::{Ctx, PluginEntry, Reply, all_answer_handlers};
 use std::sync::Arc;
@@ -110,7 +108,9 @@ impl<'a, C: RouterContext> Router<'a, C> {
         } else {
             None
         };
-        if let Err(reason) = mode::check_mode(caller, &self.ctx.mode_settings(), overrides, self.now_ms) {
+        if let Err(reason) =
+            mode::check_mode(caller, &self.ctx.mode_settings(), overrides, self.now_ms)
+        {
             return Decision::DeniedMode(reason);
         }
 
@@ -184,6 +184,17 @@ impl<'a, C: RouterContext> Router<'a, C> {
     /// di sini, sama seperti JS: `handleGameAnswer` dipanggil dari
     /// `try` yang menutupi galat, dan memang tidak mengecek izin.
     pub async fn answer(&self, caller: &Caller, body: &str) -> Option<Reply> {
+        self.answer_with(caller, body, |_| {}).await
+    }
+
+    /// [`Router::answer`] dengan kesempatan mengisi `Ctx` sebelum rantai
+    /// handler jalan. Pipeline memakai ini untuk store/http/sessions — tanpa
+    /// isi itu answer handler melihat `user_data` Null dan sesi game kosong,
+    /// sehingga balasan user tidak pernah terbaca.
+    pub async fn answer_with<F>(&self, caller: &Caller, body: &str, fill: F) -> Option<Reply>
+    where
+        F: FnOnce(&mut Ctx) + Send + 'static,
+    {
         if all_answer_handlers().is_empty() {
             return None;
         }
@@ -195,7 +206,8 @@ impl<'a, C: RouterContext> Router<'a, C> {
             text: body.to_string(),
             ..parsed
         };
-        let ctx = self.build_ctx(caller, &parsed);
+        let mut ctx = self.build_ctx(caller, &parsed);
+        fill(&mut ctx);
         // JoinError = handler mati sebelum sempat panik-tertangkap → None,
         // paritas try/catch JS (`handler.js:440-473`) yang menelan galat.
         tokio::task::spawn_blocking(move || oktz_plugin_api::run_answer_handlers(ctx))
@@ -367,7 +379,10 @@ mod tests {
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
-        let balasan = r.answer(&caller(), "jawab").await.expect("harus ada yang menjawab");
+        let balasan = r
+            .answer(&caller(), "jawab")
+            .await
+            .expect("harus ada yang menjawab");
         assert_eq!(balasan, oktz_plugin_api::Reply::text("pertama menjawab"));
         assert_eq!(*DITANGANI.lock().unwrap(), vec!["pertama"]);
     }
@@ -393,6 +408,21 @@ mod tests {
         // Command yang tidak dikenal diteruskan apa adanya ke handler.
         assert!(r.answer(&caller(), "/tak-dikenal").await.is_none());
         assert!(DITANGANI.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // `KUNCI_UJI` hanya dipegang tes ini
+    async fn answer_with_runs_the_fill_before_the_handler_chain() {
+        let _kunci = kunci_uji();
+        DITANGANI.lock().unwrap().clear();
+        let s = stub();
+        let r = Router::new(&s, ParseOptions::default(), 1000);
+        // Pipeline mengisi `Ctx` (user_data/sessions/http) lewat closure ini.
+        let balasan = r
+            .answer_with(&caller(), "isian-pipeline", |c| c.text = "jawab".into())
+            .await
+            .expect("fill harus membuat teks cocok");
+        assert_eq!(balasan, oktz_plugin_api::Reply::text("pertama menjawab"));
     }
 
     #[tokio::test]
@@ -477,7 +507,9 @@ mod tests {
             handler: Arc::new(|_| panic!("boom")),
         }));
         let d = r.route(&mut c, ".boom", |_| Some(e)).await;
-        assert!(matches!(d, Decision::Handled(ref rep) if rep.text_body().is_some_and(|t| t.contains("Plugin error"))));
+        assert!(
+            matches!(d, Decision::Handled(ref rep) if rep.text_body().is_some_and(|t| t.contains("Plugin error")))
+        );
     }
 
     #[tokio::test]

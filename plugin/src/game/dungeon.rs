@@ -1,14 +1,11 @@
 //! `plugins/game/dungeon.js` — lobi dungeon interaktif.
 //!
-//! `ponytail:` `dungeon.js` mengekspor `handler` DAN `dungeonAnswerHandler`.
-//! Yang kedua dipanggil router global saat user me-reply (bukan sebuah
-//! command), dan `oktz-plugin-api` hanya punya satu titik masuk: `fn(Ctx)`.
-//! Yang dipindah di sini `handler` — lobi plus pembuatan sesi. Tahap
-//! `encounter` (pilih lokasi, serang, lari) butuh `dungeonAnswerHandler`
-//! dan harus dipasang router sebelum alur ini bisa dilanjutkan.
+//! `dungeon.js` mengekspor `handler` DAN `dungeonAnswerHandler`; yang kedua
+//! diport sebagai `dungeon_answer` (`#[answer_handler]`) — lobi, pilihan
+//! lokasi, dan aksi tempur (`serang`/`lari`/`batal`).
 
-use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
+use serde_json::{Value, json};
 
 /// `SESSION_TIMEOUT` (`dungeon.js:147`) — 5 menit.
 pub(crate) const SESSION_TIMEOUT_MS: i64 = 5 * 60 * 1000;
@@ -130,7 +127,10 @@ pub fn dungeon(ctx: Ctx) -> Reply {
         ("stamina", 100),
         ("maxStamina", 100),
     ] {
-        block.insert(key.into(), serde_json::json!(default_field(rpg, key, default)));
+        block.insert(
+            key.into(),
+            serde_json::json!(default_field(rpg, key, default)),
+        );
     }
     block.insert(
         "dungeon_session".into(),
@@ -147,6 +147,363 @@ pub fn dungeon(ctx: Ctx) -> Reply {
         jid: ctx.sender.clone(),
         data: Value::Object(data),
     })
+}
+
+/// Monster per dungeon, urut `DUNGEONS` (`dungeon.js:20-130`).
+const MONSTERS: [&[&str]; 10] = [
+    &[
+        "Goblin Liar",
+        "Slime Raksasa",
+        "Serigala Malam",
+        "Bandit Hutan",
+    ],
+    &[
+        "Kodok Mutan",
+        "Pohon Berjalan",
+        "Laba-laba Racun",
+        "Viper Rawa",
+    ],
+    &[
+        "Prajurit Tengkorak",
+        "Zombie Kelaparan",
+        "Hantu Penasaran",
+        "Gargoyle Batu",
+    ],
+    &[
+        "Kalajengking Raksasa",
+        "Mummy Bangkit",
+        "Worm Gurun",
+        "Jin Jahat",
+    ],
+    &["Elemental Api", "Golem Magma", "Naga Kecil", "Hellhound"],
+    &["Golem Es", "Raksasa Frost", "Yeti Ganas", "Serigala Salju"],
+    &[
+        "Harpy Petir",
+        "Griffin Liar",
+        "Valkyrie Jatuh",
+        "Golem Angin",
+    ],
+    &[
+        "Kraken Bayi",
+        "Siren Pemikat",
+        "Hiu Hantu",
+        "Leviathan Merah",
+    ],
+    &[
+        "Malaikat Kematian",
+        "Void Walker",
+        "Shadow Fiend",
+        "Behemoth",
+    ],
+    &[
+        "Iblis Merah",
+        "Succubus Mematikan",
+        "Cerberus",
+        "Raja Iblis",
+    ],
+];
+
+/// `(minReward, maxReward, dropChance)` per dungeon (`dungeon.js:20-130`).
+const REWARDS: [(i64, i64, i64); 10] = [
+    (100, 300, 40),
+    (250, 500, 45),
+    (400, 800, 50),
+    (600, 1200, 55),
+    (900, 1700, 60),
+    (1300, 2400, 65),
+    (1800, 3300, 70),
+    (2500, 4500, 75),
+    (3500, 6000, 80),
+    (5000, 10000, 90),
+];
+
+/// `LOOT_TABLE` (`dungeon.js:133-141`).
+const LOOT: [(&str, &str, i64, i64, i64); 7] = [
+    ("iron", "⛏️", 40, 1, 5),
+    ("gold", "🪙", 20, 1, 3),
+    ("diamond", "💎", 5, 1, 2),
+    ("potion", "🧪", 30, 1, 3),
+    ("herb", "🌿", 25, 2, 6),
+    ("leather", "👞", 35, 2, 5),
+    ("mysterybox", "📦", 3, 1, 1),
+];
+
+struct Data {
+    nama: &'static str,
+    level: i64,
+    monsters: &'static [&'static str],
+    min_reward: i64,
+    max_reward: i64,
+    drop_chance: i64,
+}
+
+fn data(id: i64) -> Option<Data> {
+    let idx = DUNGEONS.iter().position(|(i, _, _)| *i == id)?;
+    let (_, nama, level) = DUNGEONS[idx];
+    let (min_reward, max_reward, drop_chance) = REWARDS[idx];
+    Some(Data {
+        nama,
+        level,
+        monsters: MONSTERS[idx],
+        min_reward,
+        max_reward,
+        drop_chance,
+    })
+}
+
+fn clear_session(ctx: &Ctx) -> Mutation {
+    Mutation::SetUser {
+        jid: ctx.sender.clone(),
+        data: json!({ "rpg": { "dungeon_session": null } }),
+    }
+}
+
+fn exp_after(ctx: &Ctx, gain: i64) -> i64 {
+    let old = ctx.user_field("exp").and_then(Value::as_i64).unwrap_or(0);
+    if old == -1 {
+        -1
+    } else {
+        old.saturating_add(gain).clamp(0, 9_000_000_000)
+    }
+}
+
+/// `dungeonAnswerHandler` (`dungeon.js:209-402`) — balasan lokasi atau aksi
+/// tempur, bukan command.
+#[answer_handler]
+pub fn dungeon_answer(ctx: Ctx) -> Option<Reply> {
+    let text = ctx.text.trim().to_lowercase();
+    if text.is_empty() {
+        return None;
+    }
+
+    let sesi = ctx
+        .user_field(SESSION_FIELD)
+        .filter(|v| !v.is_null())?
+        .clone();
+    let now = crate::common::now_ms();
+    let at = sesi.get("time").and_then(Value::as_i64).unwrap_or(0);
+
+    if !session_still_alive(now, at) {
+        return Some(
+            Reply::text(
+                "⏰ *SESI DUNGEON KEDALUWARSA*\n\n> Sesi dungeon kamu sudah hangus \
+                 karena tidak aktif selama 5 menit.",
+            )
+            .with_mutation(clear_session(&ctx)),
+        );
+    }
+
+    let raw_level = crate::common::int_field(&ctx, "level");
+    let level = if raw_level == 0 { 1 } else { raw_level };
+
+    if matches!(text.as_str(), "batal" | "cancel" | "keluar") {
+        return Some(
+            Reply::text("🚪 Kamu berhasil keluar dari Lobi Dungeon dengan selamat.")
+                .with_mutation(clear_session(&ctx)),
+        );
+    }
+
+    match sesi.get("stage").and_then(Value::as_str) {
+        Some("lobi") => {
+            use rand::Rng as _;
+            let choice = crate::common::parse_int(&text)?;
+            let Some(d) = data(choice) else {
+                return Some(Reply::text(format!(
+                    "❌ *PILIHAN TIDAK VALID*\n\n> Dungeon nomor {choice} tidak ditemukan."
+                )));
+            };
+            if level < d.level {
+                return Some(Reply::text(format!(
+                    "🔒 *DUNGEON TERKUNCI*\n\n> Level kamu (*Lv {level}*) belum cukup \
+                     untuk memasuki *{}*.\n> Kamu butuh minimal *Lv {}*.",
+                    d.nama, d.level
+                )));
+            }
+
+            let stamina = ctx
+                .user_field("rpg.stamina")
+                .and_then(Value::as_i64)
+                .unwrap_or(100);
+            if stamina < 30 {
+                return Some(Reply::text(format!(
+                    "⚡ *STAMINA TIDAK CUKUP*\n\nKamu butuh setidaknya *30 stamina* \
+                     untuk masuk.\nSisa stamina kamu saat ini hanya *{stamina}*.\n\n\
+                     > 💡 *Tips:* Gunakan perintah `.rest` atau batalkan dulu (ketik `batal`)."
+                )));
+            }
+
+            let monster = d.monsters[rand::rng().random_range(0..d.monsters.len())];
+            let monster_power = d.level * 10 + rand::rng().random_range(0..30);
+            let sesi_baru = json!({
+                "stage": "encounter",
+                "dungeonId": choice,
+                "dungeonName": d.nama,
+                "levelReq": d.level,
+                "monster": monster,
+                "monsterPower": monster_power,
+                "maxReward": d.max_reward,
+                "minReward": d.min_reward,
+                "dropChance": d.drop_chance,
+                "time": now,
+            });
+            let text = format!(
+                "🚪 *MEMASUKI DUNGEON*\n\nKamu melangkah perlahan ke dalam *{}*...\n\
+                 > ⚡ Stamina berkurang *30*\n\n\
+                 Tiba-tiba, seekor *👹 {monster}* muncul dari kegelapan dan menghadang jalanmu!\n\n\
+                 *⚔️ APA YANG INGIN KAMU LAKUKAN?*\n\
+                 > Balas pesan ini dengan `serang` untuk melawan\n\
+                 > Balas pesan ini dengan `lari` untuk kabur (berisiko)",
+                d.nama
+            );
+            Some(Reply::text(text).with_mutation(Mutation::SetUser {
+                jid: ctx.sender.clone(),
+                data: json!({ "rpg": { "stamina": stamina - 30, "dungeon_session": sesi_baru } }),
+            }))
+        }
+        Some("encounter") => {
+            use rand::Rng as _;
+            let monster = sesi.get("monster").and_then(Value::as_str).unwrap_or("");
+            let monster_power = sesi
+                .get("monsterPower")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let level_req = sesi.get("levelReq").and_then(Value::as_i64).unwrap_or(1);
+            let min_reward = sesi.get("minReward").and_then(Value::as_i64).unwrap_or(0);
+            let max_reward = sesi.get("maxReward").and_then(Value::as_i64).unwrap_or(0);
+            let drop_chance = sesi.get("dropChance").and_then(Value::as_i64).unwrap_or(0) as f64;
+            let health = ctx
+                .user_field("rpg.health")
+                .and_then(Value::as_i64)
+                .unwrap_or(100);
+
+            if matches!(text.as_str(), "serang" | "attack" | "lawan") {
+                let attack = ctx
+                    .user_field("rpg.attack")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(10);
+                let koin = ctx.user_field("koin").and_then(Value::as_i64).unwrap_or(0);
+                let user_power = attack + level * 4 + rand::rng().random_range(0..20);
+                let win = user_power >= monster_power || rand::rng().random::<f64>() > 0.4;
+
+                if win {
+                    let exp_reward = (150.0 * (level_req as f64 / 2.0)
+                        + (rand::rng().random::<f64>() * 200.0).floor())
+                        as i64;
+                    let gold = if max_reward > min_reward {
+                        rand::rng().random_range(min_reward..max_reward)
+                    } else {
+                        min_reward
+                    };
+
+                    let mut inventory = ctx
+                        .user_field("inventory")
+                        .and_then(Value::as_object)
+                        .cloned()
+                        .unwrap_or_default();
+                    let mut loot_lines = Vec::new();
+                    for (item, icon, chance, qty_min, qty_max) in LOOT {
+                        if rand::rng().random::<f64>() * 100.0
+                            < chance as f64 * (drop_chance / 50.0)
+                        {
+                            let qty = rand::rng().random_range(qty_min..=qty_max);
+                            let lama = inventory.get(item).and_then(Value::as_i64).unwrap_or(0);
+                            inventory.insert(item.into(), json!(lama + qty));
+                            loot_lines.push(format!("{icon} {item} (x{qty})"));
+                        }
+                    }
+
+                    let mut report = "🎉 *KEMENANGAN GEMILANG!*\n\n".to_string();
+                    report.push_str(&format!(
+                        "Dengan serangan mematikan, kamu berhasil menebas *{monster}*!\n\n\
+                         *🎁 HADIAH YANG DIDAPAT:*\n\
+                         > ✨ EXP: *+{exp_reward}*\n\
+                         > 💰 Koin: *+{gold}*\n"
+                    ));
+                    if !loot_lines.is_empty() {
+                        report.push_str("\n*📦 BARANG JARAHAN (LOOT):*\n");
+                        for line in &loot_lines {
+                            report.push_str(&format!("> {line}\n"));
+                        }
+                    }
+
+                    let mut data = serde_json::Map::new();
+                    data.insert("exp".into(), json!(exp_after(&ctx, exp_reward)));
+                    data.insert("koin".into(), json!(koin.saturating_add(gold).max(0)));
+                    data.insert("rpg".into(), json!({ "dungeon_session": null }));
+                    if !inventory.is_empty() {
+                        data.insert("inventory".into(), Value::Object(inventory));
+                    }
+                    Some(
+                        Reply::text(report)
+                            .with_reaction("🏆")
+                            .with_mutation(Mutation::SetUser {
+                                jid: ctx.sender.clone(),
+                                data: Value::Object(data),
+                            }),
+                    )
+                } else {
+                    let gold_loss = (koin as f64 * 0.15).floor() as i64;
+                    let new_health = (health - 40).max(1);
+                    let report = format!(
+                        "💀 *KEKALAHAN TRAGIS!*\n\n\
+                         Kekuatanmu belum sebanding! *{monster}* memukul mundur dirimu dengan telak.\n\
+                         Kamu berhasil merangkak keluar dengan tubuh penuh luka.\n\n\
+                         *💔 KERUGIAN:*\n\
+                         > 💸 Uang jatuh: *-{gold_loss} Koin*\n\
+                         > ❤️ Darah berkurang: *-40 HP*\n\n\
+                         > 💡 *Tips:* Naikan levelmu, makan potion, atau perkuat senjata!"
+                    );
+                    Some(
+                        Reply::text(report)
+                            .with_reaction("💀")
+                            .with_mutation(Mutation::SetUser {
+                                jid: ctx.sender.clone(),
+                                data: json!({
+                                    "koin": (koin - gold_loss).max(0),
+                                    "rpg": { "health": new_health, "dungeon_session": null },
+                                }),
+                            }),
+                    )
+                }
+            } else if matches!(text.as_str(), "lari" | "kabur" | "run") {
+                let lolos = rand::rng().random::<f64>() > 0.5;
+                if lolos {
+                    return Some(
+                        Reply::text(format!(
+                            "🏃‍♂️ *BERHASIL KABUR!*\n\nKamu berbalik dan berlari sekuat \
+                             tenaga. *{monster}* kehilangan jejakmu!\n\
+                             Kamu selamat tanpa cedera, tapi petualangan ini sia-sia."
+                        ))
+                        .with_reaction("💨")
+                        .with_mutation(clear_session(&ctx)),
+                    );
+                }
+                let new_health = (health - 25).max(1);
+                Some(
+                    Reply::text(format!(
+                        "💥 *GAGAL KABUR!*\n\nKakimu tersandung bebatuan! *{monster}* \
+                         mengejarmu dan mendaratkan cakarnya di tubuhmu!\n\n\
+                         *💔 KERUGIAN:*\n> ❤️ Darah berkurang: *-25 HP*"
+                    ))
+                    .with_reaction("🩸")
+                    .with_mutation(Mutation::SetUser {
+                        jid: ctx.sender.clone(),
+                        data: json!({
+                            "rpg": { "health": new_health, "dungeon_session": null },
+                        }),
+                    }),
+                )
+            } else {
+                Some(Reply::text(
+                    "❓ *PILIHAN TIDAK DIKENAL*\n\n\
+                     > Balas dengan `serang` untuk melawan monster.\n\
+                     > Balas dengan `lari` untuk kabur.\n\
+                     > Balas dengan `batal` jika benar-benar menyerah.",
+                ))
+            }
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -195,7 +552,10 @@ mod tests {
         assert_eq!(p.meta.name, "dungeon");
         assert_eq!(p.meta.alias, ["dg", "labirin"]);
         assert_eq!(p.meta.category, "game");
-        assert_eq!(p.meta.description, "Jelajahi dungeon dan lawan monster secara interaktif");
+        assert_eq!(
+            p.meta.description,
+            "Jelajahi dungeon dan lawan monster secara interaktif"
+        );
         assert_eq!(p.meta.usage, ".dungeon");
         assert_eq!(p.meta.example, ".dungeon");
         assert_eq!(p.meta.cooldown, 60);
@@ -222,20 +582,35 @@ mod tests {
         assert!(t.contains("🔒 *3.* 🏰 Kastil Tua (Butuh Lv 10)"), "{t}");
 
         let data = written(&r);
-        assert_eq!(data["rpg"]["dungeon_session"]["stage"], serde_json::json!("lobi"));
+        assert_eq!(
+            data["rpg"]["dungeon_session"]["stage"],
+            serde_json::json!("lobi")
+        );
         assert!(data["rpg"]["dungeon_session"]["time"].as_i64().unwrap() > 0);
         assert_eq!(data["rpg"]["attack"], serde_json::json!(10));
         assert_eq!(data["rpg"]["maxStamina"], serde_json::json!(100));
-        assert_eq!(data["inventory"], serde_json::json!({}), "`if (!user.inventory)`");
+        assert_eq!(
+            data["inventory"],
+            serde_json::json!({}),
+            "`if (!user.inventory)`"
+        );
     }
 
     #[test]
     fn existing_rpg_values_are_preserved_and_zero_falls_back_to_the_default() {
         let r = run(serde_json::json!({"rpg": {"attack": 55, "stamina": 0, "health": 30}}));
         let data = written(&r);
-        assert_eq!(data["rpg"]["attack"], serde_json::json!(55), "nilai ada tidak ditimpa");
+        assert_eq!(
+            data["rpg"]["attack"],
+            serde_json::json!(55),
+            "nilai ada tidak ditimpa"
+        );
         assert_eq!(data["rpg"]["health"], serde_json::json!(30));
-        assert_eq!(data["rpg"]["stamina"], serde_json::json!(100), "`!0` → default");
+        assert_eq!(
+            data["rpg"]["stamina"],
+            serde_json::json!(100),
+            "`!0` → default"
+        );
     }
 
     #[test]
@@ -251,7 +626,8 @@ mod tests {
     #[test]
     fn a_live_session_blocks_a_second_run_and_writes_nothing() {
         let now = crate::common::now_ms();
-        let r = run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "lobi", "time": now}}}));
+        let r =
+            run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "lobi", "time": now}}}));
         assert_eq!(text_of(&r), ACTIVE);
         assert!(r.mutations().is_empty());
     }
@@ -259,10 +635,19 @@ mod tests {
     #[test]
     fn an_expired_session_is_replaced_by_a_new_one() {
         let stale = crate::common::now_ms() - SESSION_TIMEOUT_MS - 1;
-        let r = run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "encounter", "time": stale}}}));
-        assert!(text_of(&r).starts_with("🏰 *LOBI DUNGEON*"), "{}", text_of(&r));
+        let r = run(
+            serde_json::json!({"rpg": {"dungeon_session": {"stage": "encounter", "time": stale}}}),
+        );
+        assert!(
+            text_of(&r).starts_with("🏰 *LOBI DUNGEON*"),
+            "{}",
+            text_of(&r)
+        );
         let data = written(&r);
-        assert_eq!(data["rpg"]["dungeon_session"]["stage"], serde_json::json!("lobi"));
+        assert_eq!(
+            data["rpg"]["dungeon_session"]["stage"],
+            serde_json::json!("lobi")
+        );
     }
 
     #[test]
@@ -285,14 +670,19 @@ mod tests {
         // membuktikan cabang "masih hidup" yang dipilih, dengan margin 1 menit
         // supaya pencatatan jam di test tidak ikut menentukan hasilnya.
         let fresh = crate::common::now_ms() - SESSION_TIMEOUT_MS + 60_000;
-        let r = run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "lobi", "time": fresh}}}));
+        let r =
+            run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "lobi", "time": fresh}}}));
         assert_eq!(text_of(&r), ACTIVE);
     }
 
     #[test]
     fn a_session_without_a_timestamp_is_treated_as_expired() {
         let r = run(serde_json::json!({"rpg": {"dungeon_session": {"stage": "lobi"}}}));
-        assert!(text_of(&r).starts_with("🏰 *LOBI DUNGEON*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("🏰 *LOBI DUNGEON*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -305,7 +695,10 @@ mod tests {
 
         let t = owned(run(serde_json::json!({"level": 50})));
         for (id, _, _) in DUNGEONS {
-            assert!(t.contains(&format!("🔓 *{id}.*")), "dungeon {id} belum terbuka: {t}");
+            assert!(
+                t.contains(&format!("🔓 *{id}.*")),
+                "dungeon {id} belum terbuka: {t}"
+            );
         }
     }
 
@@ -329,16 +722,134 @@ mod tests {
     fn the_level_guard_exists_even_though_the_table_covers_level_one() {
         // Dungeon termurah butuh level 1, jadi cabang ini tidak bisa dipicu
         // lewat handler — diuji langsung supaya tetap hidup.
-        assert_eq!(too_low(0), "❌ *LEVEL TERLALU RENDAH*\n\n> Level kamu saat ini adalah *0*. Kamu butuh minimal level *1* untuk memasuki dungeon paling mudah.");
+        assert_eq!(
+            too_low(0),
+            "❌ *LEVEL TERLALU RENDAH*\n\n> Level kamu saat ini adalah *0*. Kamu butuh minimal level *1* untuk memasuki dungeon paling mudah."
+        );
         assert!(DUNGEONS.iter().all(|(_, _, req)| *req >= 1));
     }
 
     #[test]
     fn a_null_rpg_object_is_handled_without_panicking() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"rpg": null}), serde_json::json!({"rpg": "bukan object"})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"rpg": null}),
+            serde_json::json!({"rpg": "bukan object"}),
+        ] {
             let r = run(user.clone());
             assert!(text_of(&r).starts_with("🏰 *LOBI DUNGEON*"), "input {user}");
-            assert_eq!(written(&r)["rpg"]["stamina"], serde_json::json!(100), "input {user}");
+            assert_eq!(
+                written(&r)["rpg"]["stamina"],
+                serde_json::json!(100),
+                "input {user}"
+            );
         }
+    }
+
+    fn answer_ctx(user: Value, text: &str) -> Ctx {
+        Ctx {
+            sender: SENDER.into(),
+            chat: SENDER.into(),
+            text: text.into(),
+            user_data: user,
+            ..Default::default()
+        }
+    }
+
+    fn answer_mutation(r: &Reply) -> &Value {
+        assert_eq!(r.mutations().len(), 1);
+        match &r.mutations()[0] {
+            Mutation::SetUser { data, .. } => data,
+            other => panic!("harus SetUser, dapat {other:?}"),
+        }
+    }
+
+    fn lobi_user(level: i64) -> Value {
+        serde_json::json!({
+            "level": level,
+            "rpg": {
+                "stamina": 100,
+                "attack": 10,
+                "health": 100,
+                "dungeon_session": {"stage": "lobi", "time": crate::common::now_ms()},
+            },
+        })
+    }
+
+    #[test]
+    fn picking_a_dungeon_spends_stamina_and_starts_the_encounter() {
+        let r = dungeon_answer(answer_ctx(lobi_user(1), "1")).expect("pilihan ditangani");
+        assert!(text_of(&r).contains("MEMASUKI DUNGEON"));
+        let data = answer_mutation(&r);
+        assert_eq!(data["rpg"]["stamina"], serde_json::json!(70));
+        assert_eq!(
+            data["rpg"]["dungeon_session"]["stage"],
+            serde_json::json!("encounter")
+        );
+    }
+
+    #[test]
+    fn a_locked_dungeon_is_rejected_without_mutation() {
+        let r = dungeon_answer(answer_ctx(lobi_user(1), "10")).expect("ditolak");
+        assert!(text_of(&r).contains("DUNGEON TERKUNCI"));
+        assert!(r.mutations().is_empty());
+    }
+
+    #[test]
+    fn batal_clears_the_dungeon_session() {
+        let r = dungeon_answer(answer_ctx(lobi_user(1), "batal")).expect("dibatalkan");
+        assert!(text_of(&r).contains("keluar dari Lobi Dungeon"));
+        assert_eq!(answer_mutation(&r)["rpg"]["dungeon_session"], Value::Null);
+    }
+
+    #[test]
+    fn an_expired_dungeon_session_is_reported_and_cleared() {
+        let stale = crate::common::now_ms() - SESSION_TIMEOUT_MS - 1;
+        let user = serde_json::json!({
+            "rpg": {"dungeon_session": {"stage": "lobi", "time": stale}},
+        });
+        let r = dungeon_answer(answer_ctx(user, "1")).expect("kedaluwarsa");
+        assert!(text_of(&r).contains("SESI DUNGEON KEDALUWARSA"));
+        assert_eq!(answer_mutation(&r)["rpg"]["dungeon_session"], Value::Null);
+    }
+
+    #[test]
+    fn attacking_ends_the_encounter_and_writes_rewards() {
+        let user = serde_json::json!({
+            "level": 1,
+            "koin": 1000,
+            "rpg": {
+                "attack": 1000,
+                "health": 100,
+                "dungeon_session": {
+                    "stage": "encounter",
+                    "monster": "Goblin Liar",
+                    "monsterPower": 1,
+                    "levelReq": 1,
+                    "minReward": 100,
+                    "maxReward": 300,
+                    "dropChance": 40,
+                    "time": crate::common::now_ms(),
+                },
+            },
+        });
+        let r = dungeon_answer(answer_ctx(user, "serang")).expect("serang ditangani");
+        let data = answer_mutation(&r);
+        assert_eq!(data["rpg"]["dungeon_session"], Value::Null);
+        assert!(
+            data.get("koin").is_some(),
+            "hadiah koin harus ditulis: {data}"
+        );
+    }
+
+    #[test]
+    fn an_unknown_text_in_the_encounter_keeps_the_session() {
+        let user = serde_json::json!({
+            "rpg": {"dungeon_session": {"stage": "encounter", "time": crate::common::now_ms()}},
+        });
+        let r = dungeon_answer(answer_ctx(user, "halo")).expect("panduan");
+        assert!(text_of(&r).contains("PILIHAN TIDAK DIKENAL"));
+        assert!(r.mutations().is_empty());
     }
 }
