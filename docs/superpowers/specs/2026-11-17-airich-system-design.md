@@ -539,3 +539,41 @@ Interpretasi hasil owner:
   `ConversationRowAiUnknownSender`) — bukan tebakan field lagi.
   Rencana cadangan `.play2`: poster gambar + lirik teks + voice note
   (semua primitif yang terbukti render), kartu HTML opsional.
+
+## Adendum 2026-11-20 (8) — HASIL RONDE 2: K, L, M render; fix produksi
+
+Jawaban owner (v0.2.68, Android 2.26.45.99, `.cekkartu` **3×**):
+**hanya K, L, M yang tampil**. A–J dan N tetap fallback. `.play2`
+(belum diubah) tetap gagal — konsisten.
+
+Dua jalur penyelamat INDEPENDEN, keduanya terbukti di perangkat:
+
+- **K** = baseline + `edit_susulan` (botJid Meta AI): edit identik
+  type-14 membuat klien merender kartu HTML. Tanpa edit (A, J, N —
+  semua ber-botJid Meta AI) → fallback. Renderer HTML terikat ke alur
+  balasan-bot/edit, bukan stanza rich mandiri (cocok baron0 §9.4:
+  balasan Meta AI asli tiba sebagai MESSAGE_EDIT).
+- **L/M** = botJid `0@bot` (tanpa edit): render mandiri. JID Meta AI
+  memicu pemrosesan bot-terkenal yang menuntut alur edit; `0@bot`
+  lewat jalur forward generik. Sources metadata + disclaimer judul (M)
+  tidak diperlukan — L yang lebih sederhana sudah cukup.
+- J gagal total (markdown+HTML satu pesan, botJid Meta AI) → kegagalan
+  tingkat PESAN, bukan section: satu section HTML yang tak bisa
+  dirender menjatuhkan seluruh kartu.
+- N gagal → typename demo bukan jawaban di build ini.
+
+Fix produksi (diff minimal, dua plugin):
+
+- `.play2` + `.ytplay`: `bot_jid: Some("0@bot")` + `edit_susulan: true`
+  (dua jalur proven sekaligus — kartu tetap render kalau salah satu
+  mekanisme berubah di versi klien berikutnya). `.play2` melepas
+  `skor: Some(999)` → default 1, menyamai envelope L/M yang terbukti;
+  999 hanya bukti versi WA lama. Disclaimer "" play2 tetap.
+- `.ai`/`.ping2` TIDAK disentuh (teks/tabel render dengan amplop lama).
+- Test kontrak diperbarui: `play2_kartu_html_pakai_amplop_proven_adendum_8`
+  (oktz-wa), assert envelope di test `.play2`/`.ytplay`.
+
+Retest owner: `.play2` dan `.ytplay` harus menampilkan kartu. Kalau
+masih gagal, satu-satunya variabel tersisa adalah isi payload asli
+(poster JPEG + lirik + `<style>`) — uji dengan kartu L bermuatan
+payload play2 sungguhan sebelum menyentuh yang lain.

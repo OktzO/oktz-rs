@@ -13,6 +13,10 @@
 //! - Kartu player HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan
 //!   section `GenAIaeacdsnwHtmlPrimitive` — sama seperti `sendMusicPlayer`
 //!   (`play2.js:893-943`), submessage teksnya `"${title} - ${artist}"`.
+//!   Amplop TIDAK lagi ikut JS: botJid `0@bot` + score 1 + edit susulan
+//!   identik (adendum 8 — terbukti render di Android 2.26.45.99 lewat
+//!   `.cekkartu` K/L/M; amplop JS `867051314767696@bot`/999 hanya bukti
+//!   versi WA lama).
 //!   Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
 //!   `timeupdate`), bukan WS — jadi sync lyrics live JS tidak butuh wire
 //!   baru. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
@@ -789,15 +793,18 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         return Err("Kartu HTML terlalu besar untuk klien WhatsApp.".to_string());
     }
     let rich = RichAi {
-        // `sendMusicPlayer` (`play2.js:893-943`) bukan `AIRich`: disclaimer
-        // "", score 999, tidak mengutip pemicu, satu stanza.
+        // Amplop kartu HTML terbukti render di Android 2.26.45.99 (adendum 8,
+        // `.cekkartu` K/L/M ×3): botJid `0@bot` + edit susulan identik.
+        // Score 999 `sendMusicPlayer` JS ditinggalkan — itu bukti versi WA
+        // lama; envelope proven memakai score 1. Disclaimer "" tetap (JS).
         submessages: vec![AiSubMessage::Teks {
             teks: format!("{title} - {artist}"),
         }],
         sections: vec![section_html(&html)],
         disclaimer: Some(String::new()),
         quoted: false,
-        skor: Some(999),
+        bot_jid: Some("0@bot".into()),
+        edit_susulan: true,
         ..Default::default()
     };
 
@@ -1123,6 +1130,10 @@ mod tests {
             panic!("harus submessage teks");
         };
         assert_eq!(teks, "Lagu Uji - Channel Uji");
+        // Amplop proven adendum 8 (`.cekkartu` K/L/M render ×3 di 2.26.45.99).
+        assert_eq!(rich.bot_jid.as_deref(), Some("0@bot"));
+        assert!(rich.edit_susulan, "edit susulan identik wajib");
+        assert_eq!(rich.skor, None, "score 1 default; 999 JS = bukti WA lama");
         let prim = &rich.sections[0]["view_model"]["primitive"];
         assert_eq!(
             prim["__typename"],

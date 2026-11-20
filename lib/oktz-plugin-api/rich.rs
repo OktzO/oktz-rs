@@ -160,18 +160,21 @@ pub struct RichAi {
     /// (`play2.js:932`) pakai 999, bukan 1.
     pub skor: Option<u32>,
     /// Override `forwardedAiBotMessageInfo.botJid` context dalam. `None` =
-    /// `867051314767696@bot` (kontrak tetap). Diagnostik `.cekkartu`: capture
-    /// nyata Vanta 2026-11-18 memakai `0@bot`.
+    /// `867051314767696@bot` (kontrak teks `.ai`, terbukti render). Kartu
+    /// HTML wajib `0@bot`: satu-satunya nilai yang render mandiri di
+    /// Android 2.26.45.99 (`.cekkartu` L/M ×3, adendum 8; capture Vanta
+    /// 2026-11-18). Dengan JID Meta AI, kartu HTML hanya render lewat
+    /// edit susulan (`.cekkartu` K).
     pub bot_jid: Option<String>,
     /// Kirim `botMetadata.richResponseSourcesMetadata = {sources: []}`.
     /// Default tidak dikirim (ruby-baileys v4.7 menghapusnya); capture Vanta
     /// memuatnya kosong. Diagnostik `.cekkartu`.
     pub sources_metadata: bool,
     /// Susulkan edit identik `protocolMessage type=14` setelah kartu
-    /// (zaileys `bypassDownload`, commit `35f9c7b4`): klien tertentu baru
-    /// merender kartu HTML setelah edit-relay; tanpa itu kartu duduk di
-    /// balik prompt unduh / fallback. Edit dibungkus `botForwardedMessage`
-    /// seperti aslinya.
+    /// (zaileys `bypassDownload`, commit `35f9c7b4`): di Android 2.26.45.99
+    /// kartu HTML ber-botJid Meta AI hanya render setelah edit-relai
+    /// (`.cekkartu` K ×3, adendum 8). Edit dibungkus `botForwardedMessage`
+    /// seperti aslinya. Dipakai `.play2`/`.ytplay` bersama `bot_jid` `0@bot`.
     pub edit_susulan: bool,
 }
 

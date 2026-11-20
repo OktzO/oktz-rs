@@ -263,10 +263,13 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         // klien melempar "No fragments parsed" kalau `submessages` kosong
         // (dump `WAWebRichResponseParseUtils`), dan semua pengirim kartu
         // HTML yang terbukti render menyertakan ≥1 submessage teks.
+        // Amplop proven adendum 8: botJid `0@bot` + edit susulan identik.
         submessages: vec![AiSubMessage::Teks {
             teks: judul.to_string(),
         }],
         sections: vec![section_html(&judul_header(judul), &html)],
+        bot_jid: Some("0@bot".into()),
+        edit_susulan: true,
         ..Default::default()
     };
     Reply::TabelAi(Box::new(rich)).with_reaction("✅")
@@ -421,8 +424,11 @@ mod tests {
         let Reply::TabelAi(rich) = balasan.without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
-        // `ytplay.js:905` — `aiRich.send` = AIRich, satu stanza tanpa edit.
+        // `ytplay.js:905` — `aiRich.send` = AIRich; Rust menyusul edit identik
+        // (adendum 8: syarat render kartu HTML di klien owner).
         assert_eq!(rich.sections.len(), 1, "kartu player hanya satu section HTML");
+        assert_eq!(rich.bot_jid.as_deref(), Some("0@bot"));
+        assert!(rich.edit_susulan);
     }
 
     #[test]

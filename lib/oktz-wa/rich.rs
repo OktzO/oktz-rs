@@ -44,17 +44,17 @@ use whatsapp_rust::waproto::whatsapp::{
 use crate::pipeline::QuoteSource;
 
 /// Bot JID tiap jalur. Kontrak ruby-baileys `AIRich.DEFAULT_BOT_JID` —
-/// `867051314767696@bot` (`MessageBuilder/index.js:3152`) — SATU nilai untuk
-/// semua jalur AI rich (AIRich, play2, rich-webui). Nilai `0@bot` ourin-md
-/// tidak punya bukti render (oracle live replay pakai builder yang
-/// `botJid`-nya default `867051314767696@bot`).
+/// `867051314767696@bot` (`MessageBuilder/index.js:3152`) — untuk jalur
+/// teks (`.ai`, terbukti render di 2.26.45.99). Kartu HTML memakai
+/// override `0@bot` (adendum 8: satu-satunya nilai yang render mandiri
+/// di klien owner; JID Meta AI menuntut edit susulan).
 mod bot {
     /// V2 (`rich-messages.js:1036`).
     pub const V2: &str = "259786046210223@bot";
     /// `buildRichContextInfo` (`rich-messages.js:421`) — V1 table & list,
     /// dan prepared rich (`:1625`).
     pub const RICH: &str = "867051314767696@bot";
-    /// ruby-baileys `AIRich.DEFAULT_BOT_JID` (bukan `0@bot` ourin-md).
+    /// ruby-baileys `AIRich.DEFAULT_BOT_JID` — default jalur teks.
     pub const AI: &str = "867051314767696@bot";
 }
 
@@ -975,31 +975,36 @@ mod tests {
     // ---------- prepared rich ----------
 
     #[test]
-    fn play2_send_music_player_contract_is_not_airich() {
-        // `play2.js:899-941` — play2 hand-rolled, BUKAN `AIRich`: inner score
-        // 999; outer `botMetadata` berisi `botResponseId = response_id` +
-        // `messageDisclaimerText: ""` dan TANPA `richResponseSourcesMetadata`.
-        // botJid sama dengan AIRich (kontrak ruby-baileys tunggal).
+    fn play2_kartu_html_pakai_amplop_proven_adendum_8() {
+        // `.cekkartu` K/L/M ×3 render di Android 2.26.45.99: botJid `0@bot`
+        // (capture Vanta 18 Nov) + score 1; edit susulan dikirim pipeline.
+        // `messageDisclaimerText: ""` tetap ala `play2.js:903`; tanpa
+        // `richResponseSourcesMetadata` (bentuk L, bukan M).
         let msg = rich_ai_to_message(
             &RichAi {
                 disclaimer: Some(String::new()),
-                skor: Some(999),
+                bot_jid: Some("0@bot".into()),
                 ..Default::default()
             },
             None,
         );
         let ci = inner_context(&msg);
-        assert_eq!(ci.forwarding_score, Some(999));
-        assert_eq!(bot_jid(&msg).as_deref(), Some("867051314767696@bot"));
+        assert_eq!(ci.forwarding_score, Some(1));
+        assert_eq!(bot_jid(&msg).as_deref(), Some("0@bot"));
         let meta = bot_metadata(&msg);
         let response_id = unified_json(&msg)["response_id"].as_str().unwrap().to_string();
         assert_eq!(meta.bot_response_id.as_deref(), Some(response_id.as_str()));
-        // `play2.js:903` — `messageDisclaimerText: ""` (field ditulis).
         assert_eq!(meta.message_disclaimer_text.as_deref(), Some(""));
         assert!(
             meta.rich_response_sources_metadata.as_option().is_none(),
-            "play2 tidak kirim richResponseSourcesMetadata"
+            "bentuk L tanpa sources metadata"
         );
+        // Mekanisme override skor tetap ada untuk pemakai lain.
+        let skor999 = rich_ai_to_message(
+            &RichAi { skor: Some(999), ..Default::default() },
+            None,
+        );
+        assert_eq!(inner_context(&skor999).forwarding_score, Some(999));
     }
 
     #[test]
