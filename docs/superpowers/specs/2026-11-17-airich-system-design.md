@@ -612,3 +612,33 @@ disclaimer "", satu submessage teks):
 Kalau O–T SEMUA tampil: delta terakhir = data jaringan asli (poster
 JPEG hasil unduhan + lirik penuh) atau konteks sequence (voice note
 mendahului kartu) — probe berikutnya memakai payload unduhan nyata.
+
+## Adendum 2026-11-20 (10) — RENDER SELESAI; pertanyaan ukuran payload
+
+Owner: **`.play2` SUDAH bisa** (envelope v0.2.69: `0@bot` + edit
+susulan + score 1). Kegagalan yang dilaporkan sebelumnya kemungkinan
+binary lama / nondeterminisme delivery (baron0 §9.4). Akar render
+tertutup: kartu HTML butuh botJid `0@bot` dan/atau edit-relai identik;
+amplop JS lama (`867051314767696@bot`, score 999, tanpa edit) mati di
+2.26.45.99.
+
+Sisa keluhan owner: tampilan beda dengan oktz-md. JS
+`createMusicPlayer` (`play2.js:506-887`) = player Spotify-style penuh:
+bg poster blur + veil, header "YT Music Audio", heart, progress bar,
+controls ±10s + play/pause, lirik sinkron, **audio full ditanam**
+(16 kbps opus, `FFMPEG_BITRATE = "16k"`, batas kompres 6 MB). Versi
+Rust sengaja statis tanpa audio karena batas payload klien.
+
+Batas payload itu sendiri BELUM terverifikasi di perangkat owner dan
+sumber komunitas bertentangan: Vanta `richhtml.js:25` "native limit is
+60000", kotonehara 64 KiB, zaileys `HTML_APP_MAX_BYTES = 256 * 1024`
+(aktif Nov 2026). Matematika audio 16 kbps (≈2 KB/detik mentah,
+×4/3 base64): langit-langit 60 KB → ~11 dtk; 256 KB → ~90 dtk; lagu
+penuh 3–4 mnt (480–640 KB b64) butuh langit-langit ≥ ~700 KB.
+
+Ronde 4 `.cekkartu`: kartu U–Y = tangga ukuran 60/128/256/512/768 KB
+teks di amplop L. Huruf terbesar yang render = batas nyata klien
+owner; kalau kirimnya sendiri gagal (stanza terlalu besar untuk
+server) itu juga bukti. Hasilnya menentukan bentuk port player:
+audio full (kalau ≥768 KB render), preview panjang (kalau 256–512 KB),
+preview ~15 dtk (kalau cuma 60 KB), atau visual statis tanpa audio.

@@ -41,14 +41,18 @@
 //! S. `<style>` saja tanpa img (isolasi style)
 //! T. `img` data-URI JPEG sah (isolasi format gambar)
 //!
-//! O gagal tapi L tampil → combo edit+0@bot merusak → lepas edit_susulan.
-//! P gagal tapi O tampil → isi payload; S/T/R menunjuk variabelnya.
+//! Ronde 4 (adendum 10): `.play2` SUDAH render (envelope v0.2.69). Sisa
+//! pertanyaan: batas ukuran payload di klien owner — sumber komunitas
+//! bertentangan (Vanta 60000, kotonehara 64 KiB, zaileys 256 KiB). U–Y
+//! tangga ukuran 60/128/256/512/768 KB di amplop L: kartu terbesar yang
+//! render = langit-langit nyata; itu menentukan panjang audio yang bisa
+//! ditanam di kartu player (16 kbps opus ≈ 2 KB/detik mentah).
 use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use crate::search::play2::{Baris, base64_encode, player_html};
 
-const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nDua puluh kartu menyusul berurutan: A–I (isi payload), J–N (amplop/jalur), O–T (ronde 3, amplop proven L).\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil (atau \"tidak ada sama sekali\").";
+const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nDua puluh lima kartu menyusul berurutan: A–T (payload/amplop), U–Y (tangga ukuran 60–768 KB).\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil — khusus U–Y, huruf TERBESAR yang tampil menentukan batas ukuran kartu di WhatsApp-mu.";
 
 /// JPEG 1×1 sah untuk uji format gambar (kartu T).
 const JPEG_UJI: &str = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
@@ -221,6 +225,11 @@ pub(crate) fn semua_kartu() -> Reply {
             format!(r#"{}<img src="data:image/jpeg;base64,{JPEG_UJI}" width="80" height="80" alt="">"#, judul("T")),
             |_| {},
         ),
+        kartu_l("U", payload_ukuran("U", 60_000), |_| {}),
+        kartu_l("V", payload_ukuran("V", 128_000), |_| {}),
+        kartu_l("W", payload_ukuran("W", 256_000), |_| {}),
+        kartu_l("X", payload_ukuran("X", 512_000), |_| {}),
+        kartu_l("Y", payload_ukuran("Y", 768_000), |_| {}),
     ])
 }
 
@@ -246,11 +255,24 @@ fn payload_besar(huruf: &str) -> String {
     besar
 }
 
+/// Muatan teks yang dipadatkan sampai `target` byte — tangga ukuran U–Y.
+fn payload_ukuran(huruf: &str, target: usize) -> String {
+    let mut besar = judul(huruf);
+    let mut i = 0;
+    while besar.len() < target {
+        besar.push_str(&format!(
+            r#"<div style="font:13px sans-serif">baris uji {i} — 0123456789 abcdefghijklmnopqrstuvwxyz</div>"#
+        ));
+        i += 1;
+    }
+    besar
+}
+
 #[plugin(
     name = "cekkartu",
     alias = ["ujikartu", "airichtest"],
     category = "tools",
-    description = "Diagnostik kartu HTML AIRich (20 variasi payload/amplop)",
+    description = "Diagnostik kartu HTML AIRich (25 variasi payload/amplop/ukuran)",
     usage = ".cekkartu",
     example = ".cekkartu",
     cooldown = 5,
@@ -299,10 +321,10 @@ mod tests {
     }
 
     #[test]
-    fn dua_puluh_kartu_menguji_satu_variabel_per_kartu() {
+    fn dua_puluh_lima_kartu_menguji_satu_variabel_per_kartu() {
         let r = semua_kartu();
         let list = cards(&r);
-        assert_eq!(list.len(), 20, "A..T");
+        assert_eq!(list.len(), 25, "A..Y");
         assert!(payload(list[0]).contains("KARTU A"));
         assert!(payload(list[1]).contains("data:image/svg+xml;base64,"), "B gambar");
         assert!(payload(list[2]).contains("<script>"), "C skrip");
@@ -371,6 +393,17 @@ mod tests {
         assert!(s.contains("<style>") && !s.contains("<img"), "S style saja");
         // T: img JPEG.
         assert!(payload(list[19]).contains("data:image/jpeg;base64,"), "T jpeg");
+        // U–Y: tangga ukuran 60/128/256/512/768 KB.
+        for (idx, target) in [
+            (20, 60_000),
+            (21, 128_000),
+            (22, 256_000),
+            (23, 512_000),
+            (24, 768_000),
+        ] {
+            let len = payload(list[idx]).len();
+            assert!(len >= target && len < target + 200, "kartu {idx}: {len} vs {target}");
+        }
         for (i, ai) in list.iter().enumerate() {
             if i == 13 {
                 continue; // N typename demo
