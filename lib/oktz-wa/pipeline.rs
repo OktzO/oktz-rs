@@ -4328,12 +4328,55 @@ impl Pipeline {
                     let Some(rendered) = self.render_with_reply_variant(other, target)? else {
                         return Ok(false);
                     };
+                    // zaileys `bypassDownload`: kartu HTML di klien tertentu
+                    // baru dirender setelah edit-relay identik.
+                    let kartu_edit = match other {
+                        Reply::TabelAi(ai) if ai.edit_susulan => Some(rendered.message.clone()),
+                        _ => None,
+                    };
                     let sent = self.deliver(chat, rendered).await?;
+                    if let Some(kartu) = kartu_edit {
+                        self.kirim_edit_susulan(chat, &sent.message_id, kartu).await;
+                    }
                     target.previous_sent = Some(sent);
                     Ok(true)
                 }
             }
         })
+    }
+
+    /// zaileys `relayIdenticalEdit` (`bypassDownload`, commit `35f9c7b4`):
+    /// kirim ulang kartu sebagai edit dirinya sendiri supaya klien langsung
+    /// merender tanpa prompt unduh. Edit WAJIB dibungkus `botForwardedMessage`
+    /// seperti aslinya — tanpa bungkus itu ia tiba sebagai pesan rusak
+    /// tersendiri. Kegagalan ditelan: kartu sudah tiba.
+    async fn kirim_edit_susulan(&self, chat: &str, id_kartu: &str, kartu: wa::Message) {
+        if id_kartu.is_empty() {
+            return;
+        }
+        let edit = wa::Message {
+            bot_forwarded_message: MessageField::some(wa::message::FutureProofMessage {
+                message: MessageField::some(wa::Message {
+                    protocol_message: MessageField::some(wa::message::ProtocolMessage {
+                        key: MessageField::some(wa::MessageKey {
+                            remote_jid: Some(chat.to_string()),
+                            from_me: Some(true),
+                            id: Some(id_kartu.to_string()),
+                            ..Default::default()
+                        }),
+                        r#type: Some(wa::message::protocol_message::Type::MessageEdit),
+                        edited_message: MessageField::some(kartu),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        if let Err(e) = self.sender.send(chat, edit, Vec::new()).await {
+            tracing::warn!(error = %e, "gagal kirim edit susulan kartu");
+        }
     }
 
     /// `db.setting("capenergi") || {}` (`handler.js:1856`) — override biaya
@@ -6756,6 +6799,103 @@ fn group_number_and_long_number_are_rejected() {
             .and_then(|b| b.bot_response_id.clone())
             .expect("kartu AIRich punya botResponseId");
         assert_eq!(ids[0], response_id, "ID stanza = botResponseId");
+    }
+
+    /// `edit_susulan` (zaileys `bypassDownload`): setelah kartu, terkirim
+    /// edit identik `protocolMessage type=14` dibungkus `botForwardedMessage`,
+    /// key menunjuk ID stanza kartu, `editedMessage` = kartu utuh.
+    #[tokio::test]
+    async fn kartu_ai_edit_susulan_mengirim_edit_identik_dalam_bot_forwarded() {
+        use oktz_plugin_api::rich::{AiSubMessage, RichAi};
+        use std::ops::Deref;
+
+        #[derive(Default)]
+        struct IdRec {
+            inner: RecordingSender,
+        }
+        impl Deref for IdRec {
+            type Target = RecordingSender;
+            fn deref(&self) -> &RecordingSender {
+                &self.inner
+            }
+        }
+        impl MessageSender for IdRec {
+            fn send(&self, to: &str, message: wa::Message, extra: Vec<Node>) -> SendBox<'_> {
+                self.inner.send(to, message, extra)
+            }
+            fn send_with_id(
+                &self,
+                to: &str,
+                message: wa::Message,
+                extra: Vec<Node>,
+                id: String,
+            ) -> SendMessageBox<'_> {
+                let to = to.to_string();
+                Box::pin(async move {
+                    self.inner.send(&to, message.clone(), extra).await?;
+                    Ok(SentMessage {
+                        message_id: id,
+                        message,
+                    })
+                })
+            }
+        }
+
+        let plugin = TestPlugin::with_reply(Reply::TabelAi(Box::new(RichAi {
+            submessages: vec![AiSubMessage::Teks { teks: "t".into() }],
+            edit_susulan: true,
+            ..Default::default()
+        })));
+        let sender = Arc::new(IdRec::default());
+        let ctx = StoreContext::new(store_with(&format!("editkartu-{}", n()), "{}"));
+        let p = Arc::new(
+            Pipeline::new(
+                ctx,
+                sender.clone() as Arc<dyn MessageSender>,
+                BOT,
+                ParseOptions::default(),
+            )
+            .with_identity(Identity::default())
+            .with_plugin_lookup(plugin.lookup()),
+        );
+        let m = inbound_n(".kartu", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 10_000).await.unwrap(), Outcome::Sent);
+
+        let terkirim = sender.sent.lock().unwrap().clone();
+        assert_eq!(terkirim.len(), 2, "kartu + edit susulan");
+        let kartu = &terkirim[0].1;
+        let id_kartu = kartu
+            .message_context_info
+            .as_option()
+            .and_then(|mci| mci.bot_metadata.as_option())
+            .and_then(|b| b.bot_response_id.clone())
+            .expect("kartu punya botResponseId");
+        let edit = &terkirim[1].1;
+        let pm = edit
+            .bot_forwarded_message
+            .as_option()
+            .and_then(|b| b.message.as_option())
+            .and_then(|m| m.protocol_message.as_option())
+            .expect("edit wajib di dalam botForwardedMessage");
+        assert_eq!(pm.r#type, Some(wa::message::protocol_message::Type::MessageEdit));
+        let key = pm.key.as_option().expect("key edit");
+        assert_eq!(key.id.as_deref(), Some(id_kartu.as_str()));
+        assert_eq!(key.from_me, Some(true));
+        assert_eq!(key.remote_jid.as_deref(), Some(MEMBER));
+        let edited = pm.edited_message.as_option().expect("editedMessage");
+        assert_eq!(
+            edited
+                .message_context_info
+                .as_option()
+                .and_then(|mci| mci.bot_metadata.as_option())
+                .and_then(|b| b.bot_response_id.clone()),
+            Some(id_kartu),
+            "editedMessage = kartu utuh"
+        );
+        assert!(
+            edit.message_context_info.as_option().is_none(),
+            "edit tidak membawa mci outer sendiri"
+        );
     }
 
     /// Tabel V1 (`Reply::tabel`) tetap jalur lama: tanpa `unifiedResponse`

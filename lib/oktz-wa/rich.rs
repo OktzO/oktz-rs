@@ -37,7 +37,7 @@ use whatsapp_rust::waproto::whatsapp::{
     AIRichResponseCodeMetadata, AIRichResponseMessage, AIRichResponseMessageType,
     AIRichResponseSubMessage, AIRichResponseSubMessageType, AIRichResponseTableMetadata,
     AIRichResponseUnifiedResponse, BotMetadata, BotMessageSharingInfo, BotMetricsEntryPoint,
-    BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof,
+    BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof, BotSourcesMetadata,
     ContextInfo, DeviceListMetadata, ForwardedAIBotMessageInfo, MessageContextInfo,
 };
 
@@ -520,8 +520,12 @@ fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
         bot_metadata: fld(Some(BotMetadata {
             message_disclaimer_text: input.disclaimer.clone(),
             // ruby-baileys `:2251` — `botResponseId` SELALU ada (refresh per
-            // build); TANPA `richResponseSourcesMetadata`.
+            // build); TANPA `richResponseSourcesMetadata` kecuali diminta
+            // (diagnostik bentuk capture Vanta).
             bot_response_id: Some(response_id.to_string()),
+            rich_response_sources_metadata: fld(
+                input.sources_metadata.then(BotSourcesMetadata::default),
+            ),
             ..Default::default()
         })),
         ..Default::default()
@@ -542,6 +546,14 @@ pub fn rich_ai_to_message(input: &RichAi, quote: Option<&QuoteSource>) -> wa::Me
     // pakai 999, bukan 1.
     if let Some(s) = input.skor {
         ci.forwarding_score = Some(s);
+    }
+    // Override botJid context dalam — diagnostik `.cekkartu` (capture Vanta
+    // `0@bot`); default tetap `867051314767696@bot`.
+    if let Some(jid) = &input.bot_jid {
+        ci.forwarded_ai_bot_message_info = MessageField::some(ForwardedAIBotMessageInfo {
+            bot_jid: Some(jid.clone()),
+            ..Default::default()
+        });
     }
     wrap(
         rich_with_unified(
@@ -987,6 +999,30 @@ mod tests {
         assert!(
             meta.rich_response_sources_metadata.as_option().is_none(),
             "play2 tidak kirim richResponseSourcesMetadata"
+        );
+    }
+
+    #[test]
+    fn ai_rich_override_bot_jid_dan_sources_metadata() {
+        let msg = rich_ai_to_message(
+            &RichAi {
+                bot_jid: Some("0@bot".into()),
+                sources_metadata: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(bot_jid(&msg).as_deref(), Some("0@bot"));
+        let sources = bot_metadata(&msg)
+            .rich_response_sources_metadata
+            .as_option()
+            .expect("sources_metadata diminta → field ada");
+        assert!(sources.sources.is_empty(), "sources kosong ala capture Vanta");
+        let def = rich_ai_to_message(&RichAi::default(), None);
+        assert_eq!(bot_jid(&def).as_deref(), Some("867051314767696@bot"));
+        assert!(
+            bot_metadata(&def).rich_response_sources_metadata.as_option().is_none(),
+            "default tanpa sources metadata"
         );
     }
 

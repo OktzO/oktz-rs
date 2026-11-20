@@ -471,3 +471,71 @@ payload spesifik dan hurufnya menunjuk variabelnya). Kalau SEMUA masih
 gagal tanpa secret, delta ada di luar protobuf Message (lapisan
 stanza/sesi/akun) — langkah berikutnya capture wire kedua bot dan diff
 byte stanza, bukan tebakan field lagi.
+
+## Adendum 2026-11-20 (7) — secret bukan penyebab; ronde 2 amplop/jalur
+
+Hasil v0.2.67 di owner: **tidak ada perubahan** — `.cekkartu` A–I dan
+`.play2` tetap fallback. Versi WhatsApp owner: **Android 2.26.45.99**.
+Fakta penting: bot JS oktz-md **sudah lama tidak jalan** — bukti "JS
+render" berasal dari versi WhatsApp LAMA, bukan .45.99. Perbandingan
+apple-to-apple JS-vs-Rust di klien sekarang tidak pernah ada.
+
+Hipotesis msmsg (kartu harus tiba sebagai balasan bot terenkripsi
+`<enc type="msmsg">`) **mati sebelum dibangun**: whatsmeow
+(`message.go`) hanya mendekripsi msmsg bila `info.Sender.IsBot()` —
+JID `@bot` pemberian server. Akun bot biasa tidak bisa memancarkan
+msmsg yang akan didekripsi klien; secret-nya pun terikat pesan prompt
+ke JID bot terdaftar (Baileys PR #2857). Tidak ada implementasi publik
+outbound msmsg.
+
+Bukti baru (riset web 2026-11-20, subagent):
+
+- baron0 RE (`docs.baron0.com/WA_META_AI/`, APK 2.26.41.6 + 2.26.45.10):
+  gate verifikasi tanda tangan (config 19590, flag 27635/27355) bekerja
+  atas SELURUH rich response, bukan per primitif → karena teks/tabel
+  render di akun yang sama, gate itu bukan penyebab tunggal HTML gagal.
+  Replay live konten Meta AI bertanda tangan sah dari pengirim non-bot
+  **render** (kadang prompt unduh, sekali fallback persis gejala owner —
+  nondeterministik, sebab tidak diketahui). Balasan Meta AI asli tiba
+  sebagai `protocolMessage MESSAGE_EDIT` dari placeholder (§9.4).
+  CRL baru di .45.10 hanya menyentuh pesan ber-proof.
+- Vanta-effect- (17–18 Nov 2026): capture kartu HTML game bot lain yang
+  MASIH bekerja 18 Nov → gating per-pengirim/per-akun lebih mungkin
+  daripada pencabutan keras di klien. Bentuk capture: `botJid: 0@bot`,
+  `richResponseSourcesMetadata: {sources: []}`, disclaimer = judul.
+  Node `<bot biz_bot="1">` dari akun non-bot justru menyembunyikan pesan.
+- zaileys `35f9c7b4` (15 Sep, masih default-on Nov): `bypassDownload` —
+  susulkan edit identik `protocolMessage type=14` setelah kartu; klien
+  langsung merender tanpa prompt unduh. Edit WAJIB dibungkus
+  `botForwardedMessage` seperti aslinya. Balasan Meta AI asli pun
+  berbentuk edit (baron0 §9.4) — renderer HTML mungkin terikat ke
+  alur edit/balasan-bot, bukan stanza rich mandiri.
+- kotonehara (17 Nov): kebijakan WebView diperketat antar-build
+  (WS_POLICY) — gejala lain (kartu render, jaringan mati), bukti
+  pengetatan per-build di jendela waktu yang sama.
+
+Perbaikan ronde ini (diagnostik, bukan fix final):
+
+- `RichAi` + tiga knob: `bot_jid` (override botJid context dalam),
+  `sources_metadata` (kirim `richResponseSourcesMetadata` kosong),
+  `edit_susulan` (pipeline mengirim edit identik terbungkus
+  `botForwardedMessage` setelah kartu — `kirim_edit_susulan`, meniru
+  zaileys `relayIdenticalEdit`; kegagalan ditelan).
+- `.cekkartu` + kartu J–N: J markdown+HTML satu pesan (diskriminasi
+  tingkat section vs pesan), K edit susulan, L `0@bot`, M bentuk
+  capture Vanta penuh, N typename `FOAHtmlPrimitiveDemoDONOTUSE`.
+
+Interpretasi hasil owner:
+
+- K tampil → edit-relay syarat render HTML di klien ini → pasang
+  `edit_susulan` di `.play2`/`.ytplay`.
+- J: markdown tampil, HTML tidak → masalah tingkat section HTML;
+  seluruh pesan gagal → tingkat pesan/server.
+- L/M tampil → botJid/bentuk capture yang benar; N tampil → registrasi
+  typename berubah.
+- Semua gagal → capture sisi penerima (pola `richcapture` Vanta:
+  perangkat tertaut di akun owner, diff proto terima vs kirim) atau
+  logcat (`JarvisRichContent`, `HtmlSectionContent`,
+  `ConversationRowAiUnknownSender`) — bukan tebakan field lagi.
+  Rencana cadangan `.play2`: poster gambar + lirik teks + voice note
+  (semua primitif yang terbukti render), kartu HTML opsional.

@@ -798,6 +798,7 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         disclaimer: Some(String::new()),
         quoted: false,
         skor: Some(999),
+        ..Default::default()
     };
 
     // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`

@@ -159,6 +159,20 @@ pub struct RichAi {
     /// Override `forwardingScore` context dalam — play2 `sendMusicPlayer`
     /// (`play2.js:932`) pakai 999, bukan 1.
     pub skor: Option<u32>,
+    /// Override `forwardedAiBotMessageInfo.botJid` context dalam. `None` =
+    /// `867051314767696@bot` (kontrak tetap). Diagnostik `.cekkartu`: capture
+    /// nyata Vanta 2026-11-18 memakai `0@bot`.
+    pub bot_jid: Option<String>,
+    /// Kirim `botMetadata.richResponseSourcesMetadata = {sources: []}`.
+    /// Default tidak dikirim (ruby-baileys v4.7 menghapusnya); capture Vanta
+    /// memuatnya kosong. Diagnostik `.cekkartu`.
+    pub sources_metadata: bool,
+    /// Susulkan edit identik `protocolMessage type=14` setelah kartu
+    /// (zaileys `bypassDownload`, commit `35f9c7b4`): klien tertentu baru
+    /// merender kartu HTML setelah edit-relay; tanpa itu kartu duduk di
+    /// balik prompt unduh / fallback. Edit dibungkus `botForwardedMessage`
+    /// seperti aslinya.
+    pub edit_susulan: bool,
 }
 
 /// Prepared rich — `prepareRichResponseMessage` (`rich-messages.js:1502`).
@@ -222,6 +236,7 @@ mod tests {
             disclaimer: Some("d".into()),
             quoted: false,
             skor: None,
+            ..Default::default()
         };
         let p = PreparedRich {
             submessages: ai.submessages.clone(),

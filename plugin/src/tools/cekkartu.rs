@@ -16,6 +16,20 @@
 //! H. section dibungkus `GenAIUnifiedResponseSection` + `title`
 //! I. `submessages` KOSONG (hanya section)
 //!
+//! Ronde 2 (adendum 6–7): A–I semua gagal di klien Android owner
+//! (2.26.45.99) sementara teks/tabel render; amplop sudah identik byte
+//! dengan JS. J–N menguji sisa kandidat di lapis amplop/jalur:
+//!
+//! J. section markdown + HTML dalam SATU pesan (markdown tampil tapi HTML
+//!    tidak = masalah tingkat section; seluruh pesan gagal = tingkat pesan)
+//! K. edit susulan identik `protocolMessage type=14` (zaileys
+//!    `bypassDownload` — kartu baru dirender setelah edit-relay)
+//! L. `botJid: 0@bot` (nilai capture nyata Vanta 2026-11-18)
+//! M. bentuk capture Vanta penuh: `0@bot` + `richResponseSourcesMetadata`
+//!    kosong + disclaimer judul
+//! N. typename `FOAHtmlPrimitiveDemoDONOTUSE` (satu-satunya kelas impl di
+//!    dex; barangkali registrasi Pando berubah)
+//!
 //! Kalau A muncul tapi B tidak → gambar/data-URI; kalau A muncul tapi G
 //! tidak → ukuran; kalau TIDAK ADA yang muncul → klien memang menolak
 //! primitif HTML (bukan isi payload, bukan amplop).
@@ -24,7 +38,7 @@ use serde_json::json;
 
 use crate::search::play2::base64_encode;
 
-const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nSembilan kartu menyusul berurutan: A, B, C, D, E, F, G, H, I.\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil (atau \"tidak ada sama sekali\").";
+const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nEmpat belas kartu menyusul berurutan: A–I (isi payload), J–N (amplop/jalur).\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil (atau \"tidak ada sama sekali\").";
 
 fn judul(huruf: &str) -> String {
     format!(r#"<div style="font:700 24px sans-serif;padding:12px">KARTU {huruf}</div>"#)
@@ -61,7 +75,24 @@ fn kartu(huruf: &str, section: serde_json::Value, dengan_teks: bool) -> Reply {
         disclaimer: Some(String::new()),
         quoted: false,
         skor: Some(1),
+        ..Default::default()
     }))
+}
+
+/// Kartu varian J–N: satu section HTML + knob amplop/jalur diubah `ubah`.
+fn kartu_varian(huruf: &str, section: serde_json::Value, ubah: impl FnOnce(&mut RichAi)) -> Reply {
+    let mut rich = RichAi {
+        submessages: vec![AiSubMessage::Teks {
+            teks: format!("Kartu {huruf}"),
+        }],
+        sections: vec![section],
+        disclaimer: Some(String::new()),
+        quoted: false,
+        skor: Some(1),
+        ..Default::default()
+    };
+    ubah(&mut rich);
+    Reply::TabelAi(Box::new(rich))
 }
 
 pub(crate) fn semua_kartu() -> Reply {
@@ -104,6 +135,30 @@ pub(crate) fn semua_kartu() -> Reply {
         }
     });
 
+    // J: markdown + HTML dalam satu pesan — diskriminasi tingkat section
+    // vs tingkat pesan. Bentuk markdown sama dengan builder `.ai`.
+    let markdown = json!({
+        "view_model": {
+            "primitive": {
+                "text": "Kartu J: bagian markdown ini harus tampil.",
+                "__typename": "GenAIMarkdownTextUXPrimitive",
+            },
+            "__typename": "GenAISingleLayoutViewModel",
+        }
+    });
+
+    // N: typename demo — satu-satunya kelas `FOAHtmlPrimitive` impl di dex.
+    let n = json!({
+        "view_model": {
+            "primitive": {
+                "__typename": "FOAHtmlPrimitiveDemoDONOTUSE",
+                "payload": judul("N"),
+                "trusted_sources": [],
+            },
+            "__typename": "GenAISingleLayoutViewModel",
+        }
+    });
+
     Reply::sequence(vec![
         Reply::text(KEPALA),
         kartu("A", satu_section(judul("A"), &[]), true),
@@ -115,6 +170,21 @@ pub(crate) fn semua_kartu() -> Reply {
         kartu("G", satu_section(besar, &[]), true),
         kartu("H", h, true),
         kartu("I", satu_section(judul("I"), &[]), false),
+        kartu_varian("J", satu_section(judul("J"), &[]), |r| {
+            r.sections.insert(0, markdown);
+        }),
+        kartu_varian("K", satu_section(judul("K"), &[]), |r| {
+            r.edit_susulan = true;
+        }),
+        kartu_varian("L", satu_section(judul("L"), &[]), |r| {
+            r.bot_jid = Some("0@bot".into());
+        }),
+        kartu_varian("M", satu_section(judul("M"), &[]), |r| {
+            r.bot_jid = Some("0@bot".into());
+            r.sources_metadata = true;
+            r.disclaimer = Some("Kartu M".into());
+        }),
+        kartu_varian("N", n, |_| {}),
     ])
 }
 
@@ -171,10 +241,10 @@ mod tests {
     }
 
     #[test]
-    fn sembilan_kartu_menguji_satu_variabel_per_kartu() {
+    fn empat_belas_kartu_menguji_satu_variabel_per_kartu() {
         let r = semua_kartu();
         let list = cards(&r);
-        assert_eq!(list.len(), 9, "A..I");
+        assert_eq!(list.len(), 14, "A..N");
         assert!(payload(list[0]).contains("KARTU A"));
         assert!(payload(list[1]).contains("data:image/svg+xml;base64,"), "B gambar");
         assert!(payload(list[2]).contains("<script>"), "C skrip");
@@ -193,10 +263,42 @@ mod tests {
         );
         assert_eq!(list[7].sections[0]["view_model"]["title"], json!("Uji H"));
         assert!(list[8].submessages.is_empty(), "I tanpa submessage");
-        for ai in list {
+        // J: markdown dulu, baru HTML — satu pesan dua section.
+        assert_eq!(list[9].sections.len(), 2, "J dua section");
+        assert_eq!(
+            list[9].sections[0]["view_model"]["primitive"]["__typename"],
+            json!("GenAIMarkdownTextUXPrimitive"),
+            "J section markdown"
+        );
+        assert!(
+            list[9].sections[1]["view_model"]["primitive"]["payload"]
+                .as_str()
+                .unwrap()
+                .contains("KARTU J")
+        );
+        // K: edit susulan identik (zaileys bypassDownload).
+        assert!(list[10].edit_susulan, "K edit susulan");
+        // L: botJid capture Vanta.
+        assert_eq!(list[11].bot_jid.as_deref(), Some("0@bot"), "L botJid");
+        // M: bentuk capture Vanta penuh.
+        assert_eq!(list[12].bot_jid.as_deref(), Some("0@bot"), "M botJid");
+        assert!(list[12].sources_metadata, "M sources metadata");
+        assert_eq!(list[12].disclaimer.as_deref(), Some("Kartu M"), "M disclaimer");
+        // N: typename demo.
+        assert_eq!(
+            list[13].sections[0]["view_model"]["primitive"]["__typename"],
+            json!("FOAHtmlPrimitiveDemoDONOTUSE"),
+            "N typename demo"
+        );
+        for (i, ai) in list.iter().enumerate() {
+            if i == 13 {
+                continue; // N typename demo
+            }
+            let idx = if i == 9 { 1 } else { 0 };
             assert_eq!(
-                ai.sections[0]["view_model"]["primitive"]["__typename"],
-                json!("GenAIaeacdsnwHtmlPrimitive")
+                ai.sections[idx]["view_model"]["primitive"]["__typename"],
+                json!("GenAIaeacdsnwHtmlPrimitive"),
+                "kartu {i}"
             );
         }
     }
