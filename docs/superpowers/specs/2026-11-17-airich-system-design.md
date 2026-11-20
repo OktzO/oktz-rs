@@ -407,3 +407,67 @@ berbeda satu variabel (A baseline, B `img` data-URI, C `<script>`,
 D `trusted_sources` terisi, E dokumen utuh, F non-ASCII, G payload ~30 KB,
 H section dibungkus + `title`, I `submessages` kosong). Jawaban owner
 (huruf mana yang tampil) menentukan perbaikan tanpa menebak lagi.
+
+## Adendum 2026-11-20 (6) — hasil `.cekkartu`: secret satu-satunya delta
+
+Jawaban owner (v0.2.66, klien **Android**):
+
+- `.cekkartu`: **tidak ada satu pun** kartu A–I yang render — termasuk A
+  (HTML minimal ASCII, submessage teks ada, skor 1). Jadi isi payload,
+  ukuran, doctype, non-ASCII, bungkus section, dan submessage kosong
+  BUKAN penyebab `.play2`.
+- `.play2` bot JS oktz-md (onigis 10.1.0-rc.12) **render di HP dan akun
+  yang sama**. Klien owner punya renderer HTML dan flag penerimaannya
+  menyala. Hipotesis "klien tidak mendukung primitif HTML" mati.
+
+Verifikasi lapis demi lapis (semua IDENTIK dengan JS):
+
+- Skema proto `waproto-0.7.0` vs `WAProto` onigis: nomor field
+  `MessageContextInfo` (botMetadata=7, messageSecret=3),
+  `BotMetadata.botResponseId=26`, `AIRichResponseMessage` (1/2/3/4),
+  `ContextInfo` (score=21, isForwarded=22, botInfo=56, origin=67),
+  `richResponseMessage=97`, `botForwardedMessage=104`, enum
+  `META_AI=4`, `AI_RICH_RESPONSE_TYPE_STANDARD=1` — semua sama.
+- Jalur kirim `whatsapp-rust-0.7.0/src/send/mod.rs`: `message_id`
+  dipakai apa adanya (ada `debug_assert` id stanza = request_id);
+  `infer_stanza_metadata`/`infer_biz_node` tidak menambah node apa pun
+  untuk `botForwardedMessage`; reporting token None (field 834/104 tidak
+  masuk whitelist). Stanza = `<message type="text" id=UUID><enc v2>` —
+  sama dengan baileys.
+- `serde_json` workspace memakai `preserve_order` → urutan kunci JSON
+  sama dengan `JSON.stringify` JS.
+
+Satu-satunya delta nilai yang tersisa vs amplop JS yang terbukti render:
+**`messageContextInfo.messageSecret`** — Rust menulisnya (adendum 4),
+`sendMusicPlayer` JS TIDAK. Semua pengirim kartu HTML yang terbukti
+render di perangkat owner / berbasis capture nyata tidak mengirimnya:
+`play2.js:899-906`, Onigi `rich-webui.js:70-76`, Vanta `richhtml.js:34-39`
+(capture 2026-11-18), zaileys `b0ceb48`. GamesWhats mengirim secret dan
+klaim jalan, tapi di perangkat lain/versi lain — bukan bukti tandingan
+di klien owner.
+
+Mekanisme (diduga, belum dibuktikan dari kode klien): secret adalah akar
+HKDF "Bot Message" untuk jalur bot msmsg terenkripsi
+(`vendor/wacore/src/bot_message.rs`, whatsmeow `msgsecret.go`);
+kehadirannya membelokkan pemrosesan pesan bot sehingga primitif HTML
+ditolak, sementara primitif teks/tabel lewat jalur lain (`.ai`/`.ping2`
+render dengan secret).
+
+Perbaikan (satu variabel):
+
+- `ai_outer` (`lib/oktz-wa/rich.rs`): `message_secret` DIHAPUS. Ini
+  mengembalikan `.ai` ke keadaan terbukti render pra-adendum-4 dan
+  membuat amplop `.play2` identik byte dengan `sendMusicPlayer` JS.
+  V2 (`.ping2`) TETAP mengirim secret sendiri — jangan disamakan.
+  Test kontrak dibalik: `ai_rich_tanpa_message_secret_tapi_bot_metadata_sampai`.
+- `.ytplay`: submessage teks judul ditambahkan — parser klien melempar
+  "No fragments parsed" untuk `submessages` kosong (adendum 5), dan
+  semua pengirim HTML terbukti menyertakan ≥1 submessage teks. Penyebab
+  ini terpisah dari secret dan khusus `.ytplay`.
+
+Retest owner pasca-rilis: `.play2` (kartu player harus muncul) dan
+`.cekkartu` (A–I; kalau A tampil tapi yang lain tidak, penyebabnya isi
+payload spesifik dan hurufnya menunjuk variabelnya). Kalau SEMUA masih
+gagal tanpa secret, delta ada di luar protobuf Message (lapisan
+stanza/sesi/akun) — langkah berikutnya capture wire kedua bot dan diff
+byte stanza, bukan tebakan field lagi.

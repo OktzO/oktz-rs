@@ -13,8 +13,8 @@
 //! yang dipakai JS: capture pesan nyata yang bekerja
 //! (`Vanta-effect/lib/richhtml.js:24`, 2026-11-18) dan empat implementasi
 //! publik lain memakai `GenAIaeacdsnwHtmlPrimitive`, sementara `*DEMO*`
-//! hanya muncul di contoh mainan. TANPA submessage teks (kartu JS tidak
-//! menampilkan ringkasan di luar player).
+//! hanya muncul di contoh mainan. Submessage teks judul ditambahkan (JS
+//! tidak mengirimnya, tapi parser klien menolak `submessages` kosong).
 //!
 //! Muatan HTML dibatasi `play2::MAX_HTML_PAYLOAD_BYTES` (~60 KiB, batas asli
 //! klien): poster dibuang kalau masih kelebihan.
@@ -33,7 +33,7 @@
 //! poster base64 (download seperti `ytplay.js:864-873`), `<video controls>`
 //! dengan `src` direct 360p, dan tombol ganti kualitas 360p/720p.
 
-use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
+use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use super::play2::{MAX_HTML_PAYLOAD_BYTES, POSTER_PLACEHOLDER, cari_video, poster_base64};
@@ -259,10 +259,13 @@ pub fn ytplay(ctx: Ctx) -> Reply {
             .with_reaction("☢");
     }
     let rich = RichAi {
-        // `ytplay.js:882-898` hanya `addSection` — tidak ada `addText`, jadi
-        // `submessages` kosong dan yang tampil murni kartu HTML.
-        // `await aiRich.send(...)` (`ytplay.js:905`) = AIRich, satu stanza.
-        submessages: Vec::new(),
+        // `ytplay.js:882-898` hanya `addSection` — tapi parser submessage
+        // klien melempar "No fragments parsed" kalau `submessages` kosong
+        // (dump `WAWebRichResponseParseUtils`), dan semua pengirim kartu
+        // HTML yang terbukti render menyertakan ≥1 submessage teks.
+        submessages: vec![AiSubMessage::Teks {
+            teks: judul.to_string(),
+        }],
         sections: vec![section_html(&judul_header(judul), &html)],
         ..Default::default()
     };
