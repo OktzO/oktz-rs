@@ -241,7 +241,7 @@ fn player_html_uji(huruf: &str) -> String {
         Baris { time: 12.5, text: "Baris lirik kedua uji".into() },
         Baris { time: 30.0, text: "Baris lirik ketiga uji".into() },
     ];
-    player_html(&format!("Kartu {huruf}"), "Uji Coba", "3:45", "", &lirik)
+    player_html(&format!("Kartu {huruf}"), "Uji Coba", "3:45", "", &lirik, "")
 }
 
 /// Muatan ~30 KB teks (bentuk kartu G) untuk uji ukuran di amplop proven.
@@ -377,11 +377,18 @@ mod tests {
         // O: combo 0@bot + edit susulan.
         assert!(list[14].edit_susulan, "O edit susulan");
         assert!(payload(list[14]).contains("KARTU O"));
-        // P: payload player_html produksi (poster placeholder + lirik).
+        // P: payload player_html produksi (poster placeholder + lirik JSON
+        // base64 untuk script player).
         let p = payload(list[15]);
         assert!(p.contains("<style>"), "P style");
         assert!(p.contains("data:image/svg+xml;base64,"), "P poster placeholder");
-        assert!(p.contains("Baris lirik pertama uji"), "P lirik");
+        let json_lirik = serde_json::to_string(&vec![
+            json!({"time": 0.0, "text": "Baris lirik pertama uji"}),
+            json!({"time": 12.5, "text": "Baris lirik kedua uji"}),
+            json!({"time": 30.0, "text": "Baris lirik ketiga uji"}),
+        ])
+        .unwrap();
+        assert!(p.contains(&base64_encode(json_lirik.as_bytes())), "P lirik base64");
         assert!(!list[15].edit_susulan, "P tanpa edit");
         // Q: cermin produksi = P + edit.
         assert_eq!(payload(list[16]), p.replace("Kartu P", "Kartu Q"), "Q payload sama dengan P");

@@ -642,3 +642,40 @@ owner; kalau kirimnya sendiri gagal (stanza terlalu besar untuk
 server) itu juga bukti. Hasilnya menentukan bentuk port player:
 audio full (kalau ≥768 KB render), preview panjang (kalau 256–512 KB),
 preview ~15 dtk (kalau cuma 60 KB), atau visual statis tanpa audio.
+
+## Adendum 2026-11-20 (11) — langit-langit ≥768 KB; port player penuh
+
+Hasil owner (v0.2.71): **O–Y SEMUA tampil**, termasuk Y = 768 KB.
+Jadi: combo `0@bot`+edit aman, payload `player_html` aman, style/img
+JPEG aman, dan batas payload klien owner ≥768 KB — angka komunitas
+60000/64 KiB tidak berlaku di build 2.26.45.99 (zaileys 256 KiB pun
+terlalu konservatif). Audio full 16 kbps (3–4 mnt ≈ 500–650 KB b64)
+MUAT. Keputusan: port PENUH `createMusicPlayer`.
+
+Implementasi (`.play2` saja; `.ytplay` video tidak menanam media):
+
+- `PLAYER_TEMPLATE`: template verbatim JS (`play2.js:517-886`) dengan
+  token `__POSTER__`/`__TITLE__`/`__ARTIST__`/`__DUR__`/`__AUDIO_SRC__`/
+  `__LYRICS_B64__` — replace, bukan `format!`, supaya kurung kurawal
+  CSS/JS tidak di-escape dan template bisa di-diff terhadap oracle.
+  bg blur + veil, header "YT Music Audio", heart, mini-lirik highlight
+  + smooth scroll, progress bar + dot, controls ±10s + play/pause,
+  catatan waktu `loadedmetadata`/`timeupdate`/`ended`. Note bawah
+  disesuaikan (voice note tetap dikirim — deviasi Rust dipertahankan
+  untuk klien non-Android yang tidak merender primitif HTML).
+- `player_html(..., audio_src)`: audio `data:audio/ogg;base64,…` dari
+  hasil `kompres_audio` yang sama dengan voice note (16k/24kHz/mono);
+  lirik = JSON `[{time,text}]` base64 persis pola `lyricsJson` JS.
+- `MAX_HTML_PAYLOAD_BYTES`: 60 KiB → **768_000** (tepi zona terbukti).
+- Ladder ukuran: poster penuh → poster placeholder (`player_html_aman`)
+  → pangkas durasi audio kartu via `kompres_audio_durasi` (`-t detik`,
+  budget = sisa ruang ÷ 2 KB/detik) → kalau masih lebih, Err. Voice
+  note TIDAK dipangkas — lagu penuh tetap di sana.
+- Test: 32 play2 hijau (kontrak port penuh: penanda bg/veil/header/
+  heart/bar/controls, audio tertanam, lirik base64 round-trip, urutan
+  lirik polos, ladder poster); 2 cekkartu + 8 ytplay hijau.
+
+Retest owner: `.play2` harus tampil persis oktz-md — tombol play
+memutar lagu di dalam kartu, bar bisa di-seek, lirik menyorot mengikuti
+audio. Kalau WebView menolak autoplay/data-URI audio di build ini
+(belum teruji — probe audio berikutnya), fallback ladder sudah ada.

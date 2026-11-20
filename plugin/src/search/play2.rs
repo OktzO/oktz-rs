@@ -18,9 +18,11 @@
 //!   `.cekkartu` K/L/M; amplop JS `867051314767696@bot`/999 hanya bukti
 //!   versi WA lama).
 //!   Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
-//!   `timeupdate`), bukan WS — jadi sync lyrics live JS tidak butuh wire
-//!   baru. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
-//!   dikirim sebagai fallback untuk klien yang tidak merender primitif HTML.
+//!   `timeupdate`), bukan WS. Audio PENUH tertanam di kartu (opus 16k,
+//!   langit-langit 768 KB terukur di klien owner — adendum 11); lagu yang
+//!   lebih panjang dipangkas durasinya khusus untuk kartu. Voice note opus
+//!   (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap dikirim sebagai fallback
+//!   untuk klien yang tidak merender primitif HTML (non-Android).
 //! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dilewati (`ponytail:`;
 //!   LRCLIB cukup; upgrade path: tambah InnerTube timedtext bila perlu).
 //!
@@ -545,13 +547,26 @@ const ARGUMEN_FFMPEG: [&str; 19] = [
 /// Batas 6 MB keluaran diperiksa di [`proses`] supaya bisa diuji tanpa
 /// ffmpeg sungguhan.
 fn kompres_audio(input: &[u8]) -> Result<Vec<u8>, String> {
+    kompres_dengan(input, &ARGUMEN_FFMPEG)
+}
+
+/// Seperti [`kompres_audio`] tapi dibatasi `detik` pertama (`-t`) — dipakai
+/// saat lagu penuh membuat kartu melewati [`MAX_HTML_PAYLOAD_BYTES`].
+fn kompres_audio_durasi(input: &[u8], detik: u32) -> Result<Vec<u8>, String> {
+    let detik = detik.to_string();
+    let mut argumen: Vec<&str> = ARGUMEN_FFMPEG[..ARGUMEN_FFMPEG.len() - 1].to_vec();
+    argumen.extend(["-t", &detik, "pipe:1"]);
+    kompres_dengan(input, &argumen)
+}
+
+fn kompres_dengan(input: &[u8], argumen: &[&str]) -> Result<Vec<u8>, String> {
     if input.is_empty() {
         return Err("Input buffer kosong".to_string());
     }
     if oktz_plugin_api::ffmpeg::jalur_ffmpeg().is_none() {
         return Err("FFmpeg tidak ditemukan.".to_string());
     }
-    let output = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&ARGUMEN_FFMPEG, input)
+    let output = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(argumen, input)
         .map_err(|_| "FFmpeg gagal".to_string())?;
     if output.is_empty() {
         return Err("FFmpeg menghasilkan audio kosong".to_string());
@@ -567,27 +582,29 @@ type Kompresor = fn(&[u8]) -> Result<Vec<u8>, String>;
 /// (`play2.js:510-512`).
 pub(crate) const POSTER_PLACEHOLDER: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzFhMGQxMiIvPjx0ZXh0IHg9IjIwMCIgeT0iMjEwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TUFJTiBQQ0xAYVlFUlI8L3RleHQ+PC9zdmc+";
 
-/// Batas muatan HTML primitif yang diterima klien. Capture pesan nyata
-/// menulis "native limit is 60000" (`Vanta-effect/lib/richhtml.js:25`);
-/// port whatsmeow membatasi 64 KiB (`kotonehara/rich_html.go:17`). Di atas
-/// batas itu klien menampilkan "versi WhatsApp Anda tidak mendukungnya".
-pub(crate) const MAX_HTML_PAYLOAD_BYTES: usize = 60 * 1024;
+/// Batas muatan HTML primitif. TERUKUR di perangkat owner (adendum 11):
+/// kartu Y 768 KB render di Android 2.26.45.99 — angka komunitas yang lebih
+/// kecil (Vanta "native limit is 60000", kotonehara 64 KiB) tidak berlaku di
+/// build ini; zaileys malah menetapkan 256 KiB. 768_000 = tepi zona terbukti.
+pub(crate) const MAX_HTML_PAYLOAD_BYTES: usize = 768_000;
 
-/// `createMusicPlayer` (`play2.js:506-887`) versi Rust: poster, judul/artis,
-/// durasi, dan daftar lirik.
+/// `createMusicPlayer` (`play2.js:506-887`) versi Rust — port PENUH: bg
+/// poster blur + veil, header, heart, mini-lirik sinkron, progress bar,
+/// controls ±10s + play/pause, audio tertanam. Template verbatim JS dengan
+/// token `__…__` (bukan `format!` — kurung kurawal CSS/JS tidak perlu
+/// di-escape, dan template bisa di-diff langsung terhadap oracle).
 ///
-/// `ponytail:` audio TIDAK lagi ditanam sebagai `data:audio/ogg;base64,...`
-/// seperti JS. Lagu penuh (±0,5 MB base64) melewati
-/// [`MAX_HTML_PAYLOAD_BYTES`] dan klien MENOLAK SELURUH kartu — bukan cuma
-/// mematikan audionya. Audio penuh tetap dikirim sebagai voice note di pesan
-/// terpisah. Tanam audio lagi hanya kalau bisa dipangkas < ~40 KB
-/// (mis. potongan preview), bukan seekor lagu.
+/// `audio_src` = data URI `data:audio/ogg;base64,…` (opus 16k hasil
+/// [`kompres_audio`]); lagu penuh 3–4 mnt ≈ 500–650 KB muat di bawah
+/// [`MAX_HTML_PAYLOAD_BYTES`]. Kalau kelebihan, [`proses`] memangkas
+/// durasi audio (bukan mematikan player) dan voice note tetap lagu penuh.
 pub(crate) fn player_html(
     title: &str,
     artist: &str,
     durasi: &str,
     poster: &str,
     lyrics: &[Baris],
+    audio_src: &str,
 ) -> String {
     let safe_title = escape_html(title);
     let safe_artist = escape_html(artist);
@@ -597,57 +614,410 @@ pub(crate) fn player_html(
     } else {
         poster
     };
-    let poster = escape_attr(poster);
-    // Lirik dirender diam (tanpa `<script>`): tidak ada audio di kartu, jadi
-    // tidak ada `timeupdate` untuk menyorot baris.
-    let mut lirik = String::new();
-    if lyrics.is_empty() {
-        lirik.push_str(r#"<div class="ln">Lirik belum tersedia untuk lagu ini.</div>"#);
-    } else {
-        for b in lyrics {
-            lirik.push_str(r#"<div class="ln">"#);
-            lirik.push_str(&escape_html(&b.text));
-            lirik.push_str("</div>");
-        }
-    }
-    format!(
-        r#"<style>
-*{{box-sizing:border-box;-webkit-tap-highlight-color:transparent}}
-body{{margin:0;background:#1a0d12;color:#fff;font-family:Arial,Helvetica,sans-serif}}
-.wrap{{display:flex;justify-content:center;padding:10px}}
-.player{{width:100%;max-width:330px;border-radius:18px;overflow:hidden;background:#1a0d12;box-shadow:0 18px 40px rgba(0,0,0,.5)}}
-.content{{padding:16px 18px}}
-.poster{{width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.06);margin-bottom:14px}}
-.poster img{{width:100%;height:100%;object-fit:cover;display:block}}
-.title{{font-size:17px;font-weight:600;line-height:1.3}}
-.artist{{font-size:12px;color:#b9b1b6;margin-top:3px}}
-.lyrics{{max-height:132px;overflow-y:auto;margin:10px 0;font-size:11px;line-height:1.5}}
-.ln{{color:rgba(255,255,255,.75);padding:2px 0}}
-.time{{display:flex;justify-content:space-between;font-size:11px;color:#b9b1b6;margin-bottom:10px}}
-.note{{font-size:11px;color:#b9b1b6;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}}
-</style>
-<div class="wrap"><div class="player"><div class="content">
-<div class="poster"><img src="{poster}" alt="{safe_title}"></div>
-<div class="title">{safe_title}</div>
-<div class="artist">{safe_artist}</div>
-<div class="lyrics">{lirik}</div>
-<div class="time"><span>Durasi</span><span>{safe_dur}</span></div>
-<div class="note">🎧 Lagu lengkap dikirim sebagai pesan suara tepat di atas kartu ini.</div>
-</div></div></div>"#
-    )
+    let lirik_json: Vec<serde_json::Value> = lyrics
+        .iter()
+        .map(|b| json!({"time": b.time, "text": b.text}))
+        .collect();
+    let lirik_b64 = base64_encode(serde_json::to_string(&lirik_json).unwrap_or_default().as_bytes());
+    PLAYER_TEMPLATE
+        .replace("__POSTER__", &escape_attr(poster))
+        .replace("__TITLE_ATTR__", &escape_attr(&safe_title))
+        .replace("__TITLE__", &safe_title)
+        .replace("__ARTIST__", &safe_artist)
+        .replace("__DUR__", &safe_dur)
+        .replace("__AUDIO_SRC__", &escape_attr(audio_src))
+        .replace("__LYRICS_B64__", &lirik_b64)
 }
 
-/// `player_html` dengan poster dilepas kalau muatannya masih melewati batas
-/// klien ([`MAX_HTML_PAYLOAD_BYTES`]). Jaring pengaman, bukan jalur utama:
-/// poster ±20 KB dan lirik satu lagu ±3 KB, jadi normalnya langsung muat.
-fn player_html_aman(title: &str, artist: &str, durasi: &str, poster: &str, lyrics: &[Baris]) -> String {
-    let html = player_html(title, artist, durasi, poster, lyrics);
+/// `player_html` dengan poster dilepas kalau muatannya melewati
+/// [`MAX_HTML_PAYLOAD_BYTES`]. Jaring pengaman pertama; kalau masih
+/// kelebihan, [`proses`] memangkas durasi audio sebelum membangun ulang.
+fn player_html_aman(
+    title: &str,
+    artist: &str,
+    durasi: &str,
+    poster: &str,
+    lyrics: &[Baris],
+    audio_src: &str,
+) -> String {
+    let html = player_html(title, artist, durasi, poster, lyrics, audio_src);
     if html.len() <= MAX_HTML_PAYLOAD_BYTES {
         html
     } else {
-        player_html(title, artist, durasi, "", lyrics)
+        player_html(title, artist, durasi, "", lyrics, audio_src)
     }
 }
+
+/// Template verbatim `createMusicPlayer` (`play2.js:517-886`); token
+/// diganti [`player_html`]. Note bawah disesuaikan: lagu penuh juga
+/// dikirim sebagai voice note (deviasi Rust yang dipertahankan).
+const PLAYER_TEMPLATE: &str = r#"<style>
+  :root {
+    --ink: #ffffff;
+    --muted: #b9b1b6;
+    --sys: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { background: transparent; color: var(--ink); font-family: var(--sys); -webkit-font-smoothing: antialiased; }
+  .wrap { display: flex; align-items: center; justify-content: center; padding: 10px; }
+  .player { position: relative; width: 100%; max-width: 330px; border-radius: 18px; overflow: hidden; background: #1a0d12; box-shadow: 0 18px 40px rgba(0,0,0,.5); }
+  .bg { position: absolute; inset: -30%; width: 160%; height: 160%; object-fit: cover; filter: blur(38px) saturate(1.5); opacity: .85; z-index: 0; }
+  .veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(20,8,12,.65) 0%, rgba(20,8,12,.8) 45%, rgba(12,5,8,.96) 100%); }
+  .content { position: relative; z-index: 2; padding: 16px 18px 18px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .head__icon { width: 18px; height: 18px; color: var(--ink); opacity: .85; flex: none; }
+  .head__mid { text-align: center; flex: 1; min-width: 0; }
+  .head__from { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .head__album { font-size: 12px; font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .poster { width: 100%; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.06); box-shadow: 0 12px 26px rgba(0,0,0,.45); margin-bottom: 14px; }
+  .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .info { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .info__names { min-width: 0; }
+  .info__title { font-size: 17px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info__artist { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info__heart { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; background: none; border: none; color: var(--muted); cursor: pointer; padding: 0; }
+  .info__heart.is-on { color: #ff5c8a; }
+  .mini-lyrics { position: relative; height: 82px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; margin-bottom: 10px; overscroll-behavior: contain; scroll-behavior: auto; mask-image: linear-gradient(180deg, transparent 0%, black 18%, black 82%, transparent 100%); -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 18%, black 82%, transparent 100%); }
+  .mini-lyrics::-webkit-scrollbar { display: none; }
+  .lyrics-text { width: 100%; padding: 32px 0; display: flex; flex-direction: column; gap: 5px; }
+  .lyric-line { font-size: 10.5px; color: rgba(255,255,255,.4); line-height: 1.4; transition: color .25s ease, font-size .25s ease, opacity .25s ease, transform .25s ease; text-align: left; white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; font-weight: 500; opacity: .75; transform: translateX(0) scale(1); transform-origin: left center; }
+  .lyric-line.is-active { font-size: 12px; color: #fff; font-weight: 700; opacity: 1; transform: translateX(2px) scale(1.01); }
+  .lyrics-empty { font-size: 10.5px; color: var(--muted); text-align: left; padding: 16px 0; }
+  .bar { position: relative; height: 4px; border-radius: 4px; background: rgba(255,255,255,.22); cursor: pointer; margin-bottom: 6px; touch-action: none; }
+  .bar__fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 4px; background: #fff; pointer-events: none; }
+  .bar__dot { position: absolute; top: 50%; left: 0; width: 11px; height: 11px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); pointer-events: none; }
+  .time { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+  .controls { display: flex; align-items: center; justify-content: space-between; }
+  .ctrl { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: var(--ink); background: none; border: none; cursor: pointer; padding: 0; transition: opacity .2s ease, transform .15s ease; }
+  .ctrl:active { opacity: .6; transform: scale(.92); }
+  .play { width: 52px; height: 52px; border-radius: 50%; background: #fff; color: #12070b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; padding: 0; box-shadow: 0 6px 16px rgba(0,0,0,.4); transition: transform .15s ease; }
+  .play:active { transform: scale(.93); }
+  .note { margin-top: 12px; text-align: center; font-size: 10px; color: var(--muted); line-height: 1.6; }
+</style>
+
+<div class="wrap">
+  <div class="player">
+    <img class="bg" src="__POSTER__" alt="">
+    <div class="veil"></div>
+    <div class="content">
+      <div class="head">
+        <svg class="head__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <div class="head__mid">
+          <div class="head__from">YT Music Audio</div>
+          <div class="head__album">__ARTIST__</div>
+        </div>
+        <svg class="head__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+      </div>
+
+      <div class="poster">
+        <img src="__POSTER__" alt="__TITLE_ATTR__">
+      </div>
+
+      <div class="info">
+        <div class="info__names">
+          <div class="info__title">__TITLE__</div>
+          <div class="info__artist">__ARTIST__</div>
+        </div>
+        <button class="info__heart" id="heart" aria-label="Favorite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M20.8 5.6 a5.1 5.1 0 0 0-7.2 0 L12 7.2 l-1.6-1.6 a5.1 5.1 0 0 0-7.2 7.2 l1.6 1.6 L12 21.6 l7.2-7.2 1.6-1.6 a5.1 5.1 0 0 0 0-7.2z"/></svg>
+        </button>
+      </div>
+
+      <div class="mini-lyrics" id="mini-lyrics">
+        <div class="lyrics-text" id="lyrics-text"></div>
+      </div>
+
+      <div class="bar" id="bar">
+        <div class="bar__fill" id="fill"></div>
+        <div class="bar__dot" id="dot"></div>
+      </div>
+
+      <div class="time">
+        <span id="cur">0:00</span>
+        <span id="dur">__DUR__</span>
+      </div>
+
+      <div class="controls">
+        <button class="ctrl" style="opacity:.5; cursor:default;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </button>
+
+        <button class="ctrl" id="btn-rw" aria-label="Mundur 10 detik">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><text x="12" y="16.5" font-size="7.5" font-family="sans-serif" font-weight="bold" stroke="none" fill="currentColor" text-anchor="middle">10</text></svg>
+        </button>
+
+        <button class="play" id="play" aria-label="Play">
+          <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M8 5.6 v12.8 a.6.6 0 0 0 .92.5 l10-6.4 a.6.6 0 0 0 0-1 l-10-6.4 a.6.6 0 0 0-.92.5z"/></svg>
+          <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="display:none"><rect x="6.5" y="5" width="3.8" height="14" rx="1"/><rect x="13.7" y="5" width="3.8" height="14" rx="1"/></svg>
+        </button>
+
+        <button class="ctrl" id="btn-fw" aria-label="Maju 10 detik">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="16.5" font-size="7.5" font-family="sans-serif" font-weight="bold" stroke="none" fill="currentColor" text-anchor="middle">10</text></svg>
+        </button>
+
+        <button class="ctrl" style="opacity:.5; cursor:default;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1 a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1 a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+      </div>
+
+      <div class="note">🎧 Lagu penuh juga dikirim sebagai pesan suara di atas kartu ini.</div>
+    </div>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata" src="__AUDIO_SRC__"></audio>
+
+<script>
+(function() {
+  'use strict';
+
+  const audio = document.getElementById('audio');
+  const play = document.getElementById('play');
+  const bar = document.getElementById('bar');
+  const fill = document.getElementById('fill');
+  const dot = document.getElementById('dot');
+  const cur = document.getElementById('cur');
+  const dur = document.getElementById('dur');
+  const heart = document.getElementById('heart');
+  const iconPlay = document.getElementById('icon-play');
+  const iconPause = document.getElementById('icon-pause');
+  const lyricsContainer = document.getElementById('mini-lyrics');
+  const lyricsText = document.getElementById('lyrics-text');
+  const btnRw = document.getElementById('btn-rw');
+  const btnFw = document.getElementById('btn-fw');
+
+  let lyrics = [];
+  try {
+    const encoded = '__LYRICS_B64__';
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const json = new TextDecoder('utf-8').decode(bytes);
+    const parsed = JSON.parse(json);
+    if (Array.isArray(parsed)) {
+      lyrics = parsed
+        .filter(item => item && Number.isFinite(Number(item.time)))
+        .map(item => ({ time: Number(item.time), text: String(item.text || '♪') }))
+        .sort((a, b) => a.time - b.time);
+    }
+  } catch {
+    lyrics = [];
+  }
+
+  const lyricElements = [];
+  function renderLyrics() {
+    lyricsText.innerHTML = '';
+    lyricElements.length = 0;
+
+    if (!Array.isArray(lyrics) || !lyrics.length) {
+      lyricsText.innerHTML = '<div class="lyrics-empty">Lirik belum tersedia untuk lagu ini.</div>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    lyrics.forEach((line, index) => {
+      const el = document.createElement('div');
+      el.className = 'lyric-line';
+      el.dataset.time = String(line.time);
+      el.dataset.index = String(index);
+      el.textContent = line.text || '♪';
+      fragment.appendChild(el);
+      lyricElements.push(el);
+    });
+    lyricsText.appendChild(fragment);
+  }
+  renderLyrics();
+
+  let activeLyricIndex = -1;
+  function findLyricIndex(time) {
+    if (!lyrics.length) return -1;
+    let low = 0, high = lyrics.length - 1, result = -1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (Number(lyrics[mid].time) <= time) {
+        result = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return result;
+  }
+
+  let targetScrollTop = 0, currentScrollTop = 0, scrollAnimationFrame = null;
+  const SCROLL_SMOOTHNESS = 0.18;
+
+  function calculateLyricScroll(element) {
+    if (!element || !lyricsContainer) return 0;
+    const elementTop = element.offsetTop;
+    const elementHeight = element.offsetHeight;
+    const containerHeight = lyricsContainer.clientHeight;
+    let target = elementTop - (containerHeight / 2) + (elementHeight / 2);
+    const maxScroll = Math.max(0, lyricsContainer.scrollHeight - containerHeight);
+    return Math.max(0, Math.min(target, maxScroll));
+  }
+
+  function setLyricScrollTarget(element, immediate = false) {
+    if (!element || !lyricsContainer) return;
+    targetScrollTop = calculateLyricScroll(element);
+    if (immediate) {
+      currentScrollTop = targetScrollTop;
+      lyricsContainer.scrollTop = targetScrollTop;
+      return;
+    }
+    startScrollAnimation();
+  }
+
+  function startScrollAnimation() {
+    if (scrollAnimationFrame !== null) return;
+    function animate() {
+      const difference = targetScrollTop - currentScrollTop;
+      if (Math.abs(difference) < 0.5) {
+        currentScrollTop = targetScrollTop;
+        lyricsContainer.scrollTop = currentScrollTop;
+        scrollAnimationFrame = null;
+        return;
+      }
+      currentScrollTop += difference * SCROLL_SMOOTHNESS;
+      lyricsContainer.scrollTop = currentScrollTop;
+      scrollAnimationFrame = requestAnimationFrame(animate);
+    }
+    scrollAnimationFrame = requestAnimationFrame(animate);
+  }
+
+  function updateLyrics(currentTime, { immediate = false } = {}) {
+    if (!lyrics.length || !lyricElements.length) return;
+    const time = Number(currentTime) || 0;
+    const index = findLyricIndex(time);
+
+    if (index < 0) {
+      if (activeLyricIndex !== -1) {
+        activeLyricIndex = -1;
+        lyricElements.forEach(el => el.classList.remove('is-active'));
+      }
+      return;
+    }
+
+    if (index === activeLyricIndex && !immediate) return;
+
+    activeLyricIndex = index;
+    lyricElements.forEach((el, i) => el.classList.toggle('is-active', i === index));
+    const active = lyricElements[index];
+    if (active) setLyricScrollTarget(active, immediate);
+  }
+
+  function resetLyrics() {
+    activeLyricIndex = -1;
+    lyricElements.forEach(el => el.classList.remove('is-active'));
+    targetScrollTop = 0;
+    currentScrollTop = 0;
+    if (lyricsContainer) lyricsContainer.scrollTop = 0;
+  }
+
+  function formatTime(sec) {
+    sec = Number(sec);
+    if (!Number.isFinite(sec) || sec < 0) return '0:00';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor(sec % 3600 / 60);
+    const s = Math.floor(sec % 60);
+    if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function updateProgress() {
+    const duration = Number(audio.duration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    const current = Math.max(0, Math.min(duration, Number(audio.currentTime) || 0));
+    const percent = (current / duration) * 100;
+    fill.style.width = percent + '%';
+    dot.style.left = percent + '%';
+    cur.textContent = formatTime(current);
+    updateLyrics(current);
+  }
+
+  function setPlaying() {
+    iconPlay.style.display = 'none';
+    iconPause.style.display = 'block';
+    startScrollAnimation();
+  }
+
+  function setPaused() {
+    iconPlay.style.display = 'block';
+    iconPause.style.display = 'none';
+  }
+
+  play.addEventListener('click', async () => {
+    try {
+      if (audio.paused) {
+        await audio.play();
+        setPlaying();
+      } else {
+        audio.pause();
+        setPaused();
+      }
+    } catch {
+      setPaused();
+    }
+  });
+
+  heart.addEventListener('click', () => heart.classList.toggle('is-on'));
+
+  btnRw.addEventListener('click', () => {
+    const duration = Number(audio.duration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    audio.currentTime = Math.max(0, (Number(audio.currentTime) || 0) - 10);
+    updateLyrics(audio.currentTime, { immediate: true });
+    updateProgress();
+  });
+
+  btnFw.addEventListener('click', () => {
+    const duration = Number(audio.duration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    audio.currentTime = Math.min(duration, (Number(audio.currentTime) || 0) + 10);
+    updateLyrics(audio.currentTime, { immediate: true });
+    updateProgress();
+  });
+
+  function seekFromPointer(clientX) {
+    const duration = Number(audio.duration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    const rect = bar.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    audio.currentTime = (x / rect.width) * duration;
+    updateLyrics(audio.currentTime, { immediate: true });
+    updateProgress();
+  }
+
+  bar.addEventListener('pointerdown', event => seekFromPointer(event.clientX));
+
+  audio.addEventListener('loadedmetadata', () => {
+    if (Number.isFinite(audio.duration)) dur.textContent = formatTime(audio.duration);
+    updateProgress();
+  });
+
+  audio.addEventListener('durationchange', () => {
+    if (Number.isFinite(audio.duration)) dur.textContent = formatTime(audio.duration);
+  });
+
+  audio.addEventListener('timeupdate', updateProgress);
+  audio.addEventListener('play', setPlaying);
+  audio.addEventListener('pause', () => { if (!audio.ended) setPaused(); });
+  audio.addEventListener('ended', () => {
+    setPaused();
+    fill.style.width = '0%';
+    dot.style.left = '0%';
+    cur.textContent = '0:00';
+    resetLyrics();
+  });
+  audio.addEventListener('error', setPaused);
+
+  setPaused();
+})();
+</script>
+"#;
 
 /// Section HTML `GenAIaeacdsnwHtmlPrimitive` — `sendMusicPlayer`
 /// (`play2.js:916-927`).
@@ -776,20 +1146,28 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     }
 
     // `sendMusicPlayer(sock, m.chat, html, "${title} - ${artist}")`
-    // (`play2.js:1098`): kartu memuat poster `getThumb` → `imageSrc` dan
-    // lirik; audio penuh dikirim sebagai voice note (lihat `Reply::sequence`
-    // di bawah), bukan ditanam di HTML — alasannya di [`player_html`].
+    // (`play2.js:1098`): kartu memuat poster, lirik, dan AUDIO PENUH
+    // tertanam (adendum 11 — langit-langit 768 KB terukur di klien owner).
+    // Voice note tetap dikirim sebagai fallback klien non-Android.
     let poster = poster_base64(ctx.http.as_ref(), &video.thumbnail);
-    let html = player_html_aman(
-        title,
-        artist,
-        &format_duration(duration_sec),
-        &poster,
-        &synced,
-    );
+    let durasi = format_duration(duration_sec);
+    let audio_src = format!("data:audio/ogg;base64,{}", base64_encode(&kompresi));
+    let mut html = player_html_aman(title, artist, &durasi, &poster, &synced, &audio_src);
     if html.len() > MAX_HTML_PAYLOAD_BYTES {
-        // Mestinya tidak tercapai (poster sudah dilepas di `player_html_aman`),
-        // tapi jangan pernah kirim kartu yang bakal ditolak klien.
+        // Lagu terlalu panjang untuk zona terbukti: pangkas durasi audio
+        // kartu (16 kbps ≈ 2 KB/detik + overhead ogg), bukan mematikan
+        // player. Voice note tetap lagu penuh.
+        let overhead = player_html(title, artist, &durasi, "", &synced, "").len();
+        let budget_mentah = MAX_HTML_PAYLOAD_BYTES.saturating_sub(overhead + 1024) / 4 * 3;
+        let detik = (budget_mentah / 2048) as u32;
+        if detik >= 1 {
+            if let Ok(pangkas) = kompres_audio_durasi(&asli, detik) {
+                let src = format!("data:audio/ogg;base64,{}", base64_encode(&pangkas));
+                html = player_html_aman(title, artist, &durasi, &poster, &synced, &src);
+            }
+        }
+    }
+    if html.len() > MAX_HTML_PAYLOAD_BYTES {
         return Err("Kartu HTML terlalu besar untuk klien WhatsApp.".to_string());
     }
     let rich = RichAi {
@@ -1142,9 +1520,10 @@ mod tests {
         let payload = prim["payload"].as_str().expect("payload html");
         assert!(matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
         assert!(payload.contains("Lagu Uji"), "{payload}");
-        // Kartu tidak lagi menanam audio: lagu penuh ±0,5 MB melewati batas
-        // muatan primitif HTML klien (~60 KiB).
-        assert!(!payload.contains("data:audio"), "audio tidak ditanam lagi");
+        // Audio penuh tertanam lagi (adendum 11: langit-langit 768 KB
+        // terukur di klien owner); voice note tetap fallback non-Android.
+        assert!(payload.contains("data:audio/ogg;base64,"), "audio tertanam");
+        assert!(payload.contains("id=\"play\""), "kontrol play ada");
         assert!(
             payload.len() <= MAX_HTML_PAYLOAD_BYTES,
             "muatan {} > batas {MAX_HTML_PAYLOAD_BYTES}",
@@ -1229,19 +1608,22 @@ mod tests {
             panic!("harus sequence");
         };
         // Lirik polos jadi sinkron interval 8 dtk (213/3=71 → clamp 8); kartu
-        // merender tiap baris sebagai `<div class="ln">`, urut.
+        // menanam lirik sebagai JSON base64 untuk script player, urut.
         let Reply::TabelAi(rich) = list[2].without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
         let payload = rich.sections[0]["view_model"]["primitive"]["payload"]
             .as_str()
             .expect("payload html");
-        let pos = ["satu", "dua", "tiga"].map(|t| {
-            payload
-                .find(&format!("<div class=\"ln\">{t}</div>"))
-                .unwrap_or_else(|| panic!("baris {t:?} tidak ada: {payload}"))
-        });
-        assert!(pos[0] < pos[1] && pos[1] < pos[2], "urutan lirik: {pos:?}");
+        let awal = payload.find("const encoded = '").expect("token lirik") + "const encoded = '".len();
+        let akhir = payload[awal..].find("';").expect("penutup lirik") + awal;
+        let json = decode_base64_test(&payload[awal..akhir]);
+        let v: serde_json::Value = serde_json::from_slice(&json).expect("json sah");
+        let baris = v.as_array().expect("array lirik");
+        let teks: Vec<&str> = baris.iter().map(|b| b["text"].as_str().unwrap()).collect();
+        assert_eq!(teks, ["satu", "dua", "tiga"], "urutan lirik");
+        let waktu: Vec<f64> = baris.iter().map(|b| b["time"].as_f64().unwrap()).collect();
+        assert!(waktu.windows(2).all(|w| w[0] < w[1]), "waktu naik: {waktu:?}");
     }
 
     #[test]
@@ -1489,19 +1871,60 @@ mod tests {
 
     #[test]
     fn player_html_memakai_judul_yang_diescape_dan_placeholder_poster() {
-        let html = player_html("<b>A</b>", "B & C", "3:33", "", &[]);
+        let html = player_html("<b>A</b>", "B & C", "3:33", "", &[], "");
         assert!(html.contains("&lt;b&gt;A&lt;/b&gt;"), "{html}");
         assert!(html.contains("B &amp; C"), "{html}");
         assert!(html.contains("data:image/svg+xml;base64,"), "placeholder SVG");
         assert!(html.contains("Lirik belum tersedia"), "{html}");
-        assert!(!html.contains("<audio"), "audio tidak ditanam: {html}");
-        assert!(!html.contains("<script"), "tanpa script: {html}");
+        assert!(html.contains("<audio"), "elemen audio ada");
+        assert!(html.contains("<script"), "player interaktif");
+    }
+
+    #[test]
+    fn player_html_port_penuh_create_music_player() {
+        let html = player_html("T", "A", "3:33", "", &[], "data:audio/ogg;base64,QUJD");
+        assert!(html.contains("src=\"data:audio/ogg;base64,QUJD\""), "audio tertanam");
+        for penanda in [
+            "class=\"bg\"",
+            "class=\"veil\"",
+            "YT Music Audio",
+            "id=\"heart\"",
+            "id=\"mini-lyrics\"",
+            "id=\"bar\"",
+            "id=\"fill\"",
+            "id=\"dot\"",
+            "id=\"btn-rw\"",
+            "id=\"btn-fw\"",
+            "id=\"play\"",
+            "id=\"icon-pause\"",
+            "timeupdate",
+        ] {
+            assert!(html.contains(penanda), "penanda JS hilang: {penanda}");
+        }
+        // Poster dipakai dua kali (bg blur + poster) seperti JS.
+        assert_eq!(html.matches("data:image/svg+xml;base64,").count(), 2);
+    }
+
+    #[test]
+    fn player_html_lirik_json_base64_bisa_dibaca_script() {
+        let lirik = vec![
+            Baris { time: 1.5, text: "halo <b>".into() },
+            Baris { time: 12.0, text: "baris dua".into() },
+        ];
+        let html = player_html("T", "A", "3:33", "", &lirik, "");
+        let awal = html.find("const encoded = '").expect("token lirik") + "const encoded = '".len();
+        let akhir = html[awal..].find("';").expect("penutup lirik") + awal;
+        let json = decode_base64_test(&html[awal..akhir]);
+        let v: serde_json::Value = serde_json::from_slice(&json).expect("json sah");
+        assert_eq!(v[0]["time"], json!(1.5));
+        assert_eq!(v[0]["text"], json!("halo <b>"), "teks lirik mentah, di-escape DOM nanti");
+        assert_eq!(v[1]["text"], json!("baris dua"));
     }
 
     #[test]
     fn player_html_aman_membuang_poster_yang_membuat_muatan_kelebihan() {
         let besar = format!("data:image/jpeg;base64,{}", "A".repeat(MAX_HTML_PAYLOAD_BYTES));
-        let html = player_html_aman("T", "A", "3:33", &besar, &[]);
+        let html = player_html_aman("T", "A", "3:33", &besar, &[], "");
         assert!(html.len() <= MAX_HTML_PAYLOAD_BYTES, "{}", html.len());
         assert!(html.contains("data:image/svg+xml;base64,"), "poster diganti placeholder");
         assert!(html.contains(">T</div>"), "judul tetap ada: {html}");

@@ -16,8 +16,8 @@
 //! hanya muncul di contoh mainan. Submessage teks judul ditambahkan (JS
 //! tidak mengirimnya, tapi parser klien menolak `submessages` kosong).
 //!
-//! Muatan HTML dibatasi `play2::MAX_HTML_PAYLOAD_BYTES` (~60 KiB, batas asli
-//! klien): poster dibuang kalau masih kelebihan.
+//! Muatan HTML dibatasi `play2::MAX_HTML_PAYLOAD_BYTES` (768 KB, batas asli
+//! klien TERUKUR — adendum 11): poster dibuang kalau masih kelebihan.
 //!
 //! `ponytail:` streaming WebSocket `wss://stream.kanara.my.id/?url=…`
 //! (`ytplay.js:879`, `startVideoStream`) tidak bisa dicapai dari API plugin
