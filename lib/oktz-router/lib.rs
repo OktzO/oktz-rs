@@ -306,6 +306,15 @@ mod tests {
     /// pemanggilan lewat statik global.
     static DITANGANI: std::sync::Mutex<Vec<&'static str>> = std::sync::Mutex::new(Vec::new());
 
+    /// `DITANGANI` global dan dipakai bersama, jadi tes yang membacanya harus
+    /// berurutan: tanpa ini `is_empty()` balapan dengan tes lain yang sedang
+    /// `push` (CI pernah gagal karena itu, lolos saat dijalankan lokal).
+    static KUNCI_UJI: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn kunci_uji() -> std::sync::MutexGuard<'static, ()> {
+        KUNCI_UJI.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     #[oktz_plugin_api::answer_handler]
     fn uji_jawab(ctx: oktz_plugin_api::Ctx) -> Option<oktz_plugin_api::Reply> {
         if ctx.text != "jawab" {
@@ -352,7 +361,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // `KUNCI_UJI` hanya dipegang tes ini
     async fn rantai_answer_berhenti_di_yang_pertama_membalas() {
+        let _kunci = kunci_uji();
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
@@ -362,7 +373,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // `KUNCI_UJI` hanya dipegang tes ini
     async fn jawaban_di_luar_pola_melewati_seluruh_rantai() {
+        let _kunci = kunci_uji();
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
@@ -371,7 +384,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // `KUNCI_UJI` hanya dipegang tes ini
     async fn answer_menerima_pesan_mentah_bukan_hasil_parse() {
+        let _kunci = kunci_uji();
         DITANGANI.lock().unwrap().clear();
         let s = stub();
         let r = Router::new(&s, ParseOptions::default(), 1000);
