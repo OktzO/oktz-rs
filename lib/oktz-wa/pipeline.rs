@@ -4781,9 +4781,18 @@ impl Pipeline {
                         }
                     }
                 }
-                let target = reply_target(m, &caller.sender);
-                if let Some(rendered) = self.render_with_reply_variant(&reply, &target)? {
-                    self.deliver(&caller.chat, rendered).await?;
+                let mut target = reply_target(m, &caller.sender);
+                let key = message_key_of(m);
+                target.bot_participant = self
+                    .sender
+                    .bot_addressing_jid(&caller.chat)
+                    .await
+                    .ok()
+                    .filter(|j| !j.is_empty());
+                let terkirim = self
+                    .deliver_reply(&caller.chat, &reply, &mut target, &key)
+                    .await?;
+                if terkirim {
                     // ponytail: jawaban game/main non-command tetap kirim bot → ✓
                     ui::status_kirim(
                         m.info.timestamp,
@@ -10366,6 +10375,31 @@ fn a_null_access_field_keeps_the_existing_grant() {
             .expect("jawaban game harus lewat varian 9");
         assert_eq!(order.message.as_deref(), Some("jawaban game"));
         assert_eq!(order.order_id.as_deref(), Some("WXX"));
+    }
+
+    #[tokio::test]
+    async fn sequence_text_items_still_follow_the_reply_variant() {
+        // Jawaban plugin yang berbentuk `Sequence` (mis. `.stickerly`,
+        // `.dafont`) harus pergi lewat loop `deliver_reply`, dan tiap teks di
+        // dalamnya tetap ikut `replyVariant` — bukan ditolak `render_reply`.
+        let (p, sender) = pipeline_for(
+            &store_varian(9),
+            balasan_tetap(Reply::sequence(vec![
+                Reply::text("satu"),
+                Reply::text("dua"),
+            ])),
+        );
+        let m = inbound_n(".varian", MEMBER, MEMBER, false);
+        assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
+        let terkirim = sender.sent.lock().unwrap();
+        assert_eq!(terkirim.len(), 2, "dua elemen = dua kiriman");
+        for (teks, (_, msg, _)) in ["satu", "dua"].iter().zip(terkirim.iter()) {
+            let order = msg
+                .order_message
+                .as_option()
+                .unwrap_or_else(|| panic!("elemen {teks} harus ikut varian 9"));
+            assert_eq!(order.message.as_deref(), Some(*teks));
+        }
     }
 
     // =====================================================================
