@@ -718,6 +718,30 @@ keduanya melewati pemeriksaan URL (AC tanpa URL; AD blob milik origin
 dokumen). Diverifikasi lokal di Chromium: AC `decode OK dur=6.000` +
 tick, AD `OK paused=false` + tick.
 
+## Adendum 2026-11-20 (13) — mesin audio FINAL: Web Audio
+
+Hasil owner v0.2.74: **AC bunyi**, **AD/Z/AA/AB gagal** (`NotSupportedError`
++ "Media load rejected by URL safety check"). Jadi blob in-document pun
+ditolak — pemeriksaan itu soal ORIGIN dokumen (opaque), bukan skema.
+Satu-satunya jalur yang hidup: tanpa URL media sama sekali.
+
+Mesin `player_html` diganti ke Web Audio; UI/CSS tetap verbatim JS:
+
+- Audio base64 ditanam sebagai `var AUDIO_B64 = '…'` di script (bukan
+  `<audio src>` — elemen audio dihapus dari template).
+- `atob` → `Uint8Array` → `AudioContext({sampleRate:24000,
+  latencyHint:'playback'})` → `decodeAudioData` (sekali, saat play
+  pertama; fallback `new AudioContext()` bila opsi ditolak).
+- Pemutaran `AudioBufferSourceNode` + `offset`/`currentTime`:
+  play/pause, seek bar (pointerdown), ±10 detik, selesai → reset UI.
+  Progress & sorot lirik digerakkan `requestAnimationFrame`
+  (`render` → `updateLyrics`), `dur` diisi durasi asli hasil decode.
+- Efek samping: buffer float32 ≈ 20 MB untuk lagu 3,5 mnt @24 kHz —
+  diterima; `MAX_HTML_PAYLOAD_BYTES` 768 KB tetap (base64 16 kbps).
+- Diverifikasi di Chromium: main 2 dtk → `0:02`, jeda stabil, resume
+  lanjut `0:03`, klik bar 60% → `0:04`, lirik aktif 1, selesai → reset
+  `0:00` + ikon play (nol error halaman).
+
 Interpretasi: Z bunyi → biang = edit susulan (lepas dari play2).
 Z `REJECT NotSupportedError` → codec/container ditolak (probe
 WAV/MP3 berikut). `REJECT NotAllowedError` → kebijakan gesture/host.

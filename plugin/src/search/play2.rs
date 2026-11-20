@@ -18,11 +18,14 @@
 //!   `.cekkartu` K/L/M; amplop JS `867051314767696@bot`/999 hanya bukti
 //!   versi WA lama).
 //!   Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
-//!   `timeupdate`), bukan WS. Audio PENUH tertanam di kartu (opus 16k,
-//!   langit-langit 768 KB terukur di klien owner — adendum 11); lagu yang
-//!   lebih panjang dipangkas durasinya khusus untuk kartu. Voice note opus
-//!   (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap dikirim sebagai fallback
-//!   untuk klien yang tidak merender primitif HTML (non-Android).
+//!   `rAF`), bukan WS. Audio PENUH tertanam di kartu (opus 16k,
+//!   langit-langit 768 KB terukur di klien owner — adendum 11) dan diputar
+//!   lewat **Web Audio** `decodeAudioData`, bukan `<audio src>`: kartu
+//!   dirender dengan origin opaque sehingga Blink menolak semua URL media
+//!   (adendum 13). Lagu yang lebih panjang dipangkas durasinya khusus untuk
+//!   kartu. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
+//!   dikirim sebagai fallback untuk klien non-Android yang tidak merender
+//!   primitif HTML.
 //! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dilewati (`ponytail:`;
 //!   LRCLIB cukup; upgrade path: tambah InnerTube timedtext bila perlu).
 //!
@@ -594,17 +597,21 @@ pub(crate) const MAX_HTML_PAYLOAD_BYTES: usize = 768_000;
 /// token `__…__` (bukan `format!` — kurung kurawal CSS/JS tidak perlu
 /// di-escape, dan template bisa di-diff langsung terhadap oracle).
 ///
-/// `audio_src` = data URI `data:audio/ogg;base64,…` (opus 16k hasil
-/// [`kompres_audio`]); lagu penuh 3–4 mnt ≈ 500–650 KB muat di bawah
-/// [`MAX_HTML_PAYLOAD_BYTES`]. Kalau kelebihan, [`proses`] memangkas
-/// durasi audio (bukan mematikan player) dan voice note tetap lagu penuh.
+/// `audio_b64` = audio opus (hasil [`kompres_audio`]) dalam base64; kartu
+/// memuatnya lewat Web Audio `decodeAudioData`, BUKAN `<audio src>`. Kartu
+/// dirender WhatsApp dengan origin OPAQUE, dan
+/// `HTMLMediaElement::IsSafeToLoadURL` menolak SEMUA URL media pada origin
+/// opaque — `data:`, blob in-document, semuanya, "Media load rejected by URL
+/// safety check" (terukur di perangkat owner, adendum 13). Web Audio tidak
+/// melewati pemeriksaan URL itu, jadi dipakai sebagai mesin pemutar; UI tetap
+/// `createMusicPlayer`.
 pub(crate) fn player_html(
     title: &str,
     artist: &str,
     durasi: &str,
     poster: &str,
     lyrics: &[Baris],
-    audio_src: &str,
+    audio_b64: &str,
 ) -> String {
     let safe_title = escape_html(title);
     let safe_artist = escape_html(artist);
@@ -625,7 +632,7 @@ pub(crate) fn player_html(
         .replace("__TITLE__", &safe_title)
         .replace("__ARTIST__", &safe_artist)
         .replace("__DUR__", &safe_dur)
-        .replace("__AUDIO_SRC__", &escape_attr(audio_src))
+        .replace("__AUDIO_B64__", audio_b64)
         .replace("__LYRICS_B64__", &lirik_b64)
 }
 
@@ -638,13 +645,13 @@ fn player_html_aman(
     durasi: &str,
     poster: &str,
     lyrics: &[Baris],
-    audio_src: &str,
+    audio_b64: &str,
 ) -> String {
-    let html = player_html(title, artist, durasi, poster, lyrics, audio_src);
+    let html = player_html(title, artist, durasi, poster, lyrics, audio_b64);
     if html.len() <= MAX_HTML_PAYLOAD_BYTES {
         html
     } else {
-        player_html(title, artist, durasi, "", lyrics, audio_src)
+        player_html(title, artist, durasi, "", lyrics, audio_b64)
     }
 }
 
@@ -765,13 +772,11 @@ const PLAYER_TEMPLATE: &str = r#"<style>
   </div>
 </div>
 
-<audio id="audio" preload="metadata" src="__AUDIO_SRC__"></audio>
-
 <script>
 (function() {
   'use strict';
 
-  const audio = document.getElementById('audio');
+  var AUDIO_B64 = '__AUDIO_B64__';
   const play = document.getElementById('play');
   const bar = document.getElementById('bar');
   const fill = document.getElementById('fill');
@@ -926,21 +931,132 @@ const PLAYER_TEMPLATE: &str = r#"<style>
     return m + ':' + String(s).padStart(2, '0');
   }
 
-  function updateProgress() {
-    const duration = Number(audio.duration);
-    if (!Number.isFinite(duration) || duration <= 0) return;
-    const current = Math.max(0, Math.min(duration, Number(audio.currentTime) || 0));
-    const percent = (current / duration) * 100;
+  var ctx = null, buf = null, node = null;
+  var playing = false, off = 0, at = 0, loading = false, raf = null;
+
+  function AudioCtx() { return window.AudioContext || window.webkitAudioContext; }
+
+  function siapkanCtx() {
+    if (ctx) return ctx;
+    var AC = AudioCtx();
+    if (!AC) return null;
+    try { ctx = new AC({ sampleRate: 24000, latencyHint: 'playback' }); }
+    catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
+    return ctx;
+  }
+
+  function durasiAudio() { return buf ? buf.duration : 0; }
+
+  function waktuSekarang() {
+    if (!buf) return 0;
+    if (!playing) return off;
+    return Math.min(off + (ctx.currentTime - at), buf.duration);
+  }
+
+  function lepasNode() {
+    if (!node) return;
+    try { node.stop(); } catch (e) {}
+    try { node.disconnect(); } catch (e) {}
+    node = null;
+  }
+
+  function mulaiNode() {
+    lepasNode();
+    if (!buf || !ctx) return;
+    node = ctx.createBufferSource();
+    node.buffer = buf;
+    node.connect(ctx.destination);
+    at = ctx.currentTime;
+    node.start(0, Math.min(off, Math.max(0, buf.duration - 0.001)));
+    playing = true;
+  }
+
+  function render() {
+    var total = durasiAudio();
+    if (total <= 0) return;
+    var t = waktuSekarang();
+    var percent = Math.min(100, (t / total) * 100);
     fill.style.width = percent + '%';
     dot.style.left = percent + '%';
-    cur.textContent = formatTime(current);
-    updateLyrics(current);
+    cur.textContent = formatTime(t);
+    dur.textContent = formatTime(total);
+    updateLyrics(t);
+  }
+
+  function loop() {
+    if (!playing) { raf = null; return; }
+    if (waktuSekarang() >= durasiAudio() - 0.02) {
+      playing = false;
+      off = 0;
+      lepasNode();
+      raf = null;
+      fill.style.width = '0%';
+      dot.style.left = '0%';
+      cur.textContent = '0:00';
+      resetLyrics();
+      setPaused();
+      return;
+    }
+    render();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function muat(saatSiap) {
+    if (buf || loading) return;
+    var c = siapkanCtx();
+    if (!c) { dur.textContent = 'audio tidak didukung'; return; }
+    loading = true;
+    var bin, u;
+    try {
+      bin = atob(AUDIO_B64);
+      u = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    } catch (e) { loading = false; dur.textContent = 'audio rusak'; return; }
+    var selesai = function (b) {
+      if (buf) return;
+      buf = b;
+      loading = false;
+      dur.textContent = formatTime(b.duration);
+      render();
+      if (saatSiap) saatSiap();
+    };
+    var gagal = function () { loading = false; dur.textContent = 'audio gagal'; };
+    try {
+      var p = c.decodeAudioData(u.buffer, selesai, gagal);
+      if (p && p.then) p.then(function () {}, function () { if (!buf) gagal(); });
+    } catch (e) { gagal(); }
+  }
+
+  function putar() {
+    if (!buf) return;
+    if (off >= durasiAudio() - 0.02) off = 0;
+    if (ctx.state === 'suspended' && ctx.resume) {
+      var pr = ctx.resume();
+      if (pr && pr.then) { pr.then(function () { mulaiNode(); loop(); }); return; }
+    }
+    mulaiNode();
+    loop();
+  }
+
+  function jeda() {
+    off = waktuSekarang();
+    lepasNode();
+    playing = false;
+    render();
+  }
+
+  function lompat(t) {
+    if (!buf) return;
+    off = Math.max(0, Math.min(durasiAudio() - 0.01, Number(t) || 0));
+    if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+    if (playing) mulaiNode(); else render();
+    updateLyrics(off, { immediate: true });
+    render();
   }
 
   function setPlaying() {
     iconPlay.style.display = 'none';
     iconPause.style.display = 'block';
-    startScrollAnimation();
   }
 
   function setPaused() {
@@ -948,71 +1064,32 @@ const PLAYER_TEMPLATE: &str = r#"<style>
     iconPause.style.display = 'none';
   }
 
-  play.addEventListener('click', async () => {
-    try {
-      if (audio.paused) {
-        await audio.play();
-        setPlaying();
-      } else {
-        audio.pause();
-        setPaused();
-      }
-    } catch {
-      setPaused();
+  play.addEventListener('click', function () {
+    siapkanCtx();
+    if (!ctx) { dur.textContent = 'audio tidak didukung'; return; }
+    if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+    if (!buf) {
+      if (loading) return;
+      muat(function () { putar(); setPlaying(); });
+      return;
     }
+    if (playing) { jeda(); setPaused(); }
+    else { putar(); setPlaying(); }
   });
 
-  heart.addEventListener('click', () => heart.classList.toggle('is-on'));
+  heart.addEventListener('click', function () { heart.classList.toggle('is-on'); });
 
-  btnRw.addEventListener('click', () => {
-    const duration = Number(audio.duration);
-    if (!Number.isFinite(duration) || duration <= 0) return;
-    audio.currentTime = Math.max(0, (Number(audio.currentTime) || 0) - 10);
-    updateLyrics(audio.currentTime, { immediate: true });
-    updateProgress();
-  });
+  btnRw.addEventListener('click', function () { lompat(waktuSekarang() - 10); });
 
-  btnFw.addEventListener('click', () => {
-    const duration = Number(audio.duration);
-    if (!Number.isFinite(duration) || duration <= 0) return;
-    audio.currentTime = Math.min(duration, (Number(audio.currentTime) || 0) + 10);
-    updateLyrics(audio.currentTime, { immediate: true });
-    updateProgress();
-  });
+  btnFw.addEventListener('click', function () { lompat(waktuSekarang() + 10); });
 
-  function seekFromPointer(clientX) {
-    const duration = Number(audio.duration);
-    if (!Number.isFinite(duration) || duration <= 0) return;
-    const rect = bar.getBoundingClientRect();
+  bar.addEventListener('pointerdown', function (event) {
+    if (!buf) return;
+    var rect = bar.getBoundingClientRect();
     if (!rect.width) return;
-    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    audio.currentTime = (x / rect.width) * duration;
-    updateLyrics(audio.currentTime, { immediate: true });
-    updateProgress();
-  }
-
-  bar.addEventListener('pointerdown', event => seekFromPointer(event.clientX));
-
-  audio.addEventListener('loadedmetadata', () => {
-    if (Number.isFinite(audio.duration)) dur.textContent = formatTime(audio.duration);
-    updateProgress();
+    var x = Math.max(0, Math.min(event.clientX - rect.left, rect.width));
+    lompat((x / rect.width) * durasiAudio());
   });
-
-  audio.addEventListener('durationchange', () => {
-    if (Number.isFinite(audio.duration)) dur.textContent = formatTime(audio.duration);
-  });
-
-  audio.addEventListener('timeupdate', updateProgress);
-  audio.addEventListener('play', setPlaying);
-  audio.addEventListener('pause', () => { if (!audio.ended) setPaused(); });
-  audio.addEventListener('ended', () => {
-    setPaused();
-    fill.style.width = '0%';
-    dot.style.left = '0%';
-    cur.textContent = '0:00';
-    resetLyrics();
-  });
-  audio.addEventListener('error', setPaused);
 
   setPaused();
 })();
@@ -1151,8 +1228,8 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     // Voice note tetap dikirim sebagai fallback klien non-Android.
     let poster = poster_base64(ctx.http.as_ref(), &video.thumbnail);
     let durasi = format_duration(duration_sec);
-    let audio_src = format!("data:audio/ogg;base64,{}", base64_encode(&kompresi));
-    let mut html = player_html_aman(title, artist, &durasi, &poster, &synced, &audio_src);
+    let audio_b64 = base64_encode(&kompresi);
+    let mut html = player_html_aman(title, artist, &durasi, &poster, &synced, &audio_b64);
     if html.len() > MAX_HTML_PAYLOAD_BYTES {
         // Lagu terlalu panjang untuk zona terbukti: pangkas durasi audio
         // kartu (16 kbps ≈ 2 KB/detik + overhead ogg), bukan mematikan
@@ -1162,8 +1239,8 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
         let detik = (budget_mentah / 2048) as u32;
         if detik >= 1 {
             if let Ok(pangkas) = kompres_audio_durasi(&asli, detik) {
-                let src = format!("data:audio/ogg;base64,{}", base64_encode(&pangkas));
-                html = player_html_aman(title, artist, &durasi, &poster, &synced, &src);
+                let b64 = base64_encode(&pangkas);
+                html = player_html_aman(title, artist, &durasi, &poster, &synced, &b64);
             }
         }
     }
@@ -1520,9 +1597,12 @@ mod tests {
         let payload = prim["payload"].as_str().expect("payload html");
         assert!(matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
         assert!(payload.contains("Lagu Uji"), "{payload}");
-        // Audio penuh tertanam lagi (adendum 11: langit-langit 768 KB
-        // terukur di klien owner); voice note tetap fallback non-Android.
-        assert!(payload.contains("data:audio/ogg;base64,"), "audio tertanam");
+        // Audio penuh tertanam (base64 di const JS) dan diputar Web Audio —
+        // `<audio src>` ditolak origin opaque (adendum 13). Voice note tetap
+        // fallback non-Android.
+        assert!(payload.contains("AUDIO_B64 = '"), "audio tertanam");
+        assert!(payload.contains("decodeAudioData"), "mesin Web Audio");
+        assert!(!payload.contains("<audio"), "tanpa <audio src>");
         assert!(payload.contains("id=\"play\""), "kontrol play ada");
         assert!(
             payload.len() <= MAX_HTML_PAYLOAD_BYTES,
@@ -1876,14 +1956,15 @@ mod tests {
         assert!(html.contains("B &amp; C"), "{html}");
         assert!(html.contains("data:image/svg+xml;base64,"), "placeholder SVG");
         assert!(html.contains("Lirik belum tersedia"), "{html}");
-        assert!(html.contains("<audio"), "elemen audio ada");
+        assert!(!html.contains("<audio"), "tanpa <audio>: origin opaque menolak URL");
+        assert!(html.contains("decodeAudioData"), "mesin Web Audio");
         assert!(html.contains("<script"), "player interaktif");
     }
 
     #[test]
     fn player_html_port_penuh_create_music_player() {
-        let html = player_html("T", "A", "3:33", "", &[], "data:audio/ogg;base64,QUJD");
-        assert!(html.contains("src=\"data:audio/ogg;base64,QUJD\""), "audio tertanam");
+        let html = player_html("T", "A", "3:33", "", &[], "QUJD");
+        assert!(html.contains("AUDIO_B64 = 'QUJD'"), "audio tertanam");
         for penanda in [
             "class=\"bg\"",
             "class=\"veil\"",
@@ -1897,7 +1978,10 @@ mod tests {
             "id=\"btn-fw\"",
             "id=\"play\"",
             "id=\"icon-pause\"",
-            "timeupdate",
+            "decodeAudioData",
+            "createBufferSource",
+            "requestAnimationFrame",
+            "AUDIO_B64",
         ] {
             assert!(html.contains(penanda), "penanda JS hilang: {penanda}");
         }
