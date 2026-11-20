@@ -127,8 +127,10 @@ pub(crate) fn semua_kartu() -> Reply {
     example = ".cekkartu",
     cooldown = 5,
     energi = 0,
-    is_group = true,
-    is_private = true,
+    // `false`/`false` = tidak dibatasi chat (sama seperti plugin owner lain);
+    // `true` berarti "khusus", jadi dua-duanya true mustahil dipenuhi.
+    is_group = false,
+    is_private = false,
     is_owner = true,
     is_premium = false,
     is_admin = false,
@@ -159,6 +161,13 @@ mod tests {
             .as_str()
             .unwrap()
             .to_string()
+    }
+
+    #[test]
+    fn diagnostik_bisa_dipakai_di_chat_privat_dan_grup() {
+        let meta = oktz_plugin_api::find("cekkartu").unwrap().meta.clone();
+        assert!(!meta.is_group && !meta.is_private, "tidak dibatasi chat");
+        assert!(meta.is_owner, "hanya owner");
     }
 
     #[test]
