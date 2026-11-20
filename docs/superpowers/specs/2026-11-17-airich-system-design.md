@@ -577,3 +577,38 @@ Retest owner: `.play2` dan `.ytplay` harus menampilkan kartu. Kalau
 masih gagal, satu-satunya variabel tersisa adalah isi payload asli
 (poster JPEG + lirik + `<style>`) — uji dengan kartu L bermuatan
 payload play2 sungguhan sebelum menyentuh yang lain.
+
+## Adendum 2026-11-20 (9) — `.play2` v0.2.69 masih gagal; ronde 3
+
+Hasil owner: `.play2` tetap fallback pasca v0.2.69 (0@bot + edit
+susulan + score 1). Verifikasi kode: jalur `Reply::Sequence` memanggil
+`deliver_reply` per elemen → knob `bot_jid`/`edit_susulan` PASTI
+terpakai di kartu play2; bentuk `section_html` play2 identik dengan
+`satu_section` cekkartu (kartu L). Jadi delta tersisa terhadap L yang
+terbukti render hanya DUA:
+
+1. **Combo `0@bot` + edit susulan belum pernah diuji bersama.** K
+   membuktikan edit bekerja dengan botJid Meta AI; L membuktikan
+   `0@bot` bekerja TANPA edit. Kalau edit-relay membuat klien
+   memproses ulang kartu lewat jalur balasan-bot yang menuntut JID
+   bot terkenal, combo ini justru merusak kartu yang tadinya render.
+2. **Isi payload asli**: `<style>` + `img` data-URI + lirik + emoji,
+   ukuran normal ~4 KB (placeholder) sampai ~25 KB (poster JPEG).
+   Kartu L hanya satu `<div>` kecil. A–I dulu gagal semua karena
+   amplopnya salah, jadi payload belum pernah diuji di amplop benar.
+
+Ronde 3 `.cekkartu` (O–T, semua amplop L: `0@bot`, score 1,
+disclaimer "", satu submessage teks):
+
+| Kartu | Variabel | Interpretasi kalau GAGAL (sementara L tampil) |
+|---|---|---|
+| O | + edit susulan | combo edit+0@bot merusak → lepas `edit_susulan` dari play2/ytplay |
+| P | payload `player_html` asli (placeholder, lirik pendek) | isi payload ditolak → bisect lewat S/T/R |
+| Q | P + edit susulan (cermin persis produksi) | interaksi payload×edit |
+| R | ~30 KB teks | batas ukuran di bawah amplop benar |
+| S | `<style>` saja | blok style ditolak |
+| T | `img` JPEG data-URI sah | format gambar ditolak |
+
+Kalau O–T SEMUA tampil: delta terakhir = data jaringan asli (poster
+JPEG hasil unduhan + lirik penuh) atau konteks sequence (voice note
+mendahului kartu) — probe berikutnya memakai payload unduhan nyata.

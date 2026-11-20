@@ -30,15 +30,28 @@
 //! N. typename `FOAHtmlPrimitiveDemoDONOTUSE` (satu-satunya kelas impl di
 //!    dex; barangkali registrasi Pando berubah)
 //!
-//! Kalau A muncul tapi B tidak → gambar/data-URI; kalau A muncul tapi G
-//! tidak → ukuran; kalau TIDAK ADA yang muncul → klien memang menolak
-//! primitif HTML (bukan isi payload, bukan amplop).
+//! Ronde 3 (adendum 9): K/L/M render, tapi `.play2` (0@bot + edit susulan)
+//! tetap gagal. O–T semua memakai amplop L yang terbukti (`0@bot`, score 1)
+//! dan menguji sisa delta terhadap `.play2` asli:
+//!
+//! O. amplop L + edit susulan (combo `0@bot`+edit belum pernah diuji)
+//! P. payload `player_html` asli (poster placeholder + lirik, kecil)
+//! Q. P + edit susulan = cermin persis envelope produksi `.play2`
+//! R. payload besar ~30 KB di bawah amplop L (ukuran)
+//! S. `<style>` saja tanpa img (isolasi style)
+//! T. `img` data-URI JPEG sah (isolasi format gambar)
+//!
+//! O gagal tapi L tampil → combo edit+0@bot merusak → lepas edit_susulan.
+//! P gagal tapi O tampil → isi payload; S/T/R menunjuk variabelnya.
 use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
-use crate::search::play2::base64_encode;
+use crate::search::play2::{Baris, base64_encode, player_html};
 
-const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nEmpat belas kartu menyusul berurutan: A–I (isi payload), J–N (amplop/jalur).\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil (atau \"tidak ada sama sekali\").";
+const KEPALA: &str = "🧪 *Uji kartu HTML*\n\nDua puluh kartu menyusul berurutan: A–I (isi payload), J–N (amplop/jalur), O–T (ronde 3, amplop proven L).\nKartu yang muncul = variasi itu diterima klien. Laporkan huruf mana saja yang tampil (atau \"tidak ada sama sekali\").";
+
+/// JPEG 1×1 sah untuk uji format gambar (kartu T).
+const JPEG_UJI: &str = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
 
 fn judul(huruf: &str) -> String {
     format!(r#"<div style="font:700 24px sans-serif;padding:12px">KARTU {huruf}</div>"#)
@@ -93,6 +106,15 @@ fn kartu_varian(huruf: &str, section: serde_json::Value, ubah: impl FnOnce(&mut 
     };
     ubah(&mut rich);
     Reply::TabelAi(Box::new(rich))
+}
+
+/// Kartu ronde 3 (O–T): amplop L proven (`0@bot`, score 1) + satu variabel
+/// uji dari `ubah`.
+fn kartu_l(huruf: &str, html: String, ubah: impl FnOnce(&mut RichAi)) -> Reply {
+    kartu_varian(huruf, satu_section(html, &[]), |r| {
+        r.bot_jid = Some("0@bot".into());
+        ubah(r);
+    })
 }
 
 pub(crate) fn semua_kartu() -> Reply {
@@ -185,14 +207,50 @@ pub(crate) fn semua_kartu() -> Reply {
             r.disclaimer = Some("Kartu M".into());
         }),
         kartu_varian("N", n, |_| {}),
+        kartu_l("O", judul("O"), |r| r.edit_susulan = true),
+        kartu_l("P", player_html_uji("P"), |_| {}),
+        kartu_l("Q", player_html_uji("Q"), |r| r.edit_susulan = true),
+        kartu_l("R", payload_besar("R"), |_| {}),
+        kartu_l(
+            "S",
+            judul("S") + "<style>body{background:#1a0d12;color:#fff;font-family:sans-serif}</style>",
+            |_| {},
+        ),
+        kartu_l(
+            "T",
+            format!(r#"{}<img src="data:image/jpeg;base64,{JPEG_UJI}" width="80" height="80" alt="">"#, judul("T")),
+            |_| {},
+        ),
     ])
+}
+
+/// Payload `player_html` produksi dengan data sintetis (poster placeholder,
+/// lirik pendek) — generator yang sama persis dengan `.play2`.
+fn player_html_uji(huruf: &str) -> String {
+    let lirik = vec![
+        Baris { time: 0.0, text: "Baris lirik pertama uji".into() },
+        Baris { time: 12.5, text: "Baris lirik kedua uji".into() },
+        Baris { time: 30.0, text: "Baris lirik ketiga uji".into() },
+    ];
+    player_html(&format!("Kartu {huruf}"), "Uji Coba", "3:45", "", &lirik)
+}
+
+/// Muatan ~30 KB teks (bentuk kartu G) untuk uji ukuran di amplop proven.
+fn payload_besar(huruf: &str) -> String {
+    let mut besar = judul(huruf);
+    for i in 0..600 {
+        besar.push_str(&format!(
+            r#"<div style="font:13px sans-serif">baris uji {i} — 0123456789 abcdefghijklmnopqrstuvwxyz</div>"#
+        ));
+    }
+    besar
 }
 
 #[plugin(
     name = "cekkartu",
     alias = ["ujikartu", "airichtest"],
     category = "tools",
-    description = "Diagnostik kartu HTML AIRich (uji 9 variasi payload)",
+    description = "Diagnostik kartu HTML AIRich (20 variasi payload/amplop)",
     usage = ".cekkartu",
     example = ".cekkartu",
     cooldown = 5,
@@ -241,10 +299,10 @@ mod tests {
     }
 
     #[test]
-    fn empat_belas_kartu_menguji_satu_variabel_per_kartu() {
+    fn dua_puluh_kartu_menguji_satu_variabel_per_kartu() {
         let r = semua_kartu();
         let list = cards(&r);
-        assert_eq!(list.len(), 14, "A..N");
+        assert_eq!(list.len(), 20, "A..T");
         assert!(payload(list[0]).contains("KARTU A"));
         assert!(payload(list[1]).contains("data:image/svg+xml;base64,"), "B gambar");
         assert!(payload(list[2]).contains("<script>"), "C skrip");
@@ -290,6 +348,29 @@ mod tests {
             json!("FOAHtmlPrimitiveDemoDONOTUSE"),
             "N typename demo"
         );
+        // O–T: semua amplop L proven (botJid 0@bot).
+        for ai in &list[14..] {
+            assert_eq!(ai.bot_jid.as_deref(), Some("0@bot"));
+        }
+        // O: combo 0@bot + edit susulan.
+        assert!(list[14].edit_susulan, "O edit susulan");
+        assert!(payload(list[14]).contains("KARTU O"));
+        // P: payload player_html produksi (poster placeholder + lirik).
+        let p = payload(list[15]);
+        assert!(p.contains("<style>"), "P style");
+        assert!(p.contains("data:image/svg+xml;base64,"), "P poster placeholder");
+        assert!(p.contains("Baris lirik pertama uji"), "P lirik");
+        assert!(!list[15].edit_susulan, "P tanpa edit");
+        // Q: cermin produksi = P + edit.
+        assert_eq!(payload(list[16]), p.replace("Kartu P", "Kartu Q"), "Q payload sama dengan P");
+        assert!(list[16].edit_susulan, "Q edit susulan");
+        // R: ukuran ~30 KB.
+        assert!(payload(list[17]).len() > 20_000, "R besar");
+        // S: style tanpa img.
+        let s = payload(list[18]);
+        assert!(s.contains("<style>") && !s.contains("<img"), "S style saja");
+        // T: img JPEG.
+        assert!(payload(list[19]).contains("data:image/jpeg;base64,"), "T jpeg");
         for (i, ai) in list.iter().enumerate() {
             if i == 13 {
                 continue; // N typename demo
