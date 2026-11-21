@@ -1147,10 +1147,11 @@ pub trait MessageSender: Send + Sync {
         None
     }
 
-    /// Peta timer disappearing per-chat (`jid -> detik`), dipelajari dari
-    /// `contextInfo.expiration` pesan masuk. Default: peta kosong (sender
-    /// uji tidak menerapkan timer apa pun).
-    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, u32>>> {
+    /// Peta timer disappearing per-chat (`jid -> (detik, terlihat_ms)`),
+    /// dipelajari dari `contextInfo.expiration` pesan masuk. Waktu lihat
+    /// terakhir dipakai untuk prune saat peta membesar. Default: peta kosong
+    /// (sender uji tidak menerapkan timer apa pun).
+    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, (u32, i64)>>> {
         Arc::new(Mutex::new(HashMap::new()))
     }
 
@@ -1232,9 +1233,9 @@ pub trait MessageSender: Send + Sync {
 /// Sender sungguhan, membungkus `Arc<Client>`.
 pub struct ClientSender {
     client: Arc<Client>,
-    /// Timer disappearing per-chat, dibagi dengan `Pipeline` (lihat
-    /// [`MessageSender::chat_timers`]).
-    chat_timers: Arc<Mutex<HashMap<String, u32>>>,
+    /// Timer disappearing per-chat `(detik, terlihat_ms)`, dibagi dengan
+    /// `Pipeline` (lihat [`MessageSender::chat_timers`]).
+    chat_timers: Arc<Mutex<HashMap<String, (u32, i64)>>>,
 }
 
 /// Setel `contextInfo.expiration` pada pesan keluar supaya tidak merusak
@@ -1295,7 +1296,7 @@ impl ClientSender {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&to)
-                .copied()
+                .map(|(detik, _)| *detik)
                 .unwrap_or(0);
             terapkan_timer_ephemeral(&to, exp, &mut message);
             let mut opts = if extra_nodes.is_empty() {
@@ -1326,7 +1327,7 @@ impl MessageSender for ClientSender {
         Some(self.client.clone())
     }
 
-    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, u32>>> {
+    fn chat_timers(&self) -> Arc<Mutex<HashMap<String, (u32, i64)>>> {
         self.chat_timers.clone()
     }
 
@@ -1343,7 +1344,7 @@ impl MessageSender for ClientSender {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&to)
-                .copied()
+                .map(|(detik, _)| *detik)
                 .unwrap_or(0);
             terapkan_timer_ephemeral(&to, exp, &mut message);
             let opts = if extra_nodes.is_empty() {
@@ -1472,7 +1473,7 @@ impl MessageSender for ClientSender {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&to)
-                .copied()
+                .map(|(detik, _)| *detik)
                 .unwrap_or(0);
             terapkan_timer_ephemeral(&to, exp, &mut message);
             client
@@ -1557,7 +1558,7 @@ impl MessageSender for ClientSender {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&to)
-                .copied()
+                .map(|(detik, _)| *detik)
                 .unwrap_or(0);
             terapkan_timer_ephemeral(&to, exp, &mut message);
             client
@@ -1637,7 +1638,7 @@ impl MessageSender for ClientSender {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&to)
-                .copied()
+                .map(|(detik, _)| *detik)
                 .unwrap_or(0);
             terapkan_timer_ephemeral(&to, exp, &mut message);
             let opts = if extra_nodes.is_empty() {
@@ -4422,19 +4423,26 @@ impl Pipeline {
         }
         // JS: delete → kick → reply. Kegagalan kick juga ditelan supaya pesan
         // peringatan tetap terkirim (`src/lib/group-protection.js:1234-1242`).
-        if matches!(decision, group::Decision::KickAndReply(_))
-            && let Err(e) = self.plugin_src.sock.ubah_peserta(
-                &caller.chat,
-                std::slice::from_ref(&caller.sender),
-                oktz_plugin_api::AksiPeserta::Keluar,
-            )
-        {
-            tracing::warn!(
-                error = %e,
-                chat = %caller.chat,
-                peserta = %caller.sender,
-                "gagal kick peserta"
-            );
+        if matches!(decision, group::Decision::KickAndReply(_)) {
+            let chat = caller.chat.clone();
+            let sender = caller.sender.clone();
+            if let Err(e) = self
+                .sock_block(move |s| {
+                    s.ubah_peserta(
+                        &chat,
+                        std::slice::from_ref(&sender),
+                        oktz_plugin_api::AksiPeserta::Keluar,
+                    )
+                })
+                .await
+            {
+                tracing::warn!(
+                    error = %e,
+                    chat = %caller.chat,
+                    peserta = %caller.sender,
+                    "gagal kick peserta"
+                );
+            }
         }
         match decision.reply_text() {
             Some(text) => {
@@ -4579,13 +4587,21 @@ impl Pipeline {
         // dianggap tanpa timer (0).
         let timers = self.sender.chat_timers();
         {
+            let now = now_ms;
             let mut timers = timers.lock().unwrap_or_else(|e| e.into_inner());
+            // Peta memo per-chat; tanpa prune tumbuh satu entri per chat unik
+            // selamanya (leak lambat di bot berumur panjang). Prune saat
+            // membesar: buang entri yang chat-nya tak mengirim >7 hari — nilai
+            // hilang hanya berarti "tanpa timer", sama seperti default.
+            if timers.len() > 4096 {
+                timers.retain(|_, (_, terlihat)| now - *terlihat < 86_400_000 * 7);
+            }
             match m.info.ephemeral_expiration {
                 Some(exp) => {
-                    timers.insert(caller.chat.clone(), exp);
+                    timers.insert(caller.chat.clone(), (exp, now));
                 }
                 None => {
-                    timers.entry(caller.chat.clone()).or_insert(0);
+                    timers.entry(caller.chat.clone()).or_insert((0, now));
                 }
             }
         }
@@ -4879,7 +4895,8 @@ impl Pipeline {
                 .and_then(Value::as_bool)
                 .unwrap_or(true)
             {
-                let _ = self.plugin_src.sock.presence("composing", &caller.chat);
+                let chat = caller.chat.clone();
+                let _ = self.sock_block(move |s| s.presence("composing", &chat)).await;
             }
         }
 
@@ -4983,7 +5000,8 @@ impl Pipeline {
             }
 
             // autoTyping (`handler.js:1938`): paused setelah plugin selesai.
-            let _ = self.plugin_src.sock.presence("paused", &caller.chat);
+            let chat = caller.chat.clone();
+            let _ = self.sock_block(move |s| s.presence("paused", &chat)).await;
 
             // Cooldown baru mulai SETELAH handler selesai
             // (`handler.js:1922-1924`), jadi command yang gagal di tengah tidak
@@ -5084,12 +5102,24 @@ impl Pipeline {
     pub async fn run(self: Arc<Self>, rx: IngestRx) {
         use std::collections::HashMap;
         use std::sync::Arc as StdArc;
-        let sem = StdArc::new(tokio::sync::Semaphore::new(8));
+        // Batas pesan in-flight. Pemrosesan didominasi I/O (kirim WA, HTTP
+        // plugin, unduh media), bukan CPU, jadi 4× vCPU dengan lantai 8 dan
+        // plafon 32 — 1 vCPU tetap 8, cukup paralel tanpa thrash.
+        let sem = StdArc::new(tokio::sync::Semaphore::new(paralel_maks()));
         let mut tails: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
         while let Ok(m) = rx.recv().await {
             let chat = m.info.source.chat.to_string();
             let prev = tails.remove(&chat);
-            let permit = sem.clone().acquire_owned().await.unwrap();
+            // Buang handle chat yang sudah selesai: tanpa ini peta tumbuh satu
+            // entri per JID unik selamanya — leak lambat di bot berumur
+            // panjang. Handle chat ini sudah di-`remove` di atas, jadi urutan
+            // per-chat tetap utuh.
+            tails.retain(|_, h| !h.is_finished());
+            // Semaphore lokal tidak pernah ditutup; `else` cuma jaring supaya
+            // tidak ada `unwrap()` di jalur produksi.
+            let Ok(permit) = sem.clone().acquire_owned().await else {
+                break;
+            };
             let this = self.clone();
             let h = tokio::spawn(async move {
                 if let Some(p) = prev { let _ = p.await; }
@@ -5195,6 +5225,26 @@ impl Pipeline {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
     }
 
+    /// Panggil `Sock` sinkron dari konteks async tanpa menahan worker tokio.
+    ///
+    /// Handler plugin sudah jalan di thread blocking (router); pipeline ikut
+    /// lewat `spawn_blocking` supaya `Sock` yang memakai `crate::bridge::blokir`
+    /// aman di runtime current-thread (1 vCPU). Tanpa ini `block_in_place`
+    /// panic di sana.
+    async fn sock_block<T, F>(&self, f: F) -> Result<T, oktz_plugin_api::SockError>
+    where
+        F: FnOnce(&dyn Sock) -> Result<T, oktz_plugin_api::SockError> + Send + 'static,
+        T: Send + 'static,
+    {
+        let sock = self.plugin_src.sock.clone();
+        match tokio::task::spawn_blocking(move || f(&*sock)).await {
+            Ok(r) => r,
+            Err(e) => Err(oktz_plugin_api::SockError::baru(format!(
+                "task sock gagal: {e}"
+            ))),
+        }
+    }
+
     /// Bot sendiri ada di daftar peserta yang baru masuk?
     ///
     /// `isBotAdded` (`src/connection.js:1218-1235`) memakai `phoneNumber || id`
@@ -5254,7 +5304,8 @@ impl Pipeline {
             .await?;
         // JS menunggu 2 detik supaya pesannya sempat terkirim sebelum keluar.
         self.tidur(2000).await;
-        self.plugin_src.sock.keluar_grup(&u.id).map_err(|e| {
+        let id = u.id.clone();
+        self.sock_block(move |s| s.keluar_grup(&id)).await.map_err(|e| {
             PipelineError::Other(format!("keluar grup {} (anticulik): {e}", u.id))
         })?;
         tracing::warn!(grup = %u.id, pelaku = %pelaku, "anticulik: bot keluar dari grup");
@@ -5309,7 +5360,8 @@ impl Pipeline {
         } else {
             format!("@{}", grup_event::nomor_jid(&pelaku))
         };
-        let meta = self.plugin_src.sock.metadata_grup(&u.id);
+        let id = u.id.clone();
+        let meta = self.sock_block(move |s| s.metadata_grup(&id)).await;
         let nama_grup = meta
             .ok()
             .and_then(|m| m.get("subject").and_then(Value::as_str).map(str::to_string))
@@ -5392,7 +5444,8 @@ impl Pipeline {
             if let Some(teks) = self.sewa_penolakan(u) {
                 self.kirim_teks(&u.id, &teks, None).await?;
                 self.tidur(2000).await;
-                self.plugin_src.sock.keluar_grup(&u.id).map_err(|e| {
+                let id = u.id.clone();
+                self.sock_block(move |s| s.keluar_grup(&id)).await.map_err(|e| {
                     PipelineError::Other(format!("keluar grup {} (sewa): {e}", u.id))
                 })?;
                 tracing::warn!(grup = %u.id, "sewa: bot keluar dari grup tak terdaftar");
@@ -5432,10 +5485,10 @@ impl Pipeline {
             tracing::warn!(grup = %u.id, tipe, "welcome/goodbye tipe tidak dikenal; pakai tipe 1");
         }
 
+        let id = u.id.clone();
         let meta = self
-            .plugin_src
-            .sock
-            .metadata_grup(&u.id)
+            .sock_block(move |s| s.metadata_grup(&id))
+            .await
             .map_err(|e| PipelineError::Other(format!("metadata grup {}: {e}", u.id)))?;
         let peserta_meta = meta.get("participants").cloned().unwrap_or(Value::Null);
         let jumlah = peserta_meta.as_array().map(Vec::len).unwrap_or(0);
@@ -5506,10 +5559,10 @@ impl Pipeline {
             // supaya kartu tetap bergambar — konsep ourin yang menaruh gambar
             // pp-kosong sebagai ppUrl default. Tanpa asset → kartu/teks tanpa
             // gambar.
+            let id = jid.clone();
             let sumber = match self
-                .plugin_src
-                .sock
-                .foto_profil(&jid, "image")
+                .sock_block(move |s| s.foto_profil(&id, "image"))
+                .await
                 .ok()
                 .flatten()
                 .filter(|url| !url.is_empty())
@@ -5671,6 +5724,15 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// Batas pesan diproses bersamaan. Didominasi I/O, jadi 4× vCPU dengan lantai 8
+/// dan plafon 32; satu vCPU tetap dapat 8 supaya tidak thrash.
+fn paralel_maks() -> usize {
+    let n = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    n.saturating_mul(4).clamp(8, 32)
+}
+
 /// Menerima event dan mengantre ke task pemrosesan.
 ///
 /// Satu-satunya pekerjaan di sini adalah `try_send`. Dipanggil inline di
@@ -5740,6 +5802,12 @@ mod tests {
     use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_message::InteractiveMessage as ImOneof;
 
     // ---------- helper ----------
+
+    #[test]
+    fn paralel_maks_terikat_8_sampai_32() {
+        let p = paralel_maks();
+        assert!((8..=32).contains(&p), "batas paralel di luar rentang: {p}");
+    }
 
     // `cargo test` menjalankan test dalam thread paralel; nama file tetap
     // membuat mereka saling menimpa file yang sama. Nomor unik per panggilan.

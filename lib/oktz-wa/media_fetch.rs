@@ -9,12 +9,13 @@
 //!
 //! - Handler plugin sinkron, sedangkan `Client::download` async. Unduhan
 //!   terjadi DI DALAM handler (JS juga `await` di situ: bufernya dipakai untuk
-//!   resize/tulis sebelum balasan dikirim), jadi jalurnya memblokir thread
-//!   worker lewat `block_in_place` — pola yang sama dengan `UreqHttp` yang
-//!   memblokir selama request (`oktz-plugin-api/src/ureq_http.rs:1-7`).
-//!   Runtime produksi multi-thread (`oktz-bin/src/main.rs:80`), jadi
-//!   `block_in_place` sah; test tidak pernah masuk sini karena pengirimnya
-//!   stub — `Ctx` memakai `NoMediaFetch` dan gagal dengan alasan jelas.
+//!   resize/tulis sebelum balasan dikirim), jadi jalurnya menunggu I/O dari
+//!   thread blocking lewat [`crate::bridge::blokir`] — pola yang sama dengan
+//!   `UreqHttp` yang memblokir selama request
+//!   (`oktz-plugin-api/src/ureq_http.rs:1-7`). Handler plugin dijalankan di
+//!   thread blocking (router), jadi `blokir` sah di kedua flavor runtime;
+//!   test tidak pernah masuk sini karena pengirimnya stub — `Ctx` memakai
+//!   `NoMediaFetch` dan gagal dengan alasan jelas.
 //! - JS mengulang unduhan lewat `sock.updateMediaMessage` kalau CDN menjawab
 //!   400/404/410/428/429/500/870 (`serialize.js:1684-1707`). Itu butuh
 //!   re-enkripsi sisi klien yang belum ada di Rust: kegagalan CDN langsung
@@ -219,14 +220,16 @@ impl MediaFetch for WaMediaFetch {
             });
         };
         let client = self.client.clone();
-        // Lihat catatan modul: satu-satunya tempat menunggu I/O dari handler
-        // sinkron, dan runtime produksi memang multi-thread.
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(client.download(&data))
-        })
-        .map_err(|e| MediaError {
-            message: format!("unduh media {} gagal: {e}", origin.label()),
-        })
+        let label = origin.label();
+        // Handler sinkron memanggil ini dari thread blocking (router), jadi
+        // `blokir` sah di kedua flavor runtime — lihat `crate::bridge`.
+        crate::bridge::blokir(client.download(&data))
+            .map_err(|e| MediaError {
+                message: format!("unduh media {label}: {e}"),
+            })?
+            .map_err(|e| MediaError {
+                message: format!("unduh media {label} gagal: {e}"),
+            })
     }
 }
 

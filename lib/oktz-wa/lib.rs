@@ -7,6 +7,7 @@
 #![recursion_limit = "256"]
 
 pub mod bot;
+pub(crate) mod bridge;
 pub mod cards;
 pub mod tabel;
 pub mod creds;

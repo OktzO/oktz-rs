@@ -1,8 +1,9 @@
 //! Implementasi nyata [`Sock`] di atas klien WhatsApp.
 //!
-//! Trait [`Sock`] sinkron, klien asinkron; jembatannya `block_in_place` +
-//! `Handle::block_on` karena itu hanya sah di runtime multi-thread, runtime
-//! current-thread dikembalikan sebagai `SockError`, bukan panic.
+//! Trait [`Sock`] sinkron, klien asinkron; jembatannya [`crate::bridge::blokir`]
+//! (block_in_place di multi-thread, Handle::block_on di current-thread). Karena
+//! current-thread tidak boleh memblokir worker, pemanggil di jalur itu WAJIB
+//! sudah di thread blocking — lihat [`crate::bridge`].
 //!
 //! Bentuk hasil mengikuti Baileys karena plugin JS membaca kunci itu apa adanya.
 
@@ -36,17 +37,9 @@ impl SockKlien {
         Arc::new(Self { client })
     }
 
-    /// Tunggu future dari konteks sinkron.
+    /// Tunggu future dari konteks sinkron lewat [`crate::bridge::blokir`].
     fn tunggu<F: Future>(&self, fut: F) -> Result<F::Output, SockError> {
-        let handle = tokio::runtime::Handle::try_current().map_err(|_| {
-            SockError::baru("sock tidak tersedia: dipanggil tanpa runtime tokio")
-        })?;
-        if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::CurrentThread {
-            return Err(SockError::baru(
-                "sock tidak tersedia: runtime tokio current-thread tidak mendukung block_in_place",
-            ));
-        }
-        Ok(tokio::task::block_in_place(|| handle.block_on(fut)))
+        crate::bridge::blokir(fut).map_err(SockError::baru)
     }
 
     /// Jalankan future `Result<T, E>`; error WhatsApp jadi pesan `SockError`.

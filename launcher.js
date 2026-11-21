@@ -118,7 +118,11 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.60 — AIRich (`.ai`, `.ytplay`, play2) akhirnya muncul di chat: stanza
 //           `botForwardedMessage` salah diklasifikasi `media` tanpa
 //           `mediatype` sehingga server ACK tapi klien render kosong.
-export const VERSI_BIN = "v0.2.66";
+// v0.2.81 — runtime tokio adaptif vCPU (1 core = current-thread, >1 =
+//           multi-thread sebanyak core); scheduler: batas paralel mengikuti
+//           vCPU, peta timer/antrean per-chat dipangkas (tanpa tumbuh tanpa
+//           batas di bot berumur panjang).
+export const VERSI_BIN = "v0.2.81";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

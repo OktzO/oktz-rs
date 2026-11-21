@@ -78,7 +78,7 @@ impl AksiPeserta {
 
 /// Padanan objek `sock`. Sinkron, sama seperti [`HttpGet`](crate::HttpGet):
 /// implementasi yang memakai klien asinkron bertanggung jawab menunggu di
-/// dalam (`tokio::task::block_in_place` + `Handle::block_on`).
+/// dalam (lihat jembatan `oktz-wa::bridge`, flavor runtime-aware).
 pub trait Sock: Send + Sync + std::fmt::Debug {
     /// `sock.onWhatsApp(...nomor)` — bentuk `[(nomor, ada)]` mengikuti
     /// Baileys, termasuk entri `jid` yang sudah dinormalkan.

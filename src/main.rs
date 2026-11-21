@@ -136,8 +136,39 @@ fn db_arg(path: PathBuf) -> Result<String, std::io::Error> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// Jumlah vCPU yang terlihat proses ini (`available_parallelism` menghormati
+/// cpu affinity/cgroup, jadi batas panel ikut terbaca). 1 = cadangan aman.
+fn jumlah_core() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+}
+
+/// Bangun runtime tokio sesuai jumlah vCPU: 1 core → current-thread (tanpa
+/// worker tambahan, hemat memori & context switch), >1 → multi-thread dengan
+/// worker sebanyak core — pesan tersebar paralel.
+///
+/// Dipisah dari `main` supaya flavor-nya bisa diuji tanpa menjalankan bot.
+fn bangun_runtime(cores: usize) -> std::io::Result<tokio::runtime::Runtime> {
+    let mut b = if cores <= 1 {
+        tokio::runtime::Builder::new_current_thread()
+    } else {
+        let mut b = tokio::runtime::Builder::new_multi_thread();
+        b.worker_threads(cores);
+        b
+    };
+    b.enable_all();
+    b.build()
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cores = jumlah_core();
+    let runtime = bangun_runtime(cores)?;
+    tracing::debug!(cores, "runtime tokio dibangun");
+    runtime.block_on(async_main())
+}
+
+async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
     oktz_core::logging::init("info");
     atur_jemalloc();
 
@@ -686,6 +717,29 @@ async fn send(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn runtime_satu_core_current_thread_banyak_core_multi() {
+        use tokio::runtime::RuntimeFlavor;
+        let rt = bangun_runtime(1).expect("bangun runtime 1 core");
+        assert_eq!(
+            rt.block_on(async { tokio::runtime::Handle::current().runtime_flavor() }),
+            RuntimeFlavor::CurrentThread,
+            "1 core harus current-thread"
+        );
+        drop(rt);
+        let rt = bangun_runtime(4).expect("bangun runtime 4 core");
+        assert_eq!(
+            rt.block_on(async { tokio::runtime::Handle::current().runtime_flavor() }),
+            RuntimeFlavor::MultiThread,
+            "banyak core harus multi-thread"
+        );
+    }
+
+    #[test]
+    fn jumlah_core_minimal_satu() {
+        assert!(jumlah_core() >= 1);
+    }
 
     #[test]
     fn jemalloc_decay_diset_via_malloc_conf() {
