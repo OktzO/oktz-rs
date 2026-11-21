@@ -34,12 +34,10 @@
 //!    media punya wire contract sendiri (`render_reply`), dan `serialize.js`
 //!    hanya punya `text` untuk jalur varian.
 //!
-//! `ponytail:` `sharp` tidak ada di crate ini (`image` bukan dependency
-//! `oktz-wa`), jadi thumbnail dikirim sebagai byte aset apa adanya — sama
-//! seperti cabang `catch` JS yang menjatuhkan `jpegThumbnail` ke buffer
-//! mentah (`socket.js:1234`). Upgrade path: tambahkan dependency image lalu
-//! resize di fungsi `thumbnail`; kontrak yang dikunci test tetap "byte dari
-//! aset yang benar".
+//! Thumbnail di-resize ke JPEG baseline 300×300 lewat `oktz_plugin_api::gambar`
+//! (padanan `sharp` JS) sebelum ditanam ke wire; byte mentah progressive/besar
+//! membuat klien WA menolak merender bubble. Gagal decode → byte mentah, sama
+//! seperti cabang `catch` JS (`socket.js:1234`).
 
 use std::path::{Path, PathBuf};
 
@@ -216,12 +214,20 @@ fn asset(config: &Runtime, nama: &str, bawaan: &str) -> Vec<u8> {
 /// `srtImage` hanya diisi kalau `srtEnabled` (`:969-974`); flag tanpa gambar
 /// menghasilkan `None`, sama seperti `getCachedSrtImage()` yang bisa `null`.
 fn thumbnail(input: &VariantInput<'_>, nama: &str, bawaan: &str) -> Vec<u8> {
-    if input.srt_enabled
+    let bytes = if input.srt_enabled
         && let Some(b) = input.srt_image
     {
-        return b.to_vec();
+        b.to_vec()
+    } else {
+        asset(input.config, nama, bawaan)
+    };
+    // `sharp(buf).resize(300,300)` JS → JPEG baseline kecil; byte mentah
+    // progressive/ besar membuat klien menolak render. Gagal decode = byte
+    // mentah (cabang catch JS). `gambar` sudah ada di oktz-plugin-api.
+    match oktz_plugin_api::gambar::sharp(&bytes) {
+        Ok(g) => g.ubah_ukuran(300, 300).ke_jpeg(80).unwrap_or(bytes),
+        Err(_) => bytes,
     }
-    asset(input.config, nama, bawaan)
 }
 
 /// `config.bot?.name || "Bot"`.
@@ -291,7 +297,7 @@ fn kontak_palsu(input: &VariantInput<'_>) -> QuoteSource {
 /// Varian 2 dan 6 memakai isi dokumen yang SAMA; bedanya hanya kutipan.
 ///
 /// `jpegThumbnail` = `safeThumbnail(srtImage || getAssetBuffer("foto2"), 300)`
-/// (`:1022-1024`, `:1126-1128`) — byte aset apa adanya, lihat catatan modul.
+/// (`:1022-1024`, `:1126-1128`) — di-resize 300×300, lihat catatan modul.
 fn dokumen(input: &VariantInput<'_>, quote: Option<QuoteSource>) -> PendingMedia {
     PendingMedia {
         kind: MediaKind::Document,
@@ -423,7 +429,7 @@ fn link_preview(input: &VariantInput<'_>) -> PendingMedia {
 fn order_palsu_teks(input: &VariantInput<'_>) -> wa::Message {
     let order = wa::message::OrderMessage {
         order_id: Some("123456".into()),
-        // `sharp(thumbnailBuf).resize(300, 300)` — byte aset apa adanya.
+        // `sharp(thumbnailBuf).resize(300, 300)` — di-resize lewat `thumbnail`.
         thumbnail: Some(thumbnail(input, "foto", FOTO)),
         item_count: Some(999),
         status: Some(OrderStatus::Inquiry),
@@ -459,7 +465,7 @@ fn order_palsu_teks(input: &VariantInput<'_>) -> wa::Message {
 /// perbedaan yang dikunci test.
 ///
 /// `jpegThumbnail` = `sharp(thumbnailBuf).resize(300, 300).toBuffer()` (`:1152`)
-/// — byte aset apa adanya, lihat catatan modul.
+/// — di-resize 300×300, lihat catatan modul.
 fn kartu_lokasi(input: &VariantInput<'_>) -> wa::Message {
     let mut ci = context_kutipan(input);
     ci.is_forwarded = Some(true);
@@ -811,56 +817,72 @@ fn srt_dir(root: &Path) -> PathBuf {
 ///
 /// Dipakai pipeline untuk mengisi [`VariantInput::srt_image`]; nama asetnya
 /// menunjuk `assets/image/*.jpeg` sesuai `config.assets`.
-static THUMB_CACHE: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::sync::OnceLock::new();
+/// Cache srt: byte + waktu isi, untuk TTL 30 menit.
+type ThumbCache = std::sync::Mutex<Option<(std::time::Instant, Vec<u8>)>>;
+static THUMB_CACHE: std::sync::OnceLock<ThumbCache> = std::sync::OnceLock::new();
+
+/// TTL cache srt — paritas `LRUCache ttl: 30 menit` (`serialize.js:66`).
+const SRT_TTL: std::time::Duration = std::time::Duration::from_secs(30 * 60);
+
 pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
-    let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(Vec::new()));
-    {
-        let g = c.lock().unwrap_or_else(|e| e.into_inner());
-        if !g.is_empty() { return Some(g.clone()); }
-    }
-    let dir = srt_dir(root);
-    if srt_enabled
-        && let Ok(entries) = std::fs::read_dir(&dir)
-    {
-        let mut files: Vec<PathBuf> = entries
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| {
-                p.extension()
-                    .and_then(|e| e.to_str())
-                    .is_some_and(|e| {
-                        matches!(
-                            e.to_ascii_lowercase().as_str(),
-                            "webp" | "jpg" | "jpeg" | "png"
-                        )
-                    })
-            })
-            .collect();
-        if !files.is_empty() {
-            files.sort();
-            let idx = pseudo_random_index(files.len());
-            if let Ok(b) = std::fs::read(&files[idx]) {
-                *c.lock().unwrap_or_else(|e| e.into_inner()) = b.clone();
-                return Some(b);
+    if srt_enabled {
+        let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+        {
+            let g = c.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((t, b)) = g.as_ref()
+                && t.elapsed() < SRT_TTL
+            {
+                return Some(b.clone());
+            }
+        }
+        let dir = srt_dir(root);
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            let mut files: Vec<PathBuf> = entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|e| {
+                            matches!(
+                                e.to_ascii_lowercase().as_str(),
+                                "webp" | "jpg" | "jpeg" | "png"
+                            )
+                        })
+                })
+                .collect();
+            if !files.is_empty() {
+                files.sort();
+                let idx = pseudo_random_index(files.len());
+                if let Ok(b) = std::fs::read(&files[idx]) {
+                    *c.lock().unwrap_or_else(|e| e.into_inner()) =
+                        Some((std::time::Instant::now(), b.clone()));
+                    return Some(b);
+                }
             }
         }
     }
-    let b = std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()?;
-    *c.lock().unwrap_or_else(|e| e.into_inner()) = b.clone();
-    Some(b)
+    // srt mati / gagal: foto.jpeg apa adanya, TIDAK di-cache supaya flag
+    // srtEnabled yang dimatikan langsung berlaku (bukan menunggu restart).
+    std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()
 }
 
 /// `Math.floor(Math.random() * n)` tanpa dependency RNG.
 ///
-/// Jam sistem sudah cukup: yang perlu tercermin hanya "acak", dan ini bukan
-/// sumber keacakan yang dipakai untuk keamanan.
+/// splitmix64 ber-seed nanos penuh: XOR `subsec_nanos ^ as_secs` yang lama
+/// didominasi bit detik sehingga idx kecil tak pernah terpilih (lotre
+/// per-restart). Ini bukan sumber keacakan untuk keamanan.
 fn pseudo_random_index(len: usize) -> usize {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.subsec_nanos() as u64 ^ d.as_secs())
+        .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
-    ((nanos as u128 * len as u128) >> 32) as usize % len.max(1)
+    let mut z = nanos.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^= z >> 31;
+    (z % len.max(1) as u64) as usize
 }
 
 #[cfg(test)]
@@ -1193,7 +1215,7 @@ mod tests {
                 assert_eq!(loc.name.as_deref(), Some("Oktz Bot"));
                 assert_eq!(loc.address.as_deref(), Some("Bot Wa Multi Device"));
                 // `jpegThumbnail: sharp(thumbnailBuf).resize(300,300).toBuffer()`
-                // (`serialize.js:1152`) — byte aset apa adanya.
+                // (`serialize.js:1152`) — di-resize 300×300.
                 assert_eq!(loc.jpeg_thumbnail.as_deref(), Some(&b"srt-image"[..]));
             }
             lain => panic!("header media varian 7 harus locationMessage, dapat {lain:?}"),
@@ -1465,10 +1487,74 @@ mod tests {
         assert!(r.extra_nodes.is_empty(), "relayMessage tanpa node biz");
     }
 
+    /// JPEG baseline 1×1 sah — sumber byte gambar nyata untuk uji resize.
+    const JPEG_UJI: &str = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
+
+    /// Cache thumbnail global dipakai bersama antar-test; serialkan + reset
+    /// supaya urutan eksekusi tidak membocorkan state.
+    static TEST_THUMB_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn reset_thumb_cache() {
+        let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+        *c.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    fn root_uji(nama: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "oktz-thumb-{}-{}",
+            nama,
+            std::process::id()
+        ));
+        let shuffle = root.join("assets").join("image").join("shuffle");
+        std::fs::create_dir_all(&shuffle).unwrap();
+        std::fs::write(shuffle.join("a.jpeg"), b"AAA").unwrap();
+        std::fs::write(root.join("assets").join("image").join("foto.jpeg"), b"FFF").unwrap();
+        root
+    }
+
     #[test]
     fn thumbnail_falls_back_when_nothing_is_on_disk() {
+        let _g = TEST_THUMB_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_thumb_cache();
         // Direktori kerja yang tidak punya assets/ -> `None`, bukan panic.
         assert_eq!(thumbnail_bytes(Path::new("/tmp/tidak-ada-oktz"), true), None);
+    }
+
+    #[test]
+    fn thumbnail_bytes_srt_disabled_tidak_pakai_cache_srt() {
+        let _g = TEST_THUMB_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_thumb_cache();
+        let root = root_uji("flag");
+        // srtEnabled=true mengisi cache dari shuffle...
+        assert_eq!(thumbnail_bytes(&root, true).unwrap(), b"AAA");
+        assert_eq!(thumbnail_bytes(&root, true).unwrap(), b"AAA");
+        // ...tapi srtEnabled=false harus baca foto.jpeg, BUKAN cache srt.
+        assert_eq!(thumbnail_bytes(&root, false).unwrap(), b"FFF");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn thumbnail_variant_dikecilkan_jadi_jpeg_300() {
+        use base64::Engine;
+        let jpeg_asli = base64::engine::general_purpose::STANDARD
+            .decode(JPEG_UJI)
+            .unwrap();
+        let (t, c) = (target(), config());
+        let mut i = input("hai", &t, &c);
+        i.srt_image = Some(&jpeg_asli);
+        let msg = wire(ReplyVariant::Order, &i);
+        let thumb = msg
+            .order_message
+            .as_option()
+            .unwrap()
+            .thumbnail
+            .clone()
+            .unwrap();
+        assert_ne!(thumb, jpeg_asli, "thumbnail harus di-encode ulang, bukan byte mentah");
+        let g = oktz_plugin_api::gambar::sharp(&thumb).expect("thumbnail harus jpeg sah");
+        let m = g.metadata();
+        assert_eq!((m.lebar, m.tinggi), (300, 300));
+        assert_eq!(m.format, "jpeg");
     }
 
     #[test]
@@ -1478,5 +1564,14 @@ mod tests {
                 assert!(pseudo_random_index(len) < len);
             }
         }
+    }
+
+    #[test]
+    fn pseudo_random_index_menjangkau_semua_nilai() {
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..600 {
+            seen.insert(pseudo_random_index(3));
+        }
+        assert_eq!(seen.len(), 3, "len=3 harus bisa menghasilkan 0,1,2; dapat {seen:?}");
     }
 }
