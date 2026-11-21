@@ -1,17 +1,21 @@
 //! `plugins/canvas/fakecall.js` — gambar panggilan palsu WhatsApp (Android/iOS).
 //!
-//! `ponytail:` `m.react('🕕')` lalu reaksi `📞`/`❌`/`☢` — `Reply` hanya
-//! menyimpan satu reaksi, jadi yang dipegang adalah yang terakhir (`📞` saat
-//! berhasil, `❌` saat gagal foto profil/API, `☢` saat error template).
-//! `m.download`/`m.quoted.download` → `ctx.download_media()` /
-//! `download_quoted_media()`.
-//! `sock.profilePictureUrl` → `ctx.sock().foto_profil(sender, "image")`.
-//! `form-data` multipart → `HttpCall::post(...).multipart(...)`.
-//! Header `form.getHeaders()` tidak ditiru (`HttpGet` tidak punya setter
-//! header per-request).
-//! `te(...)` → `crate::common::error_template(&ctx)`.
+//! API: `my.izuka-api.xyz/api/canvas/fakecall-android|ios` (multipart POST,
+//! `fakecall.js:73-95`). Provider pindah ke `apiii-xrina.my.id` dengan bentuk
+//! beda: `GET /canvas/call-andro|call-ios?pp=&nama=&durasi=` (openapi.json
+//! 2026-11-21, dites live balas PNG). Avatar jadi URL `pp`, bukan berkas
+//! multipart — buffer byte tak bisa dipakai, jadi foto profil sender
+//! (`ctx.sock().foto_profil`) dipakai dan catbox jadi cadangan.
+//!
+//! `ponytail:` `m.react('🕕')` lalu reaksi `📞`/`☢` — `Reply` hanya menyimpan
+//! satu reaksi, jadi yang dipegang adalah yang terakhir. JS gagal API tetap
+//! kirim `m.quoted.download()` sebagai gambar; ini balas error template.
 
-use oktz_plugin_api::{Ctx, HttpCall, HttpError, MediaSource, MultipartPart, Reply, plugin};
+use oktz_scraper::common::encode_uri_component;
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+
+/// Avatar cadangan (`fakecall.js:70`).
+pub(crate) const AVATAR_CADANGAN: &str = "https://files.catbox.moe/nwvkbt.png";
 
 /// Balasan saat format tidak ada `|` atau teks kosong (`fakecall.js:25-39`).
 pub(crate) fn bantuan(prefix: &str) -> String {
@@ -31,13 +35,15 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `https://my.izuka-api.xyz/api/canvas/{endpoint}` (`fakecall.js:88`).
-pub(crate) fn api_url(endpoint: &str) -> String {
-    format!("https://my.izuka-api.xyz/api/canvas/{endpoint}")
+/// `https://apiii-xrina.my.id/canvas/{endpoint}` — `pp=&nama=&durasi=`.
+pub(crate) fn api_url(endpoint: &str, pp: &str, nama: &str, durasi: &str) -> String {
+    format!(
+        "https://apiii-xrina.my.id/canvas/{endpoint}?pp={}&nama={}&durasi={}",
+        encode_uri_component(pp),
+        encode_uri_component(nama),
+        encode_uri_component(durasi)
+    )
 }
-
-/// Nama avatar part (`form.append('avatarUrl', ...)`) (`fakecall.js:79`).
-const AVATAR_FILE: &str = "avatar.jpg";
 
 /// Caption tidak ada (`fakecall.js` hanya mengirim image tanpa caption).
 const CAPTION: &str = "";
@@ -84,49 +90,32 @@ pub fn fakecall(ctx: Ctx) -> Reply {
         );
     }
 
-    // Coba ambil avatar: pesan pemicu (image) → quoted (image) → foto profil.
-    let avatar = avatar_bytes(&ctx).or_else(|| {
-        fallback_avatar(&*ctx.http).ok().filter(|b| !b.is_empty())
-    });
+    // `pp` wajib di API baru; JS memakai buffer yang diunggah, jadi foto
+    // profil pengirim jadi sumbernya, catbox cadangan.
+    let pp = ctx
+        .sock()
+        .foto_profil(&ctx.sender, "image")
+        .ok()
+        .flatten()
+        .filter(|u| !u.is_empty())
+        .unwrap_or_else(|| AVATAR_CADANGAN.to_string());
 
     let endpoint = if cmd == "fakecall-ios" {
-        "fakecall-ios"
+        "call-ios"
     } else {
-        "fakecall-android"
+        "call-andro"
     };
 
-    let Ok(res) = ctx.http.call(&HttpCall::post(api_url(endpoint)).multipart(vec![
-        MultipartPart::file("avatarUrl", AVATAR_FILE, avatar.unwrap_or_default()),
-        MultipartPart::field("name", nama),
-        MultipartPart::field("duration", durasi),
-    ])) else {
+    let Ok(res) = ctx.http.get(&api_url(endpoint, &pp, nama, durasi)) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
     };
-
-    Reply::image(
-        MediaSource::bytes(res.body.bytes().to_vec()),
-        CAPTION,
-    )
-    .with_reaction("📞")
-}
-
-/// Ambil byte avatar: pesan pemicu (image) → quoted (image) → foto profil.
-fn avatar_bytes(ctx: &Ctx) -> Option<Vec<u8>> {
-    if ctx.media.as_ref().is_some_and(|m| m.kind == oktz_plugin_api::IncomingKind::Image) {
-        return ctx.download_media().ok();
+    let data = res.body.bytes().to_vec();
+    if data.starts_with(b"{") {
+        // API balas JSON error (bukan gambar): `catch` JS.
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
     }
-    if let Some(q) = &ctx.quoted
-        && q.kind.is_image()
-    {
-        return ctx.download_quoted_media().ok();
-    }
-    None
-}
 
-/// Fallback gambar default (`fakecall.js:73`).
-fn fallback_avatar(http: &dyn oktz_plugin_api::HttpGet) -> Result<Vec<u8>, HttpError> {
-    http.get("https://files.catbox.moe/nwvkbt.png")
-        .map(|res| res.body.bytes().to_vec())
+    Reply::image(MediaSource::bytes(data), CAPTION).with_reaction("📞")
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +125,7 @@ fn fallback_avatar(http: &dyn oktz_plugin_api::HttpGet) -> Result<Vec<u8>, HttpE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpResponse, MediaSource};
+    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -144,15 +133,14 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct Stub {
-        panggilan: Mutex<Vec<(String, Vec<u8>)>>,
-        balasan: Option<Vec<u8>>,
+        panggilan: Mutex<Vec<String>>,
+        balasan: Vec<u8>,
         gagal: bool,
     }
-
     impl Stub {
-        fn body(bytes: Vec<u8>) -> Arc<Stub> {
+        fn body(bytes: &[u8]) -> Arc<Stub> {
             Arc::new(Stub {
-                balasan: Some(bytes),
+                balasan: bytes.to_vec(),
                 ..Default::default()
             })
         }
@@ -162,109 +150,47 @@ mod tests {
                 ..Default::default()
             })
         }
+        fn json_error() -> Arc<Stub> {
+            Self::body(br#"{"status":false,"message":"rusak"}"#.as_slice())
+        }
     }
 
     impl oktz_plugin_api::HttpGet for Stub {
-        fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {
+        fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             if self.gagal {
-                return Err(oktz_plugin_api::HttpError {
+                return Err(HttpError {
                     message: "offline".into(),
                 });
             }
+            self.panggilan.lock().unwrap().push(url.to_string());
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
-                    data: Arc::from(self.balasan.clone().unwrap_or_default()),
+                    data: Arc::from(self.balasan.clone()),
                     mimetype: None,
                 },
                 headers: Vec::new(),
             })
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unreachable!("cuma multipart")
+            unreachable!("cuma GET")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unreachable!("cuma multipart")
+            unreachable!("cuma GET")
         }
         fn post_multipart(
             &self,
-            url: &str,
-            parts: &[(&str, HttpBody)],
+            _: &str,
+            _: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
-            if self.gagal {
-                return Err(oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                });
-            }
-            self.panggilan
-                .lock()
-                .unwrap()
-                .push((url.to_string(), badan_multipart(parts)));
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(self.balasan.clone().unwrap_or_default()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
+            unreachable!("cuma GET")
         }
-        /// Plugin memakai `HttpCall::multipart` (`fakecall.js:78-93`); default
-        /// `HttpGet::call` menolak multipart, jadi stub menimpanya dan mencatat
-        /// `panggilan` hanya untuk request API (bukan avatar cadangan catbox).
-        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
-            if self.gagal {
-                return Err(oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                });
-            }
-            let badan = match req.body.as_ref() {
-                Some(HttpBody::Multipart(parts)) => badan_file(parts),
-                _ => Vec::new(),
-            };
-            self.panggilan.lock().unwrap().push((req.url.clone(), badan));
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(self.balasan.clone().unwrap_or_default()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
-        }
-    }
-
-    /// Badan multipart termasuk `filename` part berkas — `form-data` JS
-    /// (`form.append('avatarUrl', buffer, { filename: 'avatar.jpg' })`).
-    fn badan_file(parts: &[MultipartPart]) -> Vec<u8> {
-        let mut out = Vec::new();
-        for p in parts {
-            out.extend_from_slice(format!("{}=", p.name).as_bytes());
-            if let Some(nama_berkas) = &p.file_name {
-                out.extend_from_slice(nama_berkas.as_bytes());
-                out.push(b' ');
-            }
-            out.extend_from_slice(p.body.bytes());
-            out.push(b'\n');
-        }
-        out
-    }
-
-    fn badan_multipart(parts: &[(&str, HttpBody)]) -> Vec<u8> {
-        let mut out = Vec::new();
-        for (nama, body) in parts {
-            out.extend_from_slice(format!("{nama}=").as_bytes());
-            out.extend_from_slice(body.bytes());
-            out.push(b'\n');
-        }
-        out
     }
 
     fn run(http: Arc<Stub>, cmd: &str, text: &str) -> Reply {
-        let mut args = text.split_whitespace();
         let ctx = Ctx {
             text: text.to_string(),
-            args: args.by_ref().map(str::to_string).collect(),
+            args: text.split_whitespace().map(str::to_string).collect(),
             sender: ME.into(),
             chat: ME.into(),
             prefix: ".".into(),
@@ -318,40 +244,39 @@ mod tests {
     }
 
     #[test]
-    fn android_dan_ios_menggunakan_endpoint_beda() {
-        assert_eq!(api_url("fakecall-android"), "https://my.izuka-api.xyz/api/canvas/fakecall-android");
+    fn api_url_mengikuti_param_get_dan_terenkode() {
         assert_eq!(
-            api_url("fakecall-ios"),
-            "https://my.izuka-api.xyz/api/canvas/fakecall-ios"
+            api_url("call-andro", "https://x/pp.jpg", "Zann", "03:33:33"),
+            "https://apiii-xrina.my.id/canvas/call-andro?pp=https%3A%2F%2Fx%2Fpp.jpg&nama=Zann&durasi=03%3A33%3A33"
+        );
+        // `pp` selalu terisi (foto profil atau catbox), tapi fungsi murni ini
+        // tetap memetakan string kosong apa adanya.
+        assert_eq!(
+            api_url("call-ios", "", "A", "1"),
+            "https://apiii-xrina.my.id/canvas/call-ios?pp=&nama=A&durasi=1"
         );
     }
 
     #[test]
-    fn multipart_mengirim_avatar_nama_dan_durasi() {
-        let http = Stub::body(b"gambar-fake-call".to_vec());
-        let r = run(http.clone(), "fakecall", "Zann | 03:33:33");
+    fn android_pakai_catbox_kalau_tanpa_foto_profil() {
+        let http = Stub::body(b"PNG".as_slice());
+        let r = run(http.clone(), "fakecall", "Zann | 03:33");
         assert_eq!(reaksi(&r), Some("📞"));
-        let panggilan = http.panggilan.lock().unwrap().clone();
-        assert_eq!(panggilan.len(), 1);
         assert_eq!(
-            panggilan[0].0,
-            "https://my.izuka-api.xyz/api/canvas/fakecall-android"
+            http.panggilan.lock().unwrap()[0],
+            "https://apiii-xrina.my.id/canvas/call-andro?pp=https%3A%2F%2Ffiles.catbox.moe%2Fnwvkbt.png&nama=Zann&durasi=03%3A33"
         );
-        let badan = String::from_utf8_lossy(&panggilan[0].1);
-        assert!(badan.contains("name=Zann"));
-        assert!(badan.contains("duration=03:33:33"));
-        assert!(badan.contains("avatar.jpg"));
     }
 
     #[test]
     fn ios_menggunakan_endpoint_ios() {
-        let http = Stub::body(b"x".to_vec());
+        let http = Stub::body(b"x".as_slice());
         let r = run(http.clone(), "fakecall-ios", "Zann | 12:00");
         assert_eq!(reaksi(&r), Some("📞"));
-        let panggilan = http.panggilan.lock().unwrap().clone();
-        assert_eq!(
-            panggilan[0].0,
-            "https://my.izuka-api.xyz/api/canvas/fakecall-ios"
+        assert!(
+            http.panggilan.lock().unwrap()[0].contains("/canvas/call-ios?"),
+            "{}",
+            http.panggilan.lock().unwrap()[0]
         );
     }
 
@@ -364,8 +289,16 @@ mod tests {
     }
 
     #[test]
+    fn balasan_json_error_bukan_gambar() {
+        let http = Stub::json_error();
+        let r = run(http.clone(), "fakecall", "Zann | 03:33");
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "fakecall"));
+        assert_eq!(reaksi(&r), Some("❌"));
+    }
+
+    #[test]
     fn berhasil_mengembalikan_gambar_dengan_bytes() {
-        let http = Stub::body(b"PNG".to_vec());
+        let http = Stub::body(b"PNG".as_slice());
         let r = run(http.clone(), "fakecall", "Zann | 03:33");
         assert_eq!(reaksi(&r), Some("📞"));
         assert!(r.has_media());

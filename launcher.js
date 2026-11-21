@@ -136,7 +136,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           notegpt-nano` (route lama 500) + timeout AI 90s; sticker pack
 //           Sticker.ly dikonversi ke WebP dan satu sticker gagal tidak lagi
 //           membatalkan seluruh pack.
-export const VERSI_BIN = "v0.2.85";
+// v0.2.86 — `.fakecall`/`.fakecall-ios` ikut API baru (`GET /canvas/
+//           call-andro|call-ios`, avatar via `pp`); `.afk` kini menghapus
+//           status dan membalas saat user kembali (checkAfk diport).
+export const VERSI_BIN = "v0.2.86";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

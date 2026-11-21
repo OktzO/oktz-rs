@@ -1,17 +1,31 @@
 //! `plugins/group/afk.js` — set status AFK dengan alasan.
 //!
-//! `ponytail:` hanya `handler` yang dipindah. `checkAfk` (`afk.js:76-126`)
-//! adalah hook middleware yang dipanggil sebelum plugin lain — ia perlu
-//! `db.getUser` untuk JID peserta yang di-mention (yang tidak ada di `Ctx`,
-//! hanya ada untuk `sender`) dan `notifyThrottle` lintas-pesan, jadi tidak
-//! ikut. Lihat laporan batch.
+//! Dua bagian diport:
+//! - `handler` (`afk.js:63-74`) — set AFK + balasan.
+//! - `checkAfk` (`afk.js:76-126`) — hook yang menghapus AFK saat pengirim
+//!   kembali dan memberi tahu user AFK yang disebut. Di Rust jadi
+//!   `afk_answer` (`#[answer_handler]`).
 //!
-//! `sweepAfkStorage` juga tidak ikut: penyapuan based-on-ukuran hanya
-//! memangkas cache in-memory, dan `Ctx` tidak punya cache AFK sendiri.
+//! `ponytail:` dua beda yang dicatat, bukan disembunyikan:
+//! - JS memanggil `checkAfk` untuk SEMUA pesan, Rust hanya untuk non-command
+//!   (jalur answer, `oktz-wa/src/pipeline.rs:4773`), jadi command tidak
+//!   menghapus AFK.
+//! - `getAfkUser` JS jatuh ke `afkStorage` (memori) untuk JID `lid` yang tidak
+//!   bisa dipersist; Rust tidak punya store memori itu, jadi AFK JID `lid`
+//!   tidak terbaca. `notifyThrottle` dipetakan ke `Ctx::sessions`.
+//! - Sebutan AFK dibaca dari `ctx.roster` (`p.data` = `db.getUser(p.jid)`),
+//!   jadi hanya berlaku di grup yang rosternya terisi.
+//!
+//! `sweepAfkStorage` tidak ikut: `Ctx::sessions` sudah memangkas diri saat
+//! `> 10_000` entri.
 
-use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
+use serde_json::Value;
 
 pub(crate) const NO_REASON: &str = "Tidak ada alasan";
+
+/// `NOTIFY_TTL_MS` (`afk.js:5`) — throttle notifikasi sebutan AFK.
+const NOTIFY_TTL_MS: i64 = 60 * 60 * 1000;
 
 /// `canPersist(jid)` — JID yang aman ditulis ke store. Key `lid` (>15 digit)
 /// dan yang berawalan `120` tidak bisa dipakai sebagai key store, jadi AFK-nya
@@ -63,10 +77,128 @@ pub fn afk(ctx: Ctx) -> Reply {
     }
 }
 
+/// `formatAfkDuration` (`middleware.js:22-32`) — sama dengan
+/// `oktz_router::mode::format_afk_duration`, disalin karena plugin tidak
+/// bergantung pada `oktz-router`.
+pub(crate) fn format_durasi(ms: i64) -> String {
+    let detik = ms / 1000;
+    let menit = detik / 60;
+    let jam = menit / 60;
+    let hari = jam / 24;
+    if hari > 0 {
+        return format!("{} hari {} jam", hari, jam % 24);
+    }
+    if jam > 0 {
+        return format!("{} jam {} menit", jam, menit % 60);
+    }
+    if menit > 0 {
+        return format!("{menit} menit");
+    }
+    format!("{detik} detik")
+}
+
+/// `afk` user yang aktif (objek = truthy, `null`/hilang = tidak aktif).
+fn afk_aktif(data: &Value) -> Option<&Value> {
+    data.get("afk").filter(|v| !v.is_null())
+}
+
+/// `db.getUser(jid)` untuk sebutan: data pengirim sudah ada di `Ctx`, peserta
+/// lain lewat roster (`p.data` diisi `PluginCtxSource::fill`).
+fn data_peserta<'a>(ctx: &'a Ctx, jid: &str) -> Option<&'a Value> {
+    if jid == ctx.sender {
+        return Some(&ctx.user_data);
+    }
+    ctx.roster
+        .participants
+        .iter()
+        .find(|p| p.jid == jid)
+        .map(|p| &p.data)
+}
+
+/// `checkAfk` (`afk.js:76-126`) — hook yang dipanggil SEBELUM plugin lain.
+///
+/// Di JS ini berjalan untuk SEMUA pesan; jalur answer Rust cuma dipanggil
+/// untuk pesan non-command (`oktz-wa/src/pipeline.rs:4773`), jadi AFK tidak
+/// ikut terhapus saat pengirim mengetik command. Pengirim tetap menang atas
+/// rantai answer lain: begitu ada balasan, pipeline berhenti.
+#[answer_handler]
+pub fn afk_answer(ctx: Ctx) -> Option<Reply> {
+    let mut urutan: Vec<Reply> = Vec::new();
+    let mut mutasi: Option<Mutation> = None;
+
+    // `getAfkUser(m.sender)` lalu `removeAfkUser` + balasan "AFK BERAKHIR".
+    if let Some(afk) = afk_aktif(&ctx.user_data).cloned() {
+        let since = afk.get("since").and_then(Value::as_i64).unwrap_or(0);
+        let durasi = format_durasi(crate::common::now_ms().saturating_sub(since));
+        mutasi = Some(Mutation::SetUser {
+            jid: ctx.sender.clone(),
+            data: serde_json::json!({ "afk": null }),
+        });
+        urutan.push(Reply::Text {
+            text: format!(
+                "👋 *ᴀꜰᴋ ʙᴇʀᴀᴋʜɪʀ*\n\n\
+                 ```@{} sudah kembali!```\n\
+                 🍀 `Durasi AFK:` *{}*",
+                crate::common::jid_number(&ctx.sender),
+                durasi
+            ),
+            mentions: vec![ctx.sender.clone()],
+        });
+    }
+
+    // Notifikasi user AFK yang disebut, grup saja, throttle 1 jam per pasangan.
+    if ctx.is_group {
+        for jid in &ctx.mentioned {
+            if jid == &ctx.sender {
+                continue;
+            }
+            let Some(afk) = data_peserta(&ctx, jid).and_then(afk_aktif).cloned() else {
+                continue;
+            };
+            let kunci = format!("afk_notify:{}|{}", ctx.sender, jid);
+            let sudah = ctx
+                .session_get(&kunci)
+                .and_then(|v| v.as_i64())
+                .is_some_and(|ts| crate::common::now_ms() - ts < NOTIFY_TTL_MS);
+            if sudah {
+                continue;
+            }
+            ctx.session_set(&kunci, serde_json::json!(crate::common::now_ms()));
+
+            let since = afk.get("since").and_then(Value::as_i64).unwrap_or(0);
+            let durasi = format_durasi(crate::common::now_ms().saturating_sub(since));
+            let alasan = afk
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or(NO_REASON);
+            urutan.push(Reply::Text {
+                text: format!(
+                    "💤 *ᴜsᴇʀ ᴀꜰᴋ*\n\n\
+                     ```Hustt, jangan di ganggu!``` `@{}` lagi AFK\n\
+                     🍀 `Alasan:` *{}*\n\
+                     🍀 `Sejak:` *{} yang lalu*",
+                    crate::common::jid_number(jid),
+                    alasan,
+                    durasi
+                ),
+                mentions: vec![jid.clone()],
+            });
+        }
+    }
+
+    if urutan.is_empty() {
+        return None;
+    }
+    let balasan = Reply::sequence(urutan);
+    Some(match mutasi {
+        Some(m) => balasan.with_mutation(m),
+        None => balasan,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
 
     const SENDER: &str = "6281234567890@s.whatsapp.net";
 
@@ -188,5 +320,130 @@ mod tests {
         let r = run("120363123456789012@lid", "x");
         assert!(r.mutations().is_empty());
         assert!(text_of(&r).contains("```@120363123456789012 sekarang AFK```"));
+    }
+
+    fn grup(user_data: Value, mentioned: &[&str], peserta: &[(&str, Value)]) -> Ctx {
+        Ctx {
+            sender: SENDER.into(),
+            chat: "120363000000000000@g.us".into(),
+            is_group: true,
+            mentioned: mentioned.iter().map(|s| s.to_string()).collect(),
+            user_data,
+            roster: oktz_plugin_api::registry::GroupRoster {
+                participants: peserta
+                    .iter()
+                    .map(|(jid, data)| oktz_plugin_api::registry::Participant {
+                        jid: (*jid).to_string(),
+                        data: data.clone(),
+                        ..Default::default()
+                    })
+                    .collect(),
+                is_bot_admin: false,
+            },
+            ..Ctx::default()
+        }
+    }
+
+    fn balasan_pertama(r: &Reply) -> Reply {
+        match r.without_mutations() {
+            Reply::Sequence(list) => list.first().cloned().expect("ada balasan"),
+            lain => lain.clone(),
+        }
+    }
+
+    fn semua_teks(r: &Reply) -> String {
+        match r.without_mutations() {
+            Reply::Sequence(list) => list
+                .iter()
+                .filter_map(|x| x.text_body())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            lain => lain.text_body().unwrap_or("").to_string(),
+        }
+    }
+
+    #[test]
+    fn format_durasi_mengikuti_middleware_js() {
+        assert_eq!(format_durasi(30_000), "30 detik");
+        assert_eq!(format_durasi(5 * 60_000), "5 menit");
+        assert_eq!(format_durasi(2 * 3_600_000 + 3 * 60_000), "2 jam 3 menit");
+        assert_eq!(format_durasi(50 * 3_600_000), "2 hari 2 jam");
+    }
+
+    #[test]
+    fn afk_aktif_dihapus_dan_dibalas_saat_kembali() {
+        let since = crate::common::now_ms() - 65 * 60_000;
+        let ctx = grup(
+            serde_json::json!({ "afk": { "reason": "makan", "since": since } }),
+            &[],
+            &[],
+        );
+        let r = afk_answer(ctx).expect("harus menangani");
+        let all = semua_teks(&r);
+        assert!(all.contains("ᴀꜰᴋ ʙᴇʀᴀᴋʜɪʀ"), "{all}");
+        assert!(all.contains("1 jam 5 menit"), "{all}");
+        assert_eq!(r.mutations().len(), 1);
+        match &r.mutations()[0] {
+            Mutation::SetUser { jid, data } => {
+                assert_eq!(jid, SENDER);
+                assert_eq!(data["afk"], Value::Null);
+            }
+            other => panic!("harus SetUser, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tanpa_afk_tidak_menangani() {
+        let ctx = grup(serde_json::json!({}), &[], &[]);
+        assert!(afk_answer(ctx).is_none());
+    }
+
+    #[test]
+    fn sebutan_afk_di_grup_dibalas_dan_dithrottle() {
+        let other = "628999888777@s.whatsapp.net";
+        let ctx = grup(
+            serde_json::json!({}),
+            &[other],
+            &[(
+                other,
+                serde_json::json!({ "afk": { "reason": "tidur", "since": crate::common::now_ms() - 120_000 } }),
+            )],
+        );
+        let first = afk_answer(ctx.clone()).expect("harus notify");
+        let all = semua_teks(&first);
+        assert!(all.contains("ᴜsᴇʀ ᴀꜰᴋ"), "{all}");
+        assert!(all.contains("tidur"), "{all}");
+        assert!(first.mutations().is_empty(), "notify tidak menulis store");
+        // Panggilan kedua dalam window throttle: tidak ada balasan lagi.
+        assert!(afk_answer(ctx).is_none());
+    }
+
+    #[test]
+    fn sebutan_afk_di_luar_grup_diabaikan() {
+        let other = "628999888777@s.whatsapp.net";
+        let mut ctx = grup(
+            serde_json::json!({}),
+            &[other],
+            &[(
+                other,
+                serde_json::json!({ "afk": { "reason": "tidur", "since": 0 } }),
+            )],
+        );
+        ctx.is_group = false;
+        assert!(afk_answer(ctx).is_none());
+    }
+
+    #[test]
+    fn balasan_pertama_membawa_mention_pengirim() {
+        let ctx = grup(
+            serde_json::json!({ "afk": { "reason": "x", "since": crate::common::now_ms() } }),
+            &[],
+            &[],
+        );
+        let r = afk_answer(ctx).expect("harus menangani");
+        match balasan_pertama(&r).without_mutations() {
+            Reply::Text { mentions, .. } => assert_eq!(mentions.as_slice(), [SENDER]),
+            other => panic!("harus Text, dapat {other:?}"),
+        }
     }
 }
