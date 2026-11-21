@@ -441,6 +441,9 @@ fn order_palsu_teks(input: &VariantInput<'_>) -> wa::Message {
         // JS menulis string "1000000"; proto-nya int64.
         total_amount1000: Some(1_000_000),
         total_currency_code: Some("IDR".into()),
+        // V9 (order yang dirender klien) memakai messageVersion 1; tanpa ini
+        // kutipan order palsu V5 diabaikan klien dan balasan tampak teks polos.
+        message_version: Some(1),
         ..Default::default()
     };
     let quote = QuoteSource {
@@ -546,6 +549,14 @@ fn kartu_signup(input: &VariantInput<'_>) -> wa::Message {
         ..Default::default()
     };
     let inner = wa::Message {
+        // Amplop viewOnce interactive wajib membawa messageContextInfo +
+        // deviceListMetadata (kartu native-flow terbukti, `cards.rs`); tanpa
+        // ini kirim V8 ditolak dan tidak terkirim apa-apa.
+        message_context_info: MessageField::some(wa::MessageContextInfo {
+            device_list_metadata: MessageField::some(wa::DeviceListMetadata::default()),
+            device_list_metadata_version: Some(2),
+            ..Default::default()
+        }),
         interactive_message: MessageField::some(wa::message::InteractiveMessage {
             header: MessageField::some(Header {
                 title: Some(nama_bot(input.config)),
@@ -817,24 +828,13 @@ fn srt_dir(root: &Path) -> PathBuf {
 ///
 /// Dipakai pipeline untuk mengisi [`VariantInput::srt_image`]; nama asetnya
 /// menunjuk `assets/image/*.jpeg` sesuai `config.assets`.
-/// Cache srt: byte + waktu isi, untuk TTL 30 menit.
-type ThumbCache = std::sync::Mutex<Option<(std::time::Instant, Vec<u8>)>>;
-static THUMB_CACHE: std::sync::OnceLock<ThumbCache> = std::sync::OnceLock::new();
-
-/// TTL cache srt — paritas `LRUCache ttl: 30 menit` (`serialize.js:66`).
-const SRT_TTL: std::time::Duration = std::time::Duration::from_secs(30 * 60);
-
+///
+/// File shuffle dipilih ACAK TIAP PANGGILAN (per balasan), tanpa cache —
+/// paritas `getCachedSrtImage` JS yang mengacak tiap `m.reply`. Cache permanen
+/// dulu mengunci satu file seumur proses (lotre per-restart); cache TTL membuat
+/// gambar statis 30 menit. Keduanya dihapus supaya tiap balasan ganti gambar.
 pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
     if srt_enabled {
-        let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(None));
-        {
-            let g = c.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some((t, b)) = g.as_ref()
-                && t.elapsed() < SRT_TTL
-            {
-                return Some(b.clone());
-            }
-        }
         let dir = srt_dir(root);
         if let Ok(entries) = std::fs::read_dir(&dir) {
             let mut files: Vec<PathBuf> = entries
@@ -855,15 +855,13 @@ pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
                 files.sort();
                 let idx = pseudo_random_index(files.len());
                 if let Ok(b) = std::fs::read(&files[idx]) {
-                    *c.lock().unwrap_or_else(|e| e.into_inner()) =
-                        Some((std::time::Instant::now(), b.clone()));
                     return Some(b);
                 }
             }
         }
     }
-    // srt mati / gagal: foto.jpeg apa adanya, TIDAK di-cache supaya flag
-    // srtEnabled yang dimatikan langsung berlaku (bukan menunggu restart).
+    // srt mati / gagal: foto.jpeg apa adanya. Tidak di-cache supaya flag
+    // srtEnabled yang dimatikan langsung berlaku.
     std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()
 }
 
@@ -1151,6 +1149,11 @@ mod tests {
         // JS menulis string "1000000"; proto `int64`.
         assert_eq!(order.total_amount1000, Some(1_000_000));
         assert_eq!(order.total_currency_code.as_deref(), Some("IDR"));
+        assert_eq!(
+            order.message_version,
+            Some(1),
+            "order palsu perlu messageVersion seperti V9 agar kutipan dirender"
+        );
         assert_eq!(order.thumbnail.as_deref(), Some(&b"srt-image"[..]));
         assert_eq!(ci.participant.as_deref(), Some("0@s.whatsapp.net"));
         assert!(ci.stanza_id.is_none(), "order palsu tidak punya stanzaId");
@@ -1241,10 +1244,18 @@ mod tests {
             .message
             .as_option()
             .expect("viewOnceMessage.message");
+        // Amplop viewOnce interactive wajib punya messageContextInfo +
+        // deviceListMetadata seperti kartu native-flow terbukti (cards.rs);
+        // tanpanya kirim V8 ditolak (error, tidak terkirim).
+        let mci = inner
+            .message_context_info
+            .as_option()
+            .expect("varian 8 wajib messageContextInfo");
         assert!(
-            inner.message_context_info.as_option().is_none(),
-            "varian 8 tidak menulis messageContextInfo"
+            mci.device_list_metadata.as_option().is_some(),
+            "deviceListMetadata wajib"
         );
+        assert_eq!(mci.device_list_metadata_version, Some(2));
         let im = inner
             .interactive_message
             .as_option()
@@ -1490,21 +1501,8 @@ mod tests {
     /// JPEG baseline 1×1 sah — sumber byte gambar nyata untuk uji resize.
     const JPEG_UJI: &str = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
 
-    /// Cache thumbnail global dipakai bersama antar-test; serialkan + reset
-    /// supaya urutan eksekusi tidak membocorkan state.
-    static TEST_THUMB_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    fn reset_thumb_cache() {
-        let c = THUMB_CACHE.get_or_init(|| std::sync::Mutex::new(None));
-        *c.lock().unwrap_or_else(|e| e.into_inner()) = None;
-    }
-
     fn root_uji(nama: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!(
-            "oktz-thumb-{}-{}",
-            nama,
-            std::process::id()
-        ));
+        let root = std::env::temp_dir().join(format!("oktz-thumb-{}-{}", nama, std::process::id()));
         let shuffle = root.join("assets").join("image").join("shuffle");
         std::fs::create_dir_all(&shuffle).unwrap();
         std::fs::write(shuffle.join("a.jpeg"), b"AAA").unwrap();
@@ -1514,22 +1512,42 @@ mod tests {
 
     #[test]
     fn thumbnail_falls_back_when_nothing_is_on_disk() {
-        let _g = TEST_THUMB_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        reset_thumb_cache();
         // Direktori kerja yang tidak punya assets/ -> `None`, bukan panic.
-        assert_eq!(thumbnail_bytes(Path::new("/tmp/tidak-ada-oktz"), true), None);
+        assert_eq!(
+            thumbnail_bytes(Path::new("/tmp/tidak-ada-oktz"), true),
+            None
+        );
     }
 
     #[test]
-    fn thumbnail_bytes_srt_disabled_tidak_pakai_cache_srt() {
-        let _g = TEST_THUMB_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        reset_thumb_cache();
+    fn thumbnail_bytes_srt_disabled_baca_foto() {
         let root = root_uji("flag");
-        // srtEnabled=true mengisi cache dari shuffle...
         assert_eq!(thumbnail_bytes(&root, true).unwrap(), b"AAA");
-        assert_eq!(thumbnail_bytes(&root, true).unwrap(), b"AAA");
-        // ...tapi srtEnabled=false harus baca foto.jpeg, BUKAN cache srt.
+        // srtEnabled=false harus baca foto.jpeg, BUKAN shuffle.
         assert_eq!(thumbnail_bytes(&root, false).unwrap(), b"FFF");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn thumbnail_bytes_pilih_acak_beragam() {
+        let root = std::env::temp_dir().join(format!("oktz-thumb-acak-{}", std::process::id()));
+        let shuffle = root.join("assets").join("image").join("shuffle");
+        std::fs::create_dir_all(&shuffle).unwrap();
+        for (n, b) in [
+            ("a.jpeg", &b"A"[..]),
+            ("b.jpeg", &b"B"[..]),
+            ("c.jpeg", &b"C"[..]),
+        ] {
+            std::fs::write(shuffle.join(n), b).unwrap();
+        }
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..60 {
+            seen.insert(thumbnail_bytes(&root, true).unwrap());
+        }
+        assert!(
+            seen.len() >= 2,
+            "tiap balasan harus ganti gambar acak, dapat {seen:?}"
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -1550,7 +1568,10 @@ mod tests {
             .thumbnail
             .clone()
             .unwrap();
-        assert_ne!(thumb, jpeg_asli, "thumbnail harus di-encode ulang, bukan byte mentah");
+        assert_ne!(
+            thumb, jpeg_asli,
+            "thumbnail harus di-encode ulang, bukan byte mentah"
+        );
         let g = oktz_plugin_api::gambar::sharp(&thumb).expect("thumbnail harus jpeg sah");
         let m = g.metadata();
         assert_eq!((m.lebar, m.tinggi), (300, 300));
@@ -1572,6 +1593,10 @@ mod tests {
         for _ in 0..600 {
             seen.insert(pseudo_random_index(3));
         }
-        assert_eq!(seen.len(), 3, "len=3 harus bisa menghasilkan 0,1,2; dapat {seen:?}");
+        assert_eq!(
+            seen.len(),
+            3,
+            "len=3 harus bisa menghasilkan 0,1,2; dapat {seen:?}"
+        );
     }
 }
