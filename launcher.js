@@ -132,7 +132,11 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.84 — gate anti grup (`.antilinkall`/`.antilinkgc`/`.antitagsw`) kini
 //           jalan walau pesan tanpa body (tag status/media tanpa caption);
 //           thumbnail semua replyVariant selalu acak dari `assets/image/shuffle`.
-export const VERSI_BIN = "v0.2.84";
+// v0.2.85 — `.nanobanana`/`.bananagen` pindah ke route hidup `/ai-image/
+//           notegpt-nano` (route lama 500) + timeout AI 90s; sticker pack
+//           Sticker.ly dikonversi ke WebP dan satu sticker gagal tidak lagi
+//           membatalkan seluruh pack.
+export const VERSI_BIN = "v0.2.85";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

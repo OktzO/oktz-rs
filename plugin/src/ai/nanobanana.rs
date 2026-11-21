@@ -289,7 +289,7 @@ mod tests {
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 2);
         assert!(seen[0].contains("uguu.se"), "{}", seen[0]);
-        assert!(seen[1].contains("/ai-image/nanobanana"), "{}", seen[1]);
+        assert!(seen[1].contains("/ai-image/notegpt-nano"), "{}", seen[1]);
         assert!(seen[1].contains("prompt=ubah%20merah"), "{}", seen[1]);
     }
 

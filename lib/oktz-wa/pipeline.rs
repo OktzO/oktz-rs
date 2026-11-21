@@ -1498,7 +1498,19 @@ impl MessageSender for ClientSender {
                 let Some(source) = source else {
                     continue;
                 };
-                let bytes = load_media(&source).await.map_err(|e| e.to_string())?;
+                // Satu sticker gagal tidak boleh menggagalkan seluruh pack —
+                // JS `downloadStickerlyPack` juga `continue` ke sticker
+                // berikutnya, bukan membatalkan.
+                let bytes = match load_media(&source).await {
+                    Ok(b) => b,
+                    Err(e) => {
+                        tracing::warn!(error = %e, "sticker pack: satu sticker dilewati");
+                        continue;
+                    }
+                };
+                // Isi pack WAJIB WebP; sumber Sticker.ly sering PNG. WebP lolos
+                // apa adanya (animasi utuh), jadi cuma PNG yang dikonversi.
+                let bytes = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]).unwrap_or(bytes);
                 if cover.is_empty() {
                     cover = bytes.clone();
                 }

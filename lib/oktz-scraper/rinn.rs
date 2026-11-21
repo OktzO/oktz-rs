@@ -18,7 +18,19 @@ pub const BASE: &str = "https://apiii-xrina.my.id";
 const UA: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 
 fn ambil(http: &dyn HttpGet, jalur: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
-    let res = http.call(&HttpCall::get(format!("{BASE}{jalur}")).header("User-Agent", UA))?;
+    ambil_ms(http, jalur, None)
+}
+
+fn ambil_ms(
+    http: &dyn HttpGet,
+    jalur: &str,
+    timeout_ms: Option<u64>,
+) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+    let mut call = HttpCall::get(format!("{BASE}{jalur}")).header("User-Agent", UA);
+    if let Some(ms) = timeout_ms {
+        call = call.with_timeout(ms);
+    }
+    let res = http.call(&call)?;
     if !(200..300).contains(&res.status) {
         return Err(HttpError {
             message: format!("rinn {} untuk {}", res.status, jalur),
@@ -45,7 +57,11 @@ fn json(http: &dyn HttpGet, jalur: &str) -> Result<Value, HttpError> {
 }
 
 fn bytes(http: &dyn HttpGet, jalur: &str) -> Result<Vec<u8>, HttpError> {
-    let res = ambil(http, jalur)?;
+    bytes_ms(http, jalur, None)
+}
+
+fn bytes_ms(http: &dyn HttpGet, jalur: &str, timeout_ms: Option<u64>) -> Result<Vec<u8>, HttpError> {
+    let res = ambil_ms(http, jalur, timeout_ms)?;
     let data = res.body.bytes().to_vec();
     if data.is_empty() {
         return Err(HttpError {
@@ -180,16 +196,32 @@ pub fn pinterest(http: &dyn HttpGet, q: &str, limit: u32) -> Result<Vec<String>,
         .unwrap_or_default())
 }
 
-/// `/ai-image/nanobanana?image=&prompt=` → byte gambar hasil edit.
+/// Timeout route AI edit. Generasi gambar makan 15-40 detik, jauh di atas
+/// timeout global 20 detik; tanpa ini request sehat pun diputus di tengah.
+const TIMEOUT_AI_MS: u64 = 90_000;
+
+/// Edit gambar Nano Banana → byte gambar hasil.
+///
+/// `/ai-image/nanobanana` sering balas 500 dari providernya (mati sejak
+/// 2026-11-21); `/ai-image/notegpt-nano` melayani model yang sama dan hidup.
+/// Route dicoba berurutan, pola sama seperti [`hd`].
 pub fn nanobanana(http: &dyn HttpGet, image_url: &str, prompt: &str) -> Result<Vec<u8>, HttpError> {
-    bytes(
-        http,
-        &format!(
-            "/ai-image/nanobanana?image={}&prompt={}",
-            encode_uri_component(image_url),
-            encode_uri_component(prompt)
-        ),
-    )
+    let enc = encode_uri_component(image_url);
+    let p = encode_uri_component(prompt);
+    let jalur = [
+        format!("/ai-image/notegpt-nano?image={enc}&prompt={p}"),
+        format!("/ai-image/nanobanana?image={enc}&prompt={p}"),
+    ];
+    let mut terakhir = HttpError {
+        message: "rinn: semua route nanobanana gagal".to_string(),
+    };
+    for j in jalur {
+        match bytes_ms(http, &j, Some(TIMEOUT_AI_MS)) {
+            Ok(data) => return Ok(data),
+            Err(e) => terakhir = e,
+        }
+    }
+    Err(terakhir)
 }
 
 /// `/ai-image/hd` → `/ai-image/hd2` → `/ai-image/unblur`.
@@ -328,11 +360,25 @@ mod tests {
     }
 
     #[test]
-    fn nanobanana_mengenkode_prompt() {
+    fn nanobanana_coba_notegpt_lalu_bawa_prompt_terenkode() {
         let http = Stub::baru(vec![(200, "P")]);
-        nanobanana(http.as_ref(), "https://x/y.jpg", "ubah jadi anime").unwrap();
+        let data = nanobanana(http.as_ref(), "https://x/y.jpg", "ubah jadi anime").unwrap();
+        assert_eq!(data, b"P");
         let url = http.seen.lock().unwrap()[0].clone();
-        assert!(url.contains("/ai-image/nanobanana?image=https%3A%2F%2Fx%2Fy.jpg"));
-        assert!(url.contains("prompt=ubah%20jadi%20anime"));
+        assert!(
+            url.contains("/ai-image/notegpt-nano?image=https%3A%2F%2Fx%2Fy.jpg"),
+            "{url}"
+        );
+        assert!(url.contains("prompt=ubah%20jadi%20anime"), "{url}");
+    }
+
+    #[test]
+    fn nanobanana_jatuh_ke_route_kedua_kalau_pertama_gagal() {
+        let http = Stub::baru(vec![(500, ""), (200, "Q")]);
+        let data = nanobanana(http.as_ref(), "https://x/y.jpg", "p").unwrap();
+        assert_eq!(data, b"Q");
+        let seen = http.seen.lock().unwrap();
+        assert_eq!(seen.len(), 2);
+        assert!(seen[1].contains("/ai-image/nanobanana?"), "{}", seen[1]);
     }
 }
