@@ -122,7 +122,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           multi-thread sebanyak core); scheduler: batas paralel mengikuti
 //           vCPU, peta timer/antrean per-chat dipangkas (tanpa tumbuh tanpa
 //           batas di bot berumur panjang).
-export const VERSI_BIN = "v0.2.81";
+// v0.2.82 — ffprobe dihapus dari aset/unduhan: durasi video stiker dibaca
+//           dari `ffmpeg -i` sendiri, menekan storage panel (~78 MB).
+export const VERSI_BIN = "v0.2.82";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
@@ -469,16 +471,14 @@ async function siapkanBinary() {
   }
 }
 
-// Aset ffmpeg/ffprobe statis di rilis ini, tetap gzip (launcher gunzip pakai
-// node zlib; checksum `.sha256` mengacu nama tanpa .gz). Dipasang CI dari
-// build johnvansickle/ffmpeg-static; lihat .github/workflows/release.yml.
-const ASET_FFMPEG = [
-  ["ffmpeg-linux-x64-static.gz", "ffmpeg"],
-  ["ffprobe-linux-x64-static.gz", "ffprobe"],
-];
+// Aset ffmpeg statis di rilis ini, tetap gzip (launcher gunzip pakai node
+// zlib; checksum `.sha256` mengacu nama tanpa .gz). Dipasang CI dari build
+// johnvansickle/ffmpeg-static; lihat .github/workflows/release.yml. ffprobe
+// TIDAK diunduh — durasi media dibaca dari `ffmpeg -i` sendiri.
+const ASET_FFMPEG = [["ffmpeg-linux-x64-static.gz", "ffmpeg"]];
 
 /**
- * Biner ffmpeg/ffprobe asli ~70 MB; berkas ada tapi jauh lebih kecil =
+ * Biner ffmpeg asli ~70 MB; berkas ada tapi jauh lebih kecil =
  * sisa unduhan yang terpotong. Tanpa cek ini, satu unduhan gagal membuat
  * `bin/ffmpeg` rusak dipakai selamanya (`existsSync` cukup untuk skip) dan
  * fitur audio (`play2`) gagal terus tanpa sebab yang jelas di log.
@@ -494,7 +494,7 @@ function binerTerpasang(p) {
 }
 
 /**
- * Pasang ffmpeg+ffprobe statis dari aset rilis ke bin/ (sekali per panel,
+ * Pasang ffmpeg statis dari aset rilis ke bin/ (sekali per panel,
  * tanpa npm). Gagal unduh tidak menghentikan boot: bot tetap jalan, hanya
  * fitur audio/video yang menurun — perilaku sama seperti bot JS lama.
  *

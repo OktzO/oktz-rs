@@ -290,11 +290,11 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    fn ffprobe_palsu(durasi: &str) -> std::path::PathBuf {
-        let path = std::env::temp_dir().join(format!("oktz-ffprobe-{}.sh", std::process::id()));
+    fn ffmpeg_palsu(durasi: &str) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("oktz-ffmpeg-{}.sh", std::process::id()));
         fs::write(
             &path,
-            format!("#!/bin/sh\ncat >/dev/null\necho {durasi}\n"),
+            format!("#!/bin/sh\ncat >/dev/null\necho \"Duration: 00:00:{durasi}, start: 0.0\" >&2\nexit 1\n"),
         )
         .unwrap();
         let mut izin = fs::metadata(&path).unwrap().permissions();
@@ -411,10 +411,10 @@ mod tests {
     #[test]
     fn over_ten_second_video_is_rejected_with_js_text() {
         let _guard = STICKER_TEST_LOCK.lock().unwrap();
-        let path = ffprobe_palsu("10.5");
-        unsafe { std::env::set_var("OTKZ_FFPROBE_PATH", &path) };
+        let path = ffmpeg_palsu("10.5");
+        unsafe { std::env::set_var("OTKZ_FFMPEG_PATH", &path) };
         let r = sticker(ctx_media(IncomingKind::Video, Vec::new(), Vec::new()));
-        unsafe { std::env::remove_var("OTKZ_FFPROBE_PATH") };
+        unsafe { std::env::remove_var("OTKZ_FFMPEG_PATH") };
         let _ = fs::remove_file(&path);
         let Reply::Sequence(list) = r else {
             panic!("harus sequence: {r:?}")

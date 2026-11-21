@@ -164,26 +164,22 @@ test("pasangFfmpeg unduh aset rilis, gunzip, tulis biner +x", async () => {
     );
     await pasangFfmpeg("v9.9.9", f, dir);
     assert.equal(readFileSync(path.join(dir, "ffmpeg"), "utf8"), "biner uji");
-    assert.equal(readFileSync(path.join(dir, "ffprobe"), "utf8"), "biner uji");
     assert.notEqual(statSync(path.join(dir, "ffmpeg")).mode & 0o111, 0, "harus +x");
     assert.equal(
       f.panggil[0],
       "https://github.com/OktzO/oktz-rs/releases/download/v9.9.9/ffmpeg-linux-x64-static.gz"
     );
     assert.match(f.panggil[1], /ffmpeg-linux-x64-static\.sha256$/);
-    assert.match(f.panggil[2], /ffprobe-linux-x64-static\.gz$/);
-    assert.match(f.panggil[3], /ffprobe-linux-x64-static\.sha256$/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("pasangFfmpeg skip bila kedua biner sudah ada", async () => {
+test("pasangFfmpeg skip bila biner sudah ada", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
   try {
     // Biner wajar = besar; berkas kecil dianggap sisa unduhan terpotong.
     writeFileSync(path.join(dir, "ffmpeg"), Buffer.alloc(2 << 20));
-    writeFileSync(path.join(dir, "ffprobe"), Buffer.alloc(2 << 20));
     const f = fetchPalsu({});
     await pasangFfmpeg(null, f, dir);
     assert.equal(f.panggil.length, 0, "tidak boleh ada unduhan");
@@ -203,7 +199,6 @@ test("pasangFfmpeg pasang ulang biner terpotong dan buang yang rusak", async () 
     );
     await pasangFfmpeg("v9.9.9", f, dir);
     assert.equal(readFileSync(path.join(dir, "ffmpeg")).length, isi.length, "harus dipasang ulang");
-    assert.equal(existsSync(path.join(dir, "ffprobe")), true);
 
     // Gagal unduh + berkas rusak → berkas dibuang supaya bot jatuh ke PATH.
     const dir2 = mkdtempSync(path.join(os.tmpdir(), "oktz-ff-"));
@@ -229,7 +224,6 @@ test("pasangFfmpeg lanjut tanpa crash walau unduh gagal", async () => {
     };
     await pasangFfmpeg("v9.9.9", f, dir);
     assert.equal(existsSync(path.join(dir, "ffmpeg")), false);
-    assert.equal(existsSync(path.join(dir, "ffprobe")), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -59,21 +59,6 @@ pub fn jalur_ffmpeg() -> Option<PathBuf> {
     cari_di_path("ffmpeg")
 }
 
-/// Jalur biner ffprobe.
-/// Urutan: env `OTKZ_FFPROBE_PATH` / `FFPROBE_PATH`, `bin/ffprobe`, lalu `PATH`.
-pub fn jalur_ffprobe() -> Option<PathBuf> {
-    if let Some(j) = dari_env(&["OTKZ_FFPROBE_PATH", "FFPROBE_PATH"]) {
-        return Some(j);
-    }
-    if let Some(j) = cari_di_bin("ffprobe") {
-        return Some(j);
-    }
-    if let Some(j) = cari_di_node_modules("ffprobe") {
-        return Some(j);
-    }
-    cari_di_path("ffprobe")
-}
-
 /// Ambil jalur biner pertama yang ada di env dan benar-benar berkas.
 fn dari_env(kunci: &[&str]) -> Option<PathBuf> {
     for k in kunci {
@@ -95,8 +80,6 @@ fn cari_di_node_modules(nama: &str) -> Option<PathBuf> {
         format!("node_modules/ffmpeg-static/{nama}"),
         format!("node_modules/@ffmpeg-installer/linux-x64/{nama}"),
         format!("node_modules/@ffmpeg-installer/linux-arm64/{nama}"),
-        format!("node_modules/ffprobe-static/bin/linux/x64/{nama}"),
-        format!("node_modules/ffprobe-static/bin/linux/arm64/{nama}"),
     ];
     kandidat.into_iter().find_map(|k| {
         let calon = PathBuf::from(k);
@@ -117,36 +100,32 @@ fn cari_di_bin(nama: &str) -> Option<PathBuf> {
 
 /// Durasi media dalam detik dari stdin (`pipe:0`).
 ///
-/// `None` kalau ffprobe tidak tersedia atau keluarannya bukan angka — sama
+/// Dulu memakai biner `ffprobe`; kini `ffmpeg -i pipe:0` (tanpa keluaran)
+/// yang mencetak baris `Duration: HH:MM:SS.ss` ke stderr sebelum keluar dengan
+/// galat. Satu biner lebih ringan (ffprobe tak perlu diunduh/disimpan).
+///
+/// `None` kalau ffmpeg tidak tersedia atau header tak memuat durasi — sama
 /// seperti cabang `catch {}` JS yang melanjutkan tanpa menolak video.
 pub fn durasi_dari_masukan(masukan: &[u8]) -> Option<f64> {
-    let biner = jalur_ffprobe()?;
-    let args = [
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        "pipe:0",
-    ];
-    let keluaran = Command::new(&biner)
-        .args(args)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .ok()?;
-    let mut keluaran = keluaran;
-    if let Some(stdin) = keluaran.stdin.as_mut() {
-        stdin.write_all(masukan).ok()?;
-    }
-    let hasil = keluaran.wait_with_output().ok()?;
-    if !hasil.status.success() {
-        return None;
-    }
-    let teks = String::from_utf8_lossy(&hasil.stdout);
-    teks.trim().parse::<f64>().ok()
+    // Tanpa berkas keluaran, ffmpeg membaca header lalu gagal — stderr-nya
+    // justru memuat durasi.
+    let teks = match jalankan_dengan_masukan(&["-hide_banner", "-i", "pipe:0"], masukan) {
+        Ok(stdout) => String::from_utf8_lossy(&stdout).into_owned(),
+        Err(stderr) => stderr,
+    };
+    parse_durasi_ffmpeg(&teks)
+}
+
+/// Tarik `HH:MM:SS.ss` dari baris `Duration:` ffmpeg. `None` kalau tak ada.
+fn parse_durasi_ffmpeg(teks: &str) -> Option<f64> {
+    const KUNCI: &str = "Duration: ";
+    let sisa = &teks[teks.find(KUNCI)? + KUNCI.len()..];
+    let nilai = sisa.split([',', ' ']).next()?.trim();
+    let mut bagian = nilai.split(':');
+    let jam: f64 = bagian.next()?.parse().ok()?;
+    let menit: f64 = bagian.next()?.parse().ok()?;
+    let detik: f64 = bagian.next()?.parse().ok()?;
+    Some(jam * 3600.0 + menit * 60.0 + detik)
 }
 
 /// Jalankan ffmpeg dengan argumen mentah, kembalikan stdout biner.
@@ -350,5 +329,16 @@ mod tests {
         // Tidak ada pola argumen ffmpeg yang berulang di seluruh plugin
         // (toaudio mp3, tovn opus/ogg, sticker -vf, ttmp3 fluent-ffmpeg),
         // jadi helper argumen_audio_ke_mp3 sengaja tidak dibuat.
+    }
+
+    #[test]
+    fn parse_durasi_dari_baris_ffmpeg() {
+        let baris = "  Duration: 00:00:10.50, start: 0.000000, bitrate: 1200 kb/s";
+        assert_eq!(parse_durasi_ffmpeg(baris), Some(10.5));
+        assert_eq!(
+            parse_durasi_ffmpeg("Duration: 01:02:03.25, start: 0.0"),
+            Some(3723.25)
+        );
+        assert_eq!(parse_durasi_ffmpeg("tanpa durasi di sini"), None);
     }
 }
