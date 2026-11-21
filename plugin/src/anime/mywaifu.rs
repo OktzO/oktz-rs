@@ -1,26 +1,20 @@
-//! `plugins/anime/mywaifu.js` — koleksi gambar waifu dari Waifu.im.
+//! `plugins/anime/mywaifu.js` — koleksi gambar waifu (sumber: nekosapi.com).
 //!
-//! `ponytail:` `crypto.randomBytes(32)` (messageSecret) dan
-//! `sock.waUploadToServer`/`relayMessage` diabaikan — `Reply` tidak bawa
-//! contextInfo/messageSecret, dan pipeline yang meng-upload media Url.
-//! `m.react('🕕')`/`'✅'`/`'❌'` → satu reaksi terakhir.
+//! `ponytail:` sumber asli `api.waifu.im` DNS-nya sudah mati (2026-11-15),
+//! diganti `api.nekosapi.com/v4/images/random`. `crypto.randomBytes(32)`
+//! (messageSecret) dan `sock.waUploadToServer`/`relayMessage` diabaikan —
+//! `Reply` tidak bawa contextInfo/messageSecret, dan pipeline yang
+//! meng-upload media Url. `m.react('🕕')`/`'✅'`/`'❌'` → satu reaksi terakhir.
 //! `te(...)` → `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
-use crate::tools::phisingataubukan::encode_uri_component;
-
-/// `https://api.waifu.im/images` (`mywaifu.js:48`).
-const ENDPOINT: &str = "https://api.waifu.im/images";
+/// `https://api.nekosapi.com/v4/images/random` (`mywaifu.js:48` memakai
+/// `api.waifu.im` yang DNS-nya sudah mati sejak 2026-11-15).
+const ENDPOINT: &str = "https://api.nekosapi.com/v4/images/random";
 
 /// Jumlah gambar per permintaan (`mywaifu.js:39`).
-const PAGE_SIZE: u32 = 10;
-
-/// Halaman (`mywaifu.js:44`).
-const PAGE: u32 = 1;
-
-/// Urutan acak (`mywaifu.js:43`).
-const ORDER_BY: &str = "Random";
+const LIMIT: u32 = 10;
 
 /// Bantuan saat mode bukan `sfw`/`nsfw` (`mywaifu.js:25-33`).
 pub(crate) fn bantuan(prefix: &str) -> String {
@@ -43,7 +37,8 @@ pub(crate) fn tidak_ditemukan(mode: &str) -> String {
 }
 
 /// Gagal memanggil API (`mywaifu.js:106-109`).
-pub(crate) const GAGAL_API: &str = "❌ *TERJADI KESALAHAN*\n\nMaaf, terjadi gangguan saat sistem mencoba memanggil API.";
+pub(crate) const GAGAL_API: &str =
+    "❌ *TERJADI KESALAHAN*\n\nMaaf, terjadi gangguan saat sistem mencoba memanggil API.";
 
 /// Caption sukses (`mywaifu.js:62`).
 pub(crate) fn caption(mode: &str, jumlah: usize) -> String {
@@ -57,12 +52,10 @@ pub(crate) fn caption(mode: &str, jumlah: usize) -> String {
 /// Bangun URL query (`mywaifu.js:41-46`).
 pub(crate) fn api_url(is_nsfw: bool) -> String {
     format!(
-        "{}?isNsfw={}&orderBy={}&page={}&pageSize={}",
+        "{}?rating={}&limit={}",
         ENDPOINT,
-        encode_uri_component(if is_nsfw { "true" } else { "false" }),
-        encode_uri_component(ORDER_BY),
-        encode_uri_component(&PAGE.to_string()),
-        encode_uri_component(&PAGE_SIZE.to_string()),
+        if is_nsfw { "explicit" } else { "safe" },
+        LIMIT,
     )
 }
 
@@ -83,7 +76,11 @@ pub(crate) fn api_url(is_nsfw: bool) -> String {
     is_bot_admin = false
 )]
 pub fn mywaifu(ctx: Ctx) -> Reply {
-    let mode = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let mode = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     if mode != "sfw" && mode != "nsfw" {
         return Reply::text(bantuan(&ctx.prefix));
     }
@@ -95,10 +92,7 @@ pub fn mywaifu(ctx: Ctx) -> Reply {
     };
     let data = res.json().unwrap_or(serde_json::Value::Null);
 
-    let items = data
-        .get("items")
-        .and_then(serde_json::Value::as_array)
-        .map_or(Vec::new(), |a| a.to_vec());
+    let items = data.as_array().cloned().unwrap_or_default();
 
     if items.is_empty() {
         return Reply::text(tidak_ditemukan(&mode)).with_reaction("❌");
@@ -205,7 +199,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<&str> {
@@ -235,11 +232,11 @@ mod tests {
     fn api_url_sfw_dan_nsfw() {
         assert_eq!(
             api_url(false),
-            "https://api.waifu.im/images?isNsfw=false&orderBy=Random&page=1&pageSize=10"
+            "https://api.nekosapi.com/v4/images/random?rating=safe&limit=10"
         );
         assert_eq!(
             api_url(true),
-            "https://api.waifu.im/images?isNsfw=true&orderBy=Random&page=1&pageSize=10"
+            "https://api.nekosapi.com/v4/images/random?rating=explicit&limit=10"
         );
     }
 
@@ -253,7 +250,7 @@ mod tests {
 
     #[test]
     fn items_kosong_hasilkan_tidak_ditemukan() {
-        let http = Stub::body(r#"{"items":[]}"#);
+        let http = Stub::body("[]");
         let r = run(http.clone(), &["sfw"]);
         assert_eq!(text_of(&r), tidak_ditemukan("sfw"));
         assert_eq!(reaksi(&r), Some("❌"));
@@ -265,7 +262,7 @@ mod tests {
         for i in 0..10 {
             items.push(serde_json::json!({ "url": format!("https://cdn/waifu-{}.jpg", i) }));
         }
-        let http = Stub::body(&serde_json::json!({ "items": items }).to_string());
+        let http = Stub::body(&serde_json::Value::Array(items).to_string());
         let r = run(http.clone(), &["nsfw"]);
         assert_eq!(reaksi(&r), Some("✅"));
         let panggilan = http.panggilan.lock().unwrap().clone();
@@ -276,7 +273,10 @@ mod tests {
         match r.without_mutations().tanpa_reaksi() {
             Reply::Sequence(balasan) => {
                 assert_eq!(balasan.len(), 11, "1 caption + 10 gambar");
-                assert!(balasan[0].text_body().is_some(), "elemen pertama adalah caption");
+                assert!(
+                    balasan[0].text_body().is_some(),
+                    "elemen pertama adalah caption"
+                );
                 for (i, b) in balasan.iter().enumerate().skip(1) {
                     match b.media_source() {
                         Some(oktz_plugin_api::MediaSource::Url { url, .. }) => {
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn items_tanpa_url_dihitung_seperti_kosong() {
-        let http = Stub::body(r#"{"items":[{}]}"#);
+        let http = Stub::body(r#"[{}]"#);
         let r = run(http.clone(), &["sfw"]);
         assert_eq!(text_of(&r), tidak_ditemukan("sfw"));
         assert_eq!(reaksi(&r), Some("❌"));

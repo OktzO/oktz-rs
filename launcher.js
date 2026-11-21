@@ -124,7 +124,12 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           batas di bot berumur panjang).
 // v0.2.82 — ffprobe dihapus dari aset/unduhan: durasi video stiker dibaca
 //           dari `ffmpeg -i` sendiri, menekan storage panel (~78 MB).
-export const VERSI_BIN = "v0.2.82";
+// v0.2.83 — `.waifu`/`.neko` dll: unduhan gambar lewat UA browser (CDN
+//           nekos.best balas 403 tanpa itu); `.mywaifu` pindah dari
+//           `api.waifu.im` (DNS mati) ke `api.nekosapi.com`; `.ai` retry
+//           sesi basi + fallback unlimitedai/qwen3; unggah gambar dapat
+//           host cadangan ketiga (nekohime).
+export const VERSI_BIN = "v0.2.83";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }

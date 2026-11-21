@@ -3,15 +3,16 @@
 //! Dipakai API yang hanya menerima link (`?image=`), bukan multipart —
 //! `apiii-xrina.my.id/ai-image/*` salah satunya.
 //!
-//! Host yang sudah dicek 2026-11-15:
+//! Host yang sudah dicek 2026-11-21:
 //!   uguu.se  — 200, JSON `{success, files[0].url}`.
-//!   kappa    — cadangan kalau uguu menolak.
+//!   kappa    — cadangan pertama kalau uguu menolak.
+//!   nekohime — cadangan kedua, JSON `{files[0].url}`.
 //! `litterbox.catbox.moe` DIHAPUS dari daftar: memulangkan teks
 //! `Invalid uploader`, jadi setiap unggahan gagal di provider pertama.
 //!
-//! `ponytail:` cuma dua host, tanpa retry bertingkat. Kalau keduanya mati,
-//! angkat `upload_image` di `plugin/src/ai/tomekah.rs` (6 host lengkap) ke
-//! crate ini — salinan itu sudah ada, jadi tidak perlu ditulis ulang.
+//! `ponytail:` tiga host, tanpa retry bertingkat. Kalau semuanya mati, angkat
+//! `upload_image` di `plugin/src/ai/tomekah.rs` (6 host lengkap) ke crate ini —
+//! salinan itu sudah ada, jadi tidak perlu ditulis ulang.
 
 use oktz_plugin_api::{HttpCall, HttpGet, MultipartPart};
 
@@ -97,13 +98,134 @@ fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .ok_or_else(|| "Invalid response".into())
 }
 
+/// Cadangan ketiga: `cdn.nekohime.site/upload` (field `file`, balas
+/// `{files:[{url}]}`). Ditambah karena dua host di atas cukup sering 5xx.
+fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
+    let res = http
+        .call(
+            &HttpCall::post("https://cdn.nekohime.site/upload")
+                .header("User-Agent", UA)
+                .header("Accept", "*/*")
+                .multipart(vec![
+                    MultipartPart::file("file", NAMA_BERKAS, buffer.to_vec())
+                        .with_mimetype(MIME_BERKAS),
+                ]),
+        )
+        .map_err(|e| e.message)?;
+    if !ok(&res) {
+        return Err("Nekohime gagal".into());
+    }
+    res.json()
+        .unwrap_or(serde_json::Value::Null)
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|files| files.first())
+        .and_then(|f| f.get("url"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|u| !u.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| "Invalid response".into())
+}
+
 /// `uploadImage(buffer, "image.jpg")` (`uploader.js`) — provider pertama yang
-/// berhasil. Kegagalan dikembalikan sebagai pesan provider terakhir.
+/// berhasil.
 pub fn gambar(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     match uguu(http, buffer) {
         Ok(url) => Ok(url),
-        Err(_) => kappa(http, buffer),
+        Err(_) => match kappa(http, buffer) {
+            Ok(url) => Ok(url),
+            Err(_) => nekohime(http, buffer),
+        },
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use std::sync::{Arc, Mutex};
 
+    #[derive(Debug)]
+    struct Stub {
+        gagal: Vec<&'static str>,
+        urls: Mutex<Vec<String>>,
+    }
+
+    impl Stub {
+        fn baru(gagal: Vec<&'static str>) -> Arc<Self> {
+            Arc::new(Self {
+                gagal,
+                urls: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl HttpGet for Stub {
+        fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
+            self.urls.lock().unwrap().push(req.url.clone());
+            if self.gagal.iter().any(|h| req.url.contains(h)) {
+                return Err(HttpError {
+                    message: "gagal".into(),
+                });
+            }
+            let body = if req.url.contains("nekohime") {
+                r#"{"files":[{"url":"https://cdn.nekohime/x.jpg"}]}"#
+            } else if req.url.contains("kappa") {
+                r#"{"link":"https://kappa/x.jpg"}"#
+            } else {
+                r#"{"files":[{"url":"https://n.uguu/x.jpg"}]}"#
+            };
+            Ok(HttpResponse {
+                status: 200,
+                body: HttpBody::Bytes {
+                    data: Arc::from(body.as_bytes().to_vec().into_boxed_slice()),
+                    mimetype: None,
+                },
+                headers: Vec::new(),
+            })
+        }
+        fn get(&self, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("pakai call")
+        }
+        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
+            unreachable!("pakai call")
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unreachable!("pakai call")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unreachable!("pakai call")
+        }
+    }
+
+    #[test]
+    fn uguu_dulu_lalu_kappa() {
+        let http = Stub::baru(vec!["uguu.se"]);
+        assert_eq!(gambar(http.as_ref(), b"x").unwrap(), "https://kappa/x.jpg");
+        let urls = http.urls.lock().unwrap();
+        assert_eq!(urls.len(), 2);
+        assert!(urls[1].contains("kappa.lol"));
+    }
+
+    #[test]
+    fn dua_host_mati_jatuh_ke_nekohime() {
+        let http = Stub::baru(vec!["uguu.se", "kappa.lol"]);
+        assert_eq!(
+            gambar(http.as_ref(), b"x").unwrap(),
+            "https://cdn.nekohime/x.jpg"
+        );
+        let urls = http.urls.lock().unwrap();
+        assert_eq!(urls.len(), 3);
+        assert!(urls[2].contains("nekohime"));
+    }
+
+    #[test]
+    fn semua_mati_kembalikan_error_terakhir() {
+        let http = Stub::baru(vec!["uguu.se", "kappa.lol", "nekohime"]);
+        assert_eq!(gambar(http.as_ref(), b"x"), Err("gagal".into()));
+    }
+}

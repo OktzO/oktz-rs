@@ -17,7 +17,7 @@
 //! jadi eviction tidak bisa disalin; kunci dipakai berawalan `ai:gemini:`
 //! supaya tidak bentrok dengan plugin lain.
 
-use oktz_plugin_api::{Ctx, Reply, RichAi, plugin};
+use oktz_plugin_api::{Ctx, HttpGet, Reply, RichAi, plugin};
 use serde_json::{Value, json};
 
 /// `systemPrompt` (`ai.js:32-37`).
@@ -207,6 +207,26 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     Reply::TabelAi(Box::new(rich))
 }
 
+/// Cadangan saat Gemini mati: `unlimitedai` lalu `qwen3`. Keduanya balas teks
+/// polos, jadi aturan markdown Gemini tak berlaku — cukup ambil `answer`.
+fn jawaban_cadangan(http: &dyn HttpGet, text: &str, instruction: &str) -> Option<String> {
+    let prompt = format!("{instruction}\n\n{text}");
+    if let Ok(v) = oktz_scraper::unlimitedai::unlimited_ai(http, &prompt, Some("ai-assistant"))
+        && v.get("status").and_then(Value::as_bool) == Some(true)
+        && let Some(a) = v.get("answer").and_then(Value::as_str)
+        && !a.trim().is_empty()
+    {
+        return Some(a.to_string());
+    }
+    if let Ok(v) = oktz_scraper::qwen3::qwen3(http, &prompt, &json!({}))
+        && let Some(a) = v.get("answer").and_then(Value::as_str)
+        && !a.trim().is_empty()
+    {
+        return Some(a.to_string());
+    }
+    None
+}
+
 #[plugin(
     name = "ai",
     alias = ["ai4chat", "gemini"],
@@ -236,16 +256,37 @@ pub fn ai(ctx: Ctx) -> Reply {
         .and_then(|v| v.as_str().map(str::to_string));
 
     let input = json!({
-        "message": text,
+        "message": text.clone(),
         "instruction": SYSTEM_PROMPT,
-        "sessionId": session_id,
+        "sessionId": session_id.clone(),
     });
 
     let hasil = match oktz_scraper::gemini::chat(ctx.http.as_ref(), &input) {
-        Ok(v) => v,
-        // `ai.js:142-144` — `catch` memakai template error `te(...)`.
+        Ok(v) => Some(v),
         Err(_) => {
-            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+            // Sesi basi (cookie Gemini kedaluwarsa) bikin 400: buang lalu coba
+            // sekali lagi tanpa resume, sebelum jatuh ke provider cadangan.
+            if session_id.is_some() {
+                ctx.session_set(&kunci, Value::Null);
+                let tanpa_sesi = json!({
+                    "message": text.clone(),
+                    "instruction": SYSTEM_PROMPT,
+                    "sessionId": Value::Null,
+                });
+                oktz_scraper::gemini::chat(ctx.http.as_ref(), &tanpa_sesi).ok()
+            } else {
+                None
+            }
+        }
+    };
+
+    let hasil = match hasil {
+        Some(v) => v,
+        None => {
+            return match jawaban_cadangan(ctx.http.as_ref(), &text, SYSTEM_PROMPT) {
+                Some(a) => blocks_ke_reply(pecah(&a)).with_reaction("✅"),
+                None => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
+            };
         }
     };
 
@@ -338,13 +379,7 @@ mod tests {
     /// Satu blok respons StreamGenerate yang bisa dibaca scraper:
     /// `parsed[4][0][1][0]` = jawaban, `parse1[1]` = `["id_lama"]`.
     fn blok_stream(jawaban: &str) -> String {
-        let parsed = json!([
-            "wrb.fr",
-            ["id_lama"],
-            null,
-            null,
-            [["id_baru", [jawaban]]]
-        ]);
+        let parsed = json!(["wrb.fr", ["id_lama"], null, null, [["id_baru", [jawaban]]]]);
         format!("5\n{}\n", json!([["wrb.fr", null, parsed.to_string()]]))
     }
 
@@ -436,7 +471,10 @@ mod tests {
             "Chat cerdas dengan AI (mendukung tabel, kode, dll via AIRich)"
         );
         assert_eq!(p.meta.usage, ".ai <pertanyaan>");
-        assert_eq!(p.meta.example, ".ai buatkan tabel perbandingan vue dan react");
+        assert_eq!(
+            p.meta.example,
+            ".ai buatkan tabel perbandingan vue dan react"
+        );
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
         assert!(!p.meta.is_group && !p.meta.is_private);
@@ -489,7 +527,10 @@ mod tests {
         let Some(Value::String(sid)) = tersimpan else {
             panic!("sesi tidak tersimpan");
         };
-        assert!(!sid.is_empty(), "sessionId scraper berupa base64 non-kosong");
+        assert!(
+            !sid.is_empty(),
+            "sessionId scraper berupa base64 non-kosong"
+        );
 
         // Sesi tersimpan dipakai ulang: resumeArray dari sessionId muncul di
         // permintaan berikutnya.
@@ -548,7 +589,12 @@ mod tests {
         let blok = pecah("| A | B |\n| 1 | 2 |");
         let rich = rich_of(&blocks_ke_reply(blok));
         assert_eq!(rich.submessages.len(), 1);
-        let AiSubMessage::Tabel { judul, baris, heading } = &rich.submessages[0] else {
+        let AiSubMessage::Tabel {
+            judul,
+            baris,
+            heading,
+        } = &rich.submessages[0]
+        else {
             panic!("harus submessage tabel");
         };
         assert_eq!(judul, "");
@@ -622,13 +668,17 @@ mod tests {
             }
         );
         assert!(
-            !rich.submessages.iter().any(
-                |s| matches!(s, AiSubMessage::Teks { teks } if teks.contains("```"))
-            ),
+            !rich
+                .submessages
+                .iter()
+                .any(|s| matches!(s, AiSubMessage::Teks { teks } if teks.contains("```"))),
             "kode tidak lagi dibungkus fence"
         );
         let prim = &rich.sections[0]["view_model"]["primitive"];
-        assert_eq!(prim["__typename"], serde_json::json!("GenAICodeUXPrimitive"));
+        assert_eq!(
+            prim["__typename"],
+            serde_json::json!("GenAICodeUXPrimitive")
+        );
         assert_eq!(prim["language"], serde_json::json!("js"));
     }
 
@@ -718,5 +768,45 @@ Penutup."##;
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"
         ));
+    }
+
+    #[test]
+    fn gemini_gagal_jatuh_ke_provider_cadangan() {
+        let http = Arc::new(Stub {
+            balasan: Mutex::new(vec![
+                Err(HttpError {
+                    message: "gemini down".into(),
+                }),
+                Ok(HttpResponse {
+                    status: 200,
+                    body: HttpBody::Bytes {
+                        data: Arc::from(
+                            b"{\"type\":\"delta\",\"delta\":\"Halo dari cadangan\"}\n"
+                                .to_vec()
+                                .into_boxed_slice(),
+                        ),
+                        mimetype: None,
+                    },
+                    headers: vec![],
+                }),
+            ]),
+            permintaan: Mutex::new(Vec::new()),
+            hitung: Mutex::new(0),
+        });
+        let r = run(http.clone(), oktz_plugin_api::new_session_store(), "halo");
+        assert_eq!(blok_teks(&r), vec!["Halo dari cadangan"]);
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "✅"
+        ));
+        // Tanpa sesi tersimpan, retry Gemini tidak jalan: 1 Gemini + 1 cadangan.
+        let urls: Vec<String> = http
+            .permintaan
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|r| r.url.clone())
+            .collect();
+        assert_eq!(urls.len(), 2, "{urls:?}");
     }
 }

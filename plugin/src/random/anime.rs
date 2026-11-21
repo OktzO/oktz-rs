@@ -29,9 +29,9 @@ use crate::common::error_template;
 
 /// Daftar tipe Nexray (`anime.js:7-12`) — juga nama command tambahan.
 pub(crate) const NEXRAY_TYPES: [&str; 29] = [
-    "waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss",
-    "lick", "pat", "smug", "bonk", "yeet", "blush", "smile", "wave", "highfive", "handhold",
-    "nom", "bite", "glomp", "slap", "kill", "happy", "poke", "dance", "cringe",
+    "waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss", "lick",
+    "pat", "smug", "bonk", "yeet", "blush", "smile", "wave", "highfive", "handhold", "nom", "bite",
+    "glomp", "slap", "kill", "happy", "poke", "dance", "cringe",
 ];
 
 /// UA browser — Cloudflare di depan nekos.best menolak klien tanpa UA.
@@ -87,7 +87,11 @@ fn ambil_gambar(ctx: &Ctx, json_url: &str) -> Option<Vec<u8>> {
         return None;
     }
     let url = url_gambar(res.body.bytes())?;
-    let img = ctx.http.get(&url).ok()?;
+    // CDN nekos.best juga di belakang Cloudflare: tanpa UA browser balas 403.
+    let img = ctx
+        .http
+        .call(&HttpCall::get(&url).header("User-Agent", UA))
+        .ok()?;
     if !(200..300).contains(&img.status) {
         return None;
     }
@@ -164,10 +168,11 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     /// Stub berurutan: balasan dipakai berurutan — JSON dulu, lalu byte gambar.
-    /// Header UA dibuang jalur `call` bawaan, jadi URL saja yang tercatat.
+    /// `call` mencatat header UA supaya regresi "CDN 403 tanpa UA" terjaga.
     #[derive(Debug)]
     struct Stub {
         urls: Mutex<Vec<String>>,
+        ua: Mutex<Vec<String>>,
         balasan: Mutex<VecDeque<(u16, Vec<u8>)>>,
     }
 
@@ -175,6 +180,7 @@ mod tests {
         fn baru(balasan: Vec<(u16, Vec<u8>)>) -> Arc<Self> {
             Arc::new(Self {
                 urls: Mutex::new(Vec::new()),
+                ua: Mutex::new(Vec::new()),
                 balasan: Mutex::new(balasan.into()),
             })
         }
@@ -198,24 +204,43 @@ mod tests {
                 headers: Vec::new(),
             })
         }
+        fn call(&self, req: &oktz_plugin_api::HttpCall) -> Result<HttpResponse, HttpError> {
+            self.ua.lock().unwrap().push(
+                req.headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("user-agent"))
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or_default(),
+            );
+            self.get(&req.url)
+        }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            Err(HttpError { message: "tidak dipakai".into() })
+            Err(HttpError {
+                message: "tidak dipakai".into(),
+            })
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            Err(HttpError { message: "tidak dipakai".into() })
+            Err(HttpError {
+                message: "tidak dipakai".into(),
+            })
         }
         fn post_multipart(
             &self,
             _: &str,
             _: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
-            Err(HttpError { message: "tidak dipakai".into() })
+            Err(HttpError {
+                message: "tidak dipakai".into(),
+            })
         }
     }
 
     /// Balasan JSON `nekos.best` dengan satu URL gambar.
     fn json_nekos(url: &str) -> (u16, Vec<u8>) {
-        (200, format!(r#"{{"results":[{{"url":"{url}"}}]}}"#).into_bytes())
+        (
+            200,
+            format!(r#"{{"results":[{{"url":"{url}"}}]}}"#).into_bytes(),
+        )
     }
 
     fn ctx_of(command: &str) -> Ctx {
@@ -229,7 +254,10 @@ mod tests {
     }
 
     fn ctx_stub(command: &str, http: Arc<Stub>) -> Ctx {
-        Ctx { http, ..ctx_of(command) }
+        Ctx {
+            http,
+            ..ctx_of(command)
+        }
     }
 
     /// Reaksi ☢ dari cabang error.
@@ -286,7 +314,10 @@ mod tests {
             json_nekos("https://nekos.best/img/a.png"),
             (200, vec![0x89, b'P', b'N', b'G']),
         ]);
-        let ctx = Ctx { is_premium: true, ..ctx_stub("loli", s.clone()) };
+        let ctx = Ctx {
+            is_premium: true,
+            ..ctx_stub("loli", s.clone())
+        };
         let r = anime(ctx);
         assert!(r.has_media(), "harus image");
         match r.media_source().unwrap() {
@@ -298,7 +329,10 @@ mod tests {
         assert_eq!(r.text_body().unwrap(), "👧 *ʀᴀɴᴅᴏᴍ ʟᴏʟɪ*");
         assert_eq!(
             *s.urls.lock().unwrap(),
-            vec![LOLI_URL.to_string(), "https://nekos.best/img/a.png".to_string()]
+            vec![
+                LOLI_URL.to_string(),
+                "https://nekos.best/img/a.png".to_string()
+            ]
         );
     }
 
@@ -354,7 +388,10 @@ mod tests {
             ("cringe", "smile"),
         ];
         for (dari, ke) in peta {
-            let s = Stub::baru(vec![json_nekos("https://nekos.best/img/a.png"), (200, vec![b'P'])]);
+            let s = Stub::baru(vec![
+                json_nekos("https://nekos.best/img/a.png"),
+                (200, vec![b'P']),
+            ]);
             let r = anime(ctx_stub(dari, s.clone()));
             assert!(r.has_media(), "{dari} harus punya media");
             assert_eq!(
@@ -370,7 +407,10 @@ mod tests {
     #[test]
     fn lick_memakai_otakugifs() {
         let s = Stub::baru(vec![
-            (200, br#"{"url":"https://api.otakugifs.xyz/gif/lick.gif"}"#.to_vec()),
+            (
+                200,
+                br#"{"url":"https://api.otakugifs.xyz/gif/lick.gif"}"#.to_vec(),
+            ),
             (200, vec![b'G', b'I', b'F', b'8']),
         ]);
         let r = anime(ctx_stub("lick", s.clone()));
@@ -380,7 +420,10 @@ mod tests {
             r.without_mutations()
         );
         let urls = s.urls.lock().unwrap();
-        assert_eq!(urls[0], "https://api.otakugifs.xyz/gif?reaction=lick&format=gif");
+        assert_eq!(
+            urls[0],
+            "https://api.otakugifs.xyz/gif?reaction=lick&format=gif"
+        );
         assert_eq!(urls[1], "https://api.otakugifs.xyz/gif/lick.gif");
     }
 
@@ -395,7 +438,10 @@ mod tests {
         // Ctx::default() membawa NoHttp — get() selalu gagal.
         let ctx = ctx_of("neko");
         let r = anime(ctx);
-        assert!(!r.text_body().unwrap().is_empty(), "harus teks error template");
+        assert!(
+            !r.text_body().unwrap().is_empty(),
+            "harus teks error template"
+        );
         reaksi_radiasi(&r);
     }
 
@@ -418,5 +464,20 @@ mod tests {
         assert!(!r.has_media());
         assert!(!r.text_body().unwrap().is_empty());
         reaksi_radiasi(&r);
+    }
+
+    #[test]
+    fn json_dan_gambar_sama_sama_membawa_ua_browser() {
+        let s = Stub::baru(vec![
+            json_nekos("https://nekos.best/img/a.png"),
+            (200, vec![0x89, b'P', b'N', b'G']),
+        ]);
+        let _ = anime(ctx_stub("waifu", s.clone()));
+        let ua = s.ua.lock().unwrap().clone();
+        assert_eq!(ua.len(), 2, "JSON + gambar");
+        assert!(
+            ua.iter().all(|u| u == UA),
+            "UA browser wajib di keduanya: {ua:?}"
+        );
     }
 }
