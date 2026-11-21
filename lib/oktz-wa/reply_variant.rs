@@ -823,45 +823,44 @@ fn srt_dir(root: &Path) -> PathBuf {
     root.join("assets").join("image").join("shuffle")
 }
 
-/// Thumbnail srt: `srtEnabled && getCachedSrtImage() || getAssetBuffer("foto")`
-/// (`serialize.js:976-980,1232`).
+/// Thumbnail semua varian balasan: satu file ACAK dari
+/// `assets/image/shuffle`, tanpa peduli flag `srtEnabled`.
 ///
-/// Dipakai pipeline untuk mengisi [`VariantInput::srt_image`]; nama asetnya
-/// menunjuk `assets/image/*.jpeg` sesuai `config.assets`.
+/// Dulu `srtEnabled && getCachedSrtImage() || getAssetBuffer("foto")`
+/// (`serialize.js:976-980,1232`) — `foto.jpeg` itu sama dengan header
+/// `.menu`, jadi tiap varian memakai gambar menu saat srt mati. Sekarang
+/// folder shuffle selalu jadi sumber; `foto.jpeg` hanya cadangan kalau
+/// direktori shuffle kosong atau hilang.
 ///
-/// File shuffle dipilih ACAK TIAP PANGGILAN (per balasan), tanpa cache —
-/// paritas `getCachedSrtImage` JS yang mengacak tiap `m.reply`. Cache permanen
-/// dulu mengunci satu file seumur proses (lotre per-restart); cache TTL membuat
-/// gambar statis 30 menit. Keduanya dihapus supaya tiap balasan ganti gambar.
-pub fn thumbnail_bytes(root: &Path, srt_enabled: bool) -> Option<Vec<u8>> {
-    if srt_enabled {
-        let dir = srt_dir(root);
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            let mut files: Vec<PathBuf> = entries
-                .filter_map(|e| e.ok())
-                .map(|e| e.path())
-                .filter(|p| {
-                    p.extension()
-                        .and_then(|e| e.to_str())
-                        .is_some_and(|e| {
-                            matches!(
-                                e.to_ascii_lowercase().as_str(),
-                                "webp" | "jpg" | "jpeg" | "png"
-                            )
-                        })
-                })
-                .collect();
-            if !files.is_empty() {
-                files.sort();
-                let idx = pseudo_random_index(files.len());
-                if let Ok(b) = std::fs::read(&files[idx]) {
-                    return Some(b);
-                }
+/// File dipilih acak TIAP PANGGILAN (per balasan), tanpa cache: cache
+/// permanen mengunci satu file seumur proses, cache TTL membuat gambar
+/// statis 30 menit — keduanya bikin tiap balasan tidak berganti gambar.
+pub fn thumbnail_bytes(root: &Path) -> Option<Vec<u8>> {
+    let dir = srt_dir(root);
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        let mut files: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                p.extension()
+                    .and_then(|e| e.to_str())
+                    .is_some_and(|e| {
+                        matches!(
+                            e.to_ascii_lowercase().as_str(),
+                            "webp" | "jpg" | "jpeg" | "png"
+                        )
+                    })
+            })
+            .collect();
+        if !files.is_empty() {
+            files.sort();
+            let idx = pseudo_random_index(files.len());
+            if let Ok(b) = std::fs::read(&files[idx]) {
+                return Some(b);
             }
         }
     }
-    // srt mati / gagal: foto.jpeg apa adanya. Tidak di-cache supaya flag
-    // srtEnabled yang dimatikan langsung berlaku.
+    // Shuffle kosong / tidak terbaca: foto.jpeg sebagai cadangan terakhir.
     std::fs::read(root.join("assets").join("image").join("foto.jpeg")).ok()
 }
 
@@ -1513,18 +1512,18 @@ mod tests {
     #[test]
     fn thumbnail_falls_back_when_nothing_is_on_disk() {
         // Direktori kerja yang tidak punya assets/ -> `None`, bukan panic.
-        assert_eq!(
-            thumbnail_bytes(Path::new("/tmp/tidak-ada-oktz"), true),
-            None
-        );
+        assert_eq!(thumbnail_bytes(Path::new("/tmp/tidak-ada-oktz")), None);
     }
 
     #[test]
-    fn thumbnail_bytes_srt_disabled_baca_foto() {
-        let root = root_uji("flag");
-        assert_eq!(thumbnail_bytes(&root, true).unwrap(), b"AAA");
-        // srtEnabled=false harus baca foto.jpeg, BUKAN shuffle.
-        assert_eq!(thumbnail_bytes(&root, false).unwrap(), b"FFF");
+    fn thumbnail_bytes_selalu_dari_shuffle_bukan_foto() {
+        // foto.jpeg dan shuffle dua-duanya ada: yang dipakai shuffle.
+        let root = root_uji("shuffle-menang");
+        assert_eq!(thumbnail_bytes(&root).unwrap(), b"AAA");
+
+        // Shuffle kosong -> foto.jpeg jadi cadangan terakhir.
+        std::fs::remove_dir_all(root.join("assets").join("image").join("shuffle")).ok();
+        assert_eq!(thumbnail_bytes(&root).unwrap(), b"FFF");
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -1542,7 +1541,7 @@ mod tests {
         }
         let mut seen = std::collections::HashSet::new();
         for _ in 0..60 {
-            seen.insert(thumbnail_bytes(&root, true).unwrap());
+            seen.insert(thumbnail_bytes(&root).unwrap());
         }
         assert!(
             seen.len() >= 2,

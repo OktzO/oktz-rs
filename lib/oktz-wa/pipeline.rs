@@ -4139,8 +4139,7 @@ impl Pipeline {
             return Ok(None);
         }
         let root = std::env::current_dir().unwrap_or_default();
-        let srt_enabled = flag(Some(&settings), "srtEnabled");
-        let srt_image = reply_variant::thumbnail_bytes(&root, srt_enabled);
+        let srt_image = reply_variant::thumbnail_bytes(&root);
         let mentions = mentions_of_reply(reply, target);
         let input = reply_variant::VariantInput {
             text,
@@ -4573,9 +4572,18 @@ impl Pipeline {
 
     /// Satu pesan inbound → satu keputusan → satu pengiriman.
     pub async fn process(&self, m: &InboundMessage, now_ms: i64) -> Result<Outcome, PipelineError> {
-        let Some(body) = extract_body(&m.message) else {
+        // Pesan tanpa body (stiker, media tanpa caption, wrapper tag-status)
+        // TETAP harus melewati rantai gate grup: JS menjalankan proteksi grup
+        // sebelum membaca body, dan gate media/stiker/tag-status memang tidak
+        // butuh teks. Tipe lain tanpa body (reaksi, dll) tetap `NoBody`.
+        let body = extract_body(&m.message);
+        let has_body = body.is_some();
+        let body = body.unwrap_or_default();
+        let body_less_di_grup = m.info.source.is_group
+            && (!wire_type_of(&m.message).is_empty() || sw_group_type_of(&m.message).is_some());
+        if !has_body && !body_less_di_grup {
             return Ok(Outcome::NoBody);
-        };
+        }
 
         let mut caller = self.caller_of(m);
         self.record_recent_media(m);
@@ -4718,6 +4726,12 @@ impl Pipeline {
             if !matches!(decision, group::Decision::Allow) {
                 return self.execute_group_decision(decision, m, &caller).await;
             }
+        }
+
+        // Body-less hanya lolos sejauh rantai gate; tanpa gate yang memutus,
+        // perlakuannya tetap `NoBody` seperti sebelumnya.
+        if !has_body {
+            return Ok(Outcome::NoBody);
         }
 
         // --- Gate 2: rate limiter spam (`handler.js:1508`) ------------------
@@ -8686,6 +8700,70 @@ impl TestPlugin {
             "balasan harus peringatan antilink, bukan hasil plugin: {:?}",
             texts[0]
         );
+    }
+
+    #[tokio::test]
+    async fn blocked_antilinkall_and_antilinkgc_links_are_deleted() {
+        // `.antilinkall`/`.antilinkgc` aktif → gate menghapus pesan link dan
+        // membalas peringatan, sebelum plugin pernah jalan.
+        for (key, link) in [
+            ("antilinkall", "kunjungi https://contoh.com/x"),
+            ("antilinkgc", "https://chat.whatsapp.com/AbCdEf"),
+        ] {
+            let plug = TestPlugin::new(3, 0, false);
+            let (p, s) = grp(
+                &plug,
+                &format!(r#"{{"groups": {{"120363@g.us": {{"{key}": "on"}}}}}}"#),
+            );
+            let m = inbound_n(&format!(".gatetest {link}"), MEMBER, GROUP, true);
+            let out = p.process(&m, 1_000).await.unwrap();
+
+            assert_eq!(out, Outcome::Sent, "{key}");
+            assert_eq!(plug.calls(), 0, "{key}: handler tidak boleh dipanggil");
+            assert_eq!(
+                s.deleted(),
+                vec![(GROUP.to_string(), m.info.id.clone(), MEMBER.to_string())],
+                "{key}: pesan link harus dihapus"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn blocked_status_tag_is_deleted_without_a_text_body() {
+        // `groupStatusMentionMessage` tidak membawa body teks, tapi
+        // `.antitagsw` tetap harus menghapusnya — gate grup berjalan sebelum
+        // syarat body (JS `handleAntiTagSW`, connection.js:1479).
+        let plug = TestPlugin::new(3, 0, false);
+        let (p, s) = grp(&plug, r#"{"groups": {"120363@g.us": {"antitagsw": "on"}}}"#);
+        let m = InboundMessage::builder()
+            .message(Arc::new(wa::Message {
+                group_status_mention_message: MessageField::some(
+                    wa::message::FutureProofMessage {
+                        message: MessageField::some(wa::Message {
+                            conversation: Some("status".into()),
+                            ..Default::default()
+                        }),
+                    },
+                ),
+                ..Default::default()
+            }))
+            .info(Arc::new(MessageInfo {
+                source: MessageSource {
+                    chat: GROUP.parse().unwrap(),
+                    sender: MEMBER.parse().unwrap(),
+                    is_from_me: false,
+                    is_group: true,
+                    ..Default::default()
+                },
+                id: "STATUSTAG1".into(),
+                ..Default::default()
+            }))
+            .build();
+        let out = p.process(&m, 1_000).await.unwrap();
+
+        assert_eq!(out, Outcome::Sent, "gate antitagsw membalas peringatan");
+        assert_eq!(plug.calls(), 0, "handler tidak boleh dipanggil");
+        assert_eq!(s.deleted().len(), 1, "pesan tag status harus dihapus");
     }
 
     #[tokio::test]

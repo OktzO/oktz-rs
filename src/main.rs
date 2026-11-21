@@ -640,7 +640,6 @@ async fn send(
                         &oktz_wa::ReplyTarget::default(),
                         oktz_wa::reply_variant::thumbnail_bytes(
                             &std::env::current_dir().unwrap_or_default(),
-                            false,
                         )
                         .as_deref(),
                     )

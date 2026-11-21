@@ -129,7 +129,10 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           `api.waifu.im` (DNS mati) ke `api.nekosapi.com`; `.ai` retry
 //           sesi basi + fallback unlimitedai/qwen3; unggah gambar dapat
 //           host cadangan ketiga (nekohime).
-export const VERSI_BIN = "v0.2.83";
+// v0.2.84 — gate anti grup (`.antilinkall`/`.antilinkgc`/`.antitagsw`) kini
+//           jalan walau pesan tanpa body (tag status/media tanpa caption);
+//           thumbnail semua replyVariant selalu acak dari `assets/image/shuffle`.
+export const VERSI_BIN = "v0.2.84";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
