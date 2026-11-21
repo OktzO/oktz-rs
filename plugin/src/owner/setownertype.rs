@@ -1,24 +1,20 @@
 //! `plugins/owner/setownertype.js` — atur variant tampilan owner message.
 //!
-//! `ponytail:` `db.setting`/`db.save` (`src/lib/database.js`) dan
-//! `sock.sendMessage` dengan `interactiveButtons` tidak tersedia di
-//! `Ctx`/`Reply`; handler diakhiri `error_template` + `☢` (pola `swm.rs`).
-//! Tabel varian, parsing opsi, dan teks pilihan di-port agar bisa diuji.
-//! Saat store + tombol interaktif tersedia, tambahkan
-//! `pub mod setownertype;` di `src/owner/mod.rs` secara manual (mod.rs milik
-//! plugin lain — dilarang menyentuh per brief).
+//! Tombol interaktif (`interactiveButtons`) tidak ada di `Reply`, jadi
+//! pilihan varian dikirim sebagai teks + perintah balik (`v1`/`v2`).
+//! Setidaknya `.setownertype v1|v2` menulis setting `ownerType` yang dibaca
+//! `main/owner.rs`, supaya tampilan owner tidak "berubah sendiri".
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
+use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::json;
 
 /// `VARIANTS` (`setownertype.js:18-21`).
-#[cfg(test)]
 pub(crate) const VARIANTS: [(&str, &str, &str); 2] = [
     ("1", "Current Design", "Tampilan default saat ini"),
     ("2", "Multiple Contact", "Kirim contact card semua owner"),
 ];
 
 /// `current = db.setting('ownerType') || 1` — baca dari settings.
-#[cfg(test)]
 pub(crate) fn owner_type_saat_ini(ctx: &Ctx) -> i64 {
     ctx.setting("ownerType")
         .and_then(serde_json::Value::as_i64)
@@ -26,7 +22,6 @@ pub(crate) fn owner_type_saat_ini(ctx: &Ctx) -> i64 {
 }
 
 /// `/^v?[1-3]$/` → id (`setownertype.js:28-29`).
-#[cfg(test)]
 pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
     let bersih = variant.trim_start_matches('v');
     if bersih.len() == 1 && bersih.chars().next().is_some_and(|c| matches!(c, '1' | '2' | '3')) {
@@ -37,7 +32,6 @@ pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
 }
 
 /// Teks saat pilihan variant (`setownertype.js:53-54`).
-#[cfg(test)]
 pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
     let varian = VARIANTS.iter().find(|(id, _, _)| id == &current.to_string());
     let (nama, _) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("Current Design", "Tampilan default saat ini"));
@@ -48,7 +42,6 @@ pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
 }
 
 /// Daftar tombol variant (`setownertype.js:42-51`), tanpa markup tombol WA.
-#[cfg(test)]
 pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
     let mut out = Vec::new();
     for (id, nama, _) in VARIANTS {
@@ -59,7 +52,6 @@ pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
 }
 
 /// Sukses ganti variant (`setownertype.js:33-38`).
-#[cfg(test)]
 pub(crate) fn berhasil_ganti(id: i64) -> String {
     let varian = VARIANTS.iter().find(|(i, _, _)| *i == id.to_string());
     let (nama, desc) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("", ""));
@@ -85,9 +77,26 @@ pub(crate) fn berhasil_ganti(id: i64) -> String {
     is_bot_admin = false
 )]
 pub fn setownertype(ctx: Ctx) -> Reply {
-    // `db.setting('ownerType')`/`db.save` dan `interactiveButtons` tidak
-    // tersedia di Ctx/Reply — diakhiri error_template seperti swm.rs.
-    Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+    let current = owner_type_saat_ini(&ctx);
+
+    // `if (variant && /^v?[1-3]$/.test(variant))` (`setownertype.js:28-29`).
+    if let Some(id) = ctx.args.first().and_then(|a| parse_varian(a)) {
+        return Reply::text(berhasil_ganti(id)).with_mutation(Mutation::SetSetting {
+            key: "ownerType".into(),
+            value: json!(id),
+        });
+    }
+
+    // Varian tanpa tombol: daftar + perintah balik.
+    let mut text = teks_pilihan(current, &ctx.config().bot.name);
+    for baris in daftar_varian(current) {
+        text.push_str(&format!("\n> {baris}"));
+    }
+    text.push_str(&format!(
+        "\n\n> Balas `{}setownertype v1` atau `{}setownertype v2`",
+        ctx.prefix, ctx.prefix
+    ));
+    Reply::text(text)
 }
 
 #[cfg(test)]
@@ -166,25 +175,48 @@ mod tests {
         assert!(teks_pilihan(1, "Oktz").contains("Current Design"));
     }
 
-    #[test]
-    fn handler_akhir_error_template() {
-        let ctx = Ctx {
+    fn ctx(args: &[&str]) -> Ctx {
+        Ctx {
             prefix: ".".into(),
             command: "setownertype".into(),
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
+            args: args.iter().map(|s| (*s).to_string()).collect(),
+            settings: serde_json::json!({}),
             ..Ctx::default()
-        };
-        let r = setownertype(ctx);
+        }
+    }
+
+    #[test]
+    fn tanpa_arg_menampilkan_daftar_varian_dan_tanpa_mutasi() {
+        let r = setownertype(ctx(&[]));
+        let t = r.without_mutations().text_body().unwrap();
+        assert!(t.contains("Type saat ini: *V1*"), "{t}");
+        assert!(t.contains("V1 ✓ - Current Design"), "{t}");
+        assert!(t.contains("V2 - Multiple Contact"), "{t}");
+        assert!(r.mutations().is_empty());
+    }
+
+    #[test]
+    fn v2_menulis_setting_owner_type_dan_berpesan_sukses() {
+        let r = setownertype(ctx(&["v2"]));
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
-            crate::common::error_template_bawaan(".", "setownertype")
+            "✅ Owner type diubah ke *V2*\n\n> *Multiple Contact*\n> _Kirim contact card semua owner_"
         );
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "☢"
-            )
+        assert_eq!(
+            r.mutations(),
+            [Mutation::SetSetting {
+                key: "ownerType".into(),
+                value: serde_json::json!(2),
+            }]
         );
+    }
+
+    #[test]
+    fn arg_non_varian_jatuh_ke_daftar() {
+        let r = setownertype(ctx(&["abc"]));
+        assert!(r.without_mutations().text_body().unwrap().contains("Type saat ini"));
+        assert!(r.mutations().is_empty());
     }
 }
