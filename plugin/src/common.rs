@@ -2271,7 +2271,7 @@ mod tests_batch_g {
         
             "autoclear", "autoreply", "deploy", "ganti-games.jpg", "ganti-large.jpg", "ganti-promote.jpg", "ganti-winner.jpg", "schedule",
         
-            "addowner", "addprefix", "addprem", "akses", "arsip", "baca", "bcgc", "cekschedule", "clearsessions", "disableplugin", "editproduk",
+            "addowner", "addprefix", "addprem", "akses", "arsip", "baca", "bcgc", "cekschedule", "clearsessiondb", "clearsessions", "disableplugin", "editproduk",
             "exec", "ganti-asset", "ganti-demote.jpg", "ganti-foto.jpg", "ganti-goodbye.jpg", "ganti-levelup.jpg", "ganti-namadev", "ganti-namaowner", "ganti-pp-kosong.jpg", "ganti-rpg.jpg", "ganti-rules.jpg",
             "ganti-store.jpg", "get", "hapusgrup", "hapussaluran", "leave", "listjadibot", "listjadibotaktif", "linode2gb", "listsewa", "mutechat", "onlythisgrup", "pinchat",
             "ptvch", "pushkontak", "renewsewa", "sampah", "savekontak", "savedb", "setallmenu", "setgoodbyetype", "setmenu", "setmenucat", "setownertype", "setwelcometype", "sewabot",
