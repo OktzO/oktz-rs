@@ -29,7 +29,9 @@ fn galat_kadaluarsa() -> &'static str {
 }
 
 /// Deteksi galat unduh yang mengindikasikan media hangus dari server
-/// (`rvo.js:95-101`).
+/// (`rvo.js:95-101`). Dua keyword terakhir tidak ada di JS tapi perlu di Rust:
+/// wacore melempar galat internal seperti "Missing file_sha256 for unencrypted
+/// media" / "Missing media_key" untuk media yang kuncinya sudah dibakar server.
 fn galat_mengarah_ke_kadaluarsa(msg: &str) -> bool {
     [
         "Gagal download",
@@ -38,6 +40,11 @@ fn galat_mengarah_ke_kadaluarsa(msg: &str) -> bool {
         "Timeout",
         "404",
         "Gone",
+        "file_sha256",
+        "fileSha256",
+        "file_enc_sha256",
+        "media_key",
+        "kunci media",
     ]
     .iter()
     .any(|k| msg.contains(k))
@@ -385,6 +392,36 @@ mod tests {
                 assert!(mutations.is_empty());
             }
             other => panic!("harus dibungkus reaksi ☢, dapat {other:?}"),
+        }
+    }
+
+    #[test]
+    fn wacore_missing_key_error_maps_to_expired_text() {
+        // Galat internal wacore untuk media tanpa kunci (view once hangus) harus
+        // dipetakan ke teks kadaluarsa, bukan dibocorkan mentah ke pengguna.
+        for pesan in [
+            "unduh media quoted gagal: Missing file_sha256 for unencrypted media",
+            "unduh media quoted gagal: Missing media_key for encrypted media",
+            "Gagal download media quoted: kunci media hilang (media view once sudah hangus)",
+        ] {
+            let stub = Stub {
+                unduhan: Arc::new(Mutex::new(vec![])),
+                hasil: Err(MediaError {
+                    message: pesan.into(),
+                }),
+            };
+            let ctx = Ctx {
+                quoted: Some(quoted(QuotedKind::Image)),
+                media_fetch: Arc::new(stub),
+                ..Default::default()
+            };
+            let r = run(ctx);
+            let t = r.text_body().unwrap();
+            assert!(
+                t.contains("kadaluarsa"),
+                "pesan {pesan:?} harus jadi teks kadaluarsa, dapat: {t}"
+            );
+            assert!(!t.contains("file_sha256"), "galat internal bocor: {t}");
         }
     }
 

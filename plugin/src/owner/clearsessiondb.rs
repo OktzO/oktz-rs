@@ -55,16 +55,23 @@ fn bersih_karantina(db_dir: &str, base: &str) -> (usize, Vec<String>) {
 }
 
 /// Hapus snapshot basi di Turso. `Ok(None)` = Turso tidak dikonfigurasi.
+///
+/// Turso remote butuh async, plugin sinkron. `block_in_place` TIDAK cocok:
+/// runtime `current_thread` (main.rs memakainya untuk 1 core) panic di situ.
+/// Jadi jalankan runtime sendiri di thread terpisah — aman di kedua flavor.
 fn turso_bersih() -> Result<Option<(usize, bool)>, String> {
     let url = oktz_core::env::Env::get("TURSO_URL");
     let token = oktz_core::env::Env::get("TURSO_AUTH_TOKEN");
     let (Some(url), Some(token)) = (url, token) else {
         return Ok(None);
     };
-    // Blokir async di task khusus — plugin sinkron, Turso remote.
-    match tokio::runtime::Handle::try_current() {
-        Ok(h) => tokio::task::block_in_place(|| {
-            h.block_on(async move {
+    let hasil = std::thread::scope(|s| {
+        s.spawn(move || -> Result<Option<(usize, bool)>, String> {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("runtime: {e}"))?;
+            rt.block_on(async move {
                 let t = oktz_store::turso::TursoStore::bare(url, token);
                 let conn = t.connect().await.map_err(|e| e.to_string())?;
                 t.clear_session_backups(&conn)
@@ -72,9 +79,10 @@ fn turso_bersih() -> Result<Option<(usize, bool)>, String> {
                     .map_err(|e| e.to_string())
                     .map(Some)
             })
-        }),
-        Err(_) => Err("runtime tokio tidak tersedia".to_string()),
-    }
+        })
+        .join()
+    });
+    hasil.map_err(|_| "thread Turso panic".to_string())?
 }
 
 #[plugin(
@@ -209,6 +217,30 @@ mod tests {
             d.join("oktz-run.db.broken-1").exists(),
             "help tidak menghapus"
         );
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// Runtime `current_thread` (main.rs memakainya untuk 1 core) TIDAK boleh
+    /// bikin plugin panic: `block_in_place` panic di flavor itu, jadi Turso
+    /// dijalankan lewat runtime sendiri di thread terpisah.
+    #[tokio::test(flavor = "current_thread")]
+    async fn turso_tidak_terjangkau_di_runtime_current_thread_tidak_panic() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let d = scratch("current-thread");
+        unsafe {
+            std::env::set_var("OKTZ_DB_DIR", &d);
+            std::env::set_var("TURSO_URL", "http://127.0.0.1:1");
+            std::env::set_var("TURSO_AUTH_TOKEN", "tok");
+        }
+        let r = clearsessiondb(ctx_of());
+        unsafe {
+            std::env::remove_var("OKTZ_DB_DIR");
+            std::env::remove_var("TURSO_URL");
+            std::env::remove_var("TURSO_AUTH_TOKEN");
+        }
+        let t = r.text_body().unwrap();
+        assert!(t.contains("Session aktif utuh"), "{t}");
+        assert!(t.contains("Turso:"), "{t}");
         std::fs::remove_dir_all(&d).ok();
     }
 }

@@ -83,6 +83,14 @@ impl Downloadable for MediaData {
 }
 
 impl MediaData {
+    /// Kunci yang cukup untuk unduh: E2EE (`mediaKey`) atau plaintext
+    /// (`fileSha256`, jalur saluran). Dua-duanya kosong = media hangus/burned
+    /// — wacore akan menempuh jalur plaintext dan gagal dengan pesan internal
+    /// yang tidak ramah ("Missing file_sha256 for unencrypted media").
+    fn kunci_lengkap(&self) -> bool {
+        !self.media_key.is_empty() || !self.file_sha256.is_empty()
+    }
+
     /// Baca media dari proto pesan; `None` kalau pesannya bukan media.
     ///
     /// Urutannya mengikuti `getContentType`: image → video → audio → sticker →
@@ -200,6 +208,22 @@ impl std::fmt::Debug for WaMediaFetch {
     }
 }
 
+/// Kunci hilang (mediaKey + fileSha256 dua-duanya kosong) = media view once
+/// yang sudah hangus / dibakar server. Pesan diawali "Gagal download" supaya
+/// `.rvo` memetakannya ke teks "kadaluarsa" alih-alih membocorkan galat
+/// internal wacore ("Missing file_sha256 for unencrypted media").
+fn validasi_kunci(data: &MediaData, origin: MediaOrigin) -> Result<(), MediaError> {
+    if data.kunci_lengkap() {
+        return Ok(());
+    }
+    Err(MediaError {
+        message: format!(
+            "Gagal download media {}: kunci media hilang (media view once sudah hangus)",
+            origin.label()
+        ),
+    })
+}
+
 impl MediaFetch for WaMediaFetch {
     fn download(&self, origin: MediaOrigin) -> Result<Vec<u8>, MediaError> {
         let data = match origin {
@@ -217,6 +241,9 @@ impl MediaFetch for WaMediaFetch {
                 message: format!("tidak ada media di {}", origin.label()),
             });
         };
+        // Kunci hilang = media hangus; jangan sampai wacore melempar galat
+        // internal yang tidak ramah ke pengguna.
+        validasi_kunci(&data, origin.clone())?;
         let client = self.client.clone();
         let label = origin.label();
         // Handler sinkron memanggil ini dari thread blocking (router), jadi
@@ -353,6 +380,72 @@ mod tests {
         assert_eq!(d.info.file_name.as_deref(), Some("laporan.pdf"));
         assert_eq!(d.info.caption, "");
         assert_eq!(d.app_info(), MediaType::Document);
+    }
+
+    #[test]
+    fn kunci_hilang_dua_duanya_tidak_bisa_diunduh() {
+        // View once hangus: directPath ada, mediaKey & fileSha256 kosong.
+        let d = MediaData {
+            info: IncomingMedia {
+                kind: IncomingKind::Image,
+                mimetype: None,
+                file_name: None,
+                caption: String::new(),
+            },
+            direct_path: Some("/v/x".to_string()),
+            static_url: None,
+            media_key: Vec::new(),
+            file_enc_sha256: Vec::new(),
+            file_sha256: Vec::new(),
+            file_length: 10,
+            media_type: MediaType::Image,
+        };
+        assert!(
+            !d.kunci_lengkap(),
+            "mediaKey + fileSha256 dua-duanya kosong"
+        );
+        assert!(!d.is_encrypted());
+
+        // E2EE biasa: mediaKey ada → bisa diunduh.
+        let e2ee = MediaData {
+            media_key: vec![1, 2, 3],
+            ..d.clone()
+        };
+        assert!(e2ee.kunci_lengkap());
+        assert!(e2ee.is_encrypted());
+    }
+
+    #[test]
+    fn download_kunci_hilang_memberi_pesan_gagal_download() {
+        // Tanpa client nyata: validasi kunci mencegah wacore melempar galat
+        // internal "Missing file_sha256 for unencrypted media".
+        let d = MediaData {
+            info: IncomingMedia {
+                kind: IncomingKind::Image,
+                mimetype: None,
+                file_name: None,
+                caption: String::new(),
+            },
+            direct_path: Some("/v/x".to_string()),
+            static_url: None,
+            media_key: Vec::new(),
+            file_enc_sha256: Vec::new(),
+            file_sha256: Vec::new(),
+            file_length: 10,
+            media_type: MediaType::Image,
+        };
+        let e = validasi_kunci(&d, MediaOrigin::Quoted).expect_err("harus gagal");
+        assert!(
+            e.message.starts_with("Gagal download"),
+            "pesan harus dipetakan .rvo ke kadaluarsa: {}",
+            e.message
+        );
+        // E2EE: lolos.
+        let e2ee = MediaData {
+            media_key: vec![1, 2, 3],
+            ..d
+        };
+        assert!(validasi_kunci(&e2ee, MediaOrigin::Quoted).is_ok());
     }
 
     #[test]
