@@ -358,6 +358,36 @@ pub struct SessionState {
     pub ident: String,
 }
 
+/// gzip + base64 — format kolom `db` di `session_state`.
+pub fn gzip_b64(data: &[u8]) -> Result<String> {
+    use base64::Engine;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
+    use std::io::Write;
+    let mut enc = GzEncoder::new(Vec::new(), Compression::fast());
+    enc.write_all(data)
+        .map_err(|e| Error::Config(format!("gzip: {e}")))?;
+    let gz = enc
+        .finish()
+        .map_err(|e| Error::Config(format!("gzip finish: {e}")))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(gz))
+}
+
+/// Kebalikan [`gzip_b64`].
+pub fn gunzip_b64(b64: &str) -> Result<Vec<u8>> {
+    use base64::Engine;
+    use flate2::read::GzDecoder;
+    use std::io::Read;
+    let gz = base64::engine::general_purpose::STANDARD
+        .decode(b64.trim())
+        .map_err(|e| Error::Config(format!("base64: {e}")))?;
+    let mut out = Vec::new();
+    GzDecoder::new(gz.as_slice())
+        .read_to_end(&mut out)
+        .map_err(|e| Error::Config(format!("gunzip: {e}")))?;
+    Ok(out)
+}
+
 fn turso_err(konteks: impl Into<String>) -> impl FnOnce(libsql::Error) -> Error {
     move |e| Error::Config(format!("turso {}: {e}", konteks.into()))
 }
@@ -497,6 +527,14 @@ mod tests {
         let (store, conn) = mem().await;
         let s = store.session_key_stats(&conn, "main").await.unwrap();
         assert!(s.is_empty());
+    }
+
+    #[test]
+    fn gzip_roundtrip() {
+        let data = b"SQLite format 3\x00halo dunia".repeat(1000);
+        let enc = gzip_b64(&data).unwrap();
+        assert_ne!(enc.len(), 0);
+        assert_eq!(gunzip_b64(&enc).unwrap(), data);
     }
 
     #[tokio::test]

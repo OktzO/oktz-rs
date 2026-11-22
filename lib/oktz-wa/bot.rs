@@ -245,6 +245,8 @@ pub struct PipelineWiring {
     live: Mutex<Option<Arc<Pipeline>>>,
     turso: Mutex<Option<(oktz_store::turso::TursoStore, std::time::Duration)>>,
     turso_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Mtime db session yang terakhir ter-snapshot ke Turso.
+    session_mtime_terakhir: Mutex<Option<u128>>,
 }
 
 /// Bangun [`PipelineWiring`] dari lokasi store, owner, dan bot id.
@@ -291,6 +293,7 @@ pub fn wiring_from_with_config(
         live: Mutex::new(None),
         turso: Mutex::new(None),
         turso_task: Mutex::new(None),
+        session_mtime_terakhir: Mutex::new(None),
     })
 }
 
@@ -313,7 +316,7 @@ impl PipelineWiring {
         });
     }
 
-    /// Boot sync sekali: seed/restore/lewatkan, plus mirror tabel session.
+    /// Boot sync sekali: seed/restore store JSON + snapshot session pertama.
     /// Turso mati = warning.
     async fn turso_boot_once(&self, store: oktz_store::turso::TursoStore) {
         match store.connect().await {
@@ -325,15 +328,13 @@ impl PipelineWiring {
                 if let Err(e) = self.boot_sync_turso(&store, &conn).await {
                     tracing::warn!(error = %e, "[turso] boot sync gagal; lanjut lokal");
                 }
-                // Mirror tabel session (plan Task 3/4) — best-effort.
+                // Snapshot session pertama (best-effort): db utuh → session_state.
                 if let Some(db_path) = self.session_db_path() {
-                    for table in SESSION_MIRROR_TABLES {
-                        match mirror_sqlite_table(&store, &conn, &db_path, table).await {
-                            Ok(0) => {}
-                            Ok(n) => tracing::info!(table, n, "[turso] tabel session termirror"),
-                            Err(e) => {
-                                tracing::warn!(error = %e, table, "[turso] mirror tabel gagal")
-                            }
+                    match snapshot_session_to_turso(&store, &conn, &db_path).await {
+                        Ok(true) => tracing::info!("[turso] session_state tersimpan"),
+                        Ok(false) => {}
+                        Err(e) => {
+                            tracing::warn!(error = %e, "[turso] snapshot session gagal")
                         }
                     }
                 }
@@ -447,7 +448,9 @@ impl PipelineWiring {
         let Some((store, _)) = self.turso.lock().unwrap_or_else(|e| e.into_inner()).clone() else {
             return;
         };
-        if !self.ctx.take_dirty_turso() {
+        let ada_tulisan_disk = self.ambil_tulisan_disk_session();
+        let kotor = self.ctx.take_dirty_turso();
+        if !kotor && !ada_tulisan_disk {
             return;
         }
         match store.connect().await {
@@ -457,15 +460,49 @@ impl PipelineWiring {
                     self.ctx.mark_dirty_turso();
                     return;
                 }
-                if let Err(e) = self.ctx.flush_turso(&store, &conn).await {
+                if kotor && let Err(e) = self.ctx.flush_turso(&store, &conn).await {
                     tracing::warn!(error = %e, "[turso] flush gagal; dicoba lagi siklus berikutnya");
                     self.ctx.mark_dirty_turso();
+                }
+                // Snapshot session (db utuh) — hanya kalau db berubah sejak
+                // snapshot terakhir. ponytail: mtime cukup; upgrade path:
+                // hook tulisan store.
+                if ada_tulisan_disk
+                    && let Some(db_path) = self.session_db_path()
+                    && let Err(e) = snapshot_session_to_turso(&store, &conn, &db_path).await
+                {
+                    tracing::warn!(error = %e, "[turso] snapshot session gagal; dicoba lagi nanti");
                 }
             }
             Err(e) => {
                 tracing::warn!(error = %e, "[turso] koneksi flush gagal; dicoba lagi nanti");
                 self.ctx.mark_dirty_turso();
             }
+        }
+    }
+
+    /// Mtime db session berubah sejak cek terakhir? Simpan mtime terakhir
+    /// yang terlihat; `true` = ada tulisan baru (atau pertama kali terlihat).
+    fn ambil_tulisan_disk_session(&self) -> bool {
+        let Some(db_path) = self.session_db_path() else {
+            return false;
+        };
+        let mtime = std::fs::metadata(&db_path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis());
+        let mut slot = self
+            .session_mtime_terakhir
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match (mtime, *slot) {
+            (Some(t), Some(last)) if t == last => false,
+            (Some(t), _) => {
+                *slot = Some(t);
+                true
+            }
+            (None, _) => false,
         }
     }
 
@@ -852,137 +889,83 @@ where
 /// terbaca oleh loop, jadi reconnect-nya seketika dan anggaran 2 retry
 /// terkuras dalam hitungan detik. Reconnect yang tertunda grace adalah
 /// perilaku yang benar, jadi wiring yang sudah direview itu dibiarkan apa
-/// adanya.
-/// Tabel session SQLite yang termirror ke Turso per-baris (plan Task 3).
-/// Creds utama sudah tercakup `device`/`identities`; prekeys/sessions/
-/// sender_keys/app_state_keys = inti dekripsi. Tabel turunan (`sent_messages`,
-/// `pending_inbound_messages`, `group_metadata`, dll) sengaja tidak — hilangnya
-/// tidak merusak sesi.
-pub const SESSION_MIRROR_TABLES: &[&str] = &[
-    "device",
-    "identities",
-    "sessions",
-    "prekeys",
-    "signed_prekeys",
-    "sender_keys",
-    "app_state_keys",
-];
-
-/// Salin satu tabel dari SQLite lokal (diesel) ke Turso — JSON-per-row.
+/// Snapshot sesi utuh → Turso `session_state` scope `main`.
 ///
-/// Skema Turso generik `(k INTEGER PRIMARY KEY, v TEXT)`; `v` = seluruh row
-/// sebagai JSON (BLOB → hex). Sederhana & selaras; upgrade ke kolom asli
-/// kalau ukuran `msg_secrets` bermasalah.
+/// Pengganti mirror per-baris: db SQLite utuh (VACUUM INTO → gzip → base64)
+/// + creds.json + sidik identitas, satu row. Restore tinggal tulis balik file.
 ///
-/// Diesel dipakai untuk baca lokal (bukan libsql `core`) supaya `libsql`
+/// Guard anti-zombie: sidik creds aktif (`CREDS_ENV`) HARUS == isi marker
+/// `<db>.ident`. Tidak cocok / marker hilang = `Ok(false)` tanpa menulis —
+/// sesi yang baru di-purge tidak boleh ditulis balik ke Turso.
+///
+/// Diesel dipakai untuk VACUUM INTO (bukan libsql `core`) supaya `libsql`
 /// tetap remote-only — lihat komentar `Cargo.toml` soal duplicate symbol.
-pub async fn mirror_sqlite_table(
+pub async fn snapshot_session_to_turso(
     store: &oktz_store::turso::TursoStore,
     conn: &libsql::Connection,
-    local_path: &Path,
-    table: &str,
-) -> anyhow::Result<usize> {
-    use diesel::prelude::*;
-    use diesel::sql_query;
-
-    #[derive(diesel::QueryableByName)]
-    struct Kolom {
-        #[diesel(sql_type = diesel::sql_types::Text)]
-        name: String,
+    db_path: &Path,
+) -> anyhow::Result<bool> {
+    let Some(creds_path) = resolve_creds_path(None, oktz_core::env::Env::get(CREDS_ENV).as_deref())
+    else {
+        return Ok(false);
+    };
+    let Some(sidik) = sidik_creds_aktif(&creds_path)? else {
+        return Ok(false);
+    };
+    let marker = db_path.with_extension("ident");
+    let Ok(marker_isi) = std::fs::read_to_string(&marker) else {
+        return Ok(false);
+    };
+    if marker_isi.trim() != sidik {
+        return Ok(false);
     }
+    let creds = std::fs::read_to_string(&creds_path).context("baca creds.json")?;
 
-    #[derive(diesel::QueryableByName)]
-    struct BarisJson {
-        #[diesel(sql_type = diesel::sql_types::BigInt)]
-        rowid: i64,
-        #[diesel(sql_type = diesel::sql_types::Text)]
-        j: String,
+    // VACUUM INTO = snapshot konsisten tanpa membaca file yang sedang ditulis.
+    let tmp = db_path.with_extension("vacuum");
+    let db_str = db_path.to_str().context("path db tidak utf8")?;
+    let tmp_str = tmp.to_str().context("path tmp tidak utf8")?;
+    {
+        use diesel::connection::Connection;
+        use diesel::prelude::*;
+        let mut c =
+            diesel::sqlite::SqliteConnection::establish(db_str).context("buka db session")?;
+        let _ = std::fs::remove_file(&tmp);
+        diesel::sql_query(format!("VACUUM INTO '{tmp_str}'"))
+            .execute(&mut c)
+            .context("VACUUM INTO")?;
     }
+    let raw = std::fs::read(&tmp)?;
+    let _ = std::fs::remove_file(&tmp);
+    let db_b64 = oktz_store::gzip_b64(&raw)?;
 
-    let mut conn_sqlite = diesel::sqlite::SqliteConnection::establish(
-        local_path.to_str().context("path tidak utf8")?,
-    )?;
-
-    // ponytail: baca kolom dinamis via pragma + JSON1 (bawaan sqlite), row
-    // diserialisasi `json_object`. Upgrade path: skema kolom asli per tabel.
-    let cols: Vec<String> = sql_query(format!("SELECT name FROM pragma_table_info('{table}')"))
-        .load::<Kolom>(&mut conn_sqlite)
-        .map_err(|e| anyhow::anyhow!("pragma {table}: {e}"))?
-        .into_iter()
-        .map(|k| k.name)
-        .collect();
-
-    if cols.is_empty() {
-        return Ok(0);
-    }
-    let json_cols = cols
-        .iter()
-        .map(|c| {
-            // BLOB tidak bisa masuk json_object — hex() dulu, penanda `__hex:`
-            // supaya unwrap tahu ini byte.
-            format!(
-                "'{c}', CASE WHEN typeof(\"{c}\")='blob' THEN '__hex:'||hex(\"{c}\") ELSE json_quote(\"{c}\") END"
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    let rows: Vec<BarisJson> = sql_query(format!(
-        "SELECT rowid, json_object({json_cols}) AS j FROM \"{table}\" ORDER BY rowid"
-    ))
-    .load::<BarisJson>(&mut conn_sqlite)
-    .map_err(|e| anyhow::anyhow!("baca {table}: {e}"))?;
-
-    // Kumpulkan semua row dulu, kirim sekali batch (review I2: N round-trip
-    // HTTP per-baris bikin boot menit-an untuk tabel sessions yang besar).
-    let mut mirror_rows: Vec<(i64, serde_json::Value)> = Vec::with_capacity(rows.len());
-    for b in &rows {
-        let v: serde_json::Value =
-            serde_json::from_str(&b.j).context("json_object hasil sqlite tak valid")?;
-        // json_quote menghasilkan string JSON per nilai; buka satu lapis kutip.
-        let v = unwrap_json1_strings(v);
-        mirror_rows.push((b.rowid, v));
-    }
     store
-        .upsert_mirror_rows(
-            conn,
-            table,
-            mirror_rows
-                .iter()
-                .map(|(k, v)| (*k, v))
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
+        .put_session_state(conn, "main", &creds, &db_b64, &sidik)
         .await?;
-    Ok(rows.len())
+    Ok(true)
 }
 
-/// `json_object('a', json_quote(x))` menghasilkan nilai DOUBLE-ENCODED untuk
-/// teks (`"\"isi\""`). Buka satu lapis kutip per field. BLOB dikirim sebagai
-/// string `__hex:<hex>` dan dikonversi jadi hex polos (kesepakatan mirror;
-/// restore mem-balikkan lewat `unhex` saat di-load — untuk sekarang mirror
-/// satu arah lokal→Turso).
-fn unwrap_json1_strings(v: serde_json::Value) -> serde_json::Value {
-    match v {
-        serde_json::Value::Object(m) => serde_json::Value::Object(
-            m.into_iter()
-                .map(|(k, val)| {
-                    let val = match val {
-                        serde_json::Value::String(s) => {
-                            if let Some(hexs) = s.strip_prefix("__hex:") {
-                                serde_json::Value::String(hexs.to_string())
-                            } else {
-                                serde_json::from_str::<serde_json::Value>(&s)
-                                    .unwrap_or(serde_json::Value::String(s))
-                            }
-                        }
-                        other => other,
-                    };
-                    (k, val)
-                })
-                .collect(),
-        ),
-        other => other,
+/// Sidik identitas dari creds.json aktif — sama dengan yang dihitung
+/// `prepare_store`: `registration_id:hex(signedIdentityKey.public)`.
+/// `None` = creds tidak bisa dibaca / tanpa identity key → snapshot skip.
+fn sidik_creds_aktif(creds_path: &Path) -> anyhow::Result<Option<String>> {
+    let raw = std::fs::read_to_string(creds_path).context("baca creds.json")?;
+    let (_m, c) = match crate::creds::inspect_creds(&raw) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, "creds.json tak terbaca; snapshot session skip");
+            return Ok(None);
+        }
+    };
+    let mut ident = crate::creds::b64(&c.signed_identity_key.public)?;
+    if ident.len() == 32 {
+        ident.insert(0, 0x05);
     }
+    Ok(Some(format!(
+        "{}:{}",
+        c.registration_id,
+        ident.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    )))
 }
 
 pub async fn connect_device<F, Fut>(store: SqliteStore, on_ready: F) -> Result<BotHandle>
@@ -1077,70 +1060,144 @@ mod tests {
         );
     }
 
-    // ---------- mirror Turso (plan Task 3/4) ----------
+    // ---------- snapshot session → Turso (ganti mirror per-baris) ----------
 
     #[tokio::test]
-    async fn mirror_sqlite_table_copies_rows_and_upserts() {
-        use oktz_store::turso::TursoStore;
+    async fn snapshot_session_copies_db_creds_ident_when_marker_matches() {
+        use diesel::RunQueryDsl;
+
         let dir = std::env::temp_dir().join(format!(
-            "oktz-mirror-{}",
+            "oktz-snapshot-match-{}",
             SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let db_path = dir.join("lokal.db");
-        let _ = std::fs::remove_file(&db_path);
-        // SQLite lokal dengan diesel (jalur yang sama dengan produksi).
-        use diesel::connection::SimpleConnection;
-        use diesel::prelude::*;
+        let db_path = dir.join("oktz-run.db");
+
+        // Buat db sqlite sungguhan + marker ident + creds.json.
         {
+            use diesel::connection::Connection;
             let mut c =
-                diesel::sqlite::SqliteConnection::establish(db_path.to_str().unwrap()).unwrap();
-            c.batch_execute(
-                "CREATE TABLE identities (nama TEXT, kunci BLOB);
-                 INSERT INTO identities VALUES ('satu', x'0102');
-                 INSERT INTO identities VALUES ('dua', x'0304');",
-            )
-            .unwrap();
+                diesel::sqlite::SqliteConnection::establish(&db_path.to_string_lossy()).unwrap();
+            diesel::sql_query("CREATE TABLE t (a TEXT)")
+                .execute(&mut c)
+                .unwrap();
+            diesel::sql_query("INSERT INTO t (a) VALUES ('satu')")
+                .execute(&mut c)
+                .unwrap();
         }
+        // Creds sah (roundtrip device_ke_creds_json) supaya sidik bisa dihitung.
+        let d = wacore::store::Device {
+            pn: "6285143885645:59@s.whatsapp.net".parse().ok(),
+            registration_id: 123,
+            ..Default::default()
+        };
+        let creds_json = serde_json::to_string(&crate::creds::device_ke_creds_json(&d)).unwrap();
+        let sidik = {
+            let (_m, c) = crate::creds::inspect_creds(&creds_json).unwrap();
+            let mut ident = crate::creds::b64(&c.signed_identity_key.public).unwrap();
+            if ident.len() == 32 {
+                ident.insert(0, 0x05);
+            }
+            format!(
+                "{}:{}",
+                c.registration_id,
+                ident.iter().map(|b| format!("{b:02x}")).collect::<String>()
+            )
+        };
+        std::fs::write(db_path.with_extension("ident"), &sidik).unwrap();
+        let creds_path = dir.join("creds.json");
+        std::fs::write(&creds_path, &creds_json).unwrap();
+        unsafe { std::env::set_var(CREDS_ENV, &creds_path) };
+
         let db = libsql::Builder::new_local(":memory:")
             .build()
             .await
             .unwrap();
         let conn = db.connect().unwrap();
-        let t = TursoStore::with_conn(conn.clone());
-        let n = mirror_sqlite_table(&t, &conn, &db_path, "identities")
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+
+        let ok = snapshot_session_to_turso(&t, &conn, &db_path)
             .await
             .unwrap();
-        assert_eq!(n, 2);
-        let mut rows = conn
-            .query("SELECT v FROM identities ORDER BY k", ())
-            .await
-            .unwrap();
-        let v1: serde_json::Value = serde_json::from_str(
-            &rows
-                .next()
-                .await
-                .unwrap()
-                .unwrap()
-                .get::<String>(0)
-                .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(v1["nama"], "satu");
-        assert_eq!(v1["kunci"], "0102", "BLOB harus jadi hex di JSON");
-        // Mirror ulang = upsert, bukan duplikasi.
-        let n2 = mirror_sqlite_table(&t, &conn, &db_path, "identities")
-            .await
-            .unwrap();
-        assert_eq!(n2, 2);
-        let mut cnt = conn
-            .query("SELECT COUNT(*) FROM identities", ())
-            .await
-            .unwrap();
-        let c: i64 = cnt.next().await.unwrap().unwrap().get(0).unwrap();
-        assert_eq!(c, 2);
+        assert!(ok, "marker cocok → snapshot jalan");
+
+        let st = t.get_session_state(&conn, "main").await.unwrap().unwrap();
+        assert_eq!(st.ident, sidik);
+        assert!(
+            st.creds.contains("\"registered\":true"),
+            "creds = isi creds.json"
+        );
+        assert!(!st.db.is_empty(), "db tidak kosong");
+
+        // Isi kolom db = base64(gzip(sqlite file)) — decode balik harus file
+        // sqlite valid berisi tabel t.
+        let raw = oktz_store::gunzip_b64(&st.db).unwrap();
+        let tmp = dir.join("balik.db");
+        std::fs::write(&tmp, &raw).unwrap();
+        {
+            use diesel::connection::Connection;
+            use diesel::sql_query;
+            use diesel::sql_types::Text;
+            #[derive(diesel::QueryableByName)]
+            struct Baris {
+                #[diesel(sql_type = Text)]
+                a: String,
+            }
+            let mut c =
+                diesel::sqlite::SqliteConnection::establish(&tmp.to_string_lossy()).unwrap();
+            let rows: Vec<Baris> = sql_query("SELECT a FROM t").load(&mut c).unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].a, "satu");
+        }
+
+        unsafe { std::env::remove_var(CREDS_ENV) };
+        std::fs::remove_dir_all(&dir).ok();
     }
 
+    #[tokio::test]
+    async fn snapshot_session_skips_when_marker_mismatch_or_missing() {
+        let dir = std::env::temp_dir().join(format!(
+            "oktz-snapshot-skip-{}",
+            SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("oktz-run.db");
+        std::fs::write(&db_path, b"sqlite").unwrap();
+        std::fs::write(db_path.with_extension("ident"), "123:lama").unwrap();
+        let creds_path = dir.join("creds.json");
+        std::fs::write(&creds_path, r#"{"registered":true}"#).unwrap();
+        unsafe { std::env::set_var(CREDS_ENV, &creds_path) };
+
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+
+        // Marker ada di disk, tapi creds.json TIDAK punya signedIdentityKey →
+        // sidik tidak bisa dihitung → skip (bukan tulis dengan sidik ngawur).
+        let ok = snapshot_session_to_turso(&t, &conn, &db_path).await;
+        assert!(
+            ok.is_err() || !ok.unwrap(),
+            "sidik tak bisa dihitung = skip"
+        );
+
+        // Tanpa marker `.ident` sama sekali → skip.
+        std::fs::remove_file(db_path.with_extension("ident")).unwrap();
+        let ok2 = snapshot_session_to_turso(&t, &conn, &db_path).await;
+        assert!(ok2.is_err() || !ok2.unwrap(), "marker hilang = skip");
+
+        // Turso tidak berubah.
+        assert_eq!(t.get_session_state(&conn, "main").await.unwrap(), None);
+
+        unsafe { std::env::remove_var(CREDS_ENV) };
+        std::fs::remove_dir_all(&dir).ok();
+    }
     #[tokio::test]
     async fn flush_once_turso_writes_only_when_dirty() {
         use oktz_store::turso::TursoStore;
