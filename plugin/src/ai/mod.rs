@@ -13,6 +13,7 @@ pub mod bananagen2;
 pub mod claudehaiku;
 pub mod deepseek;
 pub mod dolphin;
+pub mod duckai;
 pub mod feelbetter;
 pub mod gita;
 pub mod gpt5;

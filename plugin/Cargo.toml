@@ -14,6 +14,9 @@ oktz-scraper = { path = "../lib/oktz-scraper" }
 # macro WAJIB punya linkme sebagai direct dependency.
 linkme = "0.3"
 rand = "0.9"
+# Challenge duck.ai dijalankan sebagai JS; QuickJS di-embed (C statis), bukan proses luar.
+rquickjs = "0.14"
+sha2 = "0.11"
 # Tipe `Value` hanya, untuk baca state tersimpan lewat `Ctx::user_field` /
 # `group_field`. Tidak ada I/O store di crate ini.
 serde_json.workspace = true
