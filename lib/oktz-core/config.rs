@@ -486,47 +486,21 @@ impl Default for Messages {
     fn default() -> Self {
         Self {
             success: d("✅ *Done!* Hmph, berhasil kan? B-bukan karena kamu suruh loh! (˶˃⤙˂˶)"),
-            error: d(
-                "❌ *Error!* Uuugh, ada yang error... B-bukan salahku loh ya! Coba lagi nanti (,,>﹏<,,)",
-            ),
-            owner_only: d(
-                "🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)",
-            ),
-            premium_only: d(
-                "💎 *Premium Only!* Ehe~ ini khusus member Premium. Ketik *.benefitpremium* dulu yuk ⸜(｡˃ ᵕ ˂ )⸝♡",
-            ),
-            group_only: d(
-                "👥 *Group Only!* A-aaah, fitur ini cuma bisa di grup! Jangan nakal di chat pribadi (¬_¬')",
-            ),
-            private_only: d(
-                "📱 *Private Only!* Fitur ini cuma untuk chat pribadi bot. Masuk grup nanti ya~ ૮₍ ˃ ⤙ ˂ ₎ა",
-            ),
-            admin_only: d(
-                "👮 *Admin Only!* Hmph! Cuma admin grup yang bisa pakai ini. Promote dulu sana (¬⤙¬ )",
-            ),
-            bot_admin_only: d(
-                "🤖 *Bot Bukan Admin!* Hmph?! Bot-nya belum jadi admin ya... Y-yang gampang apa susahnya, promote dulu sana! Baka! (≧ヘ≦)",
-            ),
-            cooldown: d(
-                "🕕 *Tunggu Dulu!* Sabar ya, masih cooldown. Tunggu %time% detik lagi~ (｡•́︿•̀｡)",
-            ),
-            energi_exceeded: d(
-                "⚡ *Energi Habis!* Kyaa~ energimu habis semua... Tunggu reset besok atau beli Premium (╥﹏╥)",
-            ),
-            limit_deducted: d(
-                "🔋 Limit berkurang {amount}. Sisa: {sisa}. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)",
-            ),
-            banned: d(
-                "🚫 *Kamu Dibanned!* Hmph! Kamu udah langgar aturan, makanya dibanned. Feels bad right? (｀ε´)",
-            ),
+            error: d("❌ *Error!* Uuugh, ada yang error... B-bukan salahku loh ya! Coba lagi nanti (,,>﹏<,,)"),
+            owner_only: d("🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)"),
+            premium_only: d("💎 *Premium Only!* Ehe~ ini khusus member Premium. Ketik *.benefitpremium* dulu yuk ⸜(｡˃ ᵕ ˂ )⸝♡"),
+            group_only: d("👥 *Group Only!* A-aaah, fitur ini cuma bisa di grup! Jangan nakal di chat pribadi (¬_¬')"),
+            private_only: d("📱 *Private Only!* Fitur ini cuma untuk chat pribadi bot. Masuk grup nanti ya~ ૮₍ ˃ ⤙ ˂ ₎ა"),
+            admin_only: d("👮 *Admin Only!* Hmph! Cuma admin grup yang bisa pakai ini. Promote dulu sana (¬⤙¬ )"),
+            bot_admin_only: d("🤖 *Bot Bukan Admin!* Hmph?! Bot-nya belum jadi admin ya... Y-yang gampang apa susahnya, promote dulu sana! Baka! (≧ヘ≦)"),
+            cooldown: d("🕕 *Tunggu Dulu!* Sabar ya, masih cooldown. Tunggu %time% detik lagi~ (｡•́︿•̀｡)"),
+            energi_exceeded: d("⚡ *Energi Habis!* Kyaa~ energimu habis semua... Tunggu reset besok atau beli Premium (╥﹏╥)"),
+            limit_deducted: d("🔋 Limit berkurang {amount}. Sisa: {sisa}. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)"),
+            banned: d("🚫 *Kamu Dibanned!* Hmph! Kamu udah langgar aturan, makanya dibanned. Feels bad right? (｀ε´)"),
             reject_call: d("🚫 JANGAN TELPON NOMOR INI WEH"),
-            game_disabled: d(
-                "🎮 Fitur Game dimatiin admin grup ini! Minta aktifin dulu ya (｡•ˇ‸ˇ•｡)",
-            ),
+            game_disabled: d("🎮 Fitur Game dimatiin admin grup ini! Minta aktifin dulu ya (｡•ˇ‸ˇ•｡)"),
             rpg_disabled: d("⚔️ Fitur RPG dimatiin admin grup ini! Minta aktifin dulu ya (¬⤙¬ )"),
-            partner_only: d(
-                "🤝 *Partner Only!* Fitur ini cuma buat partner bot. Yare yare... (￣ω￣)",
-            ),
+            partner_only: d("🤝 *Partner Only!* Fitur ini cuma buat partner bot. Yare yare... (￣ω￣)"),
         }
     }
 }
@@ -602,19 +576,13 @@ impl Config {
                 .unwrap_or(default)
         };
         let env_u64 = |name: &str, default: u64| {
-            Env::get(name)
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(default)
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
         };
         let env_u32 = |name: &str, default: u32| {
-            Env::get(name)
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(default)
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
         };
         let env_i64 = |name: &str, default: i64| {
-            Env::get(name)
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(default)
+            Env::get(name).and_then(|v| v.parse().ok()).unwrap_or(default)
         };
 
         let owner_defaults = Owner::default();
@@ -741,12 +709,7 @@ impl Config {
             .as_object()
             .ok_or_else(|| Error::Config("isi config harus objek JSON".into()))?;
 
-        set_teks(
-            root,
-            "errorTemplate",
-            "errorTemplate",
-            &mut self.error_template,
-        )?;
+        set_teks(root, "errorTemplate", "errorTemplate", &mut self.error_template)?;
         if let Some(m) = objek(root, "owner")? {
             set_teks(m, "name", "owner", &mut self.owner_name)?;
             if let Some(l) = daftar_teks(m, "number", "owner.number")? {
@@ -773,18 +736,8 @@ impl Config {
             set_teks(m, "link", "saluran", &mut self.saluran.link)?;
         }
         if let Some(m) = objek(root, "session")? {
-            set_teks(
-                m,
-                "pairingNumber",
-                "session",
-                &mut self.session.pairing_number,
-            )?;
-            set_bool(
-                m,
-                "usePairingCode",
-                "session",
-                &mut self.session.use_pairing_code,
-            )?;
+            set_teks(m, "pairingNumber", "session", &mut self.session.pairing_number)?;
+            set_bool(m, "usePairingCode", "session", &mut self.session.use_pairing_code)?;
             set_bool(
                 m,
                 "pairingFallbackToQr",
@@ -797,12 +750,7 @@ impl Config {
                 "session",
                 &mut self.session.pairing_rate_limit_cooldown_ms,
             )?;
-            set_u64(
-                m,
-                "keepAliveIntervalMs",
-                "session",
-                &mut self.session.keep_alive_interval_ms,
-            )?;
+            set_u64(m, "keepAliveIntervalMs", "session", &mut self.session.keep_alive_interval_ms)?;
             set_teks(m, "qrDir", "session", &mut self.session.qr_dir)?;
             set_u32(m, "qrPngWidth", "session", &mut self.session.qr_png_width)?;
             set_u32(m, "qrMaxPrints", "session", &mut self.session.qr_max_prints)?;
@@ -912,9 +860,7 @@ fn set_i64(m: &Map<String, Value>, kunci: &str, jalur: &str, out: &mut i64) -> R
     match m.get(kunci) {
         None | Some(Value::Null) => Ok(()),
         Some(v) => {
-            *out = v
-                .as_i64()
-                .ok_or_else(|| Error::Config(format!("{jalur}.{kunci} harus bilangan bulat")))?;
+            *out = v.as_i64().ok_or_else(|| Error::Config(format!("{jalur}.{kunci} harus bilangan bulat")))?;
             Ok(())
         }
     }
@@ -978,10 +924,7 @@ mod tests {
             Some("./assets/video/mp4.mp4"),
             "path aset ikut apa adanya, bukan digabung ke storage"
         );
-        assert_eq!(
-            prod.assets.get("pp-kosong"),
-            Some("./assets/image/pp-kosong.jpeg")
-        );
+        assert_eq!(prod.assets.get("pp-kosong"), Some("./assets/image/pp-kosong.jpeg"));
         assert_eq!(prod.payment.methods.len(), 4);
         assert_eq!(prod.donasi.payment.len(), 3);
         assert_eq!(prod.donasi.links.len(), 2);
@@ -1090,10 +1033,7 @@ mod tests {
         // `middleware.js:57` memakai fallback hanya kalau `config.messages`
         // kosong; di produksi nilainya selalu ada, jadi yang tampil ke user
         // adalah string dari `config.js`.
-        assert_eq!(
-            m.owner_only,
-            "🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)"
-        );
+        assert_eq!(m.owner_only, "🔒 *Owner Only!* Hmph! Fitur ini cuma buat Owner bot. Kamu mana cukup? (｡•ˇ‸ˇ•｡)");
         assert_ne!(m.owner_only, "🚫 Owner only!");
         assert_eq!(
             m.energi_exceeded,

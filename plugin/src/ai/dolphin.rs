@@ -7,7 +7,8 @@
 //! dikirim (`HttpGet` tidak punya setter header per-request).
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
+
 
 const ENDPOINT: &str = "https://chat.dphn.ai/api/chat";
 
@@ -59,10 +60,7 @@ fn dolphin_ai(http: &dyn HttpGet, question: &str, template: &str) -> Result<Stri
             continue;
         }
         let v: Value = serde_json::from_str(&chunk[6..]).map_err(|e| e.to_string())?;
-        if let Some(c) = v
-            .pointer("/choices/0/delta/content")
-            .and_then(Value::as_str)
-        {
+        if let Some(c) = v.pointer("/choices/0/delta/content").and_then(Value::as_str) {
             result.push_str(c);
         }
     }
@@ -323,10 +321,7 @@ mod tests {
     fn a_stream_without_content_is_the_same_error_the_js_throws() {
         let http = Stub::ok("data: {\"choices\":[]}\n\n");
         let r = run(http.clone(), "x");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "dolphin")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "dolphin"));
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"
@@ -336,9 +331,6 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "dolphin")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "dolphin"));
     }
 }

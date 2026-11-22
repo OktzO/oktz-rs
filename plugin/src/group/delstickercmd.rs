@@ -208,17 +208,11 @@ mod tests {
 
     #[test]
     fn an_absent_store_lists_nothing_registered() {
-        for s in [
-            serde_json::json!({}),
-            serde_json::json!({"stickerCommands": {}}),
-        ] {
+        for s in [serde_json::json!({}), serde_json::json!({"stickerCommands": {}})] {
             let __balasan = run(&[], s.clone());
             let t = body(&__balasan);
             assert!(t.starts_with("🖼️ *sᴛɪᴄᴋᴇʀ ᴄᴏᴍᴍᴀɴᴅs*"), "{s}: {t}");
-            assert!(
-                t.contains("> Tidak ada sticker command yang terdaftar."),
-                "{t}"
-            );
+            assert!(t.contains("> Tidak ada sticker command yang terdaftar."), "{t}");
             assert!(t.contains("`.addcmdsticker`"), "{t}");
             assert!(no_mutation(&run(&[], s)));
         }
@@ -231,11 +225,7 @@ mod tests {
         // `SetSetting` menulis peta hash→entri itu sendiri sebagai nilai
         // setting, jadi tidak ada lapisan `stickerCommands` kedua.
         let after = store_after(&r);
-        assert_eq!(
-            after.as_object().unwrap().len(),
-            1,
-            "satu entri harus tersisa"
-        );
+        assert_eq!(after.as_object().unwrap().len(), 1, "satu entri harus tersisa");
         assert!(after.get("hashaaa").is_none(), "hash yang dihapus: {after}");
         assert!(after.get("hashbbb").is_some());
     }

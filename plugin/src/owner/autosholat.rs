@@ -17,9 +17,11 @@
 //!    punya lapisan cache dan itu tidak mengubah balasannya.
 
 use oktz_plugin_api::{Ctx, HttpError, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
-use crate::common::{jakarta_parts, js_truthy, js_truthy_value, now_ms, pad2, parse_int};
+use crate::common::{
+    jakarta_parts, js_truthy, js_truthy_value, now_ms, pad2, parse_int,
+};
 use crate::download::pixeldraindl::encode_uri_component;
 
 /// `sholat-api.js:3`.
@@ -105,11 +107,7 @@ fn kota_for_status(ctx: &Ctx) -> Value {
 /// `getTodaySchedule` (`sholat-api.js:32-42`) memakai tanggal Asia/Jakarta,
 /// bukan tanggal lokal mesin.
 fn jadwal_url(kota_id: &str, (year, month, day): (i64, u32, u32)) -> String {
-    format!(
-        "{BASE_URL}/jadwal/{kota_id}/{year}/{}/{}",
-        pad2(month),
-        pad2(day)
-    )
+    format!("{BASE_URL}/jadwal/{kota_id}/{year}/{}/{}", pad2(month), pad2(day))
 }
 
 /// `nama.charAt(0).toUpperCase() + nama.slice(1)`.
@@ -148,11 +146,7 @@ fn render_jadwal(jadwal_data: &Value) -> String {
 /// `status`/`data` kosong), yang ditangkap `catch` di `autosholat.js:64`.
 fn jadwal_hari_ini(ctx: &Ctx, kota_id: &str) -> Option<String> {
     let (year, month, day, ..) = jakarta_parts(now_ms());
-    let body = ctx
-        .http
-        .get(&jadwal_url(kota_id, (year, month, day)))
-        .ok()?
-        .json()?;
+    let body = ctx.http.get(&jadwal_url(kota_id, (year, month, day))).ok()?.json()?;
     if !js_truthy(body.get("status")) {
         return None;
     }
@@ -353,11 +347,7 @@ mod tests {
             prefix: ".".into(),
             command: "autosholat".into(),
             sender: "628111@s.whatsapp.net".into(),
-            chat: if is_group {
-                GRUP.into()
-            } else {
-                "628111@s.whatsapp.net".into()
-            },
+            chat: if is_group { GRUP.into() } else { "628111@s.whatsapp.net".into() },
             text,
             args: args.iter().map(|a| (*a).to_string()).collect(),
             is_group,
@@ -470,10 +460,7 @@ mod tests {
         // Tidak ada setting kota → `|| { id: '1301', nama: 'KOTA JAKARTA' }`.
         let r = run(&[]);
         let t = text_of(&r);
-        assert!(
-            t.contains("- **Lokasi Pengingat Saat Ini**: KOTA JAKARTA"),
-            "{t}"
-        );
+        assert!(t.contains("- **Lokasi Pengingat Saat Ini**: KOTA JAKARTA"), "{t}");
     }
 
     #[test]
@@ -484,14 +471,9 @@ mod tests {
         assert!(t.contains("- **Penutupan Grup Otomatis**: Tidak ❌"), "{t}");
         assert!(t.contains("- **Durasi Penutupan**: 5 menit"), "{t}");
         assert!(t.contains("**Jadwal Sholat Hari Ini:**"), "{t}");
+        assert!(t.contains("- Ketik `.autosholat kota <nama daerah>`"), "{t}");
         assert!(
-            t.contains("- Ketik `.autosholat kota <nama daerah>`"),
-            "{t}"
-        );
-        assert!(
-            t.ends_with(
-                "_Semua jadwal diambil secara presisi dan langsung dari pusat data MyQuran API._"
-            ),
+            t.ends_with("_Semua jadwal diambil secara presisi dan langsung dari pusat data MyQuran API._"),
             "{t}"
         );
     }
@@ -526,19 +508,12 @@ mod tests {
     #[test]
     fn a_zero_duration_falls_back_to_five_because_of_the_or_operator() {
         let r = run_with(&[], serde_json::json!({ "autoSholatDuration": 0 }));
-        assert!(
-            text_of(&r).contains("- **Durasi Penutupan**: 5 menit"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("- **Durasi Penutupan**: 5 menit"), "{}", text_of(&r));
     }
 
     #[test]
     fn a_stored_city_name_replaces_the_default() {
-        let r = run_with(
-            &[],
-            serde_json::json!({ "autoSholatKota": { "id": "1216", "nama": "KOTA SURABAYA" } }),
-        );
+        let r = run_with(&[], serde_json::json!({ "autoSholatKota": { "id": "1216", "nama": "KOTA SURABAYA" } }));
         assert!(
             text_of(&r).contains("- **Lokasi Pengingat Saat Ini**: KOTA SURABAYA"),
             "{}",
@@ -554,14 +529,8 @@ mod tests {
         assert_eq!(jid, GRUP);
         assert_eq!(value, serde_json::json!(true));
         let t = text_of(&r);
-        assert!(
-            t.starts_with("✅ **Sistem Pengingat Sholat Berhasil Diaktifkan!**"),
-            "{t}"
-        );
-        assert!(
-            t.ends_with("sesuaikan dengan zona waktu di **KOTA JAKARTA** ya!"),
-            "{t}"
-        );
+        assert!(t.starts_with("✅ **Sistem Pengingat Sholat Berhasil Diaktifkan!**"), "{t}");
+        assert!(t.ends_with("sesuaikan dengan zona waktu di **KOTA JAKARTA** ya!"), "{t}");
     }
 
     #[test]
@@ -577,7 +546,8 @@ mod tests {
         assert_eq!(emoji_of(&r), "❌");
         assert_eq!(setting_of(&r, "autoSholat"), serde_json::json!(false));
         assert!(
-            text_of(&r).starts_with("❌ **Sistem Pengingat Sholat Dinonaktifkan.**"),
+            text_of(&r)
+                .starts_with("❌ **Sistem Pengingat Sholat Dinonaktifkan.**"),
             "{}",
             text_of(&r)
         );
@@ -592,11 +562,7 @@ mod tests {
         ] {
             let r = run_with(&args, serde_json::json!({}));
             assert_eq!(emoji_of(&r), emoji, "input {args:?}");
-            assert_eq!(
-                setting_of(&r, "autoSholatCloseGroup"),
-                expected,
-                "input {args:?}"
-            );
+            assert_eq!(setting_of(&r, "autoSholatCloseGroup"), expected, "input {args:?}");
         }
     }
 
@@ -628,11 +594,7 @@ mod tests {
             let arg = n.to_string();
             let r = run_with(&["duration", &arg], serde_json::json!({}));
             assert_eq!(emoji_of(&r), "⏱️", "input {n}");
-            assert_eq!(
-                setting_of(&r, "autoSholatDuration"),
-                serde_json::json!(n),
-                "input {n}"
-            );
+            assert_eq!(setting_of(&r, "autoSholatDuration"), serde_json::json!(n), "input {n}");
             assert!(
                 text_of(&r).contains(&format!("selama **{n} menit**")),
                 "input {n} -> {}",
@@ -687,10 +649,7 @@ mod tests {
     #[test]
     fn an_unreachable_kota_search_returns_the_error_template() {
         let r = run_with(&["kota", "Surabaya"], serde_json::json!({}));
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "autosholat")
-        );
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "autosholat"));
         assert!(r.mutations().is_empty());
         match r.without_mutations() {
             Reply::Text { .. } => {}
@@ -713,10 +672,7 @@ mod tests {
 
     #[test]
     fn the_status_flag_is_read_from_settings_when_there_is_no_group() {
-        let r = run_with(
-            &[],
-            serde_json::json!({ "autoSholat": true, "autoSholatCloseGroup": true, "autoSholatDuration": 45 }),
-        );
+        let r = run_with(&[], serde_json::json!({ "autoSholat": true, "autoSholatCloseGroup": true, "autoSholatDuration": 45 }));
         let t = text_of(&r);
         assert!(t.contains("- **Status Pengingat**: Aktif ✅"), "{t}");
         assert!(t.contains("- **Penutupan Grup Otomatis**: Ya ✅"), "{t}");
@@ -765,9 +721,7 @@ mod tests {
 
     #[test]
     fn a_falsy_time_becomes_a_dash_not_an_empty_cell() {
-        let out = render_jadwal(
-            &serde_json::json!({ "jadwal": { "subuh": "", "ashar": "15:10 (WIB)" } }),
-        );
+        let out = render_jadwal(&serde_json::json!({ "jadwal": { "subuh": "", "ashar": "15:10 (WIB)" } }));
         assert!(out.contains("- **Subuh**: -\n"), "{out}");
         assert!(out.contains("- **Ashar**: 15:10 (WIB)\n"), "{out}");
     }
@@ -783,10 +737,7 @@ mod tests {
     fn interpolation_mirrors_the_js_template_literal() {
         assert_eq!(interp(None), "undefined");
         assert_eq!(interp(Some(&Value::Null)), "null");
-        assert_eq!(
-            interp(Some(&serde_json::json!("KOTA JAKARTA"))),
-            "KOTA JAKARTA"
-        );
+        assert_eq!(interp(Some(&serde_json::json!("KOTA JAKARTA"))), "KOTA JAKARTA");
         assert_eq!(interp(Some(&serde_json::json!(1301))), "1301");
         assert_eq!(interp(Some(&serde_json::json!(true))), "true");
     }

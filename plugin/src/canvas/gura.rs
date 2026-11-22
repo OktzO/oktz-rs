@@ -248,6 +248,7 @@ fn file_src_upload_ee(html: &str) -> Option<String> {
         }
     }
     None
+
 }
 
 /// Regex `View file:\s*<br\s*\/?>\s*<a href=["']?([^"'>\s]+)["']?` versi scanner.
@@ -295,8 +296,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .rsplit_once('.')
         .map(|(_, e)| e.to_ascii_lowercase())
         .unwrap_or_default();
-    let is_image =
-        ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
+    let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
     http.call(
         &HttpCall::get("https://www.upload.ee/?")
@@ -405,10 +405,7 @@ pub(crate) fn help(prefix: &str) -> String {
 
 /// `gura.js:47` — URL API Nexray.
 pub(crate) fn api_url(img_url: &str) -> String {
-    format!(
-        "https://api.nexray.eu.cc/canvas/gura?url={}",
-        encode_uri_component(img_url)
-    )
+    format!("https://api.nexray.eu.cc/canvas/gura?url={}", encode_uri_component(img_url))
 }
 
 /// `gura.js:54` — caption sukses.
@@ -487,7 +484,11 @@ pub fn gura(ctx: Ctx) -> Reply {
         return gagal(&ctx);
     }
 
-    Reply::image(MediaSource::bytes(res.body.bytes().to_vec()), CAPTION).with_reaction("✅")
+    Reply::image(
+        MediaSource::bytes(res.body.bytes().to_vec()),
+        CAPTION,
+    )
+    .with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -518,10 +519,7 @@ mod tests {
     }
 
     impl Stub {
-        fn baru(
-            balasan: Vec<(u16, Vec<u8>)>,
-            hasil_unduh: Result<Vec<u8>, MediaError>,
-        ) -> Arc<Stub> {
+        fn baru(balasan: Vec<(u16, Vec<u8>)>, hasil_unduh: Result<Vec<u8>, MediaError>) -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(balasan),
                 hitung: Mutex::new(0),
@@ -564,11 +562,7 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -589,12 +583,7 @@ mod tests {
         })
     }
 
-    fn ctx_stub(
-        http: Arc<Stub>,
-        text: &str,
-        media: Option<IncomingMedia>,
-        quoted: Option<QuotedKind>,
-    ) -> Ctx {
+    fn ctx_stub(http: Arc<Stub>, text: &str, media: Option<IncomingMedia>, quoted: Option<QuotedKind>) -> Ctx {
         Ctx {
             text: text.into(),
             args: text.split_whitespace().map(str::to_string).collect(),
@@ -643,10 +632,7 @@ mod tests {
 
     fn bytes_gambar(r: &Reply) -> Vec<u8> {
         match isi(r) {
-            Reply::Image {
-                media: Some(MediaSource::Bytes { data, .. }),
-                ..
-            } => data.to_vec(),
+            Reply::Image { media: Some(MediaSource::Bytes { data, .. }), .. } => data.to_vec(),
             lain => panic!("harus image bytes, dapat {lain:?}"),
         }
     }
@@ -695,12 +681,7 @@ mod tests {
 
     #[test]
     fn unduhan_gagal_membalas_gagal_membaca_media() {
-        let http = Stub::baru(
-            vec![],
-            Err(MediaError {
-                message: "gagal".into(),
-            }),
-        );
+        let http = Stub::baru(vec![], Err(MediaError { message: "gagal".into() }));
         let r = gura(ctx_stub(http, "", media_gambar(), None));
         assert_eq!(teks(&r), "❌ Gagal membaca media, coba lagi!");
         assert_eq!(reaksi(&r), None);
@@ -720,14 +701,8 @@ mod tests {
         assert_eq!(reaksi(&r), Some("✅".into()));
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan.len(), 2);
-        assert_eq!(
-            panggilan[0].url,
-            "https://litterbox.catbox.moe/resources/internals/api.php"
-        );
-        assert_eq!(
-            panggilan[1].url,
-            api_url("https://litterbox.example/img.jpg")
-        );
+        assert_eq!(panggilan[0].url, "https://litterbox.catbox.moe/resources/internals/api.php");
+        assert_eq!(panggilan[1].url, api_url("https://litterbox.example/img.jpg"));
         assert_eq!(*http.unduhan.lock().unwrap(), [MediaOrigin::Trigger]);
     }
 
@@ -757,10 +732,7 @@ mod tests {
     #[test]
     fn api_non_2xx_membalas_template_error_dan_radiasi() {
         let http = Stub::baru(
-            vec![
-                resp(200, b"https://litterbox.example/img.jpg"),
-                resp(500, b""),
-            ],
+            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(500, b"")],
             Ok(GAMBAR.to_vec()),
         );
         let r = gura(ctx_stub(http, "", media_gambar(), None));

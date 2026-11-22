@@ -8,9 +8,9 @@
 //!   2. `bin/ffmpeg` di folder repo
 //!   3. `ffmpeg` yang tersedia di `PATH`
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use std::io::Write;
 use std::sync::OnceLock;
 
 static FFMPEG_SEM: OnceLock<std::sync::Mutex<usize>> = OnceLock::new();
@@ -26,10 +26,7 @@ impl Drop for FfmpegPermit {
 fn ffmpeg_acquire() -> FfmpegPermit {
     loop {
         let mut g = ffmpeg_sem().lock().unwrap_or_else(|e| e.into_inner());
-        if *g > 0 {
-            *g -= 1;
-            break;
-        }
+        if *g > 0 { *g -= 1; break; }
         drop(g);
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
@@ -246,10 +243,7 @@ mod tests {
         let dir = env::temp_dir().join(format!("oktz-ffmpeg-test-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let bin = dir.join("ffmpeg");
-        File::create(&bin)
-            .unwrap()
-            .write_all(b"# dummy ffmpeg")
-            .unwrap();
+        File::create(&bin).unwrap().write_all(b"# dummy ffmpeg").unwrap();
         let path_asal = env::var("PATH").unwrap_or_default();
         (dir, bin, path_asal)
     }
@@ -257,16 +251,10 @@ mod tests {
     fn bersihkan_env(dir: &std::path::Path, path_asal: &str) {
         let _ = fs::remove_dir_all(dir);
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::set_var("PATH", path_asal);
-        }
+        unsafe { env::set_var("PATH", path_asal); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::remove_var("OTKZ_FFMPEG_PATH");
-        }
-        unsafe {
-            env::remove_var("FFMPEG_PATH");
-        }
+        unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
     }
 
     #[test]
@@ -274,13 +262,9 @@ mod tests {
         let _kunci = ENV_KUNCI.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, path_asal) = siapkan_env();
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::set_var("OTKZ_FFMPEG_PATH", &bin);
-        }
+        unsafe { env::set_var("OTKZ_FFMPEG_PATH", &bin); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::set_var("PATH", "");
-        }
+        unsafe { env::set_var("PATH", ""); }
         let hasil = jalur_ffmpeg();
         assert_eq!(hasil.as_deref(), Some(Path::new(&bin)));
         bersihkan_env(&dir, &path_asal);
@@ -295,16 +279,10 @@ mod tests {
         let kosong = dir.join("kosong");
         fs::create_dir_all(&kosong).unwrap();
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::set_var("PATH", &kosong);
-        }
+        unsafe { env::set_var("PATH", &kosong); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::remove_var("OTKZ_FFMPEG_PATH");
-        }
-        unsafe {
-            env::remove_var("FFMPEG_PATH");
-        }
+        unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         assert!(jalur_ffmpeg().is_none());
         bersihkan_env(&dir, &path_asal);
     }
@@ -314,16 +292,10 @@ mod tests {
         let _kunci = ENV_KUNCI.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, path_asal) = siapkan_env();
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::remove_var("OTKZ_FFMPEG_PATH");
-        }
-        unsafe {
-            env::remove_var("FFMPEG_PATH");
-        }
+        unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         // Mutasi env global: hanya aman karena test dijalankan sinkron di modul ini.
-        unsafe {
-            env::set_var("PATH", &dir);
-        }
+        unsafe { env::set_var("PATH", &dir); }
         let hasil = jalur_ffmpeg();
         assert_eq!(hasil.as_deref(), Some(Path::new(&bin)));
         bersihkan_env(&dir, &path_asal);
@@ -340,21 +312,13 @@ mod tests {
             fs::create_dir_all(&bin_dir).unwrap();
             File::create(&dummy).unwrap().write_all(b"# dummy").unwrap();
         }
-        unsafe {
-            env::remove_var("OTKZ_FFMPEG_PATH");
-        }
-        unsafe {
-            env::remove_var("FFMPEG_PATH");
-        }
+        unsafe { env::remove_var("OTKZ_FFMPEG_PATH"); }
+        unsafe { env::remove_var("FFMPEG_PATH"); }
         let path_asal = env::var("PATH").unwrap_or_default();
-        unsafe {
-            env::set_var("PATH", "");
-        }
+        unsafe { env::set_var("PATH", ""); }
         let hasil = jalur_ffmpeg();
         assert!(hasil.is_some(), "bin/ffmpeg harus ditemukan tanpa PATH");
-        unsafe {
-            env::set_var("PATH", path_asal);
-        }
+        unsafe { env::set_var("PATH", path_asal); }
         if !sudah_ada {
             let _ = fs::remove_file(&dummy);
         }

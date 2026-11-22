@@ -12,7 +12,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::js_truthy;
+use crate::common::{js_truthy};
 
 /// `npm.js:34` — `size=10`, meski hanya 8 yang ditampilkan.
 pub(crate) fn api_url(query: &str) -> String {
@@ -68,15 +68,9 @@ pub(crate) fn build_text(objects: &[Value], query: &str, total: Option<&Value>) 
     text.push_str(&format!("> Found: {total} packages\n\n"));
     for (i, item) in objects.iter().take(8).enumerate() {
         let pkg = &item["package"];
-        let name = pkg
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("undefined");
+        let name = pkg.get("name").and_then(Value::as_str).unwrap_or("undefined");
         text.push_str(&format!("{}. *{name}*\n", i + 1));
-        let version = pkg
-            .get("version")
-            .and_then(Value::as_str)
-            .unwrap_or("undefined");
+        let version = pkg.get("version").and_then(Value::as_str).unwrap_or("undefined");
         text.push_str(&format!("> 📌 v{version}\n"));
         // `if (pkg.description)` — string kosong falsy, jadi bloknya dilewati.
         if let Some(desc) = pkg.get("description").and_then(Value::as_str)
@@ -191,9 +185,7 @@ mod tests {
             let v = self
                 .body
                 .clone()
-                .ok_or_else(|| oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                })?;
+                .ok_or_else(|| oktz_plugin_api::HttpError { message: "offline".into() })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -313,20 +305,14 @@ mod tests {
         let r = run(http, "axios");
         let t = text_of(&r);
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(
-            t.starts_with("📦 *ɴᴘᴍ sᴇᴀʀᴄʜ*\n\n> Query: `axios`\n> Found: 1234 packages\n\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("📦 *ɴᴘᴍ sᴇᴀʀᴄʜ*\n\n> Query: `axios`\n> Found: 1234 packages\n\n"), "{t}");
         assert!(t.contains("1. *axios*\n> 📌 v1.7.2\n"), "{t}");
         assert!(t.contains("> 📝 Promise based HTTP client\n"), "{t}");
         assert!(t.contains("> 🔗 https://npmjs.com/package/axios\n"), "{t}");
         assert!(t.contains("> 👤 Matt Johnson\n"), "{t}");
         assert!(t.contains("> ⭐ Score: 99%"), "{t}");
         // Paket kedua tidak punya description/links/author.
-        assert!(
-            t.contains("2. *tanpa*\n> 📌 v0.0.1\n> 🔗 -\n> ⭐ Score: 0%"),
-            "{t}"
-        );
+        assert!(t.contains("2. *tanpa*\n> 📌 v0.0.1\n> 🔗 -\n> ⭐ Score: 0%"), "{t}");
     }
 
     #[test]
@@ -369,38 +355,19 @@ mod tests {
 
     #[test]
     fn the_score_rounds_halves_up_like_math_round() {
-        assert_eq!(
-            score_persen(&serde_json::json!({ "score": { "final": 0.5 } })),
-            50
-        );
-        assert_eq!(
-            score_persen(&serde_json::json!({ "score": { "final": 0.999 } })),
-            100
-        );
-        assert_eq!(
-            score_persen(&serde_json::json!({ "score": { "final": 0.005 } })),
-            1
-        );
+        assert_eq!(score_persen(&serde_json::json!({ "score": { "final": 0.5 } })), 50);
+        assert_eq!(score_persen(&serde_json::json!({ "score": { "final": 0.999 } })), 100);
+        assert_eq!(score_persen(&serde_json::json!({ "score": { "final": 0.005 } })), 1);
         assert_eq!(score_persen(&serde_json::json!({ "score": {} })), 0);
         assert_eq!(score_persen(&serde_json::json!({})), 0);
-        assert_eq!(
-            score_persen(&serde_json::json!({ "score": { "final": null } })),
-            0
-        );
+        assert_eq!(score_persen(&serde_json::json!({ "score": { "final": null } })), 0);
         // `|| 0` menutup nilai 0 dan string kosong, jadi keduanya jadi 0.
-        assert_eq!(
-            score_persen(&serde_json::json!({ "score": { "final": 0 } })),
-            0
-        );
+        assert_eq!(score_persen(&serde_json::json!({ "score": { "final": 0 } })), 0);
     }
 
     #[test]
     fn an_empty_or_absent_objects_field_reports_not_found() {
-        for body in [
-            serde_json::json!({ "objects": [] }),
-            serde_json::json!({}),
-            serde_json::json!("bukan json"),
-        ] {
+        for body in [serde_json::json!({ "objects": [] }), serde_json::json!({}), serde_json::json!("bukan json")] {
             let r = run(Stub::with(body), "zzz");
             assert_eq!(
                 text_of(&r),
@@ -413,10 +380,7 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "axios");
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "npm")
-        );
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "npm"));
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -430,10 +394,7 @@ mod tests {
             assert!(text_of(&r).contains("tidak ditemukan"), "input {input:?}");
         }
         let panjang = "a".repeat(5000);
-        let r = run(
-            Stub::with(serde_json::json!({ "objects": [], "total": 0 })),
-            &panjang,
-        );
+        let r = run(Stub::with(serde_json::json!({ "objects": [], "total": 0 })), &panjang);
         assert!(text_of(&r).contains(&panjang.chars().take(200).collect::<String>()));
     }
 
@@ -441,9 +402,6 @@ mod tests {
     fn a_missing_total_field_prints_undefined() {
         let objects = vec![serde_json::json!({ "package": { "name": "x" } })];
         assert!(build_text(&objects, "q", None).contains("> Found: undefined packages"));
-        assert!(
-            build_text(&objects, "q", Some(&serde_json::json!(null)))
-                .contains("> Found: undefined packages")
-        );
+        assert!(build_text(&objects, "q", Some(&serde_json::json!(null))).contains("> Found: undefined packages"));
     }
 }

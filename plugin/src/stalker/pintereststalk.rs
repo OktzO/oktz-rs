@@ -9,7 +9,7 @@
 //! profil tidak ditemukan, `✅` setelah caption terkirim, `☢` saat gagal.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use super::npmstalk::{NEXRAY, js_str, or_dash};
 use crate::tools::phisingataubukan::encode_uri_component;
@@ -22,9 +22,7 @@ pub(crate) const MISSING_USERNAME: &str = "❌ *Waduh, username Pinterest-nya be
 
 /// `pintereststalk.js:40` — profil tidak ditemukan.
 pub(crate) fn not_found(username: &str) -> String {
-    format!(
-        "⚠️ *Pencarian Gagal!*\n\nUsername *{username}* tidak ditemukan di Pinterest. Pastikan penulisannya sudah benar ya."
-    )
+    format!("⚠️ *Pencarian Gagal!*\n\nUsername *{username}* tidak ditemukan di Pinterest. Pastikan penulisannya sudah benar ya.")
 }
 
 /// `pintereststalk.js:78` — cabang `catch`.
@@ -61,10 +59,7 @@ pub(crate) fn pilih_gambar(image: &Value) -> String {
 
 /// `pintereststalk.js:48-63` — caption.
 pub(crate) fn caption(r: &Value, username: &str) -> String {
-    let s = r
-        .get("stats")
-        .cloned()
-        .unwrap_or_else(|| serde_json::json!({}));
+    let s = r.get("stats").cloned().unwrap_or_else(|| serde_json::json!({}));
     let txt = format!(
         "📌 *PINTEREST STALK - PROFILE INFO* 📌\n\nHalo! Ini dia hasil pencarian profil untuk username *@{u}*:\n\n👤 *INFO PROFIL*\n  - Nama Lengkap: *{n}*\n  - Username: @{u}\n  - Bio: {b}\n  - Tipe Akun: {t}\n  - Akun Dibuat: {c}\n\n📊 *STATISTIK*\n  - Pengikut (Followers): {f}\n  - Diikuti (Following): {g}\n  - Total Pin: {p}\n  - Total Board: {bd}\n\n🔗 *LINK PROFIL*\n  - {url}\n\nSuka mengumpulkan inspirasi dari Pinterest ya? Pamerin ke temanmu yuk! 🚀",
         u = username,
@@ -117,9 +112,7 @@ pub fn pintereststalk(ctx: Ctx) -> Reply {
     };
 
     let body = res.json().unwrap_or(Value::Null);
-    let ok = body
-        .get("status")
-        .is_some_and(crate::common::js_truthy_value)
+    let ok = body.get("status").is_some_and(crate::common::js_truthy_value)
         && body.get("result").is_some_and(|v| !v.is_null());
     if !ok {
         return Reply::text(not_found(&username)).with_reaction("❌");
@@ -255,11 +248,7 @@ mod tests {
             serde_json::json!({ "status": true, "result": null }),
         ] {
             let r = pintereststalk(ctx(Stub::body(body.clone()), "dims"));
-            assert_eq!(
-                r.without_mutations().text_body(),
-                Some(not_found("dims").as_str()),
-                "body {body}"
-            );
+            assert_eq!(r.without_mutations().text_body(), Some(not_found("dims").as_str()), "body {body}");
             assert_eq!(reaction_of(&r), Some("❌"), "body {body}");
         }
     }
@@ -278,10 +267,7 @@ mod tests {
         assert!(txt.contains("  - Nama Lengkap: *Dims*"));
         assert!(txt.contains("  - Bio: hi"));
         assert!(txt.contains("  - Pengikut (Followers): 12"));
-        assert!(
-            txt.contains("  - Diikuti (Following): 0"),
-            "nol tetap ditulis 0"
-        );
+        assert!(txt.contains("  - Diikuti (Following): 0"), "nol tetap ditulis 0");
         assert!(txt.ends_with("Pamerin ke temanmu yuk! 🚀"));
 
         // Field profil kosong jadi `-`, statistik hilang jadi `0`.

@@ -3,11 +3,11 @@
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
-    apply_exp, coalesce, inventory_map, or_default, roll_incl, rpg_int, rpg_map,
+    apply_exp, coalesce, inventory_map, or_default, rpg_int, rpg_map, roll_incl,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
@@ -66,9 +66,7 @@ pub fn mulung(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    let mut txt = String::from(
-        "ASIK DAPET RONGSOKAN! 🗑️💸\n\nKamu berhasil ngumpulin barang rongsokan nih kak:\n",
-    );
+    let mut txt = String::from("ASIK DAPET RONGSOKAN! 🗑️💸\n\nKamu berhasil ngumpulin barang rongsokan nih kak:\n");
     for (name, qty) in &results {
         txt += &format!("• {name}: *+{qty}*\n");
     }
@@ -148,10 +146,7 @@ mod tests {
     fn a_scavenger_with_no_energy_is_sent_home() {
         let r = run(serde_json::json!({"rpg": {"stamina": 0}}));
         let t = text_of(&r);
-        assert!(
-            t.starts_with("Yaela kak, mulung aja butuh tenaga kali!"),
-            "{t}"
-        );
+        assert!(t.starts_with("Yaela kak, mulung aja butuh tenaga kali!"), "{t}");
         assert!(t.contains("Stamina kamu sisa *0*"), "{t}");
         assert!(r.mutations().is_empty());
     }
@@ -212,9 +207,6 @@ mod tests {
             .filter_map(Value::as_i64)
             .sum();
         // 5 jenis x maksimal 15 x maksimal 59 koin per unit.
-        assert!(
-            koin - 1234 <= listed * 59,
-            "pendapatan harus <= barang * 59"
-        );
+        assert!(koin - 1234 <= listed * 59, "pendapatan harus <= barang * 59");
     }
 }

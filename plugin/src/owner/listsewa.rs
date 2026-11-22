@@ -142,8 +142,10 @@ fn nama_grup(data: &Value) -> String {
 
 /// `groupIds.sort(...)` (`listsewa.js:60-66`).
 fn urutkan(groups: &serde_json::Map<String, Value>) -> Vec<(String, Value)> {
-    let mut daftar: Vec<(String, Value)> =
-        groups.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let mut daftar: Vec<(String, Value)> = groups
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
     daftar.sort_by(|(_, a), (_, b)| {
         match (lifetime(a), lifetime(b)) {
             (true, false) => return Ordering::Greater,
@@ -331,11 +333,7 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["sewalist", "daftarsewa"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("listsewa"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("listsewa"), "{a}");
         }
     }
 
@@ -357,11 +355,7 @@ mod tests {
     fn tanpa_grup_pakai_label_status_tanpa_angka_tidak_ada() {
         let r = run(with_sewa(true, serde_json::json!({})));
         for needle in ["Status: *✅ AKTIF*", "Belum ada grup terdaftar"] {
-            assert!(
-                text_of(&r).contains(needle),
-                "{needle} tidak ada: {}",
-                text_of(&r)
-            );
+            assert!(text_of(&r).contains(needle), "{needle} tidak ada: {}", text_of(&r));
         }
         assert!(
             init_written(&r).is_none(),
@@ -519,11 +513,7 @@ mod tests {
             "isLifetime": true,
             "addedAt": WAKTU,
         })));
-        assert!(
-            text_of(&r).contains("Ditambah: 15/11/2023"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("Ditambah: 15/11/2023"), "{}", text_of(&r));
     }
 
     #[test]
@@ -548,19 +538,13 @@ mod tests {
             "♾️ Permanent"
         );
         assert_eq!(hitung_mundur(&d(serde_json::json!(now)), now), "❌ EXPIRED");
-        assert_eq!(
-            hitung_mundur(&d(serde_json::json!(now - 1)), now),
-            "❌ EXPIRED"
-        );
+        assert_eq!(hitung_mundur(&d(serde_json::json!(now - 1)), now), "❌ EXPIRED");
         assert_eq!(
             hitung_mundur(&d(serde_json::json!(now + 86_400_000i64)), now),
             "1d 0h"
         );
         assert_eq!(
-            hitung_mundur(
-                &d(serde_json::json!(now + 86_400_000i64 + 5 * 3_600_000i64)),
-                now
-            ),
+            hitung_mundur(&d(serde_json::json!(now + 86_400_000i64 + 5 * 3_600_000i64)), now),
             "1d 5h"
         );
         assert_eq!(
@@ -584,20 +568,10 @@ mod tests {
     fn emoji_status_kasus_batas_tiga_hari() {
         let now = WAKTU;
         let d = |at: i64| serde_json::json!({ "expiredAt": at });
-        assert_eq!(
-            emoji_status(&serde_json::json!({ "status": "expired" }), now),
-            "🚫"
-        );
-        assert_eq!(
-            emoji_status(&serde_json::json!({ "isLifetime": true }), now),
-            "♾️"
-        );
+        assert_eq!(emoji_status(&serde_json::json!({ "status": "expired" }), now), "🚫");
+        assert_eq!(emoji_status(&serde_json::json!({ "isLifetime": true }), now), "♾️");
         assert_eq!(emoji_status(&d(now), now), "❌");
-        assert_eq!(
-            emoji_status(&d(now + 259_200_000), now),
-            "⚠️",
-            "batas inklusif"
-        );
+        assert_eq!(emoji_status(&d(now + 259_200_000), now), "⚠️", "batas inklusif");
         assert_eq!(emoji_status(&d(now + 259_200_001), now), "✅");
         // `NaN <= 259200000` false -> ✅, sama seperti JS.
         assert_eq!(emoji_status(&serde_json::json!({}), now), "✅");

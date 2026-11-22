@@ -142,16 +142,27 @@ pub enum Reply {
     None,
     /// Balasan teks biasa. `mentions` diisijid yang harus di-mention (WA
     /// `contextInfo.mentionedJid`), bukan string — supaya router yang transmit.
-    Text { text: String, mentions: Vec<String> },
+    Text {
+        text: String,
+        mentions: Vec<String>,
+    },
     /// Balasan teks + reply ke pesan yang memicu (JS `m.reply`).
-    TextQuoted { text: String, mentions: Vec<String> },
+    TextQuoted {
+        text: String,
+        mentions: Vec<String>,
+    },
     /// `quoted: false` (`serialize.js:1000`) — balasan TIDAK mengutip pesan
     /// pemicu. Mention tetap mengikuti aturan default.
-    NoQuote { text: String, mentions: Vec<String> },
+    NoQuote {
+        text: String,
+        mentions: Vec<String>,
+    },
     /// `mentions: []` (`serialize.js:994`) — mengutip tapi TIDAK menyebut
     /// pengirim. Plugin yang menulis `mentions: []` di JS/No, tapi JS tetap
     /// mengutip; jadi ini bukan "tanpa quote".
-    TextNoMention { text: String },
+    TextNoMention {
+        text: String,
+    },
     /// Kartu kontak (WA `contactMessage` / `contactsArrayMessage`) — padanan
     /// `sock.sendMessage(chat, { contacts: { displayName, contacts } })`
     /// (`plugins/main/owner.js:63-68`).
@@ -173,7 +184,9 @@ pub enum Reply {
     /// pesan pemicu. Tanpa ID kiriman itu balasan ini GAGAL eksplisit —
     /// jatuh ke kutipan pemicu berarti mengutip pesan yang salah dan user
     /// melihat thread yang bukan miliknya.
-    TextQuotedPrevious { text: String },
+    TextQuotedPrevious {
+        text: String,
+    },
     /// Image dengan caption, dari sumber media nyata.
     ///
     /// `media: None` = plugin tidak punya sumber yang bisa dikirim. Itu
@@ -351,7 +364,9 @@ impl Reply {
 
     /// `mentions: []` — mengutip pemicu tapi tidak menyebut siapa pun.
     pub fn text_no_mention(text: impl Into<String>) -> Self {
-        Self::TextNoMention { text: text.into() }
+        Self::TextNoMention {
+            text: text.into(),
+        }
     }
 
     /// `previewType: 1` (WA `VIDEO`) — bentuk yang dipakai `.play`
@@ -459,10 +474,9 @@ impl Reply {
     /// Kompatibilitas lama: satu tombol `InteractiveButton`.
     pub fn with_button_card(mut self, button: InteractiveButton) -> Self {
         if let Self::Interactive { kartu } = &mut self
-            && let Some(t) = crate::kartu::Tombol::dari_nama(&button.name, button.params)
-        {
-            kartu.buttons.push(t);
-        }
+            && let Some(t) = crate::kartu::Tombol::dari_nama(&button.name, button.params) {
+                kartu.buttons.push(t);
+            }
         self
     }
 
@@ -481,10 +495,9 @@ impl Reply {
                 kartu.quote = true;
             }
             if let Some(q) = &context.quote
-                && let CardQuote::Text(t) = q.as_ref()
-            {
-                kartu.quote_teks = Some(t.clone());
-            }
+                && let CardQuote::Text(t) = q.as_ref() {
+                    kartu.quote_teks = Some(t.clone());
+                }
             kartu.context_card = Some(Box::new(context));
         }
         self
@@ -614,7 +627,10 @@ impl Reply {
     ///
     /// Untuk list V1, "baris" = satu item daftar (JS `generateListContent`
     /// memetakan tiap item jadi satu baris tabel).
-    pub fn with_table_row(mut self, baris: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn with_table_row(
+        mut self,
+        baris: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
         let row: Vec<String> = baris.into_iter().map(Into::into).collect();
         match &mut self {
             Self::Tabel { tabel } => tabel.baris.push(row),
@@ -906,7 +922,9 @@ impl Reply {
                 | Self::Video { .. }
                 | Self::Audio { .. }
                 | Self::Document { .. }
-        ) || self.payload().has_media_preview()
+        ) || self
+            .payload()
+            .has_media_preview()
     }
 
     /// Thumbnail kartu [`Reply::Preview`] menunggu upload `thumbnail-link`.
@@ -969,11 +987,7 @@ impl Reply {
             // cuma butuh satu baris untuk log/permission. `None` kalau
             // tidak ada isinya.
             Self::Sequence(list) => list.iter().find_map(Self::text_body),
-            Self::None
-            | Self::Sticker { .. }
-            | Self::StickerPack { .. }
-            | Self::Audio { .. }
-            | Self::Mutate { .. } => None,
+            Self::None | Self::Sticker { .. } | Self::StickerPack { .. } | Self::Audio { .. } | Self::Mutate { .. } => None,
         }
     }
 }
@@ -1026,9 +1040,7 @@ impl GroupRoster {
         let user = jid.split('@').next().unwrap_or(jid);
         let num = user.split(':').next().unwrap_or(user);
         self.participants.iter().any(|p| {
-            if !p.is_admin {
-                return false;
-            }
+            if !p.is_admin { return false; }
             let pj = p.jid.split('@').next().unwrap_or(&p.jid);
             let pn = pj.split(':').next().unwrap_or(pj);
             pn == num
@@ -1295,8 +1307,7 @@ impl Ctx {
 
     /// Unduh media yang diindeks pipeline (album `.s`).
     pub fn download_album_media(&self, id: &str) -> Result<Vec<u8>, MediaError> {
-        self.media_fetch
-            .download(MediaOrigin::Indexed(id.to_string()))
+        self.media_fetch.download(MediaOrigin::Indexed(id.to_string()))
     }
 }
 
@@ -1346,7 +1357,9 @@ impl Ctx {
     /// jadi closure menerima `Value::Null`.
     pub fn session_update(&self, key: &str, f: impl FnOnce(&mut Value)) {
         let mut guard = self.sessions.lock().unwrap_or_else(|e| e.into_inner());
-        let entry = guard.entry(key.to_string()).or_insert(Value::Null);
+        let entry = guard
+            .entry(key.to_string())
+            .or_insert(Value::Null);
         f(entry);
     }
 
@@ -1370,9 +1383,7 @@ impl Ctx {
     /// Array dari store milik user, mis. `ctx.user_list("access")`.
     /// Slice kosong kalau bukan array — pemanggil tidak perlu mengecek dua kali.
     pub fn user_list(&self, key: &str) -> &[Value] {
-        self.user_field(key)
-            .and_then(Value::as_array)
-            .map_or(&[], Vec::as_slice)
+        self.user_field(key).and_then(Value::as_array).map_or(&[], Vec::as_slice)
     }
 
     /// Array dari store milik grup, mis. `ctx.group_list("members")`.
@@ -1397,9 +1408,7 @@ impl Ctx {
     /// hak caller — `energi_enabled_setting` di pipeline memakai default
     /// yang BERBEDA (`EnergiSettings::enabled`) dari plugin mana pun.
     pub fn setting_bool(&self, key: &str, default: bool) -> bool {
-        self.setting(key)
-            .and_then(Value::as_bool)
-            .unwrap_or(default)
+        self.setting(key).and_then(Value::as_bool).unwrap_or(default)
     }
 
     /// `db.setting(key)` sebagai integer. `None` kalau bukan angka.
@@ -1728,7 +1737,8 @@ impl HttpCall {
     /// kunci kembar.
     pub fn header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         let name = name.into();
-        self.headers.retain(|(k, _)| !k.eq_ignore_ascii_case(&name));
+        self.headers
+            .retain(|(k, _)| !k.eq_ignore_ascii_case(&name));
         self.headers.push((name, value.into()));
         self
     }
@@ -1907,7 +1917,9 @@ pub fn pilih_album_media(
     let mut in_window: Vec<AlbumMedia> = all
         .iter()
         .filter(|m| !m.from_me && m.media.is_some())
-        .filter(|m| m.id == anchor_id || (m.timestamp - anchor_ts).abs() <= 5)
+        .filter(|m| {
+            m.id == anchor_id || (m.timestamp - anchor_ts).abs() <= 5
+        })
         .cloned()
         .collect();
     in_window.sort_by_key(|m| m.timestamp);
@@ -2155,15 +2167,8 @@ mod tests {
             ..Default::default()
         };
         assert!(!ctx.setting_bool("energi", false), "bukan bool -> default");
-        assert!(
-            ctx.setting_list("storeLists").is_empty(),
-            "bukan array -> kosong"
-        );
-        assert_eq!(
-            ctx.setting_entries("energi").count(),
-            0,
-            "bukan objek -> kosong"
-        );
+        assert!(ctx.setting_list("storeLists").is_empty(), "bukan array -> kosong");
+        assert_eq!(ctx.setting_entries("energi").count(), 0, "bukan objek -> kosong");
     }
 
     #[test]
@@ -2197,33 +2202,20 @@ mod tests {
             Some("c")
         );
         // Sticker tidak punya teks — router tidak boleh reply teks kosong.
-        assert_eq!(
-            Reply::Sticker {
-                media: None,
-                opsi: Default::default()
-            }
-            .text_body(),
-            None
-        );
+        assert_eq!(Reply::Sticker { media: None, opsi: Default::default() }.text_body(), None);
     }
 
     #[test]
     fn media_reply_carries_its_source() {
         let r = Reply::image(MediaSource::url("https://x/y.png"), "halo");
         assert!(r.has_media());
-        assert_eq!(
-            r.media_source().map(MediaSource::label).as_deref(),
-            Some("url")
-        );
+        assert_eq!(r.media_source().map(MediaSource::label).as_deref(), Some("url"));
         assert_eq!(r.media_source().and_then(MediaSource::mimetype), None);
 
         let with_mime = MediaSource::path("/tmp/a.png").with_mimetype("image/png");
         assert_eq!(with_mime.mimetype(), Some("image/png"));
         assert_eq!(
-            Reply::sticker(with_mime)
-                .media_source()
-                .map(MediaSource::label)
-                .as_deref(),
+            Reply::sticker(with_mime).media_source().map(MediaSource::label).as_deref(),
             Some("path")
         );
     }
@@ -2235,21 +2227,8 @@ mod tests {
         assert_eq!(Reply::None.media_source(), None);
         // `media: None` tetap variant media — sumbernya yang hilang, dan itu
         // yang harus jadi error di pipeline, bukan `has_media() == false`.
-        assert!(
-            Reply::Sticker {
-                media: None,
-                opsi: Default::default()
-            }
-            .has_media()
-        );
-        assert_eq!(
-            Reply::Sticker {
-                media: None,
-                opsi: Default::default()
-            }
-            .media_source(),
-            None
-        );
+        assert!(Reply::Sticker { media: None, opsi: Default::default() }.has_media());
+        assert_eq!(Reply::Sticker { media: None, opsi: Default::default() }.media_source(), None);
     }
 
     #[test]
@@ -2261,12 +2240,10 @@ mod tests {
 
     #[test]
     fn media_survives_the_reaction_wrapper() {
-        let wrapped = Reply::image(MediaSource::bytes(vec![9]), "cap").with_reaction("✅");
+        let wrapped = Reply::image(MediaSource::bytes(vec![9]), "cap")
+            .with_reaction("✅");
         assert!(wrapped.has_media());
-        assert_eq!(
-            wrapped.media_source().map(MediaSource::label).as_deref(),
-            Some("bytes(1)")
-        );
+        assert_eq!(wrapped.media_source().map(MediaSource::label).as_deref(), Some("bytes(1)"));
         // Reaksi tanpa balasan tetap bukan media.
         assert!(!Reply::None.with_reaction("✅").has_media());
     }
@@ -2315,16 +2292,10 @@ mod tests {
             group_data: serde_json::json!({"game": false, "members": ["a", "b"]}),
             ..Default::default()
         };
-        assert_eq!(
-            ctx.user_field("rpg.stamina").and_then(|v| v.as_i64()),
-            Some(30)
-        );
+        assert_eq!(ctx.user_field("rpg.stamina").and_then(|v| v.as_i64()), Some(30));
         assert_eq!(ctx.user_field("rpg.bank").and_then(|v| v.as_i64()), Some(0));
         assert_eq!(ctx.user_field("koin").and_then(|v| v.as_i64()), Some(5));
-        assert_eq!(
-            ctx.group_field("game").and_then(|v| v.as_bool()),
-            Some(false)
-        );
+        assert_eq!(ctx.group_field("game").and_then(|v| v.as_bool()), Some(false));
         assert_eq!(ctx.group_list("members").len(), 2);
         assert_eq!(ctx.user_field("rpg.hp"), None);
         assert_eq!(ctx.user_field(""), None, "segmen kosong harus ditolak");
@@ -2349,10 +2320,7 @@ mod tests {
             },
             ..Default::default()
         };
-        assert_eq!(
-            ctx.roster.member_jids(),
-            vec!["1@s.whatsapp.net".to_string()]
-        );
+        assert_eq!(ctx.roster.member_jids(), vec!["1@s.whatsapp.net".to_string()]);
         assert_eq!(ctx.user_field("koin"), None);
     }
 
@@ -2563,13 +2531,10 @@ mod tests {
         assert!(!prev.is_none());
         // Bukan kutipan pemicu: `TextQuoted` mengutip `m`, ini mengutip
         // kiriman bot sendiri.
-        assert_ne!(
-            prev,
-            Reply::TextQuoted {
-                text: "terima kasih".into(),
-                mentions: Vec::new(),
-            }
-        );
+        assert_ne!(prev, Reply::TextQuoted {
+            text: "terima kasih".into(),
+            mentions: Vec::new(),
+        });
     }
 
     #[test]
@@ -2603,11 +2568,7 @@ impl InteractiveButton {
     }
 
     /// `{ name: "cta_copy", buttonParamsJson: JSON.stringify({display_text, id, copy_code}) }`.
-    pub fn copy(
-        display_text: impl Into<String>,
-        id: impl Into<String>,
-        copy_code: impl Into<String>,
-    ) -> Self {
+    pub fn copy(display_text: impl Into<String>, id: impl Into<String>, copy_code: impl Into<String>) -> Self {
         Self::new(
             "cta_copy",
             serde_json::json!({
@@ -2657,10 +2618,7 @@ impl InteractiveButton {
 
     /// `{ name: "single_select", buttonParamsJson: JSON.stringify(list) }`.
     pub fn select(list: &CardList) -> Self {
-        Self::new(
-            "single_select",
-            serde_json::to_value(list).unwrap_or(Value::Null),
-        )
+        Self::new("single_select", serde_json::to_value(list).unwrap_or(Value::Null))
     }
 
     /// Tombol dengan nama aksi dan params kosong — dipakai `inapp_signup`
@@ -2928,4 +2886,5 @@ impl CardContext {
         self.quote_trigger = true;
         self
     }
+
 }

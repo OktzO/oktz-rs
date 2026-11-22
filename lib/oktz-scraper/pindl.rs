@@ -155,15 +155,9 @@ fn scrape_inti(http: &dyn HttpGet, pin_url: &str) -> Result<Value, HttpError> {
             .header("x-requested-with", "XMLHttpRequest")
             .header("origin", "https://ilovepin.net")
             .header("referer", "https://ilovepin.net/id")
-            .header(
-                "content-type",
-                "application/x-www-form-urlencoded; charset=UTF-8",
-            )
+            .header("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
             .header("cookie", cookie.as_str())
-            .raw(
-                body.into_bytes(),
-                "application/x-www-form-urlencoded; charset=UTF-8",
-            ),
+            .raw(body.into_bytes(), "application/x-www-form-urlencoded; charset=UTF-8"),
     )?;
     let data = res.json().unwrap_or(Value::Null);
 
@@ -208,10 +202,7 @@ fn scrape_inti(http: &dyn HttpGet, pin_url: &str) -> Result<Value, HttpError> {
     if let Some(t) = api.get("title") {
         result.insert("title".to_string(), t.clone());
     }
-    result.insert(
-        "description".to_string(),
-        deskripsi(api.get("description"))?,
-    );
+    result.insert("description".to_string(), deskripsi(api.get("description"))?);
 
     let mut author = Map::new();
     for (keluaran, sumber) in [
@@ -251,10 +242,7 @@ fn scrape_inti(http: &dyn HttpGet, pin_url: &str) -> Result<Value, HttpError> {
                     Value::String(if hd {
                         "HD".to_string()
                     } else {
-                        format!(
-                            "SD ({})",
-                            v.get("mediaRes").map(teks_js).unwrap_or_default()
-                        )
+                        format!("SD ({})", v.get("mediaRes").map(teks_js).unwrap_or_default())
                     }),
                 );
                 sisip_tiga_field(&mut m, v);
@@ -377,10 +365,7 @@ mod tests {
     fn video_terurut_dari_yang_terbesar_serta_kirim_cookie() {
         let mut http = stub(&["<html>", VIDEO]);
         http.header = vec![
-            (
-                "Set-Cookie".to_string(),
-                "PHPSESSID=abc; path=/".to_string(),
-            ),
+            ("Set-Cookie".to_string(), "PHPSESSID=abc; path=/".to_string()),
             ("set-cookie".to_string(), "csrf=def".to_string()),
         ];
         let hasil =
@@ -465,19 +450,13 @@ mod tests {
 
         // Body bukan JSON → `!data.api` → `null`.
         let bukan_json = stub(&["<html>", "<html>gaben"]);
-        assert!(
-            scrape_pinterest(&bukan_json, "https://x")
-                .unwrap()
-                .is_null()
-        );
+        assert!(scrape_pinterest(&bukan_json, "https://x").unwrap().is_null());
 
         // `mediaItems` truthy tapi bukan array → `.filter` melempar → `null`.
         let media_items_aneh = stub(&["<html>", r#"{"api":{"status":"OK","mediaItems":{"a":1}}}"#]);
-        assert!(
-            scrape_pinterest(&media_items_aneh, "https://x")
-                .unwrap()
-                .is_null()
-        );
+        assert!(scrape_pinterest(&media_items_aneh, "https://x")
+            .unwrap()
+            .is_null());
 
         // `mediaFileSize` bukan string pada salah satu video → `.includes`
         // melempar → `null`.
@@ -485,11 +464,7 @@ mod tests {
             "<html>",
             r#"{"api":{"status":"OK","mediaItems":[{"type":"Video","mediaFileSize":216}]}}"#,
         ]);
-        assert!(
-            scrape_pinterest(&ukuran_aneh, "https://x")
-                .unwrap()
-                .is_null()
-        );
+        assert!(scrape_pinterest(&ukuran_aneh, "https://x").unwrap().is_null());
     }
 
     #[test]

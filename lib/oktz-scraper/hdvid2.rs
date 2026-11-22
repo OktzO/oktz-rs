@@ -415,21 +415,11 @@ mod tests {
         // Urutan balasan mengikuti urutan permintaan JS (`hdvid2.js:196-209`):
         // upload url, PUT, create-job, get-job.
         let http = Stub::baru(vec![
-            (
-                200,
-                r#"{"code":100000,"result":{"url":"https://cdn/x/v.mp4?sig=abc"}}"#.to_string(),
-            ),
+            (200, r#"{"code":100000,"result":{"url":"https://cdn/x/v.mp4?sig=abc"}}"#.to_string()),
             // Balasan PUT dari signed URL: body kosong, yang penting statusnya.
             (200, String::new()),
-            (
-                200,
-                r#"{"code":100000,"result":{"job_id":"job-7"}}"#.to_string(),
-            ),
-            (
-                200,
-                r#"{"code":100000,"result":{"status":1,"output_url":["https://cdn/out.mp4"]}}"#
-                    .to_string(),
-            ),
+            (200, r#"{"code":100000,"result":{"job_id":"job-7"}}"#.to_string()),
+            (200, r#"{"code":100000,"result":{"status":1,"output_url":["https://cdn/out.mp4"]}}"#.to_string()),
         ]);
         let hasil = video_enhancer(&http, path.to_str().unwrap()).unwrap();
         assert_eq!(hasil["jobId"], "job-7");
@@ -437,11 +427,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
 
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(
-            p.len(),
-            4,
-            "empat permintaan: upload, put, create-job, get-job"
-        );
+        assert_eq!(p.len(), 4, "empat permintaan: upload, put, create-job, get-job");
 
         // 1) POST multipart upload, satu field, tanpa `filename`.
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
@@ -517,19 +503,10 @@ mod tests {
         let path = berkas_sementara("cepat.mp4", &[0]);
         // Empat balasan: upload url, PUT, create-job, get-job.
         let http = Stub::baru(vec![
-            (
-                200,
-                r#"{"code":100000,"result":{"url":"https://cdn/v.mp4"}}"#.to_string(),
-            ),
+            (200, r#"{"code":100000,"result":{"url":"https://cdn/v.mp4"}}"#.to_string()),
             (200, String::new()),
-            (
-                200,
-                r#"{"code":100000,"result":{"job_id":"j1"}}"#.to_string(),
-            ),
-            (
-                200,
-                r#"{"code":100000,"result":{"output_url":["https://cdn/o1.mp4"]}}"#.to_string(),
-            ),
+            (200, r#"{"code":100000,"result":{"job_id":"j1"}}"#.to_string()),
+            (200, r#"{"code":100000,"result":{"output_url":["https://cdn/o1.mp4"]}}"#.to_string()),
         ]);
         let hasil = video_enhancer(&http, path.to_str().unwrap()).unwrap();
         assert_eq!(hasil["jobId"], "j1");
@@ -557,14 +534,18 @@ mod tests {
         let http = Stub::baru(vec![(400, r#"{"code":1}"#.to_string())]);
         let galat = video_enhancer(&http, path.as_str()).unwrap_err();
         assert_eq!(
-            galat.message, r#"Gagal ambil upload url: {"code":1}"#,
+            galat.message,
+            r#"Gagal ambil upload url: {"code":1}"#,
             "status 400 bukan error transport, tapi memicu pesan upload"
         );
         let _ = std::fs::remove_file(&path);
     }
 
     fn berkas_semporary(nama: &str, isi: &[u8]) -> String {
-        berkas_sementara(nama, isi).to_str().unwrap().to_string()
+        berkas_sementara(nama, isi)
+            .to_str()
+            .unwrap()
+            .to_string()
     }
 
     #[test]
@@ -579,7 +560,8 @@ mod tests {
         ]);
         let galat = video_enhancer(&http, path.to_str().unwrap()).unwrap_err();
         assert_eq!(
-            galat.message, "Upload file gagal HTTP 500: server meltdown",
+            galat.message,
+            "Upload file gagal HTTP 500: server meltdown",
             "body non-JSON: axios tinggallah string, `typeof` = string"
         );
 
@@ -648,10 +630,7 @@ mod tests {
         assert_eq!(ext_to_mime("tanpa-ekstensi"), "application/octet-stream");
         // `randomProductSerial` hanya huruf kecil dan angka.
         let s = random_product_serial();
-        assert!(
-            s.chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-        );
+        assert!(s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
         // `crypto.randomUUID()` untuk `x-request-id`.
         let u = uuid_v4();
         assert_eq!(u.len(), 36);

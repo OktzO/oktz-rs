@@ -83,10 +83,7 @@ mod tests {
         assert_eq!(p.commands, ["albumhusbu"]);
         assert!(p.alias.is_empty());
         assert_eq!(p.category, "fun");
-        assert_eq!(
-            p.description,
-            "Lihat riwayat gacha husbu & statistik luck kamu!"
-        );
+        assert_eq!(p.description, "Lihat riwayat gacha husbu & statistik luck kamu!");
         assert_eq!(p.usage, ".husbualbum");
         assert_eq!(p.example, ".husbualbum");
         assert_eq!(p.cooldown, 5);
@@ -124,11 +121,7 @@ mod tests {
             serde_json::json!({"husbuHistory": []}),
             serde_json::json!({"husbuHistory": null}),
         ] {
-            assert_eq!(
-                reply_text(&ctx_of(user.clone())),
-                empty(&ctx_of(user.clone())),
-                "{user}"
-            );
+            assert_eq!(reply_text(&ctx_of(user.clone())), empty(&ctx_of(user.clone())), "{user}");
         }
         assert!(reply_text(&ctx_of(serde_json::json!(null))).contains("gachahusbu"));
     }
@@ -139,10 +132,7 @@ mod tests {
             "husbuHistory": [pull("Epic", "Yuki")],
             "husbuStats": {"totalGacha": 4, "byTier": {"Epic": 1, "Common": 3}}
         })));
-        assert!(
-            out.starts_with("📚 *ALBUM HUSBU & LUCK STATS* 📚\n\n"),
-            "{out}"
-        );
+        assert!(out.starts_with("📚 *ALBUM HUSBU & LUCK STATS* 📚\n\n"), "{out}");
         assert!(out.contains("🎲 *Total Gacha:* 4\n"), "{out}");
         for label in [
             "🟢 Common     ",
@@ -173,17 +163,10 @@ mod tests {
             "husbuHistory": [pull("Rare", "A")],
             "husbuStats": {"totalGacha": 10, "byTier": {"Rare": 1}}
         })));
-        let row = one_of_ten
-            .lines()
-            .find(|l| l.starts_with("🔵 Rare"))
-            .unwrap();
+        let row = one_of_ten.lines().find(|l| l.starts_with("🔵 Rare")).unwrap();
         let cells: String = row.chars().filter(|c| *c == '█' || *c == '░').collect();
         assert_eq!(cells.chars().count(), 20, "bar harus 20 sel: {row:?}");
-        assert_eq!(
-            cells.chars().filter(|c| *c == '█').count(),
-            2,
-            "1/10 → 2 sel: {row:?}"
-        );
+        assert_eq!(cells.chars().filter(|c| *c == '█').count(), 2, "1/10 → 2 sel: {row:?}");
 
         let full = reply_text(&ctx_of(serde_json::json!({
             "husbuHistory": [pull("Rare", "A")],
@@ -248,14 +231,8 @@ mod tests {
                 "pityCounter": 7
             }
         })));
-        assert!(
-            full.contains("🏆 *Pull Paling Langka:* 🔴 Ravena (Mythic)\n"),
-            "{full}"
-        );
-        assert!(
-            full.contains("🎯 *Pity aktif:* 7/20 roll tanpa Epic+\n"),
-            "{full}"
-        );
+        assert!(full.contains("🏆 *Pull Paling Langka:* 🔴 Ravena (Mythic)\n"), "{full}");
+        assert!(full.contains("🎯 *Pity aktif:* 7/20 roll tanpa Epic+\n"), "{full}");
         assert!(full.contains("💍 *Pernikahan:* 0\n"), "{full}");
     }
 
@@ -272,10 +249,7 @@ mod tests {
             .filter(|l| l.starts_with(|c: char| c.is_ascii_digit()) && l.contains(" — "))
             .count();
         assert_eq!(listed, 10, "harus tepat 10: {out}");
-        assert!(
-            out.contains("1. 🟢 *H14* — Common\n"),
-            "paling baru dulu: {out}"
-        );
+        assert!(out.contains("1. 🟢 *H14* — Common\n"), "paling baru dulu: {out}");
         assert!(out.contains("10. 🟢 *H5* — Common\n"), "sampai H5: {out}");
         assert!(!out.contains("*H4*"), "H4 sudah di luar 10 terakhir: {out}");
     }
@@ -299,10 +273,7 @@ mod tests {
             serde_json::json!({"husbuHistory": [pull("Epic", "A")]}),
             serde_json::json!({"husbuHistory": [pull("Epic", "A")], "husbuStats": {"totalGacha": 9}}),
         ] {
-            assert!(
-                husbualbum(ctx_of(user.clone())).text_body().is_some(),
-                "{user}"
-            );
+            assert!(husbualbum(ctx_of(user.clone())).text_body().is_some(), "{user}");
         }
     }
 }

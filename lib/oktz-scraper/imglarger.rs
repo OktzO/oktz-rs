@@ -90,23 +90,23 @@ pub fn upload_image(
             MultipartPart::field("scaleRadio", "2"),
         ]),
     )?;
-    res.json().ok_or_else(|| HttpError {
-        message: "respons UploadNew bukan JSON".to_string(),
-    })
+    res.json()
+        .ok_or_else(|| HttpError {
+            message: "respons UploadNew bukan JSON".to_string(),
+        })
 }
 
 /// `checkStatus(code)` (`imglarger.js:40-57`) → `response.data`.
 pub fn check_status(http: &dyn HttpGet, code: &Value) -> Result<Value, HttpError> {
     let res = http.call(
-        &header_dasar(HttpCall::post(format!(
-            "{BASE}/api/UpscalerNew/CheckStatusNew"
-        )))
-        .header("Content-Type", "application/json")
-        .json(&json!({ "code": code, "scaleRadio": 2 })),
+        &header_dasar(HttpCall::post(format!("{BASE}/api/UpscalerNew/CheckStatusNew")))
+            .header("Content-Type", "application/json")
+            .json(&json!({ "code": code, "scaleRadio": 2 })),
     )?;
-    res.json().ok_or_else(|| HttpError {
-        message: "respons CheckStatusNew bukan JSON".to_string(),
-    })
+    res.json()
+        .ok_or_else(|| HttpError {
+            message: "respons CheckStatusNew bukan JSON".to_string(),
+        })
 }
 
 /// `waitForResult(code)` (`imglarger.js:59-80`) — 10 percobaan, jeda 3 detik.
@@ -132,8 +132,7 @@ pub fn wait_for_result(http: &dyn HttpGet, code: &Value) -> Result<Value, HttpEr
                 unduh || gambar
             }
         };
-        let is_success =
-            data.get("status").and_then(Value::as_str) == Some("success") || has_download;
+        let is_success = data.get("status").and_then(Value::as_str) == Some("success") || has_download;
 
         // `result?.code === 200 && isSuccess`
         if hasil.get("code").and_then(Value::as_f64) == Some(200.0) && is_success {
@@ -240,10 +239,7 @@ mod tests {
 
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
-        assert_eq!(
-            p[0].url,
-            "https://get1.imglarger.com/api/UpscalerNew/UploadNew"
-        );
+        assert_eq!(p[0].url, "https://get1.imglarger.com/api/UpscalerNew/UploadNew");
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
         let Some(HttpBody::Multipart(parts)) = &p[0].body else {
             panic!("body bukan multipart");
@@ -257,11 +253,7 @@ mod tests {
         assert_eq!(parts[1].file_name, None);
         assert_eq!(parts[1].body.bytes(), &b"2"[..]);
         // Header kelas ImgUpscaler ikut di kedua permintaan.
-        assert!(
-            cari_header(&p[0], "user-agent")
-                .unwrap()
-                .contains("Chrome/145")
-        );
+        assert!(cari_header(&p[0], "user-agent").unwrap().contains("Chrome/145"));
         assert_eq!(
             cari_header(&p[0], "origin"),
             Some("https://imgupscaler.com".to_string())

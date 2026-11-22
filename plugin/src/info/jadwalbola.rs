@@ -195,6 +195,7 @@ fn error_branch(ctx: &Ctx) -> Reply {
 mod tests {
     use super::*;
 
+
     fn run(filter: &str) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
@@ -265,7 +266,10 @@ mod tests {
 
     #[test]
     fn the_api_url_carries_the_config_key() {
-        assert_eq!(url("KUNCI"), "https://api.neoxr.eu/api/bola?apikey=KUNCI");
+        assert_eq!(
+            url("KUNCI"),
+            "https://api.neoxr.eu/api/bola?apikey=KUNCI"
+        );
         // `Ctx::default()` config-nya kosong, jadi jalurINI tetap menghasilkan
         // `apikey=` persis seperti `process.env.APIKEY_NEOXR || ""`.
         assert_eq!(url(""), "https://api.neoxr.eu/api/bola?apikey=");
@@ -374,18 +378,18 @@ mod tests {
         // `"champions league".includes("liga champions")` dan
         // `"liga champions".includes("champions league")` sama-sama false,
         // jadi JS jatuh ke `⚽`.
-        assert_eq!(
-            league_emoji("Champions League"),
-            "⚽",
-            "urut kata tidak sama"
-        );
+        assert_eq!(league_emoji("Champions League"), "⚽", "urut kata tidak sama");
         // `lower.includes(key)` menang lebih dulu: "Liga Italia" memuat
         // "liga italia", dan urutan peta menempatkan Italia sebelum Spanyol.
         assert_eq!(league_emoji("Liga Italia"), "🇮🇹");
         // `key.includes(lower)` — arah `includes` yang terbalik: "champ" bukan
         // substring dari "liga champions", tapi sebaliknya benar.
         assert_eq!(league_emoji("Champ"), "🏆");
-        assert_eq!(league_emoji("Liga"), "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "string pendek → kunci pertama");
+        assert_eq!(
+            league_emoji("Liga"),
+            "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+            "string pendek → kunci pertama"
+        );
         assert_eq!(league_emoji("Liga nowhere"), "⚽", "tidak ada yang cocok");
     }
 }

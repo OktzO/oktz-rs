@@ -8,6 +8,7 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
+
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
 /// `prabowo-ai.js:22-30`.
@@ -50,9 +51,8 @@ pub fn prabowo_ai(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("Prabowo AI Error", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => {
-            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
-        }
+        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢"),
     }
 }
 
@@ -200,10 +200,7 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "prabowo-ai")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "prabowo-ai"));
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

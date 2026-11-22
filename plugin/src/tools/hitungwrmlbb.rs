@@ -94,14 +94,15 @@ pub fn hitungwrmlbb(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
     };
 
-    let data =
-        match res.json() {
-            Some(v) => v,
-            None => return Reply::text(
+    let data = match res.json() {
+        Some(v) => v,
+        None => {
+            return Reply::text(
                 "⚠️ Gagal menghitung Win Rate. Pastikan angkanya masuk akal atau coba lagi nanti.",
             )
-            .with_reaction("❌"),
-        };
+            .with_reaction("❌")
+        }
+    };
 
     // JS: `if (!data.status || !data.result)`.
     let status_ok = data
@@ -287,9 +288,7 @@ mod tests {
         assert!(text_of(&r).contains("Kamu butuh 100 kemasan..."));
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
-            &[
-                "https://api.nexray.eu.cc/tools/winrate-mlbb?total_match=4242&wr_now=22&wr_target=88"
-            ]
+            &["https://api.nexray.eu.cc/tools/winrate-mlbb?total_match=4242&wr_now=22&wr_target=88"]
         );
     }
 

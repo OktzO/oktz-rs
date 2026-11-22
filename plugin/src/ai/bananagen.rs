@@ -39,24 +39,30 @@ pub fn bananagen(ctx: Ctx) -> Reply {
     }
 
     let is_image = ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image());
+        || ctx
+            .quoted()
+            .is_some_and(|q| q.kind.is_image());
 
     if !is_image {
-        return Reply::text("🍌 *ɴᴀɴᴏ ʙᴀɴᴀɴᴀ*\n\n> Reply atau kirim gambar dengan caption");
+        return Reply::text(
+            "🍌 *ɴᴀɴᴏ ʙᴀɴᴀɴᴀ*\n\n> Reply atau kirim gambar dengan caption",
+        );
     }
 
     let buffer = if ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image) {
         match ctx.download_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar").with_reaction("❌");
+                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar")
+                    .with_reaction("❌");
             }
         }
     } else {
         match ctx.download_quoted_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar").with_reaction("❌");
+                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar")
+                    .with_reaction("❌");
             }
         }
     };
@@ -181,11 +187,7 @@ mod tests {
         quoted: bool,
         text: &str,
     ) -> Reply {
-        let args: Vec<String> = text
-            .split_whitespace()
-            .skip(1)
-            .map(|s| s.to_string())
-            .collect();
+        let args: Vec<String> = text.split_whitespace().skip(1).map(|s| s.to_string()).collect();
         let ctx = Ctx {
             text: text.to_string(),
             args,
@@ -213,8 +215,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-                    timestamp: 0,
-                })
+            timestamp: 0,
+        })
             } else {
                 None
             },
@@ -246,13 +248,7 @@ mod tests {
 
     #[test]
     fn tanpa_gambar_tampilkan_pesan() {
-        let r = run(
-            HttpStub::offline(),
-            None,
-            false,
-            false,
-            ".bananagen make it anime",
-        );
+        let r = run(HttpStub::offline(), None, false, false, ".bananagen make it anime");
         assert!(body(&r).contains("ɴᴀɴᴏ ʙᴀɴᴀɴᴀ"));
     }
 
@@ -286,13 +282,7 @@ mod tests {
             r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "GAMBAR",
         ]);
-        let r = run(
-            http.clone(),
-            Some(vec![9, 8, 7]),
-            false,
-            false,
-            ".bananagen make it anime",
-        );
+        let r = run(http.clone(), Some(vec![9, 8, 7]), false, false, ".bananagen make it anime");
         // nanobanana sukses -> Image dengan reaction ✅
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "✅"),
@@ -343,13 +333,7 @@ mod tests {
             r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "",
         ]);
-        let r = run(
-            http,
-            Some(vec![1, 2, 3]),
-            false,
-            false,
-            ".bananagen make it anime",
-        );
+        let r = run(http, Some(vec![1, 2, 3]), false, false, ".bananagen make it anime");
         assert!(body(&r).contains("kendala"));
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "❌"),

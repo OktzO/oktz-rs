@@ -17,7 +17,7 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::js_truthy;
+use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` (`config.js`) = `process.env.APIKEY_NEOXR || ""`.
@@ -95,7 +95,8 @@ pub fn android1_get(ctx: Ctx) -> Reply {
             app.get("name").and_then(Value::as_str).unwrap_or(""),
         )
         .with_reaction("✅"),
-        None => Reply::interactive(NO_DOWNLOAD_URL.to_string()).with_reaction("⚠️"),
+        None => Reply::interactive(NO_DOWNLOAD_URL.to_string())
+        .with_reaction("⚠️"),
     }
 }
 
@@ -129,12 +130,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self
-                .body
-                .clone()
-                .ok_or_else(|| oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                })?;
+            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -187,8 +185,7 @@ mod tests {
         }
     }
 
-    const ADA_URL: &str =
-        r#"{"status": true, "data": {"name": "Subway Surfers", "url": "https://an1.com/a/1.apk"}}"#;
+    const ADA_URL: &str = r#"{"status": true, "data": {"name": "Subway Surfers", "url": "https://an1.com/a/1.apk"}}"#;
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -221,11 +218,7 @@ mod tests {
     fn a_blank_or_foreign_url_is_refused_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   ", "https://apkpure.com/x", "an1 com", "😀😀😀"] {
-            assert_eq!(
-                body_of(&run(http.clone(), text)),
-                INVALID_URL,
-                "input {text:?}"
-            );
+            assert_eq!(body_of(&run(http.clone(), text)), INVALID_URL, "input {text:?}");
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -269,13 +262,7 @@ mod tests {
             let r = run(Stub::new(body), "https://an1.com/a");
             assert_eq!(body_of(&r), NO_DOWNLOAD_URL, "{body}");
             assert_eq!(reaction_of(&r), Some("⚠️"), "{body}");
-            assert!(
-                matches!(
-                    r.without_mutations().tanpa_reaksi(),
-                    Reply::Interactive { .. }
-                ),
-                "{body}"
-            );
+            assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Interactive { .. }), "{body}");
         }
     }
 
@@ -288,11 +275,7 @@ mod tests {
             "<html>bukan json</html>",
         ] {
             let r = run(Stub::new(body), "https://an1.com/a");
-            assert_eq!(
-                body_of(&r),
-                crate::common::error_template_bawaan(".", "android1-get"),
-                "{body}"
-            );
+            assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "android1-get"), "{body}");
             assert_eq!(reaction_of(&r), Some("☢"), "{body}");
         }
     }
@@ -300,11 +283,7 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::empty(), "https://an1.com/a");
-        assert!(
-            body_of(&r).contains("command `.android1-get`"),
-            "{}",
-            body_of(&r)
-        );
+        assert!(body_of(&r).contains("command `.android1-get`"), "{}", body_of(&r));
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

@@ -7,7 +7,7 @@
 //! dicapai sudah Dixplicit `return m.reply(...)` di JS.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::rpg::jualan::{inventory_map, thousands_en};
@@ -19,13 +19,7 @@ pub(crate) const SHOP_ITEMS: [(&str, &str, i64, i64, &str); 14] = [
     ("manapotion", "💙 Mana Potion", 150, 75, "Pulihkan 50 Mana"),
     ("antidote", "💊 Antidote", 80, 40, "Sembuhkan racun"),
     ("bread", "🍞 Roti", 30, 15, "Pulihkan 10 stamina"),
-    (
-        "energydrink",
-        "⚡ Energy Drink",
-        200,
-        100,
-        "Pulihkan 50 stamina",
-    ),
+    ("energydrink", "⚡ Energy Drink", 200, 100, "Pulihkan 50 stamina"),
     ("pickaxe", "⛏️ Beliung", 500, 250, "Untuk mining"),
     ("fishingrod", "🎣 Joran", 400, 200, "Untuk memancing"),
     ("wood", "🪵 Kayu", 50, 25, "Material dasar"),
@@ -38,7 +32,10 @@ pub(crate) const SHOP_ITEMS: [(&str, &str, i64, i64, &str); 14] = [
 ];
 
 pub(crate) fn find_item(key: &str) -> Option<(&'static str, &'static str, i64, i64, &'static str)> {
-    SHOP_ITEMS.iter().find(|i| i.0 == key).copied()
+    SHOP_ITEMS
+        .iter()
+        .find(|i| i.0 == key)
+        .copied()
 }
 
 /// `Math.max(1, parseInt(args[2]) || 1)`.
@@ -265,26 +262,17 @@ mod tests {
         let t = text(run(&["list"], serde_json::json!({})));
         let pos = |s: &str| t.find(s).unwrap_or_else(|| panic!("{s} hilang"));
         assert!(pos("🧪 Potion") < pos("💎 Berlian"), "{t}");
-        assert!(
-            t.contains("> 💵 Beli: 2,000\n> 💰 Jual: 1,000\n> 📝 Material mewah\n> → `diamond`\n")
-        );
+        assert!(t.contains("> 💵 Beli: 2,000\n> 💰 Jual: 1,000\n> 📝 Material mewah\n> → `diamond`\n"));
         assert!(!t.contains("> → ``"), "kunci tidak boleh kosong");
     }
 
     #[test]
     fn buying_moves_money_and_stacks_the_item() {
-        let r = run(
-            &["buy", "potion", "3"],
-            serde_json::json!({"koin": 500, "inventory": {"potion": 2}}),
-        );
+        let r = run(&["buy", "potion", "3"], serde_json::json!({"koin": 500, "inventory": {"potion": 2}}));
         let d = written(&r);
         assert_eq!(d["koin"], serde_json::json!(200), "500 - 3*100");
         assert_eq!(d["inventory"]["potion"], serde_json::json!(5), "2 + 3");
-        assert!(
-            text_of(&r).contains("> 💵 Total: *-300*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> 💵 Total: *-300*"), "{}", text_of(&r));
     }
 
     #[test]
@@ -299,37 +287,24 @@ mod tests {
 
     #[test]
     fn selling_the_last_copy_removes_the_key_entirely() {
-        let r = run(
-            &["sell", "iron", "2"],
-            serde_json::json!({"koin": 0, "inventory": {"iron": 2, "wood": 9}}),
-        );
+        let r = run(&["sell", "iron", "2"], serde_json::json!({"koin": 0, "inventory": {"iron": 2, "wood": 9}}));
         let d = written(&r);
         let inv = d["inventory"].as_object().unwrap();
         assert!(!inv.contains_key("iron"), "sisa 0 dihapus: {inv:?}");
-        assert_eq!(
-            inv["wood"],
-            serde_json::json!(9),
-            "item lain tidak boleh tersentuh"
-        );
+        assert_eq!(inv["wood"], serde_json::json!(9), "item lain tidak boleh tersentuh");
         assert_eq!(d["koin"], serde_json::json!(80), "2 * sellPrice 40");
     }
 
     #[test]
     fn selling_a_partial_stack_keeps_the_remainder() {
-        let r = run(
-            &["sell", "iron", "1"],
-            serde_json::json!({"inventory": {"iron": 5}}),
-        );
+        let r = run(&["sell", "iron", "1"], serde_json::json!({"inventory": {"iron": 5}}));
         assert_eq!(written(&r)["inventory"]["iron"], serde_json::json!(4));
         assert_eq!(written(&r)["koin"], serde_json::json!(40));
     }
 
     #[test]
     fn selling_more_than_you_own_is_refused() {
-        let r = run(
-            &["sell", "iron", "3"],
-            serde_json::json!({"inventory": {"iron": 2}}),
-        );
+        let r = run(&["sell", "iron", "3"], serde_json::json!({"inventory": {"iron": 2}}));
         let t = text_of(&r);
         assert!(t.starts_with("❌ *ɪᴛᴇᴍ ᴋᴜʀᴀɴɢ*"), "{t}");
         assert!(t.contains("> Punya: 2\n> Mau jual: 3"), "{t}");
@@ -353,11 +328,7 @@ mod tests {
             vec!["buy", "potion", "-7"],
         ] {
             let r = run(&args, serde_json::json!({"koin": 10_000}));
-            assert_eq!(
-                written(&r)["inventory"]["potion"],
-                serde_json::json!(1),
-                "{args:?}"
-            );
+            assert_eq!(written(&r)["inventory"]["potion"], serde_json::json!(1), "{args:?}");
             assert_eq!(written(&r)["koin"], serde_json::json!(9900), "{args:?}");
         }
     }

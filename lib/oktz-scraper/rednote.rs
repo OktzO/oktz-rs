@@ -175,7 +175,10 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
-        assert_eq!(p[0].url, "https://rednote.savevideodown.com/api/download");
+        assert_eq!(
+            p[0].url,
+            "https://rednote.savevideodown.com/api/download"
+        );
         assert_eq!(cari_header(&p[0], "content-type"), Some("application/json"));
         assert_eq!(
             cari_header(&p[0], "referer"),
@@ -271,9 +274,6 @@ mod tests {
         // `resData` jadi string, `success` dan `error` keduanya `undefined`.
         let http = Stub::baru("<html>halo</html>");
         let hasil = red_note_dl(&http, "u").unwrap();
-        assert_eq!(
-            hasil,
-            json!({ "status": false, "error": "Gagal mengambil data" })
-        );
+        assert_eq!(hasil, json!({ "status": false, "error": "Gagal mengambil data" }));
     }
 }

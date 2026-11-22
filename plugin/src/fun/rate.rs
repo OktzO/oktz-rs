@@ -111,7 +111,8 @@ mod tests {
             let sisa = t.strip_prefix("Rating dari aku: *").expect("prefix rating");
             let (score, comment) = sisa.split_once("*\n").expect("pola <score>*\\n<komentar>");
             assert!(
-                RATE.iter().any(|(sc, cm)| *sc == score && *cm == comment),
+                RATE.iter()
+                    .any(|(sc, cm)| *sc == score && *cm == comment),
                 "rating di luar tabel JS: {score} / {comment}"
             );
         }

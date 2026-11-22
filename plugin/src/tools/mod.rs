@@ -57,7 +57,6 @@ pub mod removebg;
 // Port dari `oktz-md/plugins/tools/` (kategori tools).
 pub mod bandingkan_hp;
 pub mod cekidch;
-pub mod cekkartu;
 pub mod converter;
 pub mod crm;
 pub mod hd2;
@@ -69,3 +68,4 @@ pub mod qwa;
 pub mod toaudio;
 pub mod tourl;
 pub mod transkrip;
+pub mod cekkartu;

@@ -4,7 +4,9 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `txt2qr.js:23` — kartu pakai saat teks kosong.
 pub(crate) fn help(prefix: &str) -> String {
-    format!("📱 *ᴛᴇxᴛ ᴛᴏ Qʀ*\n\n> Masukkan teks/URL\n\n`Contoh: {prefix}txt2qr https://google.com`")
+    format!(
+        "📱 *ᴛᴇxᴛ ᴛᴏ Qʀ*\n\n> Masukkan teks/URL\n\n`Contoh: {prefix}txt2qr https://google.com`"
+    )
 }
 
 #[plugin(
@@ -33,10 +35,7 @@ pub fn txt2qr(ctx: Ctx) -> Reply {
     // membutuhkan crate gambar yang belum ada di dependensi crate ini.
     // Tambahkan renderer QR di sini (atau panggil lewat `oktz_scraper`) bila
     // tersedia. Sementara, balas pesan teks yang meniru output JS.
-    Reply::text(format!(
-        "📱 *Qʀ ᴄᴏᴅᴇ*\n\n> {}",
-        &text[..text.len().min(100)]
-    ))
+    Reply::text(format!("📱 *Qʀ ᴄᴏᴅᴇ*\n\n> {}", &text[..text.len().min(100)]))
 }
 
 #[cfg(test)]

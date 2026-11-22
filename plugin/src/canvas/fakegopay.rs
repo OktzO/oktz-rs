@@ -260,10 +260,7 @@ mod tests {
         // CJK ditulis sebagai escape supaya file ini tetap tanpa huruf
         // non-Latin; byte UTF-8-nya tetap yang diuji.
         let s = stub();
-        let r = run(
-            s.clone(),
-            "\u{65E5}\u{672C}\u{8A9E}|emoji|\u{FFFD}|Desember",
-        );
+        let r = run(s.clone(), "\u{65E5}\u{672C}\u{8A9E}|emoji|\u{FFFD}|Desember");
         assert!(r.has_media());
         let seen = s.seen.lock().unwrap()[0].clone();
         assert!(seen.contains("%E6%97%A5%E6%9C%AC%E8%AA%9E"), "{seen}");
@@ -279,10 +276,7 @@ mod tests {
         };
         let r = (oktz_plugin_api::find("fakegopay").unwrap().handler)(ctx);
         assert!(!r.has_media());
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "fakegopay")
-        );
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "fakegopay"));
         assert_eq!(reaction_of(&r), Some("❌"));
     }
 }

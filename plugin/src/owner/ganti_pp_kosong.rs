@@ -85,7 +85,10 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("ganti-pp-kosong.jpg").unwrap();
         assert_eq!(p.meta.name, "ganti-pp-kosong.jpg");
-        assert_eq!(p.meta.alias, ["gantippkosong", "setppkosong"]);
+        assert_eq!(
+            p.meta.alias,
+            ["gantippkosong", "setppkosong"]
+        );
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);

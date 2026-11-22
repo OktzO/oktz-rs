@@ -76,10 +76,7 @@ mod tests {
     fn the_normal_branch_sends_the_china_endpoint_as_an_image() {
         let r = run();
         assert!(r.has_media(), "harus image, bukan teks");
-        assert_eq!(
-            r.media_source().map(MediaSource::label).as_deref(),
-            Some("url")
-        );
+        assert_eq!(r.media_source().map(MediaSource::label).as_deref(), Some("url"));
         let src = r.media_source().expect("sumber media");
         match src {
             MediaSource::Url { url, .. } => assert_eq!(url, CECANCHINA_URL),

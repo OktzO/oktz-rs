@@ -65,7 +65,7 @@ pub fn antibot(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -137,23 +137,14 @@ mod tests {
     #[test]
     fn status_reflects_the_stored_flag() {
         let r = run(serde_json::json!({ "antibot": true }), "");
-        assert!(
-            text_of(&r).contains("> Status: ✅ Aktif"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> Status: ✅ Aktif"), "{}", text_of(&r));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_falsy_stored_value_reports_nonaktif() {
         // `groupData.antibot || false` — `0`, `""`, dan `null` semuanya falsy.
-        for stored in [
-            serde_json::json!(null),
-            serde_json::json!(false),
-            serde_json::json!(0),
-            serde_json::json!(""),
-        ] {
+        for stored in [serde_json::json!(null), serde_json::json!(false), serde_json::json!(0), serde_json::json!("")] {
             let r = run(serde_json::json!({ "antibot": stored }), "");
             assert!(
                 text_of(&r).contains("> Status: ❌ Nonaktif"),

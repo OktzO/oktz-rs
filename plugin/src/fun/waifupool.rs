@@ -45,10 +45,7 @@ pub(crate) struct NavQuery {
 
 #[cfg(test)]
 pub(crate) fn parse_nav_query(args: &[String]) -> NavQuery {
-    let first = args
-        .first()
-        .map(|a| a.to_ascii_lowercase())
-        .unwrap_or_default();
+    let first = args.first().map(|a| a.to_ascii_lowercase()).unwrap_or_default();
     let is_nav = (first == "prev" || first == "next") && args.len() > 1;
     let nav = if is_nav { Some(first.clone()) } else { None };
     let bagian = if is_nav { &args[1..] } else { args };
@@ -89,12 +86,7 @@ pub(crate) fn render_entri(index: usize, w: &Waifu) -> String {
 
 /// Header teks (`waifupool.js:57-59`). Dipakai hanya oleh test.
 #[cfg(test)]
-pub(crate) fn render_header(
-    query: Option<&str>,
-    pool_len: usize,
-    cur: usize,
-    total: usize,
-) -> String {
+pub(crate) fn render_header(query: Option<&str>, pool_len: usize, cur: usize, total: usize) -> String {
     let mut out = String::from("📖 *WAIFU POOL* 📖\n\n");
     if let Some(q) = query {
         out.push_str(&format!("🔍 Pencarian: *\"{q}\"*\n"));
@@ -107,8 +99,7 @@ pub(crate) fn render_header(
 
 /// Tidak ada kecocokan (`waifupool.js:50-51`). Dipakai hanya oleh test.
 #[cfg(test)]
-pub(crate) const TIDAK_ADA_WAIFU: &str =
-    "🔍 Tidak ada waifu cocok dengan \"{query}\". Coba nama/tier/franchise lain.";
+pub(crate) const TIDAK_ADA_WAIFU: &str = "🔍 Tidak ada waifu cocok dengan \"{query}\". Coba nama/tier/franchise lain.";
 
 #[cfg(test)]
 pub(crate) fn tidak_ada_waifu(query: &str) -> String {
@@ -219,10 +210,7 @@ mod tests {
             personality: "Tsundere".into(),
         };
         let out = render_entri(5, &w);
-        assert_eq!(
-            out,
-            "5. 🔵 *Nagatoro* — Rare\n   🏷️ Don't Toy With Me | 🎭 Tsundere\n"
-        );
+        assert_eq!(out, "5. 🔵 *Nagatoro* — Rare\n   🏷️ Don't Toy With Me | 🎭 Tsundere\n");
     }
 
     #[test]
@@ -255,9 +243,11 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "waifupool")
         );
-        assert!(matches!(
-            r.without_mutations(),
-            Reply::Reaction { emoji, .. } if emoji == "☢"
-        ));
+        assert!(
+            matches!(
+                r.without_mutations(),
+                Reply::Reaction { emoji, .. } if emoji == "☢"
+            )
+        );
     }
 }

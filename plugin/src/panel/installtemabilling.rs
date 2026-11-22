@@ -84,9 +84,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     #[test]
@@ -121,10 +119,7 @@ mod tests {
             let t = text_of(&__balasan);
             assert!(t.starts_with("╭┈┈⬡「 🎨 *ɪɴsᴛᴀʟʟ ᴛᴇᴍᴀ ʙɪʟʟɪɴɢ* 」"), "{t}");
             assert!(t.contains("`.installtemabilling <ip>|<password>`"), "{t}");
-            assert!(
-                t.contains("Contoh: .installtemabilling 192.168.1.1|secretpass"),
-                "{t}"
-            );
+            assert!(t.contains("Contoh: .installtemabilling 192.168.1.1|secretpass"), "{t}");
         }
     }
 

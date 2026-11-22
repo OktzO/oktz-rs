@@ -10,7 +10,7 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::js_truthy;
+use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `mcpedl.js:50` — kartu pakai; contoh memakai command `mcpe`, bukan
@@ -150,11 +150,14 @@ pub fn mcpedl(ctx: Ctx) -> Reply {
 
     // `axios.get` melempar untuk status >= 400 dan error transport; keduanya
     // masuk `catch` yang sama.
-    let Ok(res) = ctx.http.call(
-        &oktz_plugin_api::HttpCall::get(api_url(query, &ctx.config().api_keys.cuki))
-            .header("x-api-key", &ctx.config().api_keys.cuki)
-            .header("user-agent", "Mozilla/5.0"),
-    ) else {
+    let Ok(res) = ctx
+        .http
+        .call(
+            &oktz_plugin_api::HttpCall::get(api_url(query, &ctx.config().api_keys.cuki))
+                .header("x-api-key", &ctx.config().api_keys.cuki)
+                .header("user-agent", "Mozilla/5.0"),
+        )
+    else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
@@ -173,8 +176,10 @@ pub fn mcpedl(ctx: Ctx) -> Reply {
 
     let items = take_items(data);
     if items.is_empty() {
-        return Reply::text(format!("❌ Tidak ditemukan hasil MCPEDL untuk: {query}"))
-            .with_reaction("❌");
+        return Reply::text(format!(
+            "❌ Tidak ditemukan hasil MCPEDL untuk: {query}"
+        ))
+        .with_reaction("❌");
     }
 
     let cap = caption(&items, data, query);
@@ -267,10 +272,7 @@ mod tests {
         assert_eq!(p.meta.name, "mcpedl");
         assert_eq!(p.meta.alias, ["mcpe", "mcpesearch", "searchmcpe"]);
         assert_eq!(p.meta.category, "search");
-        assert_eq!(
-            p.meta.description,
-            "Cari map dan addon Minecraft PE dari MCPEDL"
-        );
+        assert_eq!(p.meta.description, "Cari map dan addon Minecraft PE dari MCPEDL");
         assert_eq!(p.meta.usage, ".mcpe <query>");
         assert_eq!(p.meta.example, ".mcpe survival");
         assert_eq!(p.meta.cooldown, 8);
@@ -343,16 +345,8 @@ mod tests {
         let items = take_items(&data);
         assert_eq!(items.len(), 10);
         let t = caption(&items, &data, "q");
-        assert!(
-            t.starts_with(
-                "🧱 *MCPEDL SEARCH*\n\n🔎 *Query:* q\n📦 *Total:* 10\n🌐 *Source:* mcpedl.org\n\n"
-            ),
-            "{t}"
-        );
-        assert!(
-            t.contains("*1.* Map 0\n   ├ ⭐ Rating: -\n   ├ https://m/0\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("🧱 *MCPEDL SEARCH*\n\n🔎 *Query:* q\n📦 *Total:* 10\n🌐 *Source:* mcpedl.org\n\n"), "{t}");
+        assert!(t.contains("*1.* Map 0\n   ├ ⭐ Rating: -\n   ├ https://m/0\n"), "{t}");
         assert!(t.contains("*10.* Map 9\n"), "{t}");
         assert!(!t.contains("Map 10"), "hasil ke-11 terpotong: {t}");
     }
@@ -362,10 +356,7 @@ mod tests {
         // `item.rating || '-'` — `0` falsy di JS.
         let data = serde_json::json!({ "results": [ { "title": "M", "link": "l", "rating": 0 } ] });
         let items = take_items(&data);
-        assert!(
-            caption(&items, &data, "q").contains("⭐ Rating: -"),
-            "0 falsy"
-        );
+        assert!(caption(&items, &data, "q").contains("⭐ Rating: -"), "0 falsy");
     }
 
     #[test]
@@ -373,7 +364,9 @@ mod tests {
         // Handler menolak bentuk ini sebelum `take_items` dipanggil, karena di
         // JS `!Array.isArray(..)` melempar.
         let data = serde_json::json!({ "results": "bukan array" });
-        assert!(!data.get("results").is_some_and(Value::is_array));
+        assert!(!data
+            .get("results")
+            .is_some_and(Value::is_array));
         assert!(take_items(&data).is_empty(), "fungsi murni tetap defensif");
     }
 
@@ -382,10 +375,7 @@ mod tests {
         let data = serde_json::json!({ "results": [ { "title": "Tanpa field" } ] });
         let items = take_items(&data);
         let t = caption(&items, &data, "q");
-        assert!(
-            t.ends_with("*1.* Tanpa field\n   ├ ⭐ Rating: -\n   ├ undefined"),
-            "{t}"
-        );
+        assert!(t.ends_with("*1.* Tanpa field\n   ├ ⭐ Rating: -\n   ├ undefined"), "{t}");
         assert_eq!(interp(None), "undefined");
         assert_eq!(interp(Some(&serde_json::json!(null))), "null");
         assert_eq!(interp(Some(&serde_json::json!(12))), "12");

@@ -31,7 +31,9 @@ fn normalize_number(value: &str) -> String {
 /// `c === n || c.endsWith(n) || n.endsWith(c)` — dipakai `checkban.js`, bukan
 /// `matchesNumber` yang dipakai `config.isBanned`.
 fn loose_match(clean: &str, clean_banned: &str) -> bool {
-    clean == clean_banned || clean.ends_with(clean_banned) || clean_banned.ends_with(clean)
+    clean == clean_banned
+        || clean.ends_with(clean_banned)
+        || clean_banned.ends_with(clean)
 }
 
 #[plugin(
@@ -90,7 +92,7 @@ pub fn checkban(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(settings: Value) -> Reply {
         let ctx = Ctx {
@@ -129,17 +131,11 @@ mod tests {
     fn an_empty_list_reports_not_banned_and_writes_nothing() {
         let r = run(serde_json::json!({}));
         let t = text_of(&r);
-        assert!(
-            t.starts_with("DEBUG BAN (628979985621@s.whatsapp.net)"),
-            "{t}"
-        );
+        assert!(t.starts_with("DEBUG BAN (628979985621@s.whatsapp.net)"), "{t}");
         assert!(t.contains("cleanNumber: 628979985621"), "{t}");
         assert!(t.contains("isBannedDirect: false"), "{t}");
         assert!(t.contains("config.isBanned(): false"), "{t}");
-        assert!(
-            r.mutations().is_empty(),
-            "perintah debug tidak boleh menulis"
-        );
+        assert!(r.mutations().is_empty(), "perintah debug tidak boleh menulis");
     }
 
     #[test]
@@ -154,11 +150,7 @@ mod tests {
     #[test]
     fn a_different_number_on_the_list_reports_not_banned() {
         let r = run(serde_json::json!({ "bannedUsers": ["628123456789"] }));
-        assert!(
-            text_of(&r).contains("config.isBanned(): false"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("config.isBanned(): false"), "{}", text_of(&r));
     }
 
     #[test]
@@ -166,10 +158,7 @@ mod tests {
         let r = run(serde_json::json!({ "bannedUsers": ["628979985621:3@s.whatsapp.net"] }));
         let t = text_of(&r);
         assert!(t.contains("cleanNumber: 628979985621"), "{t}");
-        assert!(
-            t.contains("config.isBanned(): true"),
-            "sufiks device dihapus: {t}"
-        );
+        assert!(t.contains("config.isBanned(): true"), "sufiks device dihapus: {t}");
     }
 
     #[test]

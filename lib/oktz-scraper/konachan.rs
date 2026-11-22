@@ -53,9 +53,7 @@ fn alur(http: &dyn HttpGet, tags: &str) -> Result<Value, HttpError> {
     let container = semua_elemen(&html, 0, html.len(), &|_, isi| {
         atribut(isi, "id").as_deref() == Some("post-list-posts")
     });
-    let li = di_dalam(&html, &container, &|nama, _| {
-        nama.eq_ignore_ascii_case("li")
-    });
+    let li = di_dalam(&html, &container, &|nama, _| nama.eq_ignore_ascii_case("li"));
 
     let mut posts: Vec<Value> = Vec::new();
     for e in li {
@@ -168,17 +166,10 @@ fn split_spasi(s: &str) -> Vec<String> {
 /// `String#trim` JS (termasuk NBSP dan spasi Unicode lain).
 fn trim_js(s: &str) -> &str {
     s.trim_matches(|c: char| {
-        matches!(
-            c,
-            '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
-                ..='\u{200A}'
-                    | '\u{2028}'
-                    | '\u{2029}'
-                    | '\u{202F}'
-                    | '\u{205F}'
-                    | '\u{3000}'
-                    | '\u{FEFF}'
-        )
+        matches!(c,
+            '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}'
+            | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}'
+            | '\u{3000}' | '\u{FEFF}')
     })
 }
 
@@ -436,37 +427,29 @@ mod tests {
         // `title` tanpa `Tags:` -> tag dari `alt`.
         assert_eq!(arr[1]["tags"], json!(["cat"]));
         // Sudah `http`, tidak diubah.
-        assert_eq!(
-            arr[1]["images"]["preview"],
-            "https://konachan.net/image/2.jpg"
-        );
+        assert_eq!(arr[1]["images"]["preview"], "https://konachan.net/image/2.jpg");
 
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Get);
         // `encodeURIComponent` -> spasi `%20`, bukan `+`.
-        assert_eq!(p[0].url, "https://konachan.net/post?tags=blue_eyes%20girl");
-        assert!(
-            cari_header(&p[0], "user-agent")
-                .unwrap()
-                .contains("Chrome/120.0.0.0")
+        assert_eq!(
+            p[0].url,
+            "https://konachan.net/post?tags=blue_eyes%20girl"
         );
+        assert!(cari_header(&p[0], "user-agent").unwrap().contains("Chrome/120.0.0.0"));
     }
 
     #[test]
     fn li_tanpa_id_dilewati() {
-        let http = Stub::baru(
-            r#"<ul id="post-list-posts"><li><a class="thumb" href="/x"><img src="//y"></a></li></ul>"#,
-        );
+        let http = Stub::baru(r#"<ul id="post-list-posts"><li><a class="thumb" href="/x"><img src="//y"></a></li></ul>"#);
         assert_eq!(search_konachan(&http, "x").unwrap(), json!([]));
     }
 
     #[test]
     fn id_hanya_huruf_p_dan_kolom_kosong_tidak_membuat_post() {
         // `id="p"` -> `""` -> `|| null` -> post dilewati.
-        let http = Stub::baru(
-            r#"<ul id="post-list-posts"><li id="p"><a class="thumb" href="/x"><img src="//y"></a></li></ul>"#,
-        );
+        let http = Stub::baru(r#"<ul id="post-list-posts"><li id="p"><a class="thumb" href="/x"><img src="//y"></a></li></ul>"#);
         assert_eq!(search_konachan(&http, "x").unwrap(), json!([]));
     }
 

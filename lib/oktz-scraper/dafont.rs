@@ -249,10 +249,7 @@ fn urai(html: &str) -> Elemen {
             .map(|c| c.is_ascii_alphabetic())
             .unwrap_or(false)
         {
-            let akhir = html[i + 1..]
-                .find('<')
-                .map(|p| i + 1 + p)
-                .unwrap_or(html.len());
+            let akhir = html[i + 1..].find('<').map(|p| i + 1 + p).unwrap_or(html.len());
             if let Some(induk) = tumpukan.last_mut() {
                 induk.anak.push(Simpul::Teks(html[i..akhir].to_string()));
             }
@@ -367,10 +364,7 @@ fn semua_kelas<'a>(akar: &'a Elemen, daftar: &[&str], keluar: &mut Vec<Posisi<'a
     for (indeks, simpul) in akar.anak.iter().enumerate() {
         if let Simpul::Elemen(el) = simpul {
             if daftar.iter().all(|k| punya_kelas(el, k)) {
-                keluar.push(Posisi {
-                    induk: akar,
-                    indeks,
-                });
+                keluar.push(Posisi { induk: akar, indeks });
             }
             semua_kelas(el, daftar, keluar);
         }
@@ -416,17 +410,10 @@ fn pola() -> &'static Pola {
 
 /// `String#trim` JS (termasuk NBSP dan spasi Unicode lain).
 fn spasi_js(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200A}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202F}'
-                | '\u{205F}'
-                | '\u{3000}'
-                | '\u{FEFF}'
-    )
+    matches!(c,
+        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}'
+        | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}'
+        | '\u{3000}' | '\u{FEFF}')
 }
 
 fn trim_js(s: &str) -> &str {
@@ -674,14 +661,8 @@ mod tests {
         assert_eq!(results[0]["downloads"], "12,345 downloads");
         assert_eq!(results[0]["yesterday"], "Yesterday: 12:00 PM");
         assert_eq!(results[0]["license"], "Free for personal use");
-        assert_eq!(
-            results[0]["download"],
-            "https://dl.dafont.com/dl.php?f=nunito"
-        );
-        assert_eq!(
-            results[0]["preview"],
-            "https://www.dafont.com/img/nunito.png"
-        );
+        assert_eq!(results[0]["download"], "https://dl.dafont.com/dl.php?f=nunito");
+        assert_eq!(results[0]["preview"], "https://www.dafont.com/img/nunito.png");
         assert_eq!(
             results[0]
                 .as_object()
@@ -713,11 +694,10 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].url, "https://www.dafont.com/search.php?q=bebas%20neue");
-        assert!(
-            p[0].headers.iter().any(
-                |(k, v)| k.eq_ignore_ascii_case("user-agent") && v.contains("Chrome/147.0.0.0")
-            )
-        );
+        assert!(p[0]
+            .headers
+            .iter()
+            .any(|(k, v)| k.eq_ignore_ascii_case("user-agent") && v.contains("Chrome/147.0.0.0")));
     }
 
     #[test]

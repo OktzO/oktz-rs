@@ -128,12 +128,7 @@ mod tests {
 
     #[test]
     fn absent_or_empty_group_data_takes_the_no_data_branch() {
-        for g in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"chatStats": {}}),
-            serde_json::json!({"chatStats": []}),
-        ] {
+        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"chatStats": {}}), serde_json::json!({"chatStats": []})] {
             let r = run(g.clone());
             assert_eq!(text_of(&r), NO_DATA, "input {g}");
             assert!(mentions_of(&r).is_empty());
@@ -200,8 +195,7 @@ mod tests {
 
     #[test]
     fn thousands_are_dotted_like_id_id() {
-        let r =
-            run(serde_json::json!({"chatStats": {"628111@s.whatsapp.net": {"count": 1234567}}}));
+        let r = run(serde_json::json!({"chatStats": {"628111@s.whatsapp.net": {"count": 1234567}}}));
         assert!(text_of(&r).contains("— *1.234.567* pesan"));
         assert!(text_of(&r).ends_with("*Total Pesan: 1.234.567*"));
     }
@@ -209,10 +203,7 @@ mod tests {
     #[test]
     fn the_device_suffix_stays_in_the_displayed_number() {
         let r = run(serde_json::json!({"chatStats": {"628111:9@s.whatsapp.net": {"count": 1}}}));
-        assert!(
-            text_of(&r).contains("@628111:9 —"),
-            "`jid.split('@')[0]` di JS"
-        );
+        assert!(text_of(&r).contains("@628111:9 —"), "`jid.split('@')[0]` di JS");
         assert_eq!(mentions_of(&r), &["628111:9@s.whatsapp.net"]);
     }
 }

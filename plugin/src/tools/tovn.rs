@@ -41,7 +41,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
                  > Tidak ada audio/video yang terdeteksi!\n\n\
                  *Cara penggunaan:*\n\
                  > 1. Kirim audio/video + caption `.tovn`\n\
-                 > 2. Reply audio/video dengan `.tovn`",
+                 > 2. Reply audio/video dengan `.tovn`"
             );
         }
     } else {
@@ -50,7 +50,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
              > Tidak ada audio/video yang terdeteksi!\n\n\
              *Cara penggunaan:*\n\
              > 1. Kirim audio/video + caption `.tovn`\n\
-             > 2. Reply audio/video dengan `.tovn`",
+             > 2. Reply audio/video dengan `.tovn`"
         );
     };
 
@@ -60,7 +60,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
             return Reply::text(
                 "❌ *ɢᴀɢᴀʟ*\n\n\
                  > Tidak dapat mengunduh media.\n\
-                 > Media mungkin sudah tidak tersedia.",
+                 > Media mungkin sudah tidak tersedia."
             );
         }
     };
@@ -69,7 +69,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
         return Reply::text(
             "❌ *ɢᴀɢᴀʟ*\n\n\
              > Tidak dapat mengunduh media.\n\
-             > Media mungkin sudah tidak tersedia.",
+             > Media mungkin sudah tidak tersedia."
         );
     }
 
@@ -86,25 +86,20 @@ pub fn tovn(ctx: Ctx) -> Reply {
 
     // Tulis input ke berkas temp.
     if ctx.berkas().tulis(&input_path, &buffer).is_err() {
-        return Reply::text("❌ *ᴇʀʀᴏʀ*\n\n> Gagal menulis berkas input ke temp.");
+        return Reply::text(
+            "❌ *ᴇʀʀᴏʀ*\n\n> Gagal menulis berkas input ke temp.",
+        );
     }
 
     let ffmpeg_args = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        &input_path,
+        "ffmpeg", "-y",
+        "-i", &input_path,
         "-vn",
-        "-c:a",
-        "libopus",
-        "-b:a",
-        "128k",
-        "-ar",
-        "48000",
-        "-ac",
-        "1",
-        "-application",
-        "voip",
+        "-c:a", "libopus",
+        "-b:a", "128k",
+        "-ar", "48000",
+        "-ac", "1",
+        "-application", "voip",
         &output_path,
     ];
 
@@ -115,7 +110,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
             return Reply::text(
                 "❌ *ᴋᴏɴᴠᴇʀsɪ ɢᴀɢᴀʟ*\n\n\
                  > Gagal mengkonversi ke voice note.\n\
-                 > Pastikan ffmpeg terinstall dengan benar.",
+                 > Pastikan ffmpeg terinstall dengan benar."
             );
         }
     }
@@ -125,7 +120,7 @@ pub fn tovn(ctx: Ctx) -> Reply {
         let _ = ctx.berkas().hapus(&input_path);
         return Reply::text(
             "❌ *ᴋᴏɴᴠᴇʀsɪ ɢᴀɢᴀʟ*\n\n\
-             > Gagal mengkonversi ke voice note.\n             > Pastikan ffmpeg terinstall dengan benar.",
+             > Gagal mengkonversi ke voice note.\n             > Pastikan ffmpeg terinstall dengan benar."
         );
     }
 
@@ -134,7 +129,9 @@ pub fn tovn(ctx: Ctx) -> Reply {
         Err(_) => {
             let _ = ctx.berkas().hapus(&input_path);
             let _ = ctx.berkas().hapus(&output_path);
-            return Reply::text("❌ *ᴇʀʀᴏʀ*\n\n> Gagal membaca hasil konversi.");
+            return Reply::text(
+                "❌ *ᴇʀʀᴏʀ*\n\n> Gagal membaca hasil konversi."
+            );
         }
     };
 

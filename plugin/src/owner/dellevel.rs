@@ -138,7 +138,7 @@ pub fn dellevel(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{Participant, QuotedKind, QuotedMessage};
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn quoted(sender: &str) -> Option<QuotedMessage> {
         Some(QuotedMessage {
@@ -261,11 +261,7 @@ mod tests {
         // `mentionedJid`, jadi tidak boleh jadi jumlah.
         assert_eq!(levels_from(&["@628999".to_string()]), None);
         assert_eq!(levels_from(&["5".to_string()]), Some(5));
-        assert_eq!(
-            levels_from(&["5px".to_string()]),
-            None,
-            "isNaN, bukan parseInt"
-        );
+        assert_eq!(levels_from(&["5px".to_string()]), None, "isNaN, bukan parseInt");
     }
 
     #[test]

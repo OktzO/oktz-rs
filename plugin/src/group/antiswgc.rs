@@ -1,7 +1,7 @@
 //! `plugins/group/antiswgc.js` — sakelar deteksi status/group mention.
 
-use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
+use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 pub(crate) const ON: &str = "✅ *AntiSWGC aktif*\n\n> Tipe SW group mention akan dihapus otomatis.";
 pub(crate) const OFF: &str = "❌ *AntiSWGC nonaktif*";
@@ -45,11 +45,7 @@ pub fn antiswgc(ctx: Ctx) -> Reply {
              > Admin dan pesan dari bot sendiri tidak akan disentuh.\n\n\
              > `{}antiswgc on`\n\
              > `{}antiswgc off`",
-            if status == "on" {
-                "✅ Aktif"
-            } else {
-                "❌ Nonaktif"
-            },
+            if status == "on" { "✅ Aktif" } else { "❌ Nonaktif" },
             ctx.prefix,
             ctx.prefix
         ));
@@ -179,9 +175,6 @@ mod tests {
 
     #[test]
     fn the_action_is_lowercased_before_matching() {
-        assert_eq!(
-            written(&run(serde_json::json!({}), "ON")),
-            &serde_json::json!({ "antiswgc": "on" })
-        );
+        assert_eq!(written(&run(serde_json::json!({}), "ON")), &serde_json::json!({ "antiswgc": "on" }));
     }
 }

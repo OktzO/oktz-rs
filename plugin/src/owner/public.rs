@@ -125,30 +125,19 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_back_to_this_plugin() {
-        assert_eq!(
-            oktz_plugin_api::find("publicmode").unwrap().meta.name,
-            "public"
-        );
+        assert_eq!(oktz_plugin_api::find("publicmode").unwrap().meta.name, "public");
     }
 
     #[test]
     fn the_owner_switches_the_mode_and_writes_botmode() {
-        let r = run(
-            "6285608953677@s.whatsapp.net",
-            true,
-            serde_json::json!({"botMode": "self"}),
-        );
+        let r = run("6285608953677@s.whatsapp.net", true, serde_json::json!({"botMode": "self"}));
         assert_eq!(text_of(&r), PUBLIC_TEXT);
         assert_eq!(written_mode(&r), Some("public".to_string()));
     }
 
     #[test]
     fn a_stored_public_mode_is_only_reported_never_rewritten() {
-        let r = run(
-            "6285608953677@s.whatsapp.net",
-            true,
-            serde_json::json!({"botMode": "public"}),
-        );
+        let r = run("6285608953677@s.whatsapp.net", true, serde_json::json!({"botMode": "public"}));
         assert_eq!(text_of(&r), ALREADY);
         assert!(r.mutations().is_empty());
     }

@@ -93,10 +93,7 @@ mod tests {
     fn meta_dan_alias() {
         let p = oktz_plugin_api::find("stopschedule").unwrap();
         assert_eq!(p.meta.name, "stopschedule");
-        assert_eq!(
-            p.meta.alias,
-            ["stopscheduler", "schedstop", "pauseschedule"]
-        );
+        assert_eq!(p.meta.alias, ["stopscheduler", "schedstop", "pauseschedule"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 3);
         assert_eq!(p.meta.energi, 0);
@@ -131,7 +128,9 @@ mod tests {
 
     #[test]
     fn dihentikan_bentuk_js() {
-        assert!(dihentikan("sholat").contains("Scheduler: *sholat*"));
+        assert!(
+            dihentikan("sholat").contains("Scheduler: *sholat*")
+        );
         assert!(dihentikan("sholat").contains("Status: ❌ Dihentikan"));
         assert!(dihentikan("sholat").contains(".startschedule sholat"));
     }
@@ -150,9 +149,11 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "stopschedule")
         );
-        assert!(matches!(
-            r.without_mutations(),
-            Reply::Reaction { emoji, .. } if emoji == "☢"
-        ));
+        assert!(
+            matches!(
+                r.without_mutations(),
+                Reply::Reaction { emoji, .. } if emoji == "☢"
+            )
+        );
     }
 }

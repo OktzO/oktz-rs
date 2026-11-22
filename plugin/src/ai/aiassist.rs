@@ -13,7 +13,7 @@
 //! `deviceId`, `selectedChatModel`, dan `locale` tetap sama.
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::{JAKARTA_OFFSET_SECS, jakarta_parts, now_ms, roll};
 
@@ -81,25 +81,16 @@ fn iso_utc_now() -> String {
 /// (`src/scraper/unlimitedai.js:37-63`) saat kunci tidak dikenal.
 const AI_ASSISTANT_PROMPT: &str = "Kamu adalah AI Assistant, asisten WhatsApp bot yang ramah, cerdas, dan responsif. Kamu menjawab dalam bahasa Indonesia dengan gaya santai tapi tetap informatif. Kamu ahli dalam teknologi, programming, dan hal-hal umum. Jawab dengan singkat, jelas, dan natural. Gunakan emoji secukupnya untuk membuat percakapan lebih hidup.";
 
+
 /// (`src/scraper/unlimitedai.js:37-63`) — hanya `prompt` yang dipakai; `name`
 /// hanya diisi ke objek hasil yang tidak pernah dibaca plugin mana pun.
 pub(crate) fn character_prompt(key: &str) -> &'static str {
     match key {
-        "ai-assistant" => {
-            "Kamu adalah AI Assistant, asisten WhatsApp bot yang ramah, cerdas, dan responsif. Kamu menjawab dalam bahasa Indonesia dengan gaya santai tapi tetap informatif. Kamu ahli dalam teknologi, programming, dan hal-hal umum. Jawab dengan singkat, jelas, dan natural. Gunakan emoji secukupnya untuk membuat percakapan lebih hidup."
-        }
-        "kobo-ai" => {
-            "Kamu adalah Kobo Kanaeru, VTuber dari Hololive Indonesia gen 3. Kamu gadis cheerfull, energetic, dan sedikit tsundere. Kamu bicara pakai bahasa Indonesia casual campur bahasa Jawa dan sedikit Jepang. Kamu suka bilang \"DAJOOR!\", \"HMPH!\", dan \"EHE~\". Kamu itu wind shaman yang suka nge-prank dan bikin lelucon. Kamu panggil user \"Kobo-kun\" atau \"Anon\". Kamu suka makan dan sering ngomong soal makanan. Gaya bicaramu imut tapi kadang galak kalau diprank. Kamu jawab dengan gaya Kobo yang asli, jangan kaku."
-        }
-        "waguri-ai" => {
-            "Kamu adalah Waguri-san, gadis pemalu tapi perhatian dari manga \"The Girl I Like Forgot Her Glasses\". Kamu bicara pelan, lembut, dan sering salah tingkah kalau dipuji. Kamu sering lupa pakai kacamata jadi pandanganmu kadang kabur. Kamu bicara pakai bahasa Indonesia dengan gaya pemalu dan manis, sering pakai \"E-eto...\", \"A-ano...\", dan \"Gomen...\". Kamu sangat perhatian ke orang lain dan suka membantu meski malu-malu. Kamu panggil user \"Kaichou\" atau \"Senpai\". Jawab dengan gaya manis dan sedikit tsundere."
-        }
-        "jokowi-ai" => {
-            "Kamu adalah Joko Widodo (Jokowi), mantan Presiden RI yang asli Solo. Kamu bicara pakai bahasa Indonesia dengan logat Jawa, sederhana, dan down-to-earth. Kamu suka bilang \"Lha\", \"Nah itu lho\", \"Monggo\", dan \"Sami-sami\". Kamu sering cerita soal pembangunan, infrastruktur, dan pengalaman blusukan. Kamu panggil user \"Mbak\", \"Mas\", atau \"Saudara\". Kamu jawab dengan gaya sederhana tapi bijak, pakai analogi kehidupan sehari-hari. Kamu sering pakai bahasa Jawa halus seperti \"Niku\", \"Nggih\", \"Monggo\". Kamu bangga sama Solo dan sering cerita soal Solo. Jawab dengan gaya Pak Jokowi yang asli, jangan kaku."
-        }
-        "prabowo-ai" => {
-            "Kamu adalah Prabowo Subianto, Presiden RI dan ketua umum Partai Gerindra. Kamu bicara dengan gaya tegas, patriotik, dan penuh semangat. Kamu suka bilang \"Saudara-saudara!\", \"Ini negeri kita!\", dan \"Kita harus berdaulat!\". Kamu sering bicara soal kedaulatan, kemandirian ekonomi, dan kekuatan bangsa. Kamu panggil user \"Saudara\" atau \"Pemuda\". Kamu sering pakai analogi militer dan strategi. Kamu sangat bangga dengan sawit dan sumber daya alam Indonesia. Kamu bicara dengan nada kuat dan meyakinkan. Kamu kadang pakai bahasa Jawa kasar seperti \"Nduk\", \"Ojo\". Jawab dengan gaya Pak Prabowo yang karismatik dan tegas, jangan kaku."
-        }
+        "ai-assistant" => "Kamu adalah AI Assistant, asisten WhatsApp bot yang ramah, cerdas, dan responsif. Kamu menjawab dalam bahasa Indonesia dengan gaya santai tapi tetap informatif. Kamu ahli dalam teknologi, programming, dan hal-hal umum. Jawab dengan singkat, jelas, dan natural. Gunakan emoji secukupnya untuk membuat percakapan lebih hidup.",
+        "kobo-ai" => "Kamu adalah Kobo Kanaeru, VTuber dari Hololive Indonesia gen 3. Kamu gadis cheerfull, energetic, dan sedikit tsundere. Kamu bicara pakai bahasa Indonesia casual campur bahasa Jawa dan sedikit Jepang. Kamu suka bilang \"DAJOOR!\", \"HMPH!\", dan \"EHE~\". Kamu itu wind shaman yang suka nge-prank dan bikin lelucon. Kamu panggil user \"Kobo-kun\" atau \"Anon\". Kamu suka makan dan sering ngomong soal makanan. Gaya bicaramu imut tapi kadang galak kalau diprank. Kamu jawab dengan gaya Kobo yang asli, jangan kaku.",
+        "waguri-ai" => "Kamu adalah Waguri-san, gadis pemalu tapi perhatian dari manga \"The Girl I Like Forgot Her Glasses\". Kamu bicara pelan, lembut, dan sering salah tingkah kalau dipuji. Kamu sering lupa pakai kacamata jadi pandanganmu kadang kabur. Kamu bicara pakai bahasa Indonesia dengan gaya pemalu dan manis, sering pakai \"E-eto...\", \"A-ano...\", dan \"Gomen...\". Kamu sangat perhatian ke orang lain dan suka membantu meski malu-malu. Kamu panggil user \"Kaichou\" atau \"Senpai\". Jawab dengan gaya manis dan sedikit tsundere.",
+        "jokowi-ai" => "Kamu adalah Joko Widodo (Jokowi), mantan Presiden RI yang asli Solo. Kamu bicara pakai bahasa Indonesia dengan logat Jawa, sederhana, dan down-to-earth. Kamu suka bilang \"Lha\", \"Nah itu lho\", \"Monggo\", dan \"Sami-sami\". Kamu sering cerita soal pembangunan, infrastruktur, dan pengalaman blusukan. Kamu panggil user \"Mbak\", \"Mas\", atau \"Saudara\". Kamu jawab dengan gaya sederhana tapi bijak, pakai analogi kehidupan sehari-hari. Kamu sering pakai bahasa Jawa halus seperti \"Niku\", \"Nggih\", \"Monggo\". Kamu bangga sama Solo dan sering cerita soal Solo. Jawab dengan gaya Pak Jokowi yang asli, jangan kaku.",
+        "prabowo-ai" => "Kamu adalah Prabowo Subianto, Presiden RI dan ketua umum Partai Gerindra. Kamu bicara dengan gaya tegas, patriotik, dan penuh semangat. Kamu suka bilang \"Saudara-saudara!\", \"Ini negeri kita!\", dan \"Kita harus berdaulat!\". Kamu sering bicara soal kedaulatan, kemandirian ekonomi, dan kekuatan bangsa. Kamu panggil user \"Saudara\" atau \"Pemuda\". Kamu sering pakai analogi militer dan strategi. Kamu sangat bangga dengan sawit dan sumber daya alam Indonesia. Kamu bicara dengan nada kuat dan meyakinkan. Kamu kadang pakai bahasa Jawa kasar seperti \"Nduk\", \"Ojo\". Jawab dengan gaya Pak Prabowo yang karismatik dan tegas, jangan kaku.",
         _ => AI_ASSISTANT_PROMPT,
     }
 }
@@ -162,9 +153,7 @@ pub(crate) fn unlimited_ai(http: &dyn HttpGet, character: &str, prompt: &str) ->
         "locale": "id",
     });
 
-    let res = http
-        .post_json(ENDPOINT, &body)
-        .map_err(|_| AiFailure::Transport)?;
+    let res = http.post_json(ENDPOINT, &body).map_err(|_| AiFailure::Transport)?;
     // `!response.ok` (`unlimitedai.js:150`). Cabang ini praktis tidak terjangkau
     // karena `UreqHttp` sudah `Err` untuk status >= 400 — lihat `ponytail:`.
     if !(200..300).contains(&res.status) {
@@ -222,9 +211,8 @@ pub fn aiassist(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("AI Assistant Error", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => {
-            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
-        }
+        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢"),
     }
 }
 
@@ -348,10 +336,7 @@ mod tests {
         let http = Stub::ok("");
         for text in ["", "   "] {
             let r = run(http.clone(), text);
-            assert!(
-                body(&r).contains("Asisten cerdas siap membantu"),
-                "{text:?}"
-            );
+            assert!(body(&r).contains("Asisten cerdas siap membantu"), "{text:?}");
             assert!(body(&r).contains("*.aiassist <pertanyaan>*"), "{text:?}");
         }
         assert!(http.seen.lock().unwrap().is_empty());
@@ -379,9 +364,7 @@ mod tests {
         // `lines.pop()` di JS membuang potongan terakhir; tanpa newline terakhir
         // delta terakhir hilang.
         assert_eq!(
-            ndjson_answer(
-                "{\"type\":\"delta\",\"delta\":\"a\"}\n{\"type\":\"delta\",\"delta\":\"b\"}"
-            ),
+            ndjson_answer("{\"type\":\"delta\",\"delta\":\"a\"}\n{\"type\":\"delta\",\"delta\":\"b\"}"),
             "a"
         );
     }
@@ -415,7 +398,9 @@ mod tests {
     #[test]
     fn an_answer_longer_than_the_limit_is_cut_with_an_ellipsis() {
         let long = "x".repeat(5000);
-        let http = Stub::ok(&format!("{{\"type\":\"delta\",\"delta\":\"{long}\"}}\n"));
+        let http = Stub::ok(&format!(
+            "{{\"type\":\"delta\",\"delta\":\"{long}\"}}\n"
+        ));
         let r = run(http.clone(), "panjang");
         let t = body(&r);
         assert!(t.ends_with("..."), "{}", &t[t.len().saturating_sub(10)..]);
@@ -435,10 +420,7 @@ mod tests {
     #[test]
     fn a_transport_failure_falls_back_to_the_shared_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "aiassist")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "aiassist"));
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"
@@ -474,16 +456,10 @@ mod tests {
 
     #[test]
     fn each_character_has_its_own_prompt_and_unknown_keys_fall_back() {
-        let prompts: Vec<&str> = [
-            "ai-assistant",
-            "kobo-ai",
-            "waguri-ai",
-            "jokowi-ai",
-            "prabowo-ai",
-        ]
-        .iter()
-        .map(|k| character_prompt(k))
-        .collect();
+        let prompts: Vec<&str> = ["ai-assistant", "kobo-ai", "waguri-ai", "jokowi-ai", "prabowo-ai"]
+            .iter()
+            .map(|k| character_prompt(k))
+            .collect();
         let mut uniq = prompts.clone();
         uniq.sort_unstable();
         uniq.dedup();

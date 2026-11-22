@@ -19,8 +19,7 @@ use crate::group::listtoxic::DEFAULT_TOXIC_WORDS;
 const ON: &str = "✅ *Antitoxic diaktifkan*";
 const OFF: &str = "❌ *Antitoxic dinonaktifkan*";
 const BAD_WARN: &str = "❌ Masukkan angka 1-10\n> Contoh: `.antitoxic warn 5`";
-const BAD_METHOD: &str =
-    "❌ Pilih metode: *kick* atau *delete*\n> Contoh: `.antitoxic metode kick`";
+const BAD_METHOD: &str = "❌ Pilih metode: *kick* atau *delete*\n> Contoh: `.antitoxic metode kick`";
 const UNKNOWN: &str =
     "❌ Sub-command tidak dikenal.\n> Ketik `.antitoxic` untuk melihat daftar command.";
 
@@ -129,7 +128,7 @@ pub fn antitoxic(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -190,11 +189,7 @@ mod tests {
     fn no_subcommand_only_reports_and_never_writes() {
         let r = run(serde_json::json!({}), "");
         assert!(r.mutations().is_empty());
-        assert!(
-            text_of(&r).contains("> Status: *❌ OFF*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> Status: *❌ OFF*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Kata: *20*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Max Warn: *3*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Metode: *kick*"), "{}", text_of(&r));
@@ -214,11 +209,7 @@ mod tests {
         assert!(text_of(&r).contains("> Status: *✅ ON*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Kata: *3*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Max Warn: *7*"), "{}", text_of(&r));
-        assert!(
-            text_of(&r).contains("> Metode: *delete*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> Metode: *delete*"), "{}", text_of(&r));
     }
 
     #[test]
@@ -256,11 +247,7 @@ mod tests {
     fn warn_accepts_one_to_ten_and_stores_the_parsed_number() {
         for n in 1..=10 {
             let r = run(serde_json::json!({}), &format!("warn {n}"));
-            assert_eq!(
-                written(&r),
-                &serde_json::json!({ "toxicMaxWarn": n }),
-                "warn {n}"
-            );
+            assert_eq!(written(&r), &serde_json::json!({ "toxicMaxWarn": n }), "warn {n}");
             assert!(
                 text_of(&r).contains(&format!("✅ Max peringatan diubah ke *{n}*")),
                 "{}",
@@ -275,10 +262,7 @@ mod tests {
         for text in ["warn", "warn 0", "warn -3", "warn 11", "warn abc"] {
             let r = run(serde_json::json!({}), text);
             assert_eq!(text_of(&r), BAD_WARN, "input {text:?}");
-            assert!(
-                r.mutations().is_empty(),
-                "input {text:?} tidak boleh menulis"
-            );
+            assert!(r.mutations().is_empty(), "input {text:?} tidak boleh menulis");
         }
     }
 
@@ -317,10 +301,7 @@ mod tests {
         for text in ["metode", "metode warn", "metode hapus", "metode kickall"] {
             let r = run(serde_json::json!({}), text);
             assert_eq!(text_of(&r), BAD_METHOD, "input {text:?}");
-            assert!(
-                r.mutations().is_empty(),
-                "input {text:?} tidak boleh menulis"
-            );
+            assert!(r.mutations().is_empty(), "input {text:?} tidak boleh menulis");
         }
     }
 
@@ -333,13 +314,7 @@ mod tests {
 
     #[test]
     fn subcommands_are_lowercased_before_matching() {
-        assert_eq!(
-            written(&run(serde_json::json!({}), "ON")),
-            &serde_json::json!({ "antitoxic": true })
-        );
-        assert_eq!(
-            written(&run(serde_json::json!({}), "METODE DELETE")),
-            &serde_json::json!({ "toxicMethod": "delete" })
-        );
+        assert_eq!(written(&run(serde_json::json!({}), "ON")), &serde_json::json!({ "antitoxic": true }));
+        assert_eq!(written(&run(serde_json::json!({}), "METODE DELETE")), &serde_json::json!({ "toxicMethod": "delete" }));
     }
 }

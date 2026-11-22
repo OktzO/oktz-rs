@@ -86,11 +86,6 @@ mod tests {
 
     #[test]
     fn the_reply_points_at_the_rules_command_with_the_live_prefix() {
-        assert!(
-            run("!")
-                .text_body()
-                .unwrap()
-                .contains("> Ketik `!rules` untuk melihat.")
-        );
+        assert!(run("!").text_body().unwrap().contains("> Ketik `!rules` untuk melihat."));
     }
 }

@@ -129,11 +129,7 @@ mod tests {
 
     #[test]
     fn an_empty_message_shows_the_placeholder_help_and_writes_nothing() {
-        for g in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"welcomeMsg": "lama"}),
-        ] {
+        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"welcomeMsg": "lama"})] {
             let r = run(g.clone(), "");
             assert!(text_of(&r).starts_with("📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ*"), "input {g}");
             assert!(text_of(&r).contains("{user}"), "placeholder harus disebut");
@@ -155,13 +151,9 @@ mod tests {
     fn a_message_stores_welcome_msg_and_turns_welcome_on() {
         let r = run(serde_json::json!({}), "Halo {user}, selamat datang!");
         let data = group_write(&r);
+        assert_eq!(data["welcomeMsg"], serde_json::json!("Halo {user}, selamat datang!"));
         assert_eq!(
-            data["welcomeMsg"],
-            serde_json::json!("Halo {user}, selamat datang!")
-        );
-        assert_eq!(
-            data["welcome"],
-            serde_json::json!(true),
+            data["welcome"], serde_json::json!(true),
             "`welcome: true` ikut ditulis, bukan hanya welcomeMsg"
         );
         assert!(text_of(&r).starts_with("✅ Welcome berhasil di set menjadi *"));

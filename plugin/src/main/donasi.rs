@@ -66,11 +66,7 @@ pub fn donasi(ctx: Ctx) -> Reply {
             "Priority support",
         ]
     } else {
-        donasi
-            .benefits
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<&str>>()
+        donasi.benefits.iter().map(|s| s.as_str()).collect::<Vec<&str>>()
     };
 
     let mut text = format!("DONASI KE OWNER {bot_name} 🙏\n");
@@ -102,12 +98,7 @@ pub fn donasi(ctx: Ctx) -> Reply {
     text.push('\n');
 
     text.push_str("_Donasi berapapun sangat berharga_\n");
-    let owner_nomor = config
-        .owner
-        .number
-        .first()
-        .map(String::as_str)
-        .unwrap_or("owner");
+    let owner_nomor = config.owner.number.first().map(String::as_str).unwrap_or("owner");
     text.push_str(&format!("Contact: @{owner_nomor}\n"));
 
     // QRIS image (bytes) sebagai media, teks sebagai caption.

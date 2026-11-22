@@ -74,7 +74,10 @@ impl BerkasNyata {
     pub fn baru(root: impl Into<PathBuf>) -> Self {
         let root = root.into();
         let root_kanonis = root.canonicalize().unwrap_or_else(|_| root.clone());
-        Self { root, root_kanonis }
+        Self {
+            root,
+            root_kanonis,
+        }
     }
 
     /// Gabungkan `root` dengan jalur relatif `jalur`, setelah validasi dasar.
@@ -134,7 +137,8 @@ impl Berkas for BerkasNyata {
 
     fn baca_teks(&self, jalur: &str) -> Result<String, String> {
         let byte = self.baca(jalur)?;
-        String::from_utf8(byte).map_err(|e| format!("baca_teks {jalur} bukan UTF-8: {e}"))
+        String::from_utf8(byte)
+            .map_err(|e| format!("baca_teks {jalur} bukan UTF-8: {e}"))
     }
 
     fn tulis(&self, jalur: &str, isi: &[u8]) -> Result<(), String> {
@@ -392,10 +396,7 @@ mod tests {
     fn buat_folder_idempoten() {
         let (b, _root) = nyata_sementara();
         assert!(b.buat_folder("a").is_ok());
-        assert!(
-            b.buat_folder("a").is_ok(),
-            "buat_folder ulang tidak boleh error"
-        );
+        assert!(b.buat_folder("a").is_ok(), "buat_folder ulang tidak boleh error");
         assert!(b.buat_folder("a/b/c").is_ok());
         assert!(b.ada("a"));
         let p = BerkasPalsu::baru();

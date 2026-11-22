@@ -6,7 +6,7 @@
 //! user tidak terdeteksi di sini.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::rpg::heal::{apply_exp, or_default, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
@@ -184,10 +184,7 @@ mod tests {
         for ago in [0, 1_000, 3_599_000] {
             let r = run(serde_json::json!({ "rpg": { "lastHourly": now - ago }, "koin": 500 }));
             let t = text_of(&r);
-            assert!(
-                t.starts_with("Eits, buru-buru amat kak!"),
-                "yang lalu {ago} ms: {t}"
-            );
+            assert!(t.starts_with("Eits, buru-buru amat kak!"), "yang lalu {ago} ms: {t}");
             assert!(r.mutations().is_empty(), "yang lalu {ago} ms");
         }
     }
@@ -196,11 +193,7 @@ mod tests {
     /// jadi `now - 0` jauh lebih besar dari cooldown dan klaim langsung boleh.
     #[test]
     fn a_missing_stamp_counts_as_never_claimed() {
-        for user in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({ "rpg": {} }),
-        ] {
+        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": {} })] {
             let r = run(user.clone());
             assert!(text_of(&r).starts_with("WAKTUNYA GAJIAN"), "input {user}");
             assert_eq!(r.mutations().len(), 1, "input {user}");

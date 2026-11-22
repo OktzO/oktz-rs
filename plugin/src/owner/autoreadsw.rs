@@ -20,11 +20,7 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
          *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ:*\n\
          > `{}autoreadsw on` — Aktifkan\n\
          > `{}autoreadsw off` — Matikan",
-        if current_enabled(ctx) {
-            "✅ ON"
-        } else {
-            "❌ OFF"
-        },
+        if current_enabled(ctx) { "✅ ON" } else { "❌ OFF" },
         ctx.prefix,
         ctx.prefix
     )
@@ -45,14 +41,14 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
 )]
 pub fn autoreadsw(ctx: Ctx) -> Reply {
     match first_keyword(&ctx).as_deref() {
-        Some("on") => {
-            Reply::text("✅ *ᴀᴜᴛᴏ ʀᴇᴀᴅ sᴛᴏʀʏ ᴀᴋᴛɪꜰ*\n\n> Bot akan otomatis membaca semua story WA")
-                .with_reaction("✅")
-                .with_mutation(Mutation::SetSetting {
-                    key: "autoReadSW".into(),
-                    value: serde_json::json!({ "enabled": true }),
-                })
-        }
+        Some("on") => Reply::text(
+            "✅ *ᴀᴜᴛᴏ ʀᴇᴀᴅ sᴛᴏʀʏ ᴀᴋᴛɪꜰ*\n\n> Bot akan otomatis membaca semua story WA",
+        )
+        .with_reaction("✅")
+        .with_mutation(Mutation::SetSetting {
+            key: "autoReadSW".into(),
+            value: serde_json::json!({ "enabled": true }),
+        }),
         Some("off") => Reply::text("❌ *ᴀᴜᴛᴏ ʀᴇᴀᴅ sᴛᴏʀʏ ᴅɪᴍᴀᴛɪᴋᴀɴ*")
             .with_reaction("✅")
             .with_mutation(Mutation::SetSetting {
@@ -66,7 +62,7 @@ pub fn autoreadsw(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(settings: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -121,14 +117,8 @@ mod tests {
 
     #[test]
     fn on_and_off_write_a_whole_replacement_object() {
-        assert_eq!(
-            stored(&run(serde_json::json!({}), "on")),
-            serde_json::json!({"enabled": true})
-        );
-        assert_eq!(
-            stored(&run(serde_json::json!({}), "off")),
-            serde_json::json!({"enabled": false})
-        );
+        assert_eq!(stored(&run(serde_json::json!({}), "on")), serde_json::json!({"enabled": true}));
+        assert_eq!(stored(&run(serde_json::json!({}), "off")), serde_json::json!({"enabled": false}));
     }
 
     #[test]
@@ -146,20 +136,8 @@ mod tests {
 
     #[test]
     fn the_status_line_reads_the_nested_enabled_flag() {
-        assert!(
-            text_of(&run(
-                serde_json::json!({"autoReadSW": {"enabled": true}}),
-                ""
-            ))
-            .contains("✅ ON")
-        );
-        assert!(
-            text_of(&run(
-                serde_json::json!({"autoReadSW": {"enabled": false}}),
-                ""
-            ))
-            .contains("❌ OFF")
-        );
+        assert!(text_of(&run(serde_json::json!({"autoReadSW": {"enabled": true}}), "")).contains("✅ ON"));
+        assert!(text_of(&run(serde_json::json!({"autoReadSW": {"enabled": false}}), "")).contains("❌ OFF"));
         // `|| { enabled: false }` — key hilang tetap OFF.
         assert!(text_of(&run(serde_json::json!({}), "")).contains("❌ OFF"));
     }
@@ -194,10 +172,7 @@ mod tests {
 
     #[test]
     fn switching_off_replaces_the_object_so_no_stale_field_survives() {
-        let r = run(
-            serde_json::json!({"autoReadSW": {"enabled": true, "extra": 1}}),
-            "off",
-        );
+        let r = run(serde_json::json!({"autoReadSW": {"enabled": true, "extra": 1}}), "off");
         assert_eq!(stored(&r), serde_json::json!({"enabled": false}));
     }
 }

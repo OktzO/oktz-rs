@@ -23,7 +23,9 @@ pub(crate) fn pakai() -> String {
 /// `isImage` (`ganti-large.js:20`).
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image())
+        || ctx
+            .quoted()
+            .is_some_and(|q| q.kind.is_image())
 }
 
 /// Unduh buffer: quoted dulu, baru trigger (`ganti-large.js:28-32`).
@@ -69,11 +71,7 @@ pub fn ganti_large(ctx: Ctx) -> Reply {
     };
 
     for nama in TARGET {
-        if ctx
-            .berkas()
-            .tulis(&format!("{FOLDER}/{nama}"), &buffer)
-            .is_err()
-        {
+        if ctx.berkas().tulis(&format!("{FOLDER}/{nama}"), &buffer).is_err() {
             return Reply::sequence(vec![
                 jam(),
                 Reply::None.with_reaction("☢"),
@@ -105,11 +103,7 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    fn ctx_of(
-        berkas: Arc<BerkasPalsu>,
-        media: Option<IncomingKind>,
-        hasil: Result<Vec<u8>, MediaError>,
-    ) -> Ctx {
+    fn ctx_of(berkas: Arc<BerkasPalsu>, media: Option<IncomingKind>, hasil: Result<Vec<u8>, MediaError>) -> Ctx {
         Ctx {
             sender: ME.into(),
             chat: ME.into(),
@@ -167,11 +161,7 @@ mod tests {
     #[test]
     fn tiga_aset_ditimpa_isi_yang_sama() {
         let b = Arc::new(BerkasPalsu::baru());
-        let r = ganti_large(ctx_of(
-            b.clone(),
-            Some(IncomingKind::Image),
-            Ok(vec![9, 8, 7]),
-        ));
+        let r = ganti_large(ctx_of(b.clone(), Some(IncomingKind::Image), Ok(vec![9, 8, 7])));
         assert_eq!(reaksi(&r), ["🕕", "✅"]);
         assert!(teks(&r).contains("Mencakup: foto.jpeg, v8.jpeg, v10.jpeg"));
         for nama in TARGET {

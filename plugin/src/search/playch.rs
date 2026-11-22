@@ -238,7 +238,9 @@ pub fn playch(ctx: Ctx) -> Reply {
 
     let judul = video.title.clone();
     let gambar = Reply::image(MediaSource::url(video.thumbnail.clone()), info);
-    let suara = Reply::voice_note(MediaSource::bytes(opus).with_mimetype("audio/ogg; codecs=opus"));
+    let suara = Reply::voice_note(
+        MediaSource::bytes(opus).with_mimetype("audio/ogg; codecs=opus"),
+    );
     let konfirmasi = Reply::text(format!("✅ *{judul}* berhasil dikirim ke saluran"));
 
     Reply::sequence(vec![gambar, suara, konfirmasi]).with_reaction("✅")
@@ -349,10 +351,7 @@ mod tests {
         assert_eq!(p.meta.alias, ["pch", "playsaluran"]);
         assert_eq!(p.meta.category, "search");
         assert_eq!(p.meta.description, "Putar musik ke saluran (convert opus)");
-        assert_eq!(
-            p.meta.usage,
-            ".playch <query> atau .playch --idch <id> <query>"
-        );
+        assert_eq!(p.meta.usage, ".playch <query> atau .playch --idch <id> <query>");
         assert_eq!(p.meta.example, ".playch komang");
         assert_eq!(p.meta.cooldown, 15);
         assert_eq!(p.meta.energi, 1);
@@ -374,12 +373,7 @@ mod tests {
         assert_eq!(video_tidak_ditemukan(), "❌ Video tidak ditemukan");
         // `playch.js:121-135` — teks informasi.
         let v = video(213);
-        let t = info(
-            &v,
-            "Channel Uji",
-            "123@newsletter",
-            Some(("Deskripsi".into(), false)),
-        );
+        let t = info(&v, "Channel Uji", "123@newsletter", Some(("Deskripsi".into(), false)));
         assert_eq!(
             t,
             "🎵 *NOW PLAYING (SALURAN)*\n\n\

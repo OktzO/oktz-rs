@@ -164,7 +164,10 @@ fn parse_set_cookie(headers: &[(String, String)]) -> Value {
 pub fn characters() -> Value {
     let mut out = Map::new();
     for (kunci, nama, prompt) in KARAKTER {
-        out.insert(kunci.to_string(), json!({ "name": nama, "prompt": prompt }));
+        out.insert(
+            kunci.to_string(),
+            json!({ "name": nama, "prompt": prompt }),
+        );
     }
     Value::Object(out)
 }
@@ -385,35 +388,30 @@ mod tests {
     #[test]
     fn characters_sama_dengan_objek_js_dan_urutannya() {
         let c = characters();
-        let kunci: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
+        let kunci: Vec<&str> = c
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
         // `Object.keys(CHARACTERS)` — urutan juga bagian dari kontrak.
         assert_eq!(
             kunci,
-            [
-                "ai-assistant",
-                "kobo-ai",
-                "waguri-ai",
-                "jokowi-ai",
-                "prabowo-ai"
-            ]
+            ["ai-assistant", "kobo-ai", "waguri-ai", "jokowi-ai", "prabowo-ai"]
         );
         assert_eq!(c["ai-assistant"]["name"], "AI Assistant");
         assert_eq!(c["kobo-ai"]["name"], "Kobo Kanaeru");
         assert_eq!(c["waguri-ai"]["name"], "Waguri");
         assert_eq!(c["jokowi-ai"]["name"], "Pak Jokowi");
         assert_eq!(c["prabowo-ai"]["name"], "Pak Prabowo");
-        assert!(
-            c["kobo-ai"]["prompt"]
-                .as_str()
-                .unwrap()
-                .contains("\"DAJOOR!\"")
-        );
-        assert!(
-            c["prabowo-ai"]["prompt"]
-                .as_str()
-                .unwrap()
-                .ends_with("jangan kaku.")
-        );
+        assert!(c["kobo-ai"]["prompt"]
+            .as_str()
+            .unwrap()
+            .contains("\"DAJOOR!\""));
+        assert!(c["prabowo-ai"]["prompt"]
+            .as_str()
+            .unwrap()
+            .ends_with("jangan kaku."));
         assert!(c.get("tidak-ada").is_none(), "kunci asing tidak ikut");
     }
 
@@ -447,10 +445,7 @@ mod tests {
             cari_header(&p[0], "referer").as_deref(),
             Some("https://app.unlimitedai.chat/id")
         );
-        assert_eq!(
-            cari_header(&p[0], "x-next-intl-locale").as_deref(),
-            Some("id")
-        );
+        assert_eq!(cari_header(&p[0], "x-next-intl-locale").as_deref(), Some("id"));
         assert_eq!(
             cari_header(&p[0], "content-type").as_deref(),
             Some("application/json")
@@ -504,10 +499,7 @@ mod tests {
         let hasil = unlimited_ai(&http, "hai", Some("kobo-ai")).unwrap();
         assert_eq!(hasil["character"], "Kobo Kanaeru");
         let p = http.permintaan.lock().unwrap();
-        let prompt = body_json(&p[0])["messages"][0]["content"]
-            .as_str()
-            .unwrap()
-            .to_string();
+        let prompt = body_json(&p[0])["messages"][0]["content"].as_str().unwrap().to_string();
         assert!(prompt.starts_with("Kamu adalah Kobo Kanaeru"), "{prompt}");
 
         let lain = stub(200, "{\"type\":\"delta\",\"delta\":\"x\"}\n");
@@ -543,10 +535,7 @@ mod tests {
     #[test]
     fn parse_set_cookie_mengambil_nilai_sebelum_titik_koma() {
         let headers = vec![
-            (
-                "set-cookie".to_string(),
-                "a=1; Path=/; HttpOnly".to_string(),
-            ),
+            ("set-cookie".to_string(), "a=1; Path=/; HttpOnly".to_string()),
             ("Set-Cookie".to_string(), " b = 2 ; Secure".to_string()),
             ("set-cookie".to_string(), "tanpa-tanda-sama".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
@@ -554,10 +543,7 @@ mod tests {
         let hasil = parse_set_cookie(&headers);
         assert_eq!(hasil["a"], "1");
         assert_eq!(hasil["b"], "2");
-        assert!(
-            hasil.get("tanpa-tanda-sama").is_none(),
-            "tanpa `=` dilewati"
-        );
+        assert!(hasil.get("tanpa-tanda-sama").is_none(), "tanpa `=` dilewati");
         assert_eq!(parse_set_cookie(&[]), json!({}));
     }
 }

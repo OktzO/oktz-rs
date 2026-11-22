@@ -310,7 +310,11 @@ pub fn addsewa(ctx: Ctx) -> Reply {
         ));
     }
 
-    dengan_init(Reply::text(text).with_reaction("✅"), init).with_mutation(simpan_grup(
+    dengan_init(
+        Reply::text(text).with_reaction("✅"),
+        init,
+    )
+    .with_mutation(simpan_grup(
         &ctx,
         &group_id,
         &group_name,
@@ -344,10 +348,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn tabel(r: &Reply) -> Option<Value> {
@@ -370,10 +371,7 @@ mod tests {
         assert_eq!(p.meta.name, "addsewa");
         assert_eq!(p.meta.alias, ["sewaadd", "tambahsewa"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(
-            p.meta.description,
-            "Tambah grup ke whitelist sewa + auto join"
-        );
+        assert_eq!(p.meta.description, "Tambah grup ke whitelist sewa + auto join");
         assert_eq!(p.meta.usage, ".addsewa <link/id grup> <durasi>");
         assert_eq!(p.meta.example, ".addsewa https://chat.whatsapp.com/xxx 30d");
         assert_eq!(p.meta.cooldown, 5);
@@ -387,11 +385,7 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["sewaadd", "tambahsewa"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("addsewa"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("addsewa"), "{a}");
         }
     }
 
@@ -403,10 +397,7 @@ mod tests {
         assert!(t.contains("Format: *.addsewa <link/id> <durasi>*"), "{t}");
         assert!(t.contains("• 30i = 30 menit"), "{t}");
         assert!(t.contains("• lifetime = Permanent"), "{t}");
-        assert!(
-            t.contains("💡 Jika pakai link, bot akan otomatis join ke grup tersebut!"),
-            "{t}"
-        );
+        assert!(t.contains("💡 Jika pakai link, bot akan otomatis join ke grup tersebut!"), "{t}");
         assert_eq!(reaksi(&r), None);
     }
 

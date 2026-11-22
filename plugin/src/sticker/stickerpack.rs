@@ -51,7 +51,9 @@ pub(crate) const DETAIL_GAGAL: &str = "── .✦ ──\n\n> Gagal mengambil d
 
 /// `stickerpack.js:131` — sedang mengunduh pack.
 pub(crate) fn mengunduh(nama: &str, jumlah: usize) -> String {
-    format!("── .✦ ──\n\n> Mengunduh *{nama}*\n> {jumlah} sticker .☘︎ ݁˖")
+    format!(
+        "── .✦ ──\n\n> Mengunduh *{nama}*\n> {jumlah} sticker .☘︎ ݁˖"
+    )
 }
 
 /// `stickerpack.js:150` — gagal mengunduh sticker.
@@ -63,7 +65,9 @@ pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengiri
 
 /// `stickerpack.js:201` — berhasil mengirim sebagian sticker.
 pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
-    format!("── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖")
+    format!(
+        "── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖"
+    )
 }
 
 /// `stickerpack.js:205` — gagal mengirim sticker.
@@ -203,11 +207,7 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
     // `stickerpack.js:157` — `randPick.name || config.sticker?.packname || "Bot"`.
     let cfg = ctx.config();
     let packname = if nama.is_empty() {
-        if cfg.sticker.packname.is_empty() {
-            "Bot".to_string()
-        } else {
-            cfg.sticker.packname.clone()
-        }
+        if cfg.sticker.packname.is_empty() { "Bot".to_string() } else { cfg.sticker.packname.clone() }
     } else {
         nama.clone()
     };
@@ -247,8 +247,7 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.balasan.lock().unwrap().push((url.to_string(), vec![]));
             let body = if url.contains("stickerdb/stickers/") {
-                br#"{"data":{"title":"Pack","images":[{"url":"a.webp"},{"url":"b.webp"}]}}"#
-                    .to_vec()
+                br#"{"data":{"title":"Pack","images":[{"url":"a.webp"},{"url":"b.webp"}]}}"#.to_vec()
             } else {
                 b"{}".to_vec()
             };
@@ -320,7 +319,10 @@ mod tests {
             mengunduh("Pack Keren", 5),
             "── .✦ ──\n\n> Mengunduh *Pack Keren*\n> 5 sticker .☘︎ ݁˖"
         );
-        assert_eq!(UNDUH_GAGAL, "── .✦ ──\n\n> Gagal mendownload sticker .☘︎ ݁˖");
+        assert_eq!(
+            UNDUH_GAGAL,
+            "── .✦ ──\n\n> Gagal mendownload sticker .☘︎ ݁˖"
+        );
         assert_eq!(
             PACK_GAGAL,
             "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖"
@@ -329,7 +331,10 @@ mod tests {
             berhasil_kirim(3, "Pack Keren"),
             "── .✦ ──\n\n> Berhasil kirim *3* sticker dari *Pack Keren* .☘︎ ݁˖"
         );
-        assert_eq!(KIRIM_GAGAL, "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖");
+        assert_eq!(
+            KIRIM_GAGAL,
+            "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖"
+        );
     }
 
     #[test]

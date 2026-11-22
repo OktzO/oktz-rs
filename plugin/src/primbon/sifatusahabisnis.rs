@@ -132,7 +132,10 @@ mod tests {
         for args in [Vec::new(), vec!["1"], vec!["1", "1"]] {
             let r = run_with(Arc::new(NoHttp), &args);
             let t = reply_text(&r);
-            assert!(t.starts_with("💼 *sɪꜰᴀᴛ ᴜsᴀʜᴀ/ʙɪsɴɪs*"), "{args:?}: {t}");
+            assert!(
+                t.starts_with("💼 *sɪꜰᴀᴛ ᴜsᴀʜᴀ/ʙɪsɴɪs*"),
+                "{args:?}: {t}"
+            );
             assert!(t.contains("Format: tgl bln thn"), "{args:?}: {t}");
         }
         // Argumen keempat TIDAK memicu kartu format: `m.args.length < 3` sudah
@@ -172,9 +175,7 @@ mod tests {
     #[test]
     fn a_payload_missing_every_field_still_renders_the_frame() {
         let r = run_with(
-            Arc::new(Stub(
-                serde_json::json!({ "status": true, "data": { "placeholder": 1 } }),
-            )),
+            Arc::new(Stub(serde_json::json!({ "status": true, "data": { "placeholder": 1 } }))),
             &["1", "1", "2000"],
         );
         let t = reply_text(&r);
@@ -185,11 +186,7 @@ mod tests {
 
     #[test]
     fn a_falsy_status_or_data_gives_the_failure_message() {
-        for body in [
-            serde_json::json!({ "data": {} }),
-            serde_json::json!({ "status": true }),
-            serde_json::json!({}),
-        ] {
+        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({})] {
             let r = run_with(Arc::new(Stub(body)), &["1", "1", "2000"]);
             assert_eq!(reply_text(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal menganalisa");
         }

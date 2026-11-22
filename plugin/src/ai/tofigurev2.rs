@@ -313,8 +313,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .rsplit_once('.')
         .map(|(_, e)| e.to_ascii_lowercase())
         .unwrap_or_default();
-    let is_image =
-        ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
+    let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
     // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
     // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
@@ -394,10 +393,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
 fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
     // Alias lokal: pecah tipe kompleks pasangan nama + fn provider.
-    type ProviderUnggah = (
-        &'static str,
-        fn(&dyn HttpGet, &[u8]) -> Result<String, String>,
-    );
+    type ProviderUnggah = (&'static str, fn(&dyn HttpGet, &[u8]) -> Result<String, String>);
     let providers: [ProviderUnggah; 6] = [
         ("Litterbox", litterbox),
         ("Kappa", kappa),
@@ -441,11 +437,7 @@ fn looks_like_image(buf: &[u8]) -> bool {
 /// `ponytail:` `withTimeout(..., 45000)` dan loop provider
 /// (`effect-api.js:106-120`) tidak bisa disalin tanpa timer + config; ekspos
 /// `effectApi` di `Runtime` kalau host cadangan mau dipakai.
-fn apply_image_effect(
-    http: &dyn HttpGet,
-    effect: &str,
-    image_url: &str,
-) -> Result<Vec<u8>, String> {
+fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &str) -> Result<Vec<u8>, String> {
     let url = format!(
         "https://api-faa.my.id/faa/{}?url={}",
         encode_uri_component(effect),
@@ -489,8 +481,8 @@ const EFEK: &str = "tofigurav3";
     is_bot_admin = false
 )]
 pub fn tofigurev2(ctx: Ctx) -> Reply {
-    let is_image =
-        ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image());
+    let is_image = ctx.is_media_kind(IncomingKind::Image)
+        || ctx.quoted().is_some_and(|q| q.kind.is_image());
 
     if !is_image {
         // `tofigurev2.js:23-25` — kartu pakai memakai `${m.prefix}`.
@@ -522,10 +514,12 @@ pub fn tofigurev2(ctx: Ctx) -> Reply {
     // JS `catch` (`tofigurev2.js:52-55`) menangkap upload, efek, dan kirim:
     // semuanya jadi template error + reaksi ☢.
     let Ok(image_url) = upload_image(&*ctx.http, &buffer) else {
-        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢");
     };
     let Ok(hasil) = apply_image_effect(&*ctx.http, EFEK, &image_url) else {
-        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢");
     };
     Reply::image(MediaSource::bytes(hasil), String::new()).with_reaction("✅")
 }
@@ -560,10 +554,7 @@ mod tests {
     }
 
     impl Stub {
-        fn baru(
-            balasan: Vec<(u16, Vec<u8>)>,
-            hasil_unduh: Result<Vec<u8>, MediaError>,
-        ) -> Arc<Stub> {
+        fn baru(balasan: Vec<(u16, Vec<u8>)>, hasil_unduh: Result<Vec<u8>, MediaError>) -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(balasan),
                 hitung: Mutex::new(0),
@@ -607,11 +598,7 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -653,8 +640,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             http: http.clone(),
             media_fetch: http,
             ..Ctx::default()
@@ -662,10 +649,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<String> {
@@ -716,10 +700,7 @@ mod tests {
     #[test]
     fn unduhan_quoted_dipakai_lebih_dulu() {
         let http = Stub::baru(
-            vec![
-                resp(200, b"https://litterbox.example/img.jpg"),
-                resp(200, GAMBAR),
-            ],
+            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(200, GAMBAR)],
             Ok(b"gambar-asli".to_vec()),
         );
         let r = tofigurev2(ctx_stub(
@@ -741,10 +722,7 @@ mod tests {
     #[test]
     fn media_pemicu_diunduh_kalau_quoted_bukan_media() {
         let http = Stub::baru(
-            vec![
-                resp(200, b"https://litterbox.example/img.jpg"),
-                resp(200, GAMBAR),
-            ],
+            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(200, GAMBAR)],
             Ok(b"asli".to_vec()),
         );
         let r = tofigurev2(ctx_stub(
@@ -813,10 +791,7 @@ mod tests {
         let balasan: Vec<(u16, Vec<u8>)> = (0..8).map(|_| resp(500, b"")).collect();
         let http = Stub::baru(balasan, Ok(b"gambar-asli".to_vec()));
         let r = tofigurev2(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "tofigurev2")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigurev2"));
         assert_eq!(reaksi(&r), Some("☢".into()));
         assert_eq!(http.panggilan.lock().unwrap().len(), 8);
     }
@@ -824,17 +799,11 @@ mod tests {
     #[test]
     fn efek_non_2xx_membalas_template_error() {
         let http = Stub::baru(
-            vec![
-                resp(200, b"https://litterbox.example/img.jpg"),
-                resp(500, b""),
-            ],
+            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(500, b"")],
             Ok(b"gambar-asli".to_vec()),
         );
         let r = tofigurev2(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "tofigurev2")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigurev2"));
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -849,10 +818,7 @@ mod tests {
             Ok(b"gambar-asli".to_vec()),
         );
         let r = tofigurev2(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "tofigurev2")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigurev2"));
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -867,15 +833,12 @@ mod tests {
             Some("https://x/y")
         );
         assert_eq!(
-            file_src_upload_ee(
-                r#"<input id="file_src" name="x" value="https://upload.ee/a.html">"#
-            )
-            .as_deref(),
+            file_src_upload_ee(r#"<input id="file_src" name="x" value="https://upload.ee/a.html">"#)
+                .as_deref(),
             Some("https://upload.ee/a.html")
         );
         assert_eq!(
-            view_file_upload_ee("View file: <br /><a href=\"https://upload.ee/b.html\">")
-                .as_deref(),
+            view_file_upload_ee("View file: <br /><a href=\"https://upload.ee/b.html\">").as_deref(),
             Some("https://upload.ee/b.html")
         );
         assert_eq!(

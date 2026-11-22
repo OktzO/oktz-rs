@@ -108,11 +108,7 @@ pub(crate) fn unavailable(action: &str) -> String {
     is_bot_admin = false
 )]
 pub fn autobackup(ctx: Ctx) -> Reply {
-    let action = ctx
-        .args
-        .first()
-        .map(|a| a.to_lowercase())
-        .unwrap_or_default();
+    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
     match action.as_str() {
         "" => Reply::text(help(&ctx.prefix)),
         // JS: `enableAutoBackup` menolak interval buruk dengan `{success:false}`
@@ -199,9 +195,7 @@ mod tests {
 
     #[test]
     fn junk_intervals_are_rejected_the_way_the_js_regex_does() {
-        for bad in [
-            "", "m", "h5", "5x", "-5m", "5 m", "5.5h", "0m", " 5h", "5h ",
-        ] {
+        for bad in ["", "m", "h5", "5x", "-5m", "5 m", "5.5h", "0m", " 5h", "5h "] {
             assert_eq!(parse_interval(bad), None, "interval {bad:?}");
         }
     }
@@ -235,9 +229,7 @@ mod tests {
 
     #[test]
     fn every_other_switch_arm_is_recognised() {
-        for a in [
-            "off", "disable", "stop", "status", "info", "now", "manual", "trigger",
-        ] {
+        for a in ["off", "disable", "stop", "status", "info", "now", "manual", "trigger"] {
             assert!(run(&[a]).contains(&format!("Aksi: `{a}`")), "aksi {a}");
         }
         assert!(run(&["OFF"]).contains("Aksi: `off`"), "lowercase dulu");
@@ -247,9 +239,6 @@ mod tests {
     fn an_unknown_action_lists_the_four_valid_ones() {
         let out = run(&["mulai"]);
         assert!(out.starts_with("⚠️ *ᴀᴄᴛɪᴏɴ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*"), "{out}");
-        assert!(
-            out.contains("> Pilih: `on`, `off`, `status`, atau `now`"),
-            "{out}"
-        );
+        assert!(out.contains("> Pilih: `on`, `off`, `status`, atau `now`"), "{out}");
     }
 }

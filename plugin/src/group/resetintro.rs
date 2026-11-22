@@ -134,7 +134,11 @@ mod tests {
 
     #[test]
     fn the_confirm_reply_names_the_live_prefix() {
-        assert!(confirm("#").contains("Ketik *#intro*"), "{}", confirm("#"));
+        assert!(
+            confirm("#").contains("Ketik *#intro*"),
+            "{}",
+            confirm("#")
+        );
     }
 
     #[test]

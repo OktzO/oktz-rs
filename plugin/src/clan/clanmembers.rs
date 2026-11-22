@@ -194,11 +194,7 @@ mod tests {
         assert_eq!(text_of(&r), "❌ Kamu belum punya clan");
         assert!(r.mutations().is_empty());
 
-        let r = run(
-            serde_json::json!({"clanId": "HILANG"}),
-            serde_json::json!({}),
-            vec![],
-        );
+        let r = run(serde_json::json!({"clanId": "HILANG"}), serde_json::json!({}), vec![]);
         assert_eq!(text_of(&r), "❌ Clan tidak ditemukan");
         assert!(r.mutations().is_empty());
     }
@@ -216,9 +212,13 @@ mod tests {
         assert!(t.contains("• @628111  Lv.1 · Rp 0"), "{t}");
         assert!(t.ends_with("\n\n2/50 members"), "{t}");
         match r.without_mutations() {
-            Reply::Text { mentions, .. } => {
-                assert_eq!(mentions, &[LEADER.to_string(), SENDER.to_string(),])
-            }
+            Reply::Text { mentions, .. } => assert_eq!(
+                mentions,
+                &[
+                    LEADER.to_string(),
+                    SENDER.to_string(),
+                ]
+            ),
             other => panic!("harus Text, dapat {other:?}"),
         }
     }
@@ -242,20 +242,11 @@ mod tests {
         let r = run(
             serde_json::json!({"clanId": "DRG", "level": 7, "koin": 25_000}),
             serde_json::json!({ "DRG": clan(serde_json::json!([SENDER, LEADER])) }),
-            vec![participant(
-                LEADER,
-                serde_json::json!({"rpg": {"level": 12}, "koin": 1234}),
-            )],
+            vec![participant(LEADER, serde_json::json!({"rpg": {"level": 12}, "koin": 1234}))],
         );
         let t = text_of(&r);
-        assert!(
-            t.contains("• @628111  Lv.7 · Rp 25.000"),
-            "baris sender: {t}"
-        );
-        assert!(
-            t.contains("👑 @628999  Lv.12 · Rp 1.234"),
-            "baris roster: {t}"
-        );
+        assert!(t.contains("• @628111  Lv.7 · Rp 25.000"), "baris sender: {t}");
+        assert!(t.contains("👑 @628999  Lv.12 · Rp 1.234"), "baris roster: {t}");
     }
 
     #[test]
@@ -274,10 +265,7 @@ mod tests {
         assert_eq!(koin_of(&serde_json::json!({"koin": null})), "0");
         assert_eq!(koin_of(&serde_json::json!({"koin": "abc"})), "0");
         assert_eq!(koin_of(&serde_json::json!({"koin": 0})), "0");
-        assert_eq!(
-            koin_of(&serde_json::json!({"koin": 1_234_567})),
-            "1.234.567"
-        );
+        assert_eq!(koin_of(&serde_json::json!({"koin": 1_234_567})), "1.234.567");
     }
 
     #[test]

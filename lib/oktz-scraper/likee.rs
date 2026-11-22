@@ -29,7 +29,9 @@ pub fn likee(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     match alur(http, url) {
         Ok(v) => Ok(v),
         // `throw new Error(e.message)` — pesan asli diteruskan tanpa dibungkus.
-        Err(e) => Err(HttpError { message: e.message }),
+        Err(e) => Err(HttpError {
+            message: e.message,
+        }),
     }
 }
 
@@ -95,9 +97,7 @@ fn pola_thumbnail() -> &'static Regex {
 /// `without_watermark`. Pola di sini tetap dipakai apa adanya, sama seperti JS.
 fn pola_with_watermark() -> &'static Regex {
     static P: OnceLock<Regex> = OnceLock::new();
-    P.get_or_init(|| {
-        Regex::new(r#"with_watermark[^>]+href="([^"]+)""#).expect("pola with_watermark")
-    })
+    P.get_or_init(|| Regex::new(r#"with_watermark[^>]+href="([^"]+)""#).expect("pola with_watermark"))
 }
 
 /// `/without_watermark[^>]+href="([^"]+)"/` (`likee.js:32`).
@@ -224,10 +224,7 @@ mod tests {
         let hasil = likee(&http, "https://likee.video/v/abc123").unwrap();
         assert_eq!(hasil["thumbnail"], "https://cdn.likee.video/cover.jpg");
         assert_eq!(hasil["with_watermark"], "https://cdn.likee.video/wm.mp4");
-        assert_eq!(
-            hasil["without_watermark"],
-            "https://cdn.likee.video/nowm.mp4"
-        );
+        assert_eq!(hasil["without_watermark"], "https://cdn.likee.video/nowm.mp4");
         assert_eq!(hasil["stats"], "12.34K views, 567 likes");
         assert_eq!(
             hasil
@@ -236,37 +233,30 @@ mod tests {
                 .keys()
                 .map(String::as_str)
                 .collect::<Vec<_>>(),
-            ["thumbnail", "with_watermark", "without_watermark", "stats"]
+            [
+                "thumbnail",
+                "with_watermark",
+                "without_watermark",
+                "stats"
+            ]
         );
 
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
         assert_eq!(p[0].url, "https://likeedownloader.com/process");
-        assert_eq!(
-            cari_header(&p[0], "user-agent"),
-            Some("Mozilla/5.0 (Linux; Android 10)")
-        );
+        assert_eq!(cari_header(&p[0], "user-agent"), Some("Mozilla/5.0 (Linux; Android 10)"));
         assert_eq!(
             cari_header(&p[0], "accept"),
             Some("application/json,text/javascript,*/*")
         );
-        assert_eq!(
-            cari_header(&p[0], "x-requested-with"),
-            Some("XMLHttpRequest")
-        );
+        assert_eq!(cari_header(&p[0], "x-requested-with"), Some("XMLHttpRequest"));
         assert_eq!(
             cari_header(&p[0], "content-type"),
             Some("application/x-www-form-urlencoded")
         );
-        assert_eq!(
-            cari_header(&p[0], "origin"),
-            Some("https://likeedownloader.com")
-        );
-        assert_eq!(
-            cari_header(&p[0], "referer"),
-            Some("https://likeedownloader.com/en")
-        );
+        assert_eq!(cari_header(&p[0], "origin"), Some("https://likeedownloader.com"));
+        assert_eq!(cari_header(&p[0], "referer"), Some("https://likeedownloader.com/en"));
         assert_eq!(
             p[0].body,
             Some(HttpBody::Form(
@@ -323,17 +313,19 @@ mod tests {
     fn encode_form_sama_dengan_urlsearchparams() {
         // `*-._` dibiarkan apa adanya; `!'()~` di-encode; spasi jadi `+`.
         assert_eq!(encode_form("a b!'()*~-_."), "a+b%21%27%28%29*%7E-_.");
-        assert_eq!(
-            encode_form("https://likee.video/v/a b"),
-            "https%3A%2F%2Flikee.video%2Fv%2Fa+b"
-        );
+        assert_eq!(encode_form("https://likee.video/v/a b"), "https%3A%2F%2Flikee.video%2Fv%2Fa+b");
     }
 
     #[test]
     fn regex_yang_gagal_masih_menghasilkan_kunci_null() {
         let http = Stub::baru(r#"{"template":"<div>kosong</div>"}"#);
         let hasil = likee(&http, "https://likee.video/x").unwrap();
-        for kunci in ["thumbnail", "with_watermark", "without_watermark", "stats"] {
+        for kunci in [
+            "thumbnail",
+            "with_watermark",
+            "without_watermark",
+            "stats",
+        ] {
             assert_eq!(hasil[kunci], Value::Null, "kunci {kunci} harus ada");
         }
     }

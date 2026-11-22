@@ -77,12 +77,7 @@ mod tests {
 
     #[test]
     fn absent_group_data_sends_the_full_default_rules() {
-        for g in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"groupRules": ""}),
-            serde_json::json!({"groupRules": 5}),
-        ] {
+        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"groupRules": ""}), serde_json::json!({"groupRules": 5})] {
             let out = run(g.clone());
             assert_eq!(out, DEFAULT_GROUP_RULES, "input {g}");
         }
@@ -97,10 +92,7 @@ mod tests {
             "🔹 *PENGGUNAAN BOT*",
             "🔹 *KONSEKUENSI*",
         ] {
-            assert!(
-                DEFAULT_GROUP_RULES.contains(section),
-                "bagian hilang: {section}"
-            );
+            assert!(DEFAULT_GROUP_RULES.contains(section), "bagian hilang: {section}");
         }
         assert!(DEFAULT_GROUP_RULES.ends_with(
             "_Dengan bergabung di grup ini, kamu dianggap sudah menyetujui semua aturan di atas._"

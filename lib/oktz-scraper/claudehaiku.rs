@@ -317,14 +317,8 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].url, API);
-        assert_eq!(
-            cari_header(&p[0], "x-device-uuid"),
-            Some("dev-1".to_string())
-        );
-        assert_eq!(
-            cari_header(&p[0], "content-type"),
-            Some("application/json".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "x-device-uuid"), Some("dev-1".to_string()));
+        assert_eq!(cari_header(&p[0], "content-type"), Some("application/json".to_string()));
         // `accept-language` versi pendek, bukan milik qwen3.
         assert_eq!(
             cari_header(&p[0], "accept-language"),
@@ -412,10 +406,7 @@ mod tests {
                 .to_string(),
         )]);
         let hasil = claude_haiku(&http, "hai", &json!({})).unwrap();
-        assert_eq!(
-            hasil["answer"], "A",
-            "Sisa buffer terakhir dibuang seperti JS"
-        );
+        assert_eq!(hasil["answer"], "A", "Sisa buffer terakhir dibuang seperti JS");
     }
 
     #[test]
@@ -425,10 +416,7 @@ mod tests {
         assert_eq!(hasil["status"], false);
         assert_eq!(hasil["code"], 401);
         assert_eq!(hasil["error"], "kunci salah");
-        assert!(
-            hasil.get("model").is_none(),
-            "JS tidak mengirim model saat gagal"
-        );
+        assert!(hasil.get("model").is_none(), "JS tidak mengirim model saat gagal");
         assert!(hasil.get("answer").is_none());
     }
 

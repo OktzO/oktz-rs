@@ -118,7 +118,9 @@ fn list_reply(role: &str, server: &str, list: &[String]) -> String {
     let role_label = capitalize(role).to_uppercase();
     let server_label = server.to_uppercase();
     if list.is_empty() {
-        return format!("📋 *ᴅᴀꜰᴛᴀʀ {role_label} {server_label}*\n\n> Belum ada {role} terdaftar.");
+        return format!(
+            "📋 *ᴅᴀꜰᴛᴀʀ {role_label} {server_label}*\n\n> Belum ada {role} terdaftar."
+        );
     }
     let mut txt = format!(
         "📋 *ᴅᴀꜰᴛᴀʀ {role_label} {server_label}*\n\n> Total: *{}* {role}\n\n",
@@ -193,12 +195,7 @@ pub fn rolemanager(ctx: Ctx) -> Reply {
         .and_then(|q| number_of(&q.sender))
         .or_else(|| ctx.mentioned.first().and_then(|j| number_of(j)))
         .or_else(|| {
-            let digits: String = ctx
-                .text
-                .trim()
-                .chars()
-                .filter(char::is_ascii_digit)
-                .collect();
+            let digits: String = ctx.text.trim().chars().filter(char::is_ascii_digit).collect();
             (!digits.is_empty()).then_some(digits)
         });
 
@@ -262,7 +259,7 @@ pub fn rolemanager(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn ctx_of(command: &str, settings: Value, sender: &str, is_owner: bool) -> Ctx {
         Ctx {
@@ -346,12 +343,7 @@ mod tests {
 
     #[test]
     fn an_empty_role_list_says_nothing_is_registered() {
-        let r = run(
-            "listceov2",
-            serde_json::json!({}),
-            "628111@s.whatsapp.net",
-            false,
-        );
+        let r = run("listceov2", serde_json::json!({}), "628111@s.whatsapp.net", false);
         assert!(
             body(&r).starts_with("📋 *ᴅᴀꜰᴛᴀʀ CEO V2*\n\n> Belum ada ceo terdaftar."),
             "{}",
@@ -377,12 +369,7 @@ mod tests {
 
     #[test]
     fn an_owner_without_a_target_gets_the_usage_card() {
-        let r = run(
-            "addownerv1",
-            serde_json::json!({}),
-            "628111@s.whatsapp.net",
-            true,
-        );
+        let r = run("addownerv1", serde_json::json!({}), "628111@s.whatsapp.net", true);
         // Owner tetap butuh target: guard `!targetUser` di JS jalan untuk semua.
         let t = body(&r);
         assert!(t.starts_with("⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*"), "{t}");
@@ -392,12 +379,7 @@ mod tests {
 
     #[test]
     fn a_plain_number_argument_is_accepted_as_the_target() {
-        let mut ctx = ctx_of(
-            "addownerv1",
-            serde_json::json!({}),
-            "628111@s.whatsapp.net",
-            true,
-        );
+        let mut ctx = ctx_of("addownerv1", serde_json::json!({}), "628111@s.whatsapp.net", true);
         ctx.text = "628555".into();
         let r = (oktz_plugin_api::find("addownerv1").unwrap().handler)(ctx);
         let t = body(&r);
@@ -417,12 +399,7 @@ mod tests {
 
     #[test]
     fn a_mention_is_the_target_when_nothing_is_quoted() {
-        let mut ctx = ctx_of(
-            "addceov2",
-            serde_json::json!({}),
-            "628111@s.whatsapp.net",
-            true,
-        );
+        let mut ctx = ctx_of("addceov2", serde_json::json!({}), "628111@s.whatsapp.net", true);
         ctx.mentioned = vec!["628777@s.whatsapp.net".into()];
         let r = (oktz_plugin_api::find("addceov2").unwrap().handler)(ctx);
         assert!(body(&r).contains("ɴᴏᴍᴏʀ: `628777`"), "{}", body(&r));
@@ -446,16 +423,8 @@ mod tests {
     #[test]
     fn a_reseller_and_a_stranger_both_have_no_managing_power() {
         for (settings, sender, expected) in [
-            (
-                serde_json::json!({"cpanelRoles": {"reseller_v1": ["628111"]}}),
-                "628111@s.whatsapp.net",
-                "*Reseller*",
-            ),
-            (
-                serde_json::json!({}),
-                "628111@s.whatsapp.net",
-                "*Tidak ada*",
-            ),
+            (serde_json::json!({"cpanelRoles": {"reseller_v1": ["628111"]}}), "628111@s.whatsapp.net", "*Reseller*"),
+            (serde_json::json!({}), "628111@s.whatsapp.net", "*Tidak ada*"),
         ] {
             let r = run("addceov1", settings, sender, false);
             let t = body(&r);
@@ -470,8 +439,7 @@ mod tests {
     // (lihat test sebelumnya) dan target `owner` (lihat `a_manager_cannot_touch_owner_role`).
     #[test]
     fn a_ceo_can_manage_any_non_owner_role_on_its_own_server() {
-        let settings =
-            serde_json::json!({"cpanelRoles": {"ceo_v1": ["628111"], "ceo_v2": ["628111"]}});
+        let settings = serde_json::json!({"cpanelRoles": {"ceo_v1": ["628111"], "ceo_v2": ["628111"]}});
         for cmd in ["addresellerv1", "addceov1"] {
             let mut ctx = ctx_of(cmd, settings.clone(), "628111@s.whatsapp.net", false);
             ctx.text = "628555".into();

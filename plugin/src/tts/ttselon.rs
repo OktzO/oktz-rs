@@ -8,9 +8,10 @@
 //! `fs` temp + ffmpeg → `ctx.berkas()` + `oktz_plugin_api::ffmpeg`.
 //! `te(...)` → `crate::common::error_template(&ctx)`.
 
-use oktz_plugin_api::ffmpeg;
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
+use oktz_plugin_api::ffmpeg;
 use serde_json::Value;
+
 
 /// `https://api.emiliabot.my.id/tools/text-to-speech?text=<teks>` (`ttselon.js:58`).
 pub(crate) fn api_url(text: &str) -> String {
@@ -22,7 +23,9 @@ pub(crate) fn api_url(text: &str) -> String {
 
 /// Bantuan saat teks kosong (`ttselon.js:50-52`).
 pub(crate) fn bantuan(prefix: &str) -> String {
-    format!("🚀 *ᴇʟᴏɴ ᴍᴜsᴋ ᴛᴛs*\n\n> Gunakan: `{prefix}ttselon <text>`")
+    format!(
+        "🚀 *ᴇʟᴏɴ ᴍᴜsᴋ ᴛᴛs*\n\n> Gunakan: `{prefix}ttselon <text>`"
+    )
 }
 
 /// Suara Elon tidak ditemukan (`ttselon.js:63-65`).
@@ -35,16 +38,10 @@ const TEMP_DIR: &str = "temp";
 const TEMP_PREFIX: &str = "tts_";
 
 /// `ctx.berkas()` + ffmpeg: tulis WAV, konversi ke Opus/OGG, baca, bersihkan.
-fn konversi_ke_opus(
-    berkas: &dyn oktz_plugin_api::berkas::Berkas,
-    wav: &[u8],
-) -> Result<Vec<u8>, String> {
-    let nama = format!(
-        "{TEMP_PREFIX}{}.wav",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_millis())
-    );
+fn konversi_ke_opus(berkas: &dyn oktz_plugin_api::berkas::Berkas, wav: &[u8]) -> Result<Vec<u8>, String> {
+    let nama = format!("{TEMP_PREFIX}{}.wav", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis()));
     let wav_path = format!("{TEMP_DIR}/{nama}");
     let opus_path = format!("{TEMP_DIR}/{}.ogg", nama.trim_end_matches(".wav"));
 
@@ -85,10 +82,7 @@ fn cari_suara_elon(data: &Value) -> Option<String> {
             .get("error")
             .is_none_or(|e| !crate::common::js_truthy_value(e));
         if elon_ada && error_salah {
-            return item
-                .get("elon_musk")
-                .and_then(Value::as_str)
-                .map(|s| s.to_string());
+            return item.get("elon_musk").and_then(Value::as_str).map(|s| s.to_string());
         }
     }
     None
@@ -227,10 +221,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<&str> {
@@ -260,9 +251,7 @@ mod tests {
     #[test]
     fn api_tanpa_suara_elon_hasilkan_teks_error() {
         let http = Stub::body(
-            serde_json::json!({ "result": [{ "elon_musk": null, "error": true }] })
-                .to_string()
-                .into_bytes(),
+            serde_json::json!({ "result": [{ "elon_musk": null, "error": true }] }).to_string().into_bytes(),
         );
         let r = run(http.clone(), "halo");
         assert_eq!(text_of(&r), SUARA_ERROR);
@@ -290,10 +279,7 @@ mod tests {
     fn gagal_jaringan_api_menggunakan_error_template() {
         let http = Stub::offline();
         let r = run(http.clone(), "halo");
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "ttselon")
-        );
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "ttselon"));
         assert_eq!(reaksi(&r), Some("☢"));
     }
 

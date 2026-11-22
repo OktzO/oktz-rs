@@ -100,7 +100,9 @@ pub fn ban(ctx: Ctx) -> Reply {
 
     let list = ctx.setting_list("bannedUsers").to_vec();
     if already_banned(&list, &number) {
-        return Reply::text(format!("❌ *ɢᴀɢᴀʟ*\n\n> Nomor `{number}` sudah dibanned"));
+        return Reply::text(format!(
+            "❌ *ɢᴀɢᴀʟ*\n\n> Nomor `{number}` sudah dibanned"
+        ));
     }
 
     let mut next = list;
@@ -116,7 +118,7 @@ pub fn ban(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(text: &str, mentioned: Option<&str>, settings: Value) -> Reply {
         let ctx = Ctx {
@@ -183,21 +185,13 @@ mod tests {
     #[test]
     fn exactly_ten_and_exactly_fifteen_digits_are_accepted() {
         for text in ["1234567890", "123456789012345"] {
-            assert_eq!(
-                stored(&run(text, None, serde_json::json!({}))).len(),
-                1,
-                "input {text:?}"
-            );
+            assert_eq!(stored(&run(text, None, serde_json::json!({}))).len(), 1, "input {text:?}");
         }
     }
 
     #[test]
     fn a_mention_wins_over_the_argument() {
-        let r = run(
-            "628000000000",
-            Some("6289991234567@s.whatsapp.net"),
-            serde_json::json!({}),
-        );
+        let r = run("628000000000", Some("6289991234567@s.whatsapp.net"), serde_json::json!({}));
         assert_eq!(stored(&r)[0], serde_json::json!("6289991234567"));
     }
 
@@ -259,16 +253,9 @@ mod tests {
         let r = run("628999999999", None, existing);
         assert_eq!(
             stored(&r),
-            vec![
-                serde_json::json!("628111111111"),
-                serde_json::json!("628999999999")
-            ]
+            vec![serde_json::json!("628111111111"), serde_json::json!("628999999999")]
         );
-        assert!(
-            text_of(&r).contains("┃ 📊 ᴛᴏᴛᴀʟ: `2` ᴜsᴇʀ"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("┃ 📊 ᴛᴏᴛᴀʟ: `2` ᴜsᴇʀ"), "{}", text_of(&r));
     }
 
     #[test]

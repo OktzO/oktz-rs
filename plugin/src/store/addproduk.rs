@@ -27,10 +27,7 @@ pub(crate) fn js_parse_int(s: &str) -> Option<i64> {
     if digits.is_empty() {
         return None;
     }
-    digits
-        .parse::<i64>()
-        .ok()
-        .map(|n| if negatif { -n } else { n })
+    digits.parse::<i64>().ok().map(|n| if negatif { -n } else { n })
 }
 
 /// Kartu pakai saat format salah (`addproduk.js:32-56`).
@@ -95,10 +92,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
     let price = js_parse_int(&parts[1]);
     let type_str = parts.get(2).map(|s| s.to_lowercase()).unwrap_or_default();
     let stock_str = parts.get(3).cloned().unwrap_or_default();
-    let description = parts
-        .get(4)
-        .map(|s| s.replace(";;", "\n"))
-        .unwrap_or_default();
+    let description = parts.get(4).map(|s| s.replace(";;", "\n")).unwrap_or_default();
 
     if name.is_empty() || name.chars().count() < 2 {
         return Reply::text(
@@ -125,9 +119,8 @@ pub fn addproduk(ctx: Ctx) -> Reply {
 
     // ---- thumbnail: media reply / media langsung (`addproduk.js:67-88`) ----
     let has_quoted_media = ctx.quoted().is_some_and(|q| q.is_media());
-    let is_direct_media = ctx.media.is_some()
-        && (ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Image)
-            || ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Video));
+    let is_direct_media =
+        ctx.media.is_some() && (ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Image) || ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Video));
 
     let mut image_url: Option<String> = None;
     let mut video_url: Option<String> = None;
@@ -191,26 +184,15 @@ pub fn addproduk(ctx: Ctx) -> Reply {
     products.push(new_product.clone());
 
     let type_icon = if tipe == "digital" { "🔑" } else { "📦" };
-    let type_label = if tipe == "digital" {
-        "Digital"
-    } else {
-        "Fisik"
-    };
+    let type_label = if tipe == "digital" { "Digital" } else { "Fisik" };
 
     let mut reply = String::from("✅ *PRODUK DITAMBAHKAN*\n\n");
-    reply.push_str(&format!(
-        "🏷️ Nama: *{}*\n",
-        new_product["name"].as_str().unwrap_or("")
-    ));
+    reply.push_str(&format!("🏷️ Nama: *{}*\n", new_product["name"].as_str().unwrap_or("")));
     reply.push_str(&format!("💰 Harga: *Rp {}*\n", ribuan(price)));
     reply.push_str(&format!("{type_icon} Tipe: *{type_label}*\n"));
     reply.push_str(&format!(
         "📊 Stok: *{}*\n",
-        if stock == -1 {
-            "Unlimited ♾️".to_string()
-        } else {
-            stock.to_string()
-        }
+        if stock == -1 { "Unlimited ♾️".to_string() } else { stock.to_string() }
     ));
     let desc = new_product["description"].as_str().unwrap_or("");
     if !desc.is_empty() {
@@ -240,7 +222,9 @@ pub fn addproduk(ctx: Ctx) -> Reply {
             p = ctx.prefix
         ));
     } else {
-        reply.push_str(&format!("1️⃣ Stok sudah diatur otomatis ({stock} pcs) 📦\n"));
+        reply.push_str(&format!(
+            "1️⃣ Stok sudah diatur otomatis ({stock} pcs) 📦\n"
+        ));
         reply.push_str(&format!(
             "2️⃣ Tambah stok: `{p}editproduk {} stok <jumlah>`\n",
             products.len(),
@@ -298,14 +282,8 @@ mod tests {
             p.meta.description,
             "➕ Tambah produk baru ke toko (hanya di private chat)"
         );
-        assert_eq!(
-            p.meta.usage,
-            ".addproduk <nama>|<harga>|<tipe>|<stok>|<deskripsi>"
-        );
-        assert_eq!(
-            p.meta.example,
-            ".addproduk Spotify Premium|25000|digital|10|Akun Premium 1 Bulan"
-        );
+        assert_eq!(p.meta.usage, ".addproduk <nama>|<harga>|<tipe>|<stok>|<deskripsi>");
+        assert_eq!(p.meta.example, ".addproduk Spotify Premium|25000|digital|10|Akun Premium 1 Bulan");
         assert_eq!(p.meta.cooldown, 3);
         assert!(p.meta.is_owner);
         assert!(p.meta.is_private, "isPrivate: true di JS");
@@ -314,11 +292,7 @@ mod tests {
     #[test]
     fn js_parse_int_mengikuti_semantik_js() {
         assert_eq!(js_parse_int("25000"), Some(25000));
-        assert_eq!(
-            js_parse_int("25.000"),
-            Some(25),
-            "parseInt berhenti di titik"
-        );
+        assert_eq!(js_parse_int("25.000"), Some(25), "parseInt berhenti di titik");
         assert_eq!(js_parse_int("10 pcs"), Some(10));
         assert_eq!(js_parse_int("abc"), None);
         assert_eq!(js_parse_int(""), None);
@@ -336,10 +310,7 @@ mod tests {
 
     #[test]
     fn tanpa_pemisah_kartu_pakai() {
-        let t = addproduk(ctx_of("hanya-nama"))
-            .text_body()
-            .unwrap()
-            .to_string();
+        let t = addproduk(ctx_of("hanya-nama")).text_body().unwrap().to_string();
         assert!(t.starts_with("➕ *TAMBAH PRODUK BARU*"));
         assert!(t.contains("`{p}addproduk <nama>".replace("{p}", ".").as_str()));
         assert!(t.contains("`{p}addstok`".replace("{p}", ".").as_str()));
@@ -347,38 +318,24 @@ mod tests {
 
     #[test]
     fn nama_pendek_dan_harga_invalid() {
-        let t = addproduk(ctx_of("A|25000"))
-            .text_body()
-            .unwrap()
-            .to_string();
+        let t = addproduk(ctx_of("A|25000")).text_body().unwrap().to_string();
         assert!(t.starts_with("❌ *Nama produk terlalu pendek.*"));
-        let t = addproduk(ctx_of("Spotify|500"))
-            .text_body()
-            .unwrap()
-            .to_string();
+        let t = addproduk(ctx_of("Spotify|500")).text_body().unwrap().to_string();
         assert!(t.starts_with("❌ *Harga tidak valid.*"));
-        let t = addproduk(ctx_of("Spotify|abc"))
-            .text_body()
-            .unwrap()
-            .to_string();
+        let t = addproduk(ctx_of("Spotify|abc")).text_body().unwrap().to_string();
         assert!(t.starts_with("❌ *Harga tidak valid.*"));
     }
 
     #[test]
     fn produk_digital_ditambahkan_dengan_stok_default() {
-        let r = addproduk(ctx_of(
-            "Spotify Premium|25000|digital|10|Akun Premium;;1 Bulan",
-        ));
+        let r = addproduk(ctx_of("Spotify Premium|25000|digital|10|Akun Premium;;1 Bulan"));
         let t = r.text_body().unwrap().to_string();
         assert!(t.starts_with("✅ *PRODUK DITAMBAHKAN*"), "{t}");
         assert!(t.contains("🏷️ Nama: *Spotify Premium*"));
         assert!(t.contains("💰 Harga: *Rp 25.000*"));
         assert!(t.contains("🔑 Tipe: *Digital*"));
         assert!(t.contains("📊 Stok: *10*"));
-        assert!(
-            t.contains("📝 Deskripsi: _Akun Premium\n1 Bulan_"),
-            ";; jadi newline"
-        );
+        assert!(t.contains("📝 Deskripsi: _Akun Premium\n1 Bulan_"), ";; jadi newline");
         assert!(t.contains("🖼️ Thumbnail: *tidak ada*"));
         assert!(t.contains("1️⃣ Tambahkan data akun/key: `.addstok 1|<detail>`"));
         for m in r.mutations() {

@@ -40,9 +40,7 @@ use super::play2::{MAX_HTML_PAYLOAD_BYTES, POSTER_PLACEHOLDER, cari_video, poste
 
 /// `ytplay.js:849-851` — judul/link kosong.
 pub(crate) fn tanpa_judul(prefix: &str) -> String {
-    format!(
-        "Mana judul atau link video YouTube yang mau diputar?\n\nContoh: {prefix}ytplay melukis senja"
-    )
+    format!("Mana judul atau link video YouTube yang mau diputar?\n\nContoh: {prefix}ytplay melukis senja")
 }
 
 /// `ytplay.js:889` — judul header kartu.
@@ -190,16 +188,14 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     };
 
     // `ytplay.js:858` — `getYoutubeDirectUrl(yt.url, "360")`.
-    let direct = match oktz_scraper::youtube::get_youtube_direct_url(
-        ctx.http.as_ref(),
-        &video.url,
-        Some("360"),
-    ) {
-        Ok(v) => v,
-        Err(e) => {
-            return Reply::text(gagal(&e.message)).with_reaction("☢");
-        }
-    };
+    let direct =
+        match oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("360"))
+        {
+            Ok(v) => v,
+            Err(e) => {
+                return Reply::text(gagal(&e.message)).with_reaction("☢");
+            }
+        };
     let Some(direct_url) = direct.get("url").and_then(|v| v.as_str()) else {
         // `ytplay.js:860-862` — `throw new Error("Gagal mendapatkan direct link video.")`.
         return Reply::text(gagal("Gagal mendapatkan direct link video.")).with_reaction("☢");
@@ -233,16 +229,16 @@ pub fn ytplay(ctx: Ctx) -> Reply {
 
     // `wsUrl` (`ytplay.js:879`) — ditampilkan sebagai teks di player;
     // streaming WS-nya sendiri tidak tercapai (lihat `ponytail:` modul).
-    let ws_url = format!("wss://stream.kanara.my.id/?url={}", url_encode(direct_url));
-    // Kualitas HD opsional — gagal diam-diam (tombol disembunyikan).
-    let hd_url =
-        oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("720"))
-            .ok()
-            .and_then(|v| v.get("url").and_then(|u| u.as_str()).map(str::to_string))
-            .unwrap_or_default();
-    let mut html = build_player_html(
-        judul, channel, &durasi, direct_url, &ws_url, &poster, &hd_url,
+    let ws_url = format!(
+        "wss://stream.kanara.my.id/?url={}",
+        url_encode(direct_url)
     );
+    // Kualitas HD opsional — gagal diam-diam (tombol disembunyikan).
+    let hd_url = oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("720"))
+        .ok()
+        .and_then(|v| v.get("url").and_then(|u| u.as_str()).map(str::to_string))
+        .unwrap_or_default();
+    let mut html = build_player_html(judul, channel, &durasi, direct_url, &ws_url, &poster, &hd_url);
     if html.len() > MAX_HTML_PAYLOAD_BYTES {
         // Poster ±20 KB; kalau masih kelebihan, kirim kartu tanpa poster
         // daripada menyerahkan payload yang bakal ditolak klien.
@@ -325,11 +321,7 @@ mod tests {
         }
         fn balasan(&self) -> String {
             let mut u = self.urut.lock().unwrap();
-            if u.is_empty() {
-                self.body.clone()
-            } else {
-                u.remove(0)
-            }
+            if u.is_empty() { self.body.clone() } else { u.remove(0) }
         }
     }
 
@@ -434,11 +426,7 @@ mod tests {
         };
         // `ytplay.js:905` — `aiRich.send` = AIRich; Rust menyusul edit identik
         // (adendum 8: syarat render kartu HTML di klien owner).
-        assert_eq!(
-            rich.sections.len(),
-            1,
-            "kartu player hanya satu section HTML"
-        );
+        assert_eq!(rich.sections.len(), 1, "kartu player hanya satu section HTML");
         assert_eq!(rich.bot_jid.as_deref(), Some("0@bot"));
         assert!(rich.edit_susulan);
     }
@@ -449,10 +437,7 @@ mod tests {
         assert_eq!(p.meta.name, "ytplay");
         assert_eq!(p.meta.alias, ["ytp", "playvideo"]);
         assert_eq!(p.meta.category, "search");
-        assert_eq!(
-            p.meta.description,
-            "Putar video YouTube via WebSocket player"
-        );
+        assert_eq!(p.meta.description, "Putar video YouTube via WebSocket player");
         assert_eq!(p.meta.usage, ".ytplay <judul>");
         assert_eq!(p.meta.example, ".ytplay melukis senja");
         assert_eq!(p.meta.cooldown, 20);
@@ -532,10 +517,7 @@ mod tests {
 
     #[test]
     fn url_encode_memakai_persen_bukan_plus() {
-        assert_eq!(
-            url_encode("https://x/y z?a=b&c=d"),
-            "https%3A%2F%2Fx%2Fy%20z%3Fa%3Db%26c%3Dd"
-        );
+        assert_eq!(url_encode("https://x/y z?a=b&c=d"), "https%3A%2F%2Fx%2Fy%20z%3Fa%3Db%26c%3Dd");
         assert_eq!(url_encode("abc-_.~"), "abc-_.~");
     }
 }

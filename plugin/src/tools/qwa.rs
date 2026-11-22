@@ -45,7 +45,7 @@ fn format_number(num_str: &str) -> String {
         return format!("+{bersih}");
     }
     if let Some(nasional) = digits.strip_prefix("62") {
-        return format!("+62 {}", kelompokkan(nasional, &[3, 4, 4]));
+        return format!("+62 {}",kelompokkan(nasional, &[3, 4, 4]));
     }
     if let Some(nasional) = digits.strip_prefix('0') {
         return format!("+{}", kelompokkan(nasional, &[3, 4, 3]));
@@ -160,7 +160,9 @@ pub fn qwa(ctx: Ctx) -> Reply {
         "background": false,
     });
 
-    if quote_pakai && let Some(q) = &quoted {
+    if quote_pakai
+        && let Some(q) = &quoted
+    {
         // `pushName` pesan yang di-reply tidak tersedia; JS memakai `~ User`.
         payload["quoted"] = json!({
             "name": nama_sender(""),
@@ -169,11 +171,13 @@ pub fn qwa(ctx: Ctx) -> Reply {
         });
     }
 
-    let res = ctx.http.call(
-        &HttpCall::post(ENDPOINT)
-            .header("Content-Type", "application/json")
-            .json(&payload),
-    );
+    let res = ctx
+        .http
+        .call(
+            &HttpCall::post(ENDPOINT)
+                .header("Content-Type", "application/json")
+                .json(&payload),
+        );
     let Ok(res) = res else {
         return Reply::text(gagal()).with_reaction("❌");
     };
@@ -230,10 +234,7 @@ mod tests {
     #[test]
     fn nomor_sama_dengan_js() {
         assert_eq!(format_number("6281234567890"), "+62 812 3456 7890");
-        assert_eq!(
-            format_number("6281234567890@s.whatsapp.net"),
-            "+62 812 3456 7890"
-        );
+        assert_eq!(format_number("6281234567890@s.whatsapp.net"), "+62 812 3456 7890");
         assert_eq!(format_number("+1 212 555 0123"), "+1 212 555 0123");
     }
 

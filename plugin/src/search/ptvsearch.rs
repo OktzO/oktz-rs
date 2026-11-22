@@ -57,7 +57,10 @@ pub fn ptvsearch(ctx: Ctx) -> Reply {
     };
 
     let item = &arr[random_index(arr.len())];
-    let link = item.get("link").and_then(Value::as_str).unwrap_or("");
+    let link = item
+        .get("link")
+        .and_then(Value::as_str)
+        .unwrap_or("");
 
     if link.is_empty() {
         return Reply::text(tidak_ditemukan(&query)).with_reaction("❌");
@@ -169,10 +172,7 @@ mod tests {
 
     #[test]
     fn hasil_kosong_menghasilkan_tidak_ditemukan() {
-        let r = run(
-            Stub::body(serde_json::json!({ "status": true, "result": [] })),
-            "anime",
-        );
+        let r = run(Stub::body(serde_json::json!({ "status": true, "result": [] })), "anime");
         assert_eq!(text_of(&r), tidak_ditemukan("anime"));
         assert_eq!(reaction_of(&r), Some("❌"));
     }
@@ -180,9 +180,7 @@ mod tests {
     #[test]
     fn item_tanpa_link_dibuang_dan_hasilkan_tidak_ditemukan() {
         let r = run(
-            Stub::body(
-                serde_json::json!({ "status": true, "result": [{ "title": "Tanpa link" }] }),
-            ),
+            Stub::body(serde_json::json!({ "status": true, "result": [{ "title": "Tanpa link" }] })),
             "anime",
         );
         assert_eq!(text_of(&r), tidak_ditemukan("anime"));
@@ -191,14 +189,8 @@ mod tests {
 
     #[test]
     fn status_falsy_melempar_dan_menghasilkan_error_template() {
-        let r = run(
-            Stub::body(serde_json::json!({ "status": false, "message": "batas tercapai" })),
-            "anime",
-        );
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "ptvsearch")
-        );
+        let r = run(Stub::body(serde_json::json!({ "status": false, "message": "batas tercapai" })), "anime");
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "ptvsearch"));
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -229,8 +221,7 @@ mod tests {
                     _ => "",
                 };
                 assert!(
-                    url == "https://tiktok.com/@a/video/1"
-                        || url == "https://tiktok.com/@b/video/2",
+                    url == "https://tiktok.com/@a/video/1" || url == "https://tiktok.com/@b/video/2",
                     "link tidak dikenal: {url}"
                 );
             }
@@ -246,10 +237,7 @@ mod tests {
     #[test]
     fn kegagalan_jaringan_menggunakan_error_template() {
         let r = run(Stub::offline(), "anime");
-        assert_eq!(
-            text_of(&r),
-            crate::common::error_template_bawaan(".", "ptvsearch")
-        );
+        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "ptvsearch"));
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 }

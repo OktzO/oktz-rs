@@ -66,7 +66,11 @@ fn dice_emoji(result: u32) -> &'static str {
     is_bot_admin = false
 )]
 pub fn dice(ctx: Ctx) -> Reply {
-    let guess = ctx.args.first().and_then(|a| parse_int(a)).unwrap_or(0);
+    let guess = ctx
+        .args
+        .first()
+        .and_then(|a| parse_int(a))
+        .unwrap_or(0);
     let bet = ctx.args.get(1).and_then(|a| parse_int(a)).unwrap_or(0);
 
     if !(1..=6).contains(&guess) {
@@ -100,11 +104,7 @@ pub fn dice(ctx: Ctx) -> Reply {
     );
 
     let mut new_user = user;
-    let final_koin = if is_win {
-        after_bet + bet * 5
-    } else {
-        after_bet
-    };
+    let final_koin = if is_win { after_bet + bet * 5 } else { after_bet };
     // `user.koin -= bet` / `user.koin = (user.koin || 0) + winnings`
     // (`dice.js:47`, `:63`) — objek user dari store disalin lalu `koin` diganti.
     if new_user.is_object() {
@@ -212,7 +212,8 @@ mod tests {
             "koin setelah taruhan harus 4000 (kalah) atau 9000 (menang), dapat {koin}"
         );
         assert!(
-            body(&r).contains("Duit Lu Ditarik Bandar") || body(&r).contains("GILA LU HOKI BANGET"),
+            body(&r).contains("Duit Lu Ditarik Bandar")
+                || body(&r).contains("GILA LU HOKI BANGET"),
             "{}",
             body(&r)
         );

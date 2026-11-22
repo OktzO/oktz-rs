@@ -122,8 +122,7 @@ fn contain(img: &RgbaImage, target_w: u32, target_h: u32) -> RgbaImage {
     let scale = (target_w as f32 / w as f32).min(target_h as f32 / h as f32);
     let new_w = ((w as f32 * scale).round() as u32).clamp(1, target_w);
     let new_h = ((h as f32 * scale).round() as u32).clamp(1, target_h);
-    let scaled =
-        DynamicImage::ImageRgba8(img.clone()).resize_exact(new_w, new_h, FilterType::Triangle);
+    let scaled = DynamicImage::ImageRgba8(img.clone()).resize_exact(new_w, new_h, FilterType::Triangle);
     let mut out = RgbaImage::new(target_w, target_h);
     let x = (target_w.saturating_sub(new_w)) / 2;
     let y = (target_h.saturating_sub(new_h)) / 2;
@@ -166,16 +165,8 @@ fn rounded_mask(img: &mut RgbaImage, radius: u32) {
         if !(near_x && near_y) {
             continue;
         }
-        let corner_x = if x < radius as u32 {
-            radius - x as f32
-        } else {
-            x as f32 + 1.0 - (w as f32 - radius)
-        };
-        let corner_y = if y < radius as u32 {
-            radius - y as f32
-        } else {
-            y as f32 + 1.0 - (h as f32 - radius)
-        };
+        let corner_x = if x < radius as u32 { radius - x as f32 } else { x as f32 + 1.0 - (w as f32 - radius) };
+        let corner_y = if y < radius as u32 { radius - y as f32 } else { y as f32 + 1.0 - (h as f32 - radius) };
         if corner_x * corner_x + corner_y * corner_y > radius * radius {
             px[3] = 0;
         }
@@ -274,7 +265,11 @@ pub fn sticker_metadata_json(packname: &str, author: &str, emojis: &[&str]) -> V
     // Urutan & isi kunci persis `Rubby-MD/lib/exif.js:143-148` (empat kunci,
     // pack-id dulu) — bot JS itu terbukti tampil normal di device yang sama.
     let q = |s: &str| serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
-    let emoji_list = emojis.iter().map(|e| q(e)).collect::<Vec<_>>().join(",");
+    let emoji_list = emojis
+        .iter()
+        .map(|e| q(e))
+        .collect::<Vec<_>>()
+        .join(",");
     format!(
         "{{\"sticker-pack-id\":{},\"sticker-pack-name\":{},\"sticker-pack-publisher\":{},\"emojis\":[{}]}}",
         q(EXIF_PACK_ID),
@@ -287,8 +282,8 @@ pub fn sticker_metadata_json(packname: &str, author: &str, emojis: &[&str]) -> V
 
 fn exif_payload(metadata_json: &[u8]) -> Vec<u8> {
     let mut exif = vec![
-        0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00,
+        0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00,
     ];
     let len = metadata_json.len() as u32;
     exif[14..18].copy_from_slice(&len.to_le_bytes());
@@ -318,8 +313,7 @@ fn parse_chunks(data: &[u8]) -> Option<Vec<([u8; 4], Vec<u8>)>> {
     while pos + 8 <= data.len() {
         let mut id = [0u8; 4];
         id.copy_from_slice(&data[pos..pos + 4]);
-        let size = u32::from_le_bytes([data[pos + 4], data[pos + 5], data[pos + 6], data[pos + 7]])
-            as usize;
+        let size = u32::from_le_bytes([data[pos + 4], data[pos + 5], data[pos + 6], data[pos + 7]]) as usize;
         let start = pos + 8;
         let end = start.saturating_add(size);
         if end > data.len() {
@@ -349,8 +343,7 @@ pub fn tempel_metadata_stiker(
     let riff_size = u32::from_le_bytes([webp[4], webp[5], webp[6], webp[7]]) as usize;
     let limit = (12 + riff_size).min(webp.len());
     while end + 8 <= limit {
-        let size = u32::from_le_bytes([webp[end + 4], webp[end + 5], webp[end + 6], webp[end + 7]])
-            as usize;
+        let size = u32::from_le_bytes([webp[end + 4], webp[end + 5], webp[end + 6], webp[end + 7]]) as usize;
         if end + 8 + size > limit {
             break;
         }
@@ -364,9 +357,9 @@ pub fn tempel_metadata_stiker(
     // Recompute chunks from clean bytes.
     let chunks = parse_chunks(clean).ok_or_else(|| "WebP rusak".to_string())?;
 
-    let has_alpha = chunks
-        .iter()
-        .any(|(id, p)| id == b"ALPH" || (id == b"VP8L" && p.len() >= 5 && (p[4] >> 4) & 1 == 1));
+    let has_alpha = chunks.iter().any(|(id, p)| {
+        id == b"ALPH" || (id == b"VP8L" && p.len() >= 5 && (p[4] >> 4) & 1 == 1)
+    });
     let has_anim = chunks.iter().any(|(id, _)| id == b"ANIM" || id == b"ANMF");
 
     let (width, height) = webp_dimensions(clean);
@@ -382,9 +375,7 @@ pub fn tempel_metadata_stiker(
             .find(|(id, _)| id == b"VP8X")
             .and_then(|(_, p)| p.first().copied())
             .map(|f| f | 0x08)
-            .unwrap_or(
-                0x08 | (if has_alpha { 0x10 } else { 0 }) | (if has_anim { 0x02 } else { 0 }),
-            );
+            .unwrap_or(0x08 | (if has_alpha { 0x10 } else { 0 }) | (if has_anim { 0x02 } else { 0 }));
         let mut vp8x = vec![flags, 0, 0, 0];
         let cw = (width.max(1) - 1).min(0x00FF_FFFF);
         let ch = (height.max(1) - 1).min(0x00FF_FFFF);
@@ -397,10 +388,7 @@ pub fn tempel_metadata_stiker(
         put_chunk(&mut body, b"VP8X", &vp8x);
     }
     // copy non-exif/vp8x chunks (XMP dipertahankan — `Rubby-MD/lib/exif.js:179`)
-    for (id, payload) in chunks
-        .iter()
-        .filter(|(id, _)| *id != *b"EXIF" && *id != *b"VP8X")
-    {
+    for (id, payload) in chunks.iter().filter(|(id, _)| *id != *b"EXIF" && *id != *b"VP8X") {
         put_chunk(&mut body, id, payload);
     }
     put_chunk(&mut body, b"EXIF", &exif);
@@ -416,57 +404,38 @@ pub fn tempel_metadata_stiker(
 fn webp_dimensions(data: &[u8]) -> (u32, u32) {
     // VP8X
     if let Some(pos) = find_chunk(data, b"VP8X")
-        && pos + 18 <= data.len()
-    {
-        let w =
-            u32::from_le_bytes([data[pos + 12], data[pos + 13], data[pos + 14], 0]) & 0x00FF_FFFF;
-        let h =
-            u32::from_le_bytes([data[pos + 15], data[pos + 16], data[pos + 17], 0]) & 0x00FF_FFFF;
-        return (w + 1, h + 1);
-    }
+        && pos + 18 <= data.len() {
+            let w = u32::from_le_bytes([data[pos + 12], data[pos + 13], data[pos + 14], 0]) & 0x00FF_FFFF;
+            let h = u32::from_le_bytes([data[pos + 15], data[pos + 16], data[pos + 17], 0]) & 0x00FF_FFFF;
+            return (w + 1, h + 1);
+        }
     // VP8 (lossy)
     if let Some(pos) = find_chunk(data, b"VP8 ")
-        && pos + 20 <= data.len()
-    {
-        let w = u16::from_le_bytes([data[pos + 14], data[pos + 15]]) as u32 & 0x3FFF;
-        let h = u16::from_le_bytes([data[pos + 16], data[pos + 17]]) as u32 & 0x3FFF;
-        if w > 0 && h > 0 {
-            return (w, h);
+        && pos + 20 <= data.len() {
+            let w = u16::from_le_bytes([data[pos + 14], data[pos + 15]]) as u32 & 0x3FFF;
+            let h = u16::from_le_bytes([data[pos + 16], data[pos + 17]]) as u32 & 0x3FFF;
+            if w > 0 && h > 0 { return (w, h); }
         }
-    }
     // VP8L
     if let Some(pos) = find_chunk(data, b"VP8L")
-        && pos + 13 <= data.len()
-    {
-        let bits = u32::from_le_bytes([
-            data[pos + 9],
-            data[pos + 10],
-            data[pos + 11],
-            data[pos + 12],
-        ]);
-        let w = (bits & 0x3FFF) + 1;
-        let h = ((bits >> 14) & 0x3FFF) + 1;
-        if w > 0 && h > 0 {
-            return (w, h);
+        && pos + 13 <= data.len() {
+            let bits = u32::from_le_bytes([data[pos + 9], data[pos + 10], data[pos + 11], data[pos + 12]]);
+            let w = (bits & 0x3FFF) + 1;
+            let h = ((bits >> 14) & 0x3FFF) + 1;
+            if w > 0 && h > 0 { return (w, h); }
         }
-    }
     (0, 0)
 }
 
 fn find_chunk(data: &[u8], id: &[u8; 4]) -> Option<usize> {
     let mut pos = 12usize;
-    let riff_size = if data.len() >= 8 {
-        u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize
-    } else {
-        0
-    };
+    let riff_size = if data.len() >= 8 { u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize } else { 0 };
     let limit = (12 + riff_size).min(data.len());
     while pos + 8 <= limit {
-        if &data[pos..pos + 4] == id {
+        if &data[pos..pos+4] == id {
             return Some(pos);
         }
-        let size = u32::from_le_bytes([data[pos + 4], data[pos + 5], data[pos + 6], data[pos + 7]])
-            as usize;
+        let size = u32::from_le_bytes([data[pos+4], data[pos+5], data[pos+6], data[pos+7]]) as usize;
         pos += 8 + size + (size % 2);
     }
     None
@@ -485,11 +454,7 @@ pub fn nama_unik(prefix: &str, ext: &str) -> std::path::PathBuf {
     dir
 }
 
-pub fn tulis_berkas_sementara(
-    prefix: &str,
-    ext: &str,
-    data: &[u8],
-) -> Result<std::path::PathBuf, String> {
+pub fn tulis_berkas_sementara(prefix: &str, ext: &str, data: &[u8]) -> Result<std::path::PathBuf, String> {
     let path = nama_unik(prefix, ext);
     std::fs::File::create(&path)
         .and_then(|mut f| f.write_all(data))
@@ -586,10 +551,7 @@ mod tests {
         });
         let mut encoded = Vec::new();
         DynamicImage::ImageRgba8(img)
-            .write_to(
-                &mut std::io::Cursor::new(&mut encoded),
-                image::ImageOutputFormat::Png,
-            )
+            .write_to(&mut std::io::Cursor::new(&mut encoded), image::ImageOutputFormat::Png)
             .unwrap();
         let out = gambar_ke_stiker_webp(&encoded, &[]).unwrap();
         assert!(is_webp(&out));
@@ -631,10 +593,7 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(
-            vp8x[0], 0x18,
-            "EXIF 0x08 | alpha 0x10 — `Rubby-MD/lib/exif.js:197`"
-        );
+        assert_eq!(vp8x[0], 0x18, "EXIF 0x08 | alpha 0x10 — `Rubby-MD/lib/exif.js:197`");
     }
 
     #[test]
@@ -656,9 +615,6 @@ mod tests {
             .find(|(id, _)| id == b"VP8X")
             .map(|(_, payload)| payload)
             .unwrap();
-        assert_eq!(
-            vp8x[0], 0x1A,
-            "VP8X ffmpeg 0x12 | EXIF 0x08 — `exif.js:188`"
-        );
+        assert_eq!(vp8x[0], 0x1A, "VP8X ffmpeg 0x12 | EXIF 0x08 — `exif.js:188`");
     }
 }

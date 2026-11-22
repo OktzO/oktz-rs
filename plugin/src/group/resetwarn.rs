@@ -117,8 +117,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             group_data: group,
             ..Default::default()
         };
@@ -236,10 +236,7 @@ mod tests {
             &["628333@s.whatsapp.net"],
             None,
         );
-        assert!(
-            text_of(&r).contains("Sebelumnya: *1/3*"),
-            "0 falsy -> default 3"
-        );
+        assert!(text_of(&r).contains("Sebelumnya: *1/3*"), "0 falsy -> default 3");
     }
 
     #[test]

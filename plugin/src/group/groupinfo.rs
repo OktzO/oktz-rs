@@ -17,10 +17,7 @@ fn feature_status(value: Option<&Value>) -> &'static str {
 }
 
 fn teks(value: Option<&Value>) -> Option<&str> {
-    value
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+    value.and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty())
 }
 
 /// `getParticipantJid`/`resolveAnyLidToJid`: owner `@lid` dicari pasangannya di
@@ -81,11 +78,7 @@ fn jumlah_peserta(meta: &Value, roster: &GroupRoster) -> (usize, usize) {
         }
         None => (
             roster.participants.len(),
-            roster
-                .participants
-                .iter()
-                .filter(|p: &&Participant| p.is_admin)
-                .count(),
+            roster.participants.iter().filter(|p: &&Participant| p.is_admin).count(),
         ),
     }
 }
@@ -123,11 +116,7 @@ fn susun_info(
     text.push_str(&format!("Dibuat: {created}\n"));
     text.push_str(&format!(
         "Status: {}\n\n",
-        if is_open {
-            "🔓 Terbuka"
-        } else {
-            "🔒 Tertutup"
-        }
+        if is_open { "🔓 Terbuka" } else { "🔒 Tertutup" }
     ));
 
     text.push_str("📊 *MEMBER*\n");
@@ -145,7 +134,10 @@ fn susun_info(
         ("AutoSticker", "autosticker"),
         ("AutoMedia", "automedia"),
     ] {
-        text.push_str(&format!("{label}: {}\n", feature_status(group.get(key))));
+        text.push_str(&format!(
+            "{label}: {}\n",
+            feature_status(group.get(key))
+        ));
     }
     text.push('\n');
 
@@ -160,18 +152,17 @@ fn susun_info(
         ("AntiMedia", "antimedia"),
         ("AntiDocument", "antidocument"),
     ] {
-        text.push_str(&format!("{label}: {}\n", feature_status(group.get(key))));
+        text.push_str(&format!(
+            "{label}: {}\n",
+            feature_status(group.get(key))
+        ));
     }
     // JS tidak menutup baris terakhir dengan newline.
     if text.ends_with('\n') {
         text.pop();
     }
 
-    if let Some(desc) = meta
-        .get("desc")
-        .and_then(Value::as_str)
-        .filter(|s| !s.is_empty())
-    {
+    if let Some(desc) = meta.get("desc").and_then(Value::as_str).filter(|s| !s.is_empty()) {
         text.push_str(&format!("\n\n📝 *DESKRIPSI*\n{desc}"));
     }
     text
@@ -204,13 +195,7 @@ pub fn groupinfo(ctx: Ctx) -> Reply {
         Err(_) => return Reply::text(error_template(&ctx)),
     };
     let owner = owner_jid(&meta, &ctx.roster);
-    let text = susun_info(
-        &meta,
-        &ctx.roster,
-        &ctx.chat,
-        &ctx.group_data,
-        owner.as_deref(),
-    );
+    let text = susun_info(&meta, &ctx.roster, &ctx.chat, &ctx.group_data, owner.as_deref());
     let mentions = mentions_of(owner.as_deref());
 
     match ctx.sock.foto_profil(&ctx.chat, "image") {
@@ -283,13 +268,7 @@ mod tests {
     #[test]
     fn susun_info_mengikuti_baris_javascript() {
         let group = json!({"welcome": "on", "antilink": true});
-        let text = susun_info(
-            &meta(),
-            &roster(),
-            "628999@g.us",
-            &group,
-            Some("628111@s.whatsapp.net"),
-        );
+        let text = susun_info(&meta(), &roster(), "628999@g.us", &group, Some("628111@s.whatsapp.net"));
         assert!(text.starts_with("👥 *INFO GRUP*\n\nNama: *Grup Uji*\n"));
         assert!(text.contains("ID: 628999@g.us\n"));
         assert!(text.contains("Owner: @628111\n"));

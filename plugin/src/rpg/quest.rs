@@ -4,7 +4,7 @@
 //! naik tanpa stats `rpg` ikut terisi ulang walau level naik.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::{int_field, now_ms};
 use crate::rpg::jualan::{exp_gain_only, or_default};
@@ -12,22 +12,8 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 /// `QUESTS` (`quest.js:19-55`) — `(id, nama, deskripsi, target, uang, exp)`.
 pub(crate) const QUESTS: [(&str, &str, &str, i64, i64, i64); 5] = [
-    (
-        "mining5",
-        "Penambang Pemula",
-        "Mining 5 kali",
-        5,
-        10000,
-        1000,
-    ),
-    (
-        "fishing5",
-        "Pemancing Handal",
-        "Fishing 5 kali",
-        5,
-        8000,
-        800,
-    ),
+    ("mining5", "Penambang Pemula", "Mining 5 kali", 5, 10000, 1000),
+    ("fishing5", "Pemancing Handal", "Fishing 5 kali", 5, 8000, 800),
     (
         "adventure3",
         "Petualang Sejati",
@@ -40,9 +26,7 @@ pub(crate) const QUESTS: [(&str, &str, &str, i64, i64, i64); 5] = [
     ("hunt5", "Pemburu Ulung", "Hunt 5 kali", 5, 12000, 1200),
 ];
 
-pub(crate) fn find_quest(
-    id: &str,
-) -> Option<&'static (&'static str, &'static str, &'static str, i64, i64, i64)> {
+pub(crate) fn find_quest(id: &str) -> Option<&'static (&'static str, &'static str, &'static str, i64, i64, i64)> {
     QUESTS.iter().find(|q| q.0 == id)
 }
 
@@ -155,9 +139,7 @@ pub fn quest(ctx: Ctx) -> Reply {
     );
     for (id, name, desc, target, money, exp_reward) in QUESTS {
         let status = match quest_of(user, id) {
-            Some(entry) if crate::common::js_truthy(entry.get("claimed")) => {
-                "✅ Selesai".to_string()
-            }
+            Some(entry) if crate::common::js_truthy(entry.get("claimed")) => "✅ Selesai".to_string(),
             Some(entry) if entry.get("progress").and_then(Value::as_i64).unwrap_or(0) >= target => {
                 "🎁 Siap Claim".to_string()
             }
@@ -247,22 +229,13 @@ mod tests {
         let t = text_of(&r);
         assert!(t.starts_with("📌 *PAPAN BOUNTY (MISI HARIAN)*"), "{t}");
         for (id, name, desc, target, money, exp) in QUESTS {
+            assert!(t.contains(&format!("🎯 *{name}*\n   ├ Tugas: {desc}")), "{id}: {t}");
             assert!(
-                t.contains(&format!("🎯 *{name}*\n   ├ Tugas: {desc}")),
-                "{id}: {t}"
-            );
-            assert!(
-                t.contains(&format!(
-                    "   ├ Reward: Rp {} & {exp} EXP",
-                    thousands_id(money as f64)
-                )),
+                t.contains(&format!("   ├ Reward: Rp {} & {exp} EXP", thousands_id(money as f64))),
                 "{id}: {t}"
             );
             assert!(t.contains("   ├ Status: *📜 Tersedia*"), "{id}: {t}");
-            assert!(
-                t.contains(&format!("   └ Ambil: `.quest take {id}`")),
-                "{id}: {t}"
-            );
+            assert!(t.contains(&format!("   └ Ambil: `.quest take {id}`")), "{id}: {t}");
             assert!(target > 0);
         }
         assert!(t.ends_with("`.quest claim <id_misi>`"), "{t}");
@@ -272,27 +245,12 @@ mod tests {
     #[test]
     fn the_board_reads_the_four_states_of_a_stored_quest() {
         for (stored, expected) in [
-            (
-                serde_json::json!({"progress": 1, "claimed": false}),
-                "🏃 Sedang Dikerjakan (1/5)",
-            ),
-            (
-                serde_json::json!({"progress": 5, "claimed": false}),
-                "🎁 Siap Claim",
-            ),
-            (
-                serde_json::json!({"progress": 5, "claimed": true}),
-                "✅ Selesai",
-            ),
-            (
-                serde_json::json!({"progress": 0, "claimed": true}),
-                "✅ Selesai",
-            ),
+            (serde_json::json!({"progress": 1, "claimed": false}), "🏃 Sedang Dikerjakan (1/5)"),
+            (serde_json::json!({"progress": 5, "claimed": false}), "🎁 Siap Claim"),
+            (serde_json::json!({"progress": 5, "claimed": true}), "✅ Selesai"),
+            (serde_json::json!({"progress": 0, "claimed": true}), "✅ Selesai"),
         ] {
-            let t = text(run(
-                &[],
-                serde_json::json!({ "quest": { "mining5": stored } }),
-            ));
+            let t = text(run(&[], serde_json::json!({ "quest": { "mining5": stored } })));
             assert!(t.contains(expected), "{stored} -> {t}");
         }
     }
@@ -313,50 +271,29 @@ mod tests {
             &["take", "hunt5"],
             serde_json::json!({"quest": {"hunt5": {"progress": 2, "claimed": false}}}),
         );
-        assert_eq!(
-            text_of(&r),
-            "Kamu udah ngambil misi ini kak! Kerjain dulu yuk! ⚔️"
-        );
+        assert_eq!(text_of(&r), "Kamu udah ngambil misi ini kak! Kerjain dulu yuk! ⚔️");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn an_unknown_quest_id_cannot_be_taken_or_claimed() {
         let r = run(&["take", "boss9"], serde_json::json!({}));
-        assert_eq!(
-            text_of(&r),
-            "Misi nggak ketemu! Liat daftar lengkapnya di `.quest`"
-        );
+        assert_eq!(text_of(&r), "Misi nggak ketemu! Liat daftar lengkapnya di `.quest`");
 
         // Row-nya ADA tapi id-nya tak dikenal di `QUESTS`: `!user.quest[id]`
         // lolos, jadi yang menolak adalah `QUESTS.find`.
-        let r = run(
-            &["claim", "boss9"],
-            serde_json::json!({"quest": {"boss9": {"progress": 99}}}),
-        );
-        assert_eq!(
-            text_of(&r),
-            "ID misinya salah kak! Cek lagi papan bounty ya! 🔍"
-        );
+        let r = run(&["claim", "boss9"], serde_json::json!({"quest": {"boss9": {"progress": 99}}}));
+        assert_eq!(text_of(&r), "ID misinya salah kak! Cek lagi papan bounty ya! 🔍");
 
         // Row-nya tidak ada: guard pertama yang menolak.
         let r = run(&["claim", "boss9"], serde_json::json!({}));
-        assert_eq!(
-            text_of(&r),
-            "Hmm.. Misi itu nggak ada di daftar kamu kak! 📜❌"
-        );
+        assert_eq!(text_of(&r), "Hmm.. Misi itu nggak ada di daftar kamu kak! 📜❌");
     }
 
     #[test]
     fn claiming_needs_a_known_id_even_when_the_row_exists() {
-        let r = run(
-            &["claim", "nope"],
-            serde_json::json!({"quest": {"nope": {"progress": 9}}}),
-        );
-        assert_eq!(
-            text_of(&r),
-            "ID misinya salah kak! Cek lagi papan bounty ya! 🔍"
-        );
+        let r = run(&["claim", "nope"], serde_json::json!({"quest": {"nope": {"progress": 9}}}));
+        assert_eq!(text_of(&r), "ID misinya salah kak! Cek lagi papan bounty ya! 🔍");
     }
 
     #[test]
@@ -378,18 +315,10 @@ mod tests {
         );
         let d = written(&r);
         assert_eq!(d["koin"], serde_json::json!(15500), "500 + 15.000");
-        assert_eq!(
-            d["exp"],
-            serde_json::json!(2500),
-            "updateExp, bukan addExpWithLevelCheck"
-        );
+        assert_eq!(d["exp"], serde_json::json!(2500), "updateExp, bukan addExpWithLevelCheck");
         assert!(d.get("rpg").is_none(), "updateExp tidak mengisi rpg");
         assert_eq!(d["quest"]["adventure3"]["claimed"], serde_json::json!(true));
-        assert_eq!(
-            d["quest"]["adventure3"]["progress"],
-            serde_json::json!(3),
-            "progress tak diubah"
-        );
+        assert_eq!(d["quest"]["adventure3"]["progress"], serde_json::json!(3), "progress tak diubah");
 
         let again = run(
             &["claim", "adventure3"],

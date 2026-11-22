@@ -28,86 +28,16 @@ type Recipe = (
 );
 
 const RECIPES: [Recipe; 10] = [
-    (
-        "sword",
-        "⚔️ Pedang Besi",
-        &[("iron", 3), ("wood", 2)],
-        "sword",
-        200,
-        1,
-    ),
-    (
-        "shield",
-        "🛡️ Perisai Besi",
-        &[("iron", 4), ("leather", 2)],
-        "shield",
-        250,
-        1,
-    ),
-    (
-        "helmet",
-        "⛑️ Helm Besi",
-        &[("iron", 2), ("leather", 1)],
-        "helmet",
-        150,
-        1,
-    ),
-    (
-        "armor",
-        "🦺 Armor Besi",
-        &[("iron", 5), ("leather", 3)],
-        "armor",
-        350,
-        1,
-    ),
-    (
-        "axe",
-        "🪓 Kapak Besi",
-        &[("iron", 2), ("wood", 3)],
-        "axe",
-        180,
-        1,
-    ),
-    (
-        "pickaxe",
-        "⛏️ Beliung",
-        &[("iron", 3), ("wood", 2)],
-        "pickaxe",
-        180,
-        1,
-    ),
-    (
-        "bow",
-        "🏹 Busur",
-        &[("wood", 4), ("string", 2)],
-        "bow",
-        200,
-        1,
-    ),
-    (
-        "arrow",
-        "🏹 Anak Panah x10",
-        &[("wood", 1), ("iron", 1)],
-        "arrow",
-        50,
-        10,
-    ),
-    (
-        "goldsword",
-        "🗡️ Pedang Emas",
-        &[("gold", 5), ("diamond", 2), ("iron", 3)],
-        "goldsword",
-        500,
-        1,
-    ),
-    (
-        "diamondarmor",
-        "💎 Armor Berlian",
-        &[("diamond", 8), ("iron", 5), ("leather", 3)],
-        "diamondarmor",
-        800,
-        1,
-    ),
+    ("sword", "⚔️ Pedang Besi", &[("iron", 3), ("wood", 2)], "sword", 200, 1),
+    ("shield", "🛡️ Perisai Besi", &[("iron", 4), ("leather", 2)], "shield", 250, 1),
+    ("helmet", "⛑️ Helm Besi", &[("iron", 2), ("leather", 1)], "helmet", 150, 1),
+    ("armor", "🦺 Armor Besi", &[("iron", 5), ("leather", 3)], "armor", 350, 1),
+    ("axe", "🪓 Kapak Besi", &[("iron", 2), ("wood", 3)], "axe", 180, 1),
+    ("pickaxe", "⛏️ Beliung", &[("iron", 3), ("wood", 2)], "pickaxe", 180, 1),
+    ("bow", "🏹 Busur", &[("wood", 4), ("string", 2)], "bow", 200, 1),
+    ("arrow", "🏹 Anak Panah x10", &[("wood", 1), ("iron", 1)], "arrow", 50, 10),
+    ("goldsword", "🗡️ Pedang Emas", &[("gold", 5), ("diamond", 2), ("iron", 3)], "goldsword", 500, 1),
+    ("diamondarmor", "💎 Armor Berlian", &[("diamond", 8), ("iron", 5), ("leather", 3)], "diamondarmor", 800, 1),
 ];
 
 fn recipe(key: &str) -> Option<&'static Recipe> {
@@ -195,10 +125,7 @@ pub fn blacksmith(ctx: Ctx) -> Reply {
             inv.insert((*material).to_string(), serde_json::json!(left));
         }
     }
-    inv.insert(
-        result.to_string(),
-        serde_json::json!(have(&inv, result) + qty),
-    );
+    inv.insert(result.to_string(), serde_json::json!(have(&inv, result) + qty));
 
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp);
@@ -235,11 +162,7 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() {
-                vec![]
-            } else {
-                vec![arg.into()]
-            },
+            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
             user_data: user,
             ..Default::default()
         };
@@ -292,17 +215,8 @@ mod tests {
         assert!(t.starts_with("Halo petualang!"), "{t}");
         assert!(t.ends_with("`.mining` atau `.hunt` lho!"), "{t}");
         for (key, name, materials, _, exp, _) in RECIPES {
-            assert!(
-                t.contains(&format!("👉 Ketik: `.blacksmith {key}`")),
-                "{key} hilang"
-            );
-            assert!(
-                t.contains(&format!(
-                    "*{name}*\n📦 Bahan: {}",
-                    materials_line(materials)
-                )),
-                "{key} salah"
-            );
+            assert!(t.contains(&format!("👉 Ketik: `.blacksmith {key}`")), "{key} hilang");
+            assert!(t.contains(&format!("*{name}*\n📦 Bahan: {}", materials_line(materials))), "{key} salah");
             assert!(t.contains(&format!("📈 EXP: +{exp}")), "{key} salah");
         }
         let pos = |n: &str| t.find(n).expect("resep hilang");
@@ -314,10 +228,7 @@ mod tests {
     fn an_unknown_item_name_is_refused_and_nothing_is_written() {
         for bad in ["potion", "Sword!", "arrow2"] {
             let r = run(serde_json::json!({ "inventory": { "iron": 99 } }), bad);
-            assert!(
-                text_of(&r).starts_with("Hadeh, panduan bikin apaan tuh"),
-                "arg {bad}"
-            );
+            assert!(text_of(&r).starts_with("Hadeh, panduan bikin apaan tuh"), "arg {bad}");
             assert!(r.mutations().is_empty(), "arg {bad}");
         }
     }
@@ -325,18 +236,12 @@ mod tests {
     /// `qty` hanya ada di `arrow`; sisanya `recipe.qty || 1`.
     #[test]
     fn arrow_is_the_only_recipe_that_yields_more_than_one() {
-        let arrow = run(
-            serde_json::json!({ "inventory": { "wood": 1, "iron": 1 }, "exp": 0 }),
-            "arrow",
-        );
+        let arrow = run(serde_json::json!({ "inventory": { "wood": 1, "iron": 1 }, "exp": 0 }), "arrow");
         let data = write_of(&arrow);
         assert_eq!(data["inventory"]["arrow"], serde_json::json!(10));
         assert!(text_of(&arrow).contains("📊 Jumlah: *+10*"));
 
-        let sword = run(
-            serde_json::json!({ "inventory": { "iron": 3, "wood": 2 }, "exp": 0 }),
-            "sword",
-        );
+        let sword = run(serde_json::json!({ "inventory": { "iron": 3, "wood": 2 }, "exp": 0 }), "sword");
         assert_eq!(write_of(&sword)["inventory"]["sword"], serde_json::json!(1));
         assert!(text_of(&sword).contains("📊 Jumlah: *+1*"));
     }
@@ -382,25 +287,15 @@ mod tests {
         );
         let data = write_of(&r);
         assert_eq!(data["exp"], serde_json::json!(200));
-        assert_eq!(
-            data["inventory"]["potion"],
-            serde_json::json!(7),
-            "barang lain tak boleh hilang"
-        );
+        assert_eq!(data["inventory"]["potion"], serde_json::json!(7), "barang lain tak boleh hilang");
     }
 
     #[test]
     fn the_recipe_table_keeps_every_js_row() {
         assert_eq!(RECIPES.len(), 10);
         assert_eq!(RECIPES[0].1, "⚔️ Pedang Besi");
-        let want: Recipe = (
-            "diamondarmor",
-            "💎 Armor Berlian",
-            &[("diamond", 8), ("iron", 5), ("leather", 3)],
-            "diamondarmor",
-            800,
-            1,
-        );
+        let want: Recipe = ("diamondarmor", "💎 Armor Berlian",
+            &[("diamond", 8), ("iron", 5), ("leather", 3)], "diamondarmor", 800, 1);
         assert_eq!(RECIPES[9], want);
         assert!(recipe("tidak-ada").is_none());
     }

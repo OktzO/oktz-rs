@@ -5,5 +5,5 @@
 //! orchestrator. Lihat `ponytail:` di tiap fungsi yang butuh I/O WA/store yang
 //! belum ada di `Ctx` class A.
 
-pub mod ekonomi;
 pub mod lib;
+pub mod ekonomi;

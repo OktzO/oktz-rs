@@ -115,11 +115,7 @@ fn label_for(data: &serde_json::Value, fallback: Option<&str>) -> &'static str {
             Some("👩") => "👨",
             _ => {
                 use rand::Rng as _;
-                if rand::rng().random_bool(0.5) {
-                    "👩"
-                } else {
-                    "👨"
-                }
+                if rand::rng().random_bool(0.5) { "👩" } else { "👨" }
             }
         },
     }
@@ -289,7 +285,7 @@ pub fn jodoh(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::registry::{GroupRoster, Participant};
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn member(jid: &str, data: Value) -> Participant {
         Participant {
@@ -345,10 +341,7 @@ mod tests {
         assert_eq!(p.meta.name, "jodoh");
         assert_eq!(p.meta.alias, ["match", "shipcouple", "ship"]);
         assert_eq!(p.meta.category, "fun");
-        assert_eq!(
-            p.meta.description,
-            "Jodohkan 2 member random dengan kecocokan"
-        );
+        assert_eq!(p.meta.description, "Jodohkan 2 member random dengan kecocokan");
         assert_eq!(p.meta.usage, ".jodoh");
         assert_eq!(p.meta.example, ".jodoh");
         assert_eq!(p.meta.cooldown, 10);
@@ -405,14 +398,8 @@ mod tests {
         for pct in [1u32, 9, 10, 29, 30, 49, 50, 69, 70, 89, 90, 100] {
             let bar = progress_bar(pct);
             assert_eq!(bar.chars().count(), 10, "pct {pct}");
-            assert_eq!(
-                bar.chars().filter(|c| *c == '█').count(),
-                (pct / 10) as usize
-            );
-            assert_eq!(
-                bar.chars().filter(|c| *c == '░').count(),
-                10 - (pct / 10) as usize
-            );
+            assert_eq!(bar.chars().filter(|c| *c == '█').count(), (pct / 10) as usize);
+            assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10 - (pct / 10) as usize);
             assert!(text_has_band(pct), "pct {pct}");
         }
     }
@@ -444,14 +431,8 @@ mod tests {
     #[test]
     fn registered_members_of_both_genders_always_get_paired_across() {
         let members = vec![
-            member(
-                "1@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true, "regGender": "Laki-laki", "regName": "Budi"}),
-            ),
-            member(
-                "2@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true, "regGender": "Perempuan", "regName": "Sari"}),
-            ),
+            member("1@s.whatsapp.net", serde_json::json!({"isRegistered": true, "regGender": "Laki-laki", "regName": "Budi"})),
+            member("2@s.whatsapp.net", serde_json::json!({"isRegistered": true, "regGender": "Perempuan", "regName": "Sari"})),
             member("3@s.whatsapp.net", serde_json::json!({})),
         ];
         for _ in 0..40 {
@@ -462,63 +443,32 @@ mod tests {
             );
             let (a, b) = (&mentions[0], &mentions[1]);
             let g = |jid: &String| {
-                if jid == "1@s.whatsapp.net" {
-                    "Laki-laki"
-                } else {
-                    "Perempuan"
-                }
+                if jid == "1@s.whatsapp.net" { "Laki-laki" } else { "Perempuan" }
             };
-            assert_ne!(
-                g(a),
-                g(b),
-                "laki-laki harus dipasangkan dengan perempuan: {text}"
-            );
-            assert!(
-                text.contains("*Budi* (@1)") || text.contains("*Sari* (@2)"),
-                "{text}"
-            );
+            assert_ne!(g(a), g(b), "laki-laki harus dipasangkan dengan perempuan: {text}");
+            assert!(text.contains("*Budi* (@1)") || text.contains("*Sari* (@2)"), "{text}");
         }
     }
 
     #[test]
     fn a_single_gender_falls_back_to_a_shuffle_of_the_registered_pool() {
         let members = vec![
-            member(
-                "1@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true, "regGender": "Laki-laki"}),
-            ),
-            member(
-                "2@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true, "regGender": "Laki-laki"}),
-            ),
+            member("1@s.whatsapp.net", serde_json::json!({"isRegistered": true, "regGender": "Laki-laki"})),
+            member("2@s.whatsapp.net", serde_json::json!({"isRegistered": true, "regGender": "Laki-laki"})),
             member("3@s.whatsapp.net", serde_json::json!({})),
         ];
         let (text, mentions) = split(&run(ctx_of(members, serde_json::json!({}))));
-        assert!(
-            text.contains("Dijodohkan berdasarkan data registrasi"),
-            "{text}"
-        );
-        assert!(
-            mentions
-                .iter()
-                .all(|m| m.ends_with("1@s.whatsapp.net") || m.ends_with("2@s.whatsapp.net")),
-            "{text}"
-        );
+        assert!(text.contains("Dijodohkan berdasarkan data registrasi"), "{text}");
+        assert!(mentions.iter().all(|m| m.ends_with("1@s.whatsapp.net") || m.ends_with("2@s.whatsapp.net")), "{text}");
     }
 
     #[test]
     fn registration_mode_blocks_unregistered_groups() {
         let members = vec![
-            member(
-                "1@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true}),
-            ),
+            member("1@s.whatsapp.net", serde_json::json!({"isRegistered": true})),
             member("2@s.whatsapp.net", serde_json::json!({})),
         ];
-        let (text, mentions) = split(&run(ctx_of(
-            members,
-            serde_json::json!({"registrationRequired": true}),
-        )));
+        let (text, mentions) = split(&run(ctx_of(members, serde_json::json!({"registrationRequired": true}))));
         assert_eq!(text, format!("{ERR_META}\n\n{ERR_REGISTRATION}"));
         assert!(mentions.is_empty());
     }
@@ -526,30 +476,13 @@ mod tests {
     #[test]
     fn registration_mode_pairs_from_the_registered_pool_only() {
         let members = vec![
-            member(
-                "1@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true}),
-            ),
-            member(
-                "2@s.whatsapp.net",
-                serde_json::json!({"isRegistered": true}),
-            ),
+            member("1@s.whatsapp.net", serde_json::json!({"isRegistered": true})),
+            member("2@s.whatsapp.net", serde_json::json!({"isRegistered": true})),
             member("3@s.whatsapp.net", serde_json::json!({})),
         ];
-        let (text, mentions) = split(&run(ctx_of(
-            members,
-            serde_json::json!({"registrationRequired": true}),
-        )));
-        assert!(
-            mentions
-                .iter()
-                .all(|m| m.ends_with("1@s.whatsapp.net") || m.ends_with("2@s.whatsapp.net")),
-            "{text}"
-        );
-        assert!(
-            text.contains("> 🔒 _Mode wajib daftar aktif, hanya member terdaftar yang dipilih_"),
-            "{text}"
-        );
+        let (text, mentions) = split(&run(ctx_of(members, serde_json::json!({"registrationRequired": true}))));
+        assert!(mentions.iter().all(|m| m.ends_with("1@s.whatsapp.net") || m.ends_with("2@s.whatsapp.net")), "{text}");
+        assert!(text.contains("> 🔒 _Mode wajib daftar aktif, hanya member terdaftar yang dipilih_"), "{text}");
     }
 
     #[test]
@@ -559,10 +492,7 @@ mod tests {
                 "628111@s.whatsapp.net",
                 &serde_json::json!({"regGender": "Laki-laki", "regName": "Budi"}),
             ),
-            (
-                "628222@s.whatsapp.net",
-                &serde_json::json!({"regGender": "Perempuan"}),
-            ),
+            ("628222@s.whatsapp.net", &serde_json::json!({"regGender": "Perempuan"})),
             74,
             false,
             false,
@@ -570,18 +500,11 @@ mod tests {
         );
         assert!(out.contains("┃ 👨 *Budi* (@628111)"), "{out}");
         assert!(out.contains("┃ 👩 @628222"), "{out}");
-        assert!(
-            out.ends_with(&format!("> _\"{}\"_", LOVE_QUOTES[0])),
-            "{out}"
-        );
+        assert!(out.ends_with(&format!("> _\"{}\"_", LOVE_QUOTES[0])), "{out}");
     }
 
     #[test]
     fn the_reply_only_reads_the_roster() {
-        assert!(
-            run(ctx_of(plain(4), serde_json::json!({})))
-                .mutations()
-                .is_empty()
-        );
+        assert!(run(ctx_of(plain(4), serde_json::json!({}))).mutations().is_empty());
     }
 }

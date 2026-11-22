@@ -9,15 +9,7 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-const STYLES: [&str; 7] = [
-    "apple",
-    "google",
-    "microsoft",
-    "samsung",
-    "whatsapp",
-    "twitter",
-    "facebook",
-];
+const STYLES: [&str; 7] = ["apple", "google", "microsoft", "samsung", "whatsapp", "twitter", "facebook"];
 
 fn help(prefix: &str) -> String {
     format!(
@@ -83,13 +75,12 @@ pub fn emojitoimage(ctx: Ctx) -> Reply {
 
     let api_key = ctx.config().api_keys.neoxr.clone();
     let Ok(res) = ctx.http.get(&api_url(&emoji, &style, &api_key)) else {
-        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢");
     };
     let body = res.json().unwrap_or(Value::Null);
 
-    let status_ok = body
-        .get("status")
-        .is_some_and(crate::common::js_truthy_value);
+    let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
     let url = body
         .get("data")
         .and_then(|d| d.get("url"))
@@ -112,8 +103,9 @@ pub fn emojitoimage(ctx: Ctx) -> Reply {
     } else {
         "-".to_string()
     };
-    let caption =
-        format!("🖼️ *ᴇᴍᴏᴊɪ ᴛᴏ ɪᴍᴀɢᴇ*\n\n> Emoji: {emoji}\n> Style: {style}\n> Code: {code}");
+    let caption = format!(
+        "🖼️ *ᴇᴍᴏᴊɪ ᴛᴏ ɪᴍᴀɢᴇ*\n\n> Emoji: {emoji}\n> Style: {style}\n> Code: {code}"
+    );
 
     Reply::image(MediaSource::url(url), caption).with_reaction("✅")
 }
@@ -304,10 +296,7 @@ mod tests {
             Value::Null,
         ] {
             let r = run_dengan_kunci(Stub::body(body.clone()), "😳");
-            assert_eq!(
-                text_of(&r),
-                "❌ *ɢᴀɢᴀʟ*\n\n> Emoji tidak ditemukan atau API error"
-            );
+            assert_eq!(text_of(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Emoji tidak ditemukan atau API error");
             assert_eq!(reaction_of(&r), Some("❌"));
         }
     }

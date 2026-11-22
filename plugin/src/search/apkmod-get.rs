@@ -13,7 +13,7 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::js_truthy;
+use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
@@ -64,11 +64,7 @@ pub(crate) fn file_name(file: &Value, app: &Value) -> String {
 /// dokumen, jadi jatuh ke cabang "tidak tersedia".
 pub(crate) fn file_url(file: Option<&Value>) -> Option<String> {
     let raw = file?.get("url")?.as_str()?.trim();
-    if raw.is_empty() {
-        None
-    } else {
-        Some(raw.to_string())
-    }
+    if raw.is_empty() { None } else { Some(raw.to_string()) }
 }
 
 #[plugin(
@@ -90,13 +86,7 @@ pub(crate) fn file_url(file: Option<&Value>) -> Option<String> {
 )]
 pub fn apkmod_get(ctx: Ctx) -> Reply {
     let no = ctx.args.first().cloned().unwrap_or_default();
-    let query = ctx
-        .args
-        .iter()
-        .skip(1)
-        .cloned()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let query = ctx.args.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
 
     // `!no` = argumen pertama bukan angka (`parseInt` -> NaN) atau 0.
     let no_ok = crate::common::parse_int(&no).is_some_and(|n| n != 0);
@@ -122,7 +112,8 @@ pub fn apkmod_get(ctx: Ctx) -> Reply {
             file_name(file, app),
         )
         .with_reaction("✅"),
-        None => Reply::interactive(NO_DOWNLOAD_URL.to_string()).with_reaction("⚠️"),
+        None => Reply::interactive(NO_DOWNLOAD_URL.to_string())
+        .with_reaction("⚠️"),
     }
 }
 
@@ -156,12 +147,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self
-                .body
-                .clone()
-                .ok_or_else(|| oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                })?;
+            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -218,7 +206,9 @@ mod tests {
         match r.without_mutations() {
             Reply::Reaction { reply, .. } => match reply.as_ref() {
                 Reply::Document {
-                    media, file_name, ..
+                    media,
+                    file_name,
+                    ..
                 } => {
                     let url = media
                         .as_ref()
@@ -272,11 +262,7 @@ mod tests {
     fn a_missing_number_or_query_prints_the_format_without_a_request() {
         let http = Stub::empty();
         for text in ["", "1", "vpn", "abc vpn", "0 vpn", "  "] {
-            assert_eq!(
-                body_of(&run(http.clone(), text)),
-                bad_format("."),
-                "input {text:?}"
-            );
+            assert_eq!(body_of(&run(http.clone(), text)), bad_format("."), "input {text:?}");
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -329,11 +315,7 @@ mod tests {
             "<html>bukan json</html>",
         ] {
             let r = run(Stub::new(body), "1 vpn");
-            assert_eq!(
-                body_of(&r),
-                crate::common::error_template_bawaan(".", "apkmod-get"),
-                "{body}"
-            );
+            assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "apkmod-get"), "{body}");
             assert_eq!(reaction_of(&r), Some("☢"), "{body}");
         }
     }
@@ -341,11 +323,7 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::empty(), "1 vpn");
-        assert!(
-            body_of(&r).contains("command `.apkmod-get`"),
-            "{}",
-            body_of(&r)
-        );
+        assert!(body_of(&r).contains("command `.apkmod-get`"), "{}", body_of(&r));
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

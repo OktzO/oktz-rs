@@ -69,17 +69,14 @@ pub fn izen(ctx: Ctx) -> Reply {
         encode_uri_component(&link)
     );
     let Ok(res) = ctx.http.get(&api_url) else {
-        return Reply::text(
-            "❌ Maaf kak, terjadi kesalahan sistem! 😭\nError: HTTP tidak tersedia",
-        );
+        return Reply::text("❌ Maaf kak, terjadi kesalahan sistem! 😭\nError: HTTP tidak tersedia");
     };
     let json = res.json().unwrap_or(serde_json::Value::Null);
 
     if json
         .get("data")
         .and_then(|d| d.get("result"))
-        .and_then(|r| r.get("result"))
-        .is_none()
+        .and_then(|r| r.get("result")).is_none()
     {
         return Reply::text("❌ Waduh kak, gagal ngelewatin link-nya nih! Coba link lain ya.");
     }
@@ -208,10 +205,7 @@ mod tests {
 
     #[test]
     fn hasil_tanpa_result_mengambil_gagal() {
-        let r = run(
-            Stub::json(serde_json::json!({ "data": {} })),
-            "https://sfl.gl/x",
-        );
+        let r = run(Stub::json(serde_json::json!({ "data": {} })), "https://sfl.gl/x");
         assert!(body(&r).contains("gagal ngelewatin link-nya nih"));
     }
 

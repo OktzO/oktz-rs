@@ -25,7 +25,9 @@ use serde_json::Value;
 )]
 pub fn quotesimage(ctx: Ctx) -> Reply {
     let api_key = ctx.config().api_keys.neoxr.clone();
-    let url = format!("https://api.neoxr.eu/api/quotesimage?apikey={api_key}");
+    let url = format!(
+        "https://api.neoxr.eu/api/quotesimage?apikey={api_key}"
+    );
 
     let res = match ctx.http.get(&url) {
         Ok(r) => r,
@@ -93,9 +95,7 @@ mod tests {
                     },
                     headers: Vec::new(),
                 }),
-                None => Err(oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                }),
+                None => Err(oktz_plugin_api::HttpError { message: "offline".into() }),
             }
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
@@ -104,11 +104,7 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
     }
@@ -138,7 +134,10 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("quotesimage").unwrap();
         assert_eq!(p.meta.name, "quotesimage");
-        assert_eq!(p.meta.alias, ["quoteimg", "quotes-image", "qimg"]);
+        assert_eq!(
+            p.meta.alias,
+            ["quoteimg", "quotes-image", "qimg"]
+        );
         assert_eq!(p.meta.category, "random");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
@@ -148,7 +147,10 @@ mod tests {
     #[test]
     fn setiap_alias_menunjuk_ke_plugin_ini() {
         for a in ["quoteimg", "quotes-image", "qimg"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "quotesimage");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "quotesimage"
+            );
         }
     }
 
@@ -159,10 +161,7 @@ mod tests {
         let r = quotesimage(c);
         match r.without_mutations() {
             Reply::Image { media, .. } => {
-                assert_eq!(
-                    media.as_ref().unwrap(),
-                    &MediaSource::url("https://example.com/quote.jpg")
-                );
+                assert_eq!(media.as_ref().unwrap(), &MediaSource::url("https://example.com/quote.jpg"));
             }
             other => panic!("harus Image, dapat {other:?}"),
         }
@@ -184,3 +183,4 @@ mod tests {
         assert!(text_of(&r).contains("❌ Gagal mengambil quotes image"));
     }
 }
+

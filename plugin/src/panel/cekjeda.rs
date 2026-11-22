@@ -48,25 +48,13 @@ fn has_access(ctx: &Ctx) -> bool {
 }
 
 /// Badan balasan, dipisah dari handler supaya setting bisa diuji langsung.
-pub(crate) fn status_text(
-    jeda_ms: i64,
-    last_used: i64,
-    now: i64,
-    is_owner: bool,
-    prefix: &str,
-) -> String {
+pub(crate) fn status_text(jeda_ms: i64, last_used: i64, now: i64, is_owner: bool, prefix: &str) -> String {
     let remaining = (jeda_ms - (now - last_used)).max(0);
 
     let (status, status_desc) = if jeda_ms == 0 {
-        (
-            "⚡ *NO JEDA*",
-            "Jeda dinonaktifkan, bebas create!".to_string(),
-        )
+        ("⚡ *NO JEDA*", "Jeda dinonaktifkan, bebas create!".to_string())
     } else if remaining > 0 {
-        (
-            "🕕 *COOLDOWN*",
-            format!("Tunggu {} lagi", format_time(remaining)),
-        )
+        ("🕕 *COOLDOWN*", format!("Tunggu {} lagi", format_time(remaining)))
     } else {
         ("✅ *READY*", "Bisa create panel sekarang!".to_string())
     };
@@ -167,9 +155,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     #[test]
@@ -196,10 +182,7 @@ mod tests {
         // file role kosong.
         let r = run(Value::Null, false);
         assert_eq!(text_of(&r), NO_ACCESS);
-        assert!(
-            r.mutations().is_empty(),
-            "cek status tidak boleh menulis store"
-        );
+        assert!(r.mutations().is_empty(), "cek status tidak boleh menulis store");
     }
 
     #[test]
@@ -249,10 +232,7 @@ mod tests {
     #[test]
     fn only_the_owner_gets_the_jedacreate_hint_with_the_live_prefix() {
         let owner = status_text(300_000, 0, 1_700_000_000_000, true, "!");
-        assert!(
-            owner.contains("> _Owner: gunakan `!jedacreate` untuk setting_"),
-            "{owner}"
-        );
+        assert!(owner.contains("> _Owner: gunakan `!jedacreate` untuk setting_"), "{owner}");
         let user = status_text(300_000, 0, 1_700_000_000_000, false, "!");
         assert!(!user.contains("jedacreate"), "{user}");
     }

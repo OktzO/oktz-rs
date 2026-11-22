@@ -53,11 +53,7 @@ pub(crate) fn is_global_action(action: &str) -> bool {
     is_bot_admin = false
 )]
 pub fn goodbyeall(ctx: Ctx) -> Reply {
-    let action = ctx
-        .args
-        .first()
-        .map(|a| a.to_lowercase())
-        .unwrap_or_default();
+    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
     if !is_global_action(&action) {
         return Reply::text(usage(&ctx.prefix));
     }
@@ -94,10 +90,7 @@ mod tests {
         assert_eq!(p.meta.name, "goodbyeall");
         assert_eq!(p.meta.alias, ["gball", "globalgoodbye", "leaveall"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(
-            p.meta.description,
-            "Aktifkan/nonaktifkan goodbye di semua grup"
-        );
+        assert_eq!(p.meta.description, "Aktifkan/nonaktifkan goodbye di semua grup");
         assert_eq!(p.meta.usage, ".goodbyeall <on/off>");
         assert_eq!(p.meta.example, ".goodbyeall on");
         assert_eq!(p.meta.cooldown, 10);

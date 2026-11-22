@@ -149,10 +149,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     #[test]
@@ -173,11 +170,7 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["setnamabot", "gantibot"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("ganti-namabot"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("ganti-namabot"), "{a}");
         }
     }
 
@@ -198,21 +191,14 @@ mod tests {
     fn nama_bot_kosong_pakai_tanda_hubung() {
         let b = berkas_dengan("bot: { name: 'Oktz' }");
         let r = run(b, &[], "");
-        assert!(
-            text_of(&r).contains("> Nama saat ini: *-*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> Nama saat ini: *-*"), "{}", text_of(&r));
     }
 
     #[test]
     fn nama_baru_ditulis_ke_config_js() {
         let b = berkas_dengan("bot: {\n  name: 'Oktz',\n  version: '1.0'\n}");
         let r = run(b.clone(), &["Bot", "Baru"], "Oktz");
-        assert_eq!(
-            text_of(&r),
-            "✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama bot diganti ke: *Bot Baru*"
-        );
+        assert_eq!(text_of(&r), "✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama bot diganti ke: *Bot Baru*");
         assert_eq!(
             b.baca_teks(CONFIG_PATH).unwrap(),
             "bot: {\n  name: 'Bot Baru',\n  version: '1.0'\n}"

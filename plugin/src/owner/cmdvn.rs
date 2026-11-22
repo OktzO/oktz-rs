@@ -9,8 +9,10 @@ pub(crate) fn current_enabled(ctx: &Ctx) -> bool {
     crate::common::js_truthy(ctx.setting("cmdVn"))
 }
 
-pub(crate) const ON_MSG: &str = "✅ *ᴄᴍᴅ ᴠɴ ᴀᴋᴛɪꜰ*\n\n> Kirim voice note berisi nama command\n> Bot akan transkrip dan jalankan otomatis\n> Contoh: VN \"menu\" → trigger .menu";
-pub(crate) const OFF_MSG: &str = "❌ CMD VN *dinonaktifkan*. Command via text normal.";
+pub(crate) const ON_MSG: &str =
+    "✅ *ᴄᴍᴅ ᴠɴ ᴀᴋᴛɪꜰ*\n\n> Kirim voice note berisi nama command\n> Bot akan transkrip dan jalankan otomatis\n> Contoh: VN \"menu\" → trigger .menu";
+pub(crate) const OFF_MSG: &str =
+    "❌ CMD VN *dinonaktifkan*. Command via text normal.";
 
 pub(crate) fn status_text(ctx: &Ctx) -> String {
     format!(
@@ -20,11 +22,7 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
          > `{p}cmdvn off` — Command via text (default)\n\n\
          > Saat ON, kirim VN berisi nama command\n\
          > Contoh: VN \"menu\" → trigger .menu",
-        if current_enabled(ctx) {
-            "✅ ON"
-        } else {
-            "❌ OFF"
-        },
+        if current_enabled(ctx) { "✅ ON" } else { "❌ OFF" },
         p = ctx.prefix
     )
 }
@@ -65,7 +63,7 @@ pub fn cmdvn(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(settings: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -120,11 +118,7 @@ mod tests {
 
     #[test]
     fn no_argument_and_the_word_status_share_the_status_branch() {
-        for s in [
-            serde_json::json!({}),
-            serde_json::json!({"cmdVn": true}),
-            serde_json::json!({"cmdVn": false}),
-        ] {
+        for s in [serde_json::json!({}), serde_json::json!({"cmdVn": true}), serde_json::json!({"cmdVn": false})] {
             let none = run(s.clone(), "");
             let status = run(s.clone(), "status");
             assert_eq!(text_of(&none), text_of(&status), "input {s}");
@@ -150,10 +144,7 @@ mod tests {
         assert_eq!(stored(&on), serde_json::json!(true));
         assert_eq!(text_of(&on), ON_MSG);
         // Plugin ini TIDAK memanggil m.react — tidak boleh ada Reaction.
-        assert!(matches!(
-            on.without_mutations().tanpa_reaksi(),
-            Reply::Text { .. }
-        ));
+        assert!(matches!(on.without_mutations().tanpa_reaksi(), Reply::Text { .. }));
 
         let off = run(serde_json::json!({}), "off");
         assert_eq!(stored(&off), serde_json::json!(false));

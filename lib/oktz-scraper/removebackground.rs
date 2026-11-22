@@ -94,14 +94,15 @@ fn pesan_gagal(res: &HttpResponse, prefix: &str, kunci: [&str; 2]) -> String {
 /// matte, atau `Err` dengan pesan yang sama seperti JS.
 pub fn pixelcut_remove(http: &dyn HttpGet, jpeg: &[u8]) -> Result<Vec<u8>, HttpError> {
     let res = http.call(
-        &header_pixelcut(HttpCall::post("https://api2.pixelcut.app/image/matte/v1"))
-            .multipart(vec![
+        &header_pixelcut(HttpCall::post("https://api2.pixelcut.app/image/matte/v1")).multipart(
+            vec![
                 MultipartPart::file("image", "image.jpg", jpeg.to_vec())
                     .with_mimetype("image/jpeg"),
                 MultipartPart::field("format", "png"),
                 MultipartPart::field("model", "v1"),
-            ])
-            .terima_semua_status(),
+            ],
+        )
+        .terima_semua_status(),
     )?;
 
     let gagal = !(200..300).contains(&res.status) || !content_type(&res).contains("image/");
@@ -119,7 +120,8 @@ pub fn bgninja_remove(http: &dyn HttpGet, jpeg: &[u8]) -> Result<Vec<u8>, HttpEr
         &HttpCall::post("https://bgninja.com/api/remove")
             .header("User-Agent", "Mozilla/5.0")
             .multipart(vec![
-                MultipartPart::file("file", "image.jpg", jpeg.to_vec()).with_mimetype("image/jpeg"),
+                MultipartPart::file("file", "image.jpg", jpeg.to_vec())
+                    .with_mimetype("image/jpeg"),
                 MultipartPart::field("src", "wa-bot"),
             ])
             .terima_semua_status(),
@@ -241,14 +243,8 @@ mod tests {
         assert_eq!(parts[1].body.bytes(), b"png");
         assert_eq!(parts[2].name, "model");
         assert_eq!(parts[2].body.bytes(), b"v1");
-        assert_eq!(
-            cari_header(&p[0], "x-client-version"),
-            Some("web:pixa.com:4a5b0af2".to_string())
-        );
-        assert_eq!(
-            cari_header(&p[0], "origin"),
-            Some("https://www.pixelcut.ai".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "x-client-version"), Some("web:pixa.com:4a5b0af2".to_string()));
+        assert_eq!(cari_header(&p[0], "origin"), Some("https://www.pixelcut.ai".to_string()));
         assert!(cari_header(&p[0], "sec-fetch-mode").is_some());
     }
 
@@ -258,10 +254,7 @@ mod tests {
         bgninja_remove(&http, b"JPEG").unwrap();
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p[0].url, "https://bgninja.com/api/remove");
-        assert_eq!(
-            cari_header(&p[0], "user-agent"),
-            Some("Mozilla/5.0".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "user-agent"), Some("Mozilla/5.0".to_string()));
         assert_eq!(p[0].headers.len(), 1, "hanya User-Agent");
         let Some(HttpBody::Multipart(parts)) = &p[0].body else {
             panic!("body bukan multipart");
@@ -292,21 +285,14 @@ mod tests {
 
     #[test]
     fn content_type_bukan_gambar_membaca_pesan_dari_json() {
-        let http = StubHttp::baru(&[(
-            400,
-            r#"{"error":"gambar terlalu besar"}"#,
-            "application/json",
-        )]);
+        let http = StubHttp::baru(&[(400, r#"{"error":"gambar terlalu besar"}"#, "application/json")]);
         assert_eq!(
             pixelcut_remove(&http, b"J").unwrap_err().message,
             "gambar terlalu besar"
         );
 
         let http = StubHttp::baru(&[(400, r#"{"message":"kunci salah"}"#, "application/json")]);
-        assert_eq!(
-            pixelcut_remove(&http, b"J").unwrap_err().message,
-            "kunci salah"
-        );
+        assert_eq!(pixelcut_remove(&http, b"J").unwrap_err().message, "kunci salah");
 
         // Tidak ada `error`/`message` -> bawaan.
         let http = StubHttp::baru(&[(422, r#"{"detail":"x"}"#, "application/json")]);
@@ -321,10 +307,7 @@ mod tests {
         let panjang = "a".repeat(500);
         let http = StubHttp::baru(&[(500, &panjang, "text/html")]);
         let salah = pixelcut_remove(&http, b"J").unwrap_err();
-        assert_eq!(
-            salah.message,
-            format!("pixelcut failed: 500 {}", "a".repeat(200))
-        );
+        assert_eq!(salah.message, format!("pixelcut failed: 500 {}", "a".repeat(200)));
         assert!(!salah.message.contains(&"a".repeat(201)));
     }
 
@@ -337,10 +320,7 @@ mod tests {
     #[test]
     fn bgninja_memakai_kunci_detail() {
         let http = StubHttp::baru(&[(403, r#"{"detail":"terlalu sering"}"#, "application/json")]);
-        assert_eq!(
-            bgninja_remove(&http, b"J").unwrap_err().message,
-            "terlalu sering"
-        );
+        assert_eq!(bgninja_remove(&http, b"J").unwrap_err().message, "terlalu sering");
 
         let http = StubHttp::baru(&[(403, "ditolak", "text/plain")]);
         assert_eq!(

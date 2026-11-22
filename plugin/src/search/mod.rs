@@ -3,13 +3,13 @@ pub mod google;
 pub mod gsmarena;
 
 // Ditambahkan scripts/pasang-modul.mjs.
-pub mod android1;
 #[path = "android1-get.rs"]
 pub mod android1_get;
+pub mod android1;
 pub mod animeapaini;
-pub mod apkmod;
 #[path = "apkmod-get.rs"]
 pub mod apkmod_get;
+pub mod apkmod;
 pub mod bingimage;
 pub mod carigrup;
 pub mod carisinyal;
@@ -22,9 +22,9 @@ pub mod mangatoon;
 pub mod mcpedl;
 pub mod melolo;
 pub mod movieku;
-pub mod nerdfont;
 #[path = "nerdfont-ambil.rs"]
 pub mod nerdfont_ambil;
+pub mod nerdfont;
 pub mod npm;
 pub mod pap;
 pub mod pddikti;
@@ -46,9 +46,9 @@ pub mod spotify;
 pub mod spotplay;
 pub mod tiktokfoto;
 pub mod wikipedia;
-pub mod ytmusic;
-pub mod ytplay;
 pub mod yts;
+pub mod ytplay;
+pub mod ytmusic;
 pub mod ytsearch;
 
 // Port batch paritas: ttsearch.

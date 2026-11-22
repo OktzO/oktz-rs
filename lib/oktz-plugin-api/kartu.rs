@@ -218,10 +218,7 @@ impl Tombol {
 
     /// `single_select` — `{"title", "sections", "icon"}` (JS `menu.js:598`).
     pub fn pilih(daftar: &Daftar) -> Self {
-        Self::baru(
-            AksiTombol::PilihSatuan,
-            serde_json::to_value(daftar).unwrap_or(Value::Null),
-        )
+        Self::baru(AksiTombol::PilihSatuan, serde_json::to_value(daftar).unwrap_or(Value::Null))
     }
 }
 
@@ -335,7 +332,10 @@ pub struct KartuHeader {
 
 impl From<crate::registry::CardHeader> for KartuHeader {
     fn from(h: crate::registry::CardHeader) -> Self {
-        let video = matches!(h.media, Some(crate::registry::CardMedia::Video { .. }));
+        let video = matches!(
+            h.media,
+            Some(crate::registry::CardMedia::Video { .. })
+        );
         let media = match h.media {
             Some(crate::registry::CardMedia::Image { source }) => Some(source),
             Some(crate::registry::CardMedia::Video { source }) => Some(source),
@@ -492,12 +492,7 @@ impl Kartu {
     }
 
     /// Badge saluran (`saluranCtx()` — welcome.js:334-339).
-    pub fn saluran(
-        mut self,
-        jid: impl Into<String>,
-        nama: impl Into<String>,
-        server_id: i64,
-    ) -> Self {
+    pub fn saluran(mut self, jid: impl Into<String>, nama: impl Into<String>, server_id: i64) -> Self {
         self.newsletter = Some(crate::registry::NewsletterInfo {
             jid: jid.into(),
             name: nama.into(),
@@ -517,10 +512,7 @@ mod tests {
         assert_eq!(AksiTombol::PilihSatuan.as_str(), "single_select");
         assert_eq!(AksiTombol::BukaUrl.as_str(), "cta_url");
         assert_eq!(AksiTombol::Salin.as_str(), "cta_copy");
-        assert_eq!(
-            AksiTombol::from_name("quick_reply"),
-            Some(AksiTombol::BalasanCepat)
-        );
+        assert_eq!(AksiTombol::from_name("quick_reply"), Some(AksiTombol::BalasanCepat));
         assert_eq!(AksiTombol::from_name("cta_misterius"), None);
     }
 
@@ -559,15 +551,9 @@ mod tests {
         assert_eq!(t.aksi, AksiTombol::PilihSatuan);
         assert_eq!(t.params["title"], "🍃 List Menu");
         assert_eq!(t.params["icon"], "DEFAULT");
-        assert_eq!(
-            t.params["sections"][0]["title"],
-            "Berikut adalah pilihan nya (1 kategori)"
-        );
+        assert_eq!(t.params["sections"][0]["title"], "Berikut adalah pilihan nya (1 kategori)");
         assert_eq!(t.params["sections"][0]["rows"][0]["title"], "🏠 main");
-        assert_eq!(
-            t.params["sections"][0]["rows"][0]["description"],
-            "12 command"
-        );
+        assert_eq!(t.params["sections"][0]["rows"][0]["description"], "12 command");
         assert_eq!(t.params["sections"][0]["rows"][0]["id"], ".menucat main");
     }
 

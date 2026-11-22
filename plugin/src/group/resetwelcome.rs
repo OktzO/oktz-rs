@@ -46,7 +46,7 @@ pub fn resetwelcome(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(group: Value) -> Reply {
         let ctx = Ctx {
@@ -100,12 +100,7 @@ mod tests {
 
     #[test]
     fn an_absent_or_empty_welcome_is_reported_as_already_default() {
-        for g in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"welcomeMsg": null}),
-            serde_json::json!({"welcomeMsg": ""}),
-        ] {
+        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"welcomeMsg": null}), serde_json::json!({"welcomeMsg": ""})] {
             let r = run(g.clone());
             assert_eq!(text_of(&r), already_default(), "input {g}");
             assert!(r.mutations().is_empty(), "tidak boleh menulis: {g}");
@@ -136,11 +131,7 @@ mod tests {
         assert_eq!(text_of(&empty_arr), DONE, "array kosong truthy di JS");
 
         let empty_obj = run(serde_json::json!({"welcomeMsg": ""}));
-        assert_eq!(
-            text_of(&empty_obj),
-            already_default(),
-            "string kosong falsy"
-        );
+        assert_eq!(text_of(&empty_obj), already_default(), "string kosong falsy");
 
         for falsy in [serde_json::json!(false), serde_json::json!(null)] {
             let r = run(serde_json::json!({ "welcomeMsg": falsy.clone() }));

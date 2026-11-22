@@ -1,10 +1,10 @@
 //! `plugins/group/cekabsen.js` — daftar peserta yang sudah absen.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
+use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{date_long, jid_number, now_ms, time_hm};
-use crate::group::absen::{NO_SESSION, peserta_of, presence_list, prune_absensi, session_for};
+use crate::group::absen::{NO_SESSION, presence_list, prune_absensi, peserta_of, session_for};
 
 pub(crate) const NO_PESERTA: &str = "┃ _Belum ada yang absen_";
 
@@ -27,10 +27,7 @@ pub fn cekabsen(ctx: Ctx) -> Reply {
     };
     let peserta = peserta_of(&absen);
 
-    let keterangan = absen
-        .get("keterangan")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let keterangan = absen.get("keterangan").and_then(Value::as_str).unwrap_or("");
     let created_by = absen.get("createdBy").and_then(Value::as_str).unwrap_or("");
     let started = absen
         .get("createdAt")
@@ -182,9 +179,7 @@ mod tests {
 
     #[test]
     fn a_session_without_created_at_shows_a_dash_instead_of_panicking() {
-        let r = run(Some(
-            serde_json::json!({ CHAT: { "keterangan": "x", "createdBy": OWNER } }),
-        ));
+        let r = run(Some(serde_json::json!({ CHAT: { "keterangan": "x", "createdBy": OWNER } })));
         assert!(text_of(&r).contains("⏰ Dimulai: -"), "{}", text_of(&r));
     }
 
@@ -198,9 +193,6 @@ mod tests {
         let before = session(vec![SENDER]);
         ctx.session_set(crate::group::absen::ABSENSI_KEY, before.clone());
         (oktz_plugin_api::find("cekabsen").unwrap().handler)(ctx.clone());
-        assert_eq!(
-            ctx.session_get(crate::group::absen::ABSENSI_KEY),
-            Some(before)
-        );
+        assert_eq!(ctx.session_get(crate::group::absen::ABSENSI_KEY), Some(before));
     }
 }

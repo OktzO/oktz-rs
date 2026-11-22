@@ -73,10 +73,7 @@ mod tests {
         assert_eq!(p.meta.name, "resetrulesgrup");
         assert_eq!(p.meta.alias, ["resetgrouprules"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(
-            p.meta.description,
-            "Reset rules grup ke default (admin only)"
-        );
+        assert_eq!(p.meta.description, "Reset rules grup ke default (admin only)");
         assert_eq!(p.meta.usage, ".resetrulesgrup");
         assert_eq!(p.meta.example, ".resetrulesgrup");
         assert_eq!(p.meta.cooldown, 5);
@@ -96,12 +93,7 @@ mod tests {
     #[test]
     fn it_always_writes_even_when_nothing_was_set() {
         // Tidak ada pemeriksaan state di JS — reset tetap menulis.
-        for g in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"groupRules": null}),
-            serde_json::json!({"groupRules": "lama"}),
-        ] {
+        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"groupRules": null}), serde_json::json!({"groupRules": "lama"})] {
             let r = run(g.clone());
             assert_eq!(group_write(&r)["groupRules"], Value::Null, "input {g}");
             assert!(text_of(&r).contains("berhasil direset"), "input {g}");
@@ -118,15 +110,16 @@ mod tests {
 
     #[test]
     fn the_confirm_reply_names_the_live_prefix_and_the_reader_command() {
-        assert!(confirm("~").contains("`~rulesgrup`"), "{}", confirm("~"));
+        assert!(
+            confirm("~").contains("`~rulesgrup`"),
+            "{}",
+            confirm("~")
+        );
     }
 
     #[test]
     fn the_success_reply_is_always_paired_with_the_write() {
-        for g in [
-            serde_json::json!({}),
-            serde_json::json!({"groupRules": "x"}),
-        ] {
+        for g in [serde_json::json!({}), serde_json::json!({"groupRules": "x"})] {
             let label = g.to_string();
             let r = run(g.clone());
             assert!(text_of(&r).contains("berhasil direset ke default"));

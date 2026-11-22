@@ -7,7 +7,7 @@
 //! tak dikenal; `?.split(" ")[1] || "Baby"` menutupnya di `nama` bayi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::rpg::heal::{apply_exp, or_default, other_user, rpg_map, thousands_en};
 
@@ -43,7 +43,10 @@ const PET_NAMES: [(&str, &str); 10] = [
 ];
 
 fn pet_name(tipe: &str) -> Option<&'static str> {
-    PET_NAMES.iter().find(|(k, _)| *k == tipe).map(|(_, v)| *v)
+    PET_NAMES
+        .iter()
+        .find(|(k, _)| *k == tipe)
+        .map(|(_, v)| *v)
 }
 
 /// `[myPet.type, partnerPet.type].sort().join("+")`.
@@ -157,11 +160,7 @@ pub fn breeding(ctx: Ctx) -> Reply {
         ));
     }
 
-    let my_type = my_pet
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string();
+    let my_type = my_pet.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
     let partner_type = partner_pet
         .get("type")
         .and_then(Value::as_str)
@@ -212,7 +211,8 @@ pub fn breeding(ctx: Ctx) -> Reply {
     let pembicaraan = format!(
         "Cieee, {} kamu sama {} temenmu lagi berduaan nih... 💕✨\n\
          Tunggu bentar ya, dokternya lagi meriksa persalinan!",
-        my_label, partner_label
+        my_label,
+        partner_label
     );
 
     Reply::sequence(vec![
@@ -227,6 +227,7 @@ pub fn breeding(ctx: Ctx) -> Reply {
         data: serde_json::json!({ "koin": koin - BREEDING_COST, "exp": new_exp, "rpg": rpg }),
     })
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -333,20 +334,13 @@ mod tests {
             Some(ready("dog", 9)),
             serde_json::json!({ "rpg": { "pet": pet }, "koin": 99_999 }),
         ));
-        assert!(
-            text_of(&r).starts_with("Kamu aja belum punya peliharaan"),
-            "pet {pet}"
-        );
+        assert!(text_of(&r).starts_with("Kamu aja belum punya peliharaan"), "pet {pet}");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn the_partner_must_own_a_pet_too() {
-        for partner in [
-            None,
-            Some(serde_json::json!({})),
-            Some(serde_json::json!({ "rpg": {} })),
-        ] {
+        for partner in [None, Some(serde_json::json!({})), Some(serde_json::json!({ "rpg": {} }))] {
             let r = run(ctx_for(
                 &["628222@s.whatsapp.net"],
                 partner.clone(),
@@ -375,10 +369,7 @@ mod tests {
                 t.contains("🐣"),
                 "level saya {mine} / pasangan {theirs}: {t}"
             );
-            assert!(
-                r.mutations().is_empty(),
-                "level saya {mine} / pasangan {theirs}"
-            );
+            assert!(r.mutations().is_empty(), "level saya {mine} / pasangan {theirs}");
         }
     }
 
@@ -436,16 +427,9 @@ mod tests {
                              "petStorage": [{ "type": "cat", "name": "Miko", "level": 4 }] },
                    "koin": 99_999, "exp": 0 }),
         ));
-        let babies = write_of(&r)["rpg"]["petStorage"]
-            .as_array()
-            .unwrap()
-            .clone();
+        let babies = write_of(&r)["rpg"]["petStorage"].as_array().unwrap().clone();
         assert_eq!(babies.len(), 2);
-        assert_eq!(
-            babies[0]["name"],
-            serde_json::json!("Miko"),
-            "baby lama tak boleh tertimpa"
-        );
+        assert_eq!(babies[0]["name"], serde_json::json!("Miko"), "baby lama tak boleh tertimpa");
         assert_eq!(babies[1]["level"], serde_json::json!(1));
     }
 
@@ -457,10 +441,7 @@ mod tests {
                 Some(ready("dog", 9)),
                 serde_json::json!({ "rpg": { "pet": { "type": "cat", "level": 9 } }, "koin": koin }),
             ));
-            assert!(
-                text_of(&r).starts_with("Uang kamu nggak cukup"),
-                "koin {koin}"
-            );
+            assert!(text_of(&r).starts_with("Uang kamu nggak cukup"), "koin {koin}");
             assert!(r.mutations().is_empty(), "koin {koin}");
         }
     }
@@ -491,11 +472,7 @@ mod tests {
             "Cieee, 🐱 Kucing kamu sama 🐕 Anjing temenmu lagi berduaan nih... 💕✨\n\
              Tunggu bentar ya, dokternya lagi meriksa persalinan!"
         );
-        assert!(
-            semua[1].contains("Biaya Bersalin: *Rp -3,000*"),
-            "{}",
-            semua[1]
-        );
+        assert!(semua[1].contains("Biaya Bersalin: *Rp -3,000*"), "{}", semua[1]);
         assert!(semua[1].contains("Dapat EXP *+"), "{}", semua[1]);
     }
 

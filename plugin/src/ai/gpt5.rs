@@ -9,6 +9,7 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
+
 use super::aiassist::{AiFailure, clip, failed};
 use super::claudehaiku::overchat_chat;
 
@@ -54,10 +55,11 @@ pub fn gpt5(ctx: Ctx) -> Reply {
     }
     match overchat_chat(&*ctx.http, MODEL, PERSONA, &text, None) {
         Ok(answer) => Reply::text(clip(&answer)).with_reaction("✅"),
-        Err(AiFailure::Rejected(e)) => Reply::text(failed("GPT-5 Gagal", &e)).with_reaction("☢"),
-        Err(AiFailure::Transport) => {
-            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+        Err(AiFailure::Rejected(e)) => {
+            Reply::text(failed("GPT-5 Gagal", &e)).with_reaction("☢")
         }
+        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
+            .with_reaction("☢"),
     }
 }
 

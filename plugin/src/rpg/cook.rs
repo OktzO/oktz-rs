@@ -26,12 +26,7 @@ type Recipe = (
 
 const RECIPES: [Recipe; 4] = [
     ("fish_soup", "🍲 Sup Ikan", &[("fish", 2)], 30),
-    (
-        "grilled_meat",
-        "🍖 Daging Panggang",
-        &[("rabbit", 1), ("wood", 1)],
-        40,
-    ),
+    ("grilled_meat", "🍖 Daging Panggang", &[("rabbit", 1), ("wood", 1)], 40),
     ("apple_pie", "🥧 Pie Apel", &[("apple", 3)], 25),
     ("steak", "🥩 Steak", &[("boar", 1), ("coal", 1)], 60),
 ];
@@ -41,7 +36,9 @@ fn have(inv: &Map<String, Value>, item: &str) -> i64 {
 }
 
 fn can_cook(inv: &Map<String, Value>, materials: &[(&'static str, i64)]) -> bool {
-    materials.iter().all(|(item, qty)| have(inv, item) >= *qty)
+    materials
+        .iter()
+        .all(|(item, qty)| have(inv, item) >= *qty)
 }
 
 fn book(inv: &Map<String, Value>) -> String {
@@ -50,9 +47,7 @@ fn book(inv: &Map<String, Value>) -> String {
          Ini daftar resep yang bisa kamu bikin:\n\n",
     );
     for (_, name, materials, heal) in RECIPES {
-        txt.push_str(&format!(
-            "*{name}*\n❤️ Heal: +{heal} HP\n📦 Bahan yang dibutuhin:\n"
-        ));
+        txt.push_str(&format!("*{name}*\n❤️ Heal: +{heal} HP\n📦 Bahan yang dibutuhin:\n"));
         for (item, qty) in materials {
             let owned = have(inv, item);
             txt.push_str(&format!(
@@ -99,10 +94,7 @@ pub fn cook(ctx: Ctx) -> Reply {
     };
 
     for (item, qty) in materials {
-        inv.insert(
-            (*item).to_string(),
-            serde_json::json!(have(&inv, item) - qty),
-        );
+        inv.insert((*item).to_string(), serde_json::json!(have(&inv, item) - qty));
     }
     let healed = (health + heal).min(max_health);
     rpg.insert("health".into(), serde_json::json!(healed));
@@ -187,10 +179,7 @@ mod tests {
             serde_json::json!({ "rpg": { "health": 100, "maxHealth": 100 } }),
         ] {
             let r = run(user.clone());
-            assert!(
-                text_of(&r).starts_with("Perut kamu masih kenyang"),
-                "input {user}"
-            );
+            assert!(text_of(&r).starts_with("Perut kamu masih kenyang"), "input {user}");
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -200,20 +189,11 @@ mod tests {
         let r = run(serde_json::json!({ "rpg": { "health": 10 }, "inventory": { "fish": 1 } }));
         let t = text_of(&r);
         assert!(t.starts_with("Halo Chef!"), "{t}");
-        assert!(
-            t.ends_with("(Bot bakal otomatis masak resep pertama yang bahannya cukup!)"),
-            "{t}"
-        );
+        assert!(t.ends_with("(Bot bakal otomatis masak resep pertama yang bahannya cukup!)"), "{t}");
         for (_, name, _, heal) in RECIPES {
-            assert!(
-                t.contains(&format!("*{name}*\n❤️ Heal: +{heal} HP")),
-                "{name} hilang"
-            );
+            assert!(t.contains(&format!("*{name}*\n❤️ Heal: +{heal} HP")), "{name} hilang");
         }
-        assert!(
-            t.contains("❌ fish: 1/2"),
-            "1 ikan masih kurang dari 2: {t}"
-        );
+        assert!(t.contains("❌ fish: 1/2"), "1 ikan masih kurang dari 2: {t}");
         assert!(t.contains("❌ rabbit: 0/1"), "{t}");
         assert!(r.mutations().is_empty());
     }
@@ -227,17 +207,10 @@ mod tests {
         }));
         let t = text_of(&r);
         assert!(t.contains("*🍲 Sup Ikan*"), "fish_soup ada duluan: {t}");
-        assert!(
-            !t.contains("🥩 Steak"),
-            "steak tak boleh dipilih duluan: {t}"
-        );
+        assert!(!t.contains("🥩 Steak"), "steak tak boleh dipilih duluan: {t}");
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["fish"], serde_json::json!(0), "2 - 2");
-        assert_eq!(
-            inv["boar"],
-            serde_json::json!(1),
-            "bahan steak tak boleh tersentuh"
-        );
+        assert_eq!(inv["boar"], serde_json::json!(1), "bahan steak tak boleh tersentuh");
     }
 
     #[test]
@@ -259,10 +232,7 @@ mod tests {
             "inventory": { "fish": 2 },
         }));
         let t = text_of(&r);
-        assert!(
-            t.contains("❤️ HP Pulih: 90 📈 *100*"),
-            "30 HP tapi mentok 100: {t}"
-        );
+        assert!(t.contains("❤️ HP Pulih: 90 📈 *100*"), "30 HP tapi mentok 100: {t}");
         assert_eq!(write_of(&r)["rpg"]["health"], serde_json::json!(100));
     }
 
@@ -275,10 +245,7 @@ mod tests {
         }));
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["fish"], serde_json::json!(0));
-        assert!(
-            inv.contains_key("fish"),
-            "kunci tak boleh hilang seperti alchemy"
-        );
+        assert!(inv.contains_key("fish"), "kunci tak boleh hilang seperti alchemy");
     }
 
     #[test]

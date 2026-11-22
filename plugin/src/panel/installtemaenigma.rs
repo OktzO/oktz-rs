@@ -89,9 +89,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     #[test]
@@ -127,12 +125,7 @@ mod tests {
             let __balasan = run(empty);
             let t = text_of(&__balasan);
             assert!(t.starts_with("╭┈┈⬡「 🎨 *ɪɴsᴛᴀʟʟ ᴛᴇᴍᴀ ᴇɴɪɢᴍᴀ* 」"), "{t}");
-            assert!(
-                t.contains(
-                    "`.installtemaenigma <ip>|<password>|<link_wa>|<link_group>|<link_channel>`"
-                ),
-                "{t}"
-            );
+            assert!(t.contains("`.installtemaenigma <ip>|<password>|<link_wa>|<link_group>|<link_channel>`"), "{t}");
             assert!(t.contains("> Contoh:"), "{t}");
         }
     }

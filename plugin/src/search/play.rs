@@ -106,12 +106,7 @@ fn cari_dan_unduh(
             "",
             &video.url,
         );
-        let kartu = (
-            info,
-            video.url.clone(),
-            video.title.clone(),
-            video.thumbnail.clone(),
-        );
+        let kartu = (info, video.url.clone(), video.title.clone(), video.thumbnail.clone());
         let audio = AudioDownload {
             title: video.title.clone(),
             format: "mp3".to_string(),
@@ -227,9 +222,7 @@ mod tests {
                 })?;
             let text = nilai
                 .clone()
-                .ok_or(HttpError {
-                    message: "offline".into(),
-                })?
+                .ok_or(HttpError { message: "offline".into() })?
                 .to_string();
             Ok(HttpResponse {
                 status: 200,
@@ -391,14 +384,7 @@ mod tests {
         // `play.js:57-70` — kartu preview-link: caption/info, URL video,
         // judul, deskripsi "YouTube Video", thumbnail `video.thumbnail`.
         let (info, url, judul) = match &list[1] {
-            Reply::Preview {
-                text,
-                url,
-                title,
-                description,
-                preview_type,
-                thumbnail,
-            } => {
+            Reply::Preview { text, url, title, description, preview_type, thumbnail } => {
                 assert_eq!(description, "YouTube Video");
                 assert_eq!(*preview_type, 1, "previewType: 1 (VIDEO)");
                 assert!(thumbnail.is_some(), "image: video.thumbnail");
@@ -406,16 +392,10 @@ mod tests {
             }
             lain => panic!("harus kartu preview, dapat {lain:?}"),
         };
-        assert!(
-            info.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Lagu Uji\n"),
-            "{info}"
-        );
+        assert!(info.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Lagu Uji\n"), "{info}");
         assert!(info.contains("👤 Channel: *Channel Uji*\n"), "{info}");
         assert!(info.contains("⏱️ Durasi: *3:33*\n"), "{info}");
-        assert!(
-            info.ends_with("_⏳ mengirim audio, harap tunggu..._"),
-            "{info}"
-        );
+        assert!(info.ends_with("_⏳ mengirim audio, harap tunggu..._"), "{info}");
         assert_eq!(url, "https://www.youtube.com/watch?v=aaaaaaaaaaa");
         assert_eq!(judul, "Lagu Uji");
         match &list[2] {
@@ -451,10 +431,7 @@ mod tests {
     #[test]
     fn a_search_without_results_falls_into_the_catch_branch() {
         // `throw new Error("Video tidak ditemukan")` → catch yang sama.
-        let http = Stub::per_url(vec![(
-            "youtubei/v1/search",
-            Some(serde_json::json!({"contents": {}})),
-        )]);
+        let http = Stub::per_url(vec![("youtubei/v1/search", Some(serde_json::json!({"contents": {}})))]);
         let r = run_http(http, "zzzz tidak ada");
         assert_eq!(text_of(&r), GAGAL);
         assert_eq!(reaction_of(&r), Some("😭"));
@@ -508,11 +485,7 @@ mod tests {
         assert_eq!(format_views(1500.0), "1.5K");
         assert_eq!(format_views(999_999.0), "1000.0K", "di bawah 1e6, belum M");
         assert_eq!(format_views(1_000_000.0), "1.0M");
-        assert_eq!(
-            format_views(2_450_000.0),
-            "2.5M",
-            "2.45 → 2.5, bulat ke atas"
-        );
+        assert_eq!(format_views(2_450_000.0), "2.5M", "2.45 → 2.5, bulat ke atas");
         assert_eq!(format_views(12_345_678.0), "12.3M");
         assert_eq!(format_views(f64::NAN), "0");
         assert_eq!(format_views(f64::INFINITY), "0");
@@ -530,10 +503,7 @@ mod tests {
             "Deskripsi singkat",
             "https://youtu.be/abc123XYZ_-",
         );
-        assert!(
-            t.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Komang\n\n*DETAIL*\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("🎵 *NOW PLAYING*\n\n📌 *Judul:* Komang\n\n*DETAIL*\n"), "{t}");
         assert!(t.contains("👤 Channel: *Vidiomalay*\n"), "{t}");
         assert!(t.contains("👀 Views: *12.3M*\n"), "{t}");
         assert!(t.contains("🆔 ID: `abc123XYZ_-`\n\n"), "{t}");

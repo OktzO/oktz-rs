@@ -175,9 +175,7 @@ impl Kanvas {
                 kursor_x = x as f32;
                 continue;
             }
-            let glyph = font
-                .glyph_id(karakter)
-                .with_scale_and_position(ukuran, point(kursor_x, baseline));
+            let glyph = font.glyph_id(karakter).with_scale_and_position(ukuran, point(kursor_x, baseline));
             if let Some(outline) = font.outline_glyph(glyph) {
                 let bounds = outline.px_bounds();
                 outline.draw(|px, py, coverage| {

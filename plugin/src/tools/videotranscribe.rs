@@ -18,7 +18,8 @@ pub(crate) const DEFAULT_LANG: &str = "en";
 // `HttpGet::post_json`; endpoint tetap menerima tanpa header itu. Naik kelas
 // kalau server mulai menolak: tambah varian `post_json_headers`.
 
-pub(crate) const USAGE_TMPL: &str = "*📝 VIDEO TRANSCRIBE*\n\n`{prefix}video-transcribe <url_video> [bahasa]`\n\nContoh:\n`{prefix}video-transcribe https://youtu.be/... id`";
+pub(crate) const USAGE_TMPL: &str =
+    "*📝 VIDEO TRANSCRIBE*\n\n`{prefix}video-transcribe <url_video> [bahasa]`\n\nContoh:\n`{prefix}video-transcribe https://youtu.be/... id`";
 
 fn make_track_id() -> String {
     let mut hex = String::with_capacity(32);

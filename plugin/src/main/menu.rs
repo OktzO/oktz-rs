@@ -128,8 +128,8 @@ fn emoji(kategori: &str) -> &'static str {
 /// `toMonoUpperBold` (`menu.js:74-108`) — A-Z → 𝗔-𝗭.
 fn mono_upper_bold(text: &str) -> String {
     const PETA: [char; 26] = [
-        '𝗔', '𝗕', '𝗖', '𝗗', '𝗘', '𝗙', '𝗚', '𝗛', '𝗜', '𝗝', '𝗞', '𝗟', '𝗠', '𝗡', '𝗢', '𝗣', '𝗤', '𝗥',
-        '𝗦', '𝗧', '𝗨', '𝗩', '𝗪', '𝗫', '𝗬', '𝗭',
+        '𝗔', '𝗕', '𝗖', '𝗗', '𝗘', '𝗙', '𝗚', '𝗛', '𝗜', '𝗝', '𝗞', '𝗟', '𝗠', '𝗡', '𝗢', '𝗣',
+        '𝗤', '𝗥', '𝗦', '𝗧', '𝗨', '𝗩', '𝗪', '𝗫', '𝗬', '𝗭',
     ];
     text.to_uppercase()
         .chars()
@@ -254,7 +254,10 @@ fn kategori_perintah(ctx: &Ctx) -> Vec<(&'static str, Vec<&'static str>)> {
         if DISEMBUNYI_MD.contains(&cat) {
             continue;
         }
-        hitung.entry(cat).or_default().push(p.meta.name.as_str());
+        hitung
+            .entry(cat)
+            .or_default()
+            .push(p.meta.name.as_str());
     }
     let mut hasil: Vec<(&'static str, Vec<&'static str>)> = hitung.into_iter().collect();
     hasil.sort_by_key(|(cat, _)| {
@@ -324,11 +327,7 @@ fn build_menu_text(ctx: &Ctx) -> String {
     t.push_str(&format!("┆   • Status : {peran}\n"));
     t.push_str("┆   • Mode : PUBLIC\n");
     t.push_str(&format!("┆   • Nomor : {nomor}\n"));
-    t.push_str(&format!(
-        "┆   • Waktu : {}:{} WIB\n",
-        pad2(jam),
-        pad2(menit)
-    ));
+    t.push_str(&format!("┆   • Waktu : {}:{} WIB\n", pad2(jam), pad2(menit)));
     t.push_str("╰➤------------------------------\n");
 
     t.push_str("    ᯓ INFO BOT\n");
@@ -344,7 +343,10 @@ fn build_menu_text(ctx: &Ctx) -> String {
         t.push_str(" ✦ DAFTAR MENU ✦\n");
         for (i, (cat, _)) in daftar.iter().enumerate() {
             let awalan = if i == 0 { "╭   •" } else { "┆   •" };
-            t.push_str(&format!("{awalan} {pref}menucat {cat} {}\n", emoji(cat)));
+            t.push_str(&format!(
+                "{awalan} {pref}menucat {cat} {}\n",
+                emoji(cat)
+            ));
         }
         t.push_str("╰➤------------------------------\n");
     }
@@ -415,10 +417,7 @@ pub(crate) fn cuaca(ctx: &Ctx, kota: &str) -> String {
     else {
         return "Cuaca tidak tersedia".to_string();
     };
-    let (lat, lon) = match (
-        loc.get("latitude").and_then(|v| v.as_f64()),
-        loc.get("longitude").and_then(|v| v.as_f64()),
-    ) {
+    let (lat, lon) = match (loc.get("latitude").and_then(|v| v.as_f64()), loc.get("longitude").and_then(|v| v.as_f64())) {
         (Some(a), Some(b)) => (a, b),
         _ => return "Cuaca tidak tersedia".to_string(),
     };
@@ -446,7 +445,10 @@ pub(crate) fn cuaca(ctx: &Ctx, kota: &str) -> String {
         .get("weather_code")
         .and_then(|v| v.as_i64())
         .unwrap_or_default();
-    let nama_lokasi = loc.get("name").and_then(|v| v.as_str()).unwrap_or(kota);
+    let nama_lokasi = loc
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(kota);
     format!("{} | 🌡️ {suhu}°C\n📍 {nama_lokasi}", kode(code))
 }
 
@@ -511,15 +513,9 @@ fn varian_1(ctx: &Ctx) -> Reply {
     } else {
         ctx.push_name.as_str()
     };
-    let energy = ctx
-        .user_field("energi")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let energy = ctx.user_field("energi").and_then(|v| v.as_i64()).unwrap_or(0);
     let koin = ctx.user_field("koin").and_then(|v| v.as_i64()).unwrap_or(0);
-    let level = ctx
-        .user_field("level")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let level = ctx.user_field("level").and_then(|v| v.as_i64()).unwrap_or(0);
     let exp = ctx.user_field("exp").and_then(|v| v.as_i64()).unwrap_or(0);
     let terdaftar = ctx
         .user_field("isRegistered")
@@ -569,7 +565,10 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
                     format!("{} {}", emoji(cat), mono_upper_bold(cat)),
                     format!("{pref}menucat {cat}"),
                 )
-                .description(format!("Command ini memiliki  ({}) Perintah", cmds.len()))
+                .description(format!(
+                    "Command ini memiliki  ({}) Perintah",
+                    cmds.len()
+                ))
             })
             .collect::<Vec<_>>(),
     );
@@ -582,13 +581,18 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
             .description("Silahkan tap lalu kirim"),
         )
         .row(
-            CardRow::new("🥰 Kamu mau samaan kayak bot ini?", format!("{pref}sc")).description(
-                "Silahkan tap lalu kirim, nanti bot akan mengirimkan sebuah link download",
-            ),
+            CardRow::new(
+                "🥰 Kamu mau samaan kayak bot ini?",
+                format!("{pref}sc"),
+            )
+            .description("Silahkan tap lalu kirim, nanti bot akan mengirimkan sebuah link download"),
         )
         .row(
-            CardRow::new("🌾 Siapakah owner dari bot ini?", format!("{pref}owner"))
-                .description("Tap dan klik kirim untuk melanjutkan"),
+            CardRow::new(
+                "🌾 Siapakah owner dari bot ini?",
+                format!("{pref}owner"),
+            )
+            .description("Tap dan klik kirim untuk melanjutkan"),
         );
 
     Reply::interactive("")
@@ -611,15 +615,9 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
 fn varian_2(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
-    let energy = ctx
-        .user_field("energi")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let energy = ctx.user_field("energi").and_then(|v| v.as_i64()).unwrap_or(0);
     let koin = ctx.user_field("koin").and_then(|v| v.as_i64()).unwrap_or(0);
-    let level = ctx
-        .user_field("level")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let level = ctx.user_field("level").and_then(|v| v.as_i64()).unwrap_or(0);
     let exp = ctx.user_field("exp").and_then(|v| v.as_i64()).unwrap_or(0);
     let terdaftar = ctx
         .user_field("isRegistered")
@@ -675,15 +673,9 @@ fn varian_2(ctx: &Ctx) -> Reply {
 fn varian_3(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
-    let energy = ctx
-        .user_field("energi")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let energy = ctx.user_field("energi").and_then(|v| v.as_i64()).unwrap_or(0);
     let koin = ctx.user_field("koin").and_then(|v| v.as_i64()).unwrap_or(0);
-    let level = ctx
-        .user_field("level")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let level = ctx.user_field("level").and_then(|v| v.as_i64()).unwrap_or(0);
     let exp = ctx.user_field("exp").and_then(|v| v.as_i64()).unwrap_or(0);
     let terdaftar = ctx
         .user_field("isRegistered")
@@ -735,10 +727,7 @@ fn varian_3(ctx: &Ctx) -> Reply {
         .with_button_card(InteractiveButton::select(
             &CardList::new("🍃 List Menu", [baris]).icon("DEFAULT"),
         ))
-        .with_button_card(InteractiveButton::quick_reply(
-            "🧀 Owner",
-            format!("{pref}owner"),
-        ))
+        .with_button_card(InteractiveButton::quick_reply("🧀 Owner", format!("{pref}owner")))
         .with_button_card(InteractiveButton::quick_reply(
             "💐 Allmenu",
             format!("{pref}allmenu"),
@@ -775,14 +764,8 @@ Enjoy your use brother.",
     let daftar = kategori_perintah(ctx);
     let mut tombol = vec![InteractiveButton::url_merchant(
         "🧀 Visit My Creator",
-        format!(
-            "https://wa.me/{}",
-            bot.owner.number.first().cloned().unwrap_or_default()
-        ),
-        format!(
-            "https://wa.me/{}",
-            bot.owner.number.first().cloned().unwrap_or_default()
-        ),
+        format!("https://wa.me/{}", bot.owner.number.first().cloned().unwrap_or_default()),
+        format!("https://wa.me/{}", bot.owner.number.first().cloned().unwrap_or_default()),
     )];
     for (cat, cmds) in &daftar {
         let baris = CardSection::new("Please select the command")
@@ -791,8 +774,11 @@ Enjoy your use brother.",
                 cmds.iter()
                     .enumerate()
                     .map(|(i, cmd)| {
-                        CardRow::new(format!("{} {cmd}", i + 1), format!("{pref}{cmd}"))
-                            .description("Select this command?")
+                        CardRow::new(
+                            format!("{} {cmd}", i + 1),
+                            format!("{pref}{cmd}"),
+                        )
+                        .description("Select this command?")
                     })
                     .collect::<Vec<_>>(),
             );
@@ -915,7 +901,11 @@ fn varian_7(ctx: &Ctx) -> Reply {
         .and_then(|v| v.as_i64())
         .map(|l| l.to_string())
         .unwrap_or_else(|| "unlimited".to_string());
-    let status = if ctx.is_premium { "premium" } else { "free" };
+    let status = if ctx.is_premium {
+        "premium"
+    } else {
+        "free"
+    };
     let role = if ctx.is_owner { "owner" } else { "user" };
 
     let mut body = format!(
@@ -934,20 +924,21 @@ fn varian_7(ctx: &Ctx) -> Reply {
         ctx.push_name
     ));
     body.push_str(&readmore());
-    body.push_str(&format!("╭╮ `✧ {}`\n", mono_upper_bold("MENU CATEGORY")));
+    body.push_str(&format!(
+        "╭╮ `✧ {}`\n",
+        mono_upper_bold("MENU CATEGORY")
+    ));
     for (cat, cmds) in kategori_perintah(ctx) {
-        body.push_str(&format!(
-            "││  ▸ {} : {} fitur\n",
-            cat.to_lowercase(),
-            cmds.len()
-        ));
+        body.push_str(&format!("││  ▸ {} : {} fitur\n", cat.to_lowercase(), cmds.len()));
     }
     body.push_str("╰╯");
 
     let owner = bot.owner.number.first().cloned().unwrap_or_default();
     // `menu.js:1144-1163`/`1215-1229`: header video + video tempelan + quote
     // stiker hanya kalau asetnya ada (JS membungkusnya `try/catch`).
-    let mut konteks = CardContext::new().mention(ctx.sender.clone()).forwarded(99);
+    let mut konteks = CardContext::new()
+        .mention(ctx.sender.clone())
+        .forwarded(99);
     if let Some(stiker) = stiker_fake(ctx) {
         konteks = konteks.quote(CardQuote::Sticker { source: stiker });
     }
@@ -973,10 +964,7 @@ fn varian_7(ctx: &Ctx) -> Reply {
 fn varian_8(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
-    let level = ctx
-        .user_field("level")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(1);
+    let level = ctx.user_field("level").and_then(|v| v.as_i64()).unwrap_or(1);
     let rank = match level {
         10..=19 => "⭐ Elite",
         20..=39 => "🎖️ Master",
@@ -994,10 +982,7 @@ fn varian_8(ctx: &Ctx) -> Reply {
     };
     let koin = ctx.user_field("koin").and_then(|v| v.as_i64()).unwrap_or(0);
     let exp = ctx.user_field("exp").and_then(|v| v.as_i64()).unwrap_or(0);
-    let hari = ctx
-        .user_field("activeDays")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let hari = ctx.user_field("activeDays").and_then(|v| v.as_i64()).unwrap_or(0);
 
     let mut body = format!(
         "*YOUR STATUS*\n❑ Role: {jabatan}\n❑ Rank: {rank}\n❑ Level: {level}\n❑ Coin: {koin}\n❑ Exp: {exp}\n❑ Energy: unlimited\n\n\
@@ -1087,26 +1072,22 @@ fn varian_aktif(ctx: &Ctx) -> i64 {
 fn varian_rubby(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
-    let sub = ctx
-        .args
-        .first()
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
+    let sub = ctx.args.first().map(|s| s.to_lowercase()).unwrap_or_default();
 
     // smallcaps (`toSmallFont` JS, `Rubby-MD/plugins/main/menu.js:56-65`) +
     // emoji kategori (`categoryEmojis`).
     fn sc(teks: &str) -> String {
         const PETA: &str = "\u{1D00}\u{0299}\u{1D04}\u{1D05}\u{1D07}\u{A730}\u{0262}\u{029C}\u{026A}\u{1D0A}\u{1D0B}\u{029F}\u{1D0D}\u{0274}\u{1D0F}\u{1D18}\u{A7AF}\u{0280}\u{A731}\u{1D1B}\u{1D1C}\u{1D20}\u{1D21}x\u{028F}\u{1D22}";
-        teks.chars()
-            .map(|c| {
-                if c.is_ascii_alphabetic() {
-                    let u = c.to_ascii_uppercase();
-                    PETA.chars().nth((u as u8 - b'A') as usize).unwrap_or(c)
-                } else {
-                    c
-                }
-            })
-            .collect()
+        teks.chars().map(|c| {
+            if c.is_ascii_alphabetic() {
+                let u = c.to_ascii_uppercase();
+                PETA.chars()
+                    .nth((u as u8 - b'A') as usize)
+                    .unwrap_or(c)
+            } else {
+                c
+            }
+        }).collect()
     }
 
     fn emoji(kategori: &str) -> &'static str {
@@ -1270,22 +1251,16 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
     };
 
     // Baris `single_select` — sama dengan JS (`categoryRows`).
-    let mut rows: Vec<CardRow> = vec![
-        CardRow::new(
-            format!("📑 {}", sc("semua menu")),
-            format!("{pref}menu all"),
-        )
-        .description(sc("tampilkan semua perintah bot")),
-    ];
+    let mut rows: Vec<CardRow> = vec![CardRow::new(
+        format!("📑 {}", sc("semua menu")),
+        format!("{pref}menu all"),
+    )
+    .description(sc("tampilkan semua perintah bot"))];
     for (cat, cmds) in &cats {
         let _ = cmds;
         rows.push(
             CardRow::new(
-                format!(
-                    "{} {}",
-                    emoji(cat),
-                    sc(&format!("menu {}", cat.to_lowercase()))
-                ),
+                format!("{} {}", emoji(cat), sc(&format!("menu {}", cat.to_lowercase()))),
                 format!("{pref}menu {}", cat.to_lowercase()),
             )
             .description(sc(&format!("daftar perintah {}", cat.to_lowercase()))),
@@ -1418,10 +1393,7 @@ mod tests {
     fn kategori_md_menyembunyikan_panel_pushkontak_store() {
         let semua: Vec<_> = kategori(&ctx()).into_iter().map(|(c, _)| c).collect();
         for cat in ["panel", "pushkontak", "store"] {
-            assert!(
-                !semua.contains(&cat),
-                "{cat} harus disembunyikan: {semua:?}"
-            );
+            assert!(!semua.contains(&cat), "{cat} harus disembunyikan: {semua:?}");
         }
     }
 
@@ -1449,7 +1421,8 @@ mod tests {
     #[test]
     fn varian_tiga_menghasilkan_kartu_dengan_tombol() {
         let r = menu(ctx());
-        let Reply::Interactive { kartu } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations()
+        else {
             panic!("harus kartu interaktif");
         };
         let body = &kartu.body;
@@ -1473,19 +1446,15 @@ mod tests {
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 1 });
         let r = menu(c);
-        let Reply::Interactive { kartu } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations()
+        else {
             panic!("harus kartu interaktif");
         };
         let body = &kartu.body;
         let footer = &kartu.footer;
         let buttons = &kartu.buttons;
         assert!(body.is_empty());
-        assert!(
-            footer
-                .as_deref()
-                .unwrap_or_default()
-                .contains("INFORMASI BOT")
-        );
+        assert!(footer.as_deref().unwrap_or_default().contains("INFORMASI BOT"));
         assert_eq!(buttons.len(), 2);
         assert_eq!(buttons[0].name, "single_select");
         assert_eq!(buttons[1].name, "single_select");
@@ -1520,16 +1489,15 @@ mod tests {
         assert_eq!(kartu.buttons[0].name, "single_select");
         assert_eq!(kartu.buttons[1].name, "quick_reply");
         // Baris pertama = semua menu (`.menu all`), berikutnya per kategori.
-        let rows = kartu.buttons[0].params.nilai()["sections"][0]["rows"]
+        let rows = kartu.buttons[0]
+            .params
+            .nilai()["sections"][0]["rows"]
             .as_array()
             .unwrap();
         assert_eq!(rows[0]["id"], ".menu all");
         assert!(rows.iter().any(|r| r["id"] == ".menu main"));
         // Header memuat nama bot.
-        let header = kartu
-            .header
-            .as_ref()
-            .expect("varian rubby harus punya header");
+        let header = kartu.header.as_ref().expect("varian rubby harus punya header");
         assert_eq!(header.title.as_deref(), Some("Oktz Bot"));
         assert_eq!(header.subtitle.as_deref(), Some("https://oktzz.xyz"));
     }

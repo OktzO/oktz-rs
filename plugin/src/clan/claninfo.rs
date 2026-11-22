@@ -173,10 +173,7 @@ fn parse_created(raw: &str) -> i64 {
         return 0;
     }
     let num = |r: std::ops::Range<usize>| -> i64 {
-        std::str::from_utf8(&b[r])
-            .unwrap_or("0")
-            .parse()
-            .unwrap_or(0)
+        std::str::from_utf8(&b[r]).unwrap_or("0").parse().unwrap_or(0)
     };
     let (y, mo, d) = (num(0..4), num(5..7), num(8..10));
     let (h, mi, s) = (num(11..13), num(14..16), num(17..19));
@@ -188,7 +185,7 @@ fn parse_created(raw: &str) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(user: Value, text: &str, clans: Value) -> Reply {
         let ctx = Ctx {
@@ -269,11 +266,7 @@ mod tests {
     #[test]
     fn the_lookup_falls_back_from_id_to_name() {
         for arg in ["DRG", "Dragon", "dragon"] {
-            let r = run(
-                serde_json::json!({}),
-                arg,
-                serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
-            );
+            let r = run(serde_json::json!({}), arg, serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
             assert!(text_of(&r).contains("Dragon"), "arg {arg}: {}", text_of(&r));
         }
     }
@@ -290,11 +283,7 @@ mod tests {
 
     #[test]
     fn a_full_clan_renders_leader_members_status_and_created_date() {
-        let r = run(
-            serde_json::json!({}),
-            "DRG",
-            serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
-        );
+        let r = run(serde_json::json!({}), "DRG", serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
         let t = text_of(&r);
         assert!(t.starts_with("🐉 *Dragon*"), "{t}");
         assert!(t.contains("🥉 Bronze · Level 1"), "{t}");
@@ -336,10 +325,7 @@ mod tests {
             serde_json::json!({ "DRG": clan(serde_json::json!({"wins": 7, "losses": 3, "level": 2, "exp": 10_000})) }),
         );
         let t = text_of(&r);
-        assert!(
-            t.contains("🥉 Bronze · Level 2"),
-            "level 2 belum Silver: {t}"
-        );
+        assert!(t.contains("🥉 Bronze · Level 2"), "level 2 belum Silver: {t}");
         assert!(t.contains("EXP  █████░░░░░ 50%"), "{t}");
         assert!(t.contains("7W · 3L · 70.0% WR"), "{t}");
 
@@ -359,11 +345,7 @@ mod tests {
             "DRG",
             serde_json::json!({ "DRG": clan(serde_json::json!({"level": 1, "exp": 10_000})) }),
         );
-        assert!(
-            text_of(&full).contains("EXP  ██████████ 100%"),
-            "{}",
-            text_of(&full)
-        );
+        assert!(text_of(&full).contains("EXP  ██████████ 100%"), "{}", text_of(&full));
     }
 
     #[test]

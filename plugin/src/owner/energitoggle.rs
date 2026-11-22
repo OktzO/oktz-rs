@@ -7,10 +7,8 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-pub(crate) const ON_MSG: &str =
-    "⚡ *sɪsᴛᴇᴍ ᴇɴᴇʀɢɪ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Setiap command sekarang memerlukan energi.";
-pub(crate) const OFF_MSG: &str =
-    "🔌 *sɪsᴛᴇᴍ ᴇɴᴇʀɢɪ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Command tidak lagi membutuhkan energi.";
+pub(crate) const ON_MSG: &str = "⚡ *sɪsᴛᴇᴍ ᴇɴᴇʀɢɪ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Setiap command sekarang memerlukan energi.";
+pub(crate) const OFF_MSG: &str = "🔌 *sɪsᴛᴇᴍ ᴇɴᴇʀɢɪ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Command tidak lagi membutuhkan energi.";
 
 /// `['enableenergi', 'onenergi'].includes(m.command)` — daftar literal, bukan
 /// `args`, jadi `enableenergi` di posisi lain tidak ikut recognized.
@@ -37,18 +35,18 @@ pub(crate) fn is_enable_command(command: &str) -> bool {
 pub fn energitoggle(ctx: Ctx) -> Reply {
     let enable = is_enable_command(&ctx.command);
     let msg = if enable { ON_MSG } else { OFF_MSG };
-    Reply::text(msg)
-        .with_reaction(if enable { "⚡" } else { "🔌" })
-        .with_mutation(Mutation::SetSetting {
+    Reply::text(msg).with_reaction(if enable { "⚡" } else { "🔌" }).with_mutation(
+        Mutation::SetSetting {
             key: "energi".into(),
             value: serde_json::Value::Bool(enable),
-        })
+        },
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(command: &str) -> Reply {
         let ctx = Ctx {

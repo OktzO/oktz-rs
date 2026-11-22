@@ -21,12 +21,7 @@ pub(crate) fn is_afk(ctx: &Ctx) -> bool {
 /// dihitung ulang dari epoch yang sama.
 pub(crate) fn now_hms(now: i64) -> String {
     let secs = now.div_euclid(1000).rem_euclid(86_400);
-    format!(
-        "{h:02}:{m:02}:{s:02}",
-        h = secs / 3600,
-        m = (secs % 3600) / 60,
-        s = secs % 60
-    )
+    format!("{h:02}:{m:02}:{s:02}", h = secs / 3600, m = (secs % 3600) / 60, s = secs % 60)
 }
 
 pub(crate) fn offline(duration: &str, reason: &str) -> String {
@@ -99,11 +94,7 @@ pub fn botafk(ctx: Ctx) -> Reply {
     // `m.args.join(' ') || 'AFK'` — string kosong (atau whitespace-only yang
     // sudah jadi satu token) jatuh ke default.
     let reason = ctx.args.join(" ");
-    let reason = if reason.is_empty() {
-        "AFK".to_string()
-    } else {
-        reason
-    };
+    let reason = if reason.is_empty() { "AFK".to_string() } else { reason };
 
     Reply::text(active(&ctx.prefix, &reason, now))
         .with_reaction("💤")
@@ -120,7 +111,7 @@ pub fn botafk(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     const SINCE: i64 = 1_700_000_000_000;
 
@@ -191,19 +182,13 @@ mod tests {
     #[test]
     fn a_reason_is_joined_from_all_arguments() {
         let r = run(serde_json::json!({}), "lagi istirahat sebentar");
-        assert_eq!(
-            write_of(&r)["reason"],
-            serde_json::json!("lagi istirahat sebentar")
-        );
+        assert_eq!(write_of(&r)["reason"], serde_json::json!("lagi istirahat sebentar"));
         assert!(text_of(&r).contains("┃ 📝 ᴀʟᴀsᴀɴ: `lagi istirahat sebentar`"));
     }
 
     #[test]
     fn a_second_invocation_brings_the_bot_back_online() {
-        let r = run(
-            serde_json::json!({"botAfk": {"active": true, "reason": "istirahat", "since": SINCE}}),
-            "",
-        );
+        let r = run(serde_json::json!({"botAfk": {"active": true, "reason": "istirahat", "since": SINCE}}), "");
         let data = write_of(&r);
         assert_eq!(data["active"], serde_json::json!(false));
         assert_eq!(
@@ -233,17 +218,14 @@ mod tests {
 
     #[test]
     fn a_stored_afk_without_a_reason_reports_a_dash() {
-        let r = run(
-            serde_json::json!({"botAfk": {"active": true, "since": SINCE}}),
-            "",
-        );
+        let r = run(serde_json::json!({"botAfk": {"active": true, "since": SINCE}}), "");
         assert!(
             text_of(&r).contains("┃ 📝 ᴀʟᴀsᴀɴ: `-`"),
             "`currentAfk.reason || '-'`"
         );
     }
 
-    #[test]
+#[test]
     fn an_empty_reason_string_also_falls_back_to_the_dash() {
         let r = run(
             serde_json::json!({"botAfk": {"active": true, "reason": "", "since": SINCE}}),
@@ -259,10 +241,7 @@ mod tests {
 
     #[test]
     fn a_record_with_active_false_goes_back_into_afk_not_offline() {
-        let r = run(
-            serde_json::json!({"botAfk": {"active": false, "since": SINCE}}),
-            "",
-        );
+        let r = run(serde_json::json!({"botAfk": {"active": false, "since": SINCE}}), "");
         assert_eq!(
             write_of(&r)["active"],
             serde_json::json!(true),
@@ -276,12 +255,7 @@ mod tests {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "💤"),
             other => panic!("harus Reaction, dapat {other:?}"),
         }
-        match run(
-            serde_json::json!({"botAfk": {"active": true, "since": SINCE}}),
-            "",
-        )
-        .without_mutations()
-        {
+        match run(serde_json::json!({"botAfk": {"active": true, "since": SINCE}}), "").without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "✅"),
             other => panic!("harus Reaction, dapat {other:?}"),
         }
@@ -304,12 +278,9 @@ mod tests {
     fn each_branch_is_paired_with_exactly_one_write() {
         assert_eq!(run(serde_json::json!({}), "").mutations().len(), 1);
         assert_eq!(
-            run(
-                serde_json::json!({"botAfk": {"active": true, "since": SINCE}}),
-                ""
-            )
-            .mutations()
-            .len(),
+            run(serde_json::json!({"botAfk": {"active": true, "since": SINCE}}), "")
+                .mutations()
+                .len(),
             1
         );
     }
@@ -319,9 +290,6 @@ mod tests {
         let h = now_hms(12 * 3600 * 1000 + 34 * 60 * 1000 + 56 * 1000);
         assert_eq!(h, "12:34:56");
         // Nol di depan, bukan spasi.
-        assert_eq!(
-            now_hms(9 * 3600 * 1000 + 5 * 60 * 1000 + 7 * 1000),
-            "09:05:07"
-        );
+        assert_eq!(now_hms(9 * 3600 * 1000 + 5 * 60 * 1000 + 7 * 1000), "09:05:07");
     }
 }

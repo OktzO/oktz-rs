@@ -108,15 +108,17 @@ fn format_tanggal_id(birth_iso: &str) -> String {
     let hari: i64 = parts.next().unwrap_or("0").parse().unwrap_or(0);
 
     // Zeller congruence untuk hari (0 = Minggu).
-    let (m, y) = if bulan < 3 {
-        (bulan + 12, tahun - 1)
-    } else {
-        (bulan, tahun)
-    };
+    let (m, y) = if bulan < 3 { (bulan + 12, tahun - 1) } else { (bulan, tahun) };
     let (m, y) = (m as i64, y);
     let k = y % 100;
     let j = y / 100;
-    let h = (hari + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
+    let h = (hari
+        + (13 * (m + 1)) / 5
+        + k
+        + k / 4
+        + j / 4
+        + 5 * j)
+        % 7;
     let idx_hari = (h + 6) % 7; // Zeller 0=Sabtu -> id-ID 0=Minggu
 
     format!(
@@ -153,8 +155,14 @@ fn hasil_teks(data: &Value) -> String {
             None => String::new(),
         }
     };
-    let prov_id = data.get("provinceId").and_then(Value::as_i64).unwrap_or(0);
-    let prov_nama = data.get("province").and_then(Value::as_str).unwrap_or("-");
+    let prov_id = data
+        .get("provinceId")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let prov_nama = data
+        .get("province")
+        .and_then(Value::as_str)
+        .unwrap_or("-");
     // `PROVINSI[data.provinceId] || data.province || "-"`.
     let prov = match nama_provinsi(prov_id) {
         "-" => prov_nama.to_string(),
@@ -238,14 +246,12 @@ pub fn nikparser(ctx: Ctx) -> Reply {
                 "🪪 *ɴɪᴋ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*\n\n- NIK yang kamu masukkan tidak valid\n\
                  - Pastikan 16 digit angka benar",
             )
-            .with_reaction("❌");
+            .with_reaction("❌")
         }
     };
 
     // Obscura: `res.data.valid`. Nexray: `res.data.status && res.data.result`.
-    let valid = data
-        .get("valid")
-        .is_some_and(|v| v.as_bool().unwrap_or(false))
+    let valid = data.get("valid").is_some_and(|v| v.as_bool().unwrap_or(false))
         || (data
             .get("status")
             .is_some_and(|v| v.as_bool().unwrap_or(false))
@@ -308,11 +314,7 @@ fn normalisasi_tanggal_nexray(lahir: &str) -> String {
     let mm: u32 = parts.next().unwrap_or("0").parse().unwrap_or(0);
     let yyyy: i64 = parts.next().unwrap_or("0").parse().unwrap_or(0);
 
-    let (bulan, tahun) = if mm > 12 {
-        (mm - 12, yyyy + 2000)
-    } else {
-        (mm, yyyy)
-    };
+    let (bulan, tahun) = if mm > 12 { (mm - 12, yyyy + 2000) } else { (mm, yyyy) };
 
     // Buat Date seperti JS: new Date(year, month-1, dd).toISOString().
     // Jika tidak valid -> kosong.
@@ -332,11 +334,7 @@ fn days_in_bulan(tahun: i64, bulan: u32) -> u32 {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
         4 | 6 | 9 | 11 => 30,
         2 => {
-            if kabisat(tahun) {
-                29
-            } else {
-                28
-            }
+            if kabisat(tahun) { 29 } else { 28 }
         }
         _ => 0,
     }
@@ -547,14 +545,8 @@ mod tests {
     #[test]
     fn normalisasi_nexray_bulan_lewat_12_digeser_2000() {
         // Perempuan: bulan 21 -> 09, dan JS menambah 2000 ke tahun: 1989 -> 3989.
-        assert_eq!(
-            normalisasi_tanggal_nexray("21/21/1989"),
-            "3989-09-21T00:00:00.000Z"
-        );
-        assert_eq!(
-            normalisasi_tanggal_nexray("05/05/2000"),
-            "2000-05-05T00:00:00.000Z"
-        );
+        assert_eq!(normalisasi_tanggal_nexray("21/21/1989"), "3989-09-21T00:00:00.000Z");
+        assert_eq!(normalisasi_tanggal_nexray("05/05/2000"), "2000-05-05T00:00:00.000Z");
         assert_eq!(normalisasi_tanggal_nexray(""), "");
         assert_eq!(normalisasi_tanggal_nexray("99/99/9999"), "");
     }

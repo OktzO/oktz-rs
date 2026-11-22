@@ -126,10 +126,12 @@ fn galat_axios(res: &HttpResponse) -> HttpError {
     // axios hanya mem-parse body kalau bisa; kalau tidak, `data` tetap string.
     let pesan = match serde_json::from_str::<Value>(&teks) {
         Ok(Value::String(s)) => Some(s),
-        Ok(data @ Value::Object(_)) => ["message", "error"]
-            .iter()
-            .find_map(|k| data.get(*k).filter(|v| truthy(v)))
-            .map(teks_js),
+        Ok(data @ Value::Object(_)) => {
+            ["message", "error"]
+                .iter()
+                .find_map(|k| data.get(*k).filter(|v| truthy(v)))
+                .map(teks_js)
+        }
         Ok(_) => None,
         Err(_) => Some(teks.clone()),
     };
@@ -178,18 +180,16 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
         if let Some(kode) = session_id.as_str() {
             let isi = String::from_utf8_lossy(&base64_deskep(kode)).to_string();
             if let Ok(session_data) = serde_json::from_str::<Value>(&isi) {
-                resume_array = session_data
-                    .get("resumeArray")
-                    .cloned()
-                    .unwrap_or(Value::Null);
+                resume_array = session_data.get("resumeArray").cloned().unwrap_or(Value::Null);
                 cookie = session_data.get("cookie").cloned().unwrap_or(Value::Null);
                 saved_instruction = if truthy(&instruction) {
                     instruction.clone()
-                } else if session_data.get("instruction").map(truthy).unwrap_or(false) {
-                    session_data
-                        .get("instruction")
-                        .cloned()
-                        .unwrap_or(Value::Null)
+                } else if session_data
+                    .get("instruction")
+                    .map(truthy)
+                    .unwrap_or(false)
+                {
+                    session_data.get("instruction").cloned().unwrap_or(Value::Null)
                 } else {
                     json!("")
                 };
@@ -201,9 +201,7 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
         let res = http.call(
             &HttpCall::post(BATCHEXECUTE)
                 .header("content-type", TIPE_FORM)
-                .form(
-                    "f.req=%5B%5B%5B%22maGuAc%22%2C%22%5B0%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&",
-                )
+                .form("f.req=%5B%5B%5B%22maGuAc%22%2C%22%5B0%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&")
                 .terima_semua_status(),
         )?;
         if !(200..300).contains(&res.status) {
@@ -216,11 +214,7 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
     let request_body = json!([
         [message, 0, null, null, null, null, 0],
         ["en-US"],
-        if truthy(&resume_array) {
-            resume_array
-        } else {
-            resume_bawaan()
-        },
+        if truthy(&resume_array) { resume_array } else { resume_bawaan() },
         null,
         null,
         null,
@@ -242,23 +236,7 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
         null,
         null,
         null,
-        [
-            "",
-            "",
-            saved_instruction,
-            null,
-            null,
-            null,
-            null,
-            null,
-            0,
-            null,
-            1,
-            null,
-            null,
-            null,
-            []
-        ],
+        ["", "", saved_instruction, null, null, null, null, null, 0, null, 1, null, null, null, []],
         null,
         null,
         1,
@@ -269,9 +247,7 @@ pub fn chat(http: &dyn HttpGet, input: &Value) -> Result<Value, HttpError> {
         null,
         null,
         null,
-        [
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
-        ],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
         1,
         null,
         null,
@@ -426,7 +402,11 @@ mod tests {
         fn get(&self, _url: &str) -> Result<HttpResponse, HttpError> {
             unreachable!("gemini cuma POST")
         }
-        fn post_json(&self, _url: &str, _body: &Value) -> Result<HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &Value,
+        ) -> Result<HttpResponse, HttpError> {
             unreachable!("gemini lewat HttpCall::call")
         }
         fn post_form(&self, _url: &str, _form: &str) -> Result<HttpResponse, HttpError> {
@@ -495,8 +475,17 @@ mod tests {
     /// Satu blok `batchexecute`: `<angka>\n<JSON>\n`, dengan
     /// `realArray[0][2]` = JSON string yang memuat `parsed[4][0][1][0]`.
     fn blok(jawaban: &str) -> String {
-        let parsed = json!(["wrb.fr", ["id_lama"], null, null, [["id_baru", [jawaban]]]]);
-        format!("5\n{}\n", json!([["wrb.fr", null, parsed.to_string()]]))
+        let parsed = json!([
+            "wrb.fr",
+            ["id_lama"],
+            null,
+            null,
+            [["id_baru", [jawaban]]]
+        ]);
+        format!(
+            "5\n{}\n",
+            json!([["wrb.fr", null, parsed.to_string()]])
+        )
     }
 
     /// Kebalikan `encode_form` (`+` = spasi, `%XX` = byte).
@@ -535,11 +524,7 @@ mod tests {
     #[test]
     fn mengambil_cookie_lalu_mengirim_permintaan_lengkap() {
         let http = stub_dengan_cookie(true, &blok("Halo"));
-        let hasil = chat(
-            &http,
-            &json!({ "message": "hai", "instruction": "Singkat." }),
-        )
-        .unwrap();
+        let hasil = chat(&http, &json!({ "message": "hai", "instruction": "Singkat." })).unwrap();
         assert_eq!(hasil["text"], "Halo");
         let session_id = hasil["sessionId"].as_str().unwrap().to_string();
 
@@ -550,39 +535,25 @@ mod tests {
             body_form(&p[0]),
             "f.req=%5B%5B%5B%22maGuAc%22%2C%22%5B0%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&"
         );
-        assert_eq!(
-            cari_header(&p[0], "content-type"),
-            Some(TIPE_FORM.to_string())
-        );
+        assert_eq!(cari_header(&p[0], "content-type"), Some(TIPE_FORM.to_string()));
 
         assert_eq!(p[1].url, STREAM_GENERATE);
-        assert_eq!(
-            cari_header(&p[1], "cookie"),
-            Some("__Secure-ENID=abc".to_string())
-        );
-        assert_eq!(
-            cari_header(&p[1], "x-goog-ext-525001261-jspb"),
-            Some(JSPB.to_string())
-        );
+        assert_eq!(cari_header(&p[1], "cookie"), Some("__Secure-ENID=abc".to_string()));
+        assert_eq!(cari_header(&p[1], "x-goog-ext-525001261-jspb"), Some(JSPB.to_string()));
 
         // Body StreamGenerate = `f.req=` + `URLSearchParams` (form-urlencoded:
         // spasi jadi `+`, `!` jadi `%21`).
         let body = body_form(&p[1]);
         let terkuti = body.strip_prefix("f.req=").expect("awalan f.req=");
-        let payload: Value = serde_json::from_str(&decode_form(terkuti)).expect("f.req harus JSON");
+        let payload: Value =
+            serde_json::from_str(&decode_form(terkuti)).expect("f.req harus JSON");
         assert_eq!(payload[0], Value::Null, "payload[0] = null");
         let request_body: Value =
             serde_json::from_str(payload[1].as_str().expect("payload[1] string")).unwrap();
         assert_eq!(request_body[0][0], "hai");
         assert_eq!(request_body[1][0], "en-US");
-        assert_eq!(
-            request_body[2][0], "",
-            "resumeArray bawaan saat session kosong"
-        );
-        assert_eq!(
-            request_body[17][0][0], 0,
-            "[[0]] pada indeks 17 (JS gemini.js:58)"
-        );
+        assert_eq!(request_body[2][0], "", "resumeArray bawaan saat session kosong");
+        assert_eq!(request_body[17][0][0], 0, "[[0]] pada indeks 17 (JS gemini.js:58)");
         assert_eq!(
             request_body[24][2], "Singkat.",
             "blok instruction pada indeks 24 (JS gemini.js:68)"
@@ -593,23 +564,14 @@ mod tests {
             "[1..20] pada indeks 35 (JS gemini.js:92)"
         );
         assert_eq!(request_body[41], json!([1]), "ekor array adalah [1]");
-        assert_eq!(
-            request_body.as_array().unwrap().len(),
-            42,
-            "42 elemen seperti JS"
-        );
+        assert_eq!(request_body.as_array().unwrap().len(), 42, "42 elemen seperti JS");
         assert!(body.contains("f.req=%5Bnull%2C"), "quote di-encode: {body}");
 
         // `sessionId` = base64 `{resumeArray, cookie, instruction}` urut.
         let isi = String::from_utf8(base64_deskep(&session_id)).unwrap();
         let session = serde_json::from_str::<Value>(&isi).unwrap();
         assert_eq!(
-            session
-                .as_object()
-                .unwrap()
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>(),
+            session.as_object().unwrap().keys().cloned().collect::<Vec<_>>(),
             vec![
                 "resumeArray".to_string(),
                 "cookie".to_string(),
@@ -648,11 +610,7 @@ mod tests {
         assert_eq!(hasil["text"], "Lanjut");
 
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(
-            p.len(),
-            1,
-            "cookie dari session dipakai, tidak diambil lagi"
-        );
+        assert_eq!(p.len(), 1, "cookie dari session dipakai, tidak diambil lagi");
         assert_eq!(p[0].url, STREAM_GENERATE);
         assert_eq!(cari_header(&p[0], "cookie"), Some("SID=xyz".to_string()));
     }
@@ -667,11 +625,7 @@ mod tests {
         .unwrap();
         assert_eq!(hasil["text"], "Aman");
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(
-            p.len(),
-            2,
-            "cookie baru diambil karena session gagal di-parse"
-        );
+        assert_eq!(p.len(), 2, "cookie baru diambil karena session gagal di-parse");
     }
 
     #[test]
@@ -694,10 +648,7 @@ mod tests {
         let http = stub_dengan_cookie(false, &blok("x"));
         let salah = chat(&http, &json!({"message": ""})).unwrap_err();
         assert_eq!(salah.message, "Message is required.");
-        assert!(
-            http.permintaan.lock().unwrap().is_empty(),
-            "tidak ada request"
-        );
+        assert!(http.permintaan.lock().unwrap().is_empty(), "tidak ada request");
 
         let salah = chat(&http, &Value::Null).unwrap_err();
         assert_eq!(salah.message, "Message is required.");

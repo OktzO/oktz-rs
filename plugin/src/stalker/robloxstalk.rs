@@ -29,22 +29,12 @@ fn top_groups(groups: &Value) -> String {
         .unwrap_or(&[]);
     let mut out = String::new();
     for g in daftar.iter().take(5) {
-        let nama = g
-            .get("group")
-            .and_then(|x| x.get("name"))
-            .and_then(Value::as_str)
-            .unwrap_or("-");
+        let nama = g.get("group").and_then(|x| x.get("name")).and_then(Value::as_str).unwrap_or("-");
         let anggota = num(g.get("group").and_then(|x| x.get("memberCount")));
-        let peran = g
-            .get("role")
-            .and_then(|x| x.get("name"))
-            .and_then(Value::as_str)
-            .unwrap_or("-");
+        let peran = g.get("role").and_then(|x| x.get("name")).and_then(Value::as_str).unwrap_or("-");
         out.push_str(&format!("  ◦ {nama} ({anggota} members) — {peran}\n"));
     }
-    if out.is_empty() {
-        out.push_str("  ◦ Tidak ada\n");
-    }
+    if out.is_empty() { out.push_str("  ◦ Tidak ada\n"); }
     out
 }
 
@@ -60,9 +50,7 @@ fn top_games(games: &Value) -> String {
         let kunjungan = num(g.get("placeVisits"));
         out.push_str(&format!("  ◦ {nama} ({kunjungan} visits)\n"));
     }
-    if out.is_empty() {
-        out.push_str("  ◦ Tidak ada\n");
-    }
+    if out.is_empty() { out.push_str("  ◦ Tidak ada\n"); }
     out
 }
 
@@ -75,16 +63,10 @@ fn top_badges(badges: &Value) -> String {
     let mut out = String::new();
     for b in daftar.iter().take(5) {
         let nama = b.get("name").and_then(Value::as_str).unwrap_or("-");
-        let awarded = b
-            .get("statistics")
-            .and_then(|x| x.get("awardedCount"))
-            .and_then(Value::as_i64)
-            .unwrap_or(0);
+        let awarded = b.get("statistics").and_then(|x| x.get("awardedCount")).and_then(Value::as_i64).unwrap_or(0);
         out.push_str(&format!("  ◦ {nama} ({awarded} awarded)\n"));
     }
-    if out.is_empty() {
-        out.push_str("  ◦ Tidak ada\n");
-    }
+    if out.is_empty() { out.push_str("  ◦ Tidak ada\n"); }
     out
 }
 
@@ -103,9 +85,7 @@ fn top_inventory(inventory: &Value) -> String {
         let rap = num(it.get("recentAveragePrice"));
         out.push_str(&format!("  ◦ {nama} (RAP: {rap})\n"));
     }
-    if out.is_empty() {
-        out.push_str("  ◦ Tidak ada\n");
-    }
+    if out.is_empty() { out.push_str("  ◦ Tidak ada\n"); }
     out
 }
 
@@ -120,18 +100,9 @@ fn presence_text(presence: &Value) -> String {
         3 => "In Studio".to_string(),
         lain => lain.to_string(),
     };
-    let loc = presence
-        .get("lastLocation")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
-    let place = presence
-        .get("placeId")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
-    let game = presence
-        .get("gameId")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
+    let loc = presence.get("lastLocation").and_then(Value::as_str).unwrap_or("-");
+    let place = presence.get("placeId").and_then(Value::as_str).unwrap_or("-");
+    let game = presence.get("gameId").and_then(Value::as_str).unwrap_or("-");
     // Baris baru penutup: JS menulis `${presInfo}\n` + `\n\n` sebelum Bio.
     format!("Status: {label}\n  Last Location: {loc}\n  PlaceId: {place}\n  GameId: {game}\n")
 }
@@ -162,13 +133,8 @@ pub fn robloxstalk(ctx: Ctx) -> Reply {
     }
 
     let http = &*ctx.http;
-    let search_url =
-        format!("https://users.roblox.com/v1/users/search?keyword={username}&limit=10");
-    let search = match http.get(&search_url).and_then(|r| {
-        r.json().ok_or_else(|| oktz_plugin_api::HttpError {
-            message: "bukan JSON".into(),
-        })
-    }) {
+    let search_url = format!("https://users.roblox.com/v1/users/search?keyword={username}&limit=10");
+    let search = match http.get(&search_url).and_then(|r| r.json().ok_or_else(|| oktz_plugin_api::HttpError { message: "bukan JSON".into() })) {
         Ok(v) => v,
         Err(_) => return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     };
@@ -180,83 +146,22 @@ pub fn robloxstalk(ctx: Ctx) -> Reply {
     let user_id = num(user.get("id"));
 
     let detail_url = format!("https://users.roblox.com/v1/users/{user_id}");
-    let detail = http
-        .get(&detail_url)
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
+    let detail = http.get(&detail_url).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
     let avatar = http.get(&format!("https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
-    let followers = http
-        .get(&format!(
-            "https://friends.roblox.com/v1/users/{user_id}/followers/count"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let following = http
-        .get(&format!(
-            "https://friends.roblox.com/v1/users/{user_id}/followings/count"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let friends = http
-        .get(&format!(
-            "https://friends.roblox.com/v1/users/{user_id}/friends/count"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let groups = http
-        .get(&format!(
-            "https://groups.roblox.com/v2/users/{user_id}/groups/roles"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let games = http
-        .get(&format!(
-            "https://games.roblox.com/v2/users/{user_id}/games?limit=50"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let badges = http
-        .get(&format!(
-            "https://badges.roblox.com/v1/users/{user_id}/badges?limit=50"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
-    let inventory = http
-        .get(&format!(
-            "https://inventory.roblox.com/v1/users/{user_id}/assets/collectibles?limit=50"
-        ))
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
+    let followers = http.get(&format!("https://friends.roblox.com/v1/users/{user_id}/followers/count")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let following = http.get(&format!("https://friends.roblox.com/v1/users/{user_id}/followings/count")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let friends = http.get(&format!("https://friends.roblox.com/v1/users/{user_id}/friends/count")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let groups = http.get(&format!("https://groups.roblox.com/v2/users/{user_id}/groups/roles")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let games = http.get(&format!("https://games.roblox.com/v2/users/{user_id}/games?limit=50")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let badges = http.get(&format!("https://badges.roblox.com/v1/users/{user_id}/badges?limit=50")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
+    let inventory = http.get(&format!("https://inventory.roblox.com/v1/users/{user_id}/assets/collectibles?limit=50")).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
 
-    let presence = http
-        .post_json(
-            "https://presence.roblox.com/v1/presence/users",
-            &serde_json::json!({ "userIds": [user_id] }),
-        )
-        .ok()
-        .and_then(|r| r.json())
-        .unwrap_or(Value::Null);
+    let presence = http.post_json("https://presence.roblox.com/v1/presence/users", &serde_json::json!({ "userIds": [user_id] })).ok().and_then(|r| r.json()).unwrap_or(Value::Null);
 
-    let verified = user
-        .get("hasVerifiedBadge")
-        .is_some_and(|v| v.as_bool().unwrap_or(false));
+    let verified = user.get("hasVerifiedBadge").is_some_and(|v| v.as_bool().unwrap_or(false));
     let created = detail.get("created").and_then(Value::as_str).unwrap_or("-");
-    let display_name = detail
-        .get("displayName")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
-    let desc = detail
-        .get("description")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
+    let display_name = detail.get("displayName").and_then(Value::as_str).unwrap_or("-");
+    let desc = detail.get("description").and_then(Value::as_str).unwrap_or("-");
     let avatar_url = avatar
         .get("data")
         .and_then(Value::as_array)
@@ -265,10 +170,7 @@ pub fn robloxstalk(ctx: Ctx) -> Reply {
         .and_then(Value::as_str)
         .unwrap_or("");
     // `res.username` di JS = `detail.name`, bukan `name` hasil search.
-    let nama = detail
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or(username);
+    let nama = detail.get("name").and_then(Value::as_str).unwrap_or(username);
 
     let caption = format!(
         "🎮 *ʀᴏʙʟᴏx sᴛᴀʟᴋ*\n\n*PROFILE*\n🆔 *ID*: {id}\n🎄 *Username*: {nama}\n📛 *Display*: {display}\n✅ *Verified*: {verified}\n📅 *Created*: {created}\n\n*SOCIAL*\n👥 *Friends*: {friends}\n👤 *Followers*: {followers}\n➕ *Following*: {following}\n\n*PRESENCE*\n{presence}\n\n📝 *Bio:*\n{bio}\n👥 *Groups* ({gcount}):\n{groups}🎮 *Games* ({gamest}):\n{games}🏆 *Badges* ({badgest}):\n{badges}🎒 *Inventory*:\n{inventory}🔗 https://roblox.com/users/{id}/profile",
@@ -285,25 +187,12 @@ pub fn robloxstalk(ctx: Ctx) -> Reply {
             .and_then(Value::as_array)
             .and_then(|a| a.first())
             .map_or("tidak tersedia\n".to_string(), presence_text),
-        bio = if desc.is_empty() {
-            "-".to_string()
-        } else {
-            desc.chars().take(300).collect()
-        },
-        gcount = groups
-            .get("data")
-            .and_then(Value::as_array)
-            .map_or(0, |a| a.len()),
+        bio = if desc.is_empty() { "-".to_string() } else { desc.chars().take(300).collect() },
+        gcount = groups.get("data").and_then(Value::as_array).map_or(0, |a| a.len()),
         groups = top_groups(&groups),
-        gamest = games
-            .get("data")
-            .and_then(Value::as_array)
-            .map_or(0, |a| a.len()),
+        gamest = games.get("data").and_then(Value::as_array).map_or(0, |a| a.len()),
         games = top_games(&games),
-        badgest = badges
-            .get("data")
-            .and_then(Value::as_array)
-            .map_or(0, |a| a.len()),
+        badgest = badges.get("data").and_then(Value::as_array).map_or(0, |a| a.len()),
         badges = top_badges(&badges),
         inventory = top_inventory(inventory.get("data").unwrap_or(&Value::Null)),
     );
@@ -348,42 +237,14 @@ mod tests {
             drop(h);
             drop(b);
             let teks = self.balasan.lock().unwrap()[i].clone();
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(teks.into_bytes()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
+            Ok(HttpResponse { status: 200, body: HttpBody::Bytes { data: Arc::from(teks.into_bytes()), mimetype: None }, headers: Vec::new() })
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            let teks = self
-                .balasan
-                .lock()
-                .unwrap()
-                .last()
-                .cloned()
-                .unwrap_or_default();
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(teks.into_bytes()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
+            let teks = self.balasan.lock().unwrap().last().cloned().unwrap_or_default();
+            Ok(HttpResponse { status: 200, body: HttpBody::Bytes { data: Arc::from(teks.into_bytes()), mimetype: None }, headers: Vec::new() })
         }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> { unimplemented!() }
     }
 
     fn run(text: &str) -> Reply {
@@ -397,9 +258,7 @@ mod tests {
             // harus valid, kurung kurawal penutup cuma satu.
             r#"{"data":[{"imageUrl":"https://cdn/avatar.png"}]}"#,
             // followers/following/friends
-            r#"{"count":100}"#,
-            r#"{"count":50}"#,
-            r#"{"count":20}"#,
+            r#"{"count":100}"#, r#"{"count":50}"#, r#"{"count":20}"#,
             // groups/games/badges/inventory
             r#"{"data":[{"group":{"name":"G1","memberCount":10},"role":{"name":"Member"}}]}"#,
             r#"{"data":[{"name":"Game1","placeVisits":1000}]}"#,
@@ -421,17 +280,9 @@ mod tests {
         robloxstalk(ctx)
     }
 
-    fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
-    }
+    fn text_of(r: &Reply) -> String { r.without_mutations().text_body().unwrap_or_default().to_string() }
     fn reaction_of(r: &Reply) -> Option<String> {
-        match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji.clone()),
-            _ => None,
-        }
+        match r.without_mutations() { Reply::Reaction { emoji, .. } => Some(emoji.clone()), _ => None }
     }
 
     #[test]
@@ -458,9 +309,7 @@ mod tests {
         };
         match isi.as_ref() {
             Reply::Image { media, .. } => match media {
-                Some(oktz_plugin_api::MediaSource::Url { url, .. }) => {
-                    assert_eq!(url, "https://cdn/avatar.png")
-                }
+                Some(oktz_plugin_api::MediaSource::Url { url, .. }) => assert_eq!(url, "https://cdn/avatar.png"),
                 m => panic!("harus URL avatar, dapat {m:?}"),
             },
             other => panic!("harus image, dapat {other:?}"),
@@ -471,16 +320,7 @@ mod tests {
     fn username_tidak_ditemukan() {
         let http = Stub::balasan(vec![r#"{"data":[]}"#]);
         let mut args = "Nobody123".split_whitespace();
-        let ctx = Ctx {
-            text: "Nobody123".into(),
-            args: args.by_ref().map(str::to_string).collect(),
-            sender: "x".into(),
-            chat: "x".into(),
-            prefix: ".".into(),
-            command: "robloxstalk".into(),
-            http,
-            ..Ctx::default()
-        };
+        let ctx = Ctx { text: "Nobody123".into(), args: args.by_ref().map(str::to_string).collect(), sender: "x".into(), chat: "x".into(), prefix: ".".into(), command: "robloxstalk".into(), http, ..Ctx::default() };
         let r = robloxstalk(ctx);
         assert_eq!(text_of(&r), "❌ Username *Nobody123* tidak ditemukan");
         assert_eq!(reaction_of(&r), Some("❌".to_string()));

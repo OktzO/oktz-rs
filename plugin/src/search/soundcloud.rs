@@ -87,48 +87,19 @@ fn extract_next_data(html: &str) -> String {
 /// judul tidak pernah sampai ke teks hasil.
 fn track_from_value(v: &Value) -> Option<Track> {
     let data = v.get("data")?;
-    let judul = data
-        .get("title")
-        .filter(|t| crate::common::js_truthy_value(t))?;
+    let judul = data.get("title").filter(|t| crate::common::js_truthy_value(t))?;
     let title = match judul {
         Value::String(s) => s.clone(),
         lain => lain.to_string(),
     };
-    let url = data
-        .get("permalink_url")
-        .and_then(Value::as_str)
-        .unwrap_or("-")
-        .to_string();
-    let artwork = data
-        .get("artwork_url")
-        .and_then(Value::as_str)
-        .map(|s| s.to_string());
-    let plays = data
-        .get("playback_count")
-        .and_then(Value::as_u64)
-        .map_or("-".to_string(), |n| n.to_string());
-    let likes = data
-        .get("likes_count")
-        .and_then(Value::as_u64)
-        .map_or("-".to_string(), |n| n.to_string());
-    let comments = data
-        .get("comment_count")
-        .and_then(Value::as_u64)
-        .map_or("-".to_string(), |n| n.to_string());
-    let reposts = data
-        .get("reposts_count")
-        .and_then(Value::as_u64)
-        .map_or("-".to_string(), |n| n.to_string());
+    let url = data.get("permalink_url").and_then(Value::as_str).unwrap_or("-").to_string();
+    let artwork = data.get("artwork_url").and_then(Value::as_str).map(|s| s.to_string());
+    let plays = data.get("playback_count").and_then(Value::as_u64).map_or("-".to_string(), |n| n.to_string());
+    let likes = data.get("likes_count").and_then(Value::as_u64).map_or("-".to_string(), |n| n.to_string());
+    let comments = data.get("comment_count").and_then(Value::as_u64).map_or("-".to_string(), |n| n.to_string());
+    let reposts = data.get("reposts_count").and_then(Value::as_u64).map_or("-".to_string(), |n| n.to_string());
 
-    Some(Track {
-        title,
-        url,
-        artwork,
-        plays,
-        likes,
-        comments,
-        reposts,
-    })
+    Some(Track { title, url, artwork, plays, likes, comments, reposts })
 }
 
 /// Encode query parameter seperti `encodeURIComponent` JS.
@@ -136,9 +107,7 @@ fn encode_query(q: &str) -> String {
     let mut out = String::with_capacity(q.len());
     for b in q.bytes() {
         let c = b as char;
-        if c.is_ascii_alphanumeric()
-            || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')')
-        {
+        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')') {
             out.push(c);
         } else if c == ' ' {
             out.push_str("%20");
@@ -161,11 +130,7 @@ fn resolve_url(url: &str, base_url: &str) -> String {
         return format!("https:{url}");
     }
     if url.starts_with('/') {
-        let host = base_url
-            .split("://")
-            .nth(1)
-            .and_then(|b| b.split('/').next())
-            .unwrap_or("");
+        let host = base_url.split("://").nth(1).and_then(|b| b.split('/').next()).unwrap_or("");
         return format!("https://{host}{url}");
     }
     url.to_string()
@@ -204,22 +169,15 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
         Err(e) => {
             // `soundcloud.js:99` — `❌ Maaf kak, terjadi kesalahan sistem!` +
             // baris `Error: ${e.message}`.
-            return Reply::text(format!(
-                "❌ Maaf kak, terjadi kesalahan sistem!\nError: {e}"
-            ));
+            return Reply::text(format!("❌ Maaf kak, terjadi kesalahan sistem!\nError: {e}"));
         }
     };
 
     if tracks.is_empty() {
-        return Reply::text(
-            "❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭",
-        );
+        return Reply::text("❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭");
     }
 
-    let thumb = tracks
-        .iter()
-        .find(|t| t.artwork.is_some())
-        .and_then(|t| t.artwork.as_deref());
+    let thumb = tracks.iter().find(|t| t.artwork.is_some()).and_then(|t| t.artwork.as_deref());
     let mut txt = "🎧 *HASIL PENCARIAN SOUNDCLOUD* 🎧\n\n".to_string();
     let mut content_txt = String::new();
     let limit = tracks.len().min(5);
@@ -240,13 +198,7 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
     let lines: Vec<String> = content_txt
         .trim()
         .split('\n')
-        .map(|l| {
-            if l.trim().is_empty() {
-                String::new()
-            } else {
-                l.to_string()
-            }
-        })
+        .map(|l| if l.trim().is_empty() { String::new() } else { l.to_string() })
         .collect();
     let content_txt = lines.join("\n");
     txt.push_str(&content_txt);
@@ -260,8 +212,7 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
     let base_url = "https://m.soundcloud.com";
     if let Some(thumb) = thumb {
         let thumb_url = resolve_url(thumb, base_url);
-        return Reply::image(MediaSource::url(thumb_url), txt.trim().to_string())
-            .with_reaction("✅");
+        return Reply::image(MediaSource::url(thumb_url), txt.trim().to_string()).with_reaction("✅");
     }
 
     Reply::text(txt.trim().to_string()).with_reaction("✅")
@@ -397,14 +348,8 @@ mod tests {
         let http = StubHttp::body(HTML_WITH_DATA);
         let r = run(http, "jazz");
         let t = text_of(&r);
-        assert!(
-            t.contains("🔁 *Reposts :* 2\n\n🎵 *Title :* Lagu Dua"),
-            "{t}"
-        );
-        assert!(
-            t.ends_with("Kalo mau download lagunya, pake fitur `.playsc` aja kak! 😉"),
-            "{t}"
-        );
+        assert!(t.contains("🔁 *Reposts :* 2\n\n🎵 *Title :* Lagu Dua"), "{t}");
+        assert!(t.ends_with("Kalo mau download lagunya, pake fitur `.playsc` aja kak! 😉"), "{t}");
     }
 
     #[test]
@@ -475,10 +420,7 @@ mod tests {
     fn tidak_ditemukan_tampilkan_pesan() {
         let http = StubHttp::body(HTML_WITHOUT_DATA);
         let r = run(http, "tidakada");
-        assert_eq!(
-            text_of(&r),
-            "❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭"
-        );
+        assert_eq!(text_of(&r), "❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭");
     }
 
     #[test]

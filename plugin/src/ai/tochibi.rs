@@ -5,8 +5,7 @@ use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin}
 
 const PROMPT: &str = "Transform into chibi style, big head and small body proportions, cute expression, big sparkling eyes, smooth shading, soft lighting, highly detailed, high quality";
 
-const HELP: &str =
-    "🎀 *ᴄʜɪʙɪ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Chibi\n\n`{prefix}tochibi`";
+const HELP: &str = "🎀 *ᴄʜɪʙɪ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Chibi\n\n`{prefix}tochibi`";
 const GAGAL_DOWNLOAD: &str = "❌ Gagal mendownload gambar";
 
 /// Kartu pakai — `tochibi.js:23-25` memakai `${m.prefix}`.
@@ -66,9 +65,7 @@ pub fn tochibi(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{
-        HttpBody, HttpGet, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin,
-    };
+    use oktz_plugin_api::{HttpBody, HttpGet, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin};
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug, Default)]
@@ -81,12 +78,7 @@ mod tests {
     impl HttpStub {
         fn urutan(daftar: Vec<(u16, &str)>) -> Arc<HttpStub> {
             Arc::new(HttpStub {
-                balasan: Mutex::new(
-                    daftar
-                        .into_iter()
-                        .map(|(s, t)| (s, t.to_string()))
-                        .collect(),
-                ),
+                balasan: Mutex::new(daftar.into_iter().map(|(s, t)| (s, t.to_string())).collect()),
                 seen: Mutex::new(Vec::new()),
                 hitung: Mutex::new(0),
             })
@@ -108,37 +100,18 @@ mod tests {
             drop(h);
             drop(b);
             let (status, teks) = self.balasan.lock().unwrap()[i].clone();
-            Ok(HttpResponse {
-                status,
-                body: HttpBody::Bytes {
-                    data: Arc::from(teks.into_bytes()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
+            Ok(HttpResponse { status, body: HttpBody::Bytes { data: Arc::from(teks.into_bytes()), mimetype: None }, headers: Vec::new() })
         }
-        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> { unimplemented!() }
     }
 
     /// Stub `MediaFetch` yang mengembalikan byte unduhan yang ditentukan.
     #[derive(Debug)]
     struct MediaStub(Result<Vec<u8>, MediaError>);
     impl MediaFetch for MediaStub {
-        fn download(&self, _: MediaOrigin) -> Result<Vec<u8>, MediaError> {
-            self.0.clone()
-        }
+        fn download(&self, _: MediaOrigin) -> Result<Vec<u8>, MediaError> { self.0.clone() }
     }
 
     use oktz_plugin_api::HttpError;
@@ -152,12 +125,7 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             prefix: ".".into(),
             command: "tochibi".into(),
-            media: Some(IncomingMedia {
-                kind: IncomingKind::Image,
-                mimetype: None,
-                file_name: None,
-                caption: String::new(),
-            }),
+            media: Some(IncomingMedia { kind: IncomingKind::Image, mimetype: None, file_name: None, caption: String::new() }),
             media_fetch: Arc::new(MediaStub(unduh)),
             http,
             ..Ctx::default()
@@ -183,16 +151,7 @@ mod tests {
     #[test]
     fn tidak_ada_gambar_tampilkan_bantuan() {
         let http = HttpStub::urutan(vec![]);
-        let ctx = Ctx {
-            text: ".tochibi".into(),
-            args: Vec::new(),
-            sender: "x".into(),
-            chat: "x".into(),
-            prefix: ".".into(),
-            command: "tochibi".into(),
-            http,
-            ..Ctx::default()
-        };
+        let ctx = Ctx { text: ".tochibi".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: ".".into(), command: "tochibi".into(), http, ..Ctx::default() };
         let r = tochibi(ctx);
         assert_eq!(r.without_mutations().text_body().unwrap(), help("."));
     }
@@ -201,16 +160,7 @@ mod tests {
     fn kartu_pakai_memakai_prefix_ctx() {
         // `tochibi.js:25` memakai `${m.prefix}`, bukan titik hardcode.
         let http = HttpStub::urutan(vec![]);
-        let ctx = Ctx {
-            text: ".tochibi".into(),
-            args: Vec::new(),
-            sender: "x".into(),
-            chat: "x".into(),
-            prefix: "!".into(),
-            command: "tochibi".into(),
-            http,
-            ..Ctx::default()
-        };
+        let ctx = Ctx { text: ".tochibi".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: "!".into(), command: "tochibi".into(), http, ..Ctx::default() };
         let r = tochibi(ctx);
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
@@ -221,12 +171,7 @@ mod tests {
     #[test]
     fn unduhan_gagal() {
         let http = HttpStub::urutan(vec![]);
-        let r = run(
-            http,
-            Err(MediaError {
-                message: "cdn mati".into(),
-            }),
-        );
+        let r = run(http, Err(MediaError { message: "cdn mati".into() }));
         assert_eq!(r.without_mutations().text_body().unwrap(), GAGAL_DOWNLOAD);
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "❌"),
@@ -237,16 +182,10 @@ mod tests {
     #[test]
     fn berhasil_ubah_ke_chibi() {
         let http = HttpStub::urutan(vec![
-            (
-                200,
-                r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#,
-            ),
+            (200, r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#),
             (200, ""),
             (200, r#"{"result":{"url":"https://s/x.jpg"}}"#),
-            (
-                200,
-                r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#,
-            ),
+            (200, r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#),
             (200, "GAMBAR"),
         ]);
         let r = run(http, Ok(b"IMG".to_vec()));
@@ -260,10 +199,7 @@ mod tests {
     #[test]
     fn nanobanana_gagal() {
         let http = HttpStub::urutan(vec![
-            (
-                200,
-                r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#,
-            ),
+            (200, r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#),
             (200, ""),
             (200, r#"{"result":{"url":"https://s/x.jpg"}}"#),
             (200, r#"{"status":false}"#),

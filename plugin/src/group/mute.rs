@@ -9,7 +9,7 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-use crate::common::{jid_number, js_truthy};
+use crate::common::{js_truthy, jid_number};
 
 /// Nilai cadangan ketika `groups[chat].name` belum ada.
 pub(crate) const NO_GROUP_NAME: &str = "Grup";
@@ -63,6 +63,7 @@ pub fn mute(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
+
     fn run(group: serde_json::Value) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
@@ -111,10 +112,7 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(
-            oktz_plugin_api::find("bisukan").unwrap().meta.name,
-            "muteanggota"
-        );
+        assert_eq!(oktz_plugin_api::find("bisukan").unwrap().meta.name, "muteanggota");
     }
 
     #[test]
@@ -133,45 +131,26 @@ mod tests {
     fn the_sender_is_mentioned_not_the_group() {
         let r = run(serde_json::json!({"name": "G"}));
         match r.without_mutations() {
-            Reply::Text { mentions, .. } => {
-                assert_eq!(mentions, &["628111@s.whatsapp.net".to_string()])
-            }
+            Reply::Text { mentions, .. } => assert_eq!(mentions, &["628111@s.whatsapp.net".to_string()]),
             other => panic!("harus Text, dapat {other:?}"),
         }
     }
 
     #[test]
     fn a_group_that_is_already_muted_is_left_alone() {
-        for truthy in [
-            serde_json::json!(true),
-            serde_json::json!(1),
-            serde_json::json!("ya"),
-            serde_json::json!({}),
-        ] {
+        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
             let r = run(serde_json::json!({ "mute": truthy.clone() }));
             assert_eq!(text_of(&r), ALREADY_MUTED, "input mute={truthy}");
-            assert!(
-                r.mutations().is_empty(),
-                "tidak boleh menulis ulang: {truthy}"
-            );
+            assert!(r.mutations().is_empty(), "tidak boleh menulis ulang: {truthy}");
         }
     }
 
     #[test]
     fn a_falsy_stored_flag_still_lets_the_mute_through() {
         // `if (group.mute)` di JS = `!m0`, jadi `false`/`0`/`""`/`null` lolos.
-        for falsy in [
-            serde_json::json!(false),
-            serde_json::json!(0),
-            serde_json::json!(""),
-            serde_json::json!(null),
-        ] {
+        for falsy in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
             let r = run(serde_json::json!({ "mute": falsy.clone() }));
-            assert_eq!(
-                group_write(&r),
-                &serde_json::json!({"mute": true}),
-                "input mute={falsy}"
-            );
+            assert_eq!(group_write(&r), &serde_json::json!({"mute": true}), "input mute={falsy}");
         }
     }
 

@@ -258,14 +258,8 @@ mod tests {
                 .map(|(_, v)| v.clone())
         };
         assert_eq!(cari("cookie").unwrap(), "sess=abc; Path=/; HttpOnly");
-        assert_eq!(
-            cari("origin").unwrap(),
-            "https://unrestrictedaiimagegenerator.com"
-        );
-        assert_eq!(
-            cari("content-type").unwrap(),
-            "application/x-www-form-urlencoded"
-        );
+        assert_eq!(cari("origin").unwrap(), "https://unrestrictedaiimagegenerator.com");
+        assert_eq!(cari("content-type").unwrap(), "application/x-www-form-urlencoded");
         // Header GET juga memakai default client yang sama.
         let cari_get = |nama: &str| {
             p[0].headers
@@ -274,10 +268,7 @@ mod tests {
                 .map(|(_, v)| v.clone())
         };
         assert_eq!(cari_get("user-agent").unwrap(), UA);
-        assert_eq!(
-            cari_get("origin").unwrap(),
-            "https://unrestrictedaiimagegenerator.com"
-        );
+        assert_eq!(cari_get("origin").unwrap(), "https://unrestrictedaiimagegenerator.com");
     }
 
     #[test]
@@ -287,10 +278,7 @@ mod tests {
                 r#"<input value="v2" name="_wpnonce">"#.to_string(),
                 Vec::new(),
             ),
-            (
-                r#"<img id="resultImage" src="https://i/2">"#.to_string(),
-                Vec::new(),
-            ),
+            (r#"<img id="resultImage" src="https://i/2">"#.to_string(), Vec::new()),
         ]);
         let hasil = unrestrictedai(&http, "x", Some("anime")).unwrap();
         assert_eq!(hasil, "https://i/2");
@@ -334,14 +322,8 @@ mod tests {
     #[test]
     fn gambar_hilang_melempar_pesan_js() {
         let http = stub(vec![
-            (
-                r#"<input name="_wpnonce" value="n">"#.to_string(),
-                Vec::new(),
-            ),
-            (
-                r#"<html><img id="lain" src="x"></html>"#.to_string(),
-                Vec::new(),
-            ),
+            (r#"<input name="_wpnonce" value="n">"#.to_string(), Vec::new()),
+            (r#"<html><img id="lain" src="x"></html>"#.to_string(), Vec::new()),
         ]);
         let err = unrestrictedai(&http, "x", None).unwrap_err();
         assert_eq!(err.message, "Image not found");

@@ -220,10 +220,7 @@ mod tests {
             let r = run("", settings.clone());
             let t = text_of(&r);
             assert!(t.starts_with("⏱️ *ᴊᴇᴅᴀ ᴘᴀɴᴇʟ ᴄʀᴇᴀᴛᴇ*"), "{settings}: {t}");
-            assert!(
-                t.contains(&format!("Jeda saat ini: *{expected}*")),
-                "{settings}: {t}"
-            );
+            assert!(t.contains(&format!("Jeda saat ini: *{expected}*")), "{settings}: {t}");
             assert!(t.contains("Gunakan: `.jedacreate <waktu>`"), "{t}");
             assert!(r.mutations().is_empty(), "{settings}");
         }
@@ -249,16 +246,8 @@ mod tests {
             let r = run(input, Value::Null);
             let w = settings_written(&r);
             assert_eq!(w.len(), 2, "input {input}");
-            assert_eq!(
-                w[0],
-                (JEDA_KEY.to_string(), serde_json::json!(expected)),
-                "input {input}"
-            );
-            assert_eq!(
-                w[1],
-                (LAST_USED_KEY.to_string(), serde_json::json!(0)),
-                "input {input}"
-            );
+            assert_eq!(w[0], (JEDA_KEY.to_string(), serde_json::json!(expected)), "input {input}");
+            assert_eq!(w[1], (LAST_USED_KEY.to_string(), serde_json::json!(0)), "input {input}");
             match r.without_mutations() {
                 Reply::Reaction { emoji, .. } => assert_eq!(emoji, "✅", "input {input}"),
                 other => panic!("harus Reaction, dapat {other:?}"),

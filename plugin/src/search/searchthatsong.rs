@@ -42,12 +42,7 @@ fn extract_session_id(headers: &[(String, String)]) -> Option<String> {
 type JsonPost = (u16, Vec<(String, String)>, Value);
 
 /// Satu permintaan JSON POST.
-fn json_post(
-    http: &dyn oktz_plugin_api::HttpGet,
-    url: &str,
-    body: &Value,
-    cookie: Option<&str>,
-) -> Result<JsonPost, oktz_plugin_api::HttpError> {
+fn json_post(http: &dyn oktz_plugin_api::HttpGet, url: &str, body: &Value, cookie: Option<&str>) -> Result<JsonPost, oktz_plugin_api::HttpError> {
     let mut req = header_dasar();
     req.url = url.to_string();
     if let Some(c) = cookie {
@@ -59,10 +54,7 @@ fn json_post(
 }
 
 /// `search(query)` — dua langkah: route-preview lalu full search.
-fn search(
-    http: &dyn oktz_plugin_api::HttpGet,
-    query: &str,
-) -> Result<Value, oktz_plugin_api::HttpError> {
+fn search(http: &dyn oktz_plugin_api::HttpGet, query: &str) -> Result<Value, oktz_plugin_api::HttpError> {
     let (status, headers, route_data) = json_post(
         http,
         &format!("{BASE}/api/search/route-preview"),
@@ -75,21 +67,10 @@ fn search(
         });
     }
     let session_id = extract_session_id(&headers);
-    let sid = session_id
-        .as_deref()
-        .or_else(|| route_data.get("session_id").and_then(Value::as_str))
-        .unwrap_or("");
-    let route_preview = route_data
-        .get("route")
-        .or(Some(&route_data))
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let sid = session_id.as_deref().or_else(|| route_data.get("session_id").and_then(Value::as_str)).unwrap_or("");
+    let route_preview = route_data.get("route").or(Some(&route_data)).and_then(Value::as_str).unwrap_or("");
 
-    let cookie = if !sid.is_empty() {
-        Some(format!("session_id={sid}"))
-    } else {
-        None
-    };
+    let cookie = if !sid.is_empty() { Some(format!("session_id={sid}")) } else { None };
     let (s2, _h2, full) = json_post(
         http,
         BASE,
@@ -111,11 +92,7 @@ fn build_result(raw: &Value) -> Value {
     // Nilai kosong dan "n/a" jadi null, sama seperti JS.
     let teks_atau_null = |kunci: &str| {
         let v = a.get(kunci).and_then(Value::as_str).unwrap_or("");
-        if v.is_empty() || v == "n/a" {
-            None
-        } else {
-            Some(v.to_string())
-        }
+        if v.is_empty() || v == "n/a" { None } else { Some(v.to_string()) }
     };
     let lirik = teks_atau_null("plain_lyrics");
     let potongan = teks_atau_null("most_relevant_chunk");
@@ -157,19 +134,15 @@ pub fn searchthatsong(ctx: Ctx) -> Reply {
         ctx.text.trim().to_string()
     };
     if query.is_empty() {
-        return Reply::text(
-            "❌ Masukkan potongan lirik atau nama lagu yang ingin dicari.\n\nContoh: `.sts ku menangis membayangkan`",
-        );
+        return Reply::text("❌ Masukkan potongan lirik atau nama lagu yang ingin dicari.\n\nContoh: `.sts ku menangis membayangkan`");
     }
 
     let result = match search(ctx.http.as_ref(), &query) {
         Ok(v) => v,
         Err(_) => {
             // `searchthatsong.js:165-166` — reaksi ☢ lalu pesan kesalahan.
-            return Reply::text(
-                "😔 Terjadi kesalahan saat mencari lagu. Server mungkin sedang bermasalah.",
-            )
-            .with_reaction("☢");
+            return Reply::text("😔 Terjadi kesalahan saat mencari lagu. Server mungkin sedang bermasalah.")
+                .with_reaction("☢");
         }
     };
 
@@ -414,7 +387,10 @@ mod tests {
                 "router_confidence": "0.95"
             }
         });
-        let http = Stub::ordered(vec![route.to_string(), full.to_string()]);
+        let http = Stub::ordered(vec![
+            route.to_string(),
+            full.to_string(),
+        ]);
         let r = run(http.clone(), "ku menangis membayangkan");
         assert!(body(&r).contains("Ku Menangis Membayangkan"));
         assert!(body(&r).contains("Artis Contoh"));

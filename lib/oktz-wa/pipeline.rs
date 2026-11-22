@@ -33,15 +33,10 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::Instant;
 
-use crate::cards::biz_node;
-use crate::grup_event::{self, AksiGrup, UpdateGrup};
-use crate::pesan_grup::{self, KonteksPesan};
-use crate::reply_variant;
-use crate::ui;
 use oktz_plugin_api::berkas::Berkas;
 use oktz_plugin_api::registry::{GroupRoster, HttpGet, MediaSource, Mutation, Participant};
-use oktz_plugin_api::{AlbumMedia, Ctx, PluginEntry, Reply};
 use oktz_plugin_api::{NoHttp, QuotedKind, QuotedMessage, SessionStore, new_session_store};
+use oktz_plugin_api::{AlbumMedia, Ctx, PluginEntry, Reply};
 use oktz_plugin_api::{Sock, SockMati};
 use oktz_router::gates::{
     AutoWorkDecision, AutoWorkGuard, AutoWorkSettings, EnergiSettings, resolve_energi_enabled,
@@ -49,14 +44,17 @@ use oktz_router::gates::{
 use oktz_router::group::{self, GateEnv, GroupCaller};
 use oktz_router::serialize::{MessageKind, MessageParams, get_message_body, resolve_message_type};
 use oktz_router::{
-    AccessGrant, Caller, Decision, DenyMode, GroupOverrides, GroupState, ModeSettings,
-    PLUGIN_GAGAL, ParseOptions, RateLimiter, Router, RouterContext, UserState, consume_auto_work,
-    is_spamming, parse_command,
+    PLUGIN_GAGAL, AccessGrant, Caller, Decision, DenyMode, GroupOverrides, GroupState, ModeSettings,
+    ParseOptions, RateLimiter, Router, RouterContext, UserState, consume_auto_work, is_spamming,
+    parse_command,
 };
 use oktz_store::json_store::JsonStore;
 use serde_json::Value;
-use whatsapp_rust::GroupMetadata;
-use whatsapp_rust::GroupParticipant;
+use crate::cards::biz_node;
+use crate::grup_event::{self, AksiGrup, UpdateGrup};
+use crate::pesan_grup::{self, KonteksPesan};
+use crate::reply_variant;
+use crate::ui;
 use whatsapp_rust::RevokeType;
 use whatsapp_rust::http::{HttpClient, HttpRequest, UreqHttpClient};
 use whatsapp_rust::media::{
@@ -64,13 +62,15 @@ use whatsapp_rust::media::{
     image_message, video_message,
 };
 use whatsapp_rust::prelude::*;
+use whatsapp_rust::GroupMetadata;
+use whatsapp_rust::GroupParticipant;
 use whatsapp_rust::upload::{UploadOptions, UploadResponse};
-use whatsapp_rust::wacore::download::MediaType;
-use whatsapp_rust::wacore::proto_helpers::MessageExt;
-use whatsapp_rust::wacore_binary::Node;
 use whatsapp_rust::waproto::buffa::MessageField;
 use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_response_message::InteractiveResponseMessage as IrOneof;
+use whatsapp_rust::wacore::download::MediaType;
 use whatsapp_rust::waproto::whatsapp::message::extended_text_message::PreviewType;
+use whatsapp_rust::wacore::proto_helpers::MessageExt;
+use whatsapp_rust::wacore_binary::Node;
 
 use crate::pipeline_gate::{self, GateState};
 
@@ -82,13 +82,13 @@ use crate::pipeline_gate::{self, GateState};
 const VALID_COUNTRY_CODES: &[&str] = &[
     "1", "7", "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45",
     "46", "47", "48", "49", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63",
-    "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98", "212",
-    "213", "216", "218", "220", "221", "234", "249", "254", "255", "256", "260", "263", "351",
-    "352", "353", "354", "355", "356", "357", "358", "359", "370", "371", "372", "373", "374",
-    "375", "376", "377", "378", "380", "381", "382", "383", "385", "386", "387", "389", "420",
-    "421", "423", "852", "853", "855", "856", "880", "886", "960", "961", "962", "963", "964",
-    "965", "966", "967", "968", "970", "971", "972", "973", "974", "975", "976", "977", "992",
-    "993", "994", "995", "996", "998",
+    "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98", "212", "213",
+    "216", "218", "220", "221", "234", "249", "254", "255", "256", "260", "263", "351", "352",
+    "353", "354", "355", "356", "357", "358", "359", "370", "371", "372", "373", "374", "375",
+    "376", "377", "378", "380", "381", "382", "383", "385", "386", "387", "389", "420", "421",
+    "423", "852", "853", "855", "856", "880", "886", "960", "961", "962", "963", "964", "965",
+    "966", "967", "968", "970", "971", "972", "973", "974", "975", "976", "977", "992", "993",
+    "994", "995", "996", "998",
 ];
 
 /// Port `isLidConverted` (`src/lib/lid.js:150-167`).
@@ -325,7 +325,10 @@ pub fn group_overrides_from(groups: Option<&Value>, chat: &str) -> Option<GroupO
 /// `settings.capprem[name]` (`middleware.js:69`). `Some(false)` berarti override
 /// implisit dan HARUS menang atas `meta.is_premium`.
 pub fn capprem_from(settings: Option<&Value>, name: &str) -> Option<bool> {
-    settings?.get("capprem")?.get(name)?.as_bool()
+    settings?
+        .get("capprem")?
+        .get(name)?
+        .as_bool()
 }
 
 /// [`RouterContext`] di atas `JsonStore`.
@@ -428,7 +431,8 @@ impl StoreContext {
 
     /// Pasang lagi flag kotor — flush gagal, coba siklus berikutnya.
     pub fn mark_dirty_turso(&self) {
-        self.dirty.store(true, std::sync::atomic::Ordering::Release);
+        self.dirty
+            .store(true, std::sync::atomic::Ordering::Release);
     }
 
     /// Ganti snapshot pipeline (dipakai restore boot Turso).
@@ -510,33 +514,27 @@ fn apply_mutation(
             let Some(key) = normalize_user_key(jid) else {
                 return Ok(());
             };
-            let users = store
-                .get_or_insert_object("users")
-                .map_err(|e| StoreWriteError {
-                    path: path.clone(),
-                    detail: format!("setUser({key}) gagal: {e}"),
-                })?;
+            let users = store.get_or_insert_object("users").map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("setUser({key}) gagal: {e}"),
+            })?;
             apply_set_user(users, &key, data, now_ms);
         }
         Mutation::SetGroup { jid, data } => {
             if jid.is_empty() {
                 return Ok(());
             }
-            let groups = store
-                .get_or_insert_object("groups")
-                .map_err(|e| StoreWriteError {
-                    path: path.clone(),
-                    detail: format!("setGroup({jid}) gagal: {e}"),
-                })?;
+            let groups = store.get_or_insert_object("groups").map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("setGroup({jid}) gagal: {e}"),
+            })?;
             apply_set_group(groups, jid, data);
         }
         Mutation::SetSetting { key, value } => {
-            let settings = store
-                .get_or_insert_object("settings")
-                .map_err(|e| StoreWriteError {
-                    path: path.clone(),
-                    detail: format!("setting({key}) gagal: {e}"),
-                })?;
+            let settings = store.get_or_insert_object("settings").map_err(|e| StoreWriteError {
+                path: path.clone(),
+                detail: format!("setting({key}) gagal: {e}"),
+            })?;
             settings[key] = value.clone();
         }
     }
@@ -682,7 +680,10 @@ pub fn apply_set_user(users: &mut Value, key: &str, data: &Value, now_ms: i64) {
             num_or("unlockedFeatures", Value::Array(Vec::new())),
         ),
         ("registeredAt", num_or("registeredAt", Value::Null)),
-        ("lastRegisteredAt", num_or("lastRegisteredAt", Value::Null)),
+        (
+            "lastRegisteredAt",
+            num_or("lastRegisteredAt", Value::Null),
+        ),
         (
             "registrationCount",
             num_or("registrationCount", Value::from(0)),
@@ -698,7 +699,10 @@ pub fn apply_set_user(users: &mut Value, key: &str, data: &Value, now_ms: i64) {
             num_or("cooldowns", Value::Object(Default::default())),
         ),
         ("clanId", num_or("clanId", Value::Null)),
-        ("isRegistered", num_or("isRegistered", Value::from(false))),
+        (
+            "isRegistered",
+            num_or("isRegistered", Value::from(false)),
+        ),
         ("regName", num_or("regName", Value::Null)),
         ("regAge", num_or("regAge", Value::Null)),
         ("regGender", num_or("regGender", Value::Null)),
@@ -749,15 +753,9 @@ pub fn apply_set_group(groups: &mut Value, jid: &str, data: &Value) {
     let toggles: Vec<(&str, Value)> = vec![
         // `config.welcome?.defaultEnabled ?? false` (`database.js:723-725`);
         // config repo ini `false` (`config.js:186`).
-        (
-            "welcome",
-            pick("welcome", Value::from(GROUP_TOGGLE_DEFAULT)),
-        ),
+        ("welcome", pick("welcome", Value::from(GROUP_TOGGLE_DEFAULT))),
         ("leave", pick("leave", Value::from(GROUP_TOGGLE_DEFAULT))),
-        (
-            "goodbye",
-            pick("goodbye", Value::from(GROUP_TOGGLE_DEFAULT)),
-        ),
+        ("goodbye", pick("goodbye", Value::from(GROUP_TOGGLE_DEFAULT))),
         ("antilink", pick("antilink", Value::from(false))),
         ("antitoxic", pick("antitoxic", Value::from(false))),
         ("mute", pick("mute", Value::from(false))),
@@ -799,32 +797,10 @@ pub fn apply_set_group(groups: &mut Value, jid: &str, data: &Value) {
 /// Key yang `setUser` TULIS ULANG dari `data`, jadi tidak boleh disalin
 /// mentah lebih dulu — `USER_SET_OVERRIDDEN` (`database.js:23-28`).
 const USER_SET_OVERRIDDEN: &[&str] = &[
-    "jid",
-    "name",
-    "number",
-    "energi",
-    "isPremium",
-    "isBanned",
-    "exp",
-    "level",
-    "koin",
-    "saldo",
-    "unlockedFeatures",
-    "registeredAt",
-    "lastRegisteredAt",
-    "registrationCount",
-    "hasClaimedRegisterReward",
-    "unregisteredAt",
-    "lastSeen",
-    "cooldowns",
-    "clanId",
-    "isRegistered",
-    "regName",
-    "regAge",
-    "regGender",
-    "rpg",
-    "inventory",
-    "access",
+    "jid", "name", "number", "energi", "isPremium", "isBanned", "exp", "level", "koin", "saldo",
+    "unlockedFeatures", "registeredAt", "lastRegisteredAt", "registrationCount",
+    "hasClaimedRegisterReward", "unregisteredAt", "lastSeen", "cooldowns", "clanId",
+    "isRegistered", "regName", "regAge", "regGender", "rpg", "inventory", "access",
 ];
 
 /// Prefiks kunci user untuk JID LID (`normalize_user_key`).
@@ -1006,7 +982,11 @@ impl StoreContext {
         let total_groups = groups.map_or(0, serde_json::Map::len);
         let premium = users.map_or(0, |u| {
             u.values()
-                .filter(|v| v.get("isPremium").and_then(Value::as_bool).unwrap_or(false))
+                .filter(|v| {
+                    v.get("isPremium")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                })
                 .count()
         });
         (total_users, premium, total_groups)
@@ -1093,7 +1073,12 @@ pub type AddressingBox<'a> = Pin<Box<dyn Future<Output = Result<String, String>>
 /// Tituhubung yang mengabstraksi `Client::send_message_with_options`
 /// (`whatsapp-rust-0.7.0/src/send/mod.rs:901`).
 pub trait MessageSender: Send + Sync {
-    fn send(&self, to: &str, message: wa::Message, extra_nodes: Vec<Node>) -> SendBox<'_>;
+    fn send(
+        &self,
+        to: &str,
+        message: wa::Message,
+        extra_nodes: Vec<Node>,
+    ) -> SendBox<'_>;
 
     /// Kirim lalu laporkan ID pesan yang terbit.
     ///
@@ -1239,9 +1224,9 @@ pub trait MessageSender: Send + Sync {
     /// ke pemanggil — di JS reaksi juga di-`.catch(() => {})`, jadi gagal
     /// bereaksi tidak boleh menggagalkan pipeline.
     fn react(&self, _chat: &str, _target: &wa::MessageKey, _emoji: &str) -> SendBox<'_> {
-        Box::pin(
-            async move { Err("pengirim ini tidak mendukung reaksi ( butuh Client )".to_string()) },
-        )
+        Box::pin(async move {
+            Err("pengirim ini tidak mendukung reaksi ( butuh Client )".to_string())
+        })
     }
 }
 
@@ -1417,7 +1402,7 @@ impl MessageSender for ClientSender {
         })
     }
     fn send_media(&self, to: &str, media: PendingMedia) -> SendBox<'_> {
-        let client = self.client.clone();
+    let client = self.client.clone();
         let to = to.to_string();
         Box::pin(async move {
             let jid: Jid = to
@@ -1436,11 +1421,7 @@ impl MessageSender for ClientSender {
                 // tetap mengirim kartunya.
                 let thumb = buat_thumbnail(&data, MediaKind::Image);
                 let upload = client
-                    .upload(
-                        data.clone(),
-                        MediaType::LinkThumbnail,
-                        UploadOptions::default(),
-                    )
+                    .upload(data.clone(), MediaType::LinkThumbnail, UploadOptions::default())
                     .await;
                 match upload {
                     Ok(up) => patch_preview(preview, &up, thumb),
@@ -1468,7 +1449,8 @@ impl MessageSender for ClientSender {
                 }
                 // Diagnostik sticker blank: panjang + sha256 file, hanya
                 // kalau OKTZ_DEBUG_STIKER=1.
-                let dbg_len = std::env::var_os("OKTZ_DEBUG_STIKER").map(|_| data.len());
+                let dbg_len = std::env::var_os("OKTZ_DEBUG_STIKER")
+                    .map(|_| data.len());
                 let upload = client
                     .upload(data, media.kind.upload_type(), UploadOptions::default())
                     .await
@@ -1554,29 +1536,19 @@ impl MessageSender for ClientSender {
                     .unwrap_or_default(),
                 std::process::id()
             );
-            let zip = whatsapp_rust::wacore::sticker_pack::create_sticker_pack_zip(
-                &pack_id, &stickers, &cover,
-            )
-            .map_err(|e| format!("gagal buat ZIP sticker pack: {e}"))?;
+            let zip = whatsapp_rust::wacore::sticker_pack::create_sticker_pack_zip(&pack_id, &stickers, &cover)
+                .map_err(|e| format!("gagal buat ZIP sticker pack: {e}"))?;
             let media_key = oktz_plugin_api::buat_kunci_media();
             let cover_jpeg = oktz_plugin_api::gambar::sharp(&cover)
                 .and_then(|g| g.ke_jpeg(80))
                 .unwrap_or_else(|_| cover.clone());
             let zip_bytes = zip.zip_bytes.clone();
             let zip_upload = client
-                .upload(
-                    zip_bytes,
-                    MediaType::StickerPack,
-                    UploadOptions::new().with_media_key(media_key),
-                )
+                .upload(zip_bytes, MediaType::StickerPack, UploadOptions::new().with_media_key(media_key))
                 .await
                 .map_err(|e| format!("upload ZIP sticker pack gagal: {e}"))?;
             let thumb_upload = client
-                .upload(
-                    cover_jpeg,
-                    MediaType::StickerPackThumbnail,
-                    UploadOptions::new().with_media_key(media_key),
-                )
+                .upload(cover_jpeg, MediaType::StickerPackThumbnail, UploadOptions::new().with_media_key(media_key))
                 .await
                 .map_err(|e| format!("upload thumbnail sticker pack gagal: {e}"))?;
             let metadata = whatsapp_rust::wacore::sticker_pack::StickerPackMetadata::new(
@@ -1700,7 +1672,12 @@ impl MessageSender for ClientSender {
     /// `RevokeType::Sender`-meaning `from_me=true` akan membuat WA mengarang
     /// pesan kosong alih-alih menghapus (`actions.rs:33-38`), dan `Admin`
     /// memang menolak di luar grup (`actions.rs:41-45`).
-    fn delete_message(&self, chat: &str, message_id: &str, original_sender: &str) -> SendBox<'_> {
+    fn delete_message(
+        &self,
+        chat: &str,
+        message_id: &str,
+        original_sender: &str,
+    ) -> SendBox<'_> {
         let client = self.client.clone();
         let chat = chat.to_string();
         let message_id = message_id.to_string();
@@ -1777,7 +1754,9 @@ async fn load_media(source: &MediaSource) -> Result<Vec<u8>, PipelineError> {
                 PipelineError::Media(format!("gagal baca file media `{path}`: {e}"))
             })?;
             if data.is_empty() {
-                return Err(PipelineError::Media(format!("file media `{path}` kosong")));
+                return Err(PipelineError::Media(format!(
+                    "file media `{path}` kosong"
+                )));
             }
             Ok(data)
         }
@@ -1813,17 +1792,13 @@ pub enum PipelineError {
     /// `Reply` tidak membawa sumber media sama sekali — `media: None` di
     /// `Reply::Image` / `Reply::Sticker` (`oktz-plugin-api/src/registry.rs`).
     /// Reported, bukan di-drop diam-diam.
-    MediaSourceMissing {
-        variant: &'static str,
-    },
+    MediaSourceMissing { variant: &'static str },
     /// Sumber media ada tapi gagal jadi byte / gagal upload.
     Media(String),
     /// `Reply::Mutate` mencapai [`render_reply`] tanpa lewat
     /// `Reply::into_parts` dulu — mutasi store tidak ditulis, jadi
     /// pesan yang dikirim akan mengklaim sesuatu yang tidak terjadi.
-    UnappliedMutation {
-        count: usize,
-    },
+    UnappliedMutation { count: usize },
     /// Varian `Reply` yang tidak punya jalur render pesan.
     Unsupported(String),
     Other(String),
@@ -1993,7 +1968,7 @@ pub struct Rendered {
     pub card_header_media: Option<PendingMedia>,
     /// Pesan yang perlu di-quote di dalam kartu (JS `quoted: m`).
     pub card_quote: Option<QuoteSource>,
-}
+ }
 
 impl Rendered {
     pub(crate) fn wire(message: wa::Message, extra_nodes: Vec<Node>) -> Self {
@@ -2013,7 +1988,7 @@ impl Rendered {
     pub fn needs_media(&self) -> bool {
         self.media.is_some() || self.card_header_media.is_some()
     }
-}
+ }
 
 /// Jenis media yang di-upload dan dikirim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2111,10 +2086,7 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
     let mut ci = if media.mentions.is_empty() && media.quote.is_none() {
         None
     } else {
-        Some(Box::new(context_info(
-            &media.mentions,
-            media.quote.as_ref(),
-        )))
+        Some(Box::new(context_info(&media.mentions, media.quote.as_ref())))
     };
     if let Some(opsi) = &media.sticker {
         if opsi.forwarded {
@@ -2157,7 +2129,13 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
                 file_enc_sha256: Some(up.file_enc_sha256.to_vec()),
                 file_length: Some(up.file_length),
                 media_key_timestamp: Some(up.media_key_timestamp),
-                mimetype: Some(media.source.mimetype().unwrap_or("image/webp").to_string()),
+                mimetype: Some(
+                    media
+                        .source
+                        .mimetype()
+                        .unwrap_or("image/webp")
+                        .to_string(),
+                ),
                 // JS tidak pernah menulis isAnimated untuk sticker tunggal
                 // (socket.js:555-559, ruby-baileys) — klien deteksi animasi
                 // dari chunk ANMF di file.
@@ -2190,11 +2168,7 @@ fn build_media_message(kind: MediaKind, up: UploadResponse, media: &PendingMedia
 /// mengisi field thumbnail pesan (WA menampilkannya sebagai gambar preview
 /// link), varian 11 mengisi `faviconMMSMetadata` (ikon kecil di daftar chat).
 /// Menukar keduanya berarti preview link kehilangan gambarnya.
-fn patch_preview(
-    preview: PendingPreview,
-    up: &UploadResponse,
-    thumb: Option<Vec<u8>>,
-) -> wa::Message {
+fn patch_preview(preview: PendingPreview, up: &UploadResponse, thumb: Option<Vec<u8>>) -> wa::Message {
     let mut message = preview.message;
     let Some(ext) = message.extended_text_message.as_option_mut() else {
         return message;
@@ -2252,22 +2226,9 @@ fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
             use std::io::Write;
             f.write_all(data).ok()?;
             drop(f);
-            let biner = oktz_plugin_api::ffmpeg::jalur_ffmpeg()
-                .unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
+            let biner = oktz_plugin_api::ffmpeg::jalur_ffmpeg().unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
             let out = std::process::Command::new(biner)
-                .args([
-                    "-ss",
-                    "0",
-                    "-i",
-                    &tmp,
-                    "-vframes",
-                    "1",
-                    "-vf",
-                    "scale=32:-1",
-                    "-f",
-                    "mjpeg",
-                    "-",
-                ])
+                .args(["-ss", "0", "-i", &tmp, "-vframes", "1", "-vf", "scale=32:-1", "-f", "mjpeg", "-"])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
                 .output();
@@ -2326,7 +2287,13 @@ fn video_options(
 /// bukan default `audio/ogg; codecs=opus` builder.
 fn audio_options(media: &PendingMedia, ci: Option<Box<wa::ContextInfo>>) -> AudioOptions {
     AudioOptions {
-        mimetype: Some(media.source.mimetype().unwrap_or("audio/mpeg").to_string()),
+        mimetype: Some(
+            media
+                .source
+                .mimetype()
+                .unwrap_or("audio/mpeg")
+                .to_string(),
+        ),
         duration_seconds: None,
         ptt: Some(media.ptt),
         waveform: None,
@@ -2372,7 +2339,9 @@ pub(crate) fn context_info(mentions: &[String], quote: Option<&QuoteSource>) -> 
         // `stanzaId` kosong TIDAK dikirim: kutipan palsu (varian 2/5/11) tidak
         // punya `key.id`, dan JS menulis `undefined` yang hilang saat
         // serialize — `Some("")` akan terkirim sebagai field kosong.
-        stanza_id: quote.map(|q| q.stanza_id.clone()).filter(|s| !s.is_empty()),
+        stanza_id: quote
+            .map(|q| q.stanza_id.clone())
+            .filter(|s| !s.is_empty()),
         participant: quote.and_then(|q| q.participant.clone()),
         ..Default::default()
     }
@@ -2513,8 +2482,8 @@ pub fn render_reply(
             preview: None,
             sticker: None,
             sticker_pack: None,
-            width: None,
-            height: None,
+                        width: None,
+                        height: None,
         })
     };
     match reply {
@@ -2545,7 +2514,7 @@ pub fn render_reply(
             card_header_media: None,
             sticker_pack: None,
             card_quote: None,
-        })),
+         })),
         Reply::StickerPack {
             stickers,
             name,
@@ -2572,8 +2541,8 @@ pub fn render_reply(
                     emojis: emojis.clone(),
                 }),
                 card_quote: None,
-            }))
-        }
+             }))
+        },
         Reply::Image {
             media: src,
             caption,
@@ -2586,7 +2555,7 @@ pub fn render_reply(
             card_header_media: None,
             sticker_pack: None,
             card_quote: None,
-        })),
+         })),
         Reply::Video {
             media: src,
             caption,
@@ -2601,9 +2570,9 @@ pub fn render_reply(
                 media: Some(media),
                 card: None,
                 card_header_media: None,
-                sticker_pack: None,
+            sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         Reply::Audio { media: src, ptt } => {
             let mut media = pending(MediaKind::Audio, "Audio", src, "", &[])?;
@@ -2614,9 +2583,9 @@ pub fn render_reply(
                 media: Some(media),
                 card: None,
                 card_header_media: None,
-                sticker_pack: None,
+            sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         Reply::Document {
             media: src,
@@ -2632,9 +2601,9 @@ pub fn render_reply(
                 media: Some(media),
                 card: None,
                 card_header_media: None,
-                sticker_pack: None,
+            sticker_pack: None,
                 card_quote: None,
-            }))
+             }))
         }
         // `quotedMsg = options.quoted !== false ? msg : undefined` — jadi
         // yang TANPA kutipan harus opt-out eksplisit.
@@ -2659,14 +2628,7 @@ pub fn render_reply(
         // pemicu diisi kalau ada `{ quoted: m }` (`socket.js:1251-1260`).
         // Thumbnail lewat jalur `send_media` (upload `thumbnail-link` +
         // `patch_preview`), `previewType` dipetakan ke enum proto.
-        Reply::Preview {
-            text,
-            url,
-            title,
-            description,
-            preview_type,
-            thumbnail,
-        } => {
+        Reply::Preview { text, url, title, description, preview_type, thumbnail } => {
             let mut ext = wa::message::ExtendedTextMessage {
                 text: Some(text.clone()),
                 matched_text: Some(url.clone()),
@@ -2755,18 +2717,20 @@ pub fn render_reply(
                 }
             } else {
                 wa::Message {
-                    contacts_array_message: MessageField::some(wa::message::ContactsArrayMessage {
-                        display_name: Some(display_name.clone()),
-                        contacts: contacts
-                            .iter()
-                            .map(|vcard| wa::message::ContactMessage {
-                                display_name: Some(display_name.clone()),
-                                vcard: Some(vcard.clone()),
-                                ..Default::default()
-                            })
-                            .collect(),
-                        context_info: MessageField::some(ci),
-                    }),
+                    contacts_array_message: MessageField::some(
+                        wa::message::ContactsArrayMessage {
+                            display_name: Some(display_name.clone()),
+                            contacts: contacts
+                                .iter()
+                                .map(|vcard| wa::message::ContactMessage {
+                                    display_name: Some(display_name.clone()),
+                                    vcard: Some(vcard.clone()),
+                                    ..Default::default()
+                                })
+                                .collect(),
+                            context_info: MessageField::some(ci),
+                        },
+                    ),
                     ..Default::default()
                 }
             };
@@ -2786,12 +2750,9 @@ pub fn render_reply(
                 )
             })?;
             if previous.message_id.is_empty() {
-                return Err(PipelineError::Other(
-                    "Reply::TextQuotedPrevious butuh ID pesan yang baru dikirim; \
+                return Err(PipelineError::Other("Reply::TextQuotedPrevious butuh ID pesan yang baru dikirim; \
                      send_with_result melaporkan ID kosong. Pesan TIDAK dikirim — \
-                     kutipan dengan ID kosong menunjuk pesan yang tidak ada."
-                        .to_string(),
-                ));
+                     kutipan dengan ID kosong menunjuk pesan yang tidak ada.".to_string()));
             }
             let quote_prev = QuoteSource {
                 stanza_id: previous.message_id.clone(),
@@ -2839,8 +2800,8 @@ pub fn render_reply(
                     preview: None,
                     sticker: None,
                     sticker_pack: None,
-                    width: None,
-                    height: None,
+                        width: None,
+                        height: None,
                 });
             Ok(Some(Rendered {
                 message: wa::Message::default(),
@@ -2853,7 +2814,7 @@ pub fn render_reply(
                 card_header_media: header_media,
                 sticker_pack: None,
                 card_quote: if kartu.quote { quote.cloned() } else { None },
-            }))
+             }))
         }
         Reply::Tabel { tabel } => {
             // `sendTable` JS: `relayMessage` tanpa node `biz`, dan
@@ -2974,30 +2935,14 @@ pub fn decision_to_reply(d: &Decision) -> Reply {
 fn context_info_of(m: &wa::Message) -> Option<&wa::ContextInfo> {
     let b = m.get_base_message();
     [
-        b.extended_text_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.image_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.video_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.document_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.audio_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.sticker_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.contact_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
-        b.location_message
-            .as_option()
-            .and_then(|v| v.context_info.as_option()),
+        b.extended_text_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.image_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.video_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.document_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.audio_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.sticker_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.contact_message.as_option().and_then(|v| v.context_info.as_option()),
+        b.location_message.as_option().and_then(|v| v.context_info.as_option()),
         b.buttons_response_message
             .as_option()
             .and_then(|v| v.context_info.as_option()),
@@ -3139,6 +3084,8 @@ fn sw_group_type_of(m: &wa::Message) -> Option<String> {
     None
 }
 
+
+
 fn mentioned_jids(m: &InboundMessage) -> Vec<String> {
     context_info_of(&m.message)
         .map(|c| c.mentioned_jid.clone())
@@ -3164,8 +3111,8 @@ fn quoted_of(m: &InboundMessage) -> Option<QuotedMessage> {
         mimetype: quoted_mimetype(quoted),
         file_name: quoted_file_name(quoted),
         from_me: m.info.source.is_from_me,
-        timestamp: 0,
-    })
+            timestamp: 0,
+        })
 }
 
 fn quoted_kind(m: &wa::Message) -> QuotedKind {
@@ -3209,8 +3156,16 @@ fn quoted_mimetype(m: &wa::Message) -> Option<String> {
     b.image_message
         .as_option()
         .and_then(|v| v.mimetype.clone())
-        .or_else(|| b.video_message.as_option().and_then(|v| v.mimetype.clone()))
-        .or_else(|| b.audio_message.as_option().and_then(|v| v.mimetype.clone()))
+        .or_else(|| {
+            b.video_message
+                .as_option()
+                .and_then(|v| v.mimetype.clone())
+        })
+        .or_else(|| {
+            b.audio_message
+                .as_option()
+                .and_then(|v| v.mimetype.clone())
+        })
         .or_else(|| {
             b.sticker_message
                 .as_option()
@@ -3277,10 +3232,7 @@ fn wire_type_of(m: &wa::Message) -> &'static str {
 }
 
 fn interactive_params_json(m: &wa::Message) -> Option<String> {
-    let ir = m
-        .get_base_message()
-        .interactive_response_message
-        .as_option()?;
+    let ir = m.get_base_message().interactive_response_message.as_option()?;
     match ir.interactive_response_message.as_ref()? {
         IrOneof::NativeFlowResponseMessage(nf) => nf.params_json.clone(),
     }
@@ -3346,10 +3298,7 @@ pub fn extract_body(m: &wa::Message) -> Option<String> {
     };
     // `resolve_message_type` dipanggil supaya jalur `messageContextInfo` tetap
     // satu sumber kebenaran (serialize.rs:111-120).
-    let resolved = resolve_message_type(
-        Some(wire),
-        b.interactive_response_message.as_option().is_some(),
-    );
+    let resolved = resolve_message_type(Some(wire), b.interactive_response_message.as_option().is_some());
     let kind = resolved
         .as_deref()
         .map(MessageKind::from_wire_type)
@@ -3377,7 +3326,8 @@ const ENERGI_EXCEEDED: &str = "⚡ Energi habis!";
 /// karena di sana saja WA butuh untuk identifies pengirim asli.
 fn message_key_of(m: &InboundMessage) -> wa::MessageKey {
     use whatsapp_rust::wacore_binary::JidExt;
-    let needs_participant = m.info.source.is_group || m.info.source.chat.is_status_broadcast();
+    let needs_participant =
+        m.info.source.is_group || m.info.source.chat.is_status_broadcast();
     wa::MessageKey {
         remote_jid: Some(m.info.source.chat.to_string()),
         from_me: Some(m.info.source.is_from_me),
@@ -3407,7 +3357,8 @@ pub trait RosterSource: Send + Sync {
     fn roster(&self, chat: &str) -> SendBoxRoster<'_>;
 }
 
-pub type SendBoxRoster<'a> = Pin<Box<dyn Future<Output = Result<GroupRoster, String>> + Send + 'a>>;
+pub type SendBoxRoster<'a> =
+    Pin<Box<dyn Future<Output = Result<GroupRoster, String>> + Send + 'a>>;
 
 /// Default: tidak ada yang bisa tahu roster. Selalu kosong, bukan error —
 /// pesan dari grup tetap diproses, plugin `listadmin` yang perlu jailed.
@@ -3492,19 +3443,12 @@ pub fn roster_from(meta: &GroupMetadata, bot_jids: &[String]) -> GroupRoster {
         }
         nums.retain(|n| !n.is_empty());
         bot_nums.iter().any(|bn| {
-            nums.iter().any(|n| {
-                n == bn
-                    || (n.len() >= 8
-                        && bn.len() >= 8
-                        && (n.ends_with(bn.as_str()) || bn.ends_with(n.as_str())))
-            })
+            nums.iter()
+                .any(|n| n == bn || (n.len() >= 8 && bn.len() >= 8 && (n.ends_with(bn.as_str()) || bn.ends_with(n.as_str()))))
         })
     };
     GroupRoster {
-        is_bot_admin: meta
-            .participants
-            .iter()
-            .any(|p| p.is_admin() && cocok_bot(p)),
+        is_bot_admin: meta.participants.iter().any(|p| p.is_admin() && cocok_bot(p)),
         participants: meta
             .participants
             .iter()
@@ -3739,7 +3683,7 @@ pub enum Outcome {
     Denied,
     /// Plugin jalan dan balasan terkirim.
     Sent,
-    /// Plugin membalas media yang `Reply` tidak punya sumbernya.
+/// Plugin membalas media yang `Reply` tidak punya sumbernya.
     ///
     /// TIDAK lagi dipakai: kasus itu sekarang jadi
     /// [`PipelineError::MediaSourceMissing`], bukan `Outcome` —
@@ -3864,8 +3808,7 @@ impl Pipeline {
     }
 
     pub fn set_boot_ms(&self, boot_ms: i64) {
-        self.boot_ms
-            .store(boot_ms, std::sync::atomic::Ordering::Relaxed);
+        self.boot_ms.store(boot_ms, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn with_identity(mut self, identity: Identity) -> Self {
@@ -3941,7 +3884,10 @@ impl Pipeline {
 
     /// Bagikan state gate dengan pipeline lain di proses yang sama (test).
     pub fn with_gate_state(self, gates: Arc<GateState>) -> Self {
-        Self { gates, ..self }
+        Self {
+            gates,
+            ..self
+        }
     }
 
     pub fn ctx(&self) -> &StoreContext {
@@ -3949,10 +3895,7 @@ impl Pipeline {
     }
 
     pub fn identity(&self) -> Identity {
-        self.identity
-            .read()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.identity.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Semburkan daftar premium/partner baru ke identity tanpa restart.
@@ -3961,25 +3904,13 @@ impl Pipeline {
     /// diterapkan — `.addpremium` harus langsung berlaku pada pesan berikutnya.
     fn refresh_identity_premium(&self, premium: Vec<String>, partner: Vec<String>) {
         let mut id = self.identity.write().unwrap_or_else(|e| e.into_inner());
-        id.premium = premium
-            .iter()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        id.partners = partner
-            .iter()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        id.premium = premium.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        id.partners = partner.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
         // owner & partner ikut premium (config.js: sumber premium = owner ∪ partner ∪ premium).
         let owners = id.owners.clone();
         let partners = id.partners.clone();
-        for o in owners {
-            id.premium.insert(o);
-        }
-        for p in partners {
-            id.premium.insert(p);
-        }
+        for o in owners { id.premium.insert(o); }
+        for p in partners { id.premium.insert(p); }
     }
 
     /// Kuota auto-work untuk fitur yang memang memakainya. Dipanggil per-fitur,
@@ -4004,11 +3935,15 @@ impl Pipeline {
         }
         let settings = self.auto_work_settings;
         slot.guard.allow(|| {
-            let mut limiter = self
-                .auto_work_limiter
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            consume_auto_work(&mut limiter, caller, key, &settings, user_energi, now_ms)
+            let mut limiter = self.auto_work_limiter.lock().unwrap_or_else(|e| e.into_inner());
+            consume_auto_work(
+                &mut limiter,
+                caller,
+                key,
+                &settings,
+                user_energi,
+                now_ms,
+            )
         })
     }
 
@@ -4028,11 +3963,7 @@ impl Pipeline {
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
         // `NoMediaFetch` — `Ctx::media` tetap terisi supaya plugin bisa
         // memeriksa `m.isImage` tanpa sesi WA.
-        let (media, media_fetch) = crate::media_fetch::ctx_media(
-            self.sender.client(),
-            m,
-            &self.plugin_src.recent_media_data,
-        );
+        let (media, media_fetch) = crate::media_fetch::ctx_media(self.sender.client(), m, &self.plugin_src.recent_media_data);
         Caller {
             sender: sender.clone(),
             chat: s.chat.to_string(),
@@ -4098,18 +4029,8 @@ impl Pipeline {
             from_me: m.info.source.is_from_me,
             is_command: parsed.is_command,
             is_document: wire_type_of(&m.message) == MessageKind::Document.wire_type(),
-            is_image: m
-                .message
-                .get_base_message()
-                .image_message
-                .as_option()
-                .is_some(),
-            is_video: m
-                .message
-                .get_base_message()
-                .video_message
-                .as_option()
-                .is_some(),
+            is_image: m.message.get_base_message().image_message.as_option().is_some(),
+            is_video: m.message.get_base_message().video_message.as_option().is_some(),
             is_gif: m
                 .message
                 .get_base_message()
@@ -4117,18 +4038,8 @@ impl Pipeline {
                 .as_option()
                 .and_then(|v| v.gif_playback)
                 .unwrap_or(false),
-            is_audio: m
-                .message
-                .get_base_message()
-                .audio_message
-                .as_option()
-                .is_some(),
-            is_sticker: m
-                .message
-                .get_base_message()
-                .sticker_message
-                .as_option()
-                .is_some(),
+            is_audio: m.message.get_base_message().audio_message.as_option().is_some(),
+            is_sticker: m.message.get_base_message().sticker_message.as_option().is_some(),
             message_id: m.info.id.clone(),
             push_name: caller.push_name.clone(),
             message_type: wire_type_of(&m.message).to_string(),
@@ -4259,9 +4170,9 @@ impl Pipeline {
                 media: Some(p),
                 card: None,
                 card_header_media: None,
-                sticker_pack: None,
+            sticker_pack: None,
                 card_quote: None,
-            }),
+             }),
         })
     }
 
@@ -4280,18 +4191,10 @@ impl Pipeline {
                 if elapsed < std::time::Duration::from_millis(300) {
                     *g = Some(std::time::Instant::now());
                     std::time::Duration::from_millis(300) - elapsed
-                } else {
-                    *g = Some(std::time::Instant::now());
-                    std::time::Duration::ZERO
-                }
-            } else {
-                *g = Some(std::time::Instant::now());
-                std::time::Duration::ZERO
-            }
+                } else { *g = Some(std::time::Instant::now()); std::time::Duration::ZERO }
+            } else { *g = Some(std::time::Instant::now()); std::time::Duration::ZERO }
         };
-        if !wait.is_zero() {
-            tokio::time::sleep(wait).await;
-        }
+        if !wait.is_zero() { tokio::time::sleep(wait).await; }
     }
 
     async fn deliver(&self, chat: &str, rendered: Rendered) -> Result<SentMessage, PipelineError> {
@@ -4319,12 +4222,9 @@ impl Pipeline {
                         tracing::warn!(error = %e, "kartu gagal dikirim, kirim teks cadangan");
                         let msg = text_message(&teks, &[], None);
                         let message = msg.clone();
-                        self.sender
-                            .send(chat, msg, Vec::new())
-                            .await
-                            .map_err(|e2| {
-                                PipelineError::Other(format!("gagal kirim cadangan: {e2}"))
-                            })?;
+                        self.sender.send(chat, msg, Vec::new()).await.map_err(|e2| {
+                            PipelineError::Other(format!("gagal kirim cadangan: {e2}"))
+                        })?;
                         return Ok(SentMessage {
                             message_id: String::new(),
                             message,
@@ -4421,10 +4321,7 @@ impl Pipeline {
                     // `Reply::sequence` sudah meratakannya jadi `None`.
                     Ok(true)
                 }
-                Reply::Reaction {
-                    emoji,
-                    reply: inner,
-                } => {
+                Reply::Reaction { emoji, reply: inner } => {
                     if let Err(e) = self.sender.react(chat, key, emoji).await {
                         tracing::warn!(error = %e, emoji = %emoji, "gagal bereaksi");
                     }
@@ -4436,10 +4333,9 @@ impl Pipeline {
                 // `TabelAi.with_reaction("✅")` jatuh ke `render_reply` dan
                 // ditolak `UnappliedMutation`. Yang 0 mutasi dibiarkan lewat;
                 // yang bermutasi tetap berisik (render akan error).
-                Reply::Mutate {
-                    reply: inner,
-                    mutations,
-                } if mutations.is_empty() => self.deliver_reply(chat, inner, target, key).await,
+                Reply::Mutate { reply: inner, mutations } if mutations.is_empty() => {
+                    self.deliver_reply(chat, inner, target, key).await
+                }
                 other => {
                     let Some(rendered) = self.render_with_reply_variant(other, target)? else {
                         return Ok(false);
@@ -4498,7 +4394,8 @@ impl Pipeline {
     /// `db.setting("capenergi") || {}` (`handler.js:1856`) — override biaya
     /// per-plugin. Dibaca per-pesan supaya perubahan dari panel langsung berlaku.
     fn cap_energi_overrides(&self) -> HashMap<String, i64> {
-        self.ctx.energy_overrides()
+        self.ctx
+            .energy_overrides()
     }
 
     /// Eksekusi keputusan rantai group-protection di live path.
@@ -4643,9 +4540,9 @@ impl Pipeline {
         // lebih tua dari 300 dtk), lalu buang arbitrer 128 sebagai backstop.
         if !guard.contains_key(&chat) && guard.len() >= Self::RECENT_MEDIA_MAX_CHATS {
             guard.retain(|_, items| {
-                items.back().is_some_and(|it| {
-                    now_secs.saturating_sub(it.timestamp) < Self::RECENT_MEDIA_STALE_SECS
-                })
+                items
+                    .back()
+                    .is_some_and(|it| now_secs.saturating_sub(it.timestamp) < Self::RECENT_MEDIA_STALE_SECS)
             });
             if guard.len() >= Self::RECENT_MEDIA_MAX_CHATS {
                 let buang: Vec<String> = guard
@@ -4739,7 +4636,10 @@ impl Pipeline {
         // Dedup: kunci persis handler.js:926.
         let dedup_key = format!(
             "{}_{}_{}_{}",
-            self.bot_id, caller.chat, caller.sender, m.info.id
+            self.bot_id,
+            caller.chat,
+            caller.sender,
+            m.info.id
         );
         if self
             .dedup
@@ -4783,7 +4683,12 @@ impl Pipeline {
         if caller.is_group {
             // Grup LID: `sender` bisa `NNNN@lid` sementara `participants[].jid`
             // memakai PN — coba juga `sender_alt` (wacore `messages.rs:1110-1123`).
-            let sender_alt = m.info.source.sender_alt.as_ref().map(|j| j.to_string());
+            let sender_alt = m
+                .info
+                .source
+                .sender_alt
+                .as_ref()
+                .map(|j| j.to_string());
             caller.is_admin = caller.is_admin
                 || roster.participant_is_admin(&caller.sender)
                 || sender_alt
@@ -4911,11 +4816,7 @@ impl Pipeline {
                             let arr = |k: &str| {
                                 s.get(k)
                                     .and_then(Value::as_array)
-                                    .map(|a| {
-                                        a.iter()
-                                            .filter_map(|v| v.as_str().map(String::from))
-                                            .collect()
-                                    })
+                                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                                     .unwrap_or_default()
                             };
                             self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
@@ -4996,10 +4897,8 @@ impl Pipeline {
             // `energiEnabled = db.setting("energi") !== undefined ? ... : config.energi?.enabled !== false`
             // (`handler.js:1851-1854`) — setting store menang atas config.
             let mut energi = self.energi_settings;
-            energi.enabled = resolve_energi_enabled(
-                self.ctx.energi_enabled_setting(),
-                self.energi_settings.enabled,
-            );
+            energi.enabled =
+                resolve_energi_enabled(self.ctx.energi_enabled_setting(), self.energi_settings.enabled);
             let energy =
                 self.gates
                     .charge_energi(&caller, meta, &energi, &self.cap_energi_overrides());
@@ -5023,9 +4922,7 @@ impl Pipeline {
                 .unwrap_or(true)
             {
                 let chat = caller.chat.clone();
-                let _ = self
-                    .sock_block(move |s| s.presence("composing", &chat))
-                    .await;
+                let _ = self.sock_block(move |s| s.presence("composing", &chat)).await;
             }
         }
 
@@ -5081,21 +4978,15 @@ impl Pipeline {
                 // supaya `.addpremium` berlaku pada pesan berikutnya tanpa restart.
                 for m in &mutations {
                     if let Mutation::SetSetting { key, .. } = m
-                        && (key == "premiumUsers" || key == "partnerUsers")
-                    {
-                        let s = self.ctx.settings_entry();
-                        let arr = |k: &str| {
-                            s.get(k)
-                                .and_then(Value::as_array)
-                                .map(|a| {
-                                    a.iter()
-                                        .filter_map(|v| v.as_str().map(String::from))
-                                        .collect()
-                                })
-                                .unwrap_or_default()
-                        };
-                        self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
-                    }
+                        && (key == "premiumUsers" || key == "partnerUsers") {
+                            let s = self.ctx.settings_entry();
+                            let arr = |k: &str| {
+                                s.get(k).and_then(Value::as_array)
+                                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                    .unwrap_or_default()
+                            };
+                            self.refresh_identity_premium(arr("premiumUsers"), arr("partnerUsers"));
+                        }
                 }
             }
 
@@ -5177,11 +5068,7 @@ impl Pipeline {
         ui::status_kirim(
             m.info.timestamp,
             false,
-            &if caller.push_name.is_empty() {
-                ui::nomor(&caller.sender)
-            } else {
-                caller.push_name.clone()
-            },
+            &if caller.push_name.is_empty() { ui::nomor(&caller.sender) } else { caller.push_name.clone() },
             0.0,
             Some(err.to_string().as_str()),
         );
@@ -5192,22 +5079,10 @@ impl Pipeline {
         let prefix = if parsed.is_command && !parsed.prefix.is_empty() {
             parsed.prefix.clone()
         } else {
-            self.parse_opts
-                .prefixes
-                .first()
-                .cloned()
-                .unwrap_or_else(|| ".".into())
+            self.parse_opts.prefixes.first().cloned().unwrap_or_else(|| ".".into())
         };
-        let command = if parsed.command.is_empty() {
-            preview_command(&body)
-        } else {
-            parsed.command
-        };
-        let push_name = if caller.push_name.is_empty() {
-            "User".to_string()
-        } else {
-            caller.push_name.clone()
-        };
+        let command = if parsed.command.is_empty() { preview_command(&body) } else { parsed.command };
+        let push_name = if caller.push_name.is_empty() { "User".to_string() } else { caller.push_name.clone() };
         let tpl = {
             let t = self.plugin_src.config.error_template.as_str();
             if t.is_empty() {
@@ -5273,14 +5148,10 @@ impl Pipeline {
             };
             let this = self.clone();
             let h = tokio::spawn(async move {
-                if let Some(p) = prev {
-                    let _ = p.await;
-                }
+                if let Some(p) = prev { let _ = p.await; }
                 let _permit = permit;
                 match this.process(&m, now_ms()).await {
-                    Ok(o) => {
-                        tracing::info!(id = %m.info.id, chat = %m.info.source.chat, sender = %m.info.source.sender, outcome = ?o, "pesan inbound diproses")
-                    }
+                    Ok(o) => tracing::info!(id = %m.info.id, chat = %m.info.source.chat, sender = %m.info.source.sender, outcome = ?o, "pesan inbound diproses"),
                     Err(e) => {
                         tracing::error!(error = %e, id = %m.info.id, "pipeline gagal memproses pesan");
                         this.kirim_pesan_error(&m, &e).await;
@@ -5289,9 +5160,7 @@ impl Pipeline {
             });
             tails.insert(chat, h);
         }
-        for (_, h) in tails {
-            let _ = h.await;
-        }
+        for (_, h) in tails { let _ = h.await; }
         tracing::debug!("antrean pesan ditutup; loop pipeline berhenti");
     }
 
@@ -5306,7 +5175,10 @@ impl Pipeline {
     pub fn attach(self: &Arc<Self>, client: &Arc<Client>) {
         let (tx, rx) = whatsapp_rust::async_channel::bounded(Self::INGEST_CAPACITY);
         let (grup_tx, grup_rx) = whatsapp_rust::async_channel::bounded(Self::INGEST_CAPACITY);
-        let handler = Arc::new(PipelineHandler { tx, grup: grup_tx });
+        let handler = Arc::new(PipelineHandler {
+            tx,
+            grup: grup_tx,
+        });
         let sub = client.subscribe(
             EventInterest::of(&[EventKind::Messages, EventKind::GroupUpdate]),
             handler,
@@ -5437,7 +5309,8 @@ impl Pipeline {
         // yang mengundang tidak boleh dianggap orang asing
         // (`plugins/group/anticulik.js:100-109`).
         if !pelaku.is_empty()
-            && (self.identity().is_owner(&pelaku) || grup_event::nomor_jid(&pelaku) == self.bot_id)
+            && (self.identity().is_owner(&pelaku)
+                || grup_event::nomor_jid(&pelaku) == self.bot_id)
         {
             return Ok(false);
         }
@@ -5453,18 +5326,14 @@ impl Pipeline {
              > Bot akan keluar dari grup ini\n\n\
              _Hubungi owner untuk menambahkan bot dengan cara yang benar_"
         );
-        self.kirim_teks(
-            &u.id,
-            &teks,
-            (!pelaku.is_empty()).then_some(pelaku.as_str()),
-        )
-        .await?;
+        self.kirim_teks(&u.id, &teks, (!pelaku.is_empty()).then_some(pelaku.as_str()))
+            .await?;
         // JS menunggu 2 detik supaya pesannya sempat terkirim sebelum keluar.
         self.tidur(2000).await;
         let id = u.id.clone();
-        self.sock_block(move |s| s.keluar_grup(&id))
-            .await
-            .map_err(|e| PipelineError::Other(format!("keluar grup {} (anticulik): {e}", u.id)))?;
+        self.sock_block(move |s| s.keluar_grup(&id)).await.map_err(|e| {
+            PipelineError::Other(format!("keluar grup {} (anticulik): {e}", u.id))
+        })?;
         tracing::warn!(grup = %u.id, pelaku = %pelaku, "anticulik: bot keluar dari grup");
         Ok(true)
     }
@@ -5558,12 +5427,8 @@ impl Pipeline {
              > Ketik `{prefix}menu` untuk melihat daftar fitur\n\
              > Ketik `{prefix}help` untuk bantuan"
         );
-        self.kirim_teks(
-            &u.id,
-            &teks,
-            (!pelaku.is_empty()).then_some(pelaku.as_str()),
-        )
-        .await?;
+        self.kirim_teks(&u.id, &teks, (!pelaku.is_empty()).then_some(pelaku.as_str()))
+            .await?;
         tracing::info!(grup = %u.id, nama = %nama_grup, "bot bergabung ke grup");
         Ok(())
     }
@@ -5606,11 +5471,9 @@ impl Pipeline {
                 self.kirim_teks(&u.id, &teks, None).await?;
                 self.tidur(2000).await;
                 let id = u.id.clone();
-                self.sock_block(move |s| s.keluar_grup(&id))
-                    .await
-                    .map_err(|e| {
-                        PipelineError::Other(format!("keluar grup {} (sewa): {e}", u.id))
-                    })?;
+                self.sock_block(move |s| s.keluar_grup(&id)).await.map_err(|e| {
+                    PipelineError::Other(format!("keluar grup {} (sewa): {e}", u.id))
+                })?;
                 tracing::warn!(grup = %u.id, "sewa: bot keluar dari grup tak terdaftar");
             } else {
                 self.salam_bot_bergabung(u).await?;
@@ -5807,8 +5670,7 @@ impl Pipeline {
                             .subjudul(""),
                     )
                     .tombol(oktz_plugin_api::kartu::Tombol::balas_cepat(
-                        tombol_teks,
-                        tombol_id,
+                        tombol_teks, tombol_id,
                     ))
                     .mention(jid.clone())
                     .forwarded()
@@ -5950,10 +5812,7 @@ impl EventHandler for PipelineHandler {
 fn preview_command(body: &str) -> String {
     body.split_whitespace()
         .next()
-        .map(|w| {
-            w.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '/')
-                .to_string()
-        })
+        .map(|w| w.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '/').to_string())
         .filter(|w| !w.is_empty())
         .unwrap_or_else(|| "?".into())
 }
@@ -5964,9 +5823,9 @@ mod tests {
     use crate::grup_event::PesertaGrup;
     use oktz_plugin_api::Tombol;
     use serde_json::json;
+    use whatsapp_rust::{GroupParticipant, ParticipantType};
     use whatsapp_rust::types::message::MessageSource;
     use whatsapp_rust::waproto::whatsapp::__buffa::oneof::message::interactive_message::InteractiveMessage as ImOneof;
-    use whatsapp_rust::{GroupParticipant, ParticipantType};
 
     // ---------- helper ----------
 
@@ -6040,10 +5899,7 @@ mod tests {
         /// `Err` untuk kiriman ke-`fail_at`, `Ok` untuk sisanya. Dihitung
         /// sebelum push supaya urutan log tetap urutan percobaan.
         fn gate(&self) -> Result<(), String> {
-            let n = self
-                .attempts
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                + 1;
+            let n = self.attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             if self.fail_at != 0 && n == self.fail_at {
                 Err(format!("pengirim uji menolak kiriman ke-{n}"))
             } else {
@@ -6080,10 +5936,7 @@ mod tests {
         fn send_media(&self, to: &str, media: PendingMedia) -> SendBox<'_> {
             let gate = self.gate();
             if gate.is_ok() {
-                self.log
-                    .lock()
-                    .unwrap()
-                    .push(media_label(media.kind).to_string());
+                self.log.lock().unwrap().push(media_label(media.kind).to_string());
                 self.media.lock().unwrap().push((to.to_string(), media));
             }
             Box::pin(async move { gate })
@@ -6157,10 +6010,7 @@ mod tests {
 
     #[tokio::test]
     async fn apply_marks_store_dirty_and_flush_sends_to_turso() {
-        let path = std::env::temp_dir().join(format!(
-            "oktz-turso-dirty-{}.json",
-            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
+        let path = std::env::temp_dir().join(format!("oktz-turso-dirty-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         std::fs::write(&path, r#"{"users":{}}"#).unwrap();
         let ctx = StoreContext::new(Arc::new(JsonStore::open(&path).unwrap()));
 
@@ -6178,10 +6028,7 @@ mod tests {
         assert!(!ctx.take_dirty_turso(), "take mengosongkan flag");
 
         // Flush: kirim snapshot ke Turso `:memory:`.
-        let db = libsql::Builder::new_local(":memory:")
-            .build()
-            .await
-            .unwrap();
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
         let conn = db.connect().unwrap();
         let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
@@ -6192,10 +6039,7 @@ mod tests {
 
     #[tokio::test]
     async fn setgroup_antilink_marks_dirty_and_flush_mirrors_group_settings() {
-        let path = std::env::temp_dir().join(format!(
-            "oktz-turso-grp-{}.json",
-            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
+        let path = std::env::temp_dir().join(format!("oktz-turso-grp-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         std::fs::write(&path, r#"{"groups":{}}"#).unwrap();
         let ctx = StoreContext::new(Arc::new(JsonStore::open(&path).unwrap()));
 
@@ -6209,10 +6053,7 @@ mod tests {
         .unwrap();
         assert!(ctx.take_dirty_turso(), "setGroup harus menandai kotor");
 
-        let db = libsql::Builder::new_local(":memory:")
-            .build()
-            .await
-            .unwrap();
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
         let conn = db.connect().unwrap();
         let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
@@ -6225,10 +6066,7 @@ mod tests {
     async fn apply_failure_does_not_mark_dirty() {
         // `settings.json` berupa DIREKTORI → `JsonStore::write` gagal saat
         // apply → TIDAK kotor (Turso jangan lebih baru dari disk).
-        let dir = std::env::temp_dir().join(format!(
-            "oktz-turso-nope-{}",
-            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
+        let dir = std::env::temp_dir().join(format!("oktz-turso-nope-{}", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("settings.json");
@@ -6238,65 +6076,37 @@ mod tests {
         std::fs::remove_file(&path).unwrap();
         std::fs::create_dir_all(&path).unwrap();
         let r = ctx.apply(
-            &[Mutation::SetUser {
-                jid: "628111@s.whatsapp.net".into(),
-                data: serde_json::json!({"koin":1}),
-            }],
+            &[Mutation::SetUser { jid: "628111@s.whatsapp.net".into(), data: serde_json::json!({"koin":1}) }],
             1_000,
         );
-        assert!(
-            r.is_err(),
-            "settings.json berupa direktori harus gagal ditulis"
-        );
+        assert!(r.is_err(), "settings.json berupa direktori harus gagal ditulis");
         assert!(!ctx.take_dirty_turso(), "gagal tulis disk = jangan mirror");
     }
 
     #[tokio::test]
     async fn boot_sync_seeds_turso_from_local_and_restores_when_local_missing() {
         // Cabang 1: lokal terisi, Turso kosong → seed Turso.
-        let path = std::env::temp_dir().join(format!(
-            "oktz-turso-seed-{}.json",
-            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        std::fs::write(
-            &path,
-            r#"{"users":{"628111":{"koin":9}},"settings":{"replyVariant":5}}"#,
-        )
-        .unwrap();
+        let path = std::env::temp_dir().join(format!("oktz-turso-seed-{}.json", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        std::fs::write(&path, r#"{"users":{"628111":{"koin":9}},"settings":{"replyVariant":5}}"#).unwrap();
         let wiring = crate::bot::wiring_from(&path, Vec::<String>::new(), "bot").unwrap();
 
-        let db = libsql::Builder::new_local(":memory:")
-            .build()
-            .await
-            .unwrap();
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
         let conn = db.connect().unwrap();
         let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
         wiring.boot_sync_turso(&t, &conn).await.unwrap();
-        assert_eq!(
-            t.load_store(&conn, "users").await.unwrap().unwrap()["628111"]["koin"],
-            9
-        );
-        assert_eq!(
-            t.load_store(&conn, "settings").await.unwrap().unwrap()["replyVariant"],
-            5
-        );
+        assert_eq!(t.load_store(&conn, "users").await.unwrap().unwrap()["628111"]["koin"], 9);
+        assert_eq!(t.load_store(&conn, "settings").await.unwrap().unwrap()["replyVariant"], 5);
 
         // Cabang 2: lokal hilang, Turso terisi → restore ke lokal.
-        let dir2 = std::env::temp_dir().join(format!(
-            "oktz-turso-restore-{}",
-            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
+        let dir2 = std::env::temp_dir().join(format!("oktz-turso-restore-{}", SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         std::fs::create_dir_all(&dir2).unwrap();
         let path2 = dir2.join("settings.json");
         let wiring2 = crate::bot::wiring_from(&path2, Vec::<String>::new(), "bot").unwrap();
         wiring2.boot_sync_turso(&t, &conn).await.unwrap();
         let restored: String = std::fs::read_to_string(&path2).unwrap();
         let v: serde_json::Value = serde_json::from_str(&restored).unwrap();
-        assert_eq!(
-            v["users"]["628111"]["koin"], 9,
-            "lokal harus ter-restore dari Turso"
-        );
+        assert_eq!(v["users"]["628111"]["koin"], 9, "lokal harus ter-restore dari Turso");
         assert_eq!(v["settings"]["replyVariant"], 5);
     }
 
@@ -6320,23 +6130,19 @@ mod tests {
         // (template), bukan diam.
         let s = Arc::new(RecordingSender::default());
         let plugin = TestPlugin::with_reply(Reply::TextQuotedPrevious { text: "x".into() });
-        let p = Arc::new(
-            Pipeline::new(
-                StoreContext::new(store_with("err-template", "{}")),
-                s.clone(),
-                BOT,
-                ParseOptions::default(),
-            )
-            .with_identity(Identity::default())
-            .with_plugin_lookup(plugin.lookup()),
-        );
+        let p = Arc::new(Pipeline::new(
+            StoreContext::new(store_with("err-template", "{}")),
+            s.clone(),
+            BOT,
+            ParseOptions::default(),
+        )
+        .with_identity(Identity::default())
+        .with_plugin_lookup(plugin.lookup()));
         let m = inbound(".apa", MEMBER, MEMBER, false, "ERR1");
         run_one_for_test(&p, m).await;
         let texts = s.texts();
         assert!(
-            texts
-                .iter()
-                .any(|t| t.contains("kendala") || t.contains("error")),
+            texts.iter().any(|t| t.contains("kendala") || t.contains("error")),
             "pesan error template harus terkirim, dapat: {texts:?}"
         );
     }
@@ -6348,16 +6154,14 @@ mod tests {
         let path = store_with("err-variant", r#"{"settings":{"replyVariant":5}}"#);
         let s = Arc::new(RecordingSender::default());
         let plugin = TestPlugin::with_reply(Reply::TextQuotedPrevious { text: "x".into() });
-        let p = Arc::new(
-            Pipeline::new(
-                StoreContext::new(path),
-                s.clone(),
-                BOT,
-                ParseOptions::default(),
-            )
-            .with_identity(Identity::default())
-            .with_plugin_lookup(plugin.lookup()),
-        );
+        let p = Arc::new(Pipeline::new(
+            StoreContext::new(path),
+            s.clone(),
+            BOT,
+            ParseOptions::default(),
+        )
+        .with_identity(Identity::default())
+        .with_plugin_lookup(plugin.lookup()));
         let m = inbound(".apa", MEMBER, MEMBER, false, "ERR2");
         run_one_for_test(&p, m).await;
         // Varian 5 = teks + kutipan order palsu (`order_palsu_teks`) — pesan
@@ -6371,10 +6175,7 @@ mod tests {
                 .and_then(|ci| ci.quoted_message.as_option())
                 .is_some_and(|q| q.order_message.as_option().is_some())
         });
-        assert!(
-            punya_order_quote,
-            "error harus dirender varian 5 (order quote), dapat: {sent:?}"
-        );
+        assert!(punya_order_quote, "error harus dirender varian 5 (order quote), dapat: {sent:?}");
     }
 
     fn inbound(body: &str, sender: &str, chat: &str, is_group: bool, id: &str) -> InboundMessage {
@@ -6415,10 +6216,7 @@ mod tests {
     }
 
     fn ctx_of(m: &wa::Message) -> Option<&wa::ContextInfo> {
-        m.extended_text_message
-            .as_option()?
-            .context_info
-            .as_option()
+        m.extended_text_message.as_option()?.context_info.as_option()
     }
 
     /// `contextInfo` yang masih menempel pada PAYLOAD KUTIPAN harus kosong
@@ -6469,25 +6267,25 @@ mod tests {
         );
     }
 
-    /// Nomor grup diawali `120` dan nomor yang terlalu panjang ditolak
-    /// (`database.js:533`). JID `@s.whatsapp.net` dengan >14 digit justru
-    /// diklasifikasi LID oleh `isLidConverted` (`lid.js:156`) sehingga lolos —
-    /// itu perilaku JS, bukan bug.
-    #[test]
-    fn group_number_and_long_number_are_rejected() {
-        // Nomor grup diawali 120.
-        assert_eq!(normalize_user_key("120363001234567890@g.us"), None);
-        assert_eq!(normalize_user_key("120363@g.us"), None);
-        // > 15 karakter, dan bukan LID karena domainnya bukan @s.whatsapp.net/@lid.
-        assert_eq!(normalize_user_key("1234567890123456@newsletter"), None);
-        assert_eq!(normalize_user_key(""), None);
-        // 15 digit di @s.whatsapp.net = "converted LID" -> tetap diterima, dengan
-        // prefiks `lid:`. Dikunci supaya tidak dianggap regresi.
-        assert_eq!(
-            normalize_user_key("1234567890123456@s.whatsapp.net").as_deref(),
-            Some("lid:1234567890123456")
-        );
-    }
+/// Nomor grup diawali `120` dan nomor yang terlalu panjang ditolak
+/// (`database.js:533`). JID `@s.whatsapp.net` dengan >14 digit justru
+/// diklasifikasi LID oleh `isLidConverted` (`lid.js:156`) sehingga lolos —
+/// itu perilaku JS, bukan bug.
+#[test]
+fn group_number_and_long_number_are_rejected() {
+    // Nomor grup diawali 120.
+    assert_eq!(normalize_user_key("120363001234567890@g.us"), None);
+    assert_eq!(normalize_user_key("120363@g.us"), None);
+    // > 15 karakter, dan bukan LID karena domainnya bukan @s.whatsapp.net/@lid.
+    assert_eq!(normalize_user_key("1234567890123456@newsletter"), None);
+    assert_eq!(normalize_user_key(""), None);
+    // 15 digit di @s.whatsapp.net = "converted LID" -> tetap diterima, dengan
+    // prefiks `lid:`. Dikunci supaya tidak dianggap regresi.
+    assert_eq!(
+        normalize_user_key("1234567890123456@s.whatsapp.net").as_deref(),
+        Some("lid:1234567890123456")
+    );
+}
 
     #[test]
     fn lid_jid_uses_lid_prefixed_key_and_skips_length_check() {
@@ -6532,10 +6330,7 @@ mod tests {
         let u = ctx.user_state("628111@s.whatsapp.net");
         assert!(u.is_registered);
         let ping = u.access.iter().find(|a| a.cmd == "ping").unwrap();
-        assert_eq!(
-            ping.expired, None,
-            "expired:null = tidak pernah kedaluwarsa"
-        );
+        assert_eq!(ping.expired, None, "expired:null = tidak pernah kedaluwarsa");
         let old = u.access.iter().find(|a| a.cmd == "old").unwrap();
         assert_eq!(old.expired, Some(1));
     }
@@ -6554,9 +6349,7 @@ mod tests {
     }
 
     fn has_access_for(u: &UserState, cmd: &str, now_ms: i64) -> bool {
-        u.access
-            .iter()
-            .any(|a| a.cmd == cmd && a.expired.is_none_or(|e| e > now_ms))
+        u.access.iter().any(|a| a.cmd == cmd && a.expired.is_none_or(|e| e > now_ms))
     }
 
     #[test]
@@ -6707,9 +6500,7 @@ mod tests {
 
     #[test]
     fn text_without_mentions_is_plain_conversation() {
-        let r = render_reply(&Reply::text("pong"), &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&Reply::text("pong"), &ReplyTarget::default()).unwrap().unwrap();
         assert_eq!(r.message.conversation.as_deref(), Some("pong"));
         assert!(r.extra_nodes.is_empty());
     }
@@ -6717,13 +6508,8 @@ mod tests {
     #[test]
     fn text_mentions_go_into_context_info_not_body() {
         let reply = Reply::text_mention("hai @1", "6281@s.whatsapp.net");
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
-        assert!(
-            r.message.conversation.is_none(),
-            "harus extendedTextMessage"
-        );
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
+        assert!(r.message.conversation.is_none(), "harus extendedTextMessage");
         let c = ctx_of(&r.message).expect("context_info");
         assert_eq!(c.mentioned_jid, vec!["6281@s.whatsapp.net".to_string()]);
         assert_eq!(body_of(&r.message), Some("hai @1"));
@@ -6763,9 +6549,7 @@ mod tests {
             text: "tanpa quote".into(),
             mentions: vec![],
         };
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         assert_eq!(body_of(&r.message), Some("tanpa quote"));
     }
 
@@ -6795,21 +6579,12 @@ mod tests {
     fn preview_with_thumbnail_waits_for_thumbnail_link_upload() {
         // `socket.js:1216-1242` — thumbnail lewat upload `thumbnail-link`.
         let r = render_reply(
-            &Reply::preview(
-                "INFO",
-                "https://youtu.be/x",
-                "Judul",
-                "",
-                Some(MediaSource::url("https://i.ytimg.com/vi/x/hq.jpg")),
-            ),
+            &Reply::preview("INFO", "https://youtu.be/x", "Judul", "", Some(MediaSource::url("https://i.ytimg.com/vi/x/hq.jpg"))),
             &ReplyTarget::default(),
         )
         .unwrap()
         .unwrap();
-        assert!(
-            r.message.extended_text_message.as_option().is_none(),
-            "byte dulu di-upload"
-        );
+        assert!(r.message.extended_text_message.as_option().is_none(), "byte dulu di-upload");
         let media = r.media.expect("jalur send_media");
         let preview = media.preview.expect("preview thumbnail-link");
         assert!(!preview.favicon, "varian sendPreview, bukan favicon");
@@ -6868,14 +6643,9 @@ mod tests {
     fn plain_text_quotes_the_trigger_and_mentions_the_sender_by_default() {
         // `quotedMsg = options.quoted !== false ? msg : undefined` dan
         // `mentionedJid = options?.mentions || [m.sender] || []`.
-        let r = render_reply(&Reply::text("pong"), &target())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&Reply::text("pong"), &target()).unwrap().unwrap();
         let c = ctx_of(&r.message).expect("context_info");
-        assert!(
-            c.quoted_message.as_option().is_some(),
-            "harus mengutip pemicu"
-        );
+        assert!(c.quoted_message.as_option().is_some(), "harus mengutip pemicu");
         assert_eq!(c.stanza_id.as_deref(), Some("STANZA9"));
         assert_eq!(c.mentioned_jid, vec!["6289@s.whatsapp.net".to_string()]);
     }
@@ -6938,11 +6708,8 @@ mod tests {
     #[test]
     fn interactive_meneruskan_tombol_dari_model() {
         let r = render_reply(
-            &Reply::interactive("hasil").with_button(Tombol::salin(
-                "📋 Copy Hasil Teks",
-                "copy",
-                "hasil",
-            )),
+            &Reply::interactive("hasil")
+                .with_button(Tombol::salin("📋 Copy Hasil Teks", "copy", "hasil")),
             &ReplyTarget::default(),
         )
         .unwrap()
@@ -6970,22 +6737,18 @@ mod tests {
     #[test]
     fn header_kartu_dengan_media_menunggu_upload() {
         let reply = Reply::interactive("pilih").with_header(
-            oktz_plugin_api::kartu::KartuHeader::baru()
-                .media(oktz_plugin_api::MediaSource::bytes(vec![1, 2, 3])),
+            oktz_plugin_api::kartu::KartuHeader::baru().media(
+                oktz_plugin_api::MediaSource::bytes(vec![1, 2, 3]),
+            ),
         );
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         assert!(r.card.is_some(), "kartu harus ada");
         let pending = r
             .card_header_media
             .as_ref()
             .expect("media header harus nunggu upload");
         assert_eq!(pending.kind, MediaKind::Image);
-        assert!(
-            r.needs_media(),
-            "kartu dengan header media butuh upload dulu"
-        );
+        assert!(r.needs_media(), "kartu dengan header media butuh upload dulu");
     }
 
     #[test]
@@ -6997,9 +6760,7 @@ mod tests {
                 .media(oktz_plugin_api::MediaSource::bytes(vec![1, 2, 3]))
                 .video(),
         );
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         let pending = r
             .card_header_media
             .as_ref()
@@ -7014,9 +6775,7 @@ mod tests {
             .with_table_header(["A", "B"])
             .with_table_row(["1", "2"])
             .with_table_footer("kaki");
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         assert!(r.extra_nodes.is_empty(), "tabel tidak pakai node biz");
         let rich = r
             .message
@@ -7026,10 +6785,7 @@ mod tests {
             .and_then(|m| m.rich_response_message.as_option())
             .expect("richResponseMessage");
         assert_eq!(rich.submessages.len(), 2, "tabel + footer");
-        let table = rich.submessages[0]
-            .table_metadata
-            .as_option()
-            .expect("tableMetadata");
+        let table = rich.submessages[0].table_metadata.as_option().expect("tableMetadata");
         assert_eq!(table.title.as_deref(), Some("Judul Tabel"));
         assert_eq!(table.rows.len(), 2);
         assert_eq!(table.rows[0].is_heading, Some(true));
@@ -7042,9 +6798,7 @@ mod tests {
     fn setiap_balasan_rich_memakai_jalur_wirenya_sendiri() {
         use oktz_plugin_api::rich::{AiSubMessage, RichAi};
 
-        let v2 = Reply::tabel_v2("J")
-            .with_table_header(["A"])
-            .with_table_row(["b"]);
+        let v2 = Reply::tabel_v2("J").with_table_header(["A"]).with_table_row(["b"]);
         let r2 = render_reply(&v2, &ReplyTarget::default()).unwrap().unwrap();
         // V2 mengisi outer `messageContextInfo` + `unifiedResponse`.
         let rich2 = r2
@@ -7087,9 +6841,7 @@ mod tests {
         assert_eq!(jid_ai.as_deref(), Some("867051314767696@bot"));
 
         let prepared = Reply::prepared_rich();
-        let rp = render_reply(&prepared, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let rp = render_reply(&prepared, &ReplyTarget::default()).unwrap().unwrap();
         let bot_meta = rp
             .message
             .message_context_info
@@ -7104,9 +6856,7 @@ mod tests {
         );
 
         let list = Reply::tabel_list("L").with_table_row(["x"]);
-        let rl = render_reply(&list, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let rl = render_reply(&list, &ReplyTarget::default()).unwrap().unwrap();
         let rich_list = rl
             .message
             .bot_forwarded_message
@@ -7114,10 +6864,7 @@ mod tests {
             .and_then(|b| b.message.as_option())
             .and_then(|m| m.rich_response_message.as_option())
             .expect("richResponseMessage list");
-        let table = rich_list.submessages[0]
-            .table_metadata
-            .as_option()
-            .expect("tableMetadata");
+        let table = rich_list.submessages[0].table_metadata.as_option().expect("tableMetadata");
         assert_eq!(table.rows.len(), 1, "list V1 tidak punya baris heading");
         assert_eq!(table.rows[0].is_heading, None);
     }
@@ -7271,10 +7018,7 @@ mod tests {
             .and_then(|b| b.message.as_option())
             .and_then(|m| m.protocol_message.as_option())
             .expect("edit wajib di dalam botForwardedMessage");
-        assert_eq!(
-            pm.r#type,
-            Some(wa::message::protocol_message::Type::MessageEdit)
-        );
+        assert_eq!(pm.r#type, Some(wa::message::protocol_message::Type::MessageEdit));
         let key = pm.key.as_option().expect("key edit");
         assert_eq!(key.id.as_deref(), Some(id_kartu.as_str()));
         assert_eq!(key.from_me, Some(true));
@@ -7314,12 +7058,8 @@ mod tests {
             "V2 memakai unifiedResponse"
         );
 
-        let tabel = Reply::tabel("J")
-            .with_table_header(["A"])
-            .with_table_row(["b"]);
-        let rt = render_reply(&tabel, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let tabel = Reply::tabel("J").with_table_header(["A"]).with_table_row(["b"]);
+        let rt = render_reply(&tabel, &ReplyTarget::default()).unwrap().unwrap();
         let rich = rt
             .message
             .bot_forwarded_message
@@ -7357,18 +7097,15 @@ mod tests {
             .expect("richResponseMessage");
         // V2 mengisi `sections` lewat unifiedResponse; submessages kosong.
         assert!(rich.submessages.is_empty());
-        let data = rich
-            .unified_response
-            .as_option()
-            .unwrap()
-            .data
-            .clone()
-            .unwrap();
+        let data = rich.unified_response.as_option().unwrap().data.clone().unwrap();
         // `unifiedResponse.data` = byte JSON mentah (protobufjs `writer.bytes`
         // meng-decode base64-nya dulu).
-        let json: serde_json::Value = serde_json::from_slice(&data).expect("data wajib JSON");
+        let json: serde_json::Value =
+            serde_json::from_slice(&data).expect("data wajib JSON");
         let sections = json["sections"].as_array().unwrap();
-        let footer = sections.last().expect("wajib ada section footer");
+        let footer = sections
+            .last()
+            .expect("wajib ada section footer");
         assert_eq!(
             footer["view_model"]["primitive"]["text"].as_str(),
             Some("kaki")
@@ -7385,40 +7122,30 @@ mod tests {
             mentions: vec![],
         };
         let err = render_reply(&reply, &ReplyTarget::default()).unwrap_err();
-        assert_eq!(err, PipelineError::MediaSourceMissing { variant: "Image" });
+        assert_eq!(
+            err,
+            PipelineError::MediaSourceMissing { variant: "Image" }
+        );
         let msg = err.to_string();
-        assert!(
-            msg.contains("tidak punya sumber media"),
-            "pesan harus menyebut gap: {msg}"
-        );
-        assert!(
-            msg.contains("TIDAK dikirim"),
-            "harus tegas tidak dikirim: {msg}"
-        );
+        assert!(msg.contains("tidak punya sumber media"), "pesan harus menyebut gap: {msg}");
+        assert!(msg.contains("TIDAK dikirim"), "harus tegas tidak dikirim: {msg}");
     }
 
     #[test]
     fn sticker_reply_without_a_source_is_a_typed_error() {
-        let err = render_reply(
-            &Reply::Sticker {
-                media: None,
-                opsi: Default::default(),
-            },
-            &ReplyTarget::default(),
-        )
-        .unwrap_err();
+        let err = render_reply(&Reply::Sticker { media: None, opsi: Default::default() }, &ReplyTarget::default()).unwrap_err();
         assert_eq!(
             err,
-            PipelineError::MediaSourceMissing { variant: "Sticker" }
+            PipelineError::MediaSourceMissing {
+                variant: "Sticker"
+            }
         );
     }
 
     #[test]
     fn image_reply_with_a_source_is_pending_media_not_a_wire_message() {
         let reply = Reply::image(MediaSource::url("https://x/y.png"), "halo");
-        let r = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap();
+        let r = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap();
         assert!(r.needs_media(), "harus lewat jalur upload");
         let p = r.media.expect("pending media");
         assert_eq!(p.kind, MediaKind::Image);
@@ -7438,11 +7165,7 @@ mod tests {
             caption: "capt".into(),
             mentions: vec!["6281@s.whatsapp.net".into()],
         };
-        let p = render_reply(&reply, &ReplyTarget::default())
-            .unwrap()
-            .unwrap()
-            .media
-            .unwrap();
+        let p = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap().media.unwrap();
         assert_eq!(p.caption, "capt");
         assert_eq!(p.mentions, vec!["6281@s.whatsapp.net".to_string()]);
         assert_eq!(p.source.mimetype(), None);
@@ -7459,16 +7182,8 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             ..Default::default()
         };
-        let p = render_reply(&reply, &target)
-            .unwrap()
-            .unwrap()
-            .media
-            .unwrap();
-        assert!(
-            p.mentions.is_empty(),
-            "media eksplisit tanpa mention: {:?}",
-            p.mentions
-        );
+        let p = render_reply(&reply, &target).unwrap().unwrap().media.unwrap();
+        assert!(p.mentions.is_empty(), "media eksplisit tanpa mention: {:?}", p.mentions);
         assert!(p.quote.is_none());
     }
 
@@ -7597,8 +7312,8 @@ mod tests {
             preview: None,
             sticker: None,
             sticker_pack: None,
-            width: None,
-            height: None,
+                        width: None,
+                        height: None,
         }
     }
 
@@ -7696,11 +7411,7 @@ mod tests {
             ),
         ] {
             let s = RecordingSender::default();
-            let pending = render_reply(&reply, &ReplyTarget::default())
-                .unwrap()
-                .unwrap()
-                .media
-                .unwrap();
+            let pending = render_reply(&reply, &ReplyTarget::default()).unwrap().unwrap().media.unwrap();
             s.send_media("6281@s.whatsapp.net", pending.clone())
                 .await
                 .expect("harus terkirim");
@@ -7790,9 +7501,7 @@ mod tests {
 
     #[tokio::test]
     async fn bytes_media_resolves_to_those_bytes() {
-        let data = load_media(&MediaSource::bytes(vec![9, 8, 7]))
-            .await
-            .unwrap();
+        let data = load_media(&MediaSource::bytes(vec![9, 8, 7])).await.unwrap();
         assert_eq!(data, vec![9, 8, 7]);
     }
 
@@ -7803,9 +7512,7 @@ mod tests {
             SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::write(&p, b"PNG").unwrap();
-        let got = load_media(&MediaSource::path(p.to_str().unwrap()))
-            .await
-            .unwrap();
+        let got = load_media(&MediaSource::path(p.to_str().unwrap())).await.unwrap();
         assert_eq!(got, b"PNG".to_vec());
         let _ = std::fs::remove_file(&p);
     }
@@ -7831,19 +7538,13 @@ mod tests {
         assert!(e.to_string().contains("kosong"), "{e}");
         let _ = std::fs::remove_file(&p);
         // Bytes kosong.
-        let e = load_media(&MediaSource::bytes(Vec::new()))
-            .await
-            .unwrap_err();
+        let e = load_media(&MediaSource::bytes(Vec::new())).await.unwrap_err();
         assert!(e.to_string().contains("kosong"), "{e}");
     }
 
     #[test]
     fn reply_none_renders_to_nothing() {
-        assert!(
-            render_reply(&Reply::None, &ReplyTarget::default())
-                .unwrap()
-                .is_none()
-        );
+        assert!(render_reply(&Reply::None, &ReplyTarget::default()).unwrap().is_none());
     }
 
     // ---------- 5. Decision -> Reply ----------
@@ -7922,10 +7623,7 @@ mod tests {
 
     #[test]
     fn conversation_body_is_extracted() {
-        assert_eq!(
-            extract_body(&wa::Message::text("halo")),
-            Some("halo".into())
-        );
+        assert_eq!(extract_body(&wa::Message::text("halo")), Some("halo".into()));
     }
 
     #[test]
@@ -7951,19 +7649,15 @@ mod tests {
     #[test]
     fn interactive_response_yields_selected_id_from_params_json() {
         let m = wa::Message {
-            interactive_response_message: MessageField::some(
-                wa::message::InteractiveResponseMessage {
-                    interactive_response_message: Some(IrOneof::NativeFlowResponseMessage(
-                        Box::new(
-                            wa::message::interactive_response_message::NativeFlowResponseMessage {
-                                params_json: Some(r#"{"id":"btn_1"}"#.into()),
-                                ..Default::default()
-                            },
-                        ),
-                    )),
-                    ..Default::default()
-                },
-            ),
+            interactive_response_message: MessageField::some(wa::message::InteractiveResponseMessage {
+                interactive_response_message: Some(IrOneof::NativeFlowResponseMessage(Box::new(
+                    wa::message::interactive_response_message::NativeFlowResponseMessage {
+                        params_json: Some(r#"{"id":"btn_1"}"#.into()),
+                        ..Default::default()
+                    },
+                ))),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         assert_eq!(extract_body(&m), Some("btn_1".into()));
@@ -7974,13 +7668,7 @@ mod tests {
     #[tokio::test]
     async fn non_command_is_ignored_and_nothing_sent() {
         let (p, s) = pipeline_with("{}", Identity::default());
-        let m = inbound(
-            "halo dunia",
-            "6281@s.whatsapp.net",
-            "6281@s.whatsapp.net",
-            false,
-            "M1",
-        );
+        let m = inbound("halo dunia", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "M1");
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::NotACommand);
         assert!(s.sent.lock().unwrap().is_empty());
     }
@@ -7991,14 +7679,7 @@ mod tests {
         let m = InboundMessage::builder()
             .message(Arc::new(wa::Message::default()))
             .info(
-                inbound(
-                    "",
-                    "6281@s.whatsapp.net",
-                    "6281@s.whatsapp.net",
-                    false,
-                    "M1",
-                )
-                .info,
+                inbound("", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "M1").info,
             )
             .build();
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::NoBody);
@@ -8008,13 +7689,7 @@ mod tests {
     #[tokio::test]
     async fn duplicate_message_id_is_deduped_and_sent_once() {
         let (p, s) = pipeline_with("{}", Identity::default());
-        let m = inbound(
-            ".ping",
-            "6281@s.whatsapp.net",
-            "6281@s.whatsapp.net",
-            false,
-            "SAME",
-        );
+        let m = inbound(".ping", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "SAME");
         let o1 = p.process(&m, 1_000).await.unwrap();
         let o2 = p.process(&m, 1_010).await.unwrap();
         assert_eq!(o2, Outcome::Deduped);
@@ -8028,13 +7703,7 @@ mod tests {
     async fn afk_mode_replies_to_a_command() {
         let store = r#"{"settings": {"botAfk": {"active": true, "since": 1}}}"#;
         let (p, s) = pipeline_with(store, Identity::default());
-        let m = inbound(
-            ".ping",
-            "6281@s.whatsapp.net",
-            "6281@s.whatsapp.net",
-            false,
-            "A1",
-        );
+        let m = inbound(".ping", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "A1");
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Denied);
         let sent = s.sent.lock().unwrap();
         assert_eq!(sent.len(), 1);
@@ -8047,20 +7716,8 @@ mod tests {
         let store = r#"{"settings": {"botAfk": {"active": true, "since": 1}}}"#;
         let mut owners = HashSet::new();
         owners.insert("6281".to_string());
-        let (p, s) = pipeline_with(
-            store,
-            Identity {
-                owners,
-                ..Default::default()
-            },
-        );
-        let m = inbound(
-            ".ping",
-            "6281@s.whatsapp.net",
-            "6281@s.whatsapp.net",
-            false,
-            "A2",
-        );
+        let (p, s) = pipeline_with(store, Identity { owners, ..Default::default() });
+        let m = inbound(".ping", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "A2");
         // Owner lolos mode; lalu `find` tidak punya plugin -> NoPlugin -> diam.
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::NotACommand);
         assert!(s.sent.lock().unwrap().is_empty());
@@ -8070,17 +7727,11 @@ mod tests {
     async fn owner_matched_by_full_jid_or_number() {
         let mut owners = HashSet::new();
         owners.insert("6281@s.whatsapp.net".to_string());
-        let id = Identity {
-            owners,
-            ..Default::default()
-        };
+        let id = Identity { owners, ..Default::default() };
         assert!(id.is_owner("6281@s.whatsapp.net"));
         let mut owners = HashSet::new();
         owners.insert("6281".to_string());
-        let id = Identity {
-            owners,
-            ..Default::default()
-        };
+        let id = Identity { owners, ..Default::default() };
         assert!(id.is_owner("6281:9@s.whatsapp.net"), "cocok via nomor");
         assert!(!Identity::default().is_owner("6281@s.whatsapp.net"));
     }
@@ -8091,10 +7742,7 @@ mod tests {
         // menyimpan PN — deteksi wajib mencoba `sender_alt` juga.
         let mut owners = HashSet::new();
         owners.insert("6281".to_string());
-        let id = Identity {
-            owners,
-            ..Default::default()
-        };
+        let id = Identity { owners, ..Default::default() };
         assert!(
             id.is_owner_any("247957890850846@lid", Some("6281@s.whatsapp.net")),
             "owner cocok lewat sender_alt (PN)"
@@ -8130,7 +7778,10 @@ mod tests {
             !p.identity().is_premium("62899@s.whatsapp.net"),
             "sebelum refresh: bukan premium"
         );
-        p.refresh_identity_premium(vec!["62899".into()], vec![]);
+        p.refresh_identity_premium(
+            vec!["62899".into()],
+            vec![],
+        );
         assert!(
             p.identity().is_premium("62899@s.whatsapp.net"),
             "premium baru harus aktif tanpa restart"
@@ -8197,8 +7848,7 @@ mod tests {
         // Titik ke-11 habis. Kalau MSG-1 sempat membakar 6, titik ke-11 ini
         // masih muat — jadi test ini memang menangkap peng Calculating ganda.
         assert!(
-            !p.allow_auto_work("last", &caller, "auto", Some(999_999), 1_000)
-                .allowed,
+            !p.allow_auto_work("last", &caller, "auto", Some(999_999), 1_000).allowed,
             "kuota harus habis setelah 10 titik, jadi MSG-1 membakar tepat 1"
         );
     }
@@ -8305,11 +7955,7 @@ mod tests {
         while let Ok(m) = rx.try_recv() {
             got.push(m.info.id.clone());
         }
-        assert_eq!(
-            got,
-            vec!["Q1", "Q2"],
-            "sisanya harus dibuang, bukan diantrekan"
-        );
+        assert_eq!(got, vec!["Q1", "Q2"], "sisanya harus dibuang, bukan diantrekan");
     }
 
     #[tokio::test]
@@ -8415,10 +8061,7 @@ mod tests {
                 caption: "c".into(),
                 mentions: vec![],
             },
-            Reply::Sticker {
-                media: None,
-                opsi: Default::default(),
-            },
+            Reply::Sticker { media: None, opsi: Default::default() },
         ] {
             let err = render_reply(&reply, &ReplyTarget::default()).unwrap_err();
             assert!(matches!(err, PipelineError::MediaSourceMissing { .. }));
@@ -8474,10 +8117,7 @@ mod tests {
         assert_eq!(roster.admins().count(), 2);
         assert!(roster.is_admin("222@s.whatsapp.net"));
         assert!(!roster.is_admin("333@s.whatsapp.net"));
-        assert!(
-            !roster.is_bot_admin,
-            "bot tidak ada di daftar -> bukan admin"
-        );
+        assert!(!roster.is_bot_admin, "bot tidak ada di daftar -> bukan admin");
     }
 
     #[test]
@@ -8680,10 +8320,7 @@ mod tests {
             ..Default::default()
         };
         src.fill(&mut c);
-        assert_eq!(
-            c.user_field("rpg.stamina").and_then(|v| v.as_i64()),
-            Some(30)
-        );
+        assert_eq!(c.user_field("rpg.stamina").and_then(|v| v.as_i64()), Some(30));
         assert_eq!(c.user_field("rpg.bank").and_then(|v| v.as_i64()), Some(120));
         assert_eq!(c.user_field("koin").and_then(|v| v.as_i64()), Some(5));
         assert_eq!(c.user_field("rpg.hp"), None);
@@ -8761,10 +8398,10 @@ mod tests {
     #[test]
     fn unknown_chat_yields_an_empty_roster_not_a_stale_one() {
         let src = plugin_src_with(OK_STORE);
-        src.rosters.lock().unwrap().put(
-            "120363@g.us",
-            roster_from(&real_group_metadata(), &["222@s.whatsapp.net".into()]),
-        );
+        src.rosters.lock().unwrap().put("120363@g.us", roster_from(
+            &real_group_metadata(),
+            &["222@s.whatsapp.net".into()],
+        ));
         let mut c = Ctx {
             chat: "999@g.us".into(),
             ..Default::default()
@@ -8805,11 +8442,7 @@ mod tests {
         assert_eq!(c.get("lain"), None);
         // TTL habis -> dianggap tidak ada, supaya di-refresh.
         c.map.get_mut("g").unwrap().0 = Instant::now() - RosterCache::DEFAULT_TTL * 2;
-        assert_eq!(
-            c.get("g"),
-            None,
-            "roster basi tidak boleh dipakai selamanya"
-        );
+        assert_eq!(c.get("g"), None, "roster basi tidak boleh dipakai selamanya");
     }
 
     #[tokio::test]
@@ -8860,15 +8493,16 @@ mod tests {
             }
         }
         let ctx = StoreContext::new(store_with("rosterbroken", "{}"));
-        let p = Pipeline::new(
-            ctx,
-            Arc::new(RecordingSender::default()),
-            "bot",
-            ParseOptions::default(),
-        )
-        .with_roster_source(Arc::new(Broken));
+        let p = Pipeline::new(ctx, Arc::new(RecordingSender::default()), "bot", ParseOptions::default())
+            .with_roster_source(Arc::new(Broken));
         // Pesan tetap diproses; roster kosong bukan reason untuk menolak.
-        let m = inbound(".ping", "6281@s.whatsapp.net", "120363@g.us", true, "R1");
+        let m = inbound(
+            ".ping",
+            "6281@s.whatsapp.net",
+            "120363@g.us",
+            true,
+            "R1",
+        );
         let o = p.process(&m, 1_000).await.unwrap();
         assert!(matches!(
             o,
@@ -8888,20 +8522,9 @@ mod tests {
         }
         let calls = Arc::new(Mutex::new(0));
         let ctx = StoreContext::new(store_with("rostertrip", "{}"));
-        let p = Pipeline::new(
-            ctx,
-            Arc::new(RecordingSender::default()),
-            "bot",
-            ParseOptions::default(),
-        )
-        .with_roster_source(Arc::new(Tripwire(calls.clone())));
-        let m = inbound(
-            "halo",
-            "6281@s.whatsapp.net",
-            "6281@s.whatsapp.net",
-            false,
-            "R2",
-        );
+        let p = Pipeline::new(ctx, Arc::new(RecordingSender::default()), "bot", ParseOptions::default())
+            .with_roster_source(Arc::new(Tripwire(calls.clone())));
+        let m = inbound("halo", "6281@s.whatsapp.net", "6281@s.whatsapp.net", false, "R2");
         p.process(&m, 1_000).await.unwrap();
         assert_eq!(*calls.lock().unwrap(), 0);
     }
@@ -8927,90 +8550,90 @@ mod tests {
     // =====================================================================
 
     /// Plugin uji nyata untuk gate.
-    ///
-    /// `oktz-wa` tidak depend ke `oktz-plugins`, jadi registry plugin kosong di
-    /// test binary ini — `#[plugin]` menulis ke `linkme::distributed_slice`, dan
-    /// `linkme` bukan dependency langsung `oktz-wa` (lihat
-    /// [`PluginLookup`]). Jadi plugin-nya dibuat langsung dan dipasang lewat
-    /// `with_plugin_lookup`.
-    ///
-    /// Yang dibuktikan test ini bukan cuma "tidak ada balasan", tapi "handler
-    /// plugin benar-benar tidak dipanggil": `calls` dihitung DI DALAM handler.
-    struct TestPlugin {
-        entry: &'static PluginEntry,
-        calls: Arc<std::sync::atomic::AtomicUsize>,
+///
+/// `oktz-wa` tidak depend ke `oktz-plugins`, jadi registry plugin kosong di
+/// test binary ini — `#[plugin]` menulis ke `linkme::distributed_slice`, dan
+/// `linkme` bukan dependency langsung `oktz-wa` (lihat
+/// [`PluginLookup`]). Jadi plugin-nya dibuat langsung dan dipasang lewat
+/// `with_plugin_lookup`.
+///
+/// Yang dibuktikan test ini bukan cuma "tidak ada balasan", tapi "handler
+/// plugin benar-benar tidak dipanggil": `calls` dihitung DI DALAM handler.
+struct TestPlugin {
+    entry: &'static PluginEntry,
+    calls: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl TestPlugin {
+    fn new(cooldown: u32, energi: i64, is_premium: bool) -> Self {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&calls);
+        let entry: &'static PluginEntry = Box::leak(Box::new(PluginEntry {
+            meta: oktz_plugin_api::meta::PluginMeta {
+                name: "gatetest".into(),
+                category: "fun".into(),
+                cooldown,
+                energi,
+                is_premium,
+                is_private: false,
+                ..Default::default()
+            },
+            handler: Arc::new(move |_c: Ctx| {
+                counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                Reply::text("gatetest:jalan")
+            }),
+        }));
+        Self { entry, calls }
     }
 
-    impl TestPlugin {
-        fn new(cooldown: u32, energi: i64, is_premium: bool) -> Self {
-            let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let counter = Arc::clone(&calls);
-            let entry: &'static PluginEntry = Box::leak(Box::new(PluginEntry {
-                meta: oktz_plugin_api::meta::PluginMeta {
-                    name: "gatetest".into(),
-                    category: "fun".into(),
-                    cooldown,
-                    energi,
-                    is_premium,
-                    is_private: false,
-                    ..Default::default()
-                },
-                handler: Arc::new(move |_c: Ctx| {
-                    counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    Reply::text("gatetest:jalan")
-                }),
-            }));
-            Self { entry, calls }
-        }
-
-        fn calls(&self) -> usize {
-            self.calls.load(std::sync::atomic::Ordering::Relaxed)
-        }
-
-        /// Plugin uji dengan BALASAN BEBAS — untuk sequence, kutipan pesan
-        /// sebelumnya, dan bentuk balasan yang butuh lebih dari satu kiriman.
-        fn with_reply(reply: Reply) -> Self {
-            let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let counter = Arc::clone(&calls);
-            let entry: &'static PluginEntry = Box::leak(Box::new(PluginEntry {
-                meta: oktz_plugin_api::meta::PluginMeta {
-                    name: "seqtest".into(),
-                    category: "fun".into(),
-                    // Cooldown 0 supaya jalur reaksi cooldown (`⏱️`) tidak ikut
-                    // tercatat di log urutan.
-                    cooldown: 0,
-                    energi: 0,
-                    is_premium: false,
-                    is_private: false,
-                    ..Default::default()
-                },
-                handler: Arc::new(move |_c: Ctx| {
-                    counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    reply.clone()
-                }),
-            }));
-            Self { entry, calls }
-        }
-
-        /// Lookup yang menjawab command apa pun ke plugin ini — cukup untuk
-        /// membuktikan gate, tanpa perlu mendaftarkan 30 plugin sungguhan.
-        fn lookup(&self) -> PluginLookup {
-            let entry = self.entry;
-            Arc::new(move |_cmd| Some(entry))
-        }
-
-        fn pipeline_with_sender(
-            &self,
-            ctx: StoreContext,
-            sender: Arc<RecordingSender>,
-            energi: EnergiSettings,
-        ) -> Pipeline {
-            Pipeline::new(ctx, sender, BOT, ParseOptions::default())
-                .with_identity(Identity::default())
-                .with_plugin_lookup(self.lookup())
-                .with_energi_settings(energi)
-        }
+    fn calls(&self) -> usize {
+        self.calls.load(std::sync::atomic::Ordering::Relaxed)
     }
+
+    /// Plugin uji dengan BALASAN BEBAS — untuk sequence, kutipan pesan
+    /// sebelumnya, dan bentuk balasan yang butuh lebih dari satu kiriman.
+    fn with_reply(reply: Reply) -> Self {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&calls);
+        let entry: &'static PluginEntry = Box::leak(Box::new(PluginEntry {
+            meta: oktz_plugin_api::meta::PluginMeta {
+                name: "seqtest".into(),
+                category: "fun".into(),
+                // Cooldown 0 supaya jalur reaksi cooldown (`⏱️`) tidak ikut
+                // tercatat di log urutan.
+                cooldown: 0,
+                energi: 0,
+                is_premium: false,
+                is_private: false,
+                ..Default::default()
+            },
+            handler: Arc::new(move |_c: Ctx| {
+                counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                reply.clone()
+            }),
+        }));
+        Self { entry, calls }
+    }
+
+    /// Lookup yang menjawab command apa pun ke plugin ini — cukup untuk
+    /// membuktikan gate, tanpa perlu mendaftarkan 30 plugin sungguhan.
+    fn lookup(&self) -> PluginLookup {
+        let entry = self.entry;
+        Arc::new(move |_cmd| Some(entry))
+    }
+
+    fn pipeline_with_sender(
+        &self,
+        ctx: StoreContext,
+        sender: Arc<RecordingSender>,
+        energi: EnergiSettings,
+    ) -> Pipeline {
+        Pipeline::new(ctx, sender, BOT, ParseOptions::default())
+            .with_identity(Identity::default())
+            .with_plugin_lookup(self.lookup())
+            .with_energi_settings(energi)
+    }
+}
 
     const GROUP: &str = "120363@g.us";
     const MEMBER: &str = "628111@s.whatsapp.net";
@@ -9035,11 +8658,7 @@ mod tests {
 
     /// Pipeline DM yang memakai plugin uji. Sender dikembalikan supaya test
     /// bisa memeriksa isi pesan yang benar-benar terkirim.
-    fn dm(
-        plugin: &TestPlugin,
-        store: &str,
-        energi: EnergiSettings,
-    ) -> (Arc<Pipeline>, Arc<RecordingSender>) {
+    fn dm(plugin: &TestPlugin, store: &str, energi: EnergiSettings) -> (Arc<Pipeline>, Arc<RecordingSender>) {
         let sender = Arc::new(RecordingSender::default());
         let ctx = StoreContext::new(store_with(&format!("gate-dm-{}", n()), store));
         let p = plugin.pipeline_with_sender(ctx, sender.clone(), energi);
@@ -9130,12 +8749,14 @@ mod tests {
         let (p, s) = grp(&plug, r#"{"groups": {"120363@g.us": {"antitagsw": "on"}}}"#);
         let m = InboundMessage::builder()
             .message(Arc::new(wa::Message {
-                group_status_mention_message: MessageField::some(wa::message::FutureProofMessage {
-                    message: MessageField::some(wa::Message {
-                        conversation: Some("status".into()),
-                        ..Default::default()
-                    }),
-                }),
+                group_status_mention_message: MessageField::some(
+                    wa::message::FutureProofMessage {
+                        message: MessageField::some(wa::Message {
+                            conversation: Some("status".into()),
+                            ..Default::default()
+                        }),
+                    },
+                ),
                 ..Default::default()
             }))
             .info(Arc::new(MessageInfo {
@@ -9249,12 +8870,13 @@ mod tests {
         id.owners.insert(MEMBER.to_string());
         let sender = Arc::new(RecordingSender::default());
         let p = Arc::new(
-            plug.pipeline_with_sender(
-                StoreContext::new(store_with("spam-owner", "{}")),
-                sender,
-                EnergiSettings::default(),
-            )
-            .with_identity(id),
+            plug
+                .pipeline_with_sender(
+                    StoreContext::new(store_with("spam-owner", "{}")),
+                    sender,
+                    EnergiSettings::default(),
+                )
+                .with_identity(id),
         );
 
         for _ in 0..30 {
@@ -9310,10 +8932,7 @@ mod tests {
         // `.other` dipetakan ke plugin yang sama oleh lookup uji, jadi ini
         // membuktikanhaust-nya per COMMAND: key plugin sama → tetap kena.
         let m2 = inbound_n(".gatetestpremium", MEMBER, MEMBER, false);
-        assert_eq!(
-            p.process(&m2, 1_100).await.unwrap(),
-            Outcome::CooldownBlocked
-        );
+        assert_eq!(p.process(&m2, 1_100).await.unwrap(), Outcome::CooldownBlocked);
     }
 
     // --- Gate 5: energi -----------------------------------------------
@@ -9340,11 +8959,7 @@ mod tests {
         );
         // Saldo tetap 1: gate menolak SEBELUM memotong (`handler.js:1879-1880`
         // `return` tanpa `updateEnergi`).
-        assert_eq!(
-            p.gates().energy(MEMBER),
-            Some(1),
-            "energi tak boleh berkurang"
-        );
+        assert_eq!(p.gates().energy(MEMBER), Some(1), "energi tak boleh berkurang");
     }
 
     #[tokio::test]
@@ -9375,10 +8990,7 @@ mod tests {
         let (p, s) = dm(
             &plug,
             r#"{"settings": {"capenergi": {"gatetest": 5}}}"#,
-            EnergiSettings {
-                default: 10,
-                ..poor()
-            },
+            EnergiSettings { default: 10, ..poor() },
         );
 
         let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
@@ -9433,20 +9045,17 @@ mod tests {
         id.owners.insert(MEMBER.to_string());
         let sender = Arc::new(RecordingSender::default());
         let p = Arc::new(
-            plug.pipeline_with_sender(
-                StoreContext::new(store_with("energi-owner", "{}")),
-                sender,
-                poor(),
-            )
-            .with_identity(id),
+            plug
+                .pipeline_with_sender(
+                    StoreContext::new(store_with("energi-owner", "{}")),
+                    sender,
+                    poor(),
+                )
+                .with_identity(id),
         );
         let m = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
-        assert_eq!(
-            p.gates().energy(MEMBER),
-            Some(-1),
-            "saldo owner tak terbatas"
-        );
+        assert_eq!(p.gates().energy(MEMBER), Some(-1), "saldo owner tak terbatas");
     }
 
     // --- Urutan antar gate --------------------------------------------
@@ -9468,10 +9077,7 @@ mod tests {
         }
         assert_eq!(s.deleted().len(), 12);
         assert_eq!(plug.calls(), 0);
-        assert!(
-            s.sent.lock().unwrap().is_empty(),
-            "tidak ada balasan sama sekali"
-        );
+        assert!(s.sent.lock().unwrap().is_empty(), "tidak ada balasan sama sekali");
     }
 
     #[tokio::test]
@@ -9482,10 +9088,7 @@ mod tests {
         let (p, _s) = dm(
             &plug,
             r#"{"settings": {"capenergi": {"gatetest": 5}}}"#,
-            EnergiSettings {
-                default: 10,
-                ..poor()
-            },
+            EnergiSettings { default: 10, ..poor() },
         );
 
         let m1 = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
@@ -9493,10 +9096,7 @@ mod tests {
         assert_eq!(p.gates().energy(MEMBER), Some(5));
 
         let m2 = inbound_n(".gatetest halo", MEMBER, MEMBER, false);
-        assert_eq!(
-            p.process(&m2, 1_100).await.unwrap(),
-            Outcome::CooldownBlocked
-        );
+        assert_eq!(p.process(&m2, 1_100).await.unwrap(), Outcome::CooldownBlocked);
         assert_eq!(
             p.gates().energy(MEMBER),
             Some(5),
@@ -9558,10 +9158,7 @@ mod tests {
         })
     }
 
-    fn pipeline_for(
-        store_body: &str,
-        lookup: PluginLookup,
-    ) -> (Arc<Pipeline>, Arc<RecordingSender>) {
+    fn pipeline_for(store_body: &str, lookup: PluginLookup) -> (Arc<Pipeline>, Arc<RecordingSender>) {
         let ctx = StoreContext::new(store_with("mutate", store_body));
         let sender = Arc::new(RecordingSender::default());
         let p = Arc::new(
@@ -9664,10 +9261,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            sender.texts().last().unwrap(),
-            &format!("{MEMBER}: jumlah=1")
-        );
+        assert_eq!(sender.texts().last().unwrap(), &format!("{MEMBER}: jumlah=1"));
     }
 
     /// Mutasi TANPA balasan (`Reply::Mutate { reply: None }`) harus tetap
@@ -9785,7 +9379,12 @@ mod tests {
     #[test]
     fn set_user_creates_a_full_record_with_all_defaults() {
         let mut users = users_with("{}");
-        apply_set_user(&mut users, "628111", &serde_json::json!({}), 0);
+        apply_set_user(
+            &mut users,
+            "628111",
+            &serde_json::json!({}),
+            0,
+        );
         let u = &users["628111"];
         // Setiap field default dari `database.js:559-601` harus ada.
         for (field, want) in [
@@ -9825,8 +9424,7 @@ mod tests {
     /// persis yang terjadi pada `plugins/rpg/bank.js:50-51`.
     #[test]
     fn set_user_merges_rpg_and_inventory_one_level_deep() {
-        let mut users =
-            users_with(r#"{"628111":{"rpg":{"exp":250,"bank":0},"inventory":{"potion":2}}}"#);
+        let mut users = users_with(r#"{"628111":{"rpg":{"exp":250,"bank":0},"inventory":{"potion":2}}}"#);
         apply_set_user(
             &mut users,
             "628111",
@@ -9874,10 +9472,7 @@ mod tests {
         apply_set_user(&mut users, "628111", &serde_json::json!({}), 0);
         assert_eq!(users["628111"]["koin"].as_i64(), Some(777));
         assert_eq!(users["628111"]["energi"].as_i64(), Some(42));
-        assert!(
-            users["628111"].get("balance").is_none(),
-            "balance harus hilang"
-        );
+        assert!(users["628111"].get("balance").is_none(), "balance harus hilang");
         assert!(users["628111"].get("limit").is_none(), "limit harus hilang");
     }
 
@@ -9893,59 +9488,48 @@ mod tests {
         assert_eq!(u["lid"].as_str(), Some("9998887771"));
     }
 
-    /// `access` pakai `||` (`database.js:600`), dan `[]` di JS itu TRUTHY —
-    /// jadi `access: []` dari plugin BENAR-BENAR mengosongkan grant. Yang
-    /// membuat `existing.access` dipakai adalah `access` tidak ada sama sekali
-    /// atau `null`. Dikunci karena mudah salah di sini: kalau `access`
-    /// ikut diperlakukan `??`, `[]` jadi tidak bisa dipakai untuk mencabut
-    /// akses — dan `handler.js` justru bergantung pada itu.
-    #[test]
-    fn an_explicit_empty_access_array_clears_grants_because_arrays_are_truthy_in_js() {
-        let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
-        apply_set_user(
-            &mut users,
-            "628111",
-            &serde_json::json!({ "access": [] }),
-            0,
-        );
-        assert_eq!(
-            users["628111"]["access"],
-            serde_json::json!([]),
-            "[] harus menang atas access lama — `[]` truthy di JS"
-        );
-    }
+/// `access` pakai `||` (`database.js:600`), dan `[]` di JS itu TRUTHY —
+/// jadi `access: []` dari plugin BENAR-BENAR mengosongkan grant. Yang
+/// membuat `existing.access` dipakai adalah `access` tidak ada sama sekali
+/// atau `null`. Dikunci karena mudah salah di sini: kalau `access`
+/// ikut diperlakukan `??`, `[]` jadi tidak bisa dipakai untuk mencabut
+/// akses — dan `handler.js` justru bergantung pada itu.
+#[test]
+fn an_explicit_empty_access_array_clears_grants_because_arrays_are_truthy_in_js() {
+    let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
+    apply_set_user(&mut users, "628111", &serde_json::json!({ "access": [] }), 0);
+    assert_eq!(
+        users["628111"]["access"],
+        serde_json::json!([]),
+        "[] harus menang atas access lama — `[]` truthy di JS"
+    );
+}
 
-    /// `access` yang tidak disebut plugin harus MEWARISI yang lama, karena
-    /// `data.access` `undefined` falsy lalu jatuh ke `existing.access`.
-    #[test]
-    fn an_absent_access_field_keeps_the_existing_grant() {
-        let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
-        apply_set_user(&mut users, "628111", &serde_json::json!({ "koin": 5 }), 0);
-        assert_eq!(
-            users["628111"]["access"][0]["cmd"].as_str(),
-            Some("hd"),
-            "access lama harus bertahan saat plugin tidak menyebut field itu"
-        );
-    }
+/// `access` yang tidak disebut plugin harus MEWARISI yang lama, karena
+/// `data.access` `undefined` falsy lalu jatuh ke `existing.access`.
+#[test]
+fn an_absent_access_field_keeps_the_existing_grant() {
+    let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
+    apply_set_user(&mut users, "628111", &serde_json::json!({ "koin": 5 }), 0);
+    assert_eq!(
+        users["628111"]["access"][0]["cmd"].as_str(),
+        Some("hd"),
+        "access lama harus bertahan saat plugin tidak menyebut field itu"
+    );
+}
 
-    /// `access: null` juga falsy, jadi grant lama ikut dipakai — inilah
-    /// perbedaan nyata antara `||` dan `??` di baris ini.
-    #[test]
-    fn a_null_access_field_keeps_the_existing_grant() {
-        let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
-        apply_set_user(
-            &mut users,
-            "628111",
-            &serde_json::json!({ "access": null }),
-            0,
-        );
-        assert_eq!(users["628111"]["access"][0]["cmd"].as_str(), Some("hd"));
-    }
+/// `access: null` juga falsy, jadi grant lama ikut dipakai — inilah
+/// perbedaan nyata antara `||` dan `??` di baris ini.
+#[test]
+fn a_null_access_field_keeps_the_existing_grant() {
+    let mut users = users_with(r#"{"628111":{"access":[{"cmd":"hd","expired":null}]}}"#);
+    apply_set_user(&mut users, "628111", &serde_json::json!({ "access": null }), 0);
+    assert_eq!(users["628111"]["access"][0]["cmd"].as_str(), Some("hd"));
+}
 
     #[test]
     fn unknown_fields_survive_set_user() {
-        let mut users =
-            users_with(r#"{"628111":{"rpg":{"guildId":"g1"},"custom":{"deep":[1,2]}}}"#);
+        let mut users = users_with(r#"{"628111":{"rpg":{"guildId":"g1"},"custom":{"deep":[1,2]}}}"#);
         apply_set_user(&mut users, "628111", &serde_json::json!({ "koin": 5 }), 0);
         assert_eq!(users["628111"]["rpg"]["guildId"].as_str(), Some("g1"));
         assert_eq!(users["628111"]["custom"]["deep"][1].as_i64(), Some(2));
@@ -9983,22 +9567,10 @@ mod tests {
         let mut groups = users_with(
             r#"{"120363@g.us":{"mute":true,"game":false,"name":"Komunitas","custom":1}}"#,
         );
-        apply_set_group(
-            &mut groups,
-            "120363@g.us",
-            &serde_json::json!({ "antilink": true }),
-        );
+        apply_set_group(&mut groups, "120363@g.us", &serde_json::json!({ "antilink": true }));
         let g = &groups["120363@g.us"];
-        assert_eq!(
-            g["mute"],
-            serde_json::json!(true),
-            "mute lama harus bertahan"
-        );
-        assert_eq!(
-            g["game"],
-            serde_json::json!(false),
-            "game:false bukan 'tak ada'"
-        );
+        assert_eq!(g["mute"], serde_json::json!(true), "mute lama harus bertahan");
+        assert_eq!(g["game"], serde_json::json!(false), "game:false bukan 'tak ada'");
         assert_eq!(g["antilink"], serde_json::json!(true));
         assert_eq!(g["name"].as_str(), Some("Komunitas"));
         assert_eq!(g["custom"].as_i64(), Some(1), "field asing harus bertahan");
@@ -10098,13 +9670,7 @@ mod tests {
             "bot",
             ParseOptions::default(),
         );
-        let m = inbound(
-            "halo",
-            "628111@s.whatsapp.net",
-            "628111@s.whatsapp.net",
-            false,
-            "M0",
-        );
+        let m = inbound("halo", "628111@s.whatsapp.net", "628111@s.whatsapp.net", false, "M0");
         let caller = p.caller_of(&m);
         assert!(caller.quoted.is_none());
         assert!(caller.mentioned.is_empty());
@@ -10112,13 +9678,7 @@ mod tests {
 
     #[test]
     fn quoted_image_carries_mimetype_and_media_flag() {
-        let mut m = inbound(
-            "lihat",
-            "628111@s.whatsapp.net",
-            "628111@s.whatsapp.net",
-            false,
-            "M1",
-        );
+        let mut m = inbound("lihat", "628111@s.whatsapp.net", "628111@s.whatsapp.net", false, "M1");
         m.message = Arc::new(wa::Message {
             extended_text_message: MessageField::some(wa::message::ExtendedTextMessage {
                 text: Some("lihat".into()),
@@ -10224,11 +9784,7 @@ mod tests {
         let mut c = Ctx::default();
         src.fill(&mut c);
         assert!(c.http.get("https://example.invalid").is_err());
-        assert!(
-            c.http
-                .post_json("https://example.invalid", &Value::Null)
-                .is_err()
-        );
+        assert!(c.http.post_json("https://example.invalid", &Value::Null).is_err());
     }
 
     /// `Sock` uji: hanya `ubah_peserta` yang dicatat, sisanya error.
@@ -10385,9 +9941,7 @@ mod tests {
         assert!(sent[0].contains("628111"), "{}", sent[0]);
         let mentah = sender.sent.lock().unwrap()[0].1.clone();
         assert_eq!(
-            ctx_of(&mentah)
-                .map(|c| c.mentioned_jid.clone())
-                .unwrap_or_default(),
+            ctx_of(&mentah).map(|c| c.mentioned_jid.clone()).unwrap_or_default(),
             vec![MEMBER.to_string()],
             "peserta baru harus di-mention, bukan cuma ditulis"
         );
@@ -10501,10 +10055,7 @@ mod tests {
         let sent = sender.sent.lock().unwrap();
         assert_eq!(sent.len(), 1, "kartu = 1 pesan: {sent:?}");
         let d = format!("{:?}", sent[0].1);
-        assert!(
-            d.contains("WELCOME MEMBER BARU"),
-            "body kartu = teks sapaan: {d}"
-        );
+        assert!(d.contains("WELCOME MEMBER BARU"), "body kartu = teks sapaan: {d}");
         assert!(d.contains(MEMBER), "mention peserta: {d}");
     }
 
@@ -10618,15 +10169,11 @@ mod tests {
             "{:?}",
             sender.texts()
         );
-        assert!(
-            sock.keluar.lock().unwrap().is_empty(),
-            "grup sewa: tetap di dalam"
-        );
+        assert!(sock.keluar.lock().unwrap().is_empty(), "grup sewa: tetap di dalam");
     }
 
     #[tokio::test]
-    async fn update_grup_menghormati_lid_lewat_metadata() {
-        // Wire memberi LID; metadata grup yang tahu nomor teleponnya. Yang
+    async fn update_grup_menghormati_lid_lewat_metadata() {        // Wire memberi LID; metadata grup yang tahu nomor teleponnya. Yang
         // di-mention harus nomor, sama seperti `resolveAnyLidToJid`.
         let (p, sender, _sock) = pipa_grup(
             "grup-lid",
@@ -10639,9 +10186,7 @@ mod tests {
 
         let mentah = sender.sent.lock().unwrap()[0].1.clone();
         assert_eq!(
-            ctx_of(&mentah)
-                .map(|c| c.mentioned_jid.clone())
-                .unwrap_or_default(),
+            ctx_of(&mentah).map(|c| c.mentioned_jid.clone()).unwrap_or_default(),
             vec![MEMBER.to_string()],
             "mention harus nomor telepon, bukan LID"
         );
@@ -10695,8 +10240,7 @@ mod tests {
     }
 
     #[test]
-    fn ctx_sock_mengikuti_sumber_yang_dipasang() {
-        let mut src = plugin_src_with("{}");
+    fn ctx_sock_mengikuti_sumber_yang_dipasang() {        let mut src = plugin_src_with("{}");
         src.sock = Arc::new(SockUji::default());
         let mut c = Ctx::default();
         src.fill(&mut c);
@@ -10947,9 +10491,7 @@ mod tests {
                 kartu: Box::new(oktz_plugin_api::kartu::Kartu::baru("kartu")),
             },
             Reply::Tabel {
-                tabel: oktz_plugin_api::Tabel::baru("Judul")
-                    .header(["M"])
-                    .baris(["1"]),
+                tabel: oktz_plugin_api::Tabel::baru("Judul").header(["M"]).baris(["1"]),
             },
             Reply::Image {
                 media: None,
@@ -11043,13 +10585,7 @@ mod tests {
         // proses sendiri (JS `play.js` juga tidak).
         assert_eq!(s.log(), ["reaction 🕕", "sticker", "reaction ✅"]);
         // Reaksi memang lewat jalur reaksi, bukan pesan.
-        assert_eq!(
-            s.reacted(),
-            vec![
-                (MEMBER.to_string(), "🕕".to_string()),
-                (MEMBER.to_string(), "✅".to_string())
-            ]
-        );
+        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🕕".to_string()), (MEMBER.to_string(), "✅".to_string())]);
         assert_eq!(s.media.lock().unwrap().len(), 1);
     }
 
@@ -11095,7 +10631,8 @@ mod tests {
     #[tokio::test]
     async fn plugin_reaction_is_the_only_reaction_sent() {
         // Reaksi milik plugin sendiri (✅) — pipeline tidak menambah apa pun.
-        let plugin = TestPlugin::with_reply(Reply::text("balasan").with_reaction("✅"));
+        let plugin =
+            TestPlugin::with_reply(Reply::text("balasan").with_reaction("✅"));
         let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
         let m = inbound_n(".seq", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
@@ -11116,7 +10653,10 @@ mod tests {
         let (p, s) = dm(&plugin, "{}", EnergiSettings::default());
         let m = inbound_n(".seq", MEMBER, MEMBER, false);
         assert_eq!(p.process(&m, 1_000).await.unwrap(), Outcome::Sent);
-        assert_eq!(s.reacted(), vec![(MEMBER.to_string(), "🔥".to_string())]);
+        assert_eq!(
+            s.reacted(),
+            vec![(MEMBER.to_string(), "🔥".to_string())]
+        );
     }
 
     #[tokio::test]
@@ -11133,17 +10673,12 @@ mod tests {
         // (gagal), sehingga "tiga" tidak pernah dicoba.
         let sender = Arc::new(RecordingSender::default().with_failure_at(2));
         let ctx = StoreContext::new(store_with(&format!("seqfail-{}", n()), "{}"));
-        let p =
-            Arc::new(plugin.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default()));
+        let p = Arc::new(plugin.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default()));
         let m = inbound_n(".seq", MEMBER, MEMBER, false);
         let err = p.process(&m, 1_000).await.unwrap_err();
         assert!(err.to_string().contains("gagal kirim"), "{err}");
         assert_eq!(sender.texts(), vec![format!("{MEMBER}: satu")]);
-        assert_eq!(
-            sender.attempts(),
-            2,
-            "kiriman ketiga (teks ketiga) tidak boleh dicoba"
-        );
+        assert_eq!(sender.attempts(), 2, "kiriman ketiga (teks ketiga) tidak boleh dicoba");
     }
 
     #[test]
@@ -11312,9 +10847,8 @@ mod tests {
                 contacts: Vec::new(),
             },
             Reply::TextQuotedPrevious {
-                text:
-                    "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
-                        .into(),
+                text: "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
+                    .into(),
             },
         ]));
         let sender = Arc::new(RecordingSender::default());
@@ -11322,8 +10856,7 @@ mod tests {
             &format!("ownerzero-{}", n()),
             r#"{"settings": {"replyVariant": 9, "ownerType": 2}}"#,
         ));
-        let p =
-            Arc::new(plugin.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default()));
+        let p = Arc::new(plugin.pipeline_with_sender(ctx, sender.clone(), EnergiSettings::default()));
         let m = inbound_n(".owner", MEMBER, MEMBER, false);
         let err = p.process(&m, 1_000).await.unwrap_err();
         assert!(err.to_string().contains("Reply::Contacts"), "{err}");
@@ -11346,10 +10879,7 @@ mod tests {
         let banyak = render_reply(
             &Reply::Contacts {
                 display_name: "Ini adalah owner kami".into(),
-                contacts: vec![
-                    "BEGIN:VCARD\nFN:Oktz\nEND:VCARD".into(),
-                    "BEGIN:VCARD\nFN:Lyoraaa\nEND:VCARD".into(),
-                ],
+                contacts: vec!["BEGIN:VCARD\nFN:Oktz\nEND:VCARD".into(), "BEGIN:VCARD\nFN:Lyoraaa\nEND:VCARD".into()],
             },
             &ReplyTarget::default(),
         )
@@ -11360,7 +10890,9 @@ mod tests {
             .contacts_array_message
             .as_option()
             .expect("multi kontak wajib contactsArrayMessage");
-        assert_eq!(arr.display_name.as_deref(), Some("Ini adalah owner kami"));
+        assert_eq!(            arr.display_name.as_deref(),
+            Some("Ini adalah owner kami")
+        );
         assert_eq!(arr.contacts.len(), 2);
     }
 
@@ -11411,9 +10943,8 @@ mod tests {
                 ],
             },
             Reply::TextQuotedPrevious {
-                text:
-                    "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
-                        .into(),
+                text: "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
+                    .into(),
             },
         ]));
         let inner = Arc::new(RecordingSender::default());

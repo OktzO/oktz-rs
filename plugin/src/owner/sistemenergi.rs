@@ -25,11 +25,7 @@ pub(crate) fn status_text(ctx: &Ctx, current: bool) -> String {
          - *{p}sistemenergi off* — Mematikan potongan energi (Unlimited mode)\n\n\
          *CONTOH PENGGUNAAN:*\n\
          - *{p}sistemenergi on*",
-        if current {
-            "AKTIF 🔋"
-        } else {
-            "NONAKTIF (UNLIMITED) ♾️"
-        },
+        if current { "AKTIF 🔋" } else { "NONAKTIF (UNLIMITED) ♾️" },
         p = ctx.prefix
     )
 }
@@ -42,11 +38,7 @@ pub(crate) fn applied(is_enabled: bool) -> String {
          - Mode: *{mode}*\n\n\
          _Semua perubahan sudah tersimpan dan akan segera diterapkan pada sistem bot._",
         verb = if is_enabled { "HIDUPKAN" } else { "MATIKAN" },
-        mode = if is_enabled {
-            "AKTIF 🔋"
-        } else {
-            "NONAKTIF (UNLIMITED) ♾️"
-        }
+        mode = if is_enabled { "AKTIF 🔋" } else { "NONAKTIF (UNLIMITED) ♾️" }
     )
 }
 
@@ -85,7 +77,7 @@ pub fn sistemenergi(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(settings: Value, text: &str) -> Reply {
         let args: Vec<String> = text.split_whitespace().map(str::to_string).collect();
@@ -154,10 +146,7 @@ mod tests {
     #[test]
     fn status_reflects_a_stored_false_without_reading_the_pipeline_default() {
         for (settings, expected) in [
-            (
-                serde_json::json!({"energi": false}),
-                "NONAKTIF (UNLIMITED) ♾️",
-            ),
+            (serde_json::json!({"energi": false}), "NONAKTIF (UNLIMITED) ♾️"),
             (serde_json::json!({"energi": true}), "AKTIF 🔋"),
         ] {
             let r = run(settings.clone(), "");
@@ -197,24 +186,14 @@ mod tests {
             );
         }
         for arg in ["OFF", "Off"] {
-            assert_eq!(
-                stored(&run(serde_json::json!({}), arg)),
-                Some(serde_json::json!(false)),
-                "arg {arg}"
-            );
+            assert_eq!(stored(&run(serde_json::json!({}), arg)), Some(serde_json::json!(false)), "arg {arg}");
         }
     }
 
     #[test]
     fn on_and_off_write_their_own_boolean() {
-        assert_eq!(
-            stored(&run(serde_json::json!({}), "on")),
-            Some(serde_json::json!(true))
-        );
-        assert_eq!(
-            stored(&run(serde_json::json!({}), "off")),
-            Some(serde_json::json!(false))
-        );
+        assert_eq!(stored(&run(serde_json::json!({}), "on")), Some(serde_json::json!(true)));
+        assert_eq!(stored(&run(serde_json::json!({}), "off")), Some(serde_json::json!(false)));
     }
 
     #[test]

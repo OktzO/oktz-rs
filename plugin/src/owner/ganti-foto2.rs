@@ -57,9 +57,9 @@ pub fn ganti_foto2(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::IncomingMedia;
     use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use oktz_plugin_api::find;
+    use oktz_plugin_api::IncomingMedia;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -114,10 +114,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     #[test]
@@ -173,9 +170,6 @@ mod tests {
              > ./assets/image/foto2.jpeg\n\
              > Config telah diupdate secara realtime!"
         );
-        assert!(
-            b.ada("assets/image/foto2.jpeg"),
-            "berkas aset harus ditulis"
-        );
+        assert!(b.ada("assets/image/foto2.jpeg"), "berkas aset harus ditulis");
     }
 }

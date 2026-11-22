@@ -10,7 +10,7 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::jid_number;
-use crate::rpg::heal::{inventory_map, or_default, other_user, rpg_map};
+use crate::rpg::heal::{inventory_map, other_user, or_default, rpg_map};
 
 /// `Number.isInteger(parseInt(args[1]) || 1)` — `|| 1` membuat nilai selalu
 /// >= 1, jadi guard di bawah praktis tak pernah kena.
@@ -73,7 +73,9 @@ pub fn gift(ctx: Ctx) -> Reply {
 
     let partner = other_user(&ctx, &spouse);
     if partner.is_none() {
-        return Reply::text("❌ *ᴘᴀsᴀɴɢᴀɴ ɴᴏᴛ ꜰᴏᴜɴᴅ*\n\n> Pasangan tidak ditemukan di database!");
+        return Reply::text(
+            "❌ *ᴘᴀsᴀɴɢᴀɴ ɴᴏᴛ ꜰᴏᴜɴᴅ*\n\n> Pasangan tidak ditemukan di database!",
+        );
     }
 
     inv.insert(item.clone(), serde_json::json!(owned - amount));
@@ -153,10 +155,7 @@ mod tests {
         assert_eq!(p.meta.name, "gift");
         assert_eq!(p.meta.alias, ["kasih", "hadiah"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(
-            p.meta.description,
-            "Beri hadiah ke pasangan untuk meningkatkan love"
-        );
+        assert_eq!(p.meta.description, "Beri hadiah ke pasangan untuk meningkatkan love");
         assert_eq!(p.meta.usage, ".gift <item> <jumlah>");
         assert_eq!(p.meta.example, ".gift diamond 1");
         assert_eq!(p.meta.cooldown, 30);
@@ -173,20 +172,10 @@ mod tests {
 
     #[test]
     fn an_unmarried_user_is_told_to_marry_first() {
-        for user in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({ "rpg": {} }),
-        ] {
+        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": {} })] {
             let r = run(user.clone(), None, &["diamond", "1"]);
-            assert!(
-                text_of(&r).starts_with("❌ *ʙᴇʟᴜᴍ ᴍᴇɴɪᴋᴀʜ*"),
-                "input {user}"
-            );
-            assert!(
-                text_of(&r).contains("Nikah dulu dengan `.marry @user`"),
-                "input {user}"
-            );
+            assert!(text_of(&r).starts_with("❌ *ʙᴇʟᴜᴍ ᴍᴇɴɪᴋᴀʜ*"), "input {user}");
+            assert!(text_of(&r).contains("Nikah dulu dengan `.marry @user`"), "input {user}");
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -207,11 +196,7 @@ mod tests {
             Some(serde_json::json!({ "rpg": {} })),
             &["diamond", "-3"],
         );
-        assert!(
-            text_of(&r).starts_with("❌ Jumlah item tidak valid."),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).starts_with("❌ Jumlah item tidak valid."), "{}", text_of(&r));
         assert!(r.mutations().is_empty());
     }
 
@@ -226,11 +211,7 @@ mod tests {
 
     #[test]
     fn a_short_bag_is_reported_with_have_over_need() {
-        let r = run(
-            married(serde_json::json!({ "diamond": 1 })),
-            None,
-            &["diamond", "5"],
-        );
+        let r = run(married(serde_json::json!({ "diamond": 1 })), None, &["diamond", "5"]);
         let t = text_of(&r);
         assert!(t.starts_with("❌ *ɪᴛᴇᴍ ᴛɪᴅᴀᴋ ᴄᴜᴋᴜᴘ*"), "{t}");
         assert!(t.contains("Item *diamond* kamu: 1"), "{t}");
@@ -240,11 +221,7 @@ mod tests {
 
     #[test]
     fn a_partner_outside_the_roster_stops_the_gift() {
-        let r = run(
-            married(serde_json::json!({ "diamond": 9 })),
-            None,
-            &["diamond", "2"],
-        );
+        let r = run(married(serde_json::json!({ "diamond": 9 })), None, &["diamond", "2"]);
         let t = text_of(&r);
         assert!(t.starts_with("❌ *ᴘᴀsᴀɴɢᴀɴ ɴᴏᴛ ꜰᴏᴜɴᴅ*"), "{t}");
         assert!(r.mutations().is_empty(), "tak ada pertukaran yang terjadi");
@@ -269,11 +246,7 @@ mod tests {
         };
         assert_eq!(jid, "628111@s.whatsapp.net");
         assert_eq!(data["inventory"]["diamond"], serde_json::json!(6));
-        assert_eq!(
-            data["inventory"]["gold"],
-            serde_json::json!(40),
-            "item lain tak boleh hilang"
-        );
+        assert_eq!(data["inventory"]["gold"], serde_json::json!(40), "item lain tak boleh hilang");
         assert_eq!(data["rpg"]["love"], serde_json::json!(50), "20 + 30");
     }
 

@@ -120,14 +120,7 @@ fn uuid_v4() -> String {
     b[6] = (b[6] & 0x0F) | 0x40;
     b[8] = (b[8] & 0x3F) | 0x80;
     let h: String = b.iter().map(|v| format!("{v:02x}")).collect();
-    format!(
-        "{}-{}-{}-{}-{}",
-        &h[0..8],
-        &h[8..12],
-        &h[12..16],
-        &h[16..20],
-        &h[20..32]
-    )
+    format!("{}-{}-{}-{}-{}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32])
 }
 
 fn epoch_ms() -> u128 {
@@ -150,7 +143,7 @@ fn tanggal_js(ms: u128) -> String {
     let total_detik = (ms / 1000) as i64;
     // 1 Januari 1970 adalah Kamis, jadi hari ke-0 = index 4.
     let hari_dalam_minggu = (total_detik.div_euclid(86_400) + 4).rem_euclid(7) as usize;
-    let (tahun, bulan, hari) = tanggal_kalender(total_detik);
+    let (tahun, bulan, hari) =tanggal_kalender(total_detik);
     let detik_dalam_hari = total_detik.rem_euclid(86_400);
     format!(
         "{} {} {:02} {} {:02}:{:02}:{:02} GMT+0000 (Coordinated Universal Time)",
@@ -283,7 +276,9 @@ impl ChatGpt {
             cfg[3] = json!(i);
             cfg[9] = json!(0);
             let encoded = Self::encode_config(cfg);
-            if fnv1a_js(&format!("{seed}{encoded}")).starts_with(difficulty) {
+            if fnv1a_js(&format!("{seed}{encoded}"))
+                .starts_with(difficulty)
+            {
                 return format!("gAAAAAB{encoded}~S");
             }
         }
@@ -298,9 +293,7 @@ impl ChatGpt {
         cfg[9] = json!(0);
         let init_token = format!("gAAAAAC{}", Self::encode_config(&cfg));
 
-        let mut call = HttpCall::post(format!(
-            "{BASE_URL}/backend-anon/sentinel/chat-requirements/prepare"
-        ));
+        let mut call = HttpCall::post(format!("{BASE_URL}/backend-anon/sentinel/chat-requirements/prepare"));
         call.headers = self.header_pairs(&[]);
         call = call.json(&json!({ "p": init_token }));
         let prepare = http.call(&call)?.json().unwrap_or(Value::Null);
@@ -337,9 +330,7 @@ impl ChatGpt {
         }
         finalize_body["turnstile"] = json!(turnstile);
 
-        let mut call = HttpCall::post(format!(
-            "{BASE_URL}/backend-anon/sentinel/chat-requirements/finalize"
-        ));
+        let mut call = HttpCall::post(format!("{BASE_URL}/backend-anon/sentinel/chat-requirements/finalize"));
         call.headers = self.header_pairs(&[]);
         call = call.json(&finalize_body);
         let finalize = http.call(&call)?.json().unwrap_or(Value::Null);
@@ -443,7 +434,10 @@ impl ChatGpt {
                 if opsi.web_search {
                     meta["system_hints"] = json!(["search"]);
                 }
-                (json!({ "content_type": "text", "parts": [message] }), meta)
+                (
+                    json!({ "content_type": "text", "parts": [message] }),
+                    meta,
+                )
             }
         };
 
@@ -487,7 +481,8 @@ impl ChatGpt {
         }
         if opsi.web_search {
             body["force_use_search"] = json!(true);
-            body["client_reported_search_source"] = json!("conversation_composer_web_icon");
+            body["client_reported_search_source"] =
+                json!("conversation_composer_web_icon");
         }
         body
     }
@@ -507,18 +502,21 @@ impl ChatGpt {
         let mut call = HttpCall::post(format!("{BASE_URL}/backend-anon/files"));
         call.headers = self.header_pairs(&[]);
         call = call.json(&json!({
-            "file_name": file_name,
-            "file_size": bytes.len(),
-            "use_case": "multimodal",
-            "timezone_offset_min": 0,
-            "reset_rate_limits": false,
-        }));
+                "file_name": file_name,
+                "file_size": bytes.len(),
+                "use_case": "multimodal",
+                "timezone_offset_min": 0,
+                "reset_rate_limits": false,
+            }));
         let register = http.call(&call)?.json().unwrap_or(Value::Null);
         let upload_url = register.get("upload_url").cloned().unwrap_or(Value::Null);
         let file_id = register.get("file_id").cloned().unwrap_or(Value::Null);
         if !crate::common::truthy(&upload_url) || !crate::common::truthy(&file_id) {
             return Err(HttpError {
-                message: format!("Gagal mendaftar file: {}", register),
+                message: format!(
+                    "Gagal mendaftar file: {}",
+                    register
+                ),
             });
         }
 
@@ -553,9 +551,7 @@ impl ChatGpt {
                 }
             });
         }
-        let mut call = HttpCall::post(format!(
-            "{BASE_URL}/backend-anon/files/process_upload_stream"
-        ));
+        let mut call = HttpCall::post(format!("{BASE_URL}/backend-anon/files/process_upload_stream"));
         call.headers = self.header_pairs(&[]);
         call = call.json(&process_body);
         let proses = http.call(&call)?;
@@ -604,19 +600,19 @@ impl ChatGpt {
 
         let mut call = HttpCall::post(format!("{BASE_URL}/backend-anon/f/conversation"));
         call.headers = self.header_pairs(&[
-            ("accept", "text/event-stream".to_string()),
-            ("OAI-Language", self.lang.clone()),
-            (
-                "OpenAI-Sentinel-Chat-Requirements-Token",
-                tokens.chat_requirements_token.clone().unwrap_or_default(),
-            ),
-            ("OpenAI-Sentinel-Turnstile-Token", tokens.turnstile.clone()),
-            (
-                "OpenAI-Sentinel-Proof-Token",
-                tokens.pow.clone().unwrap_or_default(),
-            ),
-            ("X-Conduit-Token", conduit),
-        ]);
+                ("accept", "text/event-stream".to_string()),
+                ("OAI-Language", self.lang.clone()),
+                (
+                    "OpenAI-Sentinel-Chat-Requirements-Token",
+                    tokens.chat_requirements_token.clone().unwrap_or_default(),
+                ),
+                ("OpenAI-Sentinel-Turnstile-Token", tokens.turnstile.clone()),
+                (
+                    "OpenAI-Sentinel-Proof-Token",
+                    tokens.pow.clone().unwrap_or_default(),
+                ),
+                ("X-Conduit-Token", conduit),
+            ]);
         call = call.json(&body);
 
         let res = http.call(&call)?;
@@ -829,7 +825,7 @@ pub fn chat(
     let client = ChatGpt::default();
     let hasil = client.send(http, &prompt, &Opsi::default(), image)?;
     let kasar = hasil.text.clone();
-    let teks = bintang_gada_jadi_satu(&kasar);
+    let teks =bintang_gada_jadi_satu(&kasar);
     Ok(Hasil {
         text: teks.clone(),
         raw: if kasar.is_empty() { teks } else { kasar },
@@ -1062,17 +1058,10 @@ mod tests {
 
     #[test]
     fn bintang_ganda_jadi_satu_tanpa_melintang_baris() {
-        assert_eq!(
-            bintang_gada_jadi_satu("**tebal** dan **tipis**"),
-            "*tebal* dan *tipis*"
-        );
+        assert_eq!(bintang_gada_jadi_satu("**tebal** dan **tipis**"), "*tebal* dan *tipis*");
         assert_eq!(bintang_gada_jadi_satu("  **a**  "), "*a*");
         assert_eq!(bintang_gada_jadi_satu("**tak ditutup"), "**tak ditutup");
-        assert_eq!(
-            bintang_gada_jadi_satu("**a\nb**"),
-            "**a\nb**",
-            "`.` tidak melewati newline"
-        );
+        assert_eq!(bintang_gada_jadi_satu("**a\nb**"), "**a\nb**", "`.` tidak melewati newline");
     }
 
     #[test]
@@ -1119,11 +1108,7 @@ mod tests {
                 200,
                 r#"{"prepare_token":"PREP"}"#,
             ),
-            (
-                "/sentinel/chat-requirements/finalize",
-                200,
-                r#"{"token":"REQ-TOK"}"#,
-            ),
+            ("/sentinel/chat-requirements/finalize", 200, r#"{"token":"REQ-TOK"}"#),
             ("/f/conversation/prepare", 200, r#"{"token":"COND-TOK"}"#),
             (
                 "/backend-anon/f/conversation",
@@ -1164,10 +1149,7 @@ mod tests {
             header(&p[3], "OpenAI-Sentinel-Chat-Requirements-Token").as_deref(),
             Some("REQ-TOK")
         );
-        assert_eq!(
-            header(&p[2], "X-Conduit-Token").as_deref(),
-            Some("no-token")
-        );
+        assert_eq!(header(&p[2], "X-Conduit-Token").as_deref(), Some("no-token"));
     }
 
     #[test]
@@ -1210,9 +1192,7 @@ mod tests {
             ("/backend-anon/f/conversation", 429, "terlalu banyak"),
         ]);
         let c = ChatGpt::default();
-        let err = c
-            .send(http.as_ref(), "halo", &Opsi::default(), None)
-            .unwrap_err();
+        let err = c.send(http.as_ref(), "halo", &Opsi::default(), None).unwrap_err();
         assert_eq!(err.message, "HTTP 429: terlalu banyak");
     }
 }

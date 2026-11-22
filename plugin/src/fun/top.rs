@@ -34,10 +34,7 @@ fn shuffled(members: &mut [String]) {
 
 /// Badan balasan, terpisah dari handler supaya bisa diuji dengan roster
 /// dan kategori yang ditentukan.
-pub(crate) fn build(
-    members: &mut [String],
-    kategori: &str,
-) -> Result<(String, Vec<String>), String> {
+pub(crate) fn build(members: &mut [String], kategori: &str) -> Result<(String, Vec<String>), String> {
     if members.len() < 2 {
         return Err("❌ Member grup kurang dari 5 orang!".to_string());
     }
@@ -183,18 +180,13 @@ mod tests {
         }
         // Lima mention harus muncul persis di teks dan tidak lebih.
         for jid in &mentions {
-            assert!(
-                text.contains(&format!("@{}", jid_number(jid))),
-                "{jid} tidak termed: {text}"
-            );
+            assert!(text.contains(&format!("@{}", jid_number(jid))), "{jid} tidak termed: {text}");
         }
         assert_eq!(
-            text.lines()
-                .filter(|l| {
-                    let mut c = l.chars();
-                    c.next() == Some('*') && c.next().is_some_and(|d| d.is_ascii_digit())
-                })
-                .count(),
+            text.lines().filter(|l| {
+                let mut c = l.chars();
+                c.next() == Some('*') && c.next().is_some_and(|d| d.is_ascii_digit())
+            }).count(),
             5,
             "teks harus punya 5 baris nama: {text}"
         );
@@ -222,18 +214,13 @@ mod tests {
                 "❌ Member grup kurang dari 5 orang!"
             );
             let reply = top(ctx_of(n, &["orang", "pintar"]));
-            assert_eq!(
-                reply.text_body(),
-                Some("❌ Member grup kurang dari 5 orang!")
-            );
+            assert_eq!(reply.text_body(), Some("❌ Member grup kurang dari 5 orang!"));
         }
     }
 
     #[test]
     fn shuffling_reorders_and_never_loses_or_duplicates_a_member() {
-        let base: Vec<String> = (0..30)
-            .map(|i| format!("6281{i:02}@s.whatsapp.net"))
-            .collect();
+        let base: Vec<String> = (0..30).map(|i| format!("6281{i:02}@s.whatsapp.net")).collect();
         for _ in 0..50 {
             let mut m = base.clone();
             shuffled(&mut m);
@@ -261,10 +248,7 @@ mod tests {
     fn the_registered_handler_always_answers_with_text() {
         for n in [0usize, 1, 2, 9] {
             assert!(top(ctx_of(n, &["x"])).text_body().is_some(), "n={n}");
-            assert!(
-                top(ctx_of(n, &[])).text_body().is_some(),
-                "n={n} tanpa args"
-            );
+            assert!(top(ctx_of(n, &[])).text_body().is_some(), "n={n} tanpa args");
         }
     }
 }

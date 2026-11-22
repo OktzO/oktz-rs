@@ -23,12 +23,7 @@ pub(crate) const MEMPROSES: &str =
 
 /// Caption dokumen berhasil `backupsc.js:196-204`.
 #[allow(dead_code)] // helper JS `backupsc.js:196-204`; kirim zip belum ada
-pub(crate) fn caption(
-    nama_zip: &str,
-    ukuran_mb: String,
-    jumlah_berkas: usize,
-    tanggal: &str,
-) -> String {
+pub(crate) fn caption(nama_zip: &str, ukuran_mb: String, jumlah_berkas: usize, tanggal: &str) -> String {
     format!(
         "✅ *ʙᴀᴄᴋᴜᴘ sᴇʟᴇsᴀɪ*\n\n\
          ╭┈┈⬡「 📋 *ᴅᴇᴛᴀɪʟ* 」\n\
@@ -102,15 +97,9 @@ mod tests {
             panic!("harus Sequence");
         };
         assert_eq!(list.len(), 4);
-        assert!(matches!(
-            list[0].without_mutations(),
-            Reply::Reaction { .. }
-        ));
+        assert!(matches!(list[0].without_mutations(), Reply::Reaction { .. }));
         assert_eq!(list[1].text_body(), Some(MEMPROSES));
-        assert!(matches!(
-            list[2].without_mutations(),
-            Reply::Reaction { .. }
-        ));
+        assert!(matches!(list[2].without_mutations(), Reply::Reaction { .. }));
         assert_eq!(
             list[3].text_body(),
             Some(crate::common::error_template_bawaan(".", "backupsc").as_str())

@@ -46,7 +46,10 @@ pub fn weekly(ctx: Ctx) -> Reply {
         .cloned()
         .unwrap_or_default();
     // `user.cooldowns.weekly || 0` — nol ikut jadi 0, sama saja.
-    let last = or_default(cooldowns.get("weekly").and_then(Value::as_i64), 0);
+    let last = or_default(
+        cooldowns.get("weekly").and_then(Value::as_i64),
+        0,
+    );
     let now = now_ms();
 
     if now - last < WEEKLY_COOLDOWN {
@@ -71,10 +74,7 @@ pub fn weekly(ctx: Ctx) -> Reply {
     data.insert("cooldowns".into(), Value::Object(cd));
     data.insert("exp".into(), serde_json::json!(new_exp));
     data.insert("inventory".into(), Value::Object(inv));
-    data.insert(
-        "koin".into(),
-        serde_json::json!(int_field(&ctx, "koin") + money_reward),
-    );
+    data.insert("koin".into(), serde_json::json!(int_field(&ctx, "koin") + money_reward));
     data.insert("rpg".into(), Value::Object(rpg));
 
     Reply::text(format!(
@@ -146,10 +146,7 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        assert_eq!(
-            oktz_plugin_api::find("mingguan").unwrap().meta.name,
-            "weekly"
-        );
+        assert_eq!(oktz_plugin_api::find("mingguan").unwrap().meta.name, "weekly");
     }
 
     #[test]
@@ -170,10 +167,7 @@ mod tests {
     fn claiming_this_instant_blocks_the_next_one() {
         let r = run(serde_json::json!({"cooldowns": {"weekly": now_ms()}}));
         let t = text_of(&r);
-        assert!(
-            t.starts_with("Wah, jatah mingguan kamu udah ludes kak!"),
-            "{t}"
-        );
+        assert!(t.starts_with("Wah, jatah mingguan kamu udah ludes kak!"), "{t}");
         // `last + WEEKLY - now` — `now` diambil sedikit SESUDAH test, jadi
         // sisa bisa 167 atau 168 jam tergantung kecepatan jam dinding.
         let (days, hours) = t
@@ -244,10 +238,7 @@ mod tests {
             assert_eq!(d["inventory"]["uncommon"], serde_json::json!(2 + crates));
 
             let stamped = d["cooldowns"]["weekly"].as_i64().unwrap();
-            assert!(
-                (before..=after).contains(&stamped),
-                "timestamp harus waktu claim"
-            );
+            assert!((before..=after).contains(&stamped), "timestamp harus waktu claim");
         }
     }
 

@@ -80,10 +80,7 @@ pub fn use_item(ctx: Ctx) -> Reply {
     };
 
     let mut inv = inventory_map(&ctx);
-    let count = inv
-        .get(item_key.as_str())
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let count = inv.get(item_key.as_str()).and_then(Value::as_i64).unwrap_or(0);
     if count <= 0 {
         return Reply::text(format!(
             "❌ *ɪᴛᴇᴍ ᴛɪᴅᴀᴋ ᴀᴅᴀ*\n\n\
@@ -99,7 +96,9 @@ pub fn use_item(ctx: Ctx) -> Reply {
     let mut exp_gain = 0i64;
     let mut loot: Option<(&str, i64)> = None;
 
-    let full_health = || Reply::text("❤️ *ʜᴇᴀʟᴛʜ ᴘᴇɴᴜʜ*\n\n> Nyawa kamu sudah penuh!");
+    let full_health = || {
+        Reply::text("❤️ *ʜᴇᴀʟᴛʜ ᴘᴇɴᴜʜ*\n\n> Nyawa kamu sudah penuh!")
+    };
 
     let msg = match item_key.as_str() {
         "potion" => {
@@ -162,36 +161,26 @@ pub fn use_item(ctx: Ctx) -> Reply {
                 0 => {
                     let amount = roll_excl(1000, 50000);
                     koin_gain = amount;
-                    format!(
-                        "📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
-                     > 💰 Koin: +{}",
-                        thousands_id(amount as f64)
-                    )
+                    format!("📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
+                     > 💰 Koin: +{}", thousands_id(amount as f64))
                 }
                 1 => {
                     let amount = roll_excl(500, 5000);
                     exp_gain = amount;
-                    format!(
-                        "📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
-                     > ✨ EXP: +{}",
-                        thousands_id(amount as f64)
-                    )
+                    format!("📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
+                     > ✨ EXP: +{}", thousands_id(amount as f64))
                 }
                 2 => {
                     let qty = crate::rpg::jualan::roll_incl(1, 3);
                     loot = Some(("potion", qty));
-                    format!(
-                        "📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
-                     > 🥤 potion: +{qty}"
-                    )
+                    format!("📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
+                     > 🥤 potion: +{qty}")
                 }
                 _ => {
                     let qty = crate::rpg::jualan::roll_incl(1, 2);
                     loot = Some(("diamond", qty));
-                    format!(
-                        "📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
-                     > 💠 diamond: +{qty}"
-                    )
+                    format!("📦 *ᴍʏsᴛᴇʀʏ ʙᴏx ᴅɪʙᴜᴋᴀ!*\n\n> Kamu membuka Mystery Box...\n\
+                     > 💠 diamond: +{qty}")
                 }
             }
         }
@@ -211,7 +200,9 @@ pub fn use_item(ctx: Ctx) -> Reply {
         }
         "chakra" => {
             if s.stamina >= s.max_stamina {
-                return Reply::text("⚡ *sᴛᴀᴍɪɴᴀ ᴘᴇɴᴜʜ*\n\n> Stamina/Chakra kamu sudah penuh!");
+                return Reply::text(
+                    "⚡ *sᴛᴀᴍɪɴᴀ ᴘᴇɴᴜʜ*\n\n> Stamina/Chakra kamu sudah penuh!",
+                );
             }
             s.stamina = (s.stamina + 30).min(s.max_stamina);
             consume(&mut inv, &item_key);
@@ -236,19 +227,13 @@ pub fn use_item(ctx: Ctx) -> Reply {
             if crate::common::random_index(2) == 0 {
                 let amount = roll_excl(2000, 10000);
                 koin_gain = amount;
-                format!(
-                    "📜 *sᴄʀᴏʟʟ ᴅɪʙᴀᴄᴀ!*\n\n> Kamu membuka Gulungan Rahasia Ninja...\n\
-                 > 💰 Ryo (Koin): +{}",
-                    thousands_id(amount as f64)
-                )
+                format!("📜 *sᴄʀᴏʟʟ ᴅɪʙᴀᴄᴀ!*\n\n> Kamu membuka Gulungan Rahasia Ninja...\n\
+                 > 💰 Ryo (Koin): +{}", thousands_id(amount as f64))
             } else {
                 let amount = roll_excl(1000, 8000);
                 exp_gain = amount;
-                format!(
-                    "📜 *sᴄʀᴏʟʟ ᴅɪʙᴀᴄᴀ!*\n\n> Kamu membuka Gulungan Rahasia Ninja...\n\
-                 > ✨ EXP Ninja: +{}",
-                    thousands_id(amount as f64)
-                )
+                format!("📜 *sᴄʀᴏʟʟ ᴅɪʙᴀᴄᴀ!*\n\n> Kamu membuka Gulungan Rahasia Ninja...\n\
+                 > ✨ EXP Ninja: +{}", thousands_id(amount as f64))
             }
         }
         "common" | "uncommon" | "mythic" | "legendary" => {
@@ -288,10 +273,7 @@ pub fn use_item(ctx: Ctx) -> Reply {
         data.insert("koin".into(), serde_json::json!(koin + koin_gain));
     }
     if exp_gain > 0 {
-        data.insert(
-            "exp".into(),
-            serde_json::json!(exp_gain_only(old_exp, exp_gain)),
-        );
+        data.insert("exp".into(), serde_json::json!(exp_gain_only(old_exp, exp_gain)));
     }
     data.insert("rpg".into(), Value::Object(rpg));
     data.insert("inventory".into(), Value::Object(inv));
@@ -384,10 +366,7 @@ mod tests {
         let r = run(&[], serde_json::json!({}));
         let t = text_of(&r);
         assert!(t.starts_with("🎒 *ᴜsᴇ ɪᴛᴇᴍ*"), "{t}");
-        assert!(
-            t.contains("`.use <nama_item>`") && t.contains("`.inventory`"),
-            "{t}"
-        );
+        assert!(t.contains("`.use <nama_item>`") && t.contains("`.inventory`"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
@@ -411,10 +390,7 @@ mod tests {
         let r = run(&["batu"], bag("batu", 5));
         let t = text_of(&r);
         assert!(t.starts_with("❌ *ɪᴛᴇᴍ ᴛɪᴅᴀᴋ ᴅᴀᴘᴀᴛ ᴅɪɢᴜɴᴀᴋᴀɴ*"), "{t}");
-        assert!(
-            t.contains("Item *batu* tidak bisa digunakan langsung."),
-            "{t}"
-        );
+        assert!(t.contains("Item *batu* tidak bisa digunakan langsung."), "{t}");
         assert!(r.mutations().is_empty());
     }
 
@@ -433,11 +409,7 @@ mod tests {
         // clamp kicked in dan potion tetap dimakan.
         let r = run(&["potion"], weak("potion", 1));
         let d = written(&r);
-        assert_eq!(
-            d["inventory"]["potion"],
-            serde_json::json!(0),
-            "sisa 0 tetap ditulis"
-        );
+        assert_eq!(d["inventory"]["potion"], serde_json::json!(0), "sisa 0 tetap ditulis");
         assert_eq!(d["rpg"]["health"], serde_json::json!(60), "10 + 50 = 60");
 
         let r = run(
@@ -445,11 +417,7 @@ mod tests {
             serde_json::json!({"inventory": {"potion": 2}, "rpg": {"health": 80, "maxHealth": 90}}),
         );
         let d = written(&r);
-        assert_eq!(
-            d["rpg"]["health"],
-            serde_json::json!(90),
-            "80 + 50 -> clamp 90"
-        );
+        assert_eq!(d["rpg"]["health"], serde_json::json!(90), "80 + 50 -> clamp 90");
         assert_eq!(d["inventory"]["potion"], serde_json::json!(1));
     }
 
@@ -492,18 +460,8 @@ mod tests {
         for (item, add) in [("leather", 3), ("kunai", 2), ("shuriken", 2)] {
             let r = run(&[item], bag(item, 1));
             let t = text_of(&r);
-            assert!(
-                t.contains(&format!(
-                    "> ⚔️ Attack bertambah: +{add} (sekarang: {})",
-                    10 + add
-                )),
-                "{item}: {t}"
-            );
-            assert_eq!(
-                written(&r)["rpg"]["attack"],
-                serde_json::json!(10 + add),
-                "{item}"
-            );
+            assert!(t.contains(&format!("> ⚔️ Attack bertambah: +{add} (sekarang: {})", 10 + add)), "{item}: {t}");
+            assert_eq!(written(&r)["rpg"]["attack"], serde_json::json!(10 + add), "{item}");
         }
         // Attack yang sudah ada ditambahkan, bukan ditimpa.
         let r = run(
@@ -588,10 +546,7 @@ mod tests {
                 let r = run(&[crate_key], weak(crate_key, 1));
                 let d = written(&r);
                 let t = text_of(&r);
-                assert!(
-                    t.contains(&format!("Kamu membuka *{crate_key} Crate*!")),
-                    "{t}"
-                );
+                assert!(t.contains(&format!("Kamu membuka *{crate_key} Crate*!")), "{t}");
                 assert_eq!(d["inventory"][crate_key], serde_json::json!(0));
                 let (money, exp) = if crate_key == "legendary" {
                     (1000..101_000, 100..5100)
@@ -600,10 +555,7 @@ mod tests {
                 };
                 let gain_money = d["koin"].as_i64().unwrap();
                 let gain_exp = d["exp"].as_i64().unwrap();
-                assert!(
-                    money.contains(&gain_money),
-                    "{crate_key}: uang {gain_money}"
-                );
+                assert!(money.contains(&gain_money), "{crate_key}: uang {gain_money}");
                 assert!(exp.contains(&gain_exp), "{crate_key}: exp {gain_exp}");
             }
         }
@@ -618,10 +570,7 @@ mod tests {
             let r = run(&["common"], bag("common", 1));
             let d = written(&r);
             let gained = d["exp"].as_i64().unwrap();
-            assert!(
-                d["rpg"].get("level").is_none(),
-                "crate tidak mengisi level: {d}"
-            );
+            assert!(d["rpg"].get("level").is_none(), "crate tidak mengisi level: {d}");
             if gained >= 100 {
                 crossed = true;
             }
@@ -640,11 +589,7 @@ mod tests {
         );
         let inv = written(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["potion"], serde_json::json!(0), "{inv:?}");
-        assert_eq!(
-            inv["herb"],
-            serde_json::json!(9),
-            "barang lain tak boleh gone"
-        );
+        assert_eq!(inv["herb"], serde_json::json!(9), "barang lain tak boleh gone");
     }
 
     #[test]
@@ -653,19 +598,8 @@ mod tests {
         // `rpg` selalu berisi enam field setelah pemakaian item apa pun.
         let r = run(&["leather"], bag("leather", 1));
         let rpg = written(&r)["rpg"].as_object().unwrap().clone();
-        for field in [
-            "health",
-            "maxHealth",
-            "mana",
-            "maxMana",
-            "stamina",
-            "maxStamina",
-        ] {
-            assert_eq!(
-                rpg[field],
-                serde_json::json!(100),
-                "{field} di-backfill ke 100"
-            );
+        for field in ["health", "maxHealth", "mana", "maxMana", "stamina", "maxStamina"] {
+            assert_eq!(rpg[field], serde_json::json!(100), "{field} di-backfill ke 100");
         }
     }
 }

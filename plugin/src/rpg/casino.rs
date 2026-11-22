@@ -76,26 +76,11 @@ pub fn casino(ctx: Ctx) -> Reply {
 
     let (player, bot) = (score(), score());
     let (result, emoji, delta, taunt) = if player > bot {
-        (
-            "MENANG!",
-            "🎉",
-            bet,
-            "\"Cih! Kebetulan doang lu hoki kali ini.\" - *Bandar* 😒",
-        )
+        ("MENANG!", "🎉", bet, "\"Cih! Kebetulan doang lu hoki kali ini.\" - *Bandar* 😒")
     } else if player < bot {
-        (
-            "KALAH TELAK!",
-            "💸",
-            -bet,
-            "\"AHAHA! Udah miskin makin miskin lu! Pulang sana!\" - *Bandar* 😈",
-        )
+        ("KALAH TELAK!", "💸", -bet, "\"AHAHA! Udah miskin makin miskin lu! Pulang sana!\" - *Bandar* 😈")
     } else {
-        (
-            "SERI!",
-            "🤝",
-            0,
-            "\"Hoo... Imbang ya? Boleh juga nyali lu.\" - *Bandar* 👀",
-        )
+        ("SERI!", "🤝", 0, "\"Hoo... Imbang ya? Boleh juga nyali lu.\" - *Bandar* 👀")
     };
     let new_koin = (koin + delta).max(0);
 
@@ -258,20 +243,14 @@ mod tests {
                 assert_eq!(after, 9_000);
                 // `moneyChange > 0 ? "+" : ""` — kalah TIDAK diberi minus.
                 assert!(t.contains("Uang Bandar: *Rp 1.000*"), "{t}");
-                assert!(
-                    !t.contains("*-Rp"),
-                    "tanda minus hanya untuk jumlah positif: {t}"
-                );
+                assert!(!t.contains("*-Rp"), "tanda minus hanya untuk jumlah positif: {t}");
             } else {
                 draw += 1;
                 assert_eq!(after, 10_000, "seri: balik modal");
                 assert!(t.contains("Uang Kembali (Balik Modal)"), "{t}");
             }
         }
-        assert!(
-            win > 0 && loss > 0 && draw > 0,
-            "win={win} loss={loss} draw={draw}"
-        );
+        assert!(win > 0 && loss > 0 && draw > 0, "win={win} loss={loss} draw={draw}");
     }
 
     #[test]

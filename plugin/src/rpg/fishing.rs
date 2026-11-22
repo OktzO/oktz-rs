@@ -17,10 +17,10 @@
 //! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::rpg::heal::{
-    apply_exp, coalesce, inventory_map, or_default, roll_percent, rpg_int, rpg_map,
+    apply_exp, coalesce, inventory_map, or_default, rpg_int, rpg_map, roll_percent,
 };
 
 const STAMINA_COST: i64 = 15;
@@ -110,6 +110,7 @@ pub fn fishing(ctx: Ctx) -> Reply {
     })
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,10 +172,7 @@ mod tests {
         for stamina in [1, 14] {
             let r = run(serde_json::json!({ "rpg": { "stamina": stamina } }));
             let t = text_of(&r);
-            assert!(
-                t.starts_with("Aduh kak, stamina kamu abis"),
-                "stamina {stamina}: {t}"
-            );
+            assert!(t.starts_with("Aduh kak, stamina kamu abis"), "stamina {stamina}: {t}");
             assert!(t.contains(&format!("sisa *{stamina}*")), "{t}");
             assert!(r.mutations().is_empty(), "stamina {stamina}");
         }
@@ -185,10 +183,7 @@ mod tests {
         // `drops.sort((a, b) => a.chance - b.chance)` di JS.
         assert_eq!(DROPS[0], ("whale", 1, "🐳 Paus", 2000));
         assert_eq!(DROPS[5], ("fish", 50, "🐟 Ikan", 100));
-        assert!(
-            DROPS.windows(2).all(|w| w[0].1 < w[1].1),
-            "harus terurut naik"
-        );
+        assert!(DROPS.windows(2).all(|w| w[0].1 < w[1].1), "harus terurut naik");
     }
 
     #[test]
@@ -204,10 +199,7 @@ mod tests {
             let (item, qty) = inv.iter().next().unwrap();
             assert_eq!(*qty, serde_json::json!(1));
             let exp = data["exp"].as_i64().unwrap();
-            let row = DROPS
-                .iter()
-                .find(|(i, ..)| i == item)
-                .expect("item di luar tabel");
+            let row = DROPS.iter().find(|(i, ..)| i == item).expect("item di luar tabel");
             assert_eq!(exp, row.3);
             assert!(t.contains(&format!("*+{exp} EXP*")), "{t}");
             assert_eq!(data["rpg"]["stamina"], serde_json::json!(85));
@@ -226,11 +218,7 @@ mod tests {
             }
             trash = true;
             assert!(text_of(&r).contains("🗑️ Sampah"), "{}", text_of(&r));
-            assert!(
-                text_of(&r).contains("pengalaman buang sampah"),
-                "{}",
-                text_of(&r)
-            );
+            assert!(text_of(&r).contains("pengalaman buang sampah"), "{}", text_of(&r));
             assert_eq!(write_of(&r)["exp"], serde_json::json!(10));
         }
         assert!(trash, "dalam 900 percobaan harus ada sampah");
@@ -258,11 +246,7 @@ mod tests {
             let r = run(serde_json::json!({ "rpg": { "stamina": 0 } }));
             if !text_of(&r).starts_with("Aduh kak, stamina kamu abis") {
                 ran = true;
-                assert_eq!(
-                    write_of(&r)["rpg"]["stamina"],
-                    serde_json::json!(85),
-                    "0 -> 100 -> 85"
-                );
+                assert_eq!(write_of(&r)["rpg"]["stamina"], serde_json::json!(85), "0 -> 100 -> 85");
             }
         }
         assert!(ran, "stamina 0 harus jadi 100");
@@ -271,8 +255,7 @@ mod tests {
     #[test]
     fn an_existing_stack_grows_instead_of_being_replaced() {
         for _ in 0..900 {
-            let r =
-                run(serde_json::json!({ "rpg": { "stamina": 100 }, "inventory": { "fish": 4 } }));
+            let r = run(serde_json::json!({ "rpg": { "stamina": 100 }, "inventory": { "fish": 4 } }));
             let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
             // `user.inventory[item] = (user.inventory[item] || 0) + 1` — tumpukan
             // `fish` bawaan 4 jadi 5 kalau yang tertangkap ikan, kalau tidak ia

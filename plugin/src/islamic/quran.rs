@@ -117,9 +117,7 @@ fn parse_ayat(html: &str) -> Vec<Ayat> {
     let mut hasil = Vec::new();
     let mut i = 0;
     while i < html.len() {
-        let Some(div_pos) = html[i..].find("<div ") else {
-            break;
-        };
+        let Some(div_pos) = html[i..].find("<div ") else { break };
         let abs = i + div_pos;
         // Cari atribut id
         let id_val = match attr_value(&html[abs..], "id") {
@@ -140,9 +138,7 @@ fn parse_ayat(html: &str) -> Vec<Ayat> {
         let after_div = &html[abs..];
         let gt_pos = after_div.find('>').unwrap_or(0);
         let content_start = abs + gt_pos + 1;
-        let div_close = html[content_start..]
-            .find(&div_end_tag)
-            .unwrap_or(html.len() - content_start);
+        let div_close = html[content_start..].find(&div_end_tag).unwrap_or(html.len() - content_start);
         let div_html = &html[content_start..content_start + div_close];
 
         let arab = tag_text_by_attr(div_html, "span", "dir", "rtl").unwrap_or_default();
@@ -150,12 +146,7 @@ fn parse_ayat(html: &str) -> Vec<Ayat> {
         let arti = tag_text_by_class(div_html, "text-neutral-700").unwrap_or_default();
 
         if !arab.is_empty() && !latin.is_empty() && !arti.is_empty() {
-            hasil.push(Ayat {
-                ayat: ayat_num,
-                arab,
-                latin,
-                arti,
-            });
+            hasil.push(Ayat { ayat: ayat_num, arab, latin, arti });
         }
         i = content_start + div_close;
     }
@@ -173,7 +164,9 @@ fn tag_text_by_class(html: &str, kelas: &str) -> Option<String> {
             let content_start = abs + pola.len() + 1;
             // Cari tag penutup — cari tag pembuka yang sama sebelum konten
             let tag_start = html[..abs].rfind('<').unwrap_or(abs);
-            let tag_name_end = html[tag_start + 1..].find([' ', '>']).unwrap_or(0);
+            let tag_name_end = html[tag_start + 1..]
+                .find([' ', '>'])
+                .unwrap_or(0);
             let tag_name = &html[tag_start + 1..tag_start + 1 + tag_name_end];
             let close = format!("</{tag_name}>");
             if let Some(cs) = html[content_start..].find(&close) {

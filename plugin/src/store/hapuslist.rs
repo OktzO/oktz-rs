@@ -5,8 +5,7 @@ use serde_json::Value;
 
 use crate::store::listproduk::index_arg;
 
-const EMPTY: &str =
-    "📭 *Belum ada informasi.*\n\nTambahkan informasi terlebih dahulu: `{PREFIX}addlist` ➕";
+const EMPTY: &str = "📭 *Belum ada informasi.*\n\nTambahkan informasi terlebih dahulu: `{PREFIX}addlist` ➕";
 
 #[plugin(
     name = "hapuslist",
@@ -29,14 +28,10 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
 
     // Tanpa nomor valid → tampilkan daftar pilihan (`hapuslist.js:36-44`).
     let Some(idx) = index_arg(&ctx, lists.len()) else {
-        let mut txt = String::from(
-            "🗑️ *Pilih Informasi yang Dihapus*\n\nKetik `{PREFIX}hapuslist <nomor>`\n\n",
-        );
+        let mut txt =
+            String::from("🗑️ *Pilih Informasi yang Dihapus*\n\nKetik `{PREFIX}hapuslist <nomor>`\n\n");
         for (i, l) in lists.iter().enumerate() {
-            let icon = match (
-                l.get("image").is_some_and(|v| !v.is_null()),
-                l.get("video").is_some_and(|v| !v.is_null()),
-            ) {
+            let icon = match (l.get("image").is_some_and(|v| !v.is_null()), l.get("video").is_some_and(|v| !v.is_null())) {
                 (true, _) => "🖼️",
                 (_, true) => "🎬",
                 _ => "📝",
@@ -173,11 +168,7 @@ mod tests {
         let after = stored(&r);
         assert_eq!(after.len(), 2);
         assert_eq!(after[0]["name"].as_str(), Some("A"));
-        assert_eq!(
-            after[1]["name"].as_str(),
-            Some("C"),
-            "index 1 (nomor 2) dihapus"
-        );
+        assert_eq!(after[1]["name"].as_str(), Some("C"), "index 1 (nomor 2) dihapus");
         assert!(text_of(&r).contains("Nama: *B*"));
         // JS: `await m.react('✅')` — reaksi, bukan teks (hapuslist.js:56).
         // Assert emoji di `Reply::Reaction`, bukan di teks balasan.

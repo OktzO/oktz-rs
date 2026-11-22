@@ -67,8 +67,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-                    timestamp: 0,
-                })
+            timestamp: 0,
+        })
             } else {
                 None
             },

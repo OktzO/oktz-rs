@@ -148,10 +148,7 @@ mod tests {
 
     #[test]
     fn sock_failure_carries_the_error_message() {
-        let sock = Arc::new(SockUji {
-            dihapus: Mutex::new(Vec::new()),
-            gagal: true,
-        });
+        let sock = Arc::new(SockUji { dihapus: Mutex::new(Vec::new()), gagal: true });
         assert_eq!(run_with(sock), gagal("IQ gagal: timeout"));
     }
 

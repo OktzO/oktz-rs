@@ -13,7 +13,9 @@ Keep the original identity and details, high quality, photorealistic.";
 
 /// Kartu pakai saat tidak ada gambar (`tocermin.js:26-33`).
 pub(crate) fn help(prefix: &str) -> String {
-    format!("🪞 *ᴛᴏ ᴄᴇʀᴍɪɴ*\n\n> Kirim/reply gambar untuk efek cermin\n\n`{prefix}tocermin`")
+    format!(
+        "🪞 *ᴛᴏ ᴄᴇʀᴍɪɴ*\n\n> Kirim/reply gambar untuk efek cermin\n\n`{prefix}tocermin`"
+    )
 }
 
 /// `m.quoted.download()` didahulukan, lalu `m.download()` — urutan JS.
@@ -112,8 +114,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             media_fetch: Arc::new(MediaStub(unduh)),
             http,
             ..Ctx::default()
@@ -168,12 +170,7 @@ mod tests {
     fn sukses_mengirim_gambar_hasil_provider() {
         let gambar = b" CERMIN";
         let http = HttpRangkaian::urutan(alur_live3d(gambar));
-        let r = tocermin(ctx_of(
-            http.clone(),
-            Some(IncomingKind::Image),
-            false,
-            Ok(vec![1, 2]),
-        ));
+        let r = tocermin(ctx_of(http.clone(), Some(IncomingKind::Image), false, Ok(vec![1, 2])));
         assert_eq!(reaksi(&r), ["🕕", "✅"]);
         assert!(r.has_media());
         assert_eq!(http.terlihat().len(), 5);

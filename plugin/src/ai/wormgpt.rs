@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(
             seen[0],
             // `encodeURIComponent` mengubah tiap spasi jadi `%20` (`stalker-fallback.js:298`).
-            format!("{ENDPOINT}?text=perkenalkan%20dirimu")
+        format!("{ENDPOINT}?text=perkenalkan%20dirimu")
         );
         assert!(!seen[0].starts_with("https://api.cuki.biz.id"));
     }
@@ -231,11 +231,7 @@ mod tests {
             r#"bukan json"#,
         ] {
             let r = run(Stub::ok(payload), "pertanyaan");
-            assert_eq!(
-                body(&r),
-                crate::common::error_template_bawaan(".", "wormgpt"),
-                "{payload}"
-            );
+            assert_eq!(body(&r), crate::common::error_template_bawaan(".", "wormgpt"), "{payload}");
             assert_eq!(emoji(&r), "☢");
         }
     }
@@ -243,10 +239,7 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "pertanyaan");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "wormgpt")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "wormgpt"));
         assert_eq!(emoji(&r), "☢");
     }
 }

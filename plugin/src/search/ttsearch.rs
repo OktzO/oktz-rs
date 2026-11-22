@@ -44,7 +44,9 @@ pub(crate) fn caption(video: &Value) -> String {
         .and_then(|s| s.get("likes"))
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    format!("🎵 *TIKTOK SEARCH*\n\n📌 {judul}\n👤 {nickname}\n👀 {plays} views\n❤️ {likes} likes")
+    format!(
+        "🎵 *TIKTOK SEARCH*\n\n📌 {judul}\n👤 {nickname}\n👀 {plays} views\n❤️ {likes} likes"
+    )
 }
 
 #[plugin(
@@ -92,7 +94,10 @@ pub fn ttsearch(ctx: Ctx) -> Reply {
             if link.is_empty() {
                 return None;
             }
-            Some(Reply::video(MediaSource::url(link.to_string()), caption(v)))
+            Some(Reply::video(
+                MediaSource::url(link.to_string()),
+                caption(v),
+            ))
         })
         .collect();
 
@@ -220,10 +225,7 @@ mod tests {
             "╭┈┈⬡「 🎵 *ᴛɪᴋᴛᴏᴋ sᴇᴀʀᴄʜ* 」\n┃\n㊗ ᴅsᴀɢᴇ: `.ttsearch <query>`\n┃\n╰┈┈⬡\n\n> `Contoh: .ttsearch anime`"
         );
         // `ttsearch.js:47` — tidak ditemukan.
-        assert_eq!(
-            tidak_ditemukan("anime"),
-            "❌ Tidak ditemukan video untuk: anime"
-        );
+        assert_eq!(tidak_ditemukan("anime"), "❌ Tidak ditemukan video untuk: anime");
         // `ttsearch.js:54-59` — caption.
         let v = serde_json::json!({
             "title": "Video A",
@@ -252,7 +254,10 @@ mod tests {
 
     #[test]
     fn hasil_kosong_menampilkan_pesan_tidak_ditemukan() {
-        let r = run(Stub::body(r#"{"status":true,"result":[]}"#), "anime");
+        let r = run(
+            Stub::body(r#"{"status":true,"result":[]}"#),
+            "anime",
+        );
         assert_eq!(text_of(&r), "❌ Tidak ditemukan video untuk: anime");
         assert_eq!(reaction_of(&r), Some("❌"));
     }

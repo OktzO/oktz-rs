@@ -115,18 +115,13 @@ pub fn ffstalk(ctx: Ctx) -> Reply {
     };
     let data = res.json().unwrap_or(Value::Null);
 
-    if !crate::common::js_truthy(data.get("status"))
-        || !crate::common::js_truthy(data.get("result"))
-    {
+    if !crate::common::js_truthy(data.get("status")) || !crate::common::js_truthy(data.get("result")) {
         return Reply::text(gagal(&uid)).with_reaction("❌");
     }
 
     let r = data.get("result").unwrap();
     let mut caption = "🔥 *FREE FIRE STALK - PROFILE INFO* 🔥\n\n".to_string();
-    caption.push_str(&format!(
-        "Halo! Ini dia hasil pencarian profil untuk UID *{}*:\n\n",
-        js_str(&r["uid"])
-    ));
+    caption.push_str(&format!("Halo! Ini dia hasil pencarian profil untuk UID *{}*:\n\n", js_str(&r["uid"])));
     caption.push_str("👤 *INFO DASAR*\n");
     caption.push_str(&format!("  - Nama: *{}*\n", dash(&r["name"])));
     caption.push_str(&format!(
@@ -152,10 +147,7 @@ pub fn ffstalk(ctx: Ctx) -> Reply {
     ));
     caption.push_str(&format!("  - Season ID: {}\n", dash(&r["season_id"])));
     caption.push_str(&format!("  - Akun Dibuat: {}\n", dash(&r["created_at"])));
-    caption.push_str(&format!(
-        "  - Terakhir Login: {}\n\n",
-        dash(&r["last_login"])
-    ));
+    caption.push_str(&format!("  - Terakhir Login: {}\n\n", dash(&r["last_login"])));
 
     caption.push_str("🛡️ *GUILD INFO*\n");
     let gname = guild_name(r.get("guild_name"));
@@ -181,10 +173,7 @@ pub fn ffstalk(ctx: Ctx) -> Reply {
 
     caption.push_str("🔧 *LAINNYA*\n");
     caption.push_str(&format!("  - Bahasa: {}\n", lang(r.get("language"))));
-    caption.push_str(&format!(
-        "  - Mode Favorit: {}\n\n",
-        mode_prefer(r.get("mode_prefer"))
-    ));
+    caption.push_str(&format!("  - Mode Favorit: {}\n\n", mode_prefer(r.get("mode_prefer"))));
 
     caption.push_str("Keren banget kan profilnya? Bagikan ke temanmu yuk! 🚀");
 
@@ -324,7 +313,10 @@ mod tests {
         let http = Stub::body(serde_json::json!({ "status": false }));
         let _ = run(http.clone(), "470699855");
         let seen = http.seen.lock().unwrap();
-        assert_eq!(seen.as_slice(), &[format!("{API}?uid=470699855")]);
+        assert_eq!(
+            seen.as_slice(),
+            &[format!("{API}?uid=470699855")]
+        );
     }
 
     #[test]

@@ -38,11 +38,7 @@ fn preset_label(delay: i64) -> Option<&'static str> {
 }
 
 fn mode_desc(mode: &str) -> &'static str {
-    MODES
-        .iter()
-        .find(|(n, _)| *n == mode)
-        .map(|(_, d)| *d)
-        .unwrap_or("")
+    MODES.iter().find(|(n, _)| *n == mode).map(|(_, d)| *d).unwrap_or("")
 }
 
 pub(crate) const BAD_SUBCMD: &str = "❌ Gunakan *.slowmode on 30* atau *.slowmode onlycommand 30*";
@@ -154,9 +150,7 @@ pub fn slowmode(ctx: Ctx) -> Reply {
         return Reply::text(BAD_DELAY);
     }
 
-    let label = preset_label(delay)
-        .map(|p| format!(" ({p})"))
-        .unwrap_or_default();
+    let label = preset_label(delay).map(|p| format!(" ({p})")).unwrap_or_default();
     Reply::text(format!(
         "✅ Slowmode *aktif*\n\n\
          Delay: *{delay} detik*{label}\n\
@@ -176,6 +170,7 @@ pub fn slowmode(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+
 
     fn run(group: Value, args: &[&str]) -> Reply {
         let ctx = Ctx {
@@ -212,10 +207,7 @@ mod tests {
         assert_eq!(p.meta.name, "slowmode");
         assert_eq!(p.meta.alias, ["slow", "setslowmode"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(
-            p.meta.description,
-            "Slowmode grup — batasi kecepatan pesan member"
-        );
+        assert_eq!(p.meta.description, "Slowmode grup — batasi kecepatan pesan member");
         assert_eq!(p.meta.usage, ".slowmode <on/off/onlycommand> [detik]");
         assert_eq!(p.meta.example, ".slowmode on 30");
         assert_eq!(p.meta.cooldown, 5);
@@ -234,24 +226,15 @@ mod tests {
     fn the_status_branch_lists_every_preset_in_js_order() {
         let r = run(serde_json::json!({}), &[]);
         let t = text_of(&r);
-        assert!(
-            t.starts_with("🐢 *SLOWMODE*\n\nStatus: ❌ OFF\nMode: *all*"),
-            "{t}"
-        );
+        assert!(t.starts_with("🐢 *SLOWMODE*\n\nStatus: ❌ OFF\nMode: *all*"), "{t}");
         for (name, sec) in PRESETS {
-            assert!(
-                t.contains(&format!("  *.slowmode {name}* — {sec}s\n")),
-                "preset {name} hilang: {t}"
-            );
+            assert!(t.contains(&format!("  *.slowmode {name}* — {sec}s\n")), "preset {name} hilang: {t}");
         }
         let order: Vec<usize> = PRESETS
             .iter()
             .map(|(n, _)| t.find(&format!("*.slowmode {n}*")).expect("ada"))
             .collect();
-        assert!(
-            order.windows(2).all(|w| w[0] < w[1]),
-            "urutan preset: {order:?}"
-        );
+        assert!(order.windows(2).all(|w| w[0] < w[1]), "urutan preset: {order:?}");
         assert!(r.mutations().is_empty());
     }
 
@@ -266,10 +249,7 @@ mod tests {
 
     #[test]
     fn a_stored_configuration_is_reported_verbatim() {
-        let r = run(
-            serde_json::json!({"slowmode": {"enabled": true, "delay": 45, "mode": "onlycommand"}}),
-            &[],
-        );
+        let r = run(serde_json::json!({"slowmode": {"enabled": true, "delay": 45, "mode": "onlycommand"}}), &[]);
         let t = text_of(&r);
         assert!(t.contains("Status: ✅ ON (45s)"), "{t}");
         assert!(t.contains("Mode: *onlycommand*"), "{t}");
@@ -278,20 +258,13 @@ mod tests {
     #[test]
     fn a_missing_delay_or_mode_falls_back_to_thirty_and_all() {
         let r = run(serde_json::json!({"slowmode": {"enabled": true}}), &[]);
-        assert!(
-            text_of(&r).contains("Status: ✅ ON (30s)"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("Status: ✅ ON (30s)"), "{}", text_of(&r));
         assert!(text_of(&r).contains("Mode: *all*"), "{}", text_of(&r));
     }
 
     #[test]
     fn off_disables_without_touching_delay_or_mode() {
-        let r = run(
-            serde_json::json!({"slowmode": {"enabled": true, "delay": 45}}),
-            &["off"],
-        );
+        let r = run(serde_json::json!({"slowmode": {"enabled": true, "delay": 45}}), &["off"]);
         assert_eq!(text_of(&r), "✅ Slowmode *dinonaktifkan*");
         assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": false}));
     }
@@ -299,20 +272,9 @@ mod tests {
     #[test]
     fn on_takes_the_delay_from_the_second_argument() {
         let r = run(serde_json::json!({}), &["on", "30"]);
-        assert_eq!(
-            slowmode_write(&r),
-            serde_json::json!({"enabled": true, "delay": 30, "mode": "all"})
-        );
-        assert!(
-            text_of(&r).contains("Delay: *30 detik* (normal)"),
-            "{}",
-            text_of(&r)
-        );
-        assert!(
-            text_of(&r).contains("Semua pesan + command dihapus"),
-            "{}",
-            text_of(&r)
-        );
+        assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 30, "mode": "all"}));
+        assert!(text_of(&r).contains("Delay: *30 detik* (normal)"), "{}", text_of(&r));
+        assert!(text_of(&r).contains("Semua pesan + command dihapus"), "{}", text_of(&r));
     }
 
     #[test]
@@ -337,10 +299,7 @@ mod tests {
     #[test]
     fn a_bare_number_is_accepted_as_the_delay() {
         let r = run(serde_json::json!({}), &["90"]);
-        assert_eq!(
-            slowmode_write(&r),
-            serde_json::json!({"enabled": true, "delay": 90, "mode": "all"})
-        );
+        assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 90, "mode": "all"}));
         assert!(
             text_of(&r).contains("Delay: *90 detik*\n"),
             "delay tanpa preset tidak boleh dapat label: {}",
@@ -351,28 +310,14 @@ mod tests {
     #[test]
     fn a_preset_subcommand_can_also_switch_the_mode() {
         let r = run(serde_json::json!({}), &["ketat", "onlycommand"]);
-        assert_eq!(
-            slowmode_write(&r),
-            serde_json::json!({"enabled": true, "delay": 60, "mode": "onlycommand"})
-        );
-        assert!(
-            text_of(&r).contains("Delay: *60 detik* (ketat)"),
-            "{}",
-            text_of(&r)
-        );
+        assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 60, "mode": "onlycommand"}));
+        assert!(text_of(&r).contains("Delay: *60 detik* (ketat)"), "{}", text_of(&r));
 
         let r = run(serde_json::json!({}), &["santai", "oc"]);
-        assert_eq!(
-            slowmode_write(&r),
-            serde_json::json!({"enabled": true, "delay": 10, "mode": "onlycommand"})
-        );
+        assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 10, "mode": "onlycommand"}));
 
         let r = run(serde_json::json!({}), &["santai", "ngapain"]);
-        assert_eq!(
-            slowmode_write(&r)["mode"],
-            serde_json::json!("all"),
-            "bukan mode yang dikenal -> all"
-        );
+        assert_eq!(slowmode_write(&r)["mode"], serde_json::json!("all"), "bukan mode yang dikenal -> all");
     }
 
     #[test]
@@ -391,11 +336,7 @@ mod tests {
         }
         for d in [5, 600] {
             let r = run(serde_json::json!({}), &["on", &d.to_string()]);
-            assert_eq!(
-                slowmode_write(&r)["delay"],
-                serde_json::json!(d),
-                "batas {d} harus boleh"
-            );
+            assert_eq!(slowmode_write(&r)["delay"], serde_json::json!(d), "batas {d} harus boleh");
         }
     }
 
@@ -404,11 +345,7 @@ mod tests {
         // `parseInt('0') || 30` — bukan error.
         for args in [&["on", "0"][..], &["0"][..]] {
             let r = run(serde_json::json!({}), args);
-            assert_eq!(
-                slowmode_write(&r)["delay"],
-                serde_json::json!(30),
-                "args {args:?}"
-            );
+            assert_eq!(slowmode_write(&r)["delay"], serde_json::json!(30), "args {args:?}");
         }
     }
 
@@ -426,9 +363,6 @@ mod tests {
         // `set` bukan alias yang terdaftar, tapi tubuh JS memperlakukannya
         // sama dengan `on`.
         let r = run(serde_json::json!({}), &["set", "20"]);
-        assert_eq!(
-            slowmode_write(&r),
-            serde_json::json!({"enabled": true, "delay": 20, "mode": "all"})
-        );
+        assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 20, "mode": "all"}));
     }
 }

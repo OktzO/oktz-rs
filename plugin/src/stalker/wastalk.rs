@@ -304,10 +304,7 @@ pub fn wastalk(ctx: Ctx) -> Reply {
                         .map(|(k, ..)| k.len())
                 })
                 .unwrap_or(0);
-            (
-                nama.to_uppercase(),
-                format_international(&digits, prefix_len),
-            )
+            (nama.to_uppercase(), format_international(&digits, prefix_len))
         }
         None => ("UNKNOWN".to_string(), number.clone()),
     };
@@ -430,7 +427,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Ok(self.bisnis.clone())
         }
-
+    
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -460,11 +457,7 @@ mod tests {
 
     fn caption_of(r: Reply) -> (String, MediaSource, Vec<String>) {
         match r {
-            Reply::Image {
-                media,
-                caption,
-                mentions,
-            } => (caption, media.unwrap(), mentions),
+            Reply::Image { media, caption, mentions } => (caption, media.unwrap(), mentions),
             other => panic!("harus Image, dapat {other:?}"),
         }
     }
@@ -494,13 +487,7 @@ mod tests {
 
     #[test]
     fn nomor_tidak_terdaftar_ditolak() {
-        let r = run(
-            SockStub {
-                ada: false,
-                ..Default::default()
-            },
-            "628222",
-        );
+        let r = run(SockStub { ada: false, ..Default::default() }, "628222");
         assert_eq!(r.text_body().unwrap(), "❌ User not exists on WhatsApp");
     }
 
@@ -516,18 +503,12 @@ mod tests {
         let (caption, media, mentions) = caption_of(run(sock, "628222"));
         assert!(caption.contains("*° Country :* INDONESIA"), "{caption}");
         assert!(caption.contains("*° Name :* Budi"), "{caption}");
-        assert!(
-            caption.contains("*° Format Number :* +62 822 2"),
-            "{caption}"
-        );
+        assert!(caption.contains("*° Format Number :* +62 822 2"), "{caption}");
         assert!(caption.contains("*° Url Api :* wa.me/628222"), "{caption}");
         assert!(caption.contains("*° Mentions :* @628222"), "{caption}");
         assert!(caption.contains("*° Status :* Hidup"), "{caption}");
         assert!(caption.contains("*° Date Status :* "), "{caption}");
-        assert!(
-            caption.ends_with("*Standard WhatsApp Account*"),
-            "{caption}"
-        );
+        assert!(caption.ends_with("*Standard WhatsApp Account*"), "{caption}");
         assert!(caption.starts_with("\t\t\t\t*▾ WHATSAPP ▾*"), "{caption}");
         match media {
             MediaSource::Url { url, .. } => assert_eq!(url, "https://pp.example/foto.jpg"),
@@ -575,16 +556,10 @@ mod tests {
         let (caption, _, _) = caption_of(run(sock, "628222"));
         assert!(caption.contains("*▾ INFO BUSINESS ▾*"), "{caption}");
         assert!(caption.contains("*° BusinessId :* 628222@biz"), "{caption}");
-        assert!(
-            caption.contains("*° Website :* https://toko.id"),
-            "{caption}"
-        );
+        assert!(caption.contains("*° Website :* https://toko.id"), "{caption}");
         assert!(caption.contains("*° Category :* Retail"), "{caption}");
         assert!(caption.contains("*° Timezone :* Asia/Jakarta"), "{caption}");
-        assert!(
-            caption.contains("*° Description :* Jual aneka"),
-            "{caption}"
-        );
+        assert!(caption.contains("*° Description :* Jual aneka"), "{caption}");
     }
 
     #[test]
@@ -605,16 +580,13 @@ mod tests {
     #[test]
     fn negara_dari_digits_longest_prefix() {
         assert_eq!(negara_dari_digits("628123"), Some(("ID", "Indonesia")));
-        assert_eq!(
-            negara_dari_digits("12125550123"),
-            Some(("US", "United States"))
-        );
+        assert_eq!(negara_dari_digits("12125550123"), Some(("US", "United States")));
         // 4 digit Karibia menang atas prefix 1.
-        assert_eq!(negara_dari_digits("12425551234"), Some(("US", "Bahamas")));
         assert_eq!(
-            negara_dari_digits("447911123456"),
-            Some(("GB", "United Kingdom"))
+            negara_dari_digits("12425551234"),
+            Some(("US", "Bahamas"))
         );
+        assert_eq!(negara_dari_digits("447911123456"), Some(("GB", "United Kingdom")));
         assert_eq!(negara_dari_digits("999123"), None);
     }
 

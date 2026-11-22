@@ -92,7 +92,8 @@ mod tests {
         };
 
         let r = sc(ctx);
-        let Reply::Interactive { kartu } = r.without_mutations() else {
+        let Reply::Interactive { kartu } = r.without_mutations()
+        else {
             panic!("harus kartu interaktif");
         };
         let isi = &kartu.body;
@@ -101,10 +102,7 @@ mod tests {
         assert!(isi.starts_with("🌾 Halo kak *Zann*"));
         assert_eq!(footer.as_deref(), Some("Oktz Bot — Oktz-MD"));
         assert_eq!(buttons[0].name, "cta_url");
-        assert_eq!(
-            buttons[0].params["display_text"],
-            "🥐 Kunjungi GitHub OktzO"
-        );
+        assert_eq!(buttons[0].params["display_text"], "🥐 Kunjungi GitHub OktzO");
         assert_eq!(buttons[0].params["url"], REPO_URL);
         assert_eq!(buttons[0].params["merchant_url"], REPO_URL);
     }

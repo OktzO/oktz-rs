@@ -207,11 +207,7 @@ mod tests {
     #[test]
     fn an_input_with_at_least_one_digit_goes_to_http() {
         let r = run_with(Arc::new(NoHttp), &["+62-81"]);
-        assert!(
-            reply_text(&r).starts_with("☢ Ehhh~ command "),
-            "{}",
-            reply_text(&r)
-        );
+        assert!(reply_text(&r).starts_with("☢ Ehhh~ command "), "{}", reply_text(&r));
     }
 
     /// Argumen digabung tanpa spasi, lalu semua non-digit dibuang.
@@ -264,12 +260,7 @@ mod tests {
     /// (`0`, `""`, `null`, field hilang) semuanya memilih TIDAK HOKI.
     #[test]
     fn a_falsy_analysis_status_prints_tidak_hoki() {
-        for status in [
-            serde_json::json!(false),
-            serde_json::json!(0),
-            serde_json::json!(""),
-            serde_json::json!(null),
-        ] {
+        for status in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
             let r = run_with(
                 Arc::new(Stub(payload_with_status(status.clone()))),
                 &["628123"],
@@ -280,10 +271,7 @@ mod tests {
             );
         }
         // `status` bernilai objek kosong: `{}` falsy di JS, jadi bukan HOKI.
-        let r = run_with(
-            Arc::new(Stub(payload_with_status(serde_json::json!({})))),
-            &["628123"],
-        );
+        let r = run_with(Arc::new(Stub(payload_with_status(serde_json::json!({})))), &["628123"]);
         let t = reply_text(&r);
         assert!(
             t.ends_with("> Status: ❌ TIDAK HOKI"),
@@ -316,13 +304,12 @@ mod tests {
 
     #[test]
     fn a_falsy_top_level_status_or_data_gives_the_failure_message() {
-        for body in [
-            serde_json::json!({ "data": {} }),
-            serde_json::json!({ "status": true }),
-            serde_json::json!({}),
-        ] {
+        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({})] {
             let r = run_with(Arc::new(Stub(body)), &["628123"]);
-            assert_eq!(reply_text(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal menganalisa nomor");
+            assert_eq!(
+                reply_text(&r),
+                "❌ *ɢᴀɢᴀʟ*\n\n> Gagal menganalisa nomor"
+            );
         }
     }
 

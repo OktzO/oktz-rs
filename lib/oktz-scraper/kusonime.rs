@@ -87,14 +87,11 @@ fn metadata(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 
     // `.post-thumb img.wp-post-image` — `wp-post-image` menempel pada `img`
     // yang sama, bukan elemen di bawahnya; `attr('src') || ''`.
-    let poster = rantai(
-        &doc,
-        &[&kelas("post-thumb"), &tag_kelas("img", "wp-post-image")],
-    )
-    .first()
-    .and_then(|n| n.atribut("src"))
-    .filter(|s| !s.is_empty())
-    .unwrap_or_default();
+    let poster = rantai(&doc, &[&kelas("post-thumb"), &tag_kelas("img", "wp-post-image")])
+        .first()
+        .and_then(|n| n.atribut("src"))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default();
     met.insert("poster_url".to_string(), json!(poster));
 
     // `$('.info p').each(...)` — urutan penyisipan kunci mengikuti dokumen.
@@ -170,7 +167,10 @@ fn metadata(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 /// yang badannya identik (`kusonime.js:16-43`).
 fn daftar_kover(doc: &Node) -> Value {
     let mut hasil = Vec::new();
-    let kover = rantai_anak(doc, &[&kelas("venz"), &tag_el("ul"), &kelas("kover")]);
+    let kover = rantai_anak(
+        doc,
+        &[&kelas("venz"), &tag_el("ul"), &kelas("kover")],
+    );
     for kartu in kover {
         let tautan_judul = rantai(kartu, &[&kelas("content"), &tag_el("h2"), &tag_el("a")]);
         let gambar = rantai(kartu, &[&kelas("thumb"), &tag_el("img")]);
@@ -286,17 +286,10 @@ fn spasi_jadi_underscore(s: &str) -> String {
 /// `konachan.rs`, belum ada di `common.rs`.
 fn trim_js(s: &str) -> &str {
     s.trim_matches(|c: char| {
-        matches!(
-            c,
-            '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
-                ..='\u{200A}'
-                    | '\u{2028}'
-                    | '\u{2029}'
-                    | '\u{202F}'
-                    | '\u{205F}'
-                    | '\u{3000}'
-                    | '\u{FEFF}'
-        )
+        matches!(c,
+            '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}'
+            | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}'
+            | '\u{3000}' | '\u{FEFF}')
     })
 }
 
@@ -442,10 +435,7 @@ fn urai(html: &str) -> Node {
             continue;
         }
         if html[mulai..].starts_with("<!") {
-            i = html[mulai..]
-                .find('>')
-                .map(|p| mulai + p + 1)
-                .unwrap_or(html.len());
+            i = html[mulai..].find('>').map(|p| mulai + p + 1).unwrap_or(html.len());
             teks_akhir = i;
             continue;
         }
@@ -532,7 +522,10 @@ fn turun<'a>(n: &'a Node, cocok: &(dyn Fn(&Node) -> bool + 'static)) -> Vec<&'a 
 }
 
 /// Rantai selektor descendant — `a b c` berarti `c` di dalam `b` di dalam `a`.
-fn rantai<'a>(mulai: &'a Node, langkah: &[&(dyn Fn(&Node) -> bool + 'static)]) -> Vec<&'a Node> {
+fn rantai<'a>(
+    mulai: &'a Node,
+    langkah: &[&(dyn Fn(&Node) -> bool + 'static)],
+) -> Vec<&'a Node> {
     let mut sekarang: Vec<&'a Node> = vec![mulai];
     for l in langkah {
         let mut berikut: Vec<&'a Node> = Vec::new();
@@ -695,10 +688,7 @@ mod tests {
         let urls = http.urls.lock().unwrap();
         // Spasi jadi `%20`, bukan `+`.
         assert_eq!(urls[0], "https://kusonime.com/page/2/?s=one%20piece");
-        assert_eq!(
-            urls[1],
-            "https://kusonime.com/genres/action%20%26%20isekai/page/3"
-        );
+        assert_eq!(urls[1], "https://kusonime.com/genres/action%20%26%20isekai/page/3");
     }
 
     #[test]
@@ -783,20 +773,10 @@ mod tests {
         assert_eq!(unduhan.len(), 1);
         assert_eq!(unduhan[0]["title"], "Episode 1");
         let res = &unduhan[0]["resolutions"];
-        assert_eq!(
-            res["360P"],
-            json!([{ "provider": "Pixeldrain", "url": "https://a/360" }])
-        );
-        assert_eq!(
-            res["720p HD"],
-            json!([{ "provider": "Mega", "url": "https://a/720" }])
-        );
+        assert_eq!(res["360P"], json!([{ "provider": "Pixeldrain", "url": "https://a/360" }]));
+        assert_eq!(res["720p HD"], json!([{ "provider": "Mega", "url": "https://a/720" }]));
         assert_eq!(res.get("HD"), None, "resolusi tanpa angka 3-4 digit");
-        assert_eq!(
-            res.get("1080P"),
-            None,
-            "provider kosong membuat link dibuang"
-        );
+        assert_eq!(res.get("1080P"), None, "provider kosong membuat link dibuang");
         // `href` non-http juga dibuang walau provider ada.
         let res_polos = &unduhan[0]["resolutions"];
         assert_eq!(res_polos["360P"].as_array().unwrap().len(), 1);

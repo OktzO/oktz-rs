@@ -58,10 +58,7 @@ mod tests {
         assert_eq!(p.meta.name, "ganti-winner.jpg");
         assert_eq!(p.meta.alias, ["gantiwinner", "setwinner"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(
-            p.meta.description,
-            "Ganti gambar winner.jpg (thumbnail game winner)"
-        );
+        assert_eq!(p.meta.description, "Ganti gambar winner.jpg (thumbnail game winner)");
         assert_eq!(p.meta.usage, ".ganti-winner.jpg (reply/kirim gambar)");
         assert_eq!(p.meta.example, ".ganti-winner.jpg");
         assert_eq!(p.meta.cooldown, 5);
@@ -135,7 +132,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
+            timestamp: 0,
             }),
             media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
             ..Ctx::default()

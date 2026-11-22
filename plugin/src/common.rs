@@ -14,16 +14,16 @@ macro_rules! data_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
      $example:literal, $data:expr) => {
         #[plugin(
-                                                                    name = $name,
-                                                                    alias = $alias,
-                                                                    category = "fun",
-                                                                    description = $desc,
-                                                                    usage = $usage,
-                                                                    example = $example,
-                                                                    cooldown = 3,
-                                                                    energi = 0,
-                                                                    is_private = false
-                                                                )]
+                    name = $name,
+                    alias = $alias,
+                    category = "fun",
+                    description = $desc,
+                    usage = $usage,
+                    example = $example,
+                    cooldown = 3,
+                    energi = 0,
+                    is_private = false
+                )]
         pub fn $fn_name(_ctx: Ctx) -> Reply {
             data_reply(&$data)
         }
@@ -36,16 +36,16 @@ macro_rules! tanya_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
      $example:literal, $answers:ident, $help:expr) => {
         #[plugin(
-                                                                    name = $name,
-                                                                    alias = $alias,
-                                                                    category = "fun",
-                                                                    description = $desc,
-                                                                    usage = $usage,
-                                                                    example = $example,
-                                                                    cooldown = 3,
-                                                                    energi = 0,
-                                                                    is_private = false
-                                                                )]
+                    name = $name,
+                    alias = $alias,
+                    category = "fun",
+                    description = $desc,
+                    usage = $usage,
+                    example = $example,
+                    cooldown = 3,
+                    energi = 0,
+                    is_private = false
+                )]
         pub fn $fn_name(ctx: Ctx) -> Reply {
             tanya_reply(&ctx, &$answers, $help)
         }
@@ -255,9 +255,7 @@ pub(crate) fn user_target(ctx: &Ctx) -> UserTarget {
 /// `Number.isFinite(user[k] ?? default)` → i64. Field yang bukan angka dibaca
 /// sebagai `0` kalau ada, sama seperti `|| 0` di JS untuk `NaN`/`undefined`.
 pub(crate) fn int_field(user: &Ctx, key: &str) -> i64 {
-    user.user_field(key)
-        .and_then(serde_json::Value::as_i64)
-        .unwrap_or(0)
+    user.user_field(key).and_then(serde_json::Value::as_i64).unwrap_or(0)
 }
 
 /// `arr || []` lalu dirender `${el}` per baris. String apa adanya; nilai lain
@@ -274,9 +272,7 @@ pub(crate) fn joined_strings(list: &[serde_json::Value]) -> Vec<String> {
 /// `Object.entries(map).filter(([, v]) => v.length > 0)` untuk peta roster-ish
 /// milik grup (`warnings`, `chatStats`). Urutan = urutan dokumen, sama seperti
 /// `Object.entries` untuk key string.
-pub(crate) fn non_empty_map_entries(
-    value: Option<&serde_json::Value>,
-) -> Vec<(String, serde_json::Value)> {
+pub(crate) fn non_empty_map_entries(value: Option<&serde_json::Value>) -> Vec<(String, serde_json::Value)> {
     value
         .and_then(serde_json::Value::as_object)
         .map(|m| {
@@ -364,11 +360,7 @@ pub(crate) fn album_stats(history: &[serde_json::Value], stats: &serde_json::Val
         .iter()
         .map(|(tier, v)| tier_count(&by_tier, tier) * *v as f64)
         .sum();
-    let luck = if total > 0.0 {
-        actual / total / TIER_EXPECTED
-    } else {
-        0.0
-    };
+    let luck = if total > 0.0 { actual / total / TIER_EXPECTED } else { 0.0 };
 
     // `history.slice(-10).reverse()` — 10 terakhir, newest first.
     let start = history.len().saturating_sub(10);
@@ -389,11 +381,7 @@ pub(crate) fn album_stats(history: &[serde_json::Value], stats: &serde_json::Val
 /// `String(count).padStart(3)` untuk angka bulat.
 pub(crate) fn pad_start3(n: i64) -> String {
     let s = n.to_string();
-    if s.len() >= 3 {
-        s
-    } else {
-        format!("{}{}", " ".repeat(3 - s.len()), s)
-    }
+    if s.len() >= 3 { s } else { format!("{}{}", " ".repeat(3 - s.len()), s) }
 }
 
 /// `bar(count)` dari album husbu/waifu: 20 sel, `Math.round(count/total*20)`
@@ -441,14 +429,8 @@ pub(crate) fn render_album(stats: &AlbumStats, title: &str) -> String {
     text.push('\n');
 
     if let Some(rarest) = &stats.rarest {
-        let tier = rarest
-            .get("tier")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("");
-        let name = rarest
-            .get("name")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("");
+        let tier = rarest.get("tier").and_then(serde_json::Value::as_str).unwrap_or("");
+        let name = rarest.get("name").and_then(serde_json::Value::as_str).unwrap_or("");
         text.push_str(&format!(
             "🏆 *Pull Paling Langka:* {} {name} ({tier})\n",
             tier_emoji(tier)
@@ -465,14 +447,8 @@ pub(crate) fn render_album(stats: &AlbumStats, title: &str) -> String {
         stats.married_count
     ));
     for (i, h) in stats.last10.iter().enumerate() {
-        let tier = h
-            .get("tier")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("");
-        let name = h
-            .get("name")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("");
+        let tier = h.get("tier").and_then(serde_json::Value::as_str).unwrap_or("");
+        let name = h.get("name").and_then(serde_json::Value::as_str).unwrap_or("");
         text.push_str(&format!(
             "{}. {} *{name}* — {tier}\n",
             i + 1,
@@ -600,11 +576,7 @@ pub(crate) fn time_hm(ms: i64) -> String {
 /// `getPlugin(cmd)` + satu blok per argumen. Argumen tak dikenal dapet baris
 /// "Tidak ditemukan!", dan seluruh hasil di-`trim()` seperti
 /// `m.reply(responseText.trim())`.
-pub(crate) fn render_probe(
-    header: &str,
-    args: &[String],
-    render: impl Fn(&str) -> String,
-) -> String {
+pub(crate) fn render_probe(header: &str, args: &[String], render: impl Fn(&str) -> String) -> String {
     let mut out = String::from(header);
     for cmd in args {
         let key = cmd.to_lowercase();
@@ -704,7 +676,11 @@ pub(crate) fn parse_int(raw: &str) -> Option<i64> {
 /// argumen: `hapusstok 1 3` → produk 0, item 2. Argumen yang bukan angka
 /// menjadi `0`, sama seperti `|| 0` di JS.
 pub(crate) fn arg_index(ctx: &Ctx, pos: usize) -> i64 {
-    ctx.args.get(pos).and_then(|a| parse_int(a)).unwrap_or(0) - 1
+    ctx.args
+        .get(pos)
+        .and_then(|a| parse_int(a))
+        .unwrap_or(0)
+        - 1
 }
 
 /// `new URL(...)` yang dipakai plugin hanya untuk `protocol` + `hostname`.
@@ -755,30 +731,23 @@ pub(crate) fn error_template(ctx: &oktz_plugin_api::Ctx) -> String {
         tpl
     };
 
-    tpl.replace(
-        "{prefix}",
-        if ctx.prefix.is_empty() {
-            "."
-        } else {
-            &ctx.prefix
-        },
-    )
-    .replace(
-        "{command}",
-        if ctx.command.is_empty() {
-            "?"
-        } else {
-            &ctx.command
-        },
-    )
-    .replace(
-        "{pushName}",
-        if ctx.push_name.is_empty() {
-            "User"
-        } else {
-            &ctx.push_name
-        },
-    )
+    tpl.replace("{prefix}", if ctx.prefix.is_empty() { "." } else { &ctx.prefix })
+        .replace(
+            "{command}",
+            if ctx.command.is_empty() {
+                "?"
+            } else {
+                &ctx.command
+            },
+        )
+        .replace(
+            "{pushName}",
+            if ctx.push_name.is_empty() {
+                "User"
+            } else {
+                &ctx.push_name
+            },
+        )
 }
 
 /// Template bawaan `error.js` dengan `{pushName}` sudah jadi `User`.
@@ -1053,10 +1022,7 @@ mod tests_cek2 {
     }
 
     fn text_reply(reply: &Reply) -> &str {
-        reply
-            .without_mutations()
-            .text_body()
-            .expect("harus ada teks")
+        reply.without_mutations().text_body().expect("harus ada teks")
     }
 
     fn mentions_of(reply: &Reply) -> &[String] {
@@ -2286,191 +2252,42 @@ mod tests_batch_g {
         // sudah ter-port. Tujuannya menangkap plugin baru yang diam-diam
         // menyalakan `is_owner` tanpa dihitung — bukan daftar plugin owner.
         const KNOWN: &[&str] = &[
-            "addenergi",
-            "addenergiall",
-            "addexp",
-            "addkoin",
-            "addlevel",
-            "addlist",
-            "addpartner",
-            "addpremall",
-            "addstok",
-            "aktifaudiomenu",
-            "anticall",
-            "anticulik",
-            "autobackup",
-            "autobio",
-            "autojoingc",
-            "autoreactsw",
-            "autoread",
-            "autoreadsw",
-            "autosambut",
-            "autosholat",
-            "autotyping",
-            "backupdb",
-            "ban",
-            "banchat",
-            "bcpcjeda",
-            "block",
-            "botafk",
-            "botmode",
-            "capenergi",
-            "capfree",
-            "capprem",
-            "checkban",
-            "cmdvn",
-            "cpuprofile",
-            "custompayment",
-            "delenergi",
-            "delexp",
-            "delkoin",
-            "dellevel",
-            "delpp",
-            "delpremall",
-            "disableenergi",
-            "editlist",
-            "editstok",
-            "goodbyeall",
-            "hapuslist",
-            "hapusproduk",
-            "hapusstok",
-            "heapsnap",
-            "installtemabilling",
-            "installtemaenigma",
-            "installtemanebula",
-            "installtemastellar",
-            "jedacreate",
-            "listban",
-            "liststok",
-            "notiflimit",
-            "onlyadmin",
-            "onlygc",
-            "onlypc",
-            "public",
-            "publicthisgc",
-            "q",
-            "resetlimitdefault",
-            "resetrules",
-            "self",
-            "selfthisgc",
-            "setaudioallmenu",
-            "setbio",
-            "setlimitdefault",
-            "setname",
-            "setpp",
-            "setreply",
-            "setrules",
-            "similarity",
-            "sistemenergi",
-            "stop",
-            "stopbcpc",
-            "templateplugin",
-            "uinstalltema",
-            "unban",
-            "unblock",
-            "welcomeall",
-            "autoclear",
-            "autoreply",
-            "deploy",
-            "ganti-games.jpg",
-            "ganti-large.jpg",
-            "ganti-promote.jpg",
-            "ganti-winner.jpg",
-            "schedule",
-            "addowner",
-            "addprefix",
-            "addprem",
-            "akses",
-            "arsip",
-            "baca",
-            "bcgc",
-            "cekschedule",
-            "clearsessions",
-            "disableplugin",
-            "editproduk",
-            "exec",
-            "ganti-asset",
-            "ganti-demote.jpg",
-            "ganti-foto.jpg",
-            "ganti-goodbye.jpg",
-            "ganti-levelup.jpg",
-            "ganti-namadev",
-            "ganti-namaowner",
-            "ganti-pp-kosong.jpg",
-            "ganti-rpg.jpg",
-            "ganti-rules.jpg",
-            "ganti-store.jpg",
-            "get",
-            "hapusgrup",
-            "hapussaluran",
-            "leave",
-            "listjadibot",
-            "listjadibotaktif",
-            "linode2gb",
-            "listsewa",
-            "mutechat",
-            "onlythisgrup",
-            "pinchat",
-            "ptvch",
-            "pushkontak",
-            "renewsewa",
-            "sampah",
-            "savekontak",
-            "savedb",
-            "setallmenu",
-            "setgoodbyetype",
-            "setmenu",
-            "setmenucat",
-            "setownertype",
-            "setwelcometype",
-            "sewabot",
-            "addproduk",
-            "done",
-            "star",
-            "stopalljadibot",
-            "stopdandeletejadibot",
-            "stopschedule",
-            "swgcall",
+            "addenergi", "addenergiall", "addexp", "addkoin", "addlevel",
+            "addlist", "addpartner", "addpremall", "addstok", "aktifaudiomenu",
+            "anticall", "anticulik", "autobackup", "autobio", "autojoingc", "autoreactsw", "autoread", "autoreadsw", "autosambut", "autosholat", "autotyping", "backupdb", "ban",
+            "banchat", "bcpcjeda",
+            "block", "botafk", "botmode", "capenergi", "capfree",
+            "capprem", "checkban", "cmdvn", "cpuprofile", "custompayment",
+            "delenergi", "delexp", "delkoin", "dellevel", "delpp",
+            "delpremall", "disableenergi", "editlist", "editstok", "goodbyeall",
+            "hapuslist", "hapusproduk", "hapusstok", "heapsnap", "installtemabilling",
+            "installtemaenigma", "installtemanebula", "installtemastellar", "jedacreate", "listban",
+            "liststok", "notiflimit", "onlyadmin", "onlygc", "onlypc",
+            "public", "publicthisgc", "q", "resetlimitdefault", "resetrules",
+            "self", "selfthisgc", "setaudioallmenu", "setbio", "setlimitdefault",
+            "setname", "setpp", "setreply", "setrules", "similarity", "sistemenergi",
+            "stop", "stopbcpc", "templateplugin", "uinstalltema", "unban",
+            "unblock", "welcomeall",
+        
+            "autoclear", "autoreply", "deploy", "ganti-games.jpg", "ganti-large.jpg", "ganti-promote.jpg", "ganti-winner.jpg", "schedule",
+        
+            "addowner", "addprefix", "addprem", "akses", "arsip", "baca", "bcgc", "cekschedule", "clearsessions", "disableplugin", "editproduk",
+            "exec", "ganti-asset", "ganti-demote.jpg", "ganti-foto.jpg", "ganti-goodbye.jpg", "ganti-levelup.jpg", "ganti-namadev", "ganti-namaowner", "ganti-pp-kosong.jpg", "ganti-rpg.jpg", "ganti-rules.jpg",
+            "ganti-store.jpg", "get", "hapusgrup", "hapussaluran", "leave", "listjadibot", "listjadibotaktif", "linode2gb", "listsewa", "mutechat", "onlythisgrup", "pinchat",
+            "ptvch", "pushkontak", "renewsewa", "sampah", "savekontak", "savedb", "setallmenu", "setgoodbyetype", "setmenu", "setmenucat", "setownertype", "setwelcometype", "sewabot",
+            "addproduk", "done", "star", "stopalljadibot", "stopdandeletejadibot", "stopschedule", "swgcall",
             "listdaftar",
-            "addplugin",
-            "addsewa",
-            "backupsc",
-            "bcpc",
-            "buatgrup",
-            "buatsaluran",
-            "colongpp",
-            "crm",
-            "delpanel",
-            "delplugin",
-            "delsewa",
-            "enableplugin",
-            "eval",
-            "ganti-foto2.jpg",
-            "ganti-foto3.jpg",
-            "ganti-mp3.mp3",
-            "ganti-mp4.mp4",
-            "ganti-namabot",
-            "ganti-v8.jpg",
-            "ganti-welcome.jpg",
-            "ganticode",
-            "gantiscraper",
-            "getplugin",
-            "hapusdata",
-            "join",
-            "resetdb",
-            "restart",
-            "searchplugin",
-            "sessionstats",
-            "sistemdaftar",
-            "sprem",
-            "srt",
-            "startschedule",
-            "swgc",
-            "swgcv2",
-            "swgcv2all",
-            "upch",
+
+            "addplugin", "addsewa", "backupsc", "bcpc", "buatgrup", "buatsaluran", "colongpp", "crm",
+            "delpanel", "delplugin", "delsewa", "enableplugin", "eval", "ganti-foto2.jpg", "ganti-foto3.jpg",
+            "ganti-mp3.mp3", "ganti-mp4.mp4", "ganti-namabot", "ganti-v8.jpg", "ganti-welcome.jpg",
+            "ganticode", "gantiscraper", "getplugin", "hapusdata", "join", "resetdb", "restart",
+            "searchplugin", "sessionstats", "sistemdaftar", "sprem", "srt", "startschedule",
+            "swgc", "swgcv2", "swgcv2all", "upch",
+
             // `plugins/anime/autoanimewinbu.js` (isOwner: true).
             "autoanimewinbu",
+
             // Diagnostik sementara, BUKAN plugin JS: uji 30 variasi payload/
             // amplop/ukuran/audio kartu HTML AIRich (lihat `tools/cekkartu.rs`).
             "cekkartu",
@@ -3009,7 +2826,9 @@ mod tests_batch_g {
     fn benefitowner_lists_the_is_owner_plugins_in_the_registry() {
         let listed = registry_command_lines(|m| m.is_owner && m.is_enabled);
         for line in &listed {
-            let name = line.trim_start_matches("• *.").trim_end_matches('*');
+            let name = line
+                .trim_start_matches("• *.")
+                .trim_end_matches('*');
             assert!(
                 oktz_plugin_api::find(name).is_some(),
                 "benefitowner mencantumkan '{name}' yang tidak terdaftar"
@@ -3044,10 +2863,7 @@ mod tests_batch_g {
         // hanya benar kalau memang tidak ada. Yang diuji: barisnya sinkron
         // dengan hitungan yang sama.
         let listed = registry_command_lines(|m| m.is_premium && m.is_enabled);
-        assert_eq!(
-            text_of(&benefitpremium(ctx_with(None))),
-            premium_message(&listed)
-        );
+        assert_eq!(text_of(&benefitpremium(ctx_with(None))), premium_message(&listed));
     }
 
     // -- templateplugin -----------------------------------------------------
@@ -3211,190 +3027,29 @@ mod tests_batch_s {
     /// Hanya dipakai test, jadi ia hidup di dalam `mod tests` supaya build
     /// non-test tidak kena `dead_code`.
     pub(crate) const ALREADY_PORTED: [&str; 184] = [
-        "99names",
-        "age",
-        "akan",
-        "akankah",
-        "albumhusbu",
-        "albumwaifu",
-        "apa",
-        "apakah",
-        "apes",
-        "asmaul",
-        "asmaulhusna",
-        "bagaimana",
-        "baik",
-        "beautiful",
-        "benefitowner",
-        "benefitpartner",
-        "benefitprem",
-        "benefitpremium",
-        "berapa",
-        "berat",
-        "bisa",
-        "bisakah",
-        "bored",
-        "bucin",
-        "cantik",
-        "cekbaik",
-        "cekberat",
-        "cekbucin",
-        "cekcantik",
-        "cekcreative",
-        "cekcupu",
-        "cekgabut",
-        "cekgacha",
-        "cekgamer",
-        "cekganteng",
-        "cekgila",
-        "cekhoki",
-        "cekimut",
-        "cekintrovert",
-        "cekjahat",
-        "cekjodoh",
-        "cekjomblo",
-        "cekkarma",
-        "cekkaya",
-        "cekkece",
-        "cekkepribadian",
-        "cekkpopers",
-        "ceklapar",
-        "cekmalas",
-        "cekmesum",
-        "cekngantuk",
-        "cekotaku",
-        "cekoverpower",
-        "cekpelit",
-        "cekpintar",
-        "cekprocastinator",
-        "cekpsikopat",
-        "cekrezeki",
-        "ceksabar",
-        "ceksetia",
-        "ceksexy",
-        "ceksial",
-        "ceksisaumur",
-        "ceksocmed",
-        "cektinggi",
-        "cektsundere",
-        "cekumur",
-        "cekwibu",
-        "cekyandere",
-        "coba",
-        "cool",
-        "crazy",
-        "creative",
-        "cupu",
-        "cute",
-        "dimana",
-        "dream",
-        "dreamworld",
-        "evil",
-        "fortune",
-        "gabut",
-        "gamer",
-        "ganteng",
-        "gaycheck",
-        "gila",
-        "gimana",
-        "handsome",
-        "harus",
-        "haruskah",
-        "hoki",
-        "hot",
-        "how",
-        "howgay",
-        "howmany",
-        "howmuch",
-        "hungry",
-        "husbualbum",
-        "husna",
-        "imut",
-        "introvert",
-        "iq",
-        "jomblo",
-        "kalkulatormbg",
-        "kapan",
-        "karma",
-        "kaya",
-        "kece",
-        "kenapa",
-        "kepribadian",
-        "keuntunganpartner",
-        "kikir",
-        "kind",
-        "kkmbg",
-        "kpop",
-        "kpopers",
-        "kreatif",
-        "lapar",
-        "lazy",
-        "loyal",
-        "luck",
-        "malas",
-        "mana",
-        "medsos",
-        "mengapa",
-        "mesum",
-        "mimpi",
-        "ngantuk",
-        "nilai",
-        "noob",
-        "nunda",
-        "op",
-        "otaku",
-        "overpower",
-        "ownerbenefits",
-        "ownerfitur",
-        "partnerbenefits",
-        "patience",
-        "pelit",
-        "personality",
-        "pintar",
-        "plugin-template",
-        "premiumbenefits",
-        "premiumfitur",
-        "pro",
-        "procrastinator",
-        "psikopat",
-        "psycho",
-        "rate",
-        "rating",
-        "readmore",
-        "rezeki",
-        "rich",
-        "sabar",
-        "selengkapnya",
-        "setia",
-        "sexy",
-        "should",
-        "sial",
-        "single",
-        "sisaumur",
-        "sleepy",
-        "smart",
-        "sosmed",
-        "soulmatch",
-        "spoiler",
-        "tall",
-        "templateplugin",
-        "tinggi",
-        "top",
-        "top5",
-        "toplist",
-        "tplplugin",
-        "try",
-        "tsundere",
-        "umur",
-        "waifualbum",
-        "weeb",
-        "weight",
-        "when",
-        "where",
-        "why",
-        "wibu",
-        "will",
-        "yandere",
+        "99names", "age", "akan", "akankah", "albumhusbu", "albumwaifu", "apa", "apakah",
+        "apes", "asmaul", "asmaulhusna", "bagaimana", "baik", "beautiful", "benefitowner", "benefitpartner",
+        "benefitprem", "benefitpremium", "berapa", "berat", "bisa", "bisakah", "bored", "bucin",
+        "cantik", "cekbaik", "cekberat", "cekbucin", "cekcantik", "cekcreative", "cekcupu", "cekgabut",
+        "cekgacha", "cekgamer", "cekganteng", "cekgila", "cekhoki", "cekimut", "cekintrovert", "cekjahat",
+        "cekjodoh", "cekjomblo", "cekkarma", "cekkaya", "cekkece", "cekkepribadian", "cekkpopers", "ceklapar",
+        "cekmalas", "cekmesum", "cekngantuk", "cekotaku", "cekoverpower", "cekpelit", "cekpintar", "cekprocastinator",
+        "cekpsikopat", "cekrezeki", "ceksabar", "ceksetia", "ceksexy", "ceksial", "ceksisaumur", "ceksocmed",
+        "cektinggi", "cektsundere", "cekumur", "cekwibu", "cekyandere", "coba", "cool", "crazy",
+        "creative", "cupu", "cute", "dimana", "dream", "dreamworld", "evil", "fortune",
+        "gabut", "gamer", "ganteng", "gaycheck", "gila", "gimana", "handsome", "harus",
+        "haruskah", "hoki", "hot", "how", "howgay", "howmany", "howmuch", "hungry",
+        "husbualbum", "husna", "imut", "introvert", "iq", "jomblo", "kalkulatormbg", "kapan",
+        "karma", "kaya", "kece", "kenapa", "kepribadian", "keuntunganpartner", "kikir", "kind",
+        "kkmbg", "kpop", "kpopers", "kreatif", "lapar", "lazy", "loyal", "luck",
+        "malas", "mana", "medsos", "mengapa", "mesum", "mimpi", "ngantuk", "nilai",
+        "noob", "nunda", "op", "otaku", "overpower", "ownerbenefits", "ownerfitur", "partnerbenefits",
+        "patience", "pelit", "personality", "pintar", "plugin-template", "premiumbenefits", "premiumfitur", "pro",
+        "procrastinator", "psikopat", "psycho", "rate", "rating", "readmore", "rezeki", "rich",
+        "sabar", "selengkapnya", "setia", "sexy", "should", "sial", "single", "sisaumur",
+        "sleepy", "smart", "sosmed", "soulmatch", "spoiler", "tall", "templateplugin", "tinggi",
+        "top", "top5", "toplist", "tplplugin", "try", "tsundere", "umur", "waifualbum",
+        "weeb", "weight", "when", "where", "why", "wibu", "will", "yandere",
     ];
 
     fn ctx() -> Ctx {
@@ -3424,7 +3079,10 @@ mod tests_batch_s {
     fn both_plugins_are_registered() {
         // Tidak meng-hardcode jumlah total: registry bertambah tiap batch.
         for n in ["dare", "truth"] {
-            assert!(oktz_plugin_api::find(n).is_some(), "{n} harus terdaftar");
+            assert!(
+                oktz_plugin_api::find(n).is_some(),
+                "{n} harus terdaftar"
+            );
         }
     }
 
@@ -4396,8 +4054,8 @@ mod tests_umum {
 mod tests_roster_state {
     use super::*;
     use crate::common::tests_batch_s::ALREADY_PORTED;
-    use oktz_plugin_api::find;
     use oktz_plugin_api::registry::{GroupRoster, Participant};
+    use oktz_plugin_api::find;
 
     /// Plugin yang ditambahkan batch ini. Satu nama = satu file, jadi daftar
     /// ini sekaligus penanda apa yang harus ada di disk.
@@ -4501,54 +4159,13 @@ mod tests_roster_state {
     // alias `attp2`, atau `main/leaderboard.js` yang mengulang
     // `leaderboard`). Tabrakan baru di luar daftar ini berarti port kita.
     pub(crate) const JS_COLLISIONS: [&str; 48] = [
-        "applemusic",
-        "asmaulhusna",
-        "attp2",
-        "audioquran",
-        "backupdb",
-        "beli",
-        "berburu",
-        "block",
-        "bratanime",
-        "bucin",
-        "cantik",
-        "cc",
-        "cekjodoh",
-        "cupu",
-        "daftar",
-        "discordstalk",
-        "exp",
-        "fakedana",
+        "applemusic", "asmaulhusna", "attp2", "audioquran", "backupdb", "beli", "berburu", "block",
+        "bratanime", "bucin",
+        "cantik", "cc", "cekjodoh", "cupu", "daftar", "discordstalk", "exp", "fakedana",
         "fakegopay",
-        "fakeovo",
-        "film",
-        "ganteng",
-        "heapsnap",
-        "inspect",
-        "izen",
-        "kaya",
-        "kill",
-        "leaderboard",
-        "leave",
-        "mimpi",
-        "ngemis",
-        "noob",
-        "paptt",
-        "pintar",
-        "pro",
-        "profileig",
-        "qrcode",
-        "smeme-animated",
-        "smemevid",
-        "sroast",
-        "stalkdc",
-        "stats",
-        "tofigure3",
-        "top",
-        "tts",
-        "unblock",
-        "waifu",
-        "wibu",
+        "fakeovo", "film", "ganteng", "heapsnap", "inspect", "izen", "kaya", "kill", "leaderboard",
+        "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig", "qrcode",
+        "smeme-animated", "smemevid", "sroast", "stalkdc", "stats", "tofigure3", "top", "tts", "unblock", "waifu", "wibu",
     ];
 
     /// Alias yang kalah oleh command plugin lain di JS. Lookup JS mengecek map
@@ -4722,8 +4339,8 @@ mod tests_roster_state {
                 .find(|p| p.meta.name == name)
                 .unwrap();
             let expected = match name {
-                "tagall" | "listadmin" | "listantilink" | "listtoxic" | "listwarn" | "topchat"
-                | "intro" | "rulesgrup" => "group",
+                "tagall" | "listadmin" | "listantilink" | "listtoxic" | "listwarn"
+                | "topchat" | "intro" | "rulesgrup" => "group",
                 "inventory" => "rpg",
                 "koin" | "exp" | "level" | "energi" | "birthday" => "user",
                 "howmuchenergy" | "whatrolethis" | "fiturpremium" => "info",
@@ -4785,10 +4402,7 @@ mod tests_roster_state {
             vec!["a".to_string(), "b".to_string()]
         );
         assert_eq!(joined_strings(&[]), Vec::<String>::new());
-        assert_eq!(
-            joined_strings(&[serde_json::json!(7)]),
-            vec!["7".to_string()]
-        );
+        assert_eq!(joined_strings(&[serde_json::json!(7)]), vec!["7".to_string()]);
     }
 
     #[test]
@@ -4804,10 +4418,7 @@ mod tests_roster_state {
             ["b@s.whatsapp.net", "c@s.whatsapp.net"]
         );
         assert_eq!(non_empty_map_entries(Some(&serde_json::json!({}))).len(), 0);
-        assert_eq!(
-            non_empty_map_entries(Some(&serde_json::json!(null))).len(),
-            0
-        );
+        assert_eq!(non_empty_map_entries(Some(&serde_json::json!(null))).len(), 0);
         assert_eq!(non_empty_map_entries(None).len(), 0);
     }
 
@@ -4941,8 +4552,13 @@ mod tests_batch_fun {
 
     /// Satu nama = satu file, jadi daftar ini sekaligus penanda apa yang
     /// harus ada di disk.
-    pub(crate) const NEW_PLUGINS: [&str; 5] =
-        ["gaycheck", "husbualbum", "mimpi", "top", "waifualbum"];
+    pub(crate) const NEW_PLUGINS: [&str; 5] = [
+        "gaycheck",
+        "husbualbum",
+        "mimpi",
+        "top",
+        "waifualbum",
+    ];
 
     #[test]
     fn all_four_are_registered_and_the_registry_grew_by_exactly_them() {
@@ -5032,6 +4648,7 @@ mod tests_batch_fun {
         }
     }
 }
+
 
 #[cfg(test)]
 mod tests_error_template {
@@ -5158,11 +4775,7 @@ pub(crate) mod uji {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -5180,11 +4793,7 @@ pub(crate) mod uji {
     /// Teks pertama yang ditemukan di dalam `Reply` (Sequence diratakan).
     pub(crate) fn teks(r: &Reply) -> String {
         match r.without_mutations() {
-            Reply::Sequence(v) => v
-                .iter()
-                .map(teks)
-                .find(|t| !t.is_empty())
-                .unwrap_or_default(),
+            Reply::Sequence(v) => v.iter().map(teks).find(|t| !t.is_empty()).unwrap_or_default(),
             lain => lain.text_body().unwrap_or("").to_string(),
         }
     }

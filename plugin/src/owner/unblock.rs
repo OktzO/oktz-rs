@@ -189,14 +189,8 @@ mod tests {
             .to_string()
     }
 
-    const PC: Spec = Spec {
-        prefix: ".",
-        is_group: false,
-    };
-    const GC: Spec = Spec {
-        prefix: ".",
-        is_group: true,
-    };
+    const PC: Spec = Spec { prefix: ".", is_group: false };
+    const GC: Spec = Spec { prefix: ".", is_group: true };
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -229,33 +223,18 @@ mod tests {
     #[test]
     fn the_usage_text_is_the_unblock_wording_not_the_block_one() {
         assert!(USAGE.contains(".unblock 628xxx"));
-        assert!(
-            !USAGE.contains(".block"),
-            "menyalin usage blokir akan boda user: {USAGE}"
-        );
+        assert!(!USAGE.contains(".block"), "menyalin usage blokir akan boda user: {USAGE}");
         assert_ne!(USAGE, crate::owner::block::USAGE);
     }
 
     #[test]
     fn a_number_with_no_digits_is_rejected() {
-        assert_eq!(
-            run(ctx_with(
-                GC,
-                &["abc"],
-                &[],
-                None,
-                Arc::new(SockUji::default())
-            )),
-            INVALID_NUMBER
-        );
+        assert_eq!(run(ctx_with(GC, &["abc"], &[], None, Arc::new(SockUji::default()))), INVALID_NUMBER);
     }
 
     #[test]
     fn a_bare_command_in_a_group_shows_the_usage() {
-        assert_eq!(
-            run(ctx_with(GC, &[], &[], None, Arc::new(SockUji::default()))),
-            USAGE
-        );
+        assert_eq!(run(ctx_with(GC, &[], &[], None, Arc::new(SockUji::default()))), USAGE);
     }
 
     #[test]
@@ -270,13 +249,7 @@ mod tests {
 
     #[test]
     fn success_text_mentions_the_target_and_reacts() {
-        let r = (entry().handler)(ctx_with(
-            GC,
-            &["628777"],
-            &[],
-            None,
-            Arc::new(SockUji::default()),
-        ));
+        let r = (entry().handler)(ctx_with(GC, &["628777"], &[], None, Arc::new(SockUji::default())));
         assert_eq!(
             r.without_mutations().text_body(),
             Some(sukses_unblock("628777").as_str())
@@ -294,10 +267,7 @@ mod tests {
 
     #[test]
     fn sock_failure_falls_back_to_the_error_template() {
-        let sock = Arc::new(SockUji {
-            blok: Mutex::new(Vec::new()),
-            gagal: true,
-        });
+        let sock = Arc::new(SockUji { blok: Mutex::new(Vec::new()), gagal: true });
         let t = run(ctx_with(GC, &["628777"], &[], None, sock));
         assert!(t.contains("kendala"), "harus template error: {t}");
     }

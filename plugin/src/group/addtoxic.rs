@@ -218,11 +218,7 @@ mod tests {
     fn the_reported_total_matches_what_is_written() {
         let r = run(serde_json::json!({"toxicWords": ["a", "b"]}), "baru");
         assert_eq!(list_write(&r).len(), 3);
-        assert!(
-            text_of(&r).contains("┃ 📊 ᴛᴏᴛᴀʟ: `3` kata"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("┃ 📊 ᴛᴏᴛᴀʟ: `3` kata"), "{}", text_of(&r));
     }
 
     #[test]

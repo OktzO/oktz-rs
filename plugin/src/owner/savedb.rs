@@ -123,10 +123,7 @@ mod tests {
 
     #[test]
     fn bukan_owner_ditolak() {
-        assert_eq!(
-            savedb(ctx_of(isi(), false)),
-            Reply::text("❌ *Owner Only!*")
-        );
+        assert_eq!(savedb(ctx_of(isi(), false)), Reply::text("❌ *Owner Only!*"));
     }
 
     #[test]

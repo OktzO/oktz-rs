@@ -136,8 +136,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             ..Default::default()
         }
     }
@@ -218,10 +218,7 @@ mod tests {
     #[test]
     fn the_quoted_text_is_used_when_there_is_no_own_text() {
         // `m.text || m.quoted?.text` — teks sendiri menang kalau ada.
-        assert_eq!(
-            effective_text(&ctx_of("", Some("apakah aku hebat"))),
-            "apakah aku hebat"
-        );
+        assert_eq!(effective_text(&ctx_of("", Some("apakah aku hebat"))), "apakah aku hebat");
         assert_eq!(
             effective_text(&ctx_of("teks sendiri", Some("teks kutipan"))),
             "teks sendiri"

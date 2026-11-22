@@ -139,12 +139,9 @@ fn ambil_id_youtube(url: &str) -> Option<String> {
 /// (di JS axios melempar karena URL-nya bukan string).
 fn ambil_url(v: Option<&Value>, nama: &str) -> Result<Option<String>, HttpError> {
     match v {
-        Some(x) if truthy(x) => x
-            .as_str()
-            .map(|s| Some(s.to_string()))
-            .ok_or_else(|| HttpError {
-                message: format!("{nama} bukan string"),
-            }),
+        Some(x) if truthy(x) => x.as_str().map(|s| Some(s.to_string())).ok_or_else(|| HttpError {
+            message: format!("{nama} bukan string"),
+        }),
         _ => Ok(None),
     }
 }
@@ -329,10 +326,7 @@ pub fn youtube_download(
     );
 
     let mut out = Map::new();
-    out.insert(
-        "created_by".to_string(),
-        Value::String(CREATED_BY.to_string()),
-    );
+    out.insert("created_by".to_string(), Value::String(CREATED_BY.to_string()));
     out.insert("note".to_string(), Value::String(CATATAN.to_string()));
     out.insert("results".to_string(), Value::Object(results));
     Ok(Value::Object(out))
@@ -421,15 +415,13 @@ mod tests {
 
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 4);
-        assert!(
-            p[0].url
-                .starts_with("https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=")
-        );
+        assert!(p[0].url.starts_with("https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_="));
         // `convertURL` dari fixture sudah punya `?`, jadi axios `buildURL`
         // menambah `&` — bukan `?` kedua.
         assert!(
-            p[1].url
-                .starts_with("https://d.ymcdn.org/api/v1/convert?token=abc&v=dQw4w9WgXcQ&f=mp3&_="),
+            p[1].url.starts_with(
+                "https://d.ymcdn.org/api/v1/convert?token=abc&v=dQw4w9WgXcQ&f=mp3&_="
+            ),
             "p1 = {}",
             p[1].url
         );
@@ -453,20 +445,14 @@ mod tests {
             hasil["mess"],
             "Format URL tidak dikenali atau bukan link YouTube yang valid."
         );
-        assert!(
-            http.permintaan.lock().unwrap().is_empty(),
-            "tidak ada request"
-        );
+        assert!(http.permintaan.lock().unwrap().is_empty(), "tidak ada request");
     }
 
     #[test]
     fn init_gagal_dan_konversi_gagal_punya_teks_masing_masing() {
         let tanpa_init = stub(&[r#"{"convertURL":""}"#]);
         let hasil = ytdl(&tanpa_init, "https://youtu.be/dQw4w9WgXcQ", None).unwrap();
-        assert_eq!(
-            hasil["mess"],
-            "Gagal menginisialisasi server (Init failed)."
-        );
+        assert_eq!(hasil["mess"], "Gagal menginisialisasi server (Init failed).");
 
         let tanpa_url = stub(&[r#"{"convertURL":"https://konv/convert"}"#]);
         let hasil = ytdl(&tanpa_url, "https://youtu.be/dQw4w9WgXcQ", None).unwrap();
@@ -505,10 +491,7 @@ mod tests {
         // kosong → init gagal.
         let bukan_json = stub(&["bukan json sama sekali"]);
         let hasil = ytdl(&bukan_json, "https://youtu.be/dQw4w9WgXcQ", None).unwrap();
-        assert_eq!(
-            hasil["mess"],
-            "Gagal menginisialisasi server (Init failed)."
-        );
+        assert_eq!(hasil["mess"], "Gagal menginisialisasi server (Init failed).");
     }
 
     #[test]

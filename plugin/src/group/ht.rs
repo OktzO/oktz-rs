@@ -66,7 +66,10 @@ pub fn ht(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    Reply::TextQuoted { text, mentions }
+    Reply::TextQuoted {
+        text,
+        mentions,
+    }
 }
 
 #[cfg(test)]
@@ -100,18 +103,8 @@ mod tests {
             is_group: true,
             roster: GroupRoster {
                 participants: vec![
-                    Participant {
-                        jid: "628111@s.whatsapp.net".into(),
-                        is_admin: true,
-                        is_owner: true,
-                        data: Default::default(),
-                    },
-                    Participant {
-                        jid: "628999@lid".into(),
-                        is_admin: false,
-                        is_owner: false,
-                        data: Default::default(),
-                    },
+                    Participant { jid: "628111@s.whatsapp.net".into(), is_admin: true, is_owner: true, data: Default::default() },
+                    Participant { jid: "628999@lid".into(), is_admin: false, is_owner: false, data: Default::default() },
                 ],
                 is_bot_admin: true,
             },
@@ -158,19 +151,13 @@ mod tests {
     fn the_second_js_name_resolves_to_the_same_plugin() {
         assert_eq!(oktz_plugin_api::find("hidetag").unwrap().meta.name, "ht");
         // `htprem` milik plugin `htpremium`, bukan milik `ht`.
-        assert_eq!(
-            oktz_plugin_api::find("htprem").unwrap().meta.name,
-            "htpremium"
-        );
+        assert_eq!(oktz_plugin_api::find("htprem").unwrap().meta.name, "htpremium");
     }
 
     #[test]
     fn plain_text_is_quoted_back_and_tags_the_whole_roster() {
         let r = run("  rapat  ", None);
-        assert!(
-            matches!(r, Reply::TextQuoted { .. }),
-            "mode teks murni meng-quote m"
-        );
+        assert!(matches!(r, Reply::TextQuoted { .. }), "mode teks murni meng-quote m");
         assert_eq!(body(&r), "rapat", "fullArgs di-trim");
         assert_eq!(mentions(&r), ["628111@s.whatsapp.net", "628999@lid"]);
     }
@@ -191,10 +178,7 @@ mod tests {
     #[test]
     fn reply_mode_is_plain_text_and_prefers_the_typed_argument() {
         let r = run("dinas", Some(quoted(QuotedKind::Text, "pesan lama")));
-        assert!(
-            matches!(r, Reply::Text { .. }),
-            "reply-mode tidak meng-quote m"
-        );
+        assert!(matches!(r, Reply::Text { .. }), "reply-mode tidak meng-quote m");
         assert_eq!(body(&r), "dinas");
         assert_eq!(mentions(&r), ["628111@s.whatsapp.net", "628999@lid"]);
     }

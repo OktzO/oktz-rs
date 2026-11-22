@@ -9,7 +9,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
-use crate::rpg::heal::{apply_exp, or_default, other_user, rpg_map, user_level};
+use crate::rpg::heal::{apply_exp, other_user, or_default, rpg_map, user_level};
 use crate::tools::kalkulatormbg::thousands_id;
 
 const MAX_ROUNDS: i64 = 10;
@@ -42,14 +42,7 @@ struct Round {
 
 /// Simulasi duel. Berhenti saat `round < 10` gagal atau salah satu HP
 /// menyentuh 0.
-fn battle(
-    my_attack: i64,
-    my_defense: i64,
-    their_attack: i64,
-    their_defense: i64,
-    my_hp: i64,
-    their_hp: i64,
-) -> (i64, i64, Vec<Round>) {
+fn battle(my_attack: i64, my_defense: i64, their_attack: i64, their_defense: i64, my_hp: i64, their_hp: i64) -> (i64, i64, Vec<Round>) {
     let (mut mine, mut theirs) = (my_hp, their_hp);
     let mut log = Vec::new();
     let mut round = 0;
@@ -58,18 +51,12 @@ fn battle(
         let my_damage = damage(my_attack, their_defense);
         theirs -= my_damage;
         if theirs <= 0 {
-            log.push(Round {
-                my_damage,
-                their_damage: None,
-            });
+            log.push(Round { my_damage, their_damage: None });
             break;
         }
         let their_damage = damage(their_attack, my_defense);
         mine -= their_damage;
-        log.push(Round {
-            my_damage,
-            their_damage: Some(their_damage),
-        });
+        log.push(Round { my_damage, their_damage: Some(their_damage) });
     }
     (mine, theirs, log)
 }
@@ -134,12 +121,11 @@ pub fn arena(ctx: Ctx) -> Reply {
     }
 
     let Some(opponent) = other_user(&ctx, &opponent_jid) else {
-        return Reply::text("Lawan yang kamu tag belum terdaftar di database kita nih kak!");
+        return Reply::text(
+            "Lawan yang kamu tag belum terdaftar di database kita nih kak!",
+        );
     };
-    let opp_rpg = opponent
-        .get("rpg")
-        .cloned()
-        .unwrap_or_else(|| serde_json::json!({}));
+    let opp_rpg = opponent.get("rpg").cloned().unwrap_or_else(|| serde_json::json!({}));
     let opp_map = opp_rpg.as_object().cloned().unwrap_or_default();
     let opp_level = or_default(opponent.get("level").and_then(Value::as_i64), 1);
     let opp_koin = or_default(opponent.get("koin").and_then(Value::as_i64), 0);
@@ -284,11 +270,7 @@ mod tests {
 
     #[test]
     fn without_a_target_the_how_to_is_shown_and_nothing_is_written() {
-        let r = run(ctx_with(
-            &[],
-            GroupRoster::default(),
-            serde_json::json!({"koin": 100}),
-        ));
+        let r = run(ctx_with(&[], GroupRoster::default(), serde_json::json!({"koin": 100})));
         let t = text_of(&r);
         assert!(t.starts_with("⚔️ *ARENA GLADIATOR*"), "{t}");
         assert!(t.contains(".arena @user"), "{t}");
@@ -322,10 +304,8 @@ mod tests {
     fn a_duel_always_writes_both_sides() {
         let ctx = ctx_with(
             &["628222@s.whatsapp.net"],
-            roster_with(
-                serde_json::json!({"rpg": {"health": 100, "attack": 10, "defense": 5},
-                               "level": 4, "koin": 10_000}),
-            ),
+            roster_with(serde_json::json!({"rpg": {"health": 100, "attack": 10, "defense": 5},
+                               "level": 4, "koin": 10_000})),
             serde_json::json!({"rpg": {"health": 100, "attack": 10, "defense": 5}, "level": 1, "koin": 5_000}),
         );
         let r = run(ctx.clone());
@@ -344,10 +324,7 @@ mod tests {
             .collect();
         assert!(jids.contains(&"628111@s.whatsapp.net"));
         if jids.len() == 2 {
-            assert!(
-                jids.contains(&"628222@s.whatsapp.net"),
-                "kalah tak menulis lawan"
-            );
+            assert!(jids.contains(&"628222@s.whatsapp.net"), "kalah tak menulis lawan");
         }
     }
 
@@ -357,10 +334,8 @@ mod tests {
         for _ in 0..100 {
             let ctx = ctx_with(
                 &["628222@s.whatsapp.net"],
-                roster_with(
-                    serde_json::json!({"rpg": {"health": 20, "attack": 1, "defense": 1},
-                                   "level": 1, "koin": 10_000}),
-                ),
+                roster_with(serde_json::json!({"rpg": {"health": 20, "attack": 1, "defense": 1},
+                                   "level": 1, "koin": 10_000})),
                 serde_json::json!({"rpg": {"health": 100, "attack": 90, "defense": 90}, "level": 9, "koin": 0}),
             );
             let r = run(ctx.clone());
@@ -370,22 +345,14 @@ mod tests {
             }
             won = true;
             let mine = r.mutations().iter().find_map(|m| match m {
-                Mutation::SetUser { jid, data } if jid == "628111@s.whatsapp.net" => {
-                    Some(data.clone())
-                }
+                Mutation::SetUser { jid, data } if jid == "628111@s.whatsapp.net" => Some(data.clone()),
                 _ => None,
             });
             let theirs = r.mutations().iter().find_map(|m| match m {
-                Mutation::SetUser { jid, data } if jid == "628222@s.whatsapp.net" => {
-                    Some(data.clone())
-                }
+                Mutation::SetUser { jid, data } if jid == "628222@s.whatsapp.net" => Some(data.clone()),
                 _ => None,
             });
-            assert_eq!(
-                mine.unwrap()["koin"],
-                serde_json::json!(1000),
-                "10% dari 10.000"
-            );
+            assert_eq!(mine.unwrap()["koin"], serde_json::json!(1000), "10% dari 10.000");
             assert_eq!(theirs.unwrap()["koin"], serde_json::json!(9000));
         }
         assert!(won, "dalam 100 percobaan harus ada kemenangan");
@@ -397,10 +364,8 @@ mod tests {
         for _ in 0..100 {
             let ctx = ctx_with(
                 &["628222@s.whatsapp.net"],
-                roster_with(
-                    serde_json::json!({"rpg": {"health": 100, "attack": 90, "defense": 90},
-                                   "level": 9, "koin": 0}),
-                ),
+                roster_with(serde_json::json!({"rpg": {"health": 100, "attack": 90, "defense": 90},
+                                   "level": 9, "koin": 0})),
                 serde_json::json!({"rpg": {"health": 20, "attack": 1, "defense": 1}, "level": 1, "koin": 10_000}),
             );
             let r = run(ctx.clone());
@@ -410,13 +375,10 @@ mod tests {
             }
             lost = true;
             assert_eq!(r.mutations().len(), 1, "kalah tidak menyentuh lawan");
-            assert_eq!(
-                r.mutations()[0].clone(),
-                Mutation::SetUser {
-                    jid: "628111@s.whatsapp.net".into(),
-                    data: serde_json::json!({"koin": 8000}),
-                }
-            );
+            assert_eq!(r.mutations()[0].clone(), Mutation::SetUser {
+                jid: "628111@s.whatsapp.net".into(),
+                data: serde_json::json!({"koin": 8000}),
+            });
         }
         assert!(lost, "dalam 100 percobaan harus ada kalah");
     }
@@ -436,10 +398,7 @@ mod tests {
         // balasan yang memakai `Math.max(0, hp)`.
         let (_, raw, _) = battle(5, 0, 5, 0, 1000, 1000);
         assert!(raw < 1000, "kerusakan menumpuk, HP boleh negatif");
-        assert!(
-            log[0].their_damage.is_none(),
-            "serangan pihak pertama selesai, tak ada balasan"
-        );
+        assert!(log[0].their_damage.is_none(), "serangan pihak pertama selesai, tak ada balasan");
     }
 
     #[test]

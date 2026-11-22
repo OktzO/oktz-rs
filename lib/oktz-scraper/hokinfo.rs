@@ -71,16 +71,12 @@ pub fn scrape_hok_character(http: &dyn HttpGet, name: &str) -> Result<Value, Htt
             .filter(|s| !s.is_empty());
     }
     if let Some(gambar) = &image
-        && gambar.starts_with("//")
-    {
-        image = Some(format!("https:{gambar}"));
-    }
+        && gambar.starts_with("//") {
+            image = Some(format!("https:{gambar}"));
+        }
 
     let mut profil: Vec<(String, String)> = Vec::new();
-    for e in els
-        .iter()
-        .filter(|e| e.kelas("pi-item") && e.kelas("pi-data"))
-    {
+    for e in els.iter().filter(|e| e.kelas("pi-item") && e.kelas("pi-data")) {
         let label = els
             .iter()
             .find(|x| dalam_isi(x, e) && x.kelas("pi-data-label"))
@@ -406,10 +402,7 @@ mod tests {
             p[0].url,
             "https://honor-of-kings.fandom.com/wiki/Angela%20Sun"
         );
-        assert!(
-            p[0].terima_semua_status,
-            "res.ok dicek manual seperti fetch"
-        );
+        assert!(p[0].terima_semua_status, "res.ok dicek manual seperti fetch");
         let cari = |nama: &str| {
             p[0].headers
                 .iter()

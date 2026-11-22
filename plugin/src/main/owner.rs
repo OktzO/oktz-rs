@@ -8,10 +8,7 @@ fn digits(raw: &str) -> String {
 }
 
 fn first_nonempty(value: Option<&str>, fallback: &str) -> String {
-    value
-        .filter(|s| !s.is_empty())
-        .unwrap_or(fallback)
-        .to_string()
+    value.filter(|s| !s.is_empty()).unwrap_or(fallback).to_string()
 }
 
 fn bot_name(ctx: &Ctx) -> String {
@@ -32,7 +29,12 @@ fn owner_name(ctx: &Ctx, number: &str) -> String {
     if let Some(nama) = mapped {
         return nama.to_string();
     }
-    let configured = ctx.config().owner.number.iter().any(|n| digits(n) == clean);
+    let configured = ctx
+        .config()
+        .owner
+        .number
+        .iter()
+        .any(|n| digits(n) == clean);
     if configured {
         first_nonempty(Some(ctx.config().owner.name.as_str()), "Owner")
     } else {
@@ -42,7 +44,13 @@ fn owner_name(ctx: &Ctx, number: &str) -> String {
 
 fn owner_numbers(ctx: &Ctx) -> Vec<String> {
     let mut seen: Vec<String> = Vec::new();
-    for raw in ctx.config().owner.number.iter().chain(ctx.db_owners()) {
+    for raw in ctx
+        .config()
+        .owner
+        .number
+        .iter()
+        .chain(ctx.db_owners())
+    {
         if !seen.iter().any(|s| s == raw) {
             seen.push(raw.clone());
         }
@@ -118,9 +126,8 @@ pub fn owner(ctx: Ctx) -> Reply {
                 contacts,
             },
             Reply::TextQuotedPrevious {
-                text:
-                    "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
-                        .into(),
+                text: "💬 Jika kamu memiliki pertanyaan, jangan ragu untuk bertanya, owner ramah kok"
+                    .into(),
             },
         ]);
     }

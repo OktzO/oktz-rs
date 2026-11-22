@@ -60,11 +60,7 @@ fn bytes(http: &dyn HttpGet, jalur: &str) -> Result<Vec<u8>, HttpError> {
     bytes_ms(http, jalur, None)
 }
 
-fn bytes_ms(
-    http: &dyn HttpGet,
-    jalur: &str,
-    timeout_ms: Option<u64>,
-) -> Result<Vec<u8>, HttpError> {
+fn bytes_ms(http: &dyn HttpGet, jalur: &str, timeout_ms: Option<u64>) -> Result<Vec<u8>, HttpError> {
     let res = ambil_ms(http, jalur, timeout_ms)?;
     let data = res.body.bytes().to_vec();
     if data.is_empty() {
@@ -92,10 +88,7 @@ fn teks(v: Option<&Value>) -> String {
 /// Tipe dibaca dari `medias[].type` yang dilaporkan host — bukan ditebak dari
 /// `duration`, cara lama yang membuat foto slide bisa dikirim sebagai video.
 pub fn tiktok(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
-    let data = json(
-        http,
-        &format!("/download/tiktok2?url={}", encode_uri_component(url)),
-    )?;
+    let data = json(http, &format!("/download/tiktok2?url={}", encode_uri_component(url)))?;
     let d = data.get("data").cloned().unwrap_or(Value::Null);
 
     let mut downloads: Vec<Value> = Vec::new();
@@ -284,11 +277,7 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
             let mut b = self.balasan.lock().unwrap();
-            let (status, data) = if b.len() > 1 {
-                b.remove(0)
-            } else {
-                b[0].clone()
-            };
+            let (status, data) = if b.len() > 1 { b.remove(0) } else { b[0].clone() };
             Ok(HttpResponse {
                 status,
                 body: HttpBody::Bytes {
@@ -345,10 +334,7 @@ mod tests {
 
     #[test]
     fn status_false_jadi_error_dengan_pesan_host() {
-        let http = Stub::baru(vec![(
-            200,
-            r#"{"status":false,"message":"URL tidak valid"}"#,
-        )]);
+        let http = Stub::baru(vec![(200, r#"{"status":false,"message":"URL tidak valid"}"#)]);
         let e = pinterest(http.as_ref(), "kucing", 5).unwrap_err();
         assert_eq!(e.message, "URL tidak valid");
     }

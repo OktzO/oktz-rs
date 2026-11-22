@@ -51,10 +51,7 @@ pub fn uninstalltema(ctx: Ctx) -> Reply {
     };
 
     // `global.installtema = { vps: ipvps, pwvps: passwd }`
-    ctx.session_set(
-        SESSION_KEY,
-        serde_json::json!({ "vps": ipvps, "pwvps": passwd }),
-    );
+    ctx.session_set(SESSION_KEY, serde_json::json!({ "vps": ipvps, "pwvps": passwd }));
 
     Reply::text(format!(
         "⚠️ *ᴜɴɪɴsᴛᴀʟʏ ᴛᴇᴍᴀ* tidak tersedia di port Rust\n\n\
@@ -76,9 +73,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     fn ctx_for(text: &str) -> Ctx {
@@ -120,10 +115,7 @@ mod tests {
             let t = text_of(&__balasan);
             assert!(t.starts_with("╭┈┈⬡「 🗑️ *ᴜɴɪɴsᴛᴀʟʟ ᴛᴇᴍᴀ* 」"), "{t}");
             assert!(t.contains("`.uinstalltema <ip>|<password>`"), "{t}");
-            assert!(
-                t.contains("Contoh: .uinstalltema 192.168.1.1|secretpass"),
-                "{t}"
-            );
+            assert!(t.contains("Contoh: .uinstalltema 192.168.1.1|secretpass"), "{t}");
         }
     }
 
@@ -143,10 +135,7 @@ mod tests {
 
         // `global.installtema = { vps, pwvps }` dengan nilai yang sudah di-trim.
         let saved = ctx.session_get(SESSION_KEY).expect("session harus terisi");
-        assert_eq!(
-            saved,
-            serde_json::json!({ "vps": "192.168.1.1", "pwvps": "secretpass" })
-        );
+        assert_eq!(saved, serde_json::json!({ "vps": "192.168.1.1", "pwvps": "secretpass" }));
     }
 
     #[test]
@@ -161,7 +150,8 @@ mod tests {
 
     // Perintah dan input stream yang belum bisa dieksekusi — dijaga agar
     // port SSH nanti tidak perlu membuka `uninstalltema.js` lagi.
-    const UNINSTALL_CMD: &str = "bash <(curl -s https://raw.githubusercontent.com/veryLinh/Theme-Autoinstaller/main/install.sh)";
+    const UNINSTALL_CMD: &str =
+        "bash <(curl -s https://raw.githubusercontent.com/veryLinh/Theme-Autoinstaller/main/install.sh)";
     const STREAM_INPUTS: [&str; 4] = ["skyzodev", "2", "y", "x"];
 
     #[test]

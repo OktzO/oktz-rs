@@ -133,8 +133,11 @@ pub fn ocr(ctx: Ctx) -> Reply {
     let bytes = match bytes {
         Ok(b) if !b.is_empty() => b,
         _ => {
-            return Reply::sequence(vec![Reply::text(memproses()), Reply::text(gagal_unduh())])
-                .with_reaction("❌");
+            return Reply::sequence(vec![
+                Reply::text(memproses()),
+                Reply::text(gagal_unduh()),
+            ])
+            .with_reaction("❌");
         }
     };
 
@@ -240,7 +243,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
+            timestamp: 0,
             }),
             ..ctx_kosong()
         };

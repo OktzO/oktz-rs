@@ -117,10 +117,7 @@ mod tests {
         assert_eq!(p.meta.name, "potensipenyakit");
         assert_eq!(p.meta.alias, ["cekpenyakit", "penyakit"]);
         assert_eq!(p.meta.category, "primbon");
-        assert_eq!(
-            p.meta.description,
-            "Cek potensi penyakit berdasarkan tanggal lahir"
-        );
+        assert_eq!(p.meta.description, "Cek potensi penyakit berdasarkan tanggal lahir");
         assert_eq!(p.meta.usage, ".potensipenyakit <tgl> <bln> <thn>");
         assert_eq!(p.meta.example, ".potensipenyakit 12 05 1998");
         assert_eq!(p.meta.cooldown, 5);
@@ -147,9 +144,7 @@ mod tests {
 
         // Angka negatif pun tidak divalidasi — tetap diteruskan mentah.
         let r = run_with(
-            Arc::new(Stub(
-                serde_json::json!({ "status": true, "data": { "catatan": "-" } }),
-            )),
+            Arc::new(Stub(serde_json::json!({ "status": true, "data": { "catatan": "-" } }))),
             &["-1", "😀", "abc"],
         );
         assert!(
@@ -179,11 +174,7 @@ mod tests {
 
     #[test]
     fn a_falsy_status_or_data_gives_the_failure_message() {
-        for body in [
-            serde_json::json!({ "data": {} }),
-            serde_json::json!({ "status": true }),
-            serde_json::json!({}),
-        ] {
+        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({})] {
             let r = run_with(Arc::new(Stub(body)), &["12", "05", "1998"]);
             assert_eq!(reply_text(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal menganalisa");
         }

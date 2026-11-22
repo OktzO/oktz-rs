@@ -63,21 +63,21 @@ fn ekstensi(mimetype: &str) -> &'static str {
 // ---------------------------------------------------------------------------
 
 fn litterbox(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<Hasil> {
-    let res =
-        ctx.http
-            .call(
-                &HttpCall::post("https://litterbox.catbox.moe/resources/internals/api.php")
-                    .multipart(vec![
-                        oktz_plugin_api::registry::MultipartPart::field("reqtype", "fileupload"),
-                        oktz_plugin_api::registry::MultipartPart::field("time", "72h"),
-                        oktz_plugin_api::registry::MultipartPart::file(
-                            "fileToUpload",
-                            filename,
-                            buffer.to_vec(),
-                        ),
-                    ]),
-            )
-            .ok()?;
+    let res = ctx
+        .http
+        .call(
+            &HttpCall::post("https://litterbox.catbox.moe/resources/internals/api.php")
+                .multipart(vec![
+                    oktz_plugin_api::registry::MultipartPart::field("reqtype", "fileupload"),
+                    oktz_plugin_api::registry::MultipartPart::field("time", "72h"),
+                    oktz_plugin_api::registry::MultipartPart::file(
+                        "fileToUpload",
+                        filename,
+                        buffer.to_vec(),
+                    ),
+                ]),
+        )
+        .ok()?;
     let url = res.text().trim().to_string();
     if url.starts_with("http") {
         Some(Hasil {
@@ -132,10 +132,7 @@ fn uguu(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<Hasil> {
         )
         .ok()?;
     let body = res.json()?;
-    if !body
-        .get("success")
-        .is_some_and(crate::common::js_truthy_value)
-    {
+    if !body.get("success").is_some_and(crate::common::js_truthy_value) {
         return None;
     }
     let url = body
@@ -163,7 +160,10 @@ fn nekohime(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<Hasil> {
     let body = res.json()?;
     let files = body.get("files")?;
     let url = match files {
-        Value::Array(a) => a.first().and_then(|f| f.get("url")).and_then(Value::as_str),
+        Value::Array(a) => a
+            .first()
+            .and_then(|f| f.get("url"))
+            .and_then(Value::as_str),
         Value::Object(_) => files.get("url").and_then(Value::as_str),
         _ => None,
     }?;
@@ -659,12 +659,7 @@ mod tests {
     #[test]
     fn output_sama_dengan_js_file_kelewat_besar() {
         let ctx = ctx_kosong();
-        let r = kirim_media(
-            &ctx,
-            vec![0u8; MAX_BYTES + 1],
-            "image/png".into(),
-            "a.png".into(),
-        );
+        let r = kirim_media(&ctx, vec![0u8; MAX_BYTES + 1], "image/png".into(), "a.png".into());
         assert_eq!(
             body(&r),
             "❌ *Kak, filenya kelewat besar!*\n\n\

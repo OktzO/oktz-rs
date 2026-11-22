@@ -47,12 +47,7 @@ pub(crate) fn level_bar(current: i64, target: i64) -> String {
 
 /// Nomor bersih dari jid: split `@` lalu split `:` (`profile.js:60`).
 fn phone_of(jid: &str) -> &str {
-    jid.split('@')
-        .next()
-        .unwrap_or("")
-        .split(':')
-        .next()
-        .unwrap_or("")
+    jid.split('@').next().unwrap_or("").split(':').next().unwrap_or("")
 }
 
 /// `config.isOwner(target)` (`config.js:364`) — bagian yang terjangkau Ctx.
@@ -63,10 +58,9 @@ fn target_owner(ctx: &Ctx, target: &str) -> bool {
         .number
         .iter()
         .any(|o| o.split('@').next().unwrap_or(o) == nomor)
-        || ctx
-            .db_owners()
-            .iter()
-            .any(|o| o == target || o.split('@').next().unwrap_or(o) == nomor)
+        || ctx.db_owners().iter().any(|o| {
+            o == target || o.split('@').next().unwrap_or(o) == nomor
+        })
 }
 
 /// `config.isPremium(target)` (`config.js:406`) — owner, flag user, atau
@@ -80,8 +74,7 @@ fn target_premium(ctx: &Ctx, target: &str, user: &Value) -> bool {
     }
     let nomor = phone_of(target);
     ctx.setting_list("premiumUsers").iter().any(|p| {
-        p.as_str()
-            .is_some_and(|s| s.split('@').next().unwrap_or(s) == nomor)
+        p.as_str().is_some_and(|s| s.split('@').next().unwrap_or(s) == nomor)
     })
 }
 
@@ -94,9 +87,7 @@ fn user_of(ctx: &Ctx, target: &str) -> Value {
         return Value::Null;
     };
     let users = root.get("users").and_then(Value::as_object);
-    let Some(users) = users else {
-        return Value::Null;
-    };
+    let Some(users) = users else { return Value::Null };
     if let Some(u) = users.get(target) {
         return u.clone();
     }
@@ -165,15 +156,9 @@ pub fn profile(ctx: Ctx) -> Reply {
         rpg = serde_json::json!({});
     }
     let rpg_lama = rpg.clone();
-    let health = rpg_lama
-        .get("health")
-        .and_then(Value::as_i64)
-        .unwrap_or(100);
+    let health = rpg_lama.get("health").and_then(Value::as_i64).unwrap_or(100);
     let mana = rpg_lama.get("mana").and_then(Value::as_i64).unwrap_or(100);
-    let stamina = rpg_lama
-        .get("stamina")
-        .and_then(Value::as_i64)
-        .unwrap_or(100);
+    let stamina = rpg_lama.get("stamina").and_then(Value::as_i64).unwrap_or(100);
     rpg["level"] = serde_json::json!(user_level);
     rpg["health"] = serde_json::json!(health);
     rpg["maxHealth"] = serde_json::json!(100 + (user_level - 1) * 10);
@@ -209,24 +194,15 @@ pub fn profile(ctx: Ctx) -> Reply {
             str::to_string,
         );
     caption.push_str(&format!("- *Nama Asli:* {nama}\n"));
-    if user
-        .get("isRegistered")
-        .is_some_and(crate::common::js_truthy_value)
-    {
+    if user.get("isRegistered").is_some_and(crate::common::js_truthy_value) {
         let reg_name = user.get("regName").and_then(Value::as_str).unwrap_or("");
-        let reg_age = user
-            .get("regAge")
-            .map(|v| v.to_string())
-            .unwrap_or_default();
+        let reg_age = user.get("regAge").map(|v| v.to_string()).unwrap_or_default();
         let reg_gender = user.get("regGender").and_then(Value::as_str).unwrap_or("");
         caption.push_str(&format!(
             "- *Nama Daftar:* {reg_name} ({reg_age} tahun, {reg_gender})\n"
         ));
     }
-    caption.push_str(&format!(
-        "- *Tag / Mention:* @{}\n",
-        target.split('@').next().unwrap_or("")
-    ));
+    caption.push_str(&format!("- *Tag / Mention:* @{}\n", target.split('@').next().unwrap_or("")));
 
     // `${isOwnerUser ? "👑 Owner" : isPremiumUser ? "💎 Premium" : "🆓 Free User"}`
     let status_akun = if is_owner_user {
@@ -237,26 +213,21 @@ pub fn profile(ctx: Ctx) -> Reply {
         "🆓 Free User"
     };
     caption.push_str(&format!("- *Status Akun:* {status_akun}\n"));
-    if user
-        .get("isBanned")
-        .is_some_and(crate::common::js_truthy_value)
-    {
+    if user.get("isBanned").is_some_and(crate::common::js_truthy_value) {
         caption.push_str("- *Banned:* 🚫 Ya (Tidak bisa akses fitur bot)\n");
     }
     if let Some(registered_at) = user.get("registeredAt")
-        && crate::common::js_truthy_value(registered_at)
-    {
-        let ms = date_ke_ms(registered_at);
-        if ms != 0 {
-            let (y, mo, d, _, _, _) = crate::common::jakarta_parts(ms);
-            caption.push_str(&format!("- *Tanggal Terdaftar:* {d:02}/{mo:02}/{y}\n"));
+        && crate::common::js_truthy_value(registered_at) {
+            let ms = date_ke_ms(registered_at);
+            if ms != 0 {
+                let (y, mo, d, _, _, _) = crate::common::jakarta_parts(ms);
+                caption.push_str(&format!("- *Tanggal Terdaftar:* {d:02}/{mo:02}/{y}\n"));
+            }
         }
-    }
     if let Some(clan) = user.get("clanId").and_then(Value::as_str)
-        && !clan.is_empty()
-    {
-        caption.push_str(&format!("- *Klan / Guild:* {clan}\n"));
-    }
+        && !clan.is_empty() {
+            caption.push_str(&format!("- *Klan / Guild:* {clan}\n"));
+        }
     let spouse = user
         .get("rpg")
         .and_then(|r| r.get("spouse"))
@@ -297,10 +268,7 @@ pub fn profile(ctx: Ctx) -> Reply {
     caption.push_str("\n*〔 💰 ASET & KEUANGAN 〕*\n");
     let koin = user.get("koin").and_then(Value::as_i64).unwrap_or(0);
     let bank = rpg_lama.get("bank").and_then(Value::as_i64).unwrap_or(0);
-    let energi = user
-        .get("energi")
-        .map(|v| v.to_string())
-        .unwrap_or_else(|| "undefined".to_string());
+    let energi = user.get("energi").map(|v| v.to_string()).unwrap_or_else(|| "undefined".to_string());
     caption.push_str(&format!(
         "- *Koin Tunai:* 🪙 Rp {} _(Digunakan untuk fitur RPG)_\n",
         format_number(koin)
@@ -320,22 +288,13 @@ pub fn profile(ctx: Ctx) -> Reply {
 
     caption.push_str("\n*〔 📱 WHATSAPP INFO 〕*\n");
     caption.push_str(&format!("- *Nomor:* +{phone}\n"));
-    caption.push_str(&format!(
-        "- *Eksistensi WA:* {}\n",
-        if exists { "Ya" } else { "Tidak" }
-    ));
+    caption.push_str(&format!("- *Eksistensi WA:* {}\n", if exists { "Ya" } else { "Tidak" }));
     caption.push_str(&format!("- *JID:* {canonical_jid}\n"));
     // lid: m.key?.participant / getLidFromJid / onWhatsApp().lid — tidak ada.
     caption.push_str("- *LID:* -\n");
     caption.push_str(&format!(
         "- *Tipe:* {}\n",
-        if _is_group {
-            "Group"
-        } else if is_lid {
-            "LID"
-        } else {
-            "S.WhatsApp.Net"
-        }
+        if _is_group { "Group" } else if is_lid { "LID" } else { "S.WhatsApp.Net" }
     ));
     // `contactQuery?.isBot` / deviceInfo — safe() gagal → false.
     caption.push_str("- *Bot WhatsApp:* Bukan\n");
@@ -360,37 +319,34 @@ pub fn profile(ctx: Ctx) -> Reply {
 
     let inventory = user.get("inventory").and_then(Value::as_object);
     if let Some(inv) = inventory {
-        let items: Vec<(&String, &Value)> = inv
-            .iter()
-            .filter(|(_, qty)| qty.as_i64().is_some_and(|q| q > 0))
-            .collect();
+        let items: Vec<(&String, &Value)> =
+            inv.iter().filter(|(_, qty)| qty.as_i64().is_some_and(|q| q > 0)).collect();
         if !items.is_empty() {
             caption.push_str("\n*〔 🎒 ISI INVENTORY 〕*\n");
             caption.push_str("Barang-barang yang berhasil kakak kumpulkan:\n");
             for (item, qty) in items {
                 let nama_item = format!(
                     "{}{}",
-                    item.chars()
-                        .next()
-                        .map(|c| c.to_uppercase().to_string())
-                        .unwrap_or_default(),
+                    item.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(),
                     item.chars().skip(1).collect::<String>()
                 );
-                caption.push_str(&format!("- *{nama_item}:* sejumlah {} item\n", qty));
+                caption.push_str(&format!(
+                    "- *{nama_item}:* sejumlah {} item\n",
+                    qty
+                ));
             }
         }
     }
 
     let unlocked = user.get("unlockedFeatures").and_then(Value::as_array);
     if let Some(list) = unlocked
-        && !list.is_empty()
-    {
-        caption.push_str("\n*〔 🔓 FITUR PREMIUM TERBUKA 〕*\n");
-        caption.push_str("Fitur eksklusif yang sudah kakak beli secara permanen:\n");
-        for f in list {
-            caption.push_str(&format!("- *{}*\n", f.as_str().unwrap_or("")));
+        && !list.is_empty() {
+            caption.push_str("\n*〔 🔓 FITUR PREMIUM TERBUKA 〕*\n");
+            caption.push_str("Fitur eksklusif yang sudah kakak beli secara permanen:\n");
+            for f in list {
+                caption.push_str(&format!("- *{}*\n", f.as_str().unwrap_or("")));
+            }
         }
-    }
 
     let mut mentions = vec![target.clone()];
     if let Some(s) = &spouse {
@@ -406,15 +362,12 @@ pub fn profile(ctx: Ctx) -> Reply {
             .unwrap_or_else(|| MediaSource::url(PP_KOSONG))
     });
 
-    Reply::Image {
-        media: Some(media),
-        caption,
-        mentions,
-    }
-    .mutating(vec![Mutation::SetUser {
-        jid: target,
-        data: serde_json::json!({ "rpg": rpg }),
-    }])
+    Reply::Image { media: Some(media), caption, mentions }.mutating(vec![
+        Mutation::SetUser {
+            jid: target,
+            data: serde_json::json!({ "rpg": rpg }),
+        },
+    ])
 }
 
 #[cfg(test)]
@@ -428,9 +381,7 @@ mod tests {
 
     fn ctx_of(text: &str, command: &str) -> Ctx {
         let berkas = BerkasPalsu::baru();
-        berkas
-            .tulis_teks("database/main/settings.json", STORE)
-            .unwrap();
+        berkas.tulis_teks("database/main/settings.json", STORE).unwrap();
         Ctx {
             text: text.to_string(),
             args: text.split_whitespace().map(str::to_string).collect(),
@@ -448,10 +399,7 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("profile").unwrap();
         assert_eq!(p.meta.name, "profile");
-        assert_eq!(
-            p.meta.alias,
-            ["me", "profil", "myprofile", "my", "stats", "status"]
-        );
+        assert_eq!(p.meta.alias, ["me", "profil", "myprofile", "my", "stats", "status"]);
         assert_eq!(p.meta.category, "user");
         assert_eq!(p.meta.description, "Melihat profil user dengan RPG stats");
         assert_eq!(p.meta.usage, ".profile [@user]");
@@ -492,10 +440,7 @@ mod tests {
         assert!(t.contains("- *Koin Tunai:* 🪙 Rp 1.234.567"));
         assert!(t.contains("- *Uang di Bank:* 🏦 Rp 500.000"));
         assert!(t.contains("- *Sisa Energi:* ⚡ 50"));
-        assert!(
-            t.contains("- *Eksistensi WA:* Tidak"),
-            "sock mati = safe() gagal"
-        );
+        assert!(t.contains("- *Eksistensi WA:* Tidak"), "sock mati = safe() gagal");
         assert!(t.contains("- *Bio:* -"));
         assert!(t.contains("- *Tipe Akun:* WhatsApp Biasa"));
         assert!(t.contains("- *Runtime:* Node -"));
@@ -529,9 +474,7 @@ mod tests {
     fn avatar_jatuh_ke_asset_pp_kosong() {
         let mut c = ctx_of("", "profile");
         let mut assets = oktz_plugin_api::config::Assets::default();
-        assets
-            .0
-            .insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
+        assets.0.insert("pp-kosong".into(), "./assets/image/pp-kosong.jpeg".into());
         c.config = std::sync::Arc::new(oktz_plugin_api::config::Runtime {
             assets,
             ..Default::default()

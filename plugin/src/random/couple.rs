@@ -129,10 +129,7 @@ mod tests {
     #[test]
     fn jaringan_gagal_kembalikan_teks_gagal() {
         let r = run(Stub::offline());
-        assert_eq!(
-            r.text_body().expect("harus ada teks"),
-            "❌ Gagal mengambil gambar couple"
-        );
+        assert_eq!(r.text_body().expect("harus ada teks"), "❌ Gagal mengambil gambar couple");
     }
 
     #[test]
@@ -168,9 +165,6 @@ mod tests {
     fn result_tanpa_cowo_atau_cewe_gagal() {
         let data = serde_json::json!({ "result": { "cowo": "" } });
         let r = run(Stub::json(data));
-        assert_eq!(
-            r.text_body().expect("harus ada teks"),
-            "❌ Gagal mengambil gambar couple"
-        );
+        assert_eq!(r.text_body().expect("harus ada teks"), "❌ Gagal mengambil gambar couple");
     }
 }

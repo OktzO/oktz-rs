@@ -106,16 +106,10 @@ mod tests {
         assert!(text_of(&r).contains("HASIL PENGLIHATAN"));
         let g = ctx.session_get(GAMES_KEY).unwrap();
         assert!(
-            g["120363@g.us"]["nightActions"]
-                .as_object()
-                .unwrap()
-                .is_empty(),
+            g["120363@g.us"]["nightActions"].as_object().unwrap().is_empty(),
             "wwsee tidak menulis nightActions"
         );
-        assert_eq!(
-            g["120363@g.us"]["players"][0]["skillUsed"],
-            serde_json::json!(true)
-        );
+        assert_eq!(g["120363@g.us"]["players"][0]["skillUsed"], serde_json::json!(true));
     }
 
     #[test]
@@ -131,6 +125,9 @@ mod tests {
     #[test]
     fn without_a_number_nothing_is_written() {
         let r = run("", Some(game("villager")));
-        assert_eq!(text_of(&r), "❌ Masukkan nomor target! Contoh: `.wwsee 2`");
+        assert_eq!(
+            text_of(&r),
+            "❌ Masukkan nomor target! Contoh: `.wwsee 2`"
+        );
     }
 }

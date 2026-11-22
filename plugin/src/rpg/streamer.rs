@@ -9,12 +9,12 @@
 //! beberapa baris sebelumnya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::common::now_ms;
 use crate::rpg::jualan::{
-    apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map,
+    apply_exp, coalesce, math_random, or_default, rpg_int, rpg_map, roll_incl,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
@@ -184,15 +184,8 @@ mod tests {
             if t.starts_with("AKUN STREAMING KAMU DI-BANNED") {
                 let until = d["lastStreamer"].as_i64().unwrap();
                 let delta = until - now_ms();
-                assert!(
-                    (295_000..=300_000).contains(&delta),
-                    "sisa penalti {delta}ms"
-                );
-                assert_eq!(
-                    d["rpg"]["stamina"],
-                    serde_json::json!(80),
-                    "stamina tetap hangsus"
-                );
+                assert!((295_000..=300_000).contains(&delta), "sisa penalti {delta}ms");
+                assert_eq!(d["rpg"]["stamina"], serde_json::json!(80), "stamina tetap hangsus");
                 assert!(d.get("koin").is_none() && d.get("exp").is_none());
                 return;
             }
@@ -225,11 +218,7 @@ mod tests {
             let d = written(&r);
             let koin = d["koin"].as_i64().unwrap() - 1000;
             let parts = rupiahs(t);
-            assert_eq!(
-                parts.len(),
-                1 + usize::from(t.contains("SAWERAN SULTAN")),
-                "{t}"
-            );
+            assert_eq!(parts.len(), 1 + usize::from(t.contains("SAWERAN SULTAN")), "{t}");
             assert_eq!(koin, parts.iter().sum::<i64>(), "kantong = total: {t}");
             assert!((10000..=39999).contains(&parts[0]), "iklan {}", parts[0]);
             if parts.len() == 2 {

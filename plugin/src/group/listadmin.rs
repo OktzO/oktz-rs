@@ -68,7 +68,11 @@ pub fn listadmin(ctx: Ctx) -> Reply {
     }
     Reply::Text {
         text: render_admin_list(&ctx.roster.participants),
-        mentions: ctx.roster.admins().map(|a| a.jid.clone()).collect(),
+        mentions: ctx
+            .roster
+            .admins()
+            .map(|a| a.jid.clone())
+            .collect(),
     }
 }
 
@@ -232,10 +236,7 @@ mod tests {
     #[test]
     fn is_bot_admin_does_not_affect_the_listing() {
         let ps = vec![p("628222@s.whatsapp.net", true, false)];
-        assert_eq!(
-            text_of(&run(ps.clone(), true)),
-            text_of(&run(ps.clone(), false))
-        );
+        assert_eq!(text_of(&run(ps.clone(), true)), text_of(&run(ps.clone(), false)));
     }
 
     #[test]
@@ -250,10 +251,7 @@ mod tests {
         // Superadmin kedua TIDAK jadi admin biasa: di wire `admin`-nya string
         // `'superadmin'`, dan filter JS cuma mengambil `'admin'`.
         assert!(!out.contains("```1. @628222```"));
-        assert!(
-            !out.contains("━━━ ᴀᴅᴍɪɴ ━━━"),
-            "blok admin kosong di-lewati"
-        );
+        assert!(!out.contains("━━━ ᴀᴅᴍɪɴ ━━━"), "blok admin kosong di-lewati");
         assert!(out.ends_with("`Total Admin: 2`"));
     }
 
@@ -261,10 +259,7 @@ mod tests {
     fn helper_contracts() {
         assert!(owner_of(&[]).is_none());
         assert_eq!(owner_of(&[]).map(|p| p.is_owner), None);
-        let ps = [
-            p("a@s.whatsapp.net", true, true),
-            p("b@s.whatsapp.net", true, false),
-        ];
+        let ps = [p("a@s.whatsapp.net", true, true), p("b@s.whatsapp.net", true, false)];
         let admins: Vec<&Participant> = ps.iter().collect();
         assert_eq!(owner_of(&admins).unwrap().jid, "a@s.whatsapp.net");
         assert_eq!(regular_admins(&admins).len(), 1);

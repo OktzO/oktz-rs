@@ -20,7 +20,8 @@ pub(crate) fn help(prefix: &str) -> String {
 
 /// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY'), ..)`
 /// (`stalker-fallback.js:30-36`).
-pub(crate) const MISSING_KEY: &str = "❌ *API Key belum diset!*\n\n\
+pub(crate) const MISSING_KEY: &str =
+    "❌ *API Key belum diset!*\n\n\
      > Command `.igstalk` butuh `APIKEY_FIREFLY` di `.env`\n\
      > Saat ini belum ada, jadi tidak bisa dipanggil.";
 
@@ -35,10 +36,9 @@ pub(crate) fn api_url(username: &str, api_key: &str) -> String {
 /// `shortNum(num)` (`igstalk.js:22-29`) — `parseInt`, lalu ambang miliar/jt/rb
 // dengan `toFixed(1)` kemudian hapus `.0`.
 fn short_num(v: Option<&Value>) -> String {
-    let n = v.and_then(|v| v.as_i64()).or_else(|| {
-        v.and_then(Value::as_str)
-            .and_then(|s| s.parse::<i64>().ok())
-    });
+    let n = v
+        .and_then(|v| v.as_i64())
+        .or_else(|| v.and_then(Value::as_str).and_then(|s| s.parse::<i64>().ok()));
     let Some(n) = n else {
         return "0".to_string();
     };
@@ -147,16 +147,14 @@ pub fn igstalk(ctx: Ctx) -> Reply {
     };
     let body = res.json().unwrap_or(Value::Null);
     let Some(d) = body.get("data") else {
-        return Reply::text(format!("❌ Akun *@{username}* tidak ditemukan")).with_reaction("❌");
+        return Reply::text(format!("❌ Akun *@{username}* tidak ditemukan"))
+            .with_reaction("❌");
     };
-    if !body
-        .get("status")
-        .is_some_and(crate::common::js_truthy_value)
-        || d.get("username")
-            .and_then(Value::as_str)
-            .is_none_or(|s| s.is_empty())
+    if !body.get("status").is_some_and(crate::common::js_truthy_value)
+        || d.get("username").and_then(Value::as_str).is_none_or(|s| s.is_empty())
     {
-        return Reply::text(format!("❌ Akun *@{username}* tidak ditemukan")).with_reaction("❌");
+        return Reply::text(format!("❌ Akun *@{username}* tidak ditemukan"))
+            .with_reaction("❌");
     }
 
     let cap = caption(d, &username);
@@ -320,10 +318,7 @@ mod tests {
         assert_eq!(short_num(Some(&serde_json::json!(1500000))), "1.5 jt");
         assert_eq!(short_num(Some(&serde_json::json!(1000000000))), "1 miliar");
         assert_eq!(short_num(Some(&serde_json::json!("2500"))), "2.5 rb");
-        assert_eq!(
-            short_num(Some(&serde_json::json!("1500000000"))),
-            "1.5 miliar"
-        );
+        assert_eq!(short_num(Some(&serde_json::json!("1500000000"))), "1.5 miliar");
     }
 
     #[test]

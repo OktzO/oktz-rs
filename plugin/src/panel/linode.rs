@@ -15,8 +15,8 @@
 //! diterjemahkan apa adanya dengan `std::thread::sleep`.
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpMethod, Reply, plugin};
-use rand::Rng;
 use serde_json::Value;
+use rand::Rng;
 
 use crate::common::error_template;
 
@@ -29,30 +29,10 @@ struct Spec {
 }
 
 const LINODE_TYPES: [Spec; 4] = [
-    Spec {
-        command: "linode2gb",
-        jenis: "g6-standard-1",
-        ram: "2GB",
-        label: "2GB",
-    },
-    Spec {
-        command: "linode4gb",
-        jenis: "g6-standard-2",
-        ram: "4GB",
-        label: "4GB",
-    },
-    Spec {
-        command: "linode8gb",
-        jenis: "g6-standard-4",
-        ram: "8GB",
-        label: "8GB",
-    },
-    Spec {
-        command: "linode16gb",
-        jenis: "g6-standard-8",
-        ram: "16GB",
-        label: "16GB",
-    },
+    Spec { command: "linode2gb", jenis: "g6-standard-1", ram: "2GB", label: "2GB" },
+    Spec { command: "linode4gb", jenis: "g6-standard-2", ram: "4GB", label: "4GB" },
+    Spec { command: "linode8gb", jenis: "g6-standard-4", ram: "8GB", label: "8GB" },
+    Spec { command: "linode16gb", jenis: "g6-standard-8", ram: "16GB", label: "16GB" },
 ];
 
 /// `linode.js:4` — tanpa `I`, `O`, `l` (huruf yang membingungkan).
@@ -85,7 +65,7 @@ fn token_kosong() -> String {
      linode: 'YOUR_LINODE_TOKEN'\n\
      }\n\
      ```"
-    .to_string()
+        .to_string()
 }
 
 /// Menu bantuan (`linode.js:358-373`) — tidak pernah tercapai lewat registry
@@ -141,11 +121,7 @@ fn ipv4_pertama(info: &Value) -> String {
         .and_then(|a| a.first())
         .and_then(Value::as_str)
         .unwrap_or("");
-    if s.is_empty() {
-        "-".to_string()
-    } else {
-        s.to_string()
-    }
+    if s.is_empty() { "-".to_string() } else { s.to_string() }
 }
 
 /// Header standar semua permintaan Linode (`linode.js:78-81` dll).
@@ -265,25 +241,15 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     std::thread::sleep(std::time::Duration::from_secs(60));
 
     let req = headers(
-        HttpCall::get(format!(
-            "https://api.linode.com/v4/linode/instances/{linode_id}"
-        )),
+        HttpCall::get(format!("https://api.linode.com/v4/linode/instances/{linode_id}")),
         token,
     );
     let res = ctx.http.call(&req).map_err(|_| ())?;
     let info = res.json().ok_or(())?;
     // `linodeInfo.ipv4?.[0] || 'Pending'`.
     let ip = {
-        let s = js_str(
-            info.get("ipv4")
-                .and_then(Value::as_array)
-                .and_then(|a| a.first()),
-        );
-        if s.is_empty() {
-            "Pending".to_string()
-        } else {
-            s
-        }
+        let s = js_str(info.get("ipv4").and_then(Value::as_array).and_then(|a| a.first()));
+        if s.is_empty() { "Pending".to_string() } else { s }
     };
 
     let msg = format!(
@@ -294,7 +260,8 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
          > 🔑 Password: `{root_pass}`\n\
          > 💾 RAM: {}\n\
          > 📍 Region: ap-south",
-        spec.label, spec.ram,
+        spec.label,
+        spec.ram,
     );
 
     // Urutan JS: react 🚀 → reply 🕕 → (tunggu) → reply final → react ✅.
@@ -442,7 +409,10 @@ fn delinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
 /// `saldolinode` (`linode.js:279-304`) — `data.koin` dan
 /// `data.credit_remaining` dibagi 100, `toFixed(2)`.
 fn saldo(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
-    let req = headers(HttpCall::get("https://api.linode.com/v4/account"), token);
+    let req = headers(
+        HttpCall::get("https://api.linode.com/v4/account"),
+        token,
+    );
     let res = ctx.http.call(&req).map_err(|_| ())?;
     let data = res.json().ok_or(())?;
     if !res_ok(res.status) {
@@ -568,25 +538,12 @@ mod tests {
     #[test]
     fn semua_13_kunci_js_terdaftar() {
         for kunci in [
-            "linode2gb",
-            "linode4gb",
-            "linode8gb",
-            "linode16gb",
-            "listlinode",
-            "onlinode",
-            "offlinode",
-            "rebootlinode",
-            "rebuildlinode",
-            "delinode",
-            "saldolinode",
-            "sisalinode",
-            "cekvpslinode",
+            "linode2gb", "linode4gb", "linode8gb", "linode16gb", "listlinode",
+            "onlinode", "offlinode", "rebootlinode", "rebuildlinode", "delinode",
+            "saldolinode", "sisalinode", "cekvpslinode",
         ] {
             assert_eq!(
-                find(kunci)
-                    .unwrap_or_else(|| panic!("{kunci} tidak terdaftar"))
-                    .meta
-                    .name,
+                find(kunci).unwrap_or_else(|| panic!("{kunci} tidak terdaftar")).meta.name,
                 "linode2gb",
                 "kunci {kunci} harus resolve ke plugin linode"
             );
@@ -607,9 +564,8 @@ mod tests {
             let pass = format!("{}{}", random_karakter(5), random_nomor(3));
             assert_eq!(pass.len(), 8, "{pass}");
             assert!(
-                pass.chars()
-                    .all(|c| KARAKTER.contains(&(c as u32 as u8))
-                        || NOMOR.contains(&(c as u32 as u8))),
+                pass.chars().all(|c| KARAKTER.contains(&(c as u32 as u8))
+                    || NOMOR.contains(&(c as u32 as u8))),
                 "{pass} memuat karakter di luar alphabet JS"
             );
         }
@@ -624,10 +580,7 @@ mod tests {
     fn token_kosong_mengembalikan_pesan_konfigurasi() {
         let r = linode(ctx("listlinode", &[], ""));
         let t = teks(&r);
-        assert!(
-            t.starts_with("❌ Linode API Token tidak dikonfigurasi!"),
-            "{t}"
-        );
+        assert!(t.starts_with("❌ Linode API Token tidak dikonfigurasi!"), "{t}");
         assert!(t.contains("linode: 'YOUR_LINODE_TOKEN'"), "{t}");
         assert!(r.mutations().is_empty());
     }
@@ -666,7 +619,10 @@ mod tests {
             ("rebootlinode", ".rebootlinode 12345"),
             ("delinode", ".delinode 12345"),
             ("cekvpslinode", ".cekvpslinode 12345"),
-            ("rebuildlinode", ".rebuildlinode 12345 linode/ubuntu20.04"),
+            (
+                "rebuildlinode",
+                ".rebuildlinode 12345 linode/ubuntu20.04",
+            ),
         ] {
             let c = ctx(cmd, &[], "token-test");
             let r = linode(c);

@@ -92,10 +92,7 @@ mod tests {
     }
 
     fn session_of(s: &SessionStore) -> Option<Value> {
-        s.lock()
-            .unwrap()
-            .get(ABSENSI)
-            .and_then(|v| v.get(CHAT).cloned())
+        s.lock().unwrap().get(ABSENSI).and_then(|v| v.get(CHAT).cloned())
     }
 
     #[test]
@@ -128,19 +125,11 @@ mod tests {
         assert_eq!(text_of(&run(s.clone())), NO_SESSION);
 
         let s = new_session_store();
-        s.lock()
-            .unwrap()
-            .insert(ABSENSI.to_string(), serde_json::json!({}));
+        s.lock().unwrap().insert(ABSENSI.to_string(), serde_json::json!({}));
         let r = run(s.clone());
         assert_eq!(text_of(&r), NO_SESSION);
         assert_eq!(
-            s.lock()
-                .unwrap()
-                .get(ABSENSI)
-                .unwrap()
-                .as_object()
-                .unwrap()
-                .len(),
+            s.lock().unwrap().get(ABSENSI).unwrap().as_object().unwrap().len(),
             0,
             "peta harus tetap ada, cuma tanpa chat ini"
         );
@@ -185,12 +174,7 @@ mod tests {
         run(s.clone());
         assert!(session_of(&s).is_none());
         assert!(
-            s.lock()
-                .unwrap()
-                .get(ABSENSI)
-                .unwrap()
-                .get("120364@g.us")
-                .is_some(),
+            s.lock().unwrap().get(ABSENSI).unwrap().get("120364@g.us").is_some(),
             "sesi grup lain tidak boleh ikut terhapus"
         );
     }

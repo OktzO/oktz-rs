@@ -56,11 +56,13 @@ pub fn youtube_search(http: &dyn HttpGet, query: &str) -> Result<Vec<VideoHasil>
     let q = query.replace(' ', "+");
     let html = http
         .call(
-            &HttpCall::get(format!("https://www.youtube.com/results?search_query={q}"))
-                .header("accept", "*/*")
-                .header("accept-language", "en-US,en;q=0.9")
-                .header("user-agent", UA_CHROME)
-                .with_timeout(60_000),
+            &HttpCall::get(format!(
+                "https://www.youtube.com/results?search_query={q}"
+            ))
+            .header("accept", "*/*")
+            .header("accept-language", "en-US,en;q=0.9")
+            .header("user-agent", UA_CHROME)
+            .with_timeout(60_000),
         )?
         .text();
     let data = ambil_ytinitial(&html)?;
@@ -147,29 +149,13 @@ pub fn parse_hasil(data: &Value) -> Vec<VideoHasil> {
         .iter()
         .filter_map(|c| c.get("videoRenderer"))
         .map(|d| {
-            let id = d
-                .get("videoId")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
+            let id = d.get("videoId").and_then(Value::as_str).unwrap_or("").to_string();
             VideoHasil {
                 url: format!("https://www.youtube.com/watch?v={id}"),
                 id,
-                title: d
-                    .pointer("/title/runs/0/text")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string(),
-                author: d
-                    .pointer("/ownerText/runs/0/text")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string(),
-                views: d
-                    .pointer("/viewCountText/simpleText")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string(),
+                title: d.pointer("/title/runs/0/text").and_then(Value::as_str).unwrap_or("").to_string(),
+                author: d.pointer("/ownerText/runs/0/text").and_then(Value::as_str).unwrap_or("").to_string(),
+                views: d.pointer("/viewCountText/simpleText").and_then(Value::as_str).unwrap_or("").to_string(),
                 duration: d
                     .pointer("/lengthText/accessibility/accessibilityData/label")
                     .and_then(Value::as_str)
@@ -197,11 +183,7 @@ pub fn parse_hasil(data: &Value) -> Vec<VideoHasil> {
 ///
 /// Bentuk keluaran: `{ title, thumbnail, duration, downloadUrl, format:"mp3" }`
 /// (`duration` = `info.durationLabel`, hilang bila tidak ada seperti JS).
-pub fn savetube_download(
-    http: &dyn HttpGet,
-    video_url: &str,
-    quality: &str,
-) -> Result<Value, HttpError> {
+pub fn savetube_download(http: &dyn HttpGet, video_url: &str, quality: &str) -> Result<Value, HttpError> {
     let cdn = ambil_cdn(http)?;
     let info_res = http.call(
         &HttpCall::post(format!("https://{cdn}/v2/info"))
@@ -233,24 +215,12 @@ pub fn savetube_download(
             .with_timeout(60_000),
     )?;
     let dl = dl_res.json().unwrap_or(Value::Null);
-    let download_url = field(&dl, "data.downloadUrl")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+    let download_url = field(&dl, "data.downloadUrl").and_then(Value::as_str).unwrap_or("").to_string();
 
     let mut out = Map::new();
-    out.insert(
-        "title".to_string(),
-        info.get("title").cloned().unwrap_or(Value::Null),
-    );
-    out.insert(
-        "thumbnail".to_string(),
-        info.get("thumbnail").cloned().unwrap_or(Value::Null),
-    );
-    out.insert(
-        "duration".to_string(),
-        info.get("durationLabel").cloned().unwrap_or(Value::Null),
-    );
+    out.insert("title".to_string(), info.get("title").cloned().unwrap_or(Value::Null));
+    out.insert("thumbnail".to_string(), info.get("thumbnail").cloned().unwrap_or(Value::Null));
+    out.insert("duration".to_string(), info.get("durationLabel").cloned().unwrap_or(Value::Null));
     out.insert("downloadUrl".to_string(), Value::String(download_url));
     out.insert("format".to_string(), json!("mp3"));
     Ok(Value::Object(out))
@@ -329,7 +299,10 @@ pub fn ytmp3(http: &dyn HttpGet, query: &str, quality: &str) -> Result<HasilYtmp
 
     let mut terakhir: Option<HttpError> = None;
     // Backend berurutan savetube → ytmp3ing, seperti `backends` JS.
-    for (nama, _) in [("savetube", 1usize), ("ytmp3ing", 2)] {
+    for (nama, _) in [
+        ("savetube", 1usize),
+        ("ytmp3ing", 2),
+    ] {
         let hasil_unduh = if nama == "savetube" {
             savetube_download(http, &video.url, quality)
         } else {
@@ -410,8 +383,10 @@ fn dari_hex(s: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(b.len() / 2);
     let mut i = 0;
     while i + 1 < b.len() {
-        if let (Some(hi), Some(lo)) = ((b[i] as char).to_digit(16), (b[i + 1] as char).to_digit(16))
-        {
+        if let (Some(hi), Some(lo)) = (
+            (b[i] as char).to_digit(16),
+            (b[i + 1] as char).to_digit(16),
+        ) {
             out.push((hi * 16 + lo) as u8);
         }
         i += 2;
@@ -459,10 +434,7 @@ mod tests {
             parts: &[(&str, HttpBody)],
         ) -> Result<HttpResponse, HttpError> {
             // Multipart hanya menyuntik `url=` field — cukup lewat `call`.
-            self.header_diset
-                .lock()
-                .unwrap()
-                .push(parts[0].0.to_string());
+            self.header_diset.lock().unwrap().push(parts[0].0.to_string());
             self.call(&HttpCall::post(url))
         }
         // Multipart lewat `call` — stub hanya mencatat nama part pertama.
@@ -488,11 +460,7 @@ mod tests {
             let text = match nilai.clone() {
                 Some(Value::String(s)) => s,
                 Some(v) => v.to_string(),
-                None => {
-                    return Err(HttpError {
-                        message: "offline".into(),
-                    });
-                }
+                None => return Err(HttpError { message: "offline".into() }),
             };
             Ok(HttpResponse {
                 status: 200,
@@ -503,15 +471,14 @@ mod tests {
                 headers,
             })
         }
-    }
+            }
 
     const HTML_HASIL: &str = r#"<script>var ytInitialData = {"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"videoRenderer":{"videoId":"aaaaaaaaaaa","title":{"runs":[{"text":"Lagu Uji"}]},"ownerText":{"runs":[{"text":"Channel Uji"}]},"viewCountText":{"simpleText":"1,2 juta x ditonton"},"lengthText":{"accessibility":{"accessibilityData":{"label":"3 menit, 33 detik"}}},"thumbnail":{"thumbnails":[{"url":"https://i.ytimg.com/vi/a/low.jpg"},{"url":"https://i.ytimg.com/vi/a/hq.jpg"}]},"publishedTimeText":{"simpleText":"2 tahun yang lalu"}}}]}}]}}}}};var meta = 1;</script>"#;
 
     #[test]
     fn parse_hasil_mengikuti_play_js() {
         let data: Value = serde_json::from_str(
-            &HTML_HASIL["<script>var ytInitialData = ".len()
-                ..HTML_HASIL.len() - ";var meta = 1;</script>".len()],
+            &HTML_HASIL["<script>var ytInitialData = ".len()..HTML_HASIL.len() - ";var meta = 1;</script>".len()],
         )
         .unwrap();
         let v = parse_hasil(&data);
@@ -529,10 +496,7 @@ mod tests {
     #[test]
     fn ambil_ytinitial_menemukan_objek_dengan_kurung_seimbang() {
         let data = ambil_ytinitial(HTML_HASIL).unwrap();
-        assert!(
-            data.pointer("/contents/twoColumnSearchResultsRenderer")
-                .is_some()
-        );
+        assert!(data.pointer("/contents/twoColumnSearchResultsRenderer").is_some());
         assert!(ambil_ytinitial("<html>kosong</html>").is_err());
         // `}` di dalam string tidak boleh menutup objek lebih awal.
         let html = r#"var ytInitialData = {"a":"}"};var x=1;"#;
@@ -542,31 +506,16 @@ mod tests {
     #[test]
     fn ytmp3_backend_pertama_yang_menang_dan_video_pertama_dipakai() {
         let http = Stub::per_url(vec![
-            (
-                "youtube.com/results",
-                Some(Value::String(HTML_HASIL.to_string())),
-            ),
-            (
-                "random-cdn",
-                Some(serde_json::json!({"cdn": "cdn.example"})),
-            ),
-            (
-                "cdn.example/v2/info",
-                Some(serde_json::json!({"status": false})),
-            ),
+            ("youtube.com/results", Some(Value::String(HTML_HASIL.to_string()))),
+            ("random-cdn", Some(serde_json::json!({"cdn": "cdn.example"}))),
+            ("cdn.example/v2/info", Some(serde_json::json!({"status": false}))),
             // Penanda `/audio` lebih dulu — `ytmp3.ing/` juga cocok dengan
             // URL `/audio` (stub pakai `contains` pertama-yang cocok).
-            (
-                "ytmp3.ing/audio",
-                Some(serde_json::json!({
-                    "url": "aHR0cHM6Ly9jZG4uZXhhbXBsZS9hLm1wMw==",
-                    "filename": "Lagu Uji.mp3"
-                })),
-            ),
-            (
-                "ytmp3.ing/",
-                Some(Value::String("<input value=\"csrf-token\">".to_string())),
-            ),
+            ("ytmp3.ing/audio", Some(serde_json::json!({
+                "url": "aHR0cHM6Ly9jZG4uZXhhbXBsZS9hLm1wMw==",
+                "filename": "Lagu Uji.mp3"
+            }))),
+            ("ytmp3.ing/", Some(Value::String("<input value=\"csrf-token\">".to_string()))),
         ]);
         let hasil = ytmp3(http.as_ref(), "lagu uji", "128").unwrap();
         assert_eq!(hasil.backend, "ytmp3ing");
@@ -585,29 +534,14 @@ mod tests {
         // Payload terenkripsi asli dari test youtube.rs (kunci KY yang sama).
         const INFO_B64: &str = "ABEiM0RVZneImaq7zN3u/ySRS+noY6Ay7XJ1nsZrbPP+2RcuGwwaev1qt4NlUA72hdBgn3XNiSl7QfGCo62X8B9A/hxp+1z3KaAFgGgptf1W9l6yzPe64HY5MMw0+o0UIV9n44ophBe+83JkcPivUaDXq2VdkgkvfkNkCj8KBaSrAXnP+WsnSmzRTPJUDJp/Ho+m4WSj/2N97wh2sdHfkQ==";
         let http = Stub::per_url(vec![
-            (
-                "youtube.com/results",
-                Some(Value::String(HTML_HASIL.to_string())),
-            ),
-            (
-                "random-cdn",
-                Some(serde_json::json!({"cdn": "cdn.example"})),
-            ),
-            (
-                "cdn.example/v2/info",
-                Some(serde_json::json!({"status": true, "data": INFO_B64})),
-            ),
-            (
-                "cdn.example/download",
-                Some(serde_json::json!({"data": {"downloadUrl": "https://dl.example/a.mp3"}})),
-            ),
+            ("youtube.com/results", Some(Value::String(HTML_HASIL.to_string()))),
+            ("random-cdn", Some(serde_json::json!({"cdn": "cdn.example"}))),
+            ("cdn.example/v2/info", Some(serde_json::json!({"status": true, "data": INFO_B64}))),
+            ("cdn.example/download", Some(serde_json::json!({"data": {"downloadUrl": "https://dl.example/a.mp3"}}))),
         ]);
         let hasil = ytmp3(http.as_ref(), "lagu uji", "128").unwrap();
         assert_eq!(hasil.backend, "savetube");
-        assert_eq!(
-            field(&hasil.download, "downloadUrl").unwrap(),
-            "https://dl.example/a.mp3"
-        );
+        assert_eq!(field(&hasil.download, "downloadUrl").unwrap(), "https://dl.example/a.mp3");
         // info.durationLabel tidak ada → null (JSON.stringify JS).
         assert!(hasil.download.get("duration").unwrap().is_null());
         let seen = http.seen.lock().unwrap();
@@ -619,21 +553,11 @@ mod tests {
     #[test]
     fn semua_backend_gagal_mengembalikan_error_terakhir() {
         let http = Stub::per_url(vec![
-            (
-                "youtube.com/results",
-                Some(Value::String(HTML_HASIL.to_string())),
-            ),
+            ("youtube.com/results", Some(Value::String(HTML_HASIL.to_string()))),
             ("random-cdn", Some(Value::Null)),
-            (
-                "ytmp3.ing",
-                Some(serde_json::json!({"tanpa_value_attr": true})),
-            ),
+            ("ytmp3.ing", Some(serde_json::json!({"tanpa_value_attr": true}))),
         ]);
         let err = ytmp3(http.as_ref(), "lagu uji", "128").unwrap_err();
-        assert!(
-            err.message
-                .starts_with("Semua backend gagal. Error terakhir:"),
-            "{err:?}"
-        );
+        assert!(err.message.starts_with("Semua backend gagal. Error terakhir:"), "{err:?}");
     }
 }

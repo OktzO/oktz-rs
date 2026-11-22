@@ -75,11 +75,7 @@ pub fn sisavps(ctx: Ctx) -> Reply {
         return Reply::text(error_template(&ctx));
     };
 
-    let Some(account) = account
-        .json()
-        .as_ref()
-        .and_then(|v| v.pointer("/account"))
-        .cloned()
+    let Some(account) = account.json().as_ref().and_then(|v| v.pointer("/account")).cloned()
     else {
         return Reply::text(error_template(&ctx));
     };
@@ -177,10 +173,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .expect("harus ada teks")
-            .to_string()
+        r.without_mutations().text_body().expect("harus ada teks").to_string()
     }
 
     #[test]
@@ -199,9 +192,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        let r = run_token(Stub::with(&[
-            r#"{"account":{"droplet_limit":10,"email":"a@b.c","status":"active"}}"#,
-        ]));
+        let r = run_token(Stub::with(&[r#"{"account":{"droplet_limit":10,"email":"a@b.c","status":"active"}}"#]));
         assert_eq!(
             teks(&r),
             concat!(

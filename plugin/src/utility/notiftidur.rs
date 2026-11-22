@@ -6,9 +6,9 @@
 //! ada di [`crate::utility::notifmakan`].
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
-use crate::common::{joined_strings, js_truthy};
+use crate::common::{js_truthy, joined_strings};
 use crate::utility::notifmakan::{
     entry_key, get_notif, jadwal_of, parse_jadwal, put_notif, status_of, store_of,
 };
@@ -108,6 +108,7 @@ fn info(ctx: &Ctx) -> String {
     )
 }
 
+
 #[plugin(
     name = "notiftidur",
     alias = ["jadwaltidur", "tidurreminder", "sleepreminder"],
@@ -138,12 +139,7 @@ pub fn notiftidur(ctx: Ctx) -> Reply {
              > Ketik `{}notiftidur on` untuk mengaktifkan kembali",
             ctx.prefix
         ))
-        .with_mutation(put_notif(
-            &ctx,
-            SETTING_KEY,
-            store_of(&ctx, SETTING_KEY),
-            entry,
-        ));
+        .with_mutation(put_notif(&ctx, SETTING_KEY, store_of(&ctx, SETTING_KEY), entry));
     }
 
     let bare = ctx.args.len() == 1;
@@ -162,12 +158,8 @@ pub fn notiftidur(ctx: Ctx) -> Reply {
                 "✅ *Pengingat tidur diaktifkan kembali!* 🔔\n\n⏰ Jadwal: {} WIB",
                 jadwal_inline(&entry)
             );
-            return Reply::text(text).with_mutation(put_notif(
-                &ctx,
-                SETTING_KEY,
-                store_of(&ctx, SETTING_KEY),
-                entry,
-            ));
+            return Reply::text(text)
+                .with_mutation(put_notif(&ctx, SETTING_KEY, store_of(&ctx, SETTING_KEY), entry));
         }
     }
 
@@ -258,23 +250,14 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("notiftidur").unwrap();
         assert_eq!(p.meta.name, "notiftidur");
-        assert_eq!(
-            p.meta.alias,
-            ["jadwaltidur", "tidurreminder", "sleepreminder"]
-        );
+        assert_eq!(p.meta.alias, ["jadwaltidur", "tidurreminder", "sleepreminder"]);
         assert_eq!(p.meta.category, "group");
         assert_eq!(p.meta.description, "Atur pengingat waktu tidur otomatis");
-        assert_eq!(
-            p.meta.usage,
-            ".notiftidur on <jam1,jam2,...> / off / edit <jam1,jam2,...>"
-        );
+        assert_eq!(p.meta.usage, ".notiftidur on <jam1,jam2,...> / off / edit <jam1,jam2,...>");
         assert_eq!(p.meta.example, ".notiftidur on 22.00");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
-        assert!(
-            !p.meta.is_group && !p.meta.is_private,
-            "keduanya false di JS"
-        );
+        assert!(!p.meta.is_group && !p.meta.is_private, "keduanya false di JS");
     }
 
     #[test]
@@ -290,10 +273,7 @@ mod tests {
             let r = run(serde_json::json!({}), &args);
             let t = text_of(&r);
             assert!(t.starts_with("🌙 *PENGINGAT TIDUR*"), "args {args:?}: {t}");
-            assert!(
-                t.contains("📌 *Status:* ⚪ Belum diatur"),
-                "args {args:?}: {t}"
-            );
+            assert!(t.contains("📌 *Status:* ⚪ Belum diatur"), "args {args:?}: {t}");
             assert!(r.mutations().is_empty(), "args {args:?} hanya membaca");
         }
     }
@@ -321,15 +301,9 @@ mod tests {
             "setNotifTidur tidak menulis menu: {entry}"
         );
         let t = text_of(&r);
-        assert!(
-            t.starts_with("✅ *Pengingat tidur aktif!* 🔔\n\n⏰ *Jadwal:*"),
-            "{t}"
-        );
+        assert!(t.starts_with("✅ *Pengingat tidur aktif!* 🔔\n\n⏰ *Jadwal:*"), "{t}");
         assert!(t.contains("> 🕐 *22:00* WIB\n> 🕐 *23:30* WIB\n"), "{t}");
-        assert!(
-            t.ends_with("> 💡 _Notifikasi akan dikirim ke chat ini setiap hari_"),
-            "{t}"
-        );
+        assert!(t.ends_with("> 💡 _Notifikasi akan dikirim ke chat ini setiap hari_"), "{t}");
     }
 
     #[test]
@@ -361,24 +335,14 @@ mod tests {
         let entry = &setting_of(&r)[KEY];
         assert_eq!(entry["enabled"], serde_json::json!(false));
         assert_eq!(entry["jadwal"], serde_json::json!(["22:00"]));
-        assert_eq!(
-            entry["lastSent"],
-            serde_json::json!({"22:00_2026-01-01": true})
-        );
-        assert!(
-            text_of(&r).contains("✅ *Pengingat tidur dinonaktifkan* 🔕"),
-            "{}",
-            text_of(&r)
-        );
+        assert_eq!(entry["lastSent"], serde_json::json!({"22:00_2026-01-01": true}));
+        assert!(text_of(&r).contains("✅ *Pengingat tidur dinonaktifkan* 🔕"), "{}", text_of(&r));
     }
 
     #[test]
     fn off_without_an_entry_is_refused() {
         let r = run(serde_json::json!({}), &["off"]);
-        assert_eq!(
-            text_of(&r),
-            "❌ *Belum ada pengingat tidur* yang aktif di chat ini"
-        );
+        assert_eq!(text_of(&r), "❌ *Belum ada pengingat tidur* yang aktif di chat ini");
         assert!(r.mutations().is_empty());
     }
 
@@ -387,20 +351,11 @@ mod tests {
         let r = run(existing(&["22:00"], true), &["edit", "23.00"]);
         let entry = &setting_of(&r)[KEY];
         assert_eq!(entry["jadwal"], serde_json::json!(["23:00"]));
-        assert_eq!(
-            entry["lastSent"],
-            serde_json::json!({"22:00_2026-01-01": true})
-        );
+        assert_eq!(entry["lastSent"], serde_json::json!({"22:00_2026-01-01": true}));
         assert_eq!(entry["createdAt"], serde_json::json!(1));
         let t = text_of(&r);
-        assert!(
-            t.starts_with("✅ *Jadwal tidur diperbarui!* ✏️\n\n⏰ *Jadwal baru:*"),
-            "{t}"
-        );
-        assert!(
-            !t.contains("setiap hari"),
-            "catatan harian hanya untuk `on`: {t}"
-        );
+        assert!(t.starts_with("✅ *Jadwal tidur diperbarui!* ✏️\n\n⏰ *Jadwal baru:*"), "{t}");
+        assert!(!t.contains("setiap hari"), "catatan harian hanya untuk `on`: {t}");
     }
 
     #[test]

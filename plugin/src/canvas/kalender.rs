@@ -51,11 +51,7 @@ pub(crate) const LIBUR: [(&str, &str, &str); 25] = [
     ("2-16", "Cuti Bersama Imlek", "cuti"),
     ("2-17", "Tahun Baru Imlek 2577 Kongzili", "budaya"),
     ("3-18", "Cuti Bersama Nyepi", "cuti"),
-    (
-        "3-19",
-        "Hari Raya Nyepi (Tahun Baru Saka 1948)",
-        "keagamaan",
-    ),
+    ("3-19", "Hari Raya Nyepi (Tahun Baru Saka 1948)", "keagamaan"),
     ("3-20", "Cuti Bersama Idul Fitri", "cuti"),
     ("3-21", "Hari Raya Idul Fitri 1447 H", "keagamaan"),
     ("3-22", "Hari Raya Idul Fitri 1447 H", "keagamaan"),
@@ -121,7 +117,8 @@ pub(crate) fn libur_di_bulan(bulan: u32) -> Vec<(u32, &'static str, &'static str
         .iter()
         .filter_map(|(k, nama, tipe)| {
             let (b, t) = k.split_once('-')?;
-            (b.parse::<u32>().ok()? == bulan).then_some((t.parse::<u32>().ok()?, *nama, *tipe))
+            (b.parse::<u32>().ok()? == bulan)
+                .then_some((t.parse::<u32>().ok()?, *nama, *tipe))
         })
         .collect();
     out.sort_by_key(|(tgl, _, _)| *tgl);
@@ -195,9 +192,10 @@ pub fn kalender(ctx: Ctx) -> Reply {
     let input = ctx.text.trim().to_lowercase();
 
     // `if (text)` — teks kosong jatuh ke mode tahun (`kalender.js:556-570`).
-    if !input.is_empty() && input != "tahun" && input != "2026" && nama_ke_nomor(&input).is_none() {
-        return Reply::text(FORMAT_SALAH);
-    }
+    if !input.is_empty() && input != "tahun" && input != "2026"
+        && nama_ke_nomor(&input).is_none() {
+            return Reply::text(FORMAT_SALAH);
+        }
 
     // Jalur render `@napi-rs/canvas` tidak tersedia — jatuh ke blok `catch`
     // JS: reaksi ❌ + pesan gagal. Lihat catatan kepala.
@@ -221,10 +219,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     #[test]
@@ -233,10 +228,7 @@ mod tests {
         assert_eq!(p.meta.name, "kalender");
         assert_eq!(p.meta.alias, ["calendar", "tanggalan"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(
-            p.meta.description,
-            "Melihat kalender lengkap tahun 2026 atau per bulan."
-        );
+        assert_eq!(p.meta.description, "Melihat kalender lengkap tahun 2026 atau per bulan.");
         assert_eq!(p.meta.usage, ".kalender [bulan/tahun]");
         assert_eq!(p.meta.example, ".kalender januari");
         assert_eq!(p.meta.cooldown, 5);

@@ -5,7 +5,7 @@
 //! sana: di luar grup bar itu tidak terbaca dan dianggap kosong.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::rpg::jualan::{jid_name, roster_inventory, roster_row};
@@ -54,14 +54,18 @@ pub fn transfer(ctx: Ctx) -> Reply {
         .or_else(|| ctx.quoted().map(|q| q.sender.clone()));
 
     let Some(target) = target.filter(|t| !t.is_empty()) else {
-        return Reply::text("Alamat paket nggak jelas bos! Tag dulu user yang mau dikirimin! 📦🔍");
+        return Reply::text(
+            "Alamat paket nggak jelas bos! Tag dulu user yang mau dikirimin! 📦🔍",
+        );
     };
     if target == ctx.sender {
         return Reply::text("Ngapain transfer ke kantong sendiri? Kurang kerjaan lu ya! 😂❌");
     }
     // `!amount` sudah menutup 0 DAN negatif sekaligus lewat `|| amount <= 0`.
     if amount <= 0 {
-        return Reply::text("Woy bos! Mau kirim angin doang? Jumlahnya harus lebih dari *0*! 🌬️");
+        return Reply::text(
+            "Woy bos! Mau kirim angin doang? Jumlahnya harus lebih dari *0*! 🌬️",
+        );
     }
 
     let koin = int_field(&ctx, "koin");
@@ -148,8 +152,8 @@ pub fn transfer(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::registry::GroupRoster;
     use oktz_plugin_api::{Participant, QuotedKind, QuotedMessage};
+    use oktz_plugin_api::registry::GroupRoster;
 
     const SENDER: &str = "628111@s.whatsapp.net";
     const TARGET: &str = "628999@s.whatsapp.net";
@@ -261,8 +265,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             user_data: serde_json::json!({"koin": 5000}),
             roster: GroupRoster {
                 participants: vec![Participant {
@@ -302,11 +306,7 @@ mod tests {
     #[test]
     fn a_zero_or_negative_or_unparsable_amount_is_rejected() {
         for amount in ["0", "-5", "abc"] {
-            let r = run(
-                &["money", amount, "@user"],
-                serde_json::json!({"koin": 999_999}),
-                serde_json::json!({}),
-            );
+            let r = run(&["money", amount, "@user"], serde_json::json!({"koin": 999_999}), serde_json::json!({}));
             assert!(
                 text_of(&r).contains("Mau kirim angin doang?"),
                 "amount {amount:?} -> {:?}",
@@ -319,11 +319,7 @@ mod tests {
     #[test]
     fn the_three_money_keywords_behave_identically() {
         for kind in ["money", "balance", "koin", "MONEY"] {
-            let r = run(
-                &[kind, "1000", "@user"],
-                serde_json::json!({"koin": 5000}),
-                serde_json::json!({"koin": 3}),
-            );
+            let r = run(&[kind, "1000", "@user"], serde_json::json!({"koin": 5000}), serde_json::json!({"koin": 3}));
             let w = writes(&r);
             assert_eq!(w[0].1["koin"], serde_json::json!(4000), "{kind}");
             assert_eq!(w[1].1["koin"], serde_json::json!(1003), "{kind}");
@@ -332,11 +328,7 @@ mod tests {
 
     #[test]
     fn an_empty_purse_cannot_cover_the_nominal() {
-        let r = run(
-            &["money", "10000", "@user"],
-            serde_json::json!({"koin": 9999}),
-            serde_json::json!({}),
-        );
+        let r = run(&["money", "10000", "@user"], serde_json::json!({"koin": 9999}), serde_json::json!({}));
         let t = text_of(&r);
         assert!(t.starts_with("Transaksi DITOLAK! ❌"), "{t}");
         assert!(t.contains("Saldo: *Rp 9.999*"), "{t}");
@@ -353,11 +345,7 @@ mod tests {
         );
         let w = writes(&r);
         assert_eq!(w[0].1["inventory"]["potion"], serde_json::json!(3));
-        assert_eq!(
-            w[0].1["inventory"]["wood"],
-            serde_json::json!(9),
-            "barang lain tak boleh gone"
-        );
+        assert_eq!(w[0].1["inventory"]["wood"], serde_json::json!(9), "barang lain tak boleh gone");
         assert_eq!(w[1].1["inventory"]["potion"], serde_json::json!(3));
         assert!(text_of(&r).contains("🎁 Isi Paket: *potion* (x2)"));
         match r.without_mutations() {
@@ -379,17 +367,10 @@ mod tests {
 
     #[test]
     fn sending_more_than_the_warehouse_holds_is_refused() {
-        let r = run(
-            &["scroll", "3", "@user"],
-            serde_json::json!({"inventory": {"scroll": 2}}),
-            serde_json::json!({}),
-        );
+        let r = run(&["scroll", "3", "@user"], serde_json::json!({"inventory": {"scroll": 2}}), serde_json::json!({}));
         let t = text_of(&r);
         assert!(t.starts_with("Paket gagal diproses! ❌"), "{t}");
-        assert!(
-            t.contains("Barang *scroll* di gudang lu cuma ada *2* pcs"),
-            "{t}"
-        );
+        assert!(t.contains("Barang *scroll* di gudang lu cuma ada *2* pcs"), "{t}");
         assert!(t.contains("Lu mau ngirim *3* darimana?"), "{t}");
         assert!(r.mutations().is_empty());
     }

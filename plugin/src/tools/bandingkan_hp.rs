@@ -249,10 +249,7 @@ fn parse_attrs(raw: &str) -> Vec<(String, String)> {
         if start == i {
             break;
         }
-        let nama: String = chars[start..i]
-            .iter()
-            .collect::<String>()
-            .to_ascii_lowercase();
+        let nama: String = chars[start..i].iter().collect::<String>().to_ascii_lowercase();
         while i < chars.len() && chars[i].is_whitespace() {
             i += 1;
         }

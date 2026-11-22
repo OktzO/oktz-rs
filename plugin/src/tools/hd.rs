@@ -59,7 +59,8 @@ pub fn hd(ctx: Ctx) -> Reply {
     match hasil {
         Ok(data) => {
             let mime = unggah::mime_gambar(&data);
-            Reply::image(MediaSource::bytes(data).with_mimetype(mime), CAPTION).with_reaction("✅")
+            Reply::image(MediaSource::bytes(data).with_mimetype(mime), CAPTION)
+                .with_reaction("✅")
         }
         Err(_) => Reply::text(ERR_API).with_reaction("❌"),
     }
@@ -78,7 +79,8 @@ mod tests {
 
     /// PNG 8 byte — cukup untuk `mime_gambar`.
     const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
-    const UPLOAD: &str = r#"{"success":true,"files":[{"url":"https://cdn.example/x.jpg"}]}"#;
+    const UPLOAD: &str =
+        r#"{"success":true,"files":[{"url":"https://cdn.example/x.jpg"}]}"#;
 
     /// HTTP + MediaFetch sekaligus; balasan `call` berurutan, habis = offline.
     #[derive(Debug)]
@@ -91,10 +93,7 @@ mod tests {
     }
 
     impl Stub {
-        fn baru(
-            balasan: Vec<(u16, Vec<u8>)>,
-            hasil_unduh: Result<Vec<u8>, MediaError>,
-        ) -> Arc<Stub> {
+        fn baru(balasan: Vec<(u16, Vec<u8>)>, hasil_unduh: Result<Vec<u8>, MediaError>) -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(balasan),
                 hitung: Mutex::new(0),
@@ -131,7 +130,11 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.call(&HttpCall::get(url))
         }
-        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _: &str,
+            _: &serde_json::Value,
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
@@ -194,10 +197,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<String> {
@@ -245,9 +245,7 @@ mod tests {
         assert_eq!(panggilan.len(), 2);
         assert_eq!(panggilan[0].url, "https://uguu.se/upload.php");
         assert!(
-            panggilan[1]
-                .url
-                .starts_with("https://apiii-xrina.my.id/ai-image/hd?url="),
+            panggilan[1].url.starts_with("https://apiii-xrina.my.id/ai-image/hd?url="),
             "url={}",
             panggilan[1].url
         );

@@ -51,9 +51,11 @@ pub(crate) fn reduce_physical(
     }
     let current = product.get("stock").and_then(|v| v.as_i64()).unwrap_or(0);
     if current == -1 {
-        return Ok("♾️ *Stok unlimited tidak bisa dikurangi.*\n\n\
+        return Ok(
+            "♾️ *Stok unlimited tidak bisa dikurangi.*\n\n\
              Ubah tipe stok terlebih dahulu: `.editproduk <nomor> stok <jumlah>`"
-            .to_string());
+                .to_string(),
+        );
     }
     let left = (current - reduce).max(0);
     let name = product.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -191,7 +193,7 @@ pub fn hapusstok(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(settings: Value, text: &str) -> Reply {
         let args: Vec<String> = text.split_whitespace().map(str::to_string).collect();
@@ -261,15 +263,9 @@ mod tests {
 
     #[test]
     fn an_absent_product_list_is_reported_and_nothing_is_written() {
-        for s in [
-            serde_json::json!({}),
-            serde_json::json!({"storeProducts": []}),
-        ] {
+        for s in [serde_json::json!({}), serde_json::json!({"storeProducts": []})] {
             let r = run(s.clone(), "1 1");
-            assert!(
-                text_of(&r).starts_with("📭 *Belum ada produk.*"),
-                "input {s}"
-            );
+            assert!(text_of(&r).starts_with("📭 *Belum ada produk.*"), "input {s}");
             assert!(r.mutations().is_empty(), "input {s}");
         }
     }
@@ -311,17 +307,9 @@ mod tests {
         let list = products_write(&r);
         let items = list[0]["stockItems"].as_array().unwrap();
         assert_eq!(items.len(), 2);
-        assert_eq!(
-            items[0]["detail"],
-            serde_json::json!("a@mail"),
-            "yang kedua hilang"
-        );
+        assert_eq!(items[0]["detail"], serde_json::json!("a@mail"), "yang kedua hilang");
         assert_eq!(items[1]["detail"], serde_json::json!("c@mail"));
-        assert_eq!(
-            list[0]["stock"],
-            serde_json::json!(2),
-            "`stock` = panjang stockItems"
-        );
+        assert_eq!(list[0]["stock"], serde_json::json!(2), "`stock` = panjang stockItems");
         assert!(text_of(&r).contains("📊 Sisa stok: *2* akun"));
     }
 
@@ -347,11 +335,7 @@ mod tests {
     #[test]
     fn a_physical_product_reduces_its_stock_instead_of_removing_an_item() {
         let r = run(physical(), "1 3");
-        assert_eq!(
-            products_write(&r)[0]["stock"],
-            serde_json::json!(7),
-            "10 - 3"
-        );
+        assert_eq!(products_write(&r)[0]["stock"], serde_json::json!(7), "10 - 3");
         assert!(text_of(&r).contains("Dikurangi: *3 pcs*"));
         assert!(text_of(&r).contains("Sisa stok: *7 pcs*"));
     }
@@ -359,11 +343,7 @@ mod tests {
     #[test]
     fn a_physical_reduction_never_goes_below_zero() {
         let r = run(physical(), "1 99");
-        assert_eq!(
-            products_write(&r)[0]["stock"],
-            serde_json::json!(0),
-            "Math.max(0, ...)"
-        );
+        assert_eq!(products_write(&r)[0]["stock"], serde_json::json!(0), "Math.max(0, ...)");
     }
 
     #[test]
@@ -378,10 +358,7 @@ mod tests {
     fn a_physical_non_positive_reduction_points_at_editproduk() {
         for args in ["1 0", "1 -2"] {
             let r = run(physical(), args);
-            assert!(
-                text_of(&r).starts_with("📦 *Produk Fisik*"),
-                "args {args:?}"
-            );
+            assert!(text_of(&r).starts_with("📦 *Produk Fisik*"), "args {args:?}");
             assert!(r.mutations().is_empty(), "args {args:?}");
         }
     }

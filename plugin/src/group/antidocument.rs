@@ -59,7 +59,7 @@ pub fn antidocument(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -165,9 +165,6 @@ mod tests {
 
     #[test]
     fn the_action_is_lowercased_before_matching() {
-        assert_eq!(
-            written(&run(serde_json::json!({}), "ON")),
-            &serde_json::json!({ "antidocument": true })
-        );
+        assert_eq!(written(&run(serde_json::json!({}), "ON")), &serde_json::json!({ "antidocument": true }));
     }
 }

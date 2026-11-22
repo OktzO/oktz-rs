@@ -306,8 +306,7 @@ fn percobaan(
         ));
     }
 
-    if !payload.get("status").map(truthy).unwrap_or(false)
-        && !PENDING.contains(&normalized.as_str())
+    if !payload.get("status").map(truthy).unwrap_or(false) && !PENDING.contains(&normalized.as_str())
     {
         return Err(PollingGagal::terminal(
             pesan_teks(payload.get("message"))
@@ -426,10 +425,7 @@ mod tests {
             Self {
                 permintaan: Mutex::new(Vec::new()),
                 balasan: Mutex::new(
-                    balasan
-                        .into_iter()
-                        .map(|(s, b)| (s, b.to_string()))
-                        .collect(),
+                    balasan.into_iter().map(|(s, b)| (s, b.to_string())).collect(),
                 ),
             }
         }
@@ -554,7 +550,15 @@ mod tests {
             (200, r#"{"status":true,"data":{"status":"pending"}}"#),
             (200, SUKSES),
         ]);
-        let hasil = poll_enhance_task(&http, "https://fgsi/poll/t1", "k", 0, 60_000, 5).unwrap();
+        let hasil = poll_enhance_task(
+            &http,
+            "https://fgsi/poll/t1",
+            "k",
+            0,
+            60_000,
+            5,
+        )
+        .unwrap();
         assert_eq!(hasil["taskId"], "t1");
         assert_eq!(hasil["res_url"], "https://cdn/hasil.mp4");
         assert_eq!(hasil["durasi"], "12s");
@@ -574,10 +578,7 @@ mod tests {
                 &format!(r#"{{"status":true,"data":{{"status":"{status}"}}}}"#),
             )]);
             let err = poll_enhance_task(&http, "u", "k", 0, 60_000, 5).unwrap_err();
-            assert_eq!(
-                err.message,
-                format!("HD video gagal dengan status {status}")
-            );
+            assert_eq!(err.message, format!("HD video gagal dengan status {status}"));
             assert_eq!(
                 http.permintaan.lock().unwrap().len(),
                 1,
@@ -621,7 +622,8 @@ mod tests {
         )]);
         let err = poll_enhance_task(&http, "u", "k", 0, 5, 3).unwrap_err();
         assert_eq!(
-            err.message, "Timeout menunggu hasil HD video",
+            err.message,
+            "Timeout menunggu hasil HD video",
             "batas transient tidak terjangkau untuk error ini"
         );
         assert!(
@@ -665,10 +667,7 @@ mod tests {
     fn batas_waktu_memakai_pesan_payload_terakhir() {
         // `timeout_ms: 0` membuat `while` tidak pernah jalan, jadi `lastPayload`
         // masih `null` dan pesan bawaannya yang keluar.
-        let http = StubHttp::baru(vec![(
-            200,
-            r#"{"status":true,"data":{"status":"pending"}}"#,
-        )]);
+        let http = StubHttp::baru(vec![(200, r#"{"status":true,"data":{"status":"pending"}}"#)]);
         let err = poll_enhance_task(&http, "u", "k", 0, 0, 5).unwrap_err();
         assert_eq!(err.message, "Timeout menunggu hasil HD video");
         assert!(http.permintaan.lock().unwrap().is_empty());
@@ -700,10 +699,7 @@ mod tests {
         };
         // Nama bawaan `hdvid-<uuid>.mp4` — bentuknya, bukan nilainya.
         let nama = parts[0].file_name.clone().unwrap();
-        assert!(
-            nama.starts_with("hdvid-") && nama.ends_with(".mp4"),
-            "{nama}"
-        );
+        assert!(nama.starts_with("hdvid-") && nama.ends_with(".mp4"), "{nama}");
         assert_eq!(nama.len(), "hdvid-".len() + 36 + ".mp4".len());
     }
 

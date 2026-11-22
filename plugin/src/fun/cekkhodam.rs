@@ -11,146 +11,53 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 const KHODAMS: [(&str, &str); 47] = [
-    (
-        "Harimau Putih",
-        "Kamu kuat dan berani seperti harimau, karena pendahulumu mewariskan kekuatan besar padamu.",
-    ),
-    (
-        "Lampu Tertidur",
-        "Terlihat ngantuk tapi selalu memberikan cahaya yang hangat",
-    ),
-    (
-        "Panda Ompong",
-        "Kamu menggemaskan dan selalu berhasil membuat orang tersenyum dengan keanehanmu.",
-    ),
-    (
-        "Bebek Karet",
-        "Kamu selalu tenang dan ceria, mampu menghadapi gelombang masalah dengan senyum.",
-    ),
-    (
-        "Ninja Turtle",
-        "Kamu lincah dan tangguh, siap melindungi yang lemah dengan kekuatan tempurmu.",
-    ),
-    (
-        "Kucing Kulkas",
-        "Kamu misterius dan selalu ada di tempat-tempat yang tak terduga.",
-    ),
-    (
-        "Sabun Wangi",
-        "Kamu selalu membawa keharuman dan kesegaran di mana pun kamu berada.",
-    ),
-    (
-        "Semut Kecil",
-        "Kamu pekerja keras dan selalu bisa diandalkan dalam situasi apa pun.",
-    ),
-    (
-        "Cupcake Pelangi",
-        "Kamu manis dan penuh warna, selalu membawa kebahagiaan dan keceriaan.",
-    ),
-    (
-        "Robot Mini",
-        "Kamu canggih dan selalu siap membantu dengan kecerdasan teknologi tinggi.",
-    ),
-    (
-        "Ikan Terbang",
-        "Kamu unik dan penuh kejutan, selalu melampaui batasan yang ada.",
-    ),
-    (
-        "Ayam Goreng",
-        "Kamu selalu disukai dan dinanti oleh banyak orang, penuh kelezatan dalam setiap langkahmu.",
-    ),
-    (
-        "Kecoa Terbang",
-        "Kamu selalu mengagetkan dan bikin heboh seisi ruangan.",
-    ),
-    (
-        "Kambing Ngebor",
-        "Kamu unik dan selalu bikin orang tertawa dengan tingkah lakumu yang aneh.",
-    ),
-    (
-        "Kerupuk Renyah",
-        "Kamu selalu bikin suasana jadi lebih seru dan nikmat.",
-    ),
-    (
-        "Celengan Babi",
-        "Kamu selalu menyimpan kejutan di dalam dirimu.",
-    ),
-    (
-        "Lemari Tua",
-        "Kamu penuh dengan cerita dan kenangan masa lalu.",
-    ),
-    (
-        "Kopi Susu",
-        "Kamu manis dan selalu bikin semangat orang-orang di sekitarmu.",
-    ),
-    (
-        "Sapu Lidi",
-        "Kamu kuat dan selalu bisa diandalkan untuk membersihkan masalah.",
-    ),
+    ("Harimau Putih", "Kamu kuat dan berani seperti harimau, karena pendahulumu mewariskan kekuatan besar padamu."),
+    ("Lampu Tertidur", "Terlihat ngantuk tapi selalu memberikan cahaya yang hangat"),
+    ("Panda Ompong", "Kamu menggemaskan dan selalu berhasil membuat orang tersenyum dengan keanehanmu."),
+    ("Bebek Karet", "Kamu selalu tenang dan ceria, mampu menghadapi gelombang masalah dengan senyum."),
+    ("Ninja Turtle", "Kamu lincah dan tangguh, siap melindungi yang lemah dengan kekuatan tempurmu."),
+    ("Kucing Kulkas", "Kamu misterius dan selalu ada di tempat-tempat yang tak terduga."),
+    ("Sabun Wangi", "Kamu selalu membawa keharuman dan kesegaran di mana pun kamu berada."),
+    ("Semut Kecil", "Kamu pekerja keras dan selalu bisa diandalkan dalam situasi apa pun."),
+    ("Cupcake Pelangi", "Kamu manis dan penuh warna, selalu membawa kebahagiaan dan keceriaan."),
+    ("Robot Mini", "Kamu canggih dan selalu siap membantu dengan kecerdasan teknologi tinggi."),
+    ("Ikan Terbang", "Kamu unik dan penuh kejutan, selalu melampaui batasan yang ada."),
+    ("Ayam Goreng", "Kamu selalu disukai dan dinanti oleh banyak orang, penuh kelezatan dalam setiap langkahmu."),
+    ("Kecoa Terbang", "Kamu selalu mengagetkan dan bikin heboh seisi ruangan."),
+    ("Kambing Ngebor", "Kamu unik dan selalu bikin orang tertawa dengan tingkah lakumu yang aneh."),
+    ("Kerupuk Renyah", "Kamu selalu bikin suasana jadi lebih seru dan nikmat."),
+    ("Celengan Babi", "Kamu selalu menyimpan kejutan di dalam dirimu."),
+    ("Lemari Tua", "Kamu penuh dengan cerita dan kenangan masa lalu."),
+    ("Kopi Susu", "Kamu manis dan selalu bikin semangat orang-orang di sekitarmu."),
+    ("Sapu Lidi", "Kamu kuat dan selalu bisa diandalkan untuk membersihkan masalah."),
     ("Indomie Goreng", "Selalu bikin kenyang dan bahagia"),
-    (
-        "Es Krim Meleleh",
-        "Selalu mencairkan suasana dengan rasa manisnya",
-    ),
-    (
-        "Bakso Ulet",
-        "Selalu gigih dan bulat dalam menghadapi masalah",
-    ),
+    ("Es Krim Meleleh", "Selalu mencairkan suasana dengan rasa manisnya"),
+    ("Bakso Ulet", "Selalu gigih dan bulat dalam menghadapi masalah"),
     ("Lem Super", "Selalu lengket dalam situasi yang rumit"),
-    (
-        "Kecap Manis",
-        "Selalu memberikan sentuhan manis dalam hidup",
-    ),
+    ("Kecap Manis", "Selalu memberikan sentuhan manis dalam hidup"),
     ("Sabun Mandi", "Selalu bersih dan wangi"),
     ("Kopi Tumpah", "Selalu bersemangat, tapi kadang berantakan"),
     ("Kucing Kampung", "Selalu mandiri dan penuh petualangan"),
-    (
-        "Jamu Pahit",
-        "Selalu memberi kekuatan meski tak enak di awal",
-    ),
+    ("Jamu Pahit", "Selalu memberi kekuatan meski tak enak di awal"),
     ("Teh Celup", "Selalu memberikan rasa hangat di hati"),
     ("Motor Astrea", "Selalu setia dan bandel"),
     ("Mie Instan", "Selalu cepat dan mengenyangkan"),
     ("Bolu Kukus", "Selalu lembut dan manis"),
     ("Tahu Bulat", "Selalu enak di segala suasana"),
     ("Nasi Uduk", "Selalu cocok di segala waktu"),
-    (
-        "Singa Bermahkota",
-        "Kamu lahir sebagai pemimpin, memiliki kekuatan dan kebijaksanaan seorang raja.",
-    ),
-    (
-        "Macan Kumbang",
-        "Kamu misterius dan kuat, seperti macan yang jarang terlihat tapi selalu waspada.",
-    ),
-    (
-        "Kuda Emas",
-        "Kamu berharga dan kuat, siap untuk berlari menuju kesuksesan.",
-    ),
-    (
-        "Elang Biru",
-        "Kamu memiliki visi yang tajam dan dapat melihat peluang dari jauh.",
-    ),
-    (
-        "Naga Pelangi",
-        "Kamu tangguh dan memiliki kekuatan untuk melindungi dan menyerang.",
-    ),
-    (
-        "Gajah Putih",
-        "Kamu bijaksana dan memiliki kekuatan besar, lambang dari keberanian dan keteguhan hati.",
-    ),
-    (
-        "Banteng Sakti",
-        "Kamu kuat dan penuh semangat, tidak takut menghadapi rintangan.",
-    ),
+    ("Singa Bermahkota", "Kamu lahir sebagai pemimpin, memiliki kekuatan dan kebijaksanaan seorang raja."),
+    ("Macan Kumbang", "Kamu misterius dan kuat, seperti macan yang jarang terlihat tapi selalu waspada."),
+    ("Kuda Emas", "Kamu berharga dan kuat, siap untuk berlari menuju kesuksesan."),
+    ("Elang Biru", "Kamu memiliki visi yang tajam dan dapat melihat peluang dari jauh."),
+    ("Naga Pelangi", "Kamu tangguh dan memiliki kekuatan untuk melindungi dan menyerang."),
+    ("Gajah Putih", "Kamu bijaksana dan memiliki kekuatan besar, lambang dari keberanian dan keteguhan hati."),
+    ("Banteng Sakti", "Kamu kuat dan penuh semangat, tidak takut menghadapi rintangan."),
     ("Kipas Angin", "Selalu memberikan angin segar"),
     ("Rice Cooker", "Selalu memasak nasi dengan sempurna"),
     ("Honda Beat", "Selalu lincah di jalanan"),
     ("Sandal Jepit", "Selalu santai dan nyaman"),
     ("Bantal Guling", "Selalu nyaman di pelukan"),
-    (
-        "Anjing Pelacak",
-        "Kamu setia dan penuh dedikasi, selalu menemukan jalan menuju tujuanmu.",
-    ),
+    ("Anjing Pelacak", "Kamu setia dan penuh dedikasi, selalu menemukan jalan menuju tujuanmu."),
 ];
 
 /// `google-tts-api` bangun URL ini: `https://translate.google.com/translate_tts?
@@ -178,11 +85,7 @@ fn target_name(ctx: &Ctx) -> String {
     } else if !ctx.push_name.is_empty() {
         ctx.push_name.clone()
     } else {
-        ctx.sender
-            .split('@')
-            .next()
-            .unwrap_or(&ctx.sender)
-            .to_string()
+        ctx.sender.split('@').next().unwrap_or(&ctx.sender).to_string()
     }
 }
 
@@ -382,7 +285,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
+            timestamp: 0,
             }),
             ..Ctx::default()
         };

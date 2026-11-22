@@ -22,46 +22,11 @@ type Expedition = (
 );
 
 const EXPEDITIONS: [Expedition; 5] = [
-    (
-        "cave",
-        "🏔️ Gua Kelelawar",
-        3_600_000,
-        &["iron", "gold", "gem"],
-        200,
-        5,
-    ),
-    (
-        "forest",
-        "🌲 Hutan Laba-laba",
-        1_800_000,
-        &["wood", "herb", "mushroom"],
-        100,
-        1,
-    ),
-    (
-        "ocean",
-        "🌊 Samudra Kraken",
-        5_400_000,
-        &["fish", "pearl", "seagem"],
-        300,
-        10,
-    ),
-    (
-        "ruins",
-        "🏛️ Reruntuhan Kuno",
-        10_800_000,
-        &["ancientcoin", "relic", "mysterybox"],
-        600,
-        20,
-    ),
-    (
-        "volcano",
-        "🌋 Gunung Naga",
-        7_200_000,
-        &["lava", "dragonscale", "titancore"],
-        400,
-        15,
-    ),
+    ("cave", "🏔️ Gua Kelelawar", 3_600_000, &["iron", "gold", "gem"], 200, 5),
+    ("forest", "🌲 Hutan Laba-laba", 1_800_000, &["wood", "herb", "mushroom"], 100, 1),
+    ("ocean", "🌊 Samudra Kraken", 5_400_000, &["fish", "pearl", "seagem"], 300, 10),
+    ("ruins", "🏛️ Reruntuhan Kuno", 10_800_000, &["ancientcoin", "relic", "mysterybox"], 600, 20),
+    ("volcano", "🌋 Gunung Naga", 7_200_000, &["lava", "dragonscale", "titancore"], 400, 15),
 ];
 
 fn area_info(key: &str) -> Option<&'static Expedition> {
@@ -134,13 +99,11 @@ pub fn expedition(ctx: Ctx) -> Reply {
     let area = ctx.args.get(1).map(|a| a.to_lowercase());
     let now = crate::common::now_ms();
 
-    let known = matches!(
-        action.as_deref(),
-        Some("start" | "claim" | "status" | "list")
-    );
+    let known = matches!(action.as_deref(), Some("start" | "claim" | "status" | "list"));
     match action.as_deref() {
-        _ if !known => Reply::text(format!(
-            "🗺️ *MARKAS EKSPEDISI* 🗺️\n\n\
+        _ if !known => {
+            Reply::text(format!(
+                "🗺️ *MARKAS EKSPEDISI* 🗺️\n\n\
                  Kirim rombongan ekspedisi buat nyari barang-barang langka selagi kamu istirahat kak!\n\n\
                  *Daftar Perintah:*\n\
                  📜 `{}expedition list` (Cek Area)\n\
@@ -148,13 +111,11 @@ pub fn expedition(ctx: Ctx) -> Reply {
                  ⏳ `{}expedition status` (Cek Timer)\n\
                  💰 `{}expedition claim` (Tarik Hasil)\n\n\
                  📊 Kapasitas Ekspedisi Kamu: *{}/{} Rombongan*",
-            ctx.prefix,
-            ctx.prefix,
-            ctx.prefix,
-            ctx.prefix,
-            all.len(),
-            max_trips
-        )),
+                ctx.prefix, ctx.prefix, ctx.prefix, ctx.prefix,
+                all.len(),
+                max_trips
+            ))
+        }
 
         Some("list") => {
             let mut txt = String::from("📜 *PETA EKSPLORASI DUNIA* 📜\n\n");
@@ -218,9 +179,7 @@ pub fn expedition(ctx: Ctx) -> Reply {
 
         Some("status") => {
             if all.is_empty() {
-                return Reply::text(
-                    "Belum ada ekspedisi yang jalan nih kak. Kirim sekarang yuk! 🏕️",
-                );
+                return Reply::text("Belum ada ekspedisi yang jalan nih kak. Kirim sekarang yuk! 🏕️");
             }
             let mut txt = String::from("⏳ *RADAR EKSPEDISI* ⏳\n\n");
             for (i, trip) in all.iter().enumerate() {
@@ -280,9 +239,7 @@ pub fn expedition(ctx: Ctx) -> Reply {
                 done.len()
             );
             if loot.is_empty() {
-                txt.push_str(
-                    "📦 Items: *Aduh sayang sekali, kali ini nggak dapet apa-apa...* 😭\n",
-                );
+                txt.push_str("📦 Items: *Aduh sayang sekali, kali ini nggak dapet apa-apa...* 😭\n");
             } else {
                 txt.push_str("📦 Items:\n");
                 for line in &loot {
@@ -290,12 +247,10 @@ pub fn expedition(ctx: Ctx) -> Reply {
                 }
             }
 
-            Reply::text(txt)
-                .with_reaction("✅")
-                .with_mutation(Mutation::SetUser {
-                    jid: ctx.sender.clone(),
-                    data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
-                })
+            Reply::text(txt).with_reaction("✅").with_mutation(Mutation::SetUser {
+                jid: ctx.sender.clone(),
+                data: serde_json::json!({ "inventory": inv, "exp": new_exp, "rpg": rpg }),
+            })
         }
     }
 }
@@ -383,10 +338,7 @@ mod tests {
             let r = run(serde_json::json!({}), &args);
             let t = text_of(&r);
             assert!(t.starts_with("🗺️ *MARKAS EKSPEDISI*"), "args {args:?}: {t}");
-            assert!(
-                t.contains("📊 Kapasitas Ekspedisi Kamu: *0/1 Rombongan*"),
-                "{t}"
-            );
+            assert!(t.contains("📊 Kapasitas Ekspedisi Kamu: *0/1 Rombongan*"), "{t}");
             assert!(r.mutations().is_empty(), "args {args:?}");
         }
     }
@@ -399,18 +351,9 @@ mod tests {
         for (key, name, dur, rewards, exp, min) in EXPEDITIONS {
             let gate = if 1 >= min { "🔓" } else { "🔒" };
             assert!(t.contains(&format!("📍 {name} {gate}")), "{key}: {t}");
-            assert!(
-                t.contains(&format!("🎁 Potensi Loot: {}", rewards.join(", "))),
-                "{key}"
-            );
-            assert!(
-                t.contains(&format!("📈 EXP: {exp} (Min Lv. {min})")),
-                "{key}"
-            );
-            assert!(
-                t.contains(&format!("⏳ Waktu: {}", format_time(dur))),
-                "{key}"
-            );
+            assert!(t.contains(&format!("🎁 Potensi Loot: {}", rewards.join(", "))), "{key}");
+            assert!(t.contains(&format!("📈 EXP: {exp} (Min Lv. {min})")), "{key}");
+            assert!(t.contains(&format!("⏳ Waktu: {}", format_time(dur))), "{key}");
         }
         assert!(r.mutations().is_empty());
     }
@@ -421,10 +364,7 @@ mod tests {
         let t = text_of(&r);
         assert!(t.starts_with("🚀 *EKSPEDISI DIBERANGKATKAN!*"), "{t}");
         assert!(t.contains("📍 Tujuan: *🌲 Hutan Laba-laba*"), "{t}");
-        let trips = write_of(&r)["rpg"]["expeditions"]
-            .as_array()
-            .unwrap()
-            .clone();
+        let trips = write_of(&r)["rpg"]["expeditions"].as_array().unwrap().clone();
         assert_eq!(trips.len(), 1);
         assert_eq!(trips[0]["type"], serde_json::json!("forest"));
         assert_eq!(trips[0]["duration"], serde_json::json!(1_800_000));
@@ -433,21 +373,10 @@ mod tests {
 
     #[test]
     fn starting_needs_an_area_that_exists_and_that_the_level_allows() {
-        assert!(
-            text_of(&run(serde_json::json!({}), &["start"]))
-                .starts_with("Pilih area tujuan ekspedisinya")
-        );
-        assert!(
-            text_of(&run(serde_json::json!({}), &["start", "atlantis"]))
-                .starts_with("Maaf kak, area *atlantis*")
-        );
-        assert!(
-            text_of(&run(
-                serde_json::json!({ "level": 1 }),
-                &["start", "volcano"]
-            ))
-            .starts_with("Aduh kak, level kamu masih kurang")
-        );
+        assert!(text_of(&run(serde_json::json!({}), &["start"])).starts_with("Pilih area tujuan ekspedisinya"));
+        assert!(text_of(&run(serde_json::json!({}), &["start", "atlantis"])).starts_with("Maaf kak, area *atlantis*"));
+        assert!(text_of(&run(serde_json::json!({ "level": 1 }), &["start", "volcano"]))
+            .starts_with("Aduh kak, level kamu masih kurang"));
     }
 
     #[test]
@@ -455,30 +384,18 @@ mod tests {
         let trips: Vec<Value> = (0..1)
             .map(|_| serde_json::json!({ "type": "forest", "startedAt": 0, "duration": 1_800_000 }))
             .collect();
-        let r = run(
-            serde_json::json!({ "rpg": { "expeditions": trips } }),
-            &["start", "forest"],
-        );
+        let r = run(serde_json::json!({ "rpg": { "expeditions": trips } }), &["start", "forest"]);
         let t = text_of(&r);
-        assert!(
-            t.starts_with("Duh kak, kapasitas ekspedisi kamu udah full!"),
-            "{t}"
-        );
+        assert!(t.starts_with("Duh kak, kapasitas ekspedisi kamu udah full!"), "{t}");
         assert!(t.contains("(1/1)"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn an_empty_radar_says_nothing_is_underway() {
-        for user in [
-            serde_json::json!({}),
-            serde_json::json!({ "rpg": { "expeditions": [] } }),
-        ] {
+        for user in [serde_json::json!({}), serde_json::json!({ "rpg": { "expeditions": [] } })] {
             let r = run(user.clone(), &["status"]);
-            assert!(
-                text_of(&r).starts_with("Belum ada ekspedisi yang jalan"),
-                "input {user}"
-            );
+            assert!(text_of(&r).starts_with("Belum ada ekspedisi yang jalan"), "input {user}");
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -490,10 +407,7 @@ mod tests {
             serde_json::json!({ "type": "forest", "startedAt": now - 2_000_000, "duration": 1_800_000 }),
             serde_json::json!({ "type": "forest", "startedAt": now, "duration": 1_800_000 }),
         ];
-        let r = run(
-            serde_json::json!({ "rpg": { "expeditions": trips } }),
-            &["status"],
-        );
+        let r = run(serde_json::json!({ "rpg": { "expeditions": trips } }), &["status"]);
         let t = text_of(&r);
         assert!(t.contains("🗺️ *Rombongan 1* -> 🌲 Hutan Laba-laba"), "{t}");
         assert!(t.contains("✅ SELESAI! (Siap Claim)"), "{t}");
@@ -514,12 +428,8 @@ mod tests {
     #[test]
     fn claiming_nothing_finishes_is_refused() {
         let now = crate::common::now_ms();
-        let trips =
-            vec![serde_json::json!({ "type": "forest", "startedAt": now, "duration": 1_800_000 })];
-        let r = run(
-            serde_json::json!({ "rpg": { "expeditions": trips } }),
-            &["claim"],
-        );
+        let trips = vec![serde_json::json!({ "type": "forest", "startedAt": now, "duration": 1_800_000 })];
+        let r = run(serde_json::json!({ "rpg": { "expeditions": trips } }), &["claim"]);
         assert!(text_of(&r).starts_with("Belum ada ekspedisi yang selesai"));
         assert!(r.mutations().is_empty());
     }
@@ -534,10 +444,7 @@ mod tests {
                 serde_json::json!({ "type": "forest", "startedAt": now - 2_000_000, "duration": 1_800_000 }),
                 serde_json::json!({ "type": "forest", "startedAt": now, "duration": 1_800_000 }),
             ];
-            let r = run(
-                serde_json::json!({ "rpg": { "expeditions": trips }, "exp": 0 }),
-                &["claim"],
-            );
+            let r = run(serde_json::json!({ "rpg": { "expeditions": trips }, "exp": 0 }), &["claim"]);
             let t = text_of(&r);
             assert!(t.starts_with("🎉 *EKSPEDISI SELESAI!*"), "{t}");
             assert!(t.contains("dari *1 ekspedisi*"), "{t}");
@@ -549,10 +456,7 @@ mod tests {
             let inv = data["inventory"].as_object().cloned().unwrap_or_default();
             if inv.is_empty() {
                 bare += 1;
-                assert!(
-                    t.contains("tidak dalem apa-apa") || t.contains("nggak dapet apa-apa"),
-                    "{t}"
-                );
+                assert!(t.contains("tidak dalem apa-apa") || t.contains("nggak dapet apa-apa"), "{t}");
             } else {
                 with_loot += 1;
                 for item in ["wood", "herb", "mushroom"] {
@@ -568,23 +472,11 @@ mod tests {
     #[test]
     fn the_travel_table_keeps_every_js_row() {
         assert_eq!(EXPEDITIONS.len(), 5);
-        let want: Expedition = (
-            "cave",
-            "🏔️ Gua Kelelawar",
-            3_600_000,
-            &["iron", "gold", "gem"],
-            200,
-            5,
-        );
+        let want: Expedition = ("cave", "🏔️ Gua Kelelawar", 3_600_000,
+            &["iron", "gold", "gem"], 200, 5);
         assert_eq!(EXPEDITIONS[0], want);
-        let want: Expedition = (
-            "volcano",
-            "🌋 Gunung Naga",
-            7_200_000,
-            &["lava", "dragonscale", "titancore"],
-            400,
-            15,
-        );
+        let want: Expedition = ("volcano", "🌋 Gunung Naga", 7_200_000,
+            &["lava", "dragonscale", "titancore"], 400, 15);
         assert_eq!(EXPEDITIONS[4], want);
         assert!(area_info("tidak-ada").is_none());
     }

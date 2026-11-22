@@ -109,34 +109,16 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .result
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError {
-                    message: "offline".into(),
-                })?;
+            let text = self.result.clone().map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
             Ok(HttpResponse {
                 status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(text.into_bytes()),
-                    mimetype: None,
-                },
+                body: HttpBody::Bytes { data: Arc::from(text.into_bytes()), mimetype: None },
                 headers: Vec::new(),
             })
         }
-        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> { unimplemented!() }
     }
 
     fn run(http: Arc<Stub>, text: &str) -> Reply {
@@ -154,17 +136,9 @@ mod tests {
         aio(ctx)
     }
 
-    fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
-    }
+    fn text_of(r: &Reply) -> String { r.without_mutations().text_body().unwrap_or_default().to_string() }
     fn reaction_of(r: &Reply) -> Option<String> {
-        match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji.clone()),
-            _ => None,
-        }
+        match r.without_mutations() { Reply::Reaction { emoji, .. } => Some(emoji.clone()), _ => None }
     }
 
     #[test]

@@ -151,26 +151,24 @@ fn ambil_visitor_data(html: &str) -> String {
 /// Mengembalikan daftar kosong bila tidak ada lagu; error jaringan dilempar.
 pub(crate) fn search_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Video>, HttpError> {
     let visitor = visitor_id(http);
-    let mut req = HttpCall::post(format!(
-        "{YTM_DOMAIN}/youtubei/v1/search?alt=json&key={YTM_KEY}"
-    ))
-    .header("user-agent", USER_AGENT)
-    .header("accept", "*/*")
-    .header("accept-encoding", "gzip, deflate")
-    .header("content-type", "application/json")
-    .header("content-encoding", "gzip")
-    .header("origin", YTM_DOMAIN)
-    .json(&json!({
-        "context": {
-            "client": {
-                "clientName": "WEB_REMIX",
-                "clientVersion": CLIENT_VERSION,
+    let mut req = HttpCall::post(format!("{YTM_DOMAIN}/youtubei/v1/search?alt=json&key={YTM_KEY}"))
+        .header("user-agent", USER_AGENT)
+        .header("accept", "*/*")
+        .header("accept-encoding", "gzip, deflate")
+        .header("content-type", "application/json")
+        .header("content-encoding", "gzip")
+        .header("origin", YTM_DOMAIN)
+        .json(&json!({
+            "context": {
+                "client": {
+                    "clientName": "WEB_REMIX",
+                    "clientVersion": CLIENT_VERSION,
+                },
+                "user": {}
             },
-            "user": {}
-        },
-        "query": q,
-        "params": PARAMS_SONGS,
-    }));
+            "query": q,
+            "params": PARAMS_SONGS,
+        }));
     if !visitor.is_empty() {
         req = req.header("x-goog-visitor-id", visitor);
     }
@@ -242,14 +240,14 @@ fn is_views(teks: &str) -> bool {
     let Some(i) = t.rfind(' ') else { return false };
     let angka = &t[..i];
     // Suffix magnitudo K/M/B boleh (234M, 3.1K).
-    let inti = angka.trim_end_matches(|c: char| {
-        c.eq_ignore_ascii_case(&'k') || c.eq_ignore_ascii_case(&'m') || c.eq_ignore_ascii_case(&'b')
-    });
+    let inti = angka
+        .trim_end_matches(|c: char| c.eq_ignore_ascii_case(&'k') || c.eq_ignore_ascii_case(&'m') || c.eq_ignore_ascii_case(&'b'));
     !inti.is_empty()
         && inti
             .chars()
             .all(|c| c.is_ascii_digit() || c == '.' || c == ',')
-        && (t[i + 1..].eq_ignore_ascii_case("views") || t[i + 1..].eq_ignore_ascii_case("plays"))
+        && (t[i + 1..].eq_ignore_ascii_case("views")
+            || t[i + 1..].eq_ignore_ascii_case("plays"))
 }
 
 fn lagu_dari_item(item: &Value) -> Option<Video> {
@@ -419,8 +417,7 @@ fn is_durasi(teks: &str) -> bool {
     if !t.contains(':') {
         return false;
     }
-    t.split(':')
-        .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    t.split(':').all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn is_tahun(teks: &str) -> bool {

@@ -19,11 +19,7 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 /// spasi di kanan, bukan nol di kiri.
 fn pad3(n: i64) -> String {
     let s = n.to_string();
-    if s.len() >= 3 {
-        s
-    } else {
-        format!("{}{}", "0".repeat(3 - s.len()), s)
-    }
+    if s.len() >= 3 { s } else { format!("{}{}", "0".repeat(3 - s.len()), s) }
 }
 
 /// `storeTrxCounter`.
@@ -71,9 +67,7 @@ fn available(p: &serde_json::Value) -> bool {
         return true;
     }
     if crate::store::liststok::is_fisik(p) {
-        p.get("stock")
-            .and_then(|v| v.as_i64())
-            .is_some_and(|n| n > 0)
+        p.get("stock").and_then(|v| v.as_i64()).is_some_and(|n| n > 0)
     } else {
         p.get("stockItems")
             .and_then(|v| v.as_array())
@@ -90,7 +84,9 @@ fn name_of(p: &serde_json::Value) -> &str {
 }
 
 fn picker(prefix: &str, products: &[serde_json::Value]) -> String {
-    let mut txt = format!("🛒 *Pilih Produk*\n\nKetik `{prefix}beli <nomor>` untuk memesan.\n\n");
+    let mut txt = format!(
+        "🛒 *Pilih Produk*\n\nKetik `{prefix}beli <nomor>` untuk memesan.\n\n"
+    );
     for (i, p) in products.iter().enumerate() {
         txt.push_str(&format!(
             "{} *{}.* {} — {} {}\n",
@@ -188,16 +184,7 @@ pub fn beli(ctx: Ctx) -> Reply {
         .user_field("name")
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
-        .map_or_else(
-            || {
-                ctx.sender
-                    .split('@')
-                    .next()
-                    .unwrap_or(&ctx.sender)
-                    .to_string()
-            },
-            str::to_string,
-        );
+        .map_or_else(|| ctx.sender.split('@').next().unwrap_or(&ctx.sender).to_string(), str::to_string);
 
     let mut transactions = ctx.setting(TRX).cloned().unwrap_or_default();
     if !transactions.is_object() {
@@ -218,22 +205,23 @@ pub fn beli(ctx: Ctx) -> Reply {
         "createdAt": crate::common::now_ms(),
     });
 
-    Reply::text(receipt(&trx_id, product)).mutating(vec![
-        Mutation::SetSetting {
-            key: COUNTER.into(),
-            value: serde_json::json!(counter),
-        },
-        Mutation::SetSetting {
-            key: TRX.into(),
-            value: transactions,
-        },
-    ])
+    Reply::text(receipt(&trx_id, product))
+        .mutating(vec![
+            Mutation::SetSetting {
+                key: COUNTER.into(),
+                value: serde_json::json!(counter),
+            },
+            Mutation::SetSetting {
+                key: TRX.into(),
+                value: transactions,
+            },
+        ])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     /// `beli` juga alias `rpg/shop.js` di JS, jadi `find("beli")`
     /// mengembalikan shop lebih dulu. Lookup by name, bukan by key.
@@ -265,9 +253,7 @@ mod tests {
 
     fn setting_written(r: &Reply, key: &str) -> Value {
         let m: Vec<&Mutation> = r.mutations().iter().collect();
-        let hit = m
-            .iter()
-            .find(|m| matches!(m, Mutation::SetSetting { key: k, .. } if k == key));
+        let hit = m.iter().find(|m| matches!(m, Mutation::SetSetting { key: k, .. } if k == key));
         match hit.expect("setting tidak ditulis") {
             Mutation::SetSetting { value, .. } => (*value).clone(),
             other => panic!("harus SetSetting, dapat {other:?}"),
@@ -313,10 +299,7 @@ mod tests {
 
     #[test]
     fn an_empty_catalog_is_reported_and_nothing_is_written() {
-        for s in [
-            serde_json::json!({}),
-            serde_json::json!({"storeProducts": []}),
-        ] {
+        for s in [serde_json::json!({}), serde_json::json!({"storeProducts": []})] {
             let r = run("1", s.clone());
             let t = text_of(&r);
             assert!(t.starts_with("📭 *Belum ada produk tersedia.*"), "{s}: {t}");
@@ -368,15 +351,9 @@ mod tests {
         let __balasan = run("", s);
         let t = text_of(&__balasan);
         assert!(t.contains("📦 *1.* Kaos — Rp 1.000 ✅"), "{t}");
-        assert!(
-            !text_of(&run(
-                "1",
-                serde_json::json!({"storeProducts": [
-                    {"id": "p1", "name": "Kaos", "type": "fisik", "price": 1000, "stock": -1}
-                ]})
-            ))
-            .contains("Stok Habis")
-        );
+        assert!(!text_of(&run("1", serde_json::json!({"storeProducts": [
+            {"id": "p1", "name": "Kaos", "type": "fisik", "price": 1000, "stock": -1}
+        ]}))).contains("Stok Habis"));
     }
 
     #[test]
@@ -395,14 +372,8 @@ mod tests {
         let trx = setting_written(&r, TRX);
         let entry = &trx["TRX-001"];
         assert_eq!(entry["trxId"], serde_json::json!("TRX-001"));
-        assert_eq!(
-            entry["buyerJid"],
-            serde_json::json!("628111@s.whatsapp.net")
-        );
-        assert_eq!(
-            entry["purchaseChat"],
-            serde_json::json!("628111@s.whatsapp.net")
-        );
+        assert_eq!(entry["buyerJid"], serde_json::json!("628111@s.whatsapp.net"));
+        assert_eq!(entry["purchaseChat"], serde_json::json!("628111@s.whatsapp.net"));
         assert_eq!(entry["purchaseIsGroup"], serde_json::json!(false));
         assert_eq!(entry["productIndex"], serde_json::json!(0));
         assert_eq!(entry["productId"], serde_json::json!("p1"));
@@ -443,10 +414,7 @@ mod tests {
         ctx.args = vec!["1".into()];
         let r = (plugin().handler)(ctx);
         let trx = setting_written(&r, TRX);
-        assert_eq!(
-            trx["TRX-001"]["purchaseChat"],
-            serde_json::json!("120363@g.us")
-        );
+        assert_eq!(trx["TRX-001"]["purchaseChat"], serde_json::json!("120363@g.us"));
         assert_eq!(trx["TRX-001"]["purchaseIsGroup"], serde_json::json!(true));
     }
 

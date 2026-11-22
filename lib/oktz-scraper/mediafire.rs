@@ -96,7 +96,8 @@ pub fn mediafire(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 fn meta_konten(els: &[Elemen], properti: &str) -> Option<String> {
     els.iter()
         .find(|e| {
-            e.nama.eq_ignore_ascii_case("meta") && e.attr("property").as_deref() == Some(properti)
+            e.nama.eq_ignore_ascii_case("meta")
+                && e.attr("property").as_deref() == Some(properti)
         })
         .and_then(|e| e.attr("content"))
 }
@@ -114,7 +115,11 @@ fn mime_dari_url(url: &str) -> &'static str {
         .next()
         .unwrap_or("");
     let ekstensi = if nama_berkas.contains('.') {
-        nama_berkas.rsplit('.').next().unwrap_or("").to_lowercase()
+        nama_berkas
+            .rsplit('.')
+            .next()
+            .unwrap_or("")
+            .to_lowercase()
     } else {
         String::new()
     };
@@ -383,10 +388,7 @@ mod tests {
     fn mime_dari_url_mengikuti_pemetaan_js() {
         assert_eq!(mime_dari_url(""), "application/octet-stream");
         assert_eq!(mime_dari_url("https://a/b"), "application/octet-stream");
-        assert_eq!(
-            mime_dari_url("https://a/b.7z"),
-            "application/x-7z-compressed"
-        );
+        assert_eq!(mime_dari_url("https://a/b.7z"), "application/x-7z-compressed");
         assert_eq!(mime_dari_url("https://a/b.MP3?x=1"), "audio/mpeg");
         assert_eq!(
             mime_dari_url("https://a/nama.dengan.titik.png"),

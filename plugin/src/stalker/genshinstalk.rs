@@ -40,7 +40,10 @@ pub fn genshinstalk(ctx: Ctx) -> Reply {
 
     let url = format!("https://api.nexray.eu.cc/stalker/genshin?id={uid}");
     let Ok(res) = ctx.http.call(
-        &HttpCall::get(&url).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+        &HttpCall::get(&url).header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        ),
     ) else {
         return Reply::text("😔 *Terjadi masalah di sistem kami.*\n\nSistem gagal menarik data dari server Genshin Impact. Silakan coba beberapa saat lagi ya.")
             .with_reaction("☢");
@@ -58,29 +61,16 @@ pub fn genshinstalk(ctx: Ctx) -> Reply {
 
     let result = data.get("result").unwrap_or(&Value::Null);
     let player = result.get("player_info").unwrap_or(&Value::Null);
-    let image_url = result
-        .get("image_url")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let image_url = result.get("image_url").and_then(Value::as_str).unwrap_or("");
 
-    let nickname = player
-        .get("nickname")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
-    let level = player
-        .get("level")
-        .and_then(Value::as_str)
-        .unwrap_or("-")
-        .to_string();
+    let nickname = player.get("nickname").and_then(Value::as_str).unwrap_or("-");
+    let level = player.get("level").and_then(Value::as_str).unwrap_or("-").to_string();
     let world_level = player
         .get("world_level")
         .and_then(Value::as_str)
         .unwrap_or("-")
         .to_string();
-    let signature = player
-        .get("signature")
-        .and_then(Value::as_str)
-        .unwrap_or("-");
+    let signature = player.get("signature").and_then(Value::as_str).unwrap_or("-");
     let achievements = player
         .get("achievements")
         .and_then(Value::as_str)
@@ -241,7 +231,10 @@ mod tests {
             serde_json::json!({ "status": true, "result": null }),
         ] {
             let r = run(Stub::json(body_json.clone()), "856012067");
-            assert!(body(&r).contains("Pencarian Gagal!"), "body {body_json}");
+            assert!(
+                body(&r).contains("Pencarian Gagal!"),
+                "body {body_json}"
+            );
             assert_eq!(reaction(&r), Some("❌"), "body {body_json}");
         }
     }
@@ -272,7 +265,10 @@ mod tests {
         };
         match isi.as_ref() {
             Reply::Image { media, caption, .. } => {
-                assert_eq!(media, &Some(MediaSource::url("https://example/avatar.jpg")));
+                assert_eq!(
+                    media,
+                    &Some(MediaSource::url("https://example/avatar.jpg"))
+                );
                 assert!(caption.contains("Traveler"));
                 assert!(caption.contains("60"));
             }

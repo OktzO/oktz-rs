@@ -87,9 +87,7 @@ pub fn musicmaker(ctx: Ctx) -> Reply {
         return Reply::text(ERROR_SERVER).with_reaction("☢");
     };
     let data = res.json().unwrap_or(Value::Null);
-    let status_ok = data
-        .get("status")
-        .is_some_and(crate::common::js_truthy_value);
+    let status_ok = data.get("status").is_some_and(crate::common::js_truthy_value);
     // JS `!data.status || !data.result` (`musicmaker.js:39`): `result` harus
     // truthy juga — `result: null` di JS masuk cabang gagal, bukan jadi caption "null".
     let Some(r) = data
@@ -203,13 +201,12 @@ mod tests {
             Reply::Sequence(list) => list
                 .iter()
                 .filter_map(|e| match e {
-                    Reply::Audio { media, .. } => Some((
-                        "audio".to_string(),
-                        media.as_ref().and_then(|m| match m {
+                    Reply::Audio { media, .. } => {
+                        Some(("audio".to_string(), media.as_ref().and_then(|m| match m {
                             MediaSource::Url { url, .. } => Some(url.clone()),
                             _ => None,
-                        }),
-                    )),
+                        })))
+                    }
                     Reply::Image { media, .. } => Some((
                         "image".to_string(),
                         media.as_ref().and_then(|m| match m {
@@ -282,7 +279,10 @@ mod tests {
     #[test]
     fn kegagalan_jaringan_mengembalikan_error_server() {
         let r = run_dengan_kunci(Stub::offline(), "x");
-        assert_eq!(r.without_mutations().text_body().unwrap(), ERROR_SERVER);
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            ERROR_SERVER
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

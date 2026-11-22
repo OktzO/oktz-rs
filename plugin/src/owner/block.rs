@@ -226,14 +226,8 @@ mod tests {
             .to_string()
     }
 
-    const PC: Spec = Spec {
-        prefix: ".",
-        is_group: false,
-    };
-    const GC: Spec = Spec {
-        prefix: ".",
-        is_group: true,
-    };
+    const PC: Spec = Spec { prefix: ".", is_group: false };
+    const GC: Spec = Spec { prefix: ".", is_group: true };
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -254,19 +248,13 @@ mod tests {
 
     #[test]
     fn a_number_with_no_digits_at_all_is_rejected() {
-        assert!(matches!(
-            resolve_target(&ctx(GC, &["abc"], &[], None)),
-            Target::InvalidNumber
-        ));
+        assert!(matches!(resolve_target(&ctx(GC, &["abc"], &[], None)), Target::InvalidNumber));
         assert_eq!(run(ctx(GC, &["abc"], &[], None)), INVALID_NUMBER);
     }
 
     #[test]
     fn a_bare_command_in_private_falls_back_to_the_chat_itself() {
-        assert!(matches!(
-            resolve_target(&ctx(PC, &[], &[], None)),
-            Target::Jid(_)
-        ));
+        assert!(matches!(resolve_target(&ctx(PC, &[], &[], None)), Target::Jid(_)));
     }
 
     #[test]
@@ -314,10 +302,7 @@ mod tests {
 
     #[test]
     fn sock_failure_falls_back_to_the_error_template() {
-        let sock = Arc::new(SockUji {
-            blok: Mutex::new(Vec::new()),
-            gagal: true,
-        });
+        let sock = Arc::new(SockUji { blok: Mutex::new(Vec::new()), gagal: true });
         let t = run(ctx_with(GC, &["628777"], &[], None, sock));
         assert!(t.contains("kendala"), "harus template error: {t}");
     }

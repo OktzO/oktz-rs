@@ -131,10 +131,7 @@ mod tests {
 
     #[test]
     fn the_rules_are_trimmed_at_the_edges_but_keep_inner_newlines() {
-        let r = run(
-            serde_json::json!({}),
-            "  1. Jangan spam\n2. Hormati sesama  ",
-        );
+        let r = run(serde_json::json!({}), "  1. Jangan spam\n2. Hormati sesama  ");
         assert_eq!(
             group_write(&r)["groupRules"],
             serde_json::json!("1. Jangan spam\n2. Hormati sesama")
@@ -172,11 +169,7 @@ mod tests {
 
     #[test]
     fn the_help_branch_never_touches_the_stored_rules() {
-        for g in [
-            serde_json::json!({"groupRules": "lama"}),
-            serde_json::json!({}),
-            serde_json::json!(null),
-        ] {
+        for g in [serde_json::json!({"groupRules": "lama"}), serde_json::json!({}), serde_json::json!(null)] {
             let r = run(g.clone(), "");
             assert!(r.mutations().is_empty(), "input {g}");
         }

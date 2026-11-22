@@ -207,7 +207,10 @@ fn reply(ctx: &Ctx) -> Reply {
     t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
     t = t.with_table_row(["Platform".to_string(), platform()]);
     t = t.with_table_row(["Node".to_string(), "N/A".to_string()]);
-    t = t.with_table_row(["CPU Load".to_string(), format!("{}%", fixed2(baca_load()))]);
+    t = t.with_table_row([
+        "CPU Load".to_string(),
+        format!("{}%", fixed2(baca_load())),
+    ]);
     t = t.with_table_row([
         "RAM".to_string(),
         format!(
@@ -294,8 +297,18 @@ mod tests {
         assert_eq!(
             kunci,
             vec![
-                "Bot", "Version", "Uptime", "Users", "Premium", "Groups", "Platform", "Node",
-                "CPU Load", "RAM", "Heap", "Updated",
+                "Bot",
+                "Version",
+                "Uptime",
+                "Users",
+                "Premium",
+                "Groups",
+                "Platform",
+                "Node",
+                "CPU Load",
+                "RAM",
+                "Heap",
+                "Updated",
             ]
         );
         assert_eq!(t.baris.len(), 12);
@@ -307,12 +320,7 @@ mod tests {
         assert_eq!(t.baris[8][0], "CPU Load");
         assert!(t.baris[8][1].ends_with('%'));
         // Waktu Asia/Jakarta `HH.MM.SS`.
-        assert_eq!(
-            t.baris[11][1].len(),
-            8,
-            "jam-menit-detik: {}",
-            t.baris[11][1]
-        );
+        assert_eq!(t.baris[11][1].len(), 8, "jam-menit-detik: {}", t.baris[11][1]);
     }
 
     #[test]

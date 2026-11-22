@@ -53,12 +53,7 @@ mod tests {
         fn semua_grup(&self) -> Result<serde_json::Value, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-        fn ubah_peserta(
-            &self,
-            _: &str,
-            _: &[String],
-            _: oktz_plugin_api::sock::AksiPeserta,
-        ) -> Result<(), SockError> {
+        fn ubah_peserta(&self, _: &str, _: &[String], _: oktz_plugin_api::sock::AksiPeserta) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
         fn set_foto_profil(&self, _: &str, _: &[u8]) -> Result<(), SockError> {
@@ -95,7 +90,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-
+    
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }

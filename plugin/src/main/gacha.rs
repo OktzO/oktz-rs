@@ -215,10 +215,7 @@ mod tests {
     fn the_reward_table_keeps_the_js_rows_and_its_total_weight() {
         assert_eq!(REWARDS.len(), 16);
         assert_eq!(REWARDS[0], ("balance", 100, 500, "common", "⚪", 35.0));
-        assert_eq!(
-            REWARDS[15],
-            ("jackpot", 100000, 500000, "mythic", "🌟", 0.1)
-        );
+        assert_eq!(REWARDS[15], ("jackpot", 100000, 500000, "mythic", "🌟", 0.1));
         let total: f64 = REWARDS.iter().map(|(_, _, _, _, _, c)| *c).sum();
         assert_eq!(total, 195.1);
         // Limtype yang tidak punya `case` itu bobotnya nol kumulatif != nol:
@@ -262,15 +259,10 @@ mod tests {
         ] {
             let text = format!(
                 "{} *ɢᴀᴄʜᴀ ʀᴇsᴜʟᴛ*\n\n{}{}",
-                "🎰",
-                banner(rarity),
-                "*Rarity:* x\n"
+                "🎰", banner(rarity), "*Rarity:* x\n"
             );
             if want.is_empty() {
-                assert!(
-                    !text.contains("`LEGENDARY PULL!`"),
-                    "{rarity} tak boleh dapat banner"
-                );
+                assert!(!text.contains("`LEGENDARY PULL!`"), "{rarity} tak boleh dapat banner");
             } else {
                 assert!(text.contains(want), "{rarity}");
             }
@@ -304,10 +296,7 @@ mod tests {
                     assert!((100..=50_000).contains(&gained), "koin {gained}");
                     assert!(t.contains("*Hadiah:* 💰"), "{t}");
                 }
-                assert!(
-                    !t.contains("Hadiah:* ⭐"),
-                    "koin tak boleh membawa emoji exp: {t}"
-                );
+                assert!(!t.contains("Hadiah:* ⭐"), "koin tak boleh membawa emoji exp: {t}");
             } else {
                 assert!((50..=10_000).contains(&(obj.get("exp").unwrap().as_i64().unwrap() - 77)));
                 assert!(!text_of(&r).contains("Koin\n"));
@@ -329,26 +318,8 @@ mod tests {
     fn an_unlimited_balance_or_exp_of_minus_one_is_left_alone() {
         // `user.koin === -1` → `updateKoin`/`updateExp` return -1 tanpa
         // menambah apa pun.
-        assert_eq!(
-            update_koin(
-                &Ctx {
-                    user_data: serde_json::json!({"koin": -1}),
-                    ..Default::default()
-                },
-                500
-            ),
-            ("koin", serde_json::json!(-1))
-        );
-        assert_eq!(
-            update_exp(
-                &Ctx {
-                    user_data: serde_json::json!({"exp": -1}),
-                    ..Default::default()
-                },
-                500
-            ),
-            ("exp", serde_json::json!(-1))
-        );
+        assert_eq!(update_koin(&Ctx { user_data: serde_json::json!({"koin": -1}), ..Default::default() }, 500), ("koin", serde_json::json!(-1)));
+        assert_eq!(update_exp(&Ctx { user_data: serde_json::json!({"exp": -1}), ..Default::default() }, 500), ("exp", serde_json::json!(-1)));
     }
 
     #[test]

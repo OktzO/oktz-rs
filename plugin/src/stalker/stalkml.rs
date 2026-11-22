@@ -6,27 +6,12 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 const REGION: &[(&str, &str)] = &[
-    ("1", "Indonesia"),
-    ("2", "Indonesia"),
-    ("3", "Indonesia"),
-    ("4", "Indonesia"),
-    ("5", "Indonesia"),
-    ("6", "Indonesia"),
-    ("7", "Indonesia"),
-    ("8", "Indonesia"),
-    ("9", "Indonesia"),
-    ("10", "Malaysia / SG / BN"),
-    ("11", "Philippines"),
-    ("12", "Thailand"),
-    ("13", "Vietnam"),
-    ("14", "Cambodia"),
-    ("15", "Myanmar"),
-    ("16", "Laos"),
-    ("17", "Timor-Leste"),
-    ("19", "Middle East"),
-    ("20", "North America"),
-    ("21", "Europe"),
-    ("22", "South America"),
+    ("1", "Indonesia"), ("2", "Indonesia"), ("3", "Indonesia"), ("4", "Indonesia"),
+    ("5", "Indonesia"), ("6", "Indonesia"), ("7", "Indonesia"), ("8", "Indonesia"),
+    ("9", "Indonesia"), ("10", "Malaysia / SG / BN"), ("11", "Philippines"),
+    ("12", "Thailand"), ("13", "Vietnam"), ("14", "Cambodia"), ("15", "Myanmar"),
+    ("16", "Laos"), ("17", "Timor-Leste"), ("19", "Middle East"), ("20", "North America"),
+    ("21", "Europe"), ("22", "South America"),
 ];
 
 /// `getRegion(sid)` (`stalkml.js:28-31`):
@@ -175,18 +160,12 @@ pub fn stalkml(ctx: Ctx) -> Reply {
     };
 
     // `if (json.success)` (`stalkml.js:95`) — truthy, bukan cuma `true`.
-    if json
-        .get("success")
-        .is_some_and(crate::common::js_truthy_value)
-    {
+    if json.get("success").is_some_and(crate::common::js_truthy_value) {
         let region = get_region(&server_id);
         let nama = json.get("name").and_then(Value::as_str).unwrap_or("-");
         let caption = format!(
             "🎮 *MOBILE LEGENDS STALKER* 🎮\n\nPencarian berhasil! Berikut adalah detail akun yang kamu lacak:\n\n👤 *Nickname:* {nama}\n🆔 *User ID:* {uid}\n🌐 *Server ID:* {sid}\n🗺️ *Region:* {region}",
-            nama = nama,
-            uid = user_id,
-            sid = server_id,
-            region = region
+            nama = nama, uid = user_id, sid = server_id, region = region
         );
         Reply::text(caption).with_reaction("✅")
     } else {
@@ -210,16 +189,10 @@ mod tests {
 
     impl Stub {
         fn json(v: Value) -> Arc<Stub> {
-            Arc::new(Stub {
-                body: Mutex::new(Some(v.to_string())),
-                seen: Mutex::new(Vec::new()),
-            })
+            Arc::new(Stub { body: Mutex::new(Some(v.to_string())), seen: Mutex::new(Vec::new()) })
         }
         fn offline() -> Arc<Stub> {
-            Arc::new(Stub {
-                body: Mutex::new(None),
-                seen: Mutex::new(Vec::new()),
-            })
+            Arc::new(Stub { body: Mutex::new(None), seen: Mutex::new(Vec::new()) })
         }
     }
 
@@ -230,62 +203,26 @@ mod tests {
             // "GAGAL MELACAK AKUN" (`stalkml.js:111-114`). Harus `Err`, bukan
             // 200 berbadan kosong.
             let Some(teks) = self.body.lock().unwrap().clone() else {
-                return Err(HttpError {
-                    message: "offline".into(),
-                });
+                return Err(HttpError { message: "offline".into() });
             };
-            Ok(HttpResponse {
-                status: 200,
-                body: HttpBody::Bytes {
-                    data: Arc::from(teks.into_bytes()),
-                    mimetype: None,
-                },
-                headers: Vec::new(),
-            })
+            Ok(HttpResponse { status: 200, body: HttpBody::Bytes { data: Arc::from(teks.into_bytes()), mimetype: None }, headers: Vec::new() })
         }
-        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
-            unimplemented!()
-        }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> { unimplemented!() }
     }
 
     use oktz_plugin_api::HttpError;
 
     fn run(http: Arc<Stub>, text: &str) -> Reply {
         let mut args = text.split_whitespace();
-        let ctx = Ctx {
-            text: text.to_string(),
-            args: args.by_ref().map(str::to_string).collect(),
-            sender: "x".into(),
-            chat: "x".into(),
-            prefix: ".".into(),
-            command: "stalkml".into(),
-            http,
-            ..Ctx::default()
-        };
+        let ctx = Ctx { text: text.to_string(), args: args.by_ref().map(str::to_string).collect(), sender: "x".into(), chat: "x".into(), prefix: ".".into(), command: "stalkml".into(), http, ..Ctx::default() };
         stalkml(ctx)
     }
 
-    fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
-    }
+    fn text_of(r: &Reply) -> String { r.without_mutations().text_body().unwrap_or_default().to_string() }
     fn reaction_of(r: &Reply) -> Option<String> {
-        match r.without_mutations() {
-            Reply::Reaction { emoji, .. } => Some(emoji.clone()),
-            _ => None,
-        }
+        match r.without_mutations() { Reply::Reaction { emoji, .. } => Some(emoji.clone()), _ => None }
     }
 
     #[test]
@@ -315,10 +252,7 @@ mod tests {
         let r = run(http.clone(), "126404236715139");
         // `pureNumbers.slice(-4)` → server, sisanya → user (`stalkml.js:74-76`):
         // "126404236715139" jadi user "12640423671" + server "5139".
-        assert_eq!(
-            text_of(&r),
-            "❌ *AKUN TIDAK DITEMUKAN*\n\nMaaf, sistem tidak dapat menemukan akun dengan ID *12640423671* dan Server *5139*. Pastikan ID dan Server sudah diketik dengan benar."
-        );
+        assert_eq!(text_of(&r), "❌ *AKUN TIDAK DITEMUKAN*\n\nMaaf, sistem tidak dapat menemukan akun dengan ID *12640423671* dan Server *5139*. Pastikan ID dan Server sudah diketik dengan benar.");
         assert_eq!(reaction_of(&r), Some("❌".to_string()));
     }
 

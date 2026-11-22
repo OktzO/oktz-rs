@@ -186,7 +186,10 @@ mod tests {
         assert_eq!(meta.name, "watercolorfx");
         assert_eq!(meta.alias, ["watercolor", "wctext"]);
         assert_eq!(meta.category, "canvas");
-        assert_eq!(meta.description, "Buat gambar teks dengan efek watercolor");
+        assert_eq!(
+            meta.description,
+            "Buat gambar teks dengan efek watercolor"
+        );
         assert_eq!(meta.usage, ".watercolorfx <teks>");
         assert_eq!(meta.example, ".watercolorfx Halo");
         assert_eq!(meta.cooldown, 5);

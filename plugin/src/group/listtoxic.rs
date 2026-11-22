@@ -7,8 +7,25 @@ use crate::common::joined_strings;
 
 /// `DEFAULT_TOXIC_WORDS` (`antitoxic.js:21-23`), urutan persis — 20 kata.
 pub(crate) const DEFAULT_TOXIC_WORDS: [&str; 20] = [
-    "anjing", "bangsat", "kontol", "memek", "ngentot", "babi", "tolol", "goblok", "idiot", "bodoh",
-    "kampret", "asu", "jancok", "bajingan", "keparat", "setan", "iblis", "tai", "brengsek",
+    "anjing",
+    "bangsat",
+    "kontol",
+    "memek",
+    "ngentot",
+    "babi",
+    "tolol",
+    "goblok",
+    "idiot",
+    "bodoh",
+    "kampret",
+    "asu",
+    "jancok",
+    "bajingan",
+    "keparat",
+    "setan",
+    "iblis",
+    "tai",
+    "brengsek",
     "sialan",
 ];
 
@@ -18,7 +35,10 @@ pub(crate) fn render(ctx: &Ctx) -> String {
     let mut text = String::from("📋 *ᴅᴀꜰᴛᴀʀ ᴋᴀᴛᴀ ᴛᴏxɪᴄ*\n\n");
 
     if !custom.is_empty() {
-        text.push_str(&format!("╭┈┈⬡「 ✏️ *ᴄᴜsᴛᴏᴍ* ({}) 」\n", custom.len()));
+        text.push_str(&format!(
+            "╭┈┈⬡「 ✏️ *ᴄᴜsᴛᴏᴍ* ({}) 」\n",
+            custom.len()
+        ));
         for (i, w) in custom.iter().enumerate() {
             text.push_str(&format!("┃ {}. {w}\n", i + 1));
         }
@@ -130,9 +150,7 @@ mod tests {
     #[test]
     fn custom_words_come_first_and_raise_the_total() {
         let out = run(serde_json::json!({"toxicWords": ["kazak", "bangsat-kecil"]}));
-        assert!(
-            out.contains("╭┈┈⬡「 ✏️ *ᴄᴜsᴛᴏᴍ* (2) 」\n┃ 1. kazak\n┃ 2. bangsat-kecil\n╰┈┈┈┈┈┈┈┈⬡")
-        );
+        assert!(out.contains("╭┈┈⬡「 ✏️ *ᴄᴜsᴛᴏᴍ* (2) 」\n┃ 1. kazak\n┃ 2. bangsat-kecil\n╰┈┈┈┈┈┈┈┈⬡"));
         assert!(out.contains("Total: *22* kata"));
         assert!(
             out.find("✏️ *ᴄᴜsᴛᴏᴍ*").unwrap() < out.find("📦 *ᴅᴇꜰᴀᴜʟᴛ*").unwrap(),

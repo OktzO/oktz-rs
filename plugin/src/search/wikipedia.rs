@@ -39,21 +39,14 @@ struct Article {
 }
 
 /// `searchWikipedia` — panggil Wikipedia API.
-fn search_wikipedia(
-    http: &dyn oktz_plugin_api::HttpGet,
-    query: &str,
-) -> Result<SearchResult, String> {
-    let url = format!(
-        "{BASE}/w/api.php?action=query&list=search&srsearch={}&srlimit={}&format=json&origin=*",
-        encode_uri_component(query),
-        LIMIT
-    );
+fn search_wikipedia(http: &dyn oktz_plugin_api::HttpGet, query: &str) -> Result<SearchResult, String> {
+    let url = format!("{BASE}/w/api.php?action=query&list=search&srsearch={}&srlimit={}&format=json&origin=*",
+        encode_uri_component(query), LIMIT);
     let res = http
         .get(&url)
         .map_err(|e| format!("Gagal mencari: {}", e.message))?;
     let data: Value = res.json().unwrap_or(Value::Null);
-    let results = data
-        .get("query")
+    let results = data.get("query")
         .and_then(|v| v.get("search"))
         .and_then(Value::as_array)
         .cloned()
@@ -72,14 +65,9 @@ fn get_full_article(http: &dyn oktz_plugin_api::HttpGet, title: &str) -> Result<
     let cleaned = remove_unwanted(&html);
     // `cleanText($("#firstHeading").text()) || title` (`wikipedia.js:106`).
     let heading = clean_text(&extract_by_id(&cleaned, "firstHeading").unwrap_or_default());
-    let page_title = if heading.is_empty() {
-        title.to_string()
-    } else {
-        heading
-    };
+    let page_title = if heading.is_empty() { title.to_string() } else { heading };
     let description = extract_by_class(&cleaned, "tagline")
-        .map(|t| clean_text(&t))
-        .filter(|s| !s.is_empty());
+        .map(|t| clean_text(&t)).filter(|s| !s.is_empty());
     let intro = intro_paragraphs(&cleaned);
     let infobox = extract_infobox(&cleaned);
     let images = extract_images(&cleaned, &page_url);
@@ -102,17 +90,7 @@ fn remove_unwanted(html: &str) -> String {
         out = remove_tag_pairs(&out, tag);
     }
     // Untuk elemen dengan class tertentu, hapus kotak yang ditemukan.
-    for cls in [
-        "sup.reference",
-        ".mw-editsection",
-        ".navbox",
-        ".metadata",
-        ".ambox",
-        ".hatnote",
-        ".toc",
-        "#toc",
-        "table.vertical-navbox",
-    ] {
+    for cls in ["sup.reference", ".mw-editsection", ".navbox", ".metadata", ".ambox", ".hatnote", ".toc", "#toc", "table.vertical-navbox"] {
         out = remove_by_class_or_id(&out, cls);
     }
     out
@@ -149,13 +127,7 @@ fn remove_by_class_or_id(html: &str, selector: &str) -> String {
     let mut out = String::new();
     let mut i = 0;
     while i < html.len() {
-        let attr = if selector.starts_with('.') {
-            "class"
-        } else if selector.starts_with('#') {
-            "id"
-        } else {
-            ""
-        };
+        let attr = if selector.starts_with('.') { "class" } else if selector.starts_with('#') { "id" } else { "" };
         let val = &selector[1..];
         let pola = format!("{attr}=\"{val}\"");
         if let Some(pos) = html[i..].find(&pola) {
@@ -168,10 +140,7 @@ fn remove_by_class_or_id(html: &str, selector: &str) -> String {
             };
             // Deteksi nama tag
             let tag_name = &html[tag_start + 1..tag_start + 1 + 20];
-            let tag_name = tag_name
-                .split(|c: char| c.is_whitespace() || c == '>' || c == '/')
-                .next()
-                .unwrap_or("div");
+            let tag_name = tag_name.split(|c: char| c.is_whitespace() || c == '>' || c == '/').next().unwrap_or("div");
             // Cari penutup
             let close = format!("</{tag_name}>");
             let content_start = tag_end;
@@ -209,10 +178,7 @@ fn extract_by_class(html: &str, class: &str) -> Option<String> {
         let content_start = tag_end;
         // Cari tag penutup — deteksi nama tag
         let tag_name = &html[tag_start + 1..tag_start + 1 + 20];
-        let tag_name = tag_name
-            .split(|c: char| c.is_whitespace() || c == '>' || c == '/')
-            .next()
-            .unwrap_or("div");
+        let tag_name = tag_name.split(|c: char| c.is_whitespace() || c == '>' || c == '/').next().unwrap_or("div");
         let close = format!("</{tag_name}>");
         if let Some(cs) = html[content_start..].find(&close) {
             return Some(html[content_start..content_start + cs].to_string());
@@ -238,9 +204,7 @@ fn intro_paragraphs(html: &str) -> Option<String> {
                 let para = parser[content_start..content_start + cs].to_string();
                 let clean = clean_text(&para);
                 if clean.len() > 40 {
-                    if !teks.is_empty() {
-                        teks.push('\n');
-                    }
+                    if !teks.is_empty() { teks.push('\n'); }
                     teks.push_str(&clean);
                 }
             }
@@ -314,10 +278,7 @@ fn extract_images(html: &str, base_url: &str) -> Vec<(String, Option<String>)> {
                 start = abs + 4;
                 continue;
             };
-            if fixed.contains("static/images")
-                || fixed.contains("Semi-protection")
-                || fixed.contains("OOjs_UI")
-            {
+            if fixed.contains("static/images") || fixed.contains("Semi-protection") || fixed.contains("OOjs_UI") {
                 start = abs + 4;
                 continue;
             }
@@ -384,13 +345,7 @@ fn remove_references(text: &str) -> String {
             let rest = &text[i + pos..];
             if let Some(end) = rest.find(']') {
                 let inside = &rest[1..end];
-                if inside.chars().all(|c| c.is_ascii_digit())
-                    || inside.len() == 1
-                        && inside
-                            .chars()
-                            .next()
-                            .is_some_and(|c| c.is_ascii_alphabetic())
-                {
+                if inside.chars().all(|c| c.is_ascii_digit()) || inside.len() == 1 && inside.chars().next().is_some_and(|c| c.is_ascii_alphabetic()) {
                     i += pos + end + 1;
                     continue;
                 }
@@ -444,19 +399,14 @@ where
     F: Fn(&T) -> String,
 {
     let mut seen = std::collections::HashSet::new();
-    array
-        .into_iter()
-        .filter(|item| seen.insert(key(item)))
-        .collect()
+    array.into_iter().filter(|item| seen.insert(key(item))).collect()
 }
 
 fn encode_uri_component(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         let c = b as char;
-        if c.is_ascii_alphanumeric()
-            || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')')
-        {
+        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')') {
             out.push(c);
         } else {
             out.push_str(&format!("%{b:02X}"));
@@ -499,17 +449,11 @@ pub fn wikipedia(ctx: Ctx) -> Reply {
     };
 
     if search.results.is_empty() {
-        return Reply::text(format!(
-            "⚠️ Artikel tentang *{query}* tidak ditemukan di Wikipedia."
-        ));
+        return Reply::text(format!("⚠️ Artikel tentang *{query}* tidak ditemukan di Wikipedia."));
     }
 
     let first = &search.results[0];
-    let title = first
-        .get("title")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+    let title = first.get("title").and_then(Value::as_str).unwrap_or("").to_string();
     let detail = match get_full_article(ctx.http.as_ref(), &title) {
         Ok(d) => d,
         Err(_) => {
@@ -523,11 +467,7 @@ pub fn wikipedia(ctx: Ctx) -> Reply {
     if let Some(desc) = &r.description {
         text.push_str(&format!("*Deskripsi:* {desc}\n"));
     }
-    text.push_str(&format!(
-        "\n*Ringkasan:*\n{}\n\n",
-        r.extract
-            .unwrap_or_else(|| "Tidak ada ringkasan tersedia.".to_string())
-    ));
+    text.push_str(&format!("\n*Ringkasan:*\n{}\n\n", r.extract.unwrap_or_else(|| "Tidak ada ringkasan tersedia.".to_string())));
 
     if !r.infobox.is_empty() {
         text.push_str("*Info Tambahan:*\n");
@@ -629,8 +569,7 @@ mod tests {
             .to_string()
     }
 
-    const API_SEARCH: &str =
-        r#"{"query":{"search":[{"title":"Rendang","snippet":"Rendang adalah masakan"}]}}"#;
+    const API_SEARCH: &str = r#"{"query":{"search":[{"title":"Rendang","snippet":"Rendang adalah masakan"}]}}"#;
 
     const ARTICLE_HTML: &str = r#"<html><body>
 <div class="mw-parser-output">
@@ -661,23 +600,13 @@ mod tests {
 
     #[test]
     fn fix_url_protokol_relatif() {
-        assert_eq!(
-            fix_url("//upload.wikimedia.org/x.jpg", BASE),
-            Some("https://upload.wikimedia.org/x.jpg".to_string())
-        );
-        assert_eq!(
-            fix_url("/wiki/Foo", BASE),
-            Some("https://id.wikipedia.org/wiki/Foo".to_string())
-        );
+        assert_eq!(fix_url("//upload.wikimedia.org/x.jpg", BASE), Some("https://upload.wikimedia.org/x.jpg".to_string()));
+        assert_eq!(fix_url("/wiki/Foo", BASE), Some("https://id.wikipedia.org/wiki/Foo".to_string()));
     }
 
     #[test]
     fn unique_by_dedup() {
-        let v = vec![
-            ("a".to_string(), 1),
-            ("a".to_string(), 2),
-            ("b".to_string(), 3),
-        ];
+        let v = vec![("a".to_string(), 1), ("a".to_string(), 2), ("b".to_string(), 3)];
         let r = unique_by(v, |(k, _)| k.clone());
         assert_eq!(r.len(), 2);
     }
@@ -709,9 +638,6 @@ mod tests {
     #[test]
     fn jaringan_gagal() {
         let r = run(StubHttp::offline(), "Rendang");
-        assert_eq!(
-            text_of(&r),
-            "😔 Terjadi kesalahan saat mencari artikel di Wikipedia."
-        );
+        assert_eq!(text_of(&r), "😔 Terjadi kesalahan saat mencari artikel di Wikipedia.");
     }
 }

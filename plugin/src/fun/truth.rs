@@ -97,9 +97,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     #[test]
@@ -130,10 +128,7 @@ mod tests {
     #[test]
     fn the_table_is_the_sixty_one_entries_of_truth_json() {
         assert_eq!(TRUTH.len(), 61);
-        assert_eq!(
-            TRUTH[0],
-            "Acara tv apa yang paling memuakkan? Berikan alasannya!"
-        );
+        assert_eq!(TRUTH[0], "Acara tv apa yang paling memuakkan? Berikan alasannya!");
         assert!(TRUTH.iter().all(|q| !q.is_empty()));
     }
 }

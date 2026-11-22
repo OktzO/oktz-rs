@@ -30,12 +30,7 @@ impl Sock for CatatSock {
     fn semua_grup(&self) -> Result<Value, SockError> {
         Err(Self::gagal())
     }
-    fn ubah_peserta(
-        &self,
-        jid: &str,
-        peserta: &[String],
-        aksi: AksiPeserta,
-    ) -> Result<(), SockError> {
+    fn ubah_peserta(&self, jid: &str, peserta: &[String], aksi: AksiPeserta) -> Result<(), SockError> {
         self.seen
             .lock()
             .unwrap()

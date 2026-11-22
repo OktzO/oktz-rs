@@ -237,19 +237,18 @@ fn urai(html: &str) -> Elemen {
             let nama = nama_tag(&html[i + 2..i + pos]);
             // Akar (tag "") tidak pernah ikut ditutup, dan `</>` diabaikan.
             if !nama.is_empty()
-                && let Some(idx) = tumpukan.iter().rposition(|el| el.tag == nama)
-            {
-                while tumpukan.len() > idx + 1 {
-                    let anak = tumpukan.pop().expect("lebih dari satu frame");
+                && let Some(idx) = tumpukan.iter().rposition(|el| el.tag == nama) {
+                    while tumpukan.len() > idx + 1 {
+                        let anak = tumpukan.pop().expect("lebih dari satu frame");
+                        if let Some(induk) = tumpukan.last_mut() {
+                            induk.anak.push(Simpul::Elemen(anak));
+                        }
+                    }
+                    let anak = tumpukan.pop().expect("frame yang cocok");
                     if let Some(induk) = tumpukan.last_mut() {
                         induk.anak.push(Simpul::Elemen(anak));
                     }
                 }
-                let anak = tumpukan.pop().expect("frame yang cocok");
-                if let Some(induk) = tumpukan.last_mut() {
-                    induk.anak.push(Simpul::Elemen(anak));
-                }
-            }
             i += pos + 1;
             continue;
         }
@@ -755,6 +754,7 @@ mod tests {
         assert_eq!(http.permintaan.lock().unwrap().len(), 1);
     }
 
+
     /// Dua cabang sekaligus supaya tidak ada test yatim: tanpa `#download` berhenti
     /// di permintaan kedua, dan URL polos di `<script>` (tanpa `https:\/\/`)
     /// tetap menghasilkan `download_url: null` setelah tiga permintaan.
@@ -762,11 +762,7 @@ mod tests {
     fn gerbang_tanpa_tombol_dan_url_polos_keduanya_null() {
         let http = StubHttp::new(vec![
             (200, halaman_masukan(), Vec::new()),
-            (
-                200,
-                "<html><body><p>tidak ada tombol</p></body></html>".to_string(),
-                Vec::new(),
-            ),
+            (200, "<html><body><p>tidak ada tombol</p></body></html>".to_string(), Vec::new()),
         ]);
         let hasil = sfile(&http, "https://sfile.co/abc").unwrap();
         assert_eq!(hasil["file_name"], "Spotify PREMIUM_9.1.14.864");
@@ -835,9 +831,6 @@ mod tests {
     fn atribut_dianggap_ada_walau_nilai_kosong_lalu_disaring_pemanggil() {
         let dok = urai(r#"<a id="download" href="">x</a><a id="download" href="https://b">y</a>"#);
         // Elemen pertama yang cocok menang, walau href-nya kosong.
-        assert_eq!(
-            atribut(cari_id(&dok, "download").unwrap(), "href"),
-            Some(String::new())
-        );
+        assert_eq!(atribut(cari_id(&dok, "download").unwrap(), "href"), Some(String::new()));
     }
 }

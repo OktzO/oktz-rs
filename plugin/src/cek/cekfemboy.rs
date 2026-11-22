@@ -139,7 +139,9 @@ pub fn cekfemboy(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, find};
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpGet, HttpResponse, find,
+    };
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -278,11 +280,7 @@ mod tests {
     fn mention_dengan_device_tidak_dibuang_dari_bagian_tampil() {
         // `cb.split("@")[0]` cuma membuang server, bukan `:3` — sama seperti JS.
         let jid_device = "628999:3@s.whatsapp.net";
-        let r = cekfemboy(ctx_of(
-            StubHttp::offline(),
-            vec![jid_device.to_string()],
-            "",
-        ));
+        let r = cekfemboy(ctx_of(StubHttp::offline(), vec![jid_device.to_string()], ""));
         let (teks, mentions) = teks_dan_mention(&r);
         assert!(teks.contains("@628999:3 yak?"), "{teks}");
         assert_eq!(mentions, [jid_device.to_string()]);
@@ -314,11 +312,7 @@ mod tests {
     fn gif_palsu_tidak_pernah_jadi_video_yang_dikirim() {
         // Byte yang bukan GIF: ffmpeg (kalau ada) menolaknya, `jalankan_dengan_masukan`
         // mengembalikan `Err`, dan JS pun jatuh ke balasan teks.
-        let r = cekfemboy(ctx_of(
-            StubHttp::baru(b"bukan gif".to_vec()),
-            Vec::new(),
-            "Budi",
-        ));
+        let r = cekfemboy(ctx_of(StubHttp::baru(b"bukan gif".to_vec()), Vec::new(), "Budi"));
         let (teks, mentions) = teks_dan_mention(&r);
         assert!(teks.contains("Budi, kamu "), "{teks}");
         assert_eq!(mentions, [ME.to_string()]);
@@ -327,10 +321,7 @@ mod tests {
     #[test]
     fn argumen_ffmpeg_pipa_mengganti_faststart() {
         let argumen = ARGUMEN_GIF_KE_MP4;
-        assert!(
-            !argumen.contains(&"faststart"),
-            "faststart butuh keluaran seekable"
-        );
+        assert!(!argumen.contains(&"faststart"), "faststart butuh keluaran seekable");
         assert_eq!(argumen[4], "pipe:0");
         assert_eq!(argumen[20], "pipe:1");
         assert_eq!(argumen[18..20], ["-f", "mp4"]);
@@ -363,16 +354,10 @@ mod tests {
         // memang tidak bisa dipakai lewat pipa (lihat doc-comment modul).
         let perintah = PERINTAH_JS.replace('"', "");
         for arg in ARGUMEN_GIF_KE_MP4 {
-            if matches!(
-                arg,
-                "pipe:0" | "pipe:1" | "-f" | "mp4" | "frag_keyframe+empty_moov"
-            ) {
+            if matches!(arg, "pipe:0" | "pipe:1" | "-f" | "mp4" | "frag_keyframe+empty_moov") {
                 continue;
             }
-            assert!(
-                perintah.contains(arg),
-                "argumen JS tidak ada di Rust: {arg}"
-            );
+            assert!(perintah.contains(arg), "argumen JS tidak ada di Rust: {arg}");
         }
         assert!(PERINTAH_JS.contains("faststart"), "JS memakai faststart");
     }
@@ -391,11 +376,7 @@ mod tests {
     fn pesan_error_konversi_js_tidak_pernah_muncul_di_balasan() {
         // `catch` kosong di JS (`cekfemboy.js:64-69`) → pesan "Gagal convert
         // GIF" tidak boleh bocor ke user; jawabannya tetap teks biasa.
-        let r = cekfemboy(ctx_of(
-            StubHttp::baru(b"bukan gif".to_vec()),
-            Vec::new(),
-            "Budi",
-        ));
+        let r = cekfemboy(ctx_of(StubHttp::baru(b"bukan gif".to_vec()), Vec::new(), "Budi"));
         let (teks, _) = teks_dan_mention(&r);
         assert!(!teks.contains(PESAN_KONVERSI_GAGAL_JS), "{teks}");
     }

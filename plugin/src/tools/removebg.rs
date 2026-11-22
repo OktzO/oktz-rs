@@ -54,10 +54,7 @@ pub fn removebg(ctx: Ctx) -> Reply {
     let Ok(buffer) = unduh else {
         // JS: unduhan yang MELEMPAR ditangkap `catch` → `te()` tanpa reaksi
         // tambahan; hanya reaksi `🕕` yang sudah terkirim.
-        return Reply::sequence(vec![
-            jam(),
-            Reply::text(crate::common::error_template(&ctx)),
-        ]);
+        return Reply::sequence(vec![jam(), Reply::text(crate::common::error_template(&ctx))]);
     };
 
     let hasil = oktz_scraper::removebackground::pixelcut_remove(ctx.http.as_ref(), &buffer)
@@ -72,10 +69,7 @@ pub fn removebg(ctx: Ctx) -> Reply {
                 "✅ *ʙᴀᴄᴋɢʀᴏᴜɴᴅ ᴅɪʜᴀᴘᴜs*\n\n> Background gambar berhasil dihapus",
             ),
         ]),
-        Err(_) => Reply::sequence(vec![
-            jam(),
-            Reply::text(crate::common::error_template(&ctx)),
-        ]),
+        Err(_) => Reply::sequence(vec![jam(), Reply::text(crate::common::error_template(&ctx))]),
     }
 }
 
@@ -121,11 +115,7 @@ mod tests {
 
     #[test]
     fn bukan_gambar_menghasilkan_kartu_pakai_tanpa_reaksi() {
-        let r = removebg(ctx_of(
-            HttpRangkaian::offline(),
-            Some(IncomingKind::Video),
-            Ok(vec![1]),
-        ));
+        let r = removebg(ctx_of(HttpRangkaian::offline(), Some(IncomingKind::Video), Ok(vec![1])));
         assert_eq!(teks(&r), pakai());
         assert!(reaksi(&r).is_empty());
     }
@@ -140,20 +130,13 @@ mod tests {
             }),
         ));
         assert_eq!(reaksi(&r), ["🕕"]);
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "removebg")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "removebg"));
     }
 
     #[test]
     fn pixelcut_sukses_mengirim_gambar_tanpa_reaksi_centang() {
         let http = HttpRangkaian::urutan(vec!["PNG".to_string()]);
-        let r = removebg(ctx_of(
-            http.clone(),
-            Some(IncomingKind::Image),
-            Ok(vec![1, 2]),
-        ));
+        let r = removebg(ctx_of(http.clone(), Some(IncomingKind::Image), Ok(vec![1, 2])));
         assert_eq!(reaksi(&r), ["🕕"]);
         assert!(r.has_media());
         assert_eq!(http.terlihat().len(), 1, "bgninja tidak dipanggil");
@@ -161,15 +144,8 @@ mod tests {
 
     #[test]
     fn dua_dua_gagal_jadi_template_galat() {
-        let r = removebg(ctx_of(
-            HttpRangkaian::offline(),
-            Some(IncomingKind::Image),
-            Ok(vec![1]),
-        ));
+        let r = removebg(ctx_of(HttpRangkaian::offline(), Some(IncomingKind::Image), Ok(vec![1])));
         assert_eq!(reaksi(&r), ["🕕"]);
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "removebg")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "removebg"));
     }
 }

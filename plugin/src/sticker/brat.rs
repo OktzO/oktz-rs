@@ -112,11 +112,7 @@ pub fn brat(ctx: Ctx) -> Reply {
     let command = ctx.command.to_lowercase();
     if command == "brat" || command == "bratmenu" {
         let cfg = ctx.config();
-        let subtitle = if cfg.bot.name.is_empty() {
-            "Oktz Bot".to_string()
-        } else {
-            cfg.bot.name.clone()
-        };
+        let subtitle = if cfg.bot.name.is_empty() { "Oktz Bot".to_string() } else { cfg.bot.name.clone() };
         return menu_brat(&ctx.prefix, &ctx.text, &subtitle);
     }
 
@@ -129,16 +125,8 @@ pub fn brat(ctx: Ctx) -> Reply {
     let (parsed, blur) = parse_brat_args(&ctx.text);
     let cfg = ctx.config();
     let (pn, au) = (
-        if cfg.sticker.packname.is_empty() {
-            "Sticker".to_string()
-        } else {
-            cfg.sticker.packname.clone()
-        },
-        if cfg.sticker.author.is_empty() {
-            "Bot".to_string()
-        } else {
-            cfg.sticker.author.clone()
-        },
+        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
+        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
     );
 
     /// `brat.js:145` — fallback render lokal putih.
@@ -148,8 +136,7 @@ pub fn brat(ctx: Ctx) -> Reply {
         let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).map_err(|_| ())?;
         // `addExifToWebp` gagal di JS hanya di-log (`socket.js:549-551`) —
         // webp polos tetap terkirim.
-        match oktz_plugin_api::tempel_metadata_stiker(&webp, pn, au, &oktz_plugin_api::EXIF_EMOJIS)
-        {
+        match oktz_plugin_api::tempel_metadata_stiker(&webp, pn, au, &oktz_plugin_api::EXIF_EMOJIS) {
             Ok(b) => Ok(b),
             Err(_) => Ok(webp),
         }
@@ -158,19 +145,11 @@ pub fn brat(ctx: Ctx) -> Reply {
     // `brat.js:141-146` — API (timeout 15s) gagal ATAU blank → fallback
     // render. Konversi webp dari byte API gagal = `sendImageAsSticker`
     // melempar → catch LUAR (`brat.js:154-157`), bukan fallback.
-    let hasil = match ctx
-        .http
-        .call(&HttpCall::get(api_url(&parsed)).with_timeout(15000))
-    {
-        Ok(res)
-            if (200..300).contains(&res.status) && !oktz_plugin_api::is_blank(res.body.bytes()) =>
-        {
+    let hasil = match ctx.http.call(&HttpCall::get(api_url(&parsed)).with_timeout(15000)) {
+        Ok(res) if (200..300).contains(&res.status) && !oktz_plugin_api::is_blank(res.body.bytes()) => {
             match oktz_plugin_api::gambar_ke_stiker_webp(res.body.bytes(), &[]) {
                 Ok(webp) => match oktz_plugin_api::tempel_metadata_stiker(
-                    &webp,
-                    &pn,
-                    &au,
-                    &oktz_plugin_api::EXIF_EMOJIS,
+                    &webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS,
                 ) {
                     Ok(b) => Ok(b),
                     // `addExifToWebp` gagal hanya di-log (`socket.js:549-551`).
@@ -188,9 +167,7 @@ pub fn brat(ctx: Ctx) -> Reply {
             Reply::reaction("🕐"),
             Reply::sticker_opsi(
                 MediaSource::bytes(bytes).with_mimetype("image/webp"),
-                oktz_plugin_api::StickerOpsi::gambar()
-                    .with_packname(&pn)
-                    .with_author(&au),
+                oktz_plugin_api::StickerOpsi::gambar().with_packname(&pn).with_author(&au),
             ),
             Reply::reaction("✅"),
         ]),

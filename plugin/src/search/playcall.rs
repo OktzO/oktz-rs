@@ -29,7 +29,8 @@ pub(crate) fn help(prefix: &str) -> String {
 }
 
 /// `playcall.js:49-53` — VoIP belum aktif.
-pub(crate) const BELUM_SIAP: &str = "⚠️ *LAYANAN BELUM SIAP*\n\nModul panggilan suara VoIP belum aktif atau sedang dalam proses inisialisasi pada server.";
+pub(crate) const BELUM_SIAP: &str =
+    "⚠️ *LAYANAN BELUM SIAP*\n\nModul panggilan suara VoIP belum aktif atau sedang dalam proses inisialisasi pada server.";
 
 /// `playcall.js:68` — judul tidak ditemukan.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
@@ -107,11 +108,9 @@ pub fn playcall(ctx: Ctx) -> Reply {
         // `playcall.js:95-124` — file sementara + `voipClient.call` +
         // callback `connected`/`ended`/`error`. Semuanya butuh `fs` dan VoIP,
         // jadi tidak terjangkau.
-        Ok((title, timestamp, _audio_url)) => Reply::text(mulai_panggilan(
-            &title,
-            &timestamp,
-            &nomor_dari(&ctx.sender),
-        )),
+        Ok((title, timestamp, _audio_url)) => {
+            Reply::text(mulai_panggilan(&title, &timestamp, &nomor_dari(&ctx.sender)))
+        }
         // `playcall.js:49-53` — `global.voipClient` tidak ada. Guard ini dicek
         // sebelum `m.react("🕕")` di `:55`, jadi tidak ada reaksi.
         Err(message) => Reply::text(message),
@@ -227,16 +226,10 @@ mod tests {
     fn an_empty_title_shows_the_help_card() {
         for text in ["", "  ", "\t\n"] {
             let t = text_of(&run(text));
-            assert!(
-                t.starts_with("⚠️ *PANGGILAN MUSIK (PLAYCALL)*"),
-                "input {text:?}"
-            );
+            assert!(t.starts_with("⚠️ *PANGGILAN MUSIK (PLAYCALL)*"), "input {text:?}");
             // `*PENGGUNAAN:*` memakai asterisk, bukan backtick, di `playcall.js:40`.
             assert!(t.contains("- *.playcall <judul lagu>*"), "{t}");
-            assert!(
-                t.ends_with("_Pastikan nomormu dapat menerima panggilan suara WhatsApp._"),
-                "{t}"
-            );
+            assert!(t.ends_with("_Pastikan nomormu dapat menerima panggilan suara WhatsApp._"), "{t}");
         }
         assert!(help("!").contains("!playcall komang"));
         assert_eq!(reaction_of(&run("")), None);
@@ -268,10 +261,7 @@ mod tests {
     #[test]
     fn the_call_messages_keep_their_javascript_wording() {
         let t = mulai_panggilan("Komang", "3:45", "628111");
-        assert!(
-            t.starts_with("📞 *MEMULAI PANGGILAN*\n\n- Judul: *Komang*\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("📞 *MEMULAI PANGGILAN*\n\n- Judul: *Komang*\n"), "{t}");
         assert!(t.contains("- Durasi: *3:45*\n- Tujuan: *+628111*\n"), "{t}");
         assert!(t.ends_with("_Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"), "{t}");
 

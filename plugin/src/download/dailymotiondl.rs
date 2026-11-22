@@ -72,7 +72,10 @@ pub(crate) struct HasilDailymotion {
 fn hasil_dari(data: &Value) -> HasilDailymotion {
     let teks = |k: &str| data.get(k).and_then(Value::as_str).map(str::to_string);
     HasilDailymotion {
-        status: data.get("status").and_then(Value::as_bool).unwrap_or(false),
+        status: data
+            .get("status")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         error: teks("error"),
         title: teks("title"),
         thumbnail: teks("thumbnail"),
@@ -216,7 +219,10 @@ mod tests {
     }
 
     fn run(text: &str) -> Reply {
-        (find("dailymotiondl").unwrap().handler)(ctx_dengan(text, r#"{"medias":[]}"#))
+        (find("dailymotiondl").unwrap().handler)(ctx_dengan(
+            text,
+            r#"{"medias":[]}"#,
+        ))
     }
 
     fn reaction(r: &Reply) -> Option<&str> {
@@ -227,7 +233,7 @@ mod tests {
     }
 
     /// Isi balasan sebenarnya: `without_mutations` hanya membuang `Mutate`, jadi
-    /// `Reaction { reply }` masih harus dibuka satu lapis.
+/// `Reaction { reply }` masih harus dibuka satu lapis.
     fn isi(r: &Reply) -> &Reply {
         match r.without_mutations() {
             Reply::Reaction { reply, .. } => reply.as_ref(),
@@ -361,15 +367,9 @@ mod tests {
             gagal_pakai("Tidak ada media yang tersedia"),
             "❌ *Dailymotion Gagal*\n\n> Tidak ada media yang tersedia"
         );
+        assert_eq!(gagal_pakai("undefined"), "❌ *Dailymotion Gagal*\n\n> undefined");
         assert_eq!(
-            gagal_pakai("undefined"),
-            "❌ *Dailymotion Gagal*\n\n> undefined"
-        );
-        assert_eq!(
-            HasilDailymotion::default()
-                .error
-                .as_deref()
-                .unwrap_or("undefined"),
+            HasilDailymotion::default().error.as_deref().unwrap_or("undefined"),
             "undefined"
         );
     }
@@ -378,7 +378,10 @@ mod tests {
     fn the_file_name_scrubs_reserved_characters() {
         assert_eq!(nama_berkas(None), "video.mp4");
         assert_eq!(nama_berkas(Some("")), "video.mp4");
-        assert_eq!(nama_berkas(Some("a<b>c:d\"e/f\\g|h?i*j")), "abcdefghij.mp4");
+        assert_eq!(
+            nama_berkas(Some("a<b>c:d\"e/f\\g|h?i*j")),
+            "abcdefghij.mp4"
+        );
         assert_eq!(nama_berkas(Some("video")), "video.mp4");
         assert_eq!(nama_berkas(Some("a b-c_d.e")), "a b-c_d.e.mp4");
         assert_eq!(scrub_nama_berkas("<>:\"/\\|?*"), "");

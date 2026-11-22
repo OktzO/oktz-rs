@@ -151,11 +151,7 @@ fn format_size(bytes: Option<&Value>) -> String {
     // `parseFloat((bytes / Math.pow(1024, i)).toFixed(2))` lalu disambung
     // satuan dengan `+ ' '`, jadi angkanya jadi teks lagi oleh `ToString`.
     let nilai = n / 1024f64.powf(i);
-    format!(
-        "{} {}",
-        to_fixed_2(nilai).parse::<f64>().unwrap_or(f64::NAN),
-        satuan
-    )
+    format!("{} {}", to_fixed_2(nilai).parse::<f64>().unwrap_or(f64::NAN), satuan)
 }
 
 /// `crypto.createHash('sha256').update(x).digest('hex')` (`yt.js:27`).
@@ -259,10 +255,7 @@ pub fn ssyoutube_download(http: &dyn HttpGet, video_url: &str) -> Result<Value, 
         &HttpCall::post(format!("{BASE_URL}{API}"))
             .header("user-agent", UA)
             .header("accept", "application/json, text/plain, */*")
-            .header(
-                "content-type",
-                "application/x-www-form-urlencoded;charset=UTF-8",
-            )
+            .header("content-type", "application/x-www-form-urlencoded;charset=UTF-8")
             .header("origin", BASE_URL)
             .header("referer", format!("{BASE_URL}/"))
             .form(body),
@@ -284,7 +277,10 @@ pub fn ssyoutube_download(http: &dyn HttpGet, video_url: &str) -> Result<Value, 
     for (sumber, kunci) in [
         (data.get("id"), "id"),
         (data.get("meta").and_then(|m| m.get("title")), "title"),
-        (data.get("meta").and_then(|m| m.get("duration")), "duration"),
+        (
+            data.get("meta").and_then(|m| m.get("duration")),
+            "duration",
+        ),
         (data.get("thumb"), "thumbnail"),
     ] {
         if let Some(v) = sumber {
@@ -439,10 +435,7 @@ mod tests {
 
     #[test]
     fn encode_qs_mengikuti_encoder_qs_bukan_encodeuricomponent() {
-        assert_eq!(
-            encode_qs("https://x/y?a=1&b=2"),
-            "https%3A%2F%2Fx%2Fy%3Fa%3D1%26b%3D2"
-        );
+        assert_eq!(encode_qs("https://x/y?a=1&b=2"), "https%3A%2F%2Fx%2Fy%3Fa%3D1%26b%3D2");
         assert_eq!(encode_qs("a b"), "a%20b", "qs tidak memakai +");
         // `!'()*` dibiarkan encodeURIComponent tapi di-escape `qs`.
         assert_eq!(encode_qs("!'()*~"), "%21%27%28%29%2A~");
@@ -454,11 +447,7 @@ mod tests {
     fn format_size_mengikuti_log_dan_tofixed_js() {
         assert_eq!(format_size(Some(&json!(0))), "Unknown", "0 itu falsy");
         assert_eq!(format_size(None), "Unknown");
-        assert_eq!(
-            format_size(Some(&json!("0"))),
-            "NaN undefined",
-            "\"0\" truthy tapi log 0 = -Inf"
-        );
+        assert_eq!(format_size(Some(&json!("0"))), "NaN undefined", "\"0\" truthy tapi log 0 = -Inf");
         assert_eq!(format_size(Some(&json!(3449447))), "3.29 MB");
         assert_eq!(format_size(Some(&json!(1231355))), "1.17 MB");
         assert_eq!(format_size(Some(&json!(1024))), "1 KB");
@@ -483,15 +472,9 @@ mod tests {
             "not a url",
         ] {
             let hasil = ssyoutube_download(&http, url).unwrap();
-            assert_eq!(
-                hasil["error"],
-                "URL tidak valid. Harap gunakan URL YouTube."
-            );
+            assert_eq!(hasil["error"], "URL tidak valid. Harap gunakan URL YouTube.");
         }
-        assert!(
-            http.permintaan.lock().unwrap().is_empty(),
-            "tidak ada request"
-        );
+        assert!(http.permintaan.lock().unwrap().is_empty(), "tidak ada request");
     }
 
     #[test]
@@ -537,14 +520,8 @@ mod tests {
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
         assert_eq!(p[0].url, "https://ssyoutube.com/api/convert");
-        assert_eq!(
-            cari_header(&p[0], "origin").as_deref(),
-            Some("https://ssyoutube.com")
-        );
-        assert_eq!(
-            cari_header(&p[0], "referer").as_deref(),
-            Some("https://ssyoutube.com/")
-        );
+        assert_eq!(cari_header(&p[0], "origin").as_deref(), Some("https://ssyoutube.com"));
+        assert_eq!(cari_header(&p[0], "referer").as_deref(), Some("https://ssyoutube.com/"));
         assert_eq!(cari_header(&p[0], "user-agent").as_deref(), Some(UA));
         assert_eq!(
             cari_header(&p[0], "content-type").as_deref(),
@@ -562,18 +539,14 @@ mod tests {
         assert_eq!(bagian[0], "sf_url=https%3A%2F%2Fyoutu.be%2FdQw4w9WgXcQ");
         assert!(bagian[1].starts_with("ts="), "bagian[1] = {}", bagian[1]);
         let ts = bagian[1].trim_start_matches("ts=");
-        assert!(
-            ts.chars().all(|c| c.is_ascii_digit()) && ts.len() == 13,
-            "ts = {ts}"
-        );
+        assert!(ts.chars().all(|c| c.is_ascii_digit()) && ts.len() == 13, "ts = {ts}");
         assert_eq!(bagian[2], "_ts=1765962059039");
         assert_eq!(bagian[3], "_tsc=0");
         assert_eq!(
             bagian[4],
-            format!(
-                "_s={}",
-                sha256_hex(format!("https://youtu.be/dQw4w9WgXcQ{ts}{SALT}").as_bytes())
-            )
+            format!("_s={}", sha256_hex(
+                format!("https://youtu.be/dQw4w9WgXcQ{ts}{SALT}").as_bytes()
+            ))
         );
     }
 
@@ -601,7 +574,8 @@ mod tests {
             let http = stub(balasan);
             let hasil = ssyoutube_download(&http, "https://youtu.be/x").unwrap();
             assert_eq!(
-                hasil["error"], "Gagal mengambil data. Server mungkin memblokir request.",
+                hasil["error"],
+                "Gagal mengambil data. Server mungkin memblokir request.",
                 "balasan: {balasan}"
             );
         }
@@ -613,22 +587,12 @@ mod tests {
         struct Mati;
         impl oktz_plugin_api::HttpGet for Mati {
             fn get(&self, _: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
-                Err(HttpError {
-                    message: "HTTP 403".into(),
-                })
+                Err(HttpError { message: "HTTP 403".into() })
             }
-            fn post_json(
-                &self,
-                _: &str,
-                _: &Value,
-            ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+            fn post_json(&self, _: &str, _: &Value) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
                 unreachable!()
             }
-            fn post_form(
-                &self,
-                _: &str,
-                _: &str,
-            ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+            fn post_form(&self, _: &str, _: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
                 unreachable!()
             }
             fn post_multipart(
@@ -638,13 +602,8 @@ mod tests {
             ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
                 unreachable!()
             }
-            fn call(
-                &self,
-                _: &oktz_plugin_api::HttpCall,
-            ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
-                Err(HttpError {
-                    message: "HTTP 403".into(),
-                })
+            fn call(&self, _: &oktz_plugin_api::HttpCall) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+                Err(HttpError { message: "HTTP 403".into() })
             }
         }
         // `catch` JS membungkus kegagalan jadi objek, bukan melempar.

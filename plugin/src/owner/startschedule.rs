@@ -62,7 +62,8 @@ pub(crate) fn dimulai_sholat() -> String {
 }
 
 /// `startschedule.js:84-86`.
-pub(crate) const TIDAK_ADA: &str = "❌ Scheduler tidak ditemukan atau sudah aktif\n\nGunakan `.startschedule` untuk melihat daftar scheduler";
+pub(crate) const TIDAK_ADA: &str =
+    "❌ Scheduler tidak ditemukan atau sudah aktif\n\nGunakan `.startschedule` untuk melihat daftar scheduler";
 
 /// `startschedule.js:52`.
 pub(crate) const SHOLAT_AKTIF: &str = "ℹ️ Sholat Scheduler sudah dalam keadaan aktif";
@@ -135,10 +136,11 @@ pub fn startschedule(ctx: Ctx) -> Reply {
         for (nama, _) in SCHEDULER {
             ctx.session_set(&kunci(nama), serde_json::json!(true));
         }
-        return Reply::text(dimulai("All Schedulers")).with_mutation(Mutation::SetSetting {
-            key: "autoSholat".to_string(),
-            value: serde_json::json!(true),
-        });
+        return Reply::text(dimulai("All Schedulers"))
+            .with_mutation(Mutation::SetSetting {
+                key: "autoSholat".to_string(),
+                value: serde_json::json!(true),
+            });
     }
 
     let Some(label) = cari_scheduler(&target) else {
@@ -185,10 +187,7 @@ mod tests {
             ["startscheduler", "schedstart", "resumeschedule"]
         );
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(
-            p.meta.description,
-            "Memulai ulang scheduler tertentu atau semua"
-        );
+        assert_eq!(p.meta.description, "Memulai ulang scheduler tertentu atau semua");
         assert_eq!(p.meta.usage, ".startschedule <nama|all>");
         assert_eq!(p.meta.example, ".startschedule sholat");
         assert_eq!(p.meta.cooldown, 3);

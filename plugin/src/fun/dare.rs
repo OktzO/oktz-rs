@@ -99,9 +99,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body()
-            .expect("plugin harus membalas teks")
-            .to_string()
+        r.text_body().expect("plugin harus membalas teks").to_string()
     }
 
     #[test]
@@ -143,10 +141,7 @@ mod tests {
     #[test]
     fn the_table_is_the_sixty_three_entries_of_dare_json() {
         assert_eq!(DARE.len(), 63);
-        assert_eq!(
-            DARE[0],
-            "Ajak orang yg tidak kamu kenal itu selfie berdua dengan mu lalu upload ke snapgram"
-        );
+        assert_eq!(DARE[0], "Ajak orang yg tidak kamu kenal itu selfie berdua dengan mu lalu upload ke snapgram");
         assert!(DARE.iter().all(|d| !d.is_empty()));
     }
 }

@@ -10,7 +10,7 @@
 //! di store jatuh ke cabang "nggak ketemu".
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::rpg::heal::other_user;
@@ -125,10 +125,7 @@ pub fn rob(ctx: Ctx) -> Reply {
 
     let fine = crate::common::roll(10_000) as i64 + 5_000;
     let actual_fine = fine.min(robber_koin);
-    rpg.insert(
-        "health".into(),
-        serde_json::json!((health - HEALTH_LOSS).max(0)),
-    );
+    rpg.insert("health".into(), serde_json::json!((health - HEALTH_LOSS).max(0)));
 
     Reply::text(format!(
         "GOBLOK! KETAHUAN WARGA!! 🚨🤬\n\n\
@@ -245,8 +242,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             ..Default::default()
         };
         let r = (oktz_plugin_api::find("rob").unwrap().handler)(ctx);
@@ -271,11 +268,7 @@ mod tests {
 
     #[test]
     fn a_target_without_a_stored_row_is_reported_as_missing() {
-        let r = run(
-            serde_json::json!({ "koin": 5_000 }),
-            vec![TARGET.into()],
-            Some(victim(None)),
-        );
+        let r = run(serde_json::json!({ "koin": 5_000 }), vec![TARGET.into()], Some(victim(None)));
         assert!(
             text_of(&r).starts_with("Target buronanmu nggak ketemu di database!"),
             "{}",
@@ -311,7 +304,11 @@ mod tests {
             Some(victim(Some(50_000))),
         );
         // HP 0 berarti 100 → lolos gerbang, jadi bukan pesan "darah cuma *0 HP*".
-        assert!(!text_of(&r).contains("darah lu cuma"), "{}", text_of(&r));
+        assert!(
+            !text_of(&r).contains("darah lu cuma"),
+            "{}",
+            text_of(&r)
+        );
         assert!(!r.mutations().is_empty());
     }
 
@@ -324,15 +321,9 @@ mod tests {
                 Some(victim(Some(50_000))),
             );
             let t = text_of(&r);
-            assert!(
-                t.starts_with("Woy bos, badan lu tinggal tulang"),
-                "hp {hp}: {t}"
-            );
+            assert!(t.starts_with("Woy bos, badan lu tinggal tulang"), "hp {hp}: {t}");
             assert!(t.contains(&format!("*{hp} HP*")), "hp {hp}: {t}");
-            assert!(
-                r.mutations().is_empty(),
-                "hp {hp}: gerbang tidak menyimpan apa pun"
-            );
+            assert!(r.mutations().is_empty(), "hp {hp}: gerbang tidak menyimpan apa pun");
         }
     }
 
@@ -358,10 +349,7 @@ mod tests {
                     "curian {gained} di luar 1000..={}",
                     max_steal + 999
                 );
-                assert_eq!(
-                    user_of(&r, TARGET)["koin"],
-                    serde_json::json!(koin - gained)
-                );
+                assert_eq!(user_of(&r, TARGET)["koin"], serde_json::json!(koin - gained));
                 assert_eq!(user_of(&r, SENDER)["exp"], serde_json::json!(EXP_GAIN));
                 assert_eq!(user_of(&r, SENDER)["rpg"]["health"], serde_json::json!(100));
                 assert!(t.contains("Bonus EXP Begal: *+300*"), "{t}");
@@ -370,12 +358,9 @@ mod tests {
                 // Denda 5.000..14.999, dipotong koin zero → tetap zero.
                 assert_eq!(gained, 0, "koin 0 jadiRp 0");
                 assert_eq!(user_of(&r, SENDER)["rpg"]["health"], serde_json::json!(75));
-                assert!(
-                    r.mutations().iter().all(|m| !matches!(
-                        m, Mutation::SetUser { jid, .. } if jid == TARGET
-                    )),
-                    "kegagalan tidak menyentuh koin target"
-                );
+                assert!(r.mutations().iter().all(|m| !matches!(
+                    m, Mutation::SetUser { jid, .. } if jid == TARGET
+                )), "kegagalan tidak menyentuh koin target");
             }
         }
         assert!(seen > 0, "cabang berhasil harus muncul");
@@ -427,10 +412,7 @@ mod tests {
                 if purse < 5_000 {
                     assert_eq!(lost, purse, "dompet {purse} habis, tidak jadi negatif");
                 } else {
-                    assert!(
-                        (5_000..=14_999).contains(&lost),
-                        "denda {lost} di luar 5.000..14.999"
-                    );
+                    assert!((5_000..=14_999).contains(&lost), "denda {lost} di luar 5.000..14.999");
                 }
                 assert_eq!(user_of(&r, SENDER)["rpg"]["health"], serde_json::json!(75));
             }

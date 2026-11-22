@@ -88,7 +88,10 @@ pub fn chat(
     payload.insert("date".to_string(), json!(iso8601_sekarang()));
     payload.insert(
         "role".to_string(),
-        json!(trim_atau(&string_dari(options.get("role")), "Temen deket")),
+        json!(trim_atau(
+            &string_dari(options.get("role")),
+            "Temen deket"
+        )),
     );
     payload.insert(
         "msgtype".to_string(),
@@ -243,11 +246,7 @@ fn string_dari(v: Option<&Value>) -> String {
 
 /// `String(v || "")` untuk string Rust, mis. nilai config.
 fn string_dari_atau(s: &str) -> String {
-    if s.is_empty() {
-        String::new()
-    } else {
-        s.to_string()
-    }
+    if s.is_empty() { String::new() } else { s.to_string() }
 }
 
 /// `String(x || "").trim() || bawaan`.
@@ -459,10 +458,7 @@ mod tests {
             "date harus ISO dengan Z: {}",
             body["date"]
         );
-        assert!(
-            body.get("image").is_none(),
-            "tanpa gambar tidak ada key image"
-        );
+        assert!(body.get("image").is_none(), "tanpa gambar tidak ada key image");
     }
 
     #[test]
@@ -570,16 +566,10 @@ mod tests {
         let body = body_json(&p[0]);
         let text = body["text"].as_str().unwrap();
         // 10 terakhir dari 14 pesan: mulai dari "pesan 4"; yang kosong terbuang.
-        assert!(
-            text.starts_with("Riwayat percakapan:\nUser: pesan 4\n"),
-            "{text}"
-        );
+        assert!(text.starts_with("Riwayat percakapan:\nUser: pesan 4\n"), "{text}");
         // `parts.join("\n\n")` — riwayat dan pesan sekarang dipisah satu
         // baris kosong, bukan dua.
-        assert!(
-            text.contains("AI: jawaban AI\n\nPesan user saat ini:\nsekarang"),
-            "{text}"
-        );
+        assert!(text.contains("AI: jawaban AI\n\nPesan user saat ini:\nsekarang"), "{text}");
         assert!(!text.contains("pesan 3"), "{text}");
     }
 

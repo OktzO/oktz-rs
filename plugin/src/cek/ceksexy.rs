@@ -123,7 +123,10 @@ mod tests {
     fn tanpa_mention_target_adalah_sender_dan_kalimatnya_kamu() {
         let (text, mentions) = split(&run(ctx_with(None)));
         assert!(text.starts_with("Hai @628111\n"), "{text}");
-        assert!(text.contains("Tingkat kesexyan kamu *"), "{text}");
+        assert!(
+            text.contains("Tingkat kesexyan kamu *"),
+            "{text}"
+        );
         assert!(!text.contains("dia sebesar"), "self pakai 'kamu': {text}");
         assert_eq!(mentions, vec![ME.to_string()]);
     }
@@ -135,7 +138,10 @@ mod tests {
             text.starts_with("Kamu ingin ngecek tingkat kesexyan @628999 yak? "),
             "{text}"
         );
-        assert!(text.contains("Tingkat kesexyan dia sebesar *"), "{text}");
+        assert!(
+            text.contains("Tingkat kesexyan dia sebesar *"),
+            "{text}"
+        );
         assert_eq!(mentions, vec![OTHER.to_string()]);
     }
 
@@ -159,11 +165,7 @@ mod tests {
                 .filter(|(_, t)| text.contains(**t))
                 .map(|(i, _)| i)
                 .collect();
-            assert_eq!(
-                hits.len(),
-                1,
-                "harus tepat satu tier, dapat {hits:?}: {text}"
-            );
+            assert_eq!(hits.len(), 1, "harus tepat satu tier, dapat {hits:?}: {text}");
             let (lo, hi) = BANDS[hits[0]];
             let percent = percent_of(&text);
             assert!(
@@ -217,8 +219,7 @@ mod tests {
         };
         for percent in [0u32, 29, 30, 49, 50, 69, 70, 89, 90, 100] {
             let desc = tier_js(percent);
-            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kesexyan", TIERS)
-            else {
+            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kesexyan", TIERS) else {
                 panic!("harus Reply::Text");
             };
             assert_eq!(
@@ -232,8 +233,7 @@ mod tests {
             );
             assert_eq!(mentions, vec!["628111@s.whatsapp.net".to_string()]);
 
-            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kesexyan", TIERS)
-            else {
+            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kesexyan", TIERS) else {
                 panic!("harus Reply::Text");
             };
             assert_eq!(
@@ -318,4 +318,5 @@ mod tests {
             );
         }
     }
+
 }

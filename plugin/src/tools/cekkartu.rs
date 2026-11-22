@@ -238,16 +238,12 @@ pub(crate) fn semua_kartu() -> Reply {
         kartu_l("R", payload_besar("R"), |_| {}),
         kartu_l(
             "S",
-            judul("S")
-                + "<style>body{background:#1a0d12;color:#fff;font-family:sans-serif}</style>",
+            judul("S") + "<style>body{background:#1a0d12;color:#fff;font-family:sans-serif}</style>",
             |_| {},
         ),
         kartu_l(
             "T",
-            format!(
-                r#"{}<img src="data:image/jpeg;base64,{JPEG_UJI}" width="80" height="80" alt="">"#,
-                judul("T")
-            ),
+            format!(r#"{}<img src="data:image/jpeg;base64,{JPEG_UJI}" width="80" height="80" alt="">"#, judul("T")),
             |_| {},
         ),
         kartu_l("U", payload_ukuran("U", 60_000), |_| {}),
@@ -391,27 +387,11 @@ __BLOB__
 /// lirik pendek) — generator yang sama persis dengan `.play2`.
 fn player_html_uji(huruf: &str) -> String {
     let lirik = vec![
-        Baris {
-            time: 0.0,
-            text: "Baris lirik pertama uji".into(),
-        },
-        Baris {
-            time: 12.5,
-            text: "Baris lirik kedua uji".into(),
-        },
-        Baris {
-            time: 30.0,
-            text: "Baris lirik ketiga uji".into(),
-        },
+        Baris { time: 0.0, text: "Baris lirik pertama uji".into() },
+        Baris { time: 12.5, text: "Baris lirik kedua uji".into() },
+        Baris { time: 30.0, text: "Baris lirik ketiga uji".into() },
     ];
-    player_html(
-        &format!("Kartu {huruf}"),
-        "Uji Coba",
-        "3:45",
-        "",
-        &lirik,
-        "",
-    )
+    player_html(&format!("Kartu {huruf}"), "Uji Coba", "3:45", "", &lirik, "")
 }
 
 /// Muatan ~30 KB teks (bentuk kartu G) untuk uji ukuran di amplop proven.
@@ -496,10 +476,7 @@ mod tests {
         let list = cards(&r);
         assert_eq!(list.len(), 30, "A..AD");
         assert!(payload(list[0]).contains("KARTU A"));
-        assert!(
-            payload(list[1]).contains("data:image/svg+xml;base64,"),
-            "B gambar"
-        );
+        assert!(payload(list[1]).contains("data:image/svg+xml;base64,"), "B gambar");
         assert!(payload(list[2]).contains("<script>"), "C skrip");
         assert_eq!(
             list[3].sections[0]["view_model"]["primitive"]["trusted_sources"],
@@ -508,11 +485,7 @@ mod tests {
         );
         assert!(payload(list[4]).starts_with("<!DOCTYPE html>"), "E dokumen");
         assert!(payload(list[5]).contains('▶'), "F non-ASCII");
-        assert!(
-            payload(list[6]).len() > 20_000,
-            "G besar: {}",
-            payload(list[6]).len()
-        );
+        assert!(payload(list[6]).len() > 20_000, "G besar: {}", payload(list[6]).len());
         assert_eq!(
             list[7].sections[0]["__typename"],
             json!("GenAIUnifiedResponseSection"),
@@ -540,11 +513,7 @@ mod tests {
         // M: bentuk capture Vanta penuh.
         assert_eq!(list[12].bot_jid.as_deref(), Some("0@bot"), "M botJid");
         assert!(list[12].sources_metadata, "M sources metadata");
-        assert_eq!(
-            list[12].disclaimer.as_deref(),
-            Some("Kartu M"),
-            "M disclaimer"
-        );
+        assert_eq!(list[12].disclaimer.as_deref(), Some("Kartu M"), "M disclaimer");
         // N: typename demo.
         assert_eq!(
             list[13].sections[0]["view_model"]["primitive"]["__typename"],
@@ -562,27 +531,17 @@ mod tests {
         // base64 untuk script player).
         let p = payload(list[15]);
         assert!(p.contains("<style>"), "P style");
-        assert!(
-            p.contains("data:image/svg+xml;base64,"),
-            "P poster placeholder"
-        );
+        assert!(p.contains("data:image/svg+xml;base64,"), "P poster placeholder");
         let json_lirik = serde_json::to_string(&vec![
             json!({"time": 0.0, "text": "Baris lirik pertama uji"}),
             json!({"time": 12.5, "text": "Baris lirik kedua uji"}),
             json!({"time": 30.0, "text": "Baris lirik ketiga uji"}),
         ])
         .unwrap();
-        assert!(
-            p.contains(&base64_encode(json_lirik.as_bytes())),
-            "P lirik base64"
-        );
+        assert!(p.contains(&base64_encode(json_lirik.as_bytes())), "P lirik base64");
         assert!(!list[15].edit_susulan, "P tanpa edit");
         // Q: cermin produksi = P + edit.
-        assert_eq!(
-            payload(list[16]),
-            p.replace("Kartu P", "Kartu Q"),
-            "Q payload sama dengan P"
-        );
+        assert_eq!(payload(list[16]), p.replace("Kartu P", "Kartu Q"), "Q payload sama dengan P");
         assert!(list[16].edit_susulan, "Q edit susulan");
         // R: ukuran ~30 KB.
         assert!(payload(list[17]).len() > 20_000, "R besar");
@@ -590,10 +549,7 @@ mod tests {
         let s = payload(list[18]);
         assert!(s.contains("<style>") && !s.contains("<img"), "S style saja");
         // T: img JPEG.
-        assert!(
-            payload(list[19]).contains("data:image/jpeg;base64,"),
-            "T jpeg"
-        );
+        assert!(payload(list[19]).contains("data:image/jpeg;base64,"), "T jpeg");
         // U–Y: tangga ukuran 60/128/256/512/768 KB.
         for (idx, target) in [
             (20, 60_000),
@@ -603,10 +559,7 @@ mod tests {
             (24, 768_000),
         ] {
             let len = payload(list[idx]).len();
-            assert!(
-                len >= target && len < target + 200,
-                "kartu {idx}: {len} vs {target}"
-            );
+            assert!(len >= target && len < target + 200, "kartu {idx}: {len} vs {target}");
         }
         // Z/AA/AB: probe audio pelapor-status.
         for idx in 25..28 {

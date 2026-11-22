@@ -77,7 +77,9 @@ fn error_branch(ctx: &Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store};
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store,
+    };
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -189,10 +191,7 @@ mod tests {
         let r = run(Stub::offline());
         let t = text_of(&r);
         assert!(t.starts_with("☢ Ehhh~ command `.senja`"), "{t}");
-        assert!(
-            t.ends_with("_Jika masalah berlanjut, hubungi owner bot_"),
-            "{t}"
-        );
+        assert!(t.ends_with("_Jika masalah berlanjut, hubungi owner bot_"), "{t}");
         assert_eq!(reaction_of(&r), "☢");
     }
 

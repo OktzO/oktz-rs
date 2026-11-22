@@ -119,7 +119,7 @@ pub fn claninvite(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{Ctx, QuotedKind, QuotedMessage};
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn ctx_of(user: Value, mention: Option<&str>, quoted: Option<&str>, clans: Value) -> Ctx {
         Ctx {
@@ -139,8 +139,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             user_data: user,
             settings: serde_json::json!({ crate::clan::clancreate::CLANS_KEY: clans }),
             ..Default::default()
@@ -177,7 +177,10 @@ mod tests {
             .find(|m| matches!(m, Mutation::SetUser { .. }))
             .expect("harus ada SetUser");
         match (clan_m, target_m) {
-            (Mutation::SetSetting { value, .. }, Mutation::SetUser { jid, data }) => {
+            (
+                Mutation::SetSetting { value, .. },
+                Mutation::SetUser { jid, data },
+            ) => {
                 let clan_id = data["clanId"].as_str().unwrap_or("").to_string();
                 (value["DRG"]["members"].clone(), jid.clone(), clan_id)
             }
@@ -191,10 +194,7 @@ mod tests {
         assert_eq!(p.meta.name, "claninvite");
         assert_eq!(p.meta.alias, ["inviteclan"]);
         assert_eq!(p.meta.category, "clan");
-        assert_eq!(
-            p.meta.description,
-            "Invite & langsung tambahkan user ke clan"
-        );
+        assert_eq!(p.meta.description, "Invite & langsung tambahkan user ke clan");
         assert_eq!(p.meta.usage, ".claninvite @user");
         assert_eq!(p.meta.example, ".claninvite @user");
         assert_eq!(p.meta.cooldown, 10);
@@ -204,24 +204,14 @@ mod tests {
 
     #[test]
     fn a_sender_without_a_clan_is_stopped_before_anything_else() {
-        let r = run(ctx_of(
-            serde_json::json!({}),
-            Some("628999@s.whatsapp.net"),
-            None,
-            serde_json::json!({}),
-        ));
+        let r = run(ctx_of(serde_json::json!({}), Some("628999@s.whatsapp.net"), None, serde_json::json!({})));
         assert_eq!(text_of(&r), "❌ Kamu belum punya clan");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_clan_id_that_points_nowhere_is_reported() {
-        let r = run(ctx_of(
-            serde_json::json!({"clanId": "HILANG"}),
-            Some("628999@s.whatsapp.net"),
-            None,
-            serde_json::json!({}),
-        ));
+        let r = run(ctx_of(serde_json::json!({"clanId": "HILANG"}), Some("628999@s.whatsapp.net"), None, serde_json::json!({})));
         assert_eq!(text_of(&r), "❌ Clan tidak ditemukan");
         assert!(r.mutations().is_empty());
     }
@@ -259,25 +249,15 @@ mod tests {
             serde_json::json!({ "DRG": clan(serde_json::json!(["628111@s.whatsapp.net"])) }),
         ));
         let (list, target, clan_id) = written(&r);
-        assert_eq!(
-            list,
-            serde_json::json!(["628111@s.whatsapp.net", "628999@s.whatsapp.net"])
-        );
+        assert_eq!(list, serde_json::json!(["628111@s.whatsapp.net", "628999@s.whatsapp.net"]));
         assert_eq!(target, "628999@s.whatsapp.net");
         assert_eq!(clan_id, "DRG");
-        assert!(
-            text_of(&r).contains("@628999 bergabung ke *Dragon*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("@628999 bergabung ke *Dragon*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("Members: 2/50"), "{}", text_of(&r));
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(
                 mentions,
-                &[
-                    "628111@s.whatsapp.net".to_string(),
-                    "628999@s.whatsapp.net".to_string()
-                ]
+                &["628111@s.whatsapp.net".to_string(), "628999@s.whatsapp.net".to_string()]
             ),
             other => panic!("harus Text, dapat {other:?}"),
         }
@@ -292,10 +272,7 @@ mod tests {
             serde_json::json!({ "DRG": clan(serde_json::json!(["628111@s.whatsapp.net"])) }),
         ));
         let (list, _, _) = written(&r);
-        assert_eq!(
-            list,
-            serde_json::json!(["628111@s.whatsapp.net", "628777@s.whatsapp.net"])
-        );
+        assert_eq!(list, serde_json::json!(["628111@s.whatsapp.net", "628777@s.whatsapp.net"]));
     }
 
     #[test]
@@ -307,19 +284,14 @@ mod tests {
             serde_json::json!({ "DRG": clan(serde_json::json!(["628111@s.whatsapp.net"])) }),
         );
         let (list, target, clan_id) = written(&run(c.clone()));
-        assert_eq!(
-            list,
-            serde_json::json!(["628111@s.whatsapp.net", "628999@s.whatsapp.net"])
-        );
+        assert_eq!(list, serde_json::json!(["628111@s.whatsapp.net", "628999@s.whatsapp.net"]));
         assert_eq!(target, "628999@s.whatsapp.net");
         assert_eq!(clan_id, "DRG");
     }
 
     #[test]
     fn a_full_clan_refuses_the_invite() {
-        let full_list: Vec<String> = (0..50)
-            .map(|i| format!("62800{i}@s.whatsapp.net"))
-            .collect();
+        let full_list: Vec<String> = (0..50).map(|i| format!("62800{i}@s.whatsapp.net")).collect();
         let r = run(ctx_of(
             serde_json::json!({ "clanId": "DRG" }),
             Some("628999@s.whatsapp.net"),
@@ -350,12 +322,7 @@ mod tests {
                      "leader": "628000@s.whatsapp.net",
                      "members": ["628999@s.whatsapp.net"] },
         });
-        let r = run(ctx_of(
-            serde_json::json!({"clanId": "DRG"}),
-            Some("628999@s.whatsapp.net"),
-            None,
-            clans,
-        ));
+        let r = run(ctx_of(serde_json::json!({"clanId": "DRG"}), Some("628999@s.whatsapp.net"), None, clans));
         assert_eq!(text_of(&r), "❌ User tersebut sudah punya clan");
         assert!(r.mutations().is_empty());
     }

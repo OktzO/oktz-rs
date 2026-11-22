@@ -164,17 +164,10 @@ mod tests {
 
     #[test]
     fn absent_state_renders_level_one_with_an_empty_bar() {
-        for user in [
-            serde_json::json!(null),
-            serde_json::json!({}),
-            serde_json::json!({"exp": null}),
-        ] {
+        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"exp": null})] {
             let reply = run(user.clone(), vec![]);
             let out = text_of(&reply);
-            assert!(
-                out.starts_with("╭━━━━━━━━━━━━━━━━━╮\n┃ 📊 *ʟᴇᴠᴇʟ ɪɴꜰᴏ*\n╰━━━━━━━━━━━━━━━━━╯\n\n"),
-                "{user}"
-            );
+            assert!(out.starts_with("╭━━━━━━━━━━━━━━━━━╮\n┃ 📊 *ʟᴇᴠᴇʟ ɪɴꜰᴏ*\n╰━━━━━━━━━━━━━━━━━╯\n\n"), "{user}");
             assert!(out.contains("┃ 🏷️ Name: *Kamu*\n"));
             assert!(out.contains("┃ 🆔 Tag: @628111\n"));
             assert!(out.contains("┃ 📊 Level: *1*\n"));
@@ -199,15 +192,9 @@ mod tests {
 
     #[test]
     fn a_mention_changes_the_name_the_tag_and_the_mention_list() {
-        let r = run(
-            serde_json::json!({"exp": 0}),
-            vec!["628999:5@s.whatsapp.net"],
-        );
+        let r = run(serde_json::json!({"exp": 0}), vec!["628999:5@s.whatsapp.net"]);
         let out = text_of(&r);
-        assert!(
-            out.contains("┃ 🏷️ Name: *628999:5*\n"),
-            "`jid.split('@')[0]` di JS"
-        );
+        assert!(out.contains("┃ 🏷️ Name: *628999:5*\n"), "`jid.split('@')[0]` di JS");
         assert!(out.contains("┃ 🆔 Tag: @628999:5\n"));
         match r {
             Reply::Text { mentions, .. } => assert_eq!(mentions, &["628999:5@s.whatsapp.net"]),

@@ -73,7 +73,7 @@ pub fn autodl(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -145,11 +145,7 @@ mod tests {
         let a = run(serde_json::json!({"autodl": true}), "");
         let b = run(serde_json::json!({"autodl": true}), "status");
         assert_eq!(text_of(&a), text_of(&b));
-        assert!(
-            text_of(&a).contains("> Status: ✅ Aktif"),
-            "{}",
-            text_of(&a)
-        );
+        assert!(text_of(&a).contains("> Status: ✅ Aktif"), "{}", text_of(&a));
         assert!(b.mutations().is_empty());
     }
 
@@ -182,19 +178,12 @@ mod tests {
 
     #[test]
     fn the_argument_is_lowercased_before_matching() {
-        assert_eq!(
-            written(&run(serde_json::json!({}), "ON")),
-            &serde_json::json!({ "autodl": true })
-        );
+        assert_eq!(written(&run(serde_json::json!({}), "ON")), &serde_json::json!({ "autodl": true }));
     }
 
     #[test]
     fn a_non_boolean_stored_value_counts_as_active_like_javascript() {
         let r = run(serde_json::json!({"autodl": "ya"}), "");
-        assert!(
-            text_of(&r).contains("> Status: ✅ Aktif"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("> Status: ✅ Aktif"), "{}", text_of(&r));
     }
 }

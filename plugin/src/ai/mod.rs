@@ -39,12 +39,12 @@ pub mod wormgpt;
 // Ditambahkan scripts/pasang-modul.mjs.
 
 // Ditambahkan scripts/pasang-modul.mjs.
-pub mod efek;
 pub mod toanime;
 pub mod tofigure;
 pub mod tohijab;
 pub mod tojapanese;
 pub mod tooilpainting;
+pub mod efek;
 
 // Ditambahkan scripts/pasang-modul.mjs.
 pub mod toblack;

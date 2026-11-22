@@ -29,9 +29,9 @@ pub mod primbon;
 pub mod pushkontak;
 pub mod random;
 pub mod religi;
+pub mod stalker;
 pub mod rpg;
 pub mod search;
-pub mod stalker;
 pub mod sticker;
 pub mod store;
 pub mod tools;
@@ -61,16 +61,8 @@ mod registry_test {
         let mut nama = HashSet::new();
         for p in plugins {
             assert!(!p.meta.name.is_empty(), "plugin tanpa nama");
-            assert!(
-                !p.meta.category.is_empty(),
-                "{} tanpa kategori",
-                p.meta.name
-            );
-            assert!(
-                nama.insert(p.meta.name.as_str()),
-                "nama {} dipakai dua plugin",
-                p.meta.name
-            );
+            assert!(!p.meta.category.is_empty(), "{} tanpa kategori", p.meta.name);
+            assert!(nama.insert(p.meta.name.as_str()), "nama {} dipakai dua plugin", p.meta.name);
         }
 
         for p in plugins {

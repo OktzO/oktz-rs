@@ -222,10 +222,7 @@ mod tests {
     #[test]
     fn the_limit_counts_utf16_units_like_the_js_string_length() {
         // U+1F642 = 2 unit UTF-16: 69 emoji = 138 (sah), 70 = 140 (tolak).
-        assert_eq!(
-            run(&"\u{1F642}".repeat(69)),
-            sukses_ubah(&"\u{1F642}".repeat(69))
-        );
+        assert_eq!(run(&"\u{1F642}".repeat(69)), sukses_ubah(&"\u{1F642}".repeat(69)));
         assert_eq!(run(&"\u{1F642}".repeat(70)), too_long());
     }
 
@@ -240,10 +237,7 @@ mod tests {
     #[test]
     fn sock_failure_carries_the_error_message() {
         let t = run_with(
-            Arc::new(SockUji {
-                bio: Mutex::new(Vec::new()),
-                gagal: true,
-            }),
+            Arc::new(SockUji { bio: Mutex::new(Vec::new()), gagal: true }),
             "halo",
         );
         assert_eq!(t, gagal("IQ gagal: timeout"));

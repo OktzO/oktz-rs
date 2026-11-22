@@ -109,9 +109,7 @@ mod tests {
             if self.hasil(&origin) {
                 Ok(b"IMG".to_vec())
             } else {
-                Err(MediaError {
-                    message: "gagal".into(),
-                })
+                Err(MediaError { message: "gagal".into() })
             }
         }
     }
@@ -168,10 +166,7 @@ mod tests {
         assert_eq!(p.meta.name, "fakestory4");
         assert_eq!(p.meta.alias, ["fstory4", "igstory4", "albumstory"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(
-            p.meta.description,
-            "Fake Instagram story dengan 2 gambar berbeda"
-        );
+        assert_eq!(p.meta.description, "Fake Instagram story dengan 2 gambar berbeda");
         assert_eq!(p.meta.usage, ".fakestory4 <nama>");
         assert_eq!(p.meta.example, ".fakestory4 Misaki (reply album/2 gambar)");
         assert_eq!(p.meta.cooldown, 10);
@@ -184,10 +179,7 @@ mod tests {
     #[test]
     fn avatar_gagal_membalas_template_error_dan_radiasi() {
         let r = run(ctx_of("Misaki"));
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "fakestory4")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory4"));
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -206,10 +198,7 @@ mod tests {
         let unduh = Unduh::baru();
         ctx.media_fetch = unduh.clone();
         let r = run(ctx);
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "fakestory4")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory4"));
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 

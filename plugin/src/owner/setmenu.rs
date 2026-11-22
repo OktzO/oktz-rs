@@ -28,13 +28,7 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v4", 4, "LV", "", "✅"),
     ("v5", 5, "LV 2", "", "✅"),
     ("v6", 6, "LOCATION", "Location Message dengan Buttons", "📍"),
-    (
-        "v7",
-        7,
-        "RA NGERTI",
-        "Location Message dengan Buttons",
-        "📍",
-    ),
+    ("v7", 7, "RA NGERTI", "Location Message dengan Buttons", "📍"),
     ("v8", 8, "THUMBNAIL", "Thumbnail Image", "📍"),
     (
         "v16",
@@ -53,7 +47,8 @@ const DEFAULT_VARIANT: i64 = 3;
 
 /// `❌ *VARIANT TIDAK VALID*` (`setmenu.js:76`) — teks JS menyebut `v7`
 /// padahal `v8` ada; quirk itu dibiarkan.
-pub(crate) const TIDAK_VALID: &str = "❌ *VARIANT TIDAK VALID*\n\nGunakan: *v1* s/d *v7*";
+pub(crate) const TIDAK_VALID: &str =
+    "❌ *VARIANT TIDAK VALID*\n\nGunakan: *v1* s/d *v7*";
 
 /// Pesan sukses `setmenu.js:81-85`.
 pub(crate) fn pesan_diubah(emoji: &str, id: i64, name: &str, desc: &str) -> String {
@@ -156,8 +151,8 @@ pub fn setmenu(ctx: Ctx) -> Reply {
     )
     .icon("DEFAULT");
 
-    let mut reply =
-        Reply::interactive(body_teks(current)).with_button_card(InteractiveButton::select(&list));
+    let mut reply = Reply::interactive(body_teks(current))
+        .with_button_card(InteractiveButton::select(&list));
     if let Some(aset) = ctx.config().assets.get("foto")
         && ctx.berkas().ada(aset)
     {
@@ -199,7 +194,9 @@ mod tests {
         };
         assert_eq!(kartu.buttons.len(), 1);
         assert_eq!(kartu.buttons[0].name, "single_select");
-        kartu.buttons[0].params.nilai()["sections"][0]["rows"]
+        kartu.buttons[0]
+            .params
+            .nilai()["sections"][0]["rows"]
             .as_array()
             .cloned()
             .unwrap_or_default()
@@ -255,7 +252,10 @@ mod tests {
     #[test]
     fn variant_valid_disimpan_ke_setting_menu_variant() {
         let r = run(&["V5"], serde_json::json!({}));
-        assert_eq!(teks(&r), "✅ *MENU VARIANT DIUBAH*\n\n✅ *V5 — LV 2*\n__");
+        assert_eq!(
+            teks(&r),
+            "✅ *MENU VARIANT DIUBAH*\n\n✅ *V5 — LV 2*\n__"
+        );
         assert_eq!(r.mutations().len(), 1);
         match &r.mutations()[0] {
             Mutation::SetSetting { key, value } => {
@@ -273,16 +273,8 @@ mod tests {
             panic!("harus Interactive");
         };
         assert!(kartu.body.starts_with("🎨🖼️ *MENU VARIANT*"));
-        assert!(
-            kartu
-                .body
-                .contains("Variant aktif saat ini: *V3 — PREMIUM* 🎯")
-        );
-        assert!(
-            kartu
-                .body
-                .ends_with("> Pilih variant menu dari tombol di bawah 👇")
-        );
+        assert!(kartu.body.contains("Variant aktif saat ini: *V3 — PREMIUM* 🎯"));
+        assert!(kartu.body.ends_with("> Pilih variant menu dari tombol di bawah 👇"));
         assert_eq!(kartu.buttons.len(), 1);
         assert_eq!(kartu.buttons[0].name, "single_select");
     }
@@ -304,10 +296,8 @@ mod tests {
         let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus Interactive");
         };
-        assert!(
-            kartu
-                .body
-                .contains("Variant aktif saat ini: *V8 — THUMBNAIL* 🎯")
-        );
+        assert!(kartu
+            .body
+            .contains("Variant aktif saat ini: *V8 — THUMBNAIL* 🎯"));
     }
 }

@@ -20,19 +20,13 @@ fn help(prefix: &str) -> String {
 }
 
 /// `tiktokchat.js:51-60` — unggah avatar + teks ke canvas TikTok chat.
-fn upload_chat(
-    http: &dyn HttpGet,
-    username: &str,
-    message: &str,
-    avatar: &[u8],
-) -> Result<Vec<u8>, String> {
+fn upload_chat(http: &dyn HttpGet, username: &str, message: &str, avatar: &[u8]) -> Result<Vec<u8>, String> {
     let res = http
         .call(
             &HttpCall::post("https://my.izuka-api.xyz/api/canvas/tiktok-chat").multipart(vec![
                 MultipartPart::field("username", username),
                 MultipartPart::field("text", message),
-                MultipartPart::file("avatar", "avatar.jpg", avatar.to_vec())
-                    .with_mimetype("image/jpeg"),
+                MultipartPart::file("avatar", "avatar.jpg", avatar.to_vec()).with_mimetype("image/jpeg"),
             ]),
         )
         .map_err(|e: HttpError| format!("upload gagal: {}", e.message))?;
@@ -40,8 +34,7 @@ fn upload_chat(
 }
 
 const GAGAL_AVATAR: &str = "Maaf, sistem gagal mengunduh gambar avatar yang kamu berikan.";
-const GAGAL_CANVAS: &str =
-    "Maaf, gagal membuat canvas TikTok Chat kali ini. Coba lagi beberapa saat.";
+const GAGAL_CANVAS: &str = "Maaf, gagal membuat canvas TikTok Chat kali ini. Coba lagi beberapa saat.";
 
 #[plugin(
     name = "tiktokchat",
@@ -60,8 +53,8 @@ const GAGAL_CANVAS: &str =
     is_bot_admin = false
 )]
 pub fn tiktokchat(ctx: Ctx) -> Reply {
-    let is_image =
-        ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image());
+    let is_image = ctx.is_media_kind(IncomingKind::Image)
+        || ctx.quoted().is_some_and(|q| q.kind.is_image());
     let text = ctx.text.trim();
     if !is_image || text.is_empty() || !text.contains('|') {
         return Reply::text(help(&ctx.prefix));
@@ -157,7 +150,9 @@ mod tests {
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
-                    data: Arc::from(self.response.clone().unwrap_or_default()),
+                    data: Arc::from(
+                        self.response.clone().unwrap_or_default()
+                    ),
                     mimetype: None,
                 },
                 headers: Vec::new(),
@@ -184,17 +179,18 @@ mod tests {
             command: "tiktokchat".into(),
             http: http.clone(),
             media_fetch: http,
-            media: if is_image { Some(media_image()) } else { None },
+            media: if is_image {
+                Some(media_image())
+            } else {
+                None
+            },
             ..Ctx::default()
         };
         tiktokchat(ctx)
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn reaction_of(r: &Reply) -> Option<String> {

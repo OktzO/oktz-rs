@@ -5,7 +5,8 @@
 
 use oktz_plugin_api::{Ctx, Reply, all_plugins, plugin};
 
-const EMPTY: &str = "📝 *DAFTAR FITUR PREMIUM*\n\nSaat ini belum ada fitur yang terdaftar sebagai fitur premium eksklusif.";
+const EMPTY: &str =
+    "📝 *DAFTAR FITUR PREMIUM*\n\nSaat ini belum ada fitur yang terdaftar sebagai fitur premium eksklusif.";
 
 /// Nama-nama command premium apa adanya (urut registry) — `render` yang
 /// mengurutkannya, seperti `premiumFeatures.sort()` di JS.
@@ -72,10 +73,7 @@ mod tests {
         assert_eq!(p.meta.name, "fiturpremium");
         assert_eq!(p.meta.alias, ["listpremium", "fiturprem"]);
         assert_eq!(p.meta.category, "info");
-        assert_eq!(
-            p.meta.description,
-            "Melihat daftar seluruh fitur premium bot"
-        );
+        assert_eq!(p.meta.description, "Melihat daftar seluruh fitur premium bot");
         assert_eq!(p.meta.usage, ".fiturpremium");
         assert_eq!(p.meta.example, ".fiturpremium");
         assert_eq!(p.meta.cooldown, 5);
@@ -99,10 +97,7 @@ mod tests {
         if names.is_empty() {
             assert_eq!(out, EMPTY);
             assert!(EMPTY.starts_with("📝 *DAFTAR FITUR PREMIUM*\n\n"));
-            assert!(
-                !EMPTY.contains("💎"),
-                "ikon berbeda antara cabang kosong dan terisi"
-            );
+            assert!(!EMPTY.contains("💎"), "ikon berbeda antara cabang kosong dan terisi");
         } else {
             assert_eq!(out, render(&names));
             assert!(out.starts_with("💎 *DAFTAR FITUR PREMIUM*"), "{out}");

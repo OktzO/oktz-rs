@@ -14,7 +14,7 @@
 //! dipakai tetap sama, hanya waktunya tidak bisa dipotong.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::roll;
 
@@ -337,10 +337,7 @@ mod tests {
         assert_eq!(p.meta.name, "text2img4");
         assert_eq!(p.meta.alias, ["t2i2", "imggen2", "flux"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(
-            p.meta.description,
-            "Buat gambar dari teks pakai Flux Klein 4B"
-        );
+        assert_eq!(p.meta.description, "Buat gambar dari teks pakai Flux Klein 4B");
         assert_eq!(p.meta.usage, ".txt2img2 <deskripsi gambar>");
         assert_eq!(p.meta.example, ".txt2img2 Mobil Lamborghini revuelto");
         assert_eq!(p.meta.cooldown, 30);
@@ -401,11 +398,7 @@ mod tests {
         let joined: Value = serde_json::from_str(&seen[1].1).unwrap();
         assert_eq!(joined["fn_index"], 6);
         assert_eq!(joined["data"][2], "Distilled (4 steps)");
-        assert!(
-            seen[2]
-                .0
-                .starts_with(&format!("{SPACE_URL}/gradio_api/queue/data?session_hash="))
-        );
+        assert!(seen[2].0.starts_with(&format!("{SPACE_URL}/gradio_api/queue/data?session_hash=")));
     }
 
     #[test]
@@ -421,10 +414,7 @@ mod tests {
 
     #[test]
     fn a_rate_limited_prompt_reports_the_rate_limit() {
-        let http = Stub::new(vec![(
-            UPSAMPLER_URL,
-            Some(r#"{"rateLimited":true}"#.into()),
-        )]);
+        let http = Stub::new(vec![(UPSAMPLER_URL, Some(r#"{"rateLimited":true}"#.into()))]);
         let r = run(http.clone(), "kucing");
         assert_eq!(
             body(&r),
@@ -450,10 +440,7 @@ mod tests {
         let gagal = Stub::new(vec![
             (UPSAMPLER_URL, Some(String::new())),
             ("queue/join", Some(r#"{"event_id":"evt-1"}"#.into())),
-            (
-                "queue/data",
-                Some("data: {\"msg\":\"process_failed\",\"event_id\":\"evt-1\"}\n\n".into()),
-            ),
+            ("queue/data", Some("data: {\"msg\":\"process_failed\",\"event_id\":\"evt-1\"}\n\n".into())),
         ]);
         assert_eq!(
             body(&run(gagal.clone(), "kucing")),
@@ -498,8 +485,7 @@ mod tests {
     #[test]
     fn the_last_sse_block_is_dropped_like_js_pop() {
         // Tanpa baris kosong penutup, blok terakhir tidak pernah diproses.
-        let sse =
-            "data: {\"msg\":\"process_completed\",\"output\":{\"url\":\"/tmp/gradio/a.png\"}}";
+        let sse = "data: {\"msg\":\"process_completed\",\"output\":{\"url\":\"/tmp/gradio/a.png\"}}";
         assert_eq!(
             read_queue_sse(sse, "evt-1").unwrap_err(),
             "Stream selesai tanpa hasil"
@@ -521,9 +507,7 @@ mod tests {
         // bukan `.webp` yang lebih akhir.
         assert_eq!(
             tmp_gradio_url("gen/img.png.webp").as_deref(),
-            Some(&*format!(
-                "{SPACE_URL}/gradio_api/file=/tmp/gradio/gen/img.png"
-            ))
+            Some(&*format!("{SPACE_URL}/gradio_api/file=/tmp/gradio/gen/img.png"))
         );
         // Setelah `.` tinggal "jpeg": `jpg` tidak bisa cocok ("jpe"), jadi
         // alternatif `.jpeg` yang menang meski tertulis belakangan.
@@ -540,10 +524,7 @@ mod tests {
             "tmp": "/tmp/gradio/aaa.png",
             "cdn": format!("{FULL_URL_PREFIX}bbb.webp"),
         });
-        assert_eq!(
-            extract_url(&out),
-            "https://black-forest-labs-flux-2-klein-4b.hf.space/gradio_api/file=bbb.webp"
-        );
+        assert_eq!(extract_url(&out), "https://black-forest-labs-flux-2-klein-4b.hf.space/gradio_api/file=bbb.webp");
         assert_eq!(extract_url(&serde_json::json!("tidak ada url")), "");
     }
 

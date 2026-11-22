@@ -38,7 +38,9 @@ pub(crate) fn tanpa_quote(nama: &str) -> String {
 
 /// `ganticode.js:80`.
 pub(crate) fn terlalu_pendek(nama: &str) -> String {
-    format!("Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid.")
+    format!(
+        "Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid."
+    )
 }
 
 /// `ganticode.js:87`.
@@ -148,10 +150,9 @@ pub(crate) fn cari_file_plugin(ctx: &Ctx, nama: &str) -> Option<(String, String)
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         if q.kind.is_media()
-            && let Ok(byte) = ctx.download_quoted_media()
-        {
-            return String::from_utf8_lossy(&byte).to_string();
-        }
+            && let Ok(byte) = ctx.download_quoted_media() {
+                return String::from_utf8_lossy(&byte).to_string();
+            }
         return q.text.clone();
     }
     String::new()
@@ -249,9 +250,7 @@ pub fn ganticode(ctx: Ctx) -> Reply {
             }
             let folder_name = bersihkan_nama(&folder_name);
             let path = format!("{PLUGINS_DIR}/{folder_name}/{file_name}.js");
-            let _ = ctx
-                .berkas()
-                .buat_folder(&format!("{PLUGINS_DIR}/{folder_name}"));
+            let _ = ctx.berkas().buat_folder(&format!("{PLUGINS_DIR}/{folder_name}"));
             (folder_name, path, None, None)
         }
     };
@@ -293,7 +292,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
+            timestamp: 0,
             }),
             ..Default::default()
         }
@@ -366,13 +365,7 @@ mod tests {
 
     #[test]
     fn pesan_perbarui_menyebut_ukuran_lama_dan_backup() {
-        let t = sukses(
-            "demo",
-            "owner",
-            100,
-            Some(42),
-            Some("backup/plugins/demo_x.js"),
-        );
+        let t = sukses("demo", "owner", 100, Some(42), Some("backup/plugins/demo_x.js"));
         assert!(t.starts_with("Proses selesai! Kode plugin berhasil diperbarui.\n\n"));
         assert!(t.contains("- Ukuran Lama: 42 bytes\n"));
         assert!(t.contains(

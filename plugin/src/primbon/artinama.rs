@@ -76,11 +76,13 @@ pub fn artinama(ctx: Ctx) -> Reply {
         return Reply::text(error).with_reaction("☢");
     };
     let Some(body) = resp.json() else {
-        return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat menganalisa nama").with_reaction("❌");
+        return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat menganalisa nama")
+            .with_reaction("❌");
     };
 
     let Some(result) = payload(&body) else {
-        return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat menganalisa nama").with_reaction("❌");
+        return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat menganalisa nama")
+            .with_reaction("❌");
     };
 
     Reply::text(format!(
@@ -192,11 +194,7 @@ mod tests {
     /// `!data?.status || !data?.data` — kedua cabang sama-sama "GAGAL" + ❌.
     #[test]
     fn a_missing_status_or_data_falls_into_the_failure_branch() {
-        for body in [
-            serde_json::json!({ "data": {} }),
-            serde_json::json!({ "status": true }),
-            serde_json::json!({}),
-        ] {
+        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({})] {
             let r = run_with(Arc::new(Stub(body)), Some("putu"));
             assert_eq!(
                 reply_text(&r),

@@ -3,7 +3,7 @@
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -42,10 +42,7 @@ pub fn nambalban(ctx: Ctx) -> Reply {
     if math_random() < 0.15 {
         let health_loss = 15;
         let health = coalesce(rpg_int(&rpg, "health"), 100);
-        rpg.insert(
-            "health".into(),
-            serde_json::json!((health - health_loss).max(0)),
-        );
+        rpg.insert("health".into(), serde_json::json!((health - health_loss).max(0)));
         return Reply::text(format!(
             "DUAAAAR! BANNYA MELEDAK! 💥😭\n\n\
              Kamu mompa kerasa kenceng dan ban truk itu meledak di depan muka!\n\
@@ -119,10 +116,7 @@ mod tests {
         assert_eq!(p.meta.name, "nambalban");
         assert_eq!(p.meta.alias, ["tambal", "bengkel"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(
-            p.meta.description,
-            "Buka jasa tambal ban, awas ban meledak!"
-        );
+        assert_eq!(p.meta.description, "Buka jasa tambal ban, awas ban meledak!");
         assert_eq!(p.meta.usage, ".nambalban");
         assert_eq!(p.meta.example, ".nambalban");
         assert_eq!(p.meta.cooldown, 150);
@@ -192,11 +186,7 @@ mod tests {
             let r = run(serde_json::json!({"rpg": {"stamina": 100, "health": 3}, "koin": 0}));
             let d = written(&r);
             if text_of(&r).starts_with("DUAAAAR") {
-                assert_eq!(
-                    d["rpg"]["health"],
-                    serde_json::json!(0),
-                    "Math.max(0, 3 - 15)"
-                );
+                assert_eq!(d["rpg"]["health"], serde_json::json!(0), "Math.max(0, 3 - 15)");
                 return;
             }
         }

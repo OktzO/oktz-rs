@@ -25,26 +25,11 @@ pub(crate) const TEMPLATE_URL: &str =
 /// `FONT_ASSETS` (`ttqc.js:9-15`).
 #[cfg(test)]
 pub(crate) const FONT_ASSETS: [(&str, &str); 5] = [
-    (
-        "Plus Jakarta Sans",
-        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Regular.ttf",
-    ),
-    (
-        "Plus Jakarta Sans",
-        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Medium.ttf",
-    ),
-    (
-        "Plus Jakarta Sans",
-        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Bold.ttf",
-    ),
-    (
-        "Font Awesome 6 Free",
-        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/fa-solid-900.ttf",
-    ),
-    (
-        "Noto Color Emoji",
-        "https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf",
-    ),
+    ("Plus Jakarta Sans", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Regular.ttf"),
+    ("Plus Jakarta Sans", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Medium.ttf"),
+    ("Plus Jakarta Sans", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Bold.ttf"),
+    ("Font Awesome 6 Free", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/fa-solid-900.ttf"),
+    ("Noto Color Emoji", "https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf"),
 ];
 
 /// `MENU_ICONS` (`ttqc.js:17-24`) — `(unicode, teks, warna)`.
@@ -99,12 +84,11 @@ pub fn ttqc(ctx: Ctx) -> Reply {
     // Reply pesan teks: pakai teks quote kalau argumen kosong (`ttqc.js:247-251`).
     if let Some(q) = ctx.quoted()
         && !q.text.is_empty()
-        && text.is_empty()
-    {
-        text = q.text.clone();
-    }
-    // `m.quoted.pushName` tidak ada di `QuotedMessage`; nama diambil
-    // dari `sock.getName`, gagal → "User".
+            && text.is_empty() {
+                text = q.text.clone();
+            }
+            // `m.quoted.pushName` tidak ada di `QuotedMessage`; nama diambil
+            // dari `sock.getName`, gagal → "User".
 
     if text.is_empty() {
         return Reply::text(pakai(&ctx.prefix));
@@ -180,7 +164,10 @@ mod tests {
     #[test]
     fn tanpa_teks_menampilkan_kartu_pakai() {
         let r = run("", None);
-        assert_eq!(r.without_mutations().text_body().unwrap(), pakai("."));
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            pakai(".")
+        );
         assert!(pakai(".").contains("Contoh: .ttqc Hallo Dunia"));
     }
 

@@ -60,9 +60,15 @@ const DARES: [&str; 15] = [
 /// `Math.random() > 0.5` — undian 50/50 antara TRUTH dan DARE.
 fn draw_challenge() -> (bool, String) {
     if rand_bool() {
-        (true, TRUTHS[random_index(TRUTHS.len())].to_string())
+        (
+            true,
+            TRUTHS[random_index(TRUTHS.len())].to_string(),
+        )
     } else {
-        (false, DARES[random_index(DARES.len())].to_string())
+        (
+            false,
+            DARES[random_index(DARES.len())].to_string(),
+        )
     }
 }
 
@@ -110,9 +116,7 @@ pub fn tod(ctx: Ctx) -> Reply {
     if ctx.roster.is_empty() {
         return Reply::text(crate::common::error_template(&ctx));
     }
-    let jid = ctx.roster.participants[random_index(ctx.roster.participants.len())]
-        .jid
-        .clone();
+    let jid = ctx.roster.participants[random_index(ctx.roster.participants.len())].jid.clone();
     Reply::Text {
         text: render(&jid),
         mentions: vec![jid],

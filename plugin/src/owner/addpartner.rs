@@ -187,9 +187,9 @@ pub fn addpartner(ctx: Ctx) -> Reply {
             let new_expired = base + days * DAY_MS;
 
             let mut list: Vec<serde_json::Value> = ctx.setting_list("partnerList").to_vec();
-            let renewed = list
-                .iter()
-                .any(|v| v.get("id").and_then(|x| x.as_str()) == Some(number.as_str()));
+            let renewed = list.iter().any(|v| {
+                v.get("id").and_then(|x| x.as_str()) == Some(number.as_str())
+            });
             if renewed {
                 for v in &mut list {
                     if v.get("id").and_then(|x| x.as_str()) == Some(number.as_str()) {
@@ -197,19 +197,13 @@ pub fn addpartner(ctx: Ctx) -> Reply {
                     }
                 }
             } else {
-                list.push(
-                    serde_json::json!({ "id": number, "expired": new_expired, "addedAt": now }),
-                );
+                list.push(serde_json::json!({ "id": number, "expired": new_expired, "addedAt": now }));
             }
 
             Reply::Text {
                 text: format!(
                     "✅ Berhasil {} partner @{} selama *{days} hari*\nExpired: *{}*",
-                    if renewed {
-                        "memperpanjang"
-                    } else {
-                        "menambahkan"
-                    },
+                    if renewed { "memperpanjang" } else { "menambahkan" },
                     number,
                     crate::common::date_long(new_expired)
                 ),
@@ -289,22 +283,14 @@ mod tests {
     fn adding_without_a_target_shows_help_and_writes_nothing() {
         for text in ["", "abc", "123"] {
             let r = run("addpartner", text, serde_json::json!({}), None);
-            assert!(
-                text_of(&r).starts_with("🤝 *ᴀᴅᴅ ᴘᴀʀᴛɴᴇʀ*"),
-                "input {text:?}"
-            );
+            assert!(text_of(&r).starts_with("🤝 *ᴀᴅᴅ ᴘᴀʀᴛɴᴇʀ*"), "input {text:?}");
             assert!(r.mutations().is_empty(), "input {text:?}");
         }
     }
 
     #[test]
     fn a_ten_to_fifteen_digit_number_becomes_a_partner_entry() {
-        let r = run(
-            "addpartner",
-            "6281234567890 30",
-            serde_json::json!({}),
-            None,
-        );
+        let r = run("addpartner", "6281234567890 30", serde_json::json!({}), None);
         let list = written(&r);
         assert_eq!(list.len(), 1);
         assert_eq!(list[0]["id"], serde_json::json!("6281234567890"));
@@ -320,12 +306,7 @@ mod tests {
 
     #[test]
     fn a_mention_wins_over_the_number_in_the_text() {
-        let r = run(
-            "addpartner",
-            "628999000000 5",
-            serde_json::json!({}),
-            Some("628777@s.whatsapp.net"),
-        );
+        let r = run("addpartner", "628999000000 5", serde_json::json!({}), Some("628777@s.whatsapp.net"));
         assert_eq!(written(&r)[0]["id"], serde_json::json!("628777"));
     }
 
@@ -340,8 +321,7 @@ mod tests {
 
     #[test]
     fn deleting_an_unknown_partner_is_refused_and_writes_nothing() {
-        let existing =
-            serde_json::json!({ "partnerList": [{ "id": "6281234567890", "expired": 1 }] });
+        let existing = serde_json::json!({ "partnerList": [{ "id": "6281234567890", "expired": 1 }] });
         let r = run("delpartner", "628999000000", existing, None);
         assert_eq!(text_of(&r), NOT_PARTNER);
         assert!(r.mutations().is_empty());
@@ -405,15 +385,8 @@ mod tests {
 
     #[test]
     fn the_digit_run_scanner_respects_the_ten_to_fifteen_bound() {
-        assert_eq!(
-            digits_10_to_15("6281234567890"),
-            Some("6281234567890".into())
-        );
-        assert_eq!(
-            digits_10_to_15("6281234567890123"),
-            None,
-            "16 digit ditolak"
-        );
+        assert_eq!(digits_10_to_15("6281234567890"), Some("6281234567890".into()));
+        assert_eq!(digits_10_to_15("6281234567890123"), None, "16 digit ditolak");
         assert_eq!(digits_10_to_15("628123456"), None, "9 digit ditolak");
         assert_eq!(
             digits_10_to_15("halo 6281234567890"),

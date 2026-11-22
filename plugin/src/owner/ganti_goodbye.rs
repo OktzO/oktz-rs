@@ -28,7 +28,9 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 )]
 pub fn ganti_goodbye(ctx: Ctx) -> Reply {
     let is_image = ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image());
+        || ctx
+            .quoted()
+            .is_some_and(|q| q.kind.is_image());
 
     if !is_image {
         return Reply::text(
@@ -63,8 +65,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             ..Default::default()
         };
         ganti_goodbye(ctx)

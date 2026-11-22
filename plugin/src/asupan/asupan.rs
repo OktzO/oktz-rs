@@ -110,8 +110,8 @@ fn ambil_video(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
 mod tests {
     use super::*;
     use oktz_plugin_api::{
-        HttpBody, HttpError, HttpGet, HttpResponse,
         berkas::{Berkas, BerkasPalsu},
+        HttpBody, HttpError, HttpGet, HttpResponse,
     };
     use std::sync::{Arc, Mutex};
 
@@ -229,8 +229,7 @@ mod tests {
 
     #[test]
     fn satu_url_dikirim_sebagai_video() {
-        let berkas =
-            berkas_dengan(&[("src/tiktok/ukhty.json", r#"[{"url":"https://cdn/a.mp4"}]"#)]);
+        let berkas = berkas_dengan(&[("src/tiktok/ukhty.json", r#"[{"url":"https://cdn/a.mp4"}]"#)]);
         let http = Stub::bytes("VIDEO_BYTES");
         let r = run(berkas, http.clone());
         match r {
@@ -253,19 +252,12 @@ mod tests {
         let berkas = berkas_dengan(&[
             ("src/tiktok/bocil.json", r#"[{"url":"https://cdn/b.mp4"}]"#),
             ("src/tiktok/santuy.json", "[]"),
-            (
-                "src/tiktok/tiktokgirl.json",
-                r#"[{"url":"https://cdn/c.mp4"},{"url":"https://cdn/d.mp4"}]"#,
-            ),
+            ("src/tiktok/tiktokgirl.json", r#"[{"url":"https://cdn/c.mp4"},{"url":"https://cdn/d.mp4"}]"#),
         ]);
         let http = Stub::bytes("VID");
         let _ = run(berkas, http.clone());
         let seen = http.seen.lock().unwrap().clone();
-        assert!(
-            seen == vec!["https://cdn/b.mp4"]
-                || seen == vec!["https://cdn/c.mp4"]
-                || seen == vec!["https://cdn/d.mp4"]
-        );
+        assert!(seen == vec!["https://cdn/b.mp4"] || seen == vec!["https://cdn/c.mp4"] || seen == vec!["https://cdn/d.mp4"]);
     }
 
     #[test]

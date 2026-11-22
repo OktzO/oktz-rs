@@ -184,10 +184,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["clanlb", "topclan", "guildrank"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "clanleaderboard"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "clanleaderboard");
         }
     }
 

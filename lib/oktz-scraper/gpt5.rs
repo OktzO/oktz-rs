@@ -300,24 +300,15 @@ mod tests {
         assert_eq!(hasil["code"], 200);
         assert_eq!(hasil["answer"], "Halo dunia");
         assert_eq!(hasil["responseId"], "resp-9");
-        assert_eq!(
-            hasil["model"], "openai/gpt-4.1",
-            "model dari options dipakai"
-        );
+        assert_eq!(hasil["model"], "openai/gpt-4.1", "model dari options dipakai");
         assert_eq!(hasil["chatId"], "chat-1");
         assert_eq!(hasil["deviceId"], "dev-1");
-        assert!(
-            hasil.get("question").is_none(),
-            "JS tidak mengirim question"
-        );
+        assert!(hasil.get("question").is_none(), "JS tidak mengirim question");
 
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].url, API);
-        assert_eq!(
-            cari_header(&p[0], "x-device-uuid"),
-            Some("dev-1".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "x-device-uuid"), Some("dev-1".to_string()));
         assert_eq!(
             cari_header(&p[0], "accept-language"),
             Some("id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7".to_string())
@@ -390,10 +381,7 @@ mod tests {
                 .to_string(),
         )]);
         let hasil = gpt5(&http, "hai", &json!({})).unwrap();
-        assert_eq!(
-            hasil["answer"], "A",
-            "sisa buffer terakhir dibuang seperti JS"
-        );
+        assert_eq!(hasil["answer"], "A", "sisa buffer terakhir dibuang seperti JS");
     }
 
     #[test]

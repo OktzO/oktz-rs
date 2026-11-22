@@ -190,14 +190,8 @@ mod tests {
             cari_header(&p[0], "x-requested-with"),
             Some("XMLHttpRequest".to_string())
         );
-        assert_eq!(
-            cari_header(&p[0], "referer"),
-            Some("https://snapvideotools.com/".to_string())
-        );
-        assert_eq!(
-            cari_header(&p[0], "origin"),
-            Some("https://snapvideotools.com".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "referer"), Some("https://snapvideotools.com/".to_string()));
+        assert_eq!(cari_header(&p[0], "origin"), Some("https://snapvideotools.com".to_string()));
     }
 
     #[test]

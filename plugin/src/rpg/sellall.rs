@@ -113,7 +113,7 @@ pub fn sellall(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     fn run(user: Value) -> Reply {
         let ctx = Ctx {
@@ -148,10 +148,7 @@ mod tests {
         assert_eq!(p.meta.name, "sellall");
         assert_eq!(p.meta.alias, ["jualsemua", "quicksell"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(
-            p.meta.description,
-            "Jual semua item yang bisa dijual sekaligus"
-        );
+        assert_eq!(p.meta.description, "Jual semua item yang bisa dijual sekaligus");
         assert_eq!(p.meta.usage, ".sellall");
         assert_eq!(p.meta.example, ".sellall");
         assert_eq!(p.meta.cooldown, 30);
@@ -212,11 +209,7 @@ mod tests {
         let r = run(serde_json::json!({"inventory": {"rock": 1, "potion": 9}}));
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["rock"], serde_json::json!(0));
-        assert_eq!(
-            inv["potion"],
-            serde_json::json!(9),
-            "tidak punya harga jual, tetap"
-        );
+        assert_eq!(inv["potion"], serde_json::json!(9), "tidak punya harga jual, tetap");
     }
 
     #[test]
@@ -262,10 +255,7 @@ mod tests {
         }
         let r = run(serde_json::json!({ "inventory": inv }));
         let t = text_of(&r);
-        assert!(
-            !t.contains("item lainnya"),
-            "tepat 10 tidak perlu ringkasan"
-        );
+        assert!(!t.contains("item lainnya"), "tepat 10 tidak perlu ringkasan");
     }
 
     #[test]
@@ -280,11 +270,7 @@ mod tests {
     #[test]
     fn a_missing_koin_reads_as_zero_and_still_gains_the_sale() {
         let r = run(serde_json::json!({"inventory": {"rock": 1}}));
-        assert_eq!(
-            write_of(&r)["koin"],
-            serde_json::json!(20),
-            "`user.koin || 0`"
-        );
+        assert_eq!(write_of(&r)["koin"], serde_json::json!(20), "`user.koin || 0`");
     }
 
     #[test]

@@ -77,9 +77,7 @@ pub fn parse_command(body: &str, opts: &ParseOptions) -> ParsedCommand {
             first.to_lowercase()
         };
         result.args = parts.into_iter().skip(1).collect();
-        result.text = without_prefix[result.command.len().min(without_prefix.len())..]
-            .trim()
-            .to_string();
+        result.text = without_prefix[result.command.len().min(without_prefix.len())..].trim().to_string();
         result.full_args = result.text.clone();
         return result;
     }
@@ -107,9 +105,7 @@ pub fn parse_command(body: &str, opts: &ParseOptions) -> ParsedCommand {
                 result.text = result.args.join(" ");
                 // JS: `fullArgs = body.slice(cmd.length).trim()` (raw slice) —
                 // BEDA dari text. Pertahankan perbedaan ini.
-                result.full_args = body[result.command.len().min(body.len())..]
-                    .trim()
-                    .to_string();
+                result.full_args = body[result.command.len().min(body.len())..].trim().to_string();
             }
         }
     }

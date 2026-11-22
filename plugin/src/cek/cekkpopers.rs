@@ -38,13 +38,7 @@ pub fn cekkpopers(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    const TIERS: [&str; 5] = [
-        "ARMY/BLINK level max! 💜💗",
-        "Stan berat nih! 🎤",
-        "Casual listener~ 🎵",
-        "Tau dikit-dikit aja 😅",
-        "Bukan kpopers 🤷",
-    ];
+    const TIERS: [&str; 5] = ["ARMY/BLINK level max! 💜💗", "Stan berat nih! 🎤", "Casual listener~ 🎵", "Tau dikit-dikit aja 😅", "Bukan kpopers 🤷"];
     const LABEL: &str = "kekpopersan";
     const SENDER: &str = "628111@s.whatsapp.net";
     const OTHER: &str = "628999@s.whatsapp.net";
@@ -107,7 +101,7 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        for key in ["cekkpopers", "kpopers", "kpop"] {
+        for key in ["cekkpopers","kpopers", "kpop"] {
             assert_eq!(
                 oktz_plugin_api::find(key).map(|p| p.meta.name.as_str()),
                 Some("cekkpopers"),
@@ -125,10 +119,7 @@ mod tests {
             text.contains(&format!("Tingkat {LABEL} kamu *{}%", percent_in(&text))),
             "{text}"
         );
-        assert!(
-            !text.contains("dia sebesar"),
-            "self tidak pakai 'dia': {text}"
-        );
+        assert!(!text.contains("dia sebesar"), "self tidak pakai 'dia': {text}");
     }
 
     #[test]
@@ -140,10 +131,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(&format!(
-                "Tingkat {LABEL} dia sebesar *{}%",
-                percent_in(&text)
-            )),
+            text.contains(&format!("Tingkat {LABEL} dia sebesar *{}%", percent_in(&text))),
             "{text}"
         );
     }
@@ -155,17 +143,9 @@ mod tests {
         let ctx = base();
         for percent in 0..=100u32 {
             let (text, _) = text_of(&cek_reply(&ctx, percent, LABEL, TIERS));
-            assert!(
-                text.contains(&format!("*{percent}%*")),
-                "percent hilang: {text}"
-            );
+            assert!(text.contains(&format!("*{percent}%*")), "percent hilang: {text}");
             let hits: Vec<&&str> = TIERS.iter().filter(|t| text.contains(**t)).collect();
-            assert_eq!(
-                hits.len(),
-                1,
-                "percent {percent} memuat {} tier: {text}",
-                hits.len()
-            );
+            assert_eq!(hits.len(), 1, "percent {percent} memuat {} tier: {text}", hits.len());
         }
     }
 
@@ -238,8 +218,7 @@ mod tests {
         };
         for percent in [0u32, 29, 30, 49, 50, 69, 70, 89, 90, 100] {
             let desc = tier_js(percent);
-            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kekpopersan", TIERS)
-            else {
+            let Reply::Text { text, mentions } = cek_reply(&diri, percent, "kekpopersan", TIERS) else {
                 panic!("harus Reply::Text");
             };
             assert_eq!(
@@ -253,8 +232,7 @@ mod tests {
             );
             assert_eq!(mentions, vec!["628111@s.whatsapp.net".to_string()]);
 
-            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kekpopersan", TIERS)
-            else {
+            let Reply::Text { text, mentions } = cek_reply(&lain, percent, "kekpopersan", TIERS) else {
                 panic!("harus Reply::Text");
             };
             assert_eq!(
@@ -339,4 +317,5 @@ mod tests {
             );
         }
     }
+
 }

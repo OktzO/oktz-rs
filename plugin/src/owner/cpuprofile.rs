@@ -105,11 +105,7 @@ pub(crate) fn unavailable(action: &str) -> String {
     is_bot_admin = false
 )]
 pub fn cpuprofile(ctx: Ctx) -> Reply {
-    let sub = ctx
-        .args
-        .first()
-        .map(|a| a.to_lowercase())
-        .unwrap_or_default();
+    let sub = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
     match sub.as_str() {
         "start" => {
             let minutes = start_minutes(ctx.args.get(1).map(String::as_str));
@@ -164,10 +160,7 @@ mod tests {
         assert_eq!(p.meta.name, "cpuprofile");
         assert_eq!(p.meta.alias, ["cpup", "cpuprof"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(
-            p.meta.description,
-            "CPU profiling via node:inspector (Owner Only)"
-        );
+        assert_eq!(p.meta.description, "CPU profiling via node:inspector (Owner Only)");
         assert_eq!(
             p.meta.usage,
             ".cpuprofile start [menit] | .cpuprofile stop | .cpuprofile status"
@@ -219,25 +212,14 @@ mod tests {
         assert_eq!(duration_ms(5.0), 300_000);
         assert_eq!(duration_ms(10.0), MAX_DURATION_MS);
         assert_eq!(duration_ms(2.5), 150_000);
-        assert_eq!(
-            duration_ms(1.0 / 60.0),
-            1_000,
-            "pembulatan ke detik terdekat"
-        );
+        assert_eq!(duration_ms(1.0 / 60.0), 1_000, "pembulatan ke detik terdekat");
     }
 
     #[test]
     fn the_profile_name_is_prefixed_with_cmd_and_the_bare_number() {
-        assert_eq!(
-            profile_name(&with_sender("628111@s.whatsapp.net")),
-            "cmd-628111"
-        );
+        assert_eq!(profile_name(&with_sender("628111@s.whatsapp.net")), "cmd-628111");
         assert_eq!(profile_name(&with_sender("628111@lid")), "cmd-628111");
-        assert_eq!(
-            profile_name(&with_sender("")),
-            "cmd-owner",
-            "falsy -> owner"
-        );
+        assert_eq!(profile_name(&with_sender("")), "cmd-owner", "falsy -> owner");
     }
 
     #[test]
@@ -265,10 +247,7 @@ mod tests {
     fn an_unknown_sub_command_prints_the_three_options() {
         let out = run(&["mulai"]);
         assert!(out.starts_with("⚙️ *CPU Profiler*"), "{out}");
-        assert!(
-            out.contains("*.cpuprofile start [menit]* — Mulai profiling (default 5, max 10)"),
-            "{out}"
-        );
+        assert!(out.contains("*.cpuprofile start [menit]* — Mulai profiling (default 5, max 10)"), "{out}");
         assert!(out.contains("*.cpuprofile stop*"), "{out}");
         assert!(out.contains("*.cpuprofile status*"), "{out}");
     }

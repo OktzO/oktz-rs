@@ -5,18 +5,16 @@
 //! dikirim berurutan lewat `Reply::sequence` (audio dulu, teks sesudahnya,
 //! mirip `await` berurutan di JS). Satu reaksi akhir (`✅`/`❌`/`☢`).
 
-use oktz_plugin_api::{Ctx, HttpError, MediaSource, Reply, plugin};
 use serde_json::Value;
+use oktz_plugin_api::{Ctx, HttpError, MediaSource, Reply, plugin};
 
-use crate::common::{MONTHS_ID, days_from_civil, jakarta_parts, js_truthy, js_truthy_value};
+use crate::common::{days_from_civil, jakarta_parts, js_truthy, js_truthy_value, MONTHS_ID};
 use crate::tools::phisingataubukan::encode_uri_component;
 
 const BASE_URL: &str = "https://api.myquran.com/v2/sholat";
 const ADZAN_URL: &str = "https://files.catbox.moe/z2bj5s.mp3";
 
-const HARI_ID: [&str; 7] = [
-    "Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu",
-];
+const HARI_ID: [&str; 7] = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 /// `index Hari Minggu=0..Sabtu=6` dari tanggal civil (1970-01-01 = Kamis).
 fn hari_index_ms(ms: i64) -> usize {
@@ -37,11 +35,16 @@ fn kota_url(query: &str) -> String {
 }
 
 fn jadwal_url(kota_id: &str, (y, m, d): (i64, u32, u32)) -> String {
-    format!("{BASE_URL}/jadwal/{kota_id}/{y}/{:02}/{:02}", m, d)
+    format!(
+        "{BASE_URL}/jadwal/{kota_id}/{y}/{:02}/{:02}",
+        m, d
+    )
 }
 
 fn not_found_kota(city: &str) -> String {
-    format!("❌ *ɢᴀɢᴀʟ*\n\n> Kota \"{city}\" tidak ditemukan\n> Coba nama kabupaten/kota lain")
+    format!(
+        "❌ *ɢᴀɢᴀʟ*\n\n> Kota \"{city}\" tidak ditemukan\n> Coba nama kabupaten/kota lain"
+    )
 }
 
 /// Nilai waktu sholat: `j.<waktu> || "-"`.
@@ -49,13 +52,7 @@ fn waktu_val(jadwal: &Value, kunci: &str) -> String {
     jadwal
         .get(kunci)
         .and_then(Value::as_str)
-        .map(|s| {
-            if s.is_empty() {
-                "-".to_string()
-            } else {
-                s.to_string()
-            }
-        })
+        .map(|s| if s.is_empty() { "-".to_string() } else { s.to_string() })
         .unwrap_or_else(|| "-".to_string())
 }
 
@@ -108,7 +105,8 @@ pub fn jadwalsholat(ctx: Ctx) -> Reply {
     let jadwal_data = match jadwal_data {
         Some(d) => d,
         None => {
-            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+            return Reply::text(crate::common::error_template(&ctx))
+                .with_reaction("☢");
         }
     };
 
@@ -299,7 +297,12 @@ mod tests {
     fn kota_tidak_ditemukan() {
         let http = Stub::with_balasan(vec![r#"{"status":true,"data":[]}"#.to_string()]);
         let r = run(http, "KotaXyz");
-        assert_eq!(text_of(&r), not_found_kota("KotaXyz"), "{:?}", text_of(&r));
+        assert_eq!(
+            text_of(&r),
+            not_found_kota("KotaXyz"),
+            "{:?}",
+            text_of(&r)
+        );
         assert_eq!(reaction_of(&r), Some("❌"));
     }
 
@@ -308,15 +311,10 @@ mod tests {
         // jadwal data tanpa `lokasi` → pakai `kota.lokasi`.
         let http = Stub::with_balasan(vec![
             kota_json(),
-            r#"{"status":true,"data":{"jadwal":{"imsak":"04:10"},"daerah":"DKI Jakarta"}}"#
-                .to_string(),
+            r#"{"status":true,"data":{"jadwal":{"imsak":"04:10"},"daerah":"DKI Jakarta"}}"#.to_string(),
         ]);
         let r = run(http, "Jakarta");
-        assert!(
-            text_of(&r).contains("📍 *KOTA JAKARTA*"),
-            "{:?}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("📍 *KOTA JAKARTA*"), "{:?}", text_of(&r));
     }
 
     #[test]
@@ -324,15 +322,13 @@ mod tests {
         let http = Stub::with_balasan(vec![kota_json(), jadwal_json()]);
         let r = run(http, "Jakarta");
         let t = text_of(&r);
-        assert!(
-            t.starts_with("🕌 *ᴊᴀᴅᴡᴀʟ sʜᴏʟᴀᴛ*\n╭┈┈⬡「 📍 *KOTA JAKARTA* 」\n┃ 📅 "),
-            "{t}"
-        );
+        assert!(t.starts_with("🕌 *ᴊᴀᴅᴡᴀʟ sʜᴏʟᴀᴛ*\n╭┈┈⬡「 📍 *KOTA JAKARTA* 」\n┃ 📅 "), "{t}");
         // Nama bulan tidak boleh di-hardcode ke awal tahun: `formatNow` JS
         // (`plugins/religi/jadwalsholat.js:40`) memakai bulan tanggal berjalan,
         // jadi test ini bisa dijalankan kapan saja.
         assert!(
-            HARI_ID.iter().any(|h| t.contains(*h)) && MONTHS_ID.iter().any(|m| t.contains(*m)),
+            HARI_ID.iter().any(|h| t.contains(*h))
+                && MONTHS_ID.iter().any(|m| t.contains(*m)),
             "{t}"
         );
     }
@@ -372,8 +368,7 @@ mod tests {
         // cabang error sebelum sempat memeriksa `|| "-"` (`sholat-api.js:53`).
         let http = Stub::with_balasan(vec![
             kota_json(),
-            r#"{"status":true,"data":{"jadwal":{"imsak":"","subuh":"04:20"},"lokasi":"X"}}"#
-                .to_string(),
+            r#"{"status":true,"data":{"jadwal":{"imsak":"","subuh":"04:20"},"lokasi":"X"}}"#.to_string(),
         ]);
         let r = run(http, "Jakarta");
         let t = text_of(&r);

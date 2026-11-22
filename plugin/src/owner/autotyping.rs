@@ -52,11 +52,7 @@ pub fn autotyping(ctx: Ctx) -> Reply {
              > *{p}autotyping on* — Aktifkan\n\
              > *{p}autotyping off* — Nonaktifkan\n\n\
              _Bot akan menampilkan indikator typing saat menerima pesan_",
-            status = if current(&ctx) {
-                "Aktif ✅"
-            } else {
-                "Nonaktif ❌"
-            },
+            status = if current(&ctx) { "Aktif ✅" } else { "Nonaktif ❌" },
             p = ctx.prefix
         ));
     }
@@ -166,7 +162,8 @@ mod tests {
         // di `config.js:159` — key yang belum pernah ditulis tetap AKTIF.
         assert!(text_of(&run("", serde_json::json!({}))).contains("*Aktif ✅*"));
         assert!(
-            text_of(&run("", serde_json::json!({ "autoTyping": null }))).contains("*Aktif ✅*"),
+            text_of(&run("", serde_json::json!({ "autoTyping": null })))
+                .contains("*Aktif ✅*"),
             "null juga kena `??`"
         );
     }
@@ -174,9 +171,7 @@ mod tests {
     #[test]
     fn a_stored_false_is_not_overwritten_by_the_default() {
         // `??` hanya menangkap null/undefined — `false` harus tetap Nonaktif.
-        assert!(
-            text_of(&run("", serde_json::json!({"autoTyping": false}))).contains("*Nonaktif ❌*")
-        );
+        assert!(text_of(&run("", serde_json::json!({"autoTyping": false}))).contains("*Nonaktif ❌*"));
         assert!(text_of(&run("", serde_json::json!({"autoTyping": true}))).contains("*Aktif ✅*"));
     }
 
@@ -234,18 +229,10 @@ mod tests {
     fn the_option_is_lowercased_and_trimmed_before_matching() {
         // `m.text?.toLowerCase()?.trim()` — " ON " tetap kena cabang `on`.
         for text in ["ON", "  on  ", "On"] {
-            assert_eq!(
-                stored(&run(text, serde_json::json!({}))),
-                serde_json::json!(true),
-                "input {text:?}"
-            );
+            assert_eq!(stored(&run(text, serde_json::json!({}))), serde_json::json!(true), "input {text:?}");
         }
         for text in ["OFF", " off ", "Off"] {
-            assert_eq!(
-                stored(&run(text, serde_json::json!({}))),
-                serde_json::json!(false),
-                "input {text:?}"
-            );
+            assert_eq!(stored(&run(text, serde_json::json!({}))), serde_json::json!(false), "input {text:?}");
         }
     }
 

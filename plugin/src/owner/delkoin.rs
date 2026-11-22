@@ -240,11 +240,7 @@ mod tests {
     #[test]
     fn a_user_absent_from_the_store_is_refused_and_writes_nothing() {
         let r = run("50000", serde_json::json!(null), None);
-        assert!(
-            text_of(&r).contains("User tidak ditemukan di database"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
         assert!(r.mutations().is_empty());
     }
 
@@ -259,11 +255,7 @@ mod tests {
         // `ponytail:` row target di luar sender+roster tidak terbaca, jadi
         // guard "tidak ditemukan" dulu yang kena — bukan menulis ke sender.
         let r = run("50000", serde_json::json!({ "koin": 1000 }), Some(OTHER));
-        assert!(
-            text_of(&r).contains("User tidak ditemukan di database"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
         assert!(r.mutations().is_empty(), "tidak boleh menulis");
     }
 
@@ -286,16 +278,12 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
-            }),
+            timestamp: 0,
+        }),
             ..Default::default()
         };
         let r = (oktz_plugin_api::find("delkoin").unwrap().handler)(ctx);
-        assert!(
-            text_of(&r).contains("User tidak ditemukan di database"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
     }
 
     #[test]

@@ -124,11 +124,7 @@ mod tests {
     #[test]
     fn without_code_anywhere_it_shows_the_help_card() {
         assert_eq!(body(&run("", None)), help("."));
-        assert_eq!(
-            body(&run("", Some(quoted("")))),
-            help("."),
-            "quoted kosong tetap falsy"
-        );
+        assert_eq!(body(&run("", Some(quoted("")))), help("."), "quoted kosong tetap falsy");
         assert!(body(&run("", None)).contains("> `.carbon <kode>`"));
         assert!(body(&run("", None)).contains("reply pesan yang berisi kode"));
     }
@@ -136,14 +132,8 @@ mod tests {
     #[test]
     fn the_command_text_wins_over_a_quoted_body() {
         // `m.text || m.quoted?.text` — teks yang tidak kosong menang.
-        assert_eq!(
-            source_code(&run_ctx("halo", Some(quoted("dari quoted")))),
-            "halo"
-        );
-        assert_eq!(
-            source_code(&run_ctx("", Some(quoted("dari quoted")))),
-            "dari quoted"
-        );
+        assert_eq!(source_code(&run_ctx("halo", Some(quoted("dari quoted")))), "halo");
+        assert_eq!(source_code(&run_ctx("", Some(quoted("dari quoted")))), "dari quoted");
     }
 
     fn run_ctx(text: &str, quoted: Option<QuotedMessage>) -> Ctx {

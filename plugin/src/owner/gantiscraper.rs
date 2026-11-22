@@ -60,9 +60,7 @@ fn nama_default_export(code: &str) -> Option<String> {
     let rest = rest.strip_prefix("default")?;
     let rest = rest.trim_start();
     let rest = rest.strip_prefix("async").map_or(rest, |r| r.trim_start());
-    let rest = rest
-        .strip_prefix("function")
-        .map_or(rest, |r| r.trim_start());
+    let rest = rest.strip_prefix("function").map_or(rest, |r| r.trim_start());
     Some(ident_awal(rest)?.to_string())
 }
 
@@ -75,20 +73,17 @@ fn nama_named_export(code: &str) -> Option<String> {
         let rest = code[idx + "export".len()..].trim_start();
         if let Some(r) = rest.strip_prefix("async").map(|r| r.trim_start())
             && let Some(r) = r.strip_prefix("function").map(|r| r.trim_start())
-            && let Some(id) = ident_awal(r)
-        {
-            return Some(id.to_string());
-        }
+                && let Some(id) = ident_awal(r) {
+                    return Some(id.to_string());
+                }
         if let Some(r) = rest.strip_prefix("function").map(|r| r.trim_start())
-            && let Some(id) = ident_awal(r)
-        {
-            return Some(id.to_string());
-        }
+            && let Some(id) = ident_awal(r) {
+                return Some(id.to_string());
+            }
         if let Some(r) = rest.strip_prefix("const").map(|r| r.trim_start())
-            && let Some(id) = ident_awal(r)
-        {
-            return Some(id.to_string());
-        }
+            && let Some(id) = ident_awal(r) {
+                return Some(id.to_string());
+            }
         dari = idx + "export".len();
     }
     None
@@ -268,8 +263,8 @@ pub fn gantiscraper(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use oktz_plugin_api::find;
+    use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -292,17 +287,14 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-                timestamp: 0,
+            timestamp: 0,
             }),
             ..Ctx::default()
         }
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     #[test]
@@ -329,11 +321,7 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["replacescraper", "updatescraper", "gantiscrape"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("gantiscraper"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("gantiscraper"), "{a}");
         }
     }
 
@@ -364,32 +352,22 @@ mod tests {
     #[test]
     fn list_menampilkan_scraper_dan_ukuran() {
         let b = Arc::new(BerkasPalsu::baru());
-        b.tulis_teks("src/scraper/ig.js", &"x".repeat(2048))
-            .unwrap();
+        b.tulis_teks("src/scraper/ig.js", &"x".repeat(2048)).unwrap();
         b.tulis_teks("src/scraper/yt.js", &"y".repeat(512)).unwrap();
         let r = gantiscraper(ctx_dengan(b, None, &["list"]));
         let t = teks(&r);
-        assert!(
-            t.starts_with("📂 *DAFTAR SCRAPER*\n\n╭─〔 *src/scraper* 〕───⬣\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("📂 *DAFTAR SCRAPER*\n\n╭─〔 *src/scraper* 〕───⬣\n"), "{t}");
         assert!(t.contains("│ 1. `ig.js` (2.0 KB)"), "{t}");
         assert!(t.contains("│ 2. `yt.js` (0.5 KB)"), "{t}");
         assert!(t.contains("╰───────⬡\n\nTotal: 2 scraper"), "{t}");
-        assert!(
-            t.contains("> Gunakan `.gantiscraper <nama>` dengan reply code"),
-            "{t}"
-        );
+        assert!(t.contains("> Gunakan `.gantiscraper <nama>` dengan reply code"), "{t}");
     }
 
     #[test]
     fn kode_pendek_ditolak() {
         let b = Arc::new(BerkasPalsu::baru());
         let r = gantiscraper(ctx_dengan(b, Some("pendek"), &[]));
-        assert_eq!(
-            teks(&r),
-            "❌ *GAGAL*\n\nCode terlalu pendek atau tidak valid"
-        );
+        assert_eq!(teks(&r), "❌ *GAGAL*\n\nCode terlalu pendek atau tidak valid");
     }
 
     #[test]
@@ -432,8 +410,7 @@ mod tests {
     #[test]
     fn scraper_lama_dibackup_dan_ditandai_diganti() {
         let b = Arc::new(BerkasPalsu::baru());
-        b.tulis_teks("src/scraper/ig.js", "export default function ig(){}")
-            .unwrap();
+        b.tulis_teks("src/scraper/ig.js", "export default function ig(){}").unwrap();
         let kode = "export default function ig() { /* baru */ }\n// padding";
         let r = gantiscraper(ctx_dengan(b.clone(), Some(kode), &[]));
         let t = teks(&r);
@@ -468,13 +445,7 @@ mod tests {
             nama_named_export("export function foo() {}").as_deref(),
             Some("foo")
         );
-        assert_eq!(
-            nama_named_export("export const foo = 1").as_deref(),
-            Some("foo")
-        );
-        assert_eq!(
-            nama_named_export("export async function foo() {}").as_deref(),
-            Some("foo")
-        );
+        assert_eq!(nama_named_export("export const foo = 1").as_deref(), Some("foo"));
+        assert_eq!(nama_named_export("export async function foo() {}").as_deref(), Some("foo"));
     }
 }

@@ -12,7 +12,9 @@
 //! `ponytail:` `forwarded`/`premium` mati; kutipan `quoted: m` mengikuti
 //! default pipeline. Tag `☢` hanya di cabang `catch` JS (konversi gagal).
 
-use oktz_plugin_api::{Ctx, EXIF_EMOJIS, MediaSource, Reply, StickerOpsi, plugin};
+use oktz_plugin_api::{
+    Ctx, EXIF_EMOJIS, MediaSource, Reply, StickerOpsi, plugin,
+};
 
 use crate::search::applemusic::error_reply;
 
@@ -54,7 +56,8 @@ pub(crate) fn is_webp(bytes: &[u8]) -> bool {
 /// `swm.js:83-84` — cek signature video: byte 0..3 `000000` (hex) atau
 /// `ftyp` di byte 4..8.
 pub(crate) fn is_video(bytes: &[u8]) -> bool {
-    bytes.len() >= 8 && (&bytes[0..3] == [0u8; 3] || &bytes[4..8] == b"ftyp")
+    bytes.len() >= 8
+        && (&bytes[0..3] == [0u8; 3] || &bytes[4..8] == b"ftyp")
 }
 
 /// `swm.js:71-91` — tempel EXIF ke WebP, konversi gambar/video non-WebP
@@ -67,10 +70,8 @@ fn siapkan(bytes: &[u8], packname: &str, author: &str) -> Result<Vec<u8>, String
     } else {
         oktz_plugin_api::gambar_ke_stiker_webp(bytes, &[])?
     };
-    Ok(
-        oktz_plugin_api::tempel_metadata_stiker(&webp, packname, author, &EXIF_EMOJIS)
-            .unwrap_or(webp),
-    )
+    Ok(oktz_plugin_api::tempel_metadata_stiker(&webp, packname, author, &EXIF_EMOJIS)
+        .unwrap_or(webp))
 }
 #[plugin(
     name = "swm",
@@ -99,9 +100,7 @@ pub fn swm(ctx: Ctx) -> Reply {
         } else {
             label
         };
-        return Reply::text(format!(
-            "❌ *ɢᴀɢᴀʟ*\n\n> Reply pesan sticker, bukan {label}"
-        ));
+        return Reply::text(format!("❌ *ɢᴀɢᴀʟ*\n\n> Reply pesan sticker, bukan {label}"));
     }
 
     let input = ctx.text.trim();
@@ -142,7 +141,9 @@ pub fn swm(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{MediaError, MediaFetch, MediaOrigin, QuotedKind, QuotedMessage};
+    use oktz_plugin_api::{
+        MediaError, MediaFetch, MediaOrigin, QuotedKind, QuotedMessage,
+    };
     use std::sync::Arc;
 
     /// WebP minimal `RIFF....WEBP` + chunk VP8L 5 byte (pola `sticker.rs`).
@@ -224,10 +225,7 @@ mod tests {
             p.meta.description,
             "Mengganti packname dan author pada sticker"
         );
-        assert_eq!(
-            p.meta.usage,
-            ".swm <packname> atau .swm <packname>|<author>"
-        );
+        assert_eq!(p.meta.usage, ".swm <packname> atau .swm <packname>|<author>");
         assert_eq!(p.meta.example, ".swm BotName");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
@@ -263,10 +261,7 @@ mod tests {
         let r = (oktz_plugin_api::find("swm").unwrap().handler)(ctx);
         let body = text_of(&r);
         assert!(body.contains("`!swm packname`"), "{body}");
-        assert!(
-            !body.contains("`.swm"),
-            "prefix lama tidak boleh bocor: {body}"
-        );
+        assert!(!body.contains("`.swm"), "prefix lama tidak boleh bocor: {body}");
     }
 
     #[test]
@@ -292,15 +287,9 @@ mod tests {
     fn a_quote_without_a_packname_asks_for_one() {
         let r = run_ok("   ", quoted(QuotedKind::Sticker));
         let body = text_of(&r);
-        assert!(
-            body.starts_with("❌ *ɢᴀɢᴀʟ*\n\n> Masukkan packname"),
-            "{body}"
-        );
+        assert!(body.starts_with("❌ *ɢᴀɢᴀʟ*\n\n> Masukkan packname"), "{body}");
         assert!(body.contains("> `.swm Foto-AI`"), "{body}");
-        assert!(
-            body.contains("> `.swm Foto-AI|LuckyArchz` _(+ author)_"),
-            "{body}"
-        );
+        assert!(body.contains("> `.swm Foto-AI|LuckyArchz` _(+ author)_"), "{body}");
         assert!(matches!(r, Reply::Text { .. }), "tanpa mutasi apa pun");
     }
 
@@ -326,10 +315,7 @@ mod tests {
             split_input("Foto-AI|   "),
             ("Foto-AI".to_string(), String::new())
         );
-        assert_eq!(
-            split_input("Foto-AI"),
-            ("Foto-AI".to_string(), String::new())
-        );
+        assert_eq!(split_input("Foto-AI"), ("Foto-AI".to_string(), String::new()));
     }
 
     #[test]
@@ -365,21 +351,13 @@ mod tests {
 
     #[test]
     fn a_failed_or_empty_download_reports_the_js_message() {
-        let r = run(
-            "Foto-AI",
-            quoted(QuotedKind::Sticker),
-            Arc::new(Unduh(Err(()))),
-        );
+        let r = run("Foto-AI", quoted(QuotedKind::Sticker), Arc::new(Unduh(Err(()))));
         assert_eq!(text_of(&r), GAGAL_UNDUH);
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),
             "harus bereaksi ❌"
         );
-        let r = run(
-            "Foto-AI",
-            quoted(QuotedKind::Sticker),
-            Arc::new(Unduh(Ok(Vec::new()))),
-        );
+        let r = run("Foto-AI", quoted(QuotedKind::Sticker), Arc::new(Unduh(Ok(Vec::new()))));
         assert_eq!(text_of(&r), GAGAL_UNDUH);
     }
 

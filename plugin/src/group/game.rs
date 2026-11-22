@@ -45,11 +45,7 @@ pub(crate) fn applied(is_enable: bool) -> String {
     };
     format!(
         "✅ Berhasil *{}* fitur game di grup ini!\n\n{tail}",
-        if is_enable {
-            "MENGAKTIFKAN"
-        } else {
-            "MENONAKTIFKAN"
-        },
+        if is_enable { "MENGAKTIFKAN" } else { "MENONAKTIFKAN" },
     )
 }
 
@@ -142,10 +138,7 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_back_to_this_plugin() {
-        assert_eq!(
-            oktz_plugin_api::find("togglegame").unwrap().meta.name,
-            "game"
-        );
+        assert_eq!(oktz_plugin_api::find("togglegame").unwrap().meta.name, "game");
     }
 
     #[test]
@@ -156,10 +149,7 @@ mod tests {
                 text_of(&r).starts_with("🎮 *FITUR GAME GRUP*"),
                 "input {bad:?} harus menampilkan help"
             );
-            assert!(
-                r.mutations().is_empty(),
-                "input {bad:?} tidak boleh menulis"
-            );
+            assert!(r.mutations().is_empty(), "input {bad:?} tidak boleh menulis");
         }
     }
 
@@ -167,12 +157,7 @@ mod tests {
     fn the_help_branch_never_reads_the_stored_flag() {
         // Argumen diperiksa duluan; store dengan `game`Whatever tidak
         // boleh mengubah balasannya.
-        for g in [
-            serde_json::json!({"game": true}),
-            serde_json::json!({"game": false}),
-            serde_json::json!({}),
-            serde_json::json!(null),
-        ] {
+        for g in [serde_json::json!({"game": true}), serde_json::json!({"game": false}), serde_json::json!({}), serde_json::json!(null)] {
             let r = run(g.clone(), "");
             assert!(text_of(&r).starts_with("🎮 *FITUR GAME GRUP*"), "input {g}");
         }
@@ -227,10 +212,7 @@ mod tests {
         assert!(current(&g(serde_json::json!(true))));
         assert!(!current(&g(serde_json::json!(false))));
         assert!(!current(&g(serde_json::json!(0))), "0 falsy di JS");
-        assert!(
-            !current(&g(serde_json::json!(""))),
-            "string kosong falsy di JS"
-        );
+        assert!(!current(&g(serde_json::json!(""))), "string kosong falsy di JS");
         assert!(current(&Ctx::default()), "key hilang = default setGroup");
     }
 
@@ -249,11 +231,7 @@ mod tests {
         }
         for arg in ["OFF", "Off", "off"] {
             let r = run(serde_json::json!({"game": true}), arg);
-            assert_eq!(
-                group_write(&r)["game"],
-                serde_json::json!(false),
-                "arg {arg:?}"
-            );
+            assert_eq!(group_write(&r)["game"], serde_json::json!(false), "arg {arg:?}");
         }
     }
 

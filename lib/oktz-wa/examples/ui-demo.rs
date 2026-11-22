@@ -19,10 +19,7 @@ fn main() {
     ui::sistem(
         "launcher",
         ui::KUNING,
-        &format!(
-            "node v22.23.3 · {}",
-            ui::f(ui::ABU, "TZ Asia/Jakarta · rss 41.2 MB")
-        ),
+        &format!("node v22.23.3 · {}", ui::f(ui::ABU, "TZ Asia/Jakarta · rss 41.2 MB")),
     );
     ui::sistem(
         "plugin",
@@ -51,56 +48,26 @@ fn main() {
     );
 
     // chat biasa (bukan command) → tanpa tanda
-    ui::pesan_masuk(
-        ts(2, 41, 5),
-        "budi",
-        "Keluarga Semur",
-        "Woy pada! *jangan lupa* jam 3 siang ya",
-    );
+    ui::pesan_masuk(ts(2, 41, 5), "budi", "Keluarga Semur", "Woy pada! *jangan lupa* jam 3 siang ya");
     ui::pesan_masuk(ts(2, 41, 38), "siti", "pribadi", "halo bot, .menu dong");
     ui::status_kirim(ts(2, 41, 39), true, "siti", 1.234, None);
 
     ui::sistem(
         "turso",
         ui::CYAN,
-        &format!(
-            "flush {} {}",
-            ui::f("", "12"),
-            ui::f(ui::ABU, "row · berikutnya 60s")
-        ),
+        &format!("flush {} {}", ui::f("", "12"), ui::f(ui::ABU, "row · berikutnya 60s")),
     );
 
     // plugin error spesifik → ✕
     ui::pesan_masuk(ts(2, 42, 11), "budi", "Keluarga Semur", ".ytmp3 lagu enak");
-    ui::status_kirim(
-        ts(2, 42, 13),
-        false,
-        "budi",
-        0.0,
-        Some("plugin: video tidak ditemukan"),
-    );
+    ui::status_kirim(ts(2, 42, 13), false, "budi", 0.0, Some("plugin: video tidak ditemukan"));
 
     // plugin error generik "Command ada kendala" → ✕
     ui::pesan_masuk(ts(2, 42, 30), "rizky", "Keluarga Semur", ".sticker png");
-    ui::status_kirim(
-        ts(2, 42, 31),
-        false,
-        "rizky",
-        0.0,
-        Some("Command ada kendala"),
-    );
+    ui::status_kirim(ts(2, 42, 31), false, "rizky", 0.0, Some("Command ada kendala"));
 
     // media masuk, bukan command → tanpa tanda
-    ui::pesan_masuk(
-        ts(2, 43, 2),
-        "budi",
-        "Keluarga Semur",
-        &format!(
-            "{} {}",
-            ui::f(ui::CYAN, "[ptt 00:47]"),
-            ui::f(ui::ABU, "82.2 KB")
-        ),
-    );
+    ui::pesan_masuk(ts(2, 43, 2), "budi", "Keluarga Semur", &format!("{} {}", ui::f(ui::CYAN, "[ptt 00:47]"), ui::f(ui::ABU, "82.2 KB")));
 
     // warning & error sistem — gaya teks, tanpa ✓/✕
     ui::sistem(
@@ -116,10 +83,6 @@ fn main() {
     ui::sistem(
         "turso",
         ui::CYAN,
-        &format!(
-            "{} {}",
-            ui::f(ui::MERAH, "flush gagal"),
-            ui::f(ui::ABU, "· koneksi ulang 5s")
-        ),
+        &format!("{} {}", ui::f(ui::MERAH, "flush gagal"), ui::f(ui::ABU, "· koneksi ulang 5s")),
     );
 }

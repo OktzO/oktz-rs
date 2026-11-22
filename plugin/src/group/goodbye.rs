@@ -137,7 +137,7 @@ pub fn goodbye(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::find;
-    use serde_json::Value;
+    use serde_json::{Value};
 
     const CHAT: &str = "120363@g.us";
 
@@ -156,10 +156,7 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn written(r: &Reply) -> Value {
@@ -201,26 +198,17 @@ mod tests {
     #[test]
     fn on_writes_both_flags_and_says_nothing_more() {
         let r = run(&["on"], serde_json::json!({}), false);
-        assert_eq!(
-            written(&r),
-            serde_json::json!({ "goodbye": true, "leave": true })
-        );
+        assert_eq!(written(&r), serde_json::json!({ "goodbye": true, "leave": true }));
         let t = text_of(&r);
         assert!(t.starts_with("✅ *ɢᴏᴏᴅʙʏᴇ ᴀᴋᴛɪꜰ*"), "{t}");
         assert!(t.contains("> Goodbye message berhasil diaktifkan!"), "{t}");
-        assert!(
-            t.ends_with("_Gunakan `.setgoodbye` untuk custom pesan._"),
-            "{t}"
-        );
+        assert!(t.ends_with("_Gunakan `.setgoodbye` untuk custom pesan._"), "{t}");
     }
 
     #[test]
     fn off_writes_both_flags_off() {
         let r = run(&["off"], serde_json::json!({ "goodbye": true }), false);
-        assert_eq!(
-            written(&r),
-            serde_json::json!({ "goodbye": false, "leave": false })
-        );
+        assert_eq!(written(&r), serde_json::json!({ "goodbye": false, "leave": false }));
         assert_eq!(
             text_of(&r),
             "❌ *ɢᴏᴏᴅʙʏᴇ ɴᴏɴᴀᴋᴛɪꜰ*\n\n> Goodbye message berhasil dinonaktifkan.\n> Member yang keluar tidak akan diberi pesan."
@@ -233,10 +221,7 @@ mod tests {
         let t = text_of(&r);
         assert!(t.starts_with("⚠️ *ɢᴏᴏᴅʙʏᴇ ᴀʟʀᴇᴀᴅʏ ᴀᴄᴛɪᴠᴇ*"), "{t}");
         assert!(t.contains("> Status: *✅ ON*"), "{t}");
-        assert!(
-            t.ends_with("_Gunakan `.goodbye off` untuk menonaktifkan._"),
-            "{t}"
-        );
+        assert!(t.ends_with("_Gunakan `.goodbye off` untuk menonaktifkan._"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
@@ -252,38 +237,23 @@ mod tests {
     #[test]
     fn a_non_boolean_goodbye_flag_counts_as_off() {
         // `groupData.goodbye === true` — string `"true"` bukan `true`.
-        for stored in [
-            serde_json::json!("true"),
-            serde_json::json!(1),
-            serde_json::json!(null),
-            serde_json::json!("yes"),
-        ] {
+        for stored in [serde_json::json!("true"), serde_json::json!(1), serde_json::json!(null), serde_json::json!("yes")] {
             let r = run(&["on"], serde_json::json!({ "goodbye": stored }), false);
-            assert_eq!(
-                written(&r),
-                serde_json::json!({ "goodbye": true, "leave": true }),
-                "{stored}"
-            );
+            assert_eq!(written(&r), serde_json::json!({ "goodbye": true, "leave": true }), "{stored}");
         }
     }
 
     #[test]
     fn without_an_action_it_only_prints_the_settings_board() {
-        for group in [
-            serde_json::json!({}),
-            serde_json::json!({ "goodbye": true }),
-        ] {
+        for group in [serde_json::json!({}), serde_json::json!({ "goodbye": true })] {
             let r = run(&[], group.clone(), false);
             let t = text_of(&r);
             let on = group["goodbye"] == serde_json::json!(true);
-            assert!(t.starts_with("👋 *ɢᴏᴏᴅʙʏᴇ sᴇᴛᴛɪɴɢs*"), "{group}: {t}");
             assert!(
-                t.contains(&format!(
-                    "> Status: *{}*",
-                    if on { "✅ ON" } else { "❌ OFF" }
-                )),
-                "{t}"
+                t.starts_with("👋 *ɢᴏᴏᴅʙʏᴇ sᴇᴛᴛɪɴɢs*"),
+                "{group}: {t}"
             );
+            assert!(t.contains(&format!("> Status: *{}*", if on { "✅ ON" } else { "❌ OFF" })), "{t}");
             assert!(r.mutations().is_empty(), "{group} tidak boleh menulis");
         }
     }
@@ -319,14 +289,8 @@ mod tests {
         // yang dipakai, bukan pesan sukses "diaktifkan di N grup".
         for args in [vec!["on", "all"], vec!["off", "all"]] {
             let r = run(&args, serde_json::json!({}), true);
-            assert!(
-                text_of(&r).starts_with("☢ Ehhh~ command `.goodbye`"),
-                "{args:?}"
-            );
-            assert!(
-                r.mutations().is_empty(),
-                "{args:?} tidak boleh menulis ke store"
-            );
+            assert!(text_of(&r).starts_with("☢ Ehhh~ command `.goodbye`"), "{args:?}");
+            assert!(r.mutations().is_empty(), "{args:?} tidak boleh menulis ke store");
             match r.without_mutations() {
                 Reply::Reaction { emoji, .. } => assert_eq!(emoji, "☢", "{args:?}"),
                 other => panic!("harus Reaction, dapat {other:?}"),
@@ -337,25 +301,15 @@ mod tests {
     #[test]
     fn a_bare_on_never_takes_the_global_branch() {
         let r = run(&["on"], serde_json::json!({}), true);
-        assert_eq!(
-            written(&r),
-            serde_json::json!({ "goodbye": true, "leave": true })
-        );
+        assert_eq!(written(&r), serde_json::json!({ "goodbye": true, "leave": true }));
         assert!(text_of(&r).starts_with("✅ *ɢᴏᴏᴅʙʏᴇ ᴀᴋᴛɪꜰ*"));
     }
 
     #[test]
     fn the_subcommands_are_lowercased_before_matching() {
         let r = run(&["ON"], serde_json::json!({}), false);
-        assert_eq!(
-            written(&r),
-            serde_json::json!({ "goodbye": true, "leave": true })
-        );
-        let r = run(
-            &["OFF", "ALL"],
-            serde_json::json!({ "goodbye": true }),
-            false,
-        );
+        assert_eq!(written(&r), serde_json::json!({ "goodbye": true, "leave": true }));
+        let r = run(&["OFF", "ALL"], serde_json::json!({ "goodbye": true }), false);
         assert_eq!(text_of(&r), OWNER_ONLY);
     }
 }

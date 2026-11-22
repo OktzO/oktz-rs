@@ -57,6 +57,7 @@ pub fn unmutegc(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
+
     fn run(prefix: &str, group: Value) -> Reply {
         let ctx = Ctx {
             prefix: prefix.into(),
@@ -116,10 +117,7 @@ mod tests {
 
     #[test]
     fn unmuting_writes_false_and_names_the_group() {
-        let r = run(
-            ".",
-            serde_json::json!({"mutegc": true, "name": "Grup Diskusi"}),
-        );
+        let r = run(".", serde_json::json!({"mutegc": true, "name": "Grup Diskusi"}));
         assert_eq!(
             text_of(&r),
             "🔊 *Mute GC Nonaktif*\n\n\
@@ -133,16 +131,8 @@ mod tests {
     #[test]
     fn a_group_that_is_not_muted_is_left_alone() {
         // `if (!groupData.mutegc)` = `m0`, jadi `0`/`""`/`null` ikut nonaktif.
-        for falsy in [
-            serde_json::json!(false),
-            serde_json::json!(0),
-            serde_json::json!(""),
-            serde_json::json!(null),
-        ] {
-            let r = run(
-                ".",
-                serde_json::json!({"mutegc": falsy.clone(), "name": "G"}),
-            );
+        for falsy in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
+            let r = run(".", serde_json::json!({"mutegc": falsy.clone(), "name": "G"}));
             assert_eq!(text_of(&r), ALREADY_OFF, "mutegc={falsy}");
             assert!(
                 r.mutations().is_empty(),
@@ -156,12 +146,7 @@ mod tests {
 
     #[test]
     fn a_truthy_stored_flag_lets_the_write_through() {
-        for truthy in [
-            serde_json::json!(true),
-            serde_json::json!(1),
-            serde_json::json!("ya"),
-            serde_json::json!({}),
-        ] {
+        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
             let r = run(".", serde_json::json!({"mutegc": truthy.clone()}));
             assert_eq!(
                 group_write(&r),

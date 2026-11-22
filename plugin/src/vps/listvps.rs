@@ -91,7 +91,10 @@ pub fn listvps(ctx: Ctx) -> Reply {
     let response = match ctx.http.call(&call) {
         Ok(r) => r,
         Err(_) => {
-            return Reply::sequence(vec![progres, Reply::text(error_template(&ctx))]);
+            return Reply::sequence(vec![
+                progres,
+                Reply::text(error_template(&ctx)),
+            ]);
         }
     };
     let droplets: Vec<Value> = response

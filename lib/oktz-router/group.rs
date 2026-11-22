@@ -315,13 +315,13 @@ pub fn default_gate_chain() -> GroupGuard {
         Gate::new("antitagsw", gate_antitagsw),      // connection.js:1479 (sebelum antiswgc)
         Gate::new("antiswgc", gate_anti_swgc),       // handler.js:794
         Gate::new("antidocument", gate_antidocument), // handler.js:797
-        Gate::new("antibot", gate_antibot),          // handler.js:802
-        Gate::new("mute", gate_mute),                // handler.js:809
-        Gate::new("mutedmember", gate_muted_member), // handler.js:818
-        Gate::new("mutegc", gate_mutegc),            // handler.js:827
-        Gate::new("slowmode", gate_slowmode),        // handler.js:844
-        Gate::new("antisticker", gate_antisticker),  // handler.js:1458 (later)
-        Gate::new("antimedia", gate_antimedia),      // handler.js:1463 (later)
+        Gate::new("antibot", gate_antibot),           // handler.js:802
+        Gate::new("mute", gate_mute),                 // handler.js:809
+        Gate::new("mutedmember", gate_muted_member),  // handler.js:818
+        Gate::new("mutegc", gate_mutegc),             // handler.js:827
+        Gate::new("slowmode", gate_slowmode),         // handler.js:844
+        Gate::new("antisticker", gate_antisticker),   // handler.js:1458 (later)
+        Gate::new("antimedia", gate_antimedia),       // handler.js:1463 (later)
                                                      // Dilewati: checkSpam (butuh `spamTracker`
                                                      // lintas pesan + `handleSpamAction` yang
                                                      // TIDAK return di JS → butuh Decision
@@ -687,10 +687,9 @@ fn gate_antitagsw(input: &GateInput<'_>) -> GateOutcome {
     } else {
         sender
     };
-    GateOutcome::Decide(Decision::DeleteAndReply(msg(
-        ANTITAGSW,
-        &sender_tag(&tag_source),
-    )))
+    GateOutcome::Decide(Decision::DeleteAndReply(
+        msg(ANTITAGSW, &sender_tag(&tag_source)),
+    ))
 }
 
 fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
@@ -718,10 +717,9 @@ fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
         return GateOutcome::Pass;
     }
     if let Some(lid) = &input.env.bot_lid
-        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid)
-    {
-        return GateOutcome::Pass;
-    }
+        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid) {
+            return GateOutcome::Pass;
+        }
     if !input.env.metadata_available {
         // JS: `await sock.groupMetadata(chatId)` gagal → `catch` (:2140) →
         // `return false` → gate dilewati SENYAP.
@@ -891,11 +889,7 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     }
     let mut score: u32 = 0;
     let upper = id.to_ascii_uppercase();
-    if upper.starts_with("BAE5")
-        || upper.starts_with("B24E")
-        || upper.starts_with("94DD")
-        || upper.starts_with("B1E")
-    {
+    if upper.starts_with("BAE5") || upper.starts_with("B24E") || upper.starts_with("94DD") || upper.starts_with("B1E") {
         score += 5;
     } else if upper.starts_with("3EB0") && upper.len() == 22 {
         score += 4;
@@ -906,8 +900,7 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     } else if id.len() < 20 && !id.contains('-') {
         score += 2;
     }
-    if id.chars().any(|ch| ch.is_ascii_lowercase()) && !id.starts_with("3EB0") && !id.contains('-')
-    {
+    if id.chars().any(|ch| ch.is_ascii_lowercase()) && !id.starts_with("3EB0") && !id.contains('-') {
         score += 4;
     }
     if ![16, 20, 22, 32].contains(&id.len()) && !id.contains('-') {
@@ -917,10 +910,7 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     if let Some(part) = c.participant.as_deref()
         && let Some(at) = part.find(':')
         && part[at + 1..].starts_with(|ch: char| ch.is_ascii_digit())
-        && let Some(device) = part[at + 1..]
-            .split('@')
-            .next()
-            .and_then(|d| d.parse::<u32>().ok())
+        && let Some(device) = part[at + 1..].split('@').next().and_then(|d| d.parse::<u32>().ok())
         && device > 20
     {
         score += 2;
@@ -928,10 +918,7 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     let push = c.push_name.trim().to_lowercase();
     if push.is_empty() || push == "unknown" || push == "undefined" || push == "null" {
         score += 1;
-    } else if ["bot", "system", "admin", "owner", "host", "panel"]
-        .iter()
-        .any(|w| push.contains(w))
-    {
+    } else if ["bot", "system", "admin", "owner", "host", "panel"].iter().any(|w| push.contains(w)) {
         score += 2;
     }
     BotAnalysis { is_bot: score >= 5 }
@@ -2391,16 +2378,13 @@ fn is_punycode(text: &str) -> bool {
     let chars: Vec<char> = lower.chars().collect();
     let n = chars.len();
     for i in 0..n.saturating_sub(4) {
-        if chars[i] == 'x'
-            && chars[i + 1] == 'n'
-            && chars[i + 2] == '-'
-            && chars[i + 3] == '-'
+        if chars[i] == 'x' && chars[i + 1] == 'n' && chars[i + 2] == '-' && chars[i + 3] == '-'
             && chars[i + 4..]
                 .iter()
                 .any(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
-        {
-            return true;
-        }
+            {
+                return true;
+            }
     }
     false
 }
@@ -3106,9 +3090,10 @@ fn class_matches(spec: &ClassSpec, c: char, fold: bool) -> bool {
         if let Some(lo) = c.to_lowercase().next() {
             hit = raw_hit(lo);
         }
-        if !hit && let Some(up) = c.to_uppercase().next() {
-            hit = raw_hit(up);
-        }
+        if !hit
+            && let Some(up) = c.to_uppercase().next() {
+                hit = raw_hit(up);
+            }
     }
     hit != spec.negated
 }
@@ -4082,17 +4067,16 @@ fn analyze_branch(src: &[char], state: &mut AnalysisState) -> BranchRead {
             next
         };
         if let Some(previous) = items.last()
-            && previous.expansive
-            && sets_overlap(&previous.set, &item.set)
-        {
-            if item.quantified {
-                if reason.is_none() {
-                    reason = Some(reject_overlap_stacked());
-                }
-            } else if (item.expansive || item.single_char) && reason.is_none() {
-                reason = Some(reject_overlap_swallow());
+            && previous.expansive && sets_overlap(&previous.set, &item.set) {
+                if item.quantified {
+                    if reason.is_none() {
+                        reason = Some(reject_overlap_stacked());
+                    }
+                } else if (item.expansive || item.single_char)
+                    && reason.is_none() {
+                        reason = Some(reject_overlap_swallow());
+                    }
             }
-        }
         if unbounded {
             state.unbounded += 1;
         }
@@ -4203,10 +4187,9 @@ fn analyze_alternation(src: &[char]) -> Analysis {
             can_match_empty = true;
         }
         if let Some(pf) = &previous_first
-            && sets_overlap(pf, &head.set)
-        {
-            overlapping_branches = true;
-        }
+            && sets_overlap(pf, &head.set) {
+                overlapping_branches = true;
+            }
         set_union(&mut first, &head.set);
         previous_first = Some(head.set.clone());
     }
@@ -6487,9 +6470,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(
-            match_custom_rule("halo bro ini GOBLOK banget", std::slice::from_ref(&rule)).is_some()
-        );
+        assert!(match_custom_rule("halo bro ini GOBLOK banget", std::slice::from_ref(&rule)).is_some());
         assert!(match_custom_rule("halo bro ini bersih", std::slice::from_ref(&rule)).is_none());
 
         // "regex aman tetap jalan".
@@ -6558,11 +6539,7 @@ mod tests {
             },
         );
         assert!(
-            match_custom_rule(
-                &format!("{}zztoken", "x".repeat(600)),
-                std::slice::from_ref(&far)
-            )
-            .is_none()
+            match_custom_rule(&format!("{}zztoken", "x".repeat(600)), std::slice::from_ref(&far)).is_none()
         );
         assert!(match_custom_rule(&format!("{}zztoken", "x".repeat(500)), &[far]).is_some());
 
@@ -7327,10 +7304,7 @@ mod tests {
 
     #[test]
     fn antimedia_deletes_media_types() {
-        let s = GroupSettings {
-            antimedia: true,
-            ..Default::default()
-        };
+        let s = GroupSettings { antimedia: true, ..Default::default() };
         for set in ["image", "video", "gif", "audio", "document"] {
             let mut c = caller();
             match set {
@@ -7358,22 +7332,13 @@ mod tests {
             run_one(gate_antimedia, &c, &GroupSettings::default(), &env()),
             GateOutcome::Pass
         );
-        let s = GroupSettings {
-            antimedia: true,
-            ..Default::default()
-        };
-        assert_eq!(
-            run_one(gate_antimedia, &caller(), &s, &env()),
-            GateOutcome::Pass
-        );
+        let s = GroupSettings { antimedia: true, ..Default::default() };
+        assert_eq!(run_one(gate_antimedia, &caller(), &s, &env()), GateOutcome::Pass);
     }
 
     #[test]
     fn antisticker_deletes_sticker() {
-        let s = GroupSettings {
-            antisticker: true,
-            ..Default::default()
-        };
+        let s = GroupSettings { antisticker: true, ..Default::default() };
         let mut c = caller();
         c.is_sticker = true;
         assert_eq!(
@@ -7392,39 +7357,29 @@ mod tests {
 
     #[test]
     fn antibot_bae5_id_is_kicked() {
-        let s = GroupSettings {
-            antibot: true,
-            ..Default::default()
-        };
+        let s = GroupSettings { antibot: true, ..Default::default() };
         let mut c = caller();
         c.message_id = "BAE5abc123def456ghi".into();
         assert_eq!(
             run_one(gate_antibot, &c, &s, &env()),
-            GateOutcome::Decide(Decision::KickAndReply(ANTIBOT.replace("%user%", "628111")))
+            GateOutcome::Decide(Decision::KickAndReply(
+                ANTIBOT.replace("%user%", "628111")
+            ))
         );
     }
 
     #[test]
     fn antibot_normal_id_passes() {
-        let s = GroupSettings {
-            antibot: true,
-            ..Default::default()
-        };
+        let s = GroupSettings { antibot: true, ..Default::default() };
         let mut c = caller();
         c.message_id = "3EB0ABCD1234567890AB".into();
         assert_eq!(run_one(gate_antibot, &c, &s, &env()), GateOutcome::Pass);
-        assert_eq!(
-            run_one(gate_antibot, &caller(), &s, &env()),
-            GateOutcome::Pass
-        );
+        assert_eq!(run_one(gate_antibot, &caller(), &s, &env()), GateOutcome::Pass);
     }
 
     #[test]
     fn antibot_admin_exempt_and_off_passes() {
-        let s = GroupSettings {
-            antibot: true,
-            ..Default::default()
-        };
+        let s = GroupSettings { antibot: true, ..Default::default() };
         let mut c = caller();
         c.message_id = "BAE5abc123def456ghi".into();
         c.is_admin = true;

@@ -63,8 +63,7 @@ pub fn quilbot(ctx: Ctx) -> Reply {
     let url = format!("{ENDPOINT}?text={}", encode_uri_component(&text));
     // `quillbot.js:46-50` memakai pesan sendiri, bukan template error global.
     let Some(body) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
-        return Reply::text("😔 Terjadi kesalahan saat memproses teks ke Quillbot.")
-            .with_reaction("☢");
+        return Reply::text("😔 Terjadi kesalahan saat memproses teks ke Quillbot.").with_reaction("☢");
     };
 
     if falsy(body.get("status")) || falsy(body.get("result")) {
@@ -81,10 +80,10 @@ pub fn quilbot(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use oktz_plugin_api::HttpGet;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
     use serde_json::Value;
+    use super::*;
+    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -165,10 +164,7 @@ mod tests {
     #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("quilbot").unwrap();
-        assert_eq!(
-            p.meta.name, "quilbot",
-            "typo nama di JS harus dipertahankan"
-        );
+        assert_eq!(p.meta.name, "quilbot", "typo nama di JS harus dipertahankan");
         assert_eq!(p.meta.alias, ["quillbot", "parafrase"]);
         assert_eq!(p.meta.category, "ai");
         assert_eq!(
@@ -199,14 +195,8 @@ mod tests {
         let http = Stub::ok("");
         let __balasan = run(http.clone(), "  ", "");
         let t = body(&__balasan);
-        assert!(
-            t.contains("❌ Masukkan teks yang ingin disempurnakan."),
-            "{t}"
-        );
-        assert!(
-            t.contains("`.quilbot Saya sedang makan nasi di rumah`"),
-            "{t}"
-        );
+        assert!(t.contains("❌ Masukkan teks yang ingin disempurnakan."), "{t}");
+        assert!(t.contains("`.quilbot Saya sedang makan nasi di rumah`"), "{t}");
         assert!(http.seen.lock().unwrap().is_empty());
     }
 

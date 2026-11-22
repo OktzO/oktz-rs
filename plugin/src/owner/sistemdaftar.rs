@@ -25,7 +25,9 @@ const KEY: &str = "registrationRequired";
 
 /// Status saat ini (`sistemdaftar.js:68-69`).
 fn status(ctx: &Ctx) -> bool {
-    ctx.setting(KEY).and_then(|v| v.as_bool()).unwrap_or(false)
+    ctx.setting(KEY)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 /// Statistik pendaftaran — selalu nol (lihat catatan modul).
@@ -49,11 +51,7 @@ fn teks_status(ctx: &Ctx, on: bool) -> String {
          > `{}sistemdaftar off` - Matikan wajib daftar\n\
          > `{}sistemdaftar stats` - Lihat statistik\n\n\
          > Jika ON, user harus `{}daftar` sebelum pakai command",
-        if on {
-            "✅ ON (Wajib Daftar)"
-        } else {
-            "❌ OFF"
-        },
+        if on { "✅ ON (Wajib Daftar)" } else { "❌ OFF" },
         ctx.prefix,
         ctx.prefix,
         ctx.prefix,
@@ -73,11 +71,7 @@ fn teks_statistik(on: bool) -> String {
          ┃ Unreg hari ini: *{unreg}*\n\
          ┃ Sesi aktif: *{sesi}*\n\
          ╰┈┈┈┈┈┈┈┈⬡",
-        if on {
-            "✅ ON (Wajib Daftar)"
-        } else {
-            "❌ OFF"
-        }
+        if on { "✅ ON (Wajib Daftar)" } else { "❌ OFF" }
     )
 }
 
@@ -159,10 +153,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn nilai_setting(r: &Reply) -> Option<serde_json::Value> {
@@ -200,36 +191,23 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["regmode", "wajibdaftar", "togglereg"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("sistemdaftar"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("sistemdaftar"), "{a}");
         }
     }
 
     #[test]
     fn tanpa_argumen_menampilkan_status_off() {
         let t = teks(&run("", serde_json::Value::Null));
-        assert!(
-            t.starts_with("⚙️ *sɪsᴛᴇᴍ ᴅᴀꜰᴛᴀʀ*\n\nStatus: ❌ OFF\n\n"),
-            "{t}"
-        );
+        assert!(t.starts_with("⚙️ *sɪsᴛᴇᴍ ᴅᴀꜰᴛᴀʀ*\n\nStatus: ❌ OFF\n\n"), "{t}");
         assert!(t.contains("> Total registered: *0*"), "{t}");
         assert!(t.contains("> Sesi aktif: *0*"), "{t}");
         assert!(t.contains("> `.sistemdaftar on` - Wajibkan daftar"), "{t}");
-        assert!(
-            t.contains("> Jika ON, user harus `.daftar` sebelum pakai command"),
-            "{t}"
-        );
+        assert!(t.contains("> Jika ON, user harus `.daftar` sebelum pakai command"), "{t}");
     }
 
     #[test]
     fn status_on_terbaca_dari_setting() {
-        let t = teks(&run(
-            "",
-            serde_json::json!({ "registrationRequired": true }),
-        ));
+        let t = teks(&run("", serde_json::json!({ "registrationRequired": true })));
         assert!(t.contains("Status: ✅ ON (Wajib Daftar)"), "{t}");
     }
 

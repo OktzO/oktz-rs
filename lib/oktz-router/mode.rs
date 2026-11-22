@@ -70,15 +70,9 @@ pub enum DenyMode {
     /// `middleware.js:158-172`. Membawa `botAfk.reason` dan durasi, karena
     /// keduanya ditulis ke teks balasan — enum tanpa payload berarti
     /// menampilkan kalimat yang tidak sama dengan yang produksi.
-    Afk {
-        reason: String,
-        elapsed_ms: i64,
-    },
+    Afk { reason: String, elapsed_ms: i64 },
     /// `middleware.js:178-187`. Membawa nama dan link grup utama.
-    OnlyThisGroup {
-        name: String,
-        link: String,
-    },
+    OnlyThisGroup { name: String, link: String },
     SelfGroup,
 }
 
@@ -324,12 +318,7 @@ pub fn group_feature_mode(
 }
 
 /// Pesan deny untuk gate botMode — port dari handler.js:1770-1782.
-pub fn group_mode_denied_message(
-    mode: &GroupBotMode,
-    category: &str,
-    prefix: &str,
-    command: &str,
-) -> String {
+pub fn group_mode_denied_message(mode: &GroupBotMode, category: &str, prefix: &str, command: &str) -> String {
     let suggested = suggested_mode(category);
     let suggested_name = GroupBotMode::parse(suggested).display_name();
     format!(
@@ -384,13 +373,7 @@ mod tests {
             afk_active: true,
             ..Default::default()
         };
-        assert_eq!(
-            check_mode(&caller(), &s, None, 0),
-            Err(DenyMode::Afk {
-                reason: "AFK".into(),
-                elapsed_ms: 0
-            })
-        );
+        assert_eq!(check_mode(&caller(), &s, None, 0), Err(DenyMode::Afk { reason: "AFK".into(), elapsed_ms: 0 }));
     }
 
     #[test]
@@ -423,10 +406,7 @@ mod tests {
             only_pc: true,
             ..Default::default()
         };
-        assert_eq!(
-            check_mode(&group_caller(), &s, None, 0),
-            Err(DenyMode::Silent)
-        );
+        assert_eq!(check_mode(&group_caller(), &s, None, 0), Err(DenyMode::Silent));
         assert_eq!(check_mode(&caller(), &s, None, 0), Ok(()));
     }
 
@@ -457,10 +437,7 @@ mod tests {
             only_admin: true,
             ..Default::default()
         };
-        assert_eq!(
-            check_mode(&group_caller(), &s, None, 0),
-            Err(DenyMode::Silent)
-        );
+        assert_eq!(check_mode(&group_caller(), &s, None, 0), Err(DenyMode::Silent));
         // Private tetap lolos walau onlyAdmin.
         assert_eq!(check_mode(&caller(), &s, None, 0), Ok(()));
     }
@@ -550,14 +527,8 @@ mod tests {
         let main = meta_cat("main");
         let mut c = group_caller();
         c.command = "x".into();
-        assert_eq!(
-            group_feature_mode(&c, &panel, None, "cpanel", false),
-            Ok(())
-        );
-        assert_eq!(
-            group_feature_mode(&c, &tools, None, "cpanel", false),
-            Ok(())
-        );
+        assert_eq!(group_feature_mode(&c, &panel, None, "cpanel", false), Ok(()));
+        assert_eq!(group_feature_mode(&c, &tools, None, "cpanel", false), Ok(()));
         assert_eq!(group_feature_mode(&c, &main, None, "cpanel", false), Ok(()));
     }
 
@@ -576,10 +547,7 @@ mod tests {
         let mut c = group_caller();
         c.command = "store".into();
         // Tanpa jadibot, md mode memblokir store. Dengan jadibot, lolos.
-        assert_eq!(
-            group_feature_mode(&c, &m, None, "md", false),
-            Err(GroupFeatureDenied)
-        );
+        assert_eq!(group_feature_mode(&c, &m, None, "md", false), Err(GroupFeatureDenied));
         assert_eq!(group_feature_mode(&c, &m, None, "md", true), Ok(()));
     }
 

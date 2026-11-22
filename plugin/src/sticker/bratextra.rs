@@ -8,7 +8,9 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 pub(crate) fn help(prefix: &str, cmd: &str) -> String {
-    format!("⚠️ Harap masukkan teksnya!\nContoh: `{prefix}{cmd} Halo semuanya`")
+    format!(
+        "⚠️ Harap masukkan teksnya!\nContoh: `{prefix}{cmd} Halo semuanya`"
+    )
 }
 
 #[plugin(
@@ -38,8 +40,8 @@ pub fn bratextra(ctx: Ctx) -> Reply {
 
     // `bratextra.js` butuh:
     //   1. `@napi-rs/canvas` (createCanvas, loadImage, GlobalFonts) — render
-    //      teks di atas template gambar. Tidak ada crate canvas di dependensi
-    //      `oktz-plugins`.
+      //      teks di atas template gambar. Tidak ada crate canvas di dependensi
+      //      `oktz-plugins`.
     //   2. `fetch(url)` → buffer template + font dari GitHub — bisa via
     //      `ctx.http`, tapi rendering ulang pixel-per-pixel harus sama persis
     //      dengan JS (tokenisasi emoji, line wrap, rotasi, menurunkan fontSize
@@ -80,25 +82,12 @@ mod tests {
     #[test]
     fn semua_alias_pakai_handler_sama() {
         for cmd in [
-            "bratanime",
-            "bratbahlil",
-            "brathd",
-            "bratpatrick",
-            "bratsquidward",
-            "bratwhite",
-            "bratchika",
-            "bratkobato",
-            "bratmenhera",
-            "bratnezuko",
-            "bratqiqi",
-            "bratruromiya",
+            "bratanime", "bratbahlil", "brathd", "bratpatrick", "bratsquidward", "bratwhite",
+            "bratchika", "bratkobato", "bratmenhera", "bratnezuko", "bratqiqi", "bratruromiya",
             "bratumaru",
         ] {
             let r = bratextra(ctx_of(cmd, "Halo"));
-            assert!(
-                r.text_body().unwrap().contains("Halo semuanya")
-                    || r.text_body().unwrap().contains("teksnya")
-            );
+            assert!(r.text_body().unwrap().contains("Halo semuanya") || r.text_body().unwrap().contains("teksnya"));
         }
     }
 }

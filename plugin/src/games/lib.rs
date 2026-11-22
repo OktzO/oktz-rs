@@ -190,7 +190,10 @@ pub struct RewardResult {
 /// Padanan cabang `cfg.rewards` + `checkFastAnswer` di
 /// `games.js:222-247`. `rewards` = `None` berarti `false`/`null` (tidak ada
 /// hadiah), `Some` berarti objek rewards dari config.
-pub fn calculate_rewards(rewards: Option<&RewardConfig>, fast: Option<&FastBonus>) -> RewardResult {
+pub fn calculate_rewards(
+    rewards: Option<&RewardConfig>,
+    fast: Option<&FastBonus>,
+) -> RewardResult {
     let mut total_limit = 0;
     let mut total_balance = 0;
     let mut total_exp = 0;
@@ -457,15 +460,7 @@ mod tests {
 
     #[test]
     fn build_win_text_dengan_bonus() {
-        let text = build_win_text(
-            "628111",
-            "kucing",
-            1,
-            0,
-            0,
-            0,
-            "\n⚡ *BONUS KILAT:* +5 Limit",
-        );
+        let text = build_win_text("628111", "kucing", 1, 0, 0, 0, "\n⚡ *BONUS KILAT:* +5 Limit");
         assert!(text.contains("BONUS KILAT"));
     }
 

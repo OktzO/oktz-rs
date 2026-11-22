@@ -272,19 +272,13 @@ mod tests {
             "{}",
             text_of(&r)
         );
-        assert_eq!(
-            written_afk(&r)["reason"],
-            serde_json::json!("Tidak ada alasan")
-        );
+        assert_eq!(written_afk(&r)["reason"], serde_json::json!("Tidak ada alasan"));
     }
 
     #[test]
     fn the_reason_keeps_its_inner_spacing_and_case() {
         let r = run(SENDER, "  Makan  Nasi  ");
-        assert_eq!(
-            written_afk(&r)["reason"],
-            serde_json::json!("  Makan  Nasi  ")
-        );
+        assert_eq!(written_afk(&r)["reason"], serde_json::json!("  Makan  Nasi  "));
     }
 
     #[test]

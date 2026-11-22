@@ -107,10 +107,7 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations()
-            .text_body()
-            .unwrap_or_default()
-            .to_string()
+        r.without_mutations().text_body().unwrap_or_default().to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<&str> {
@@ -138,11 +135,7 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["delpl", "hapusplugin", "removeplugin"] {
-            assert_eq!(
-                find(a).map(|e| e.meta.name.as_str()),
-                Some("delplugin"),
-                "{a}"
-            );
+            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("delplugin"), "{a}");
         }
     }
 
@@ -172,11 +165,7 @@ mod tests {
     #[test]
     fn plugin_ada_tapi_tidak_bisa_dihapus_saat_runtime() {
         let r = run("star", "Budi");
-        assert!(
-            teks(&r).contains("PENGHAPUSAN PLUGIN TIDAK TERSEDIA"),
-            "{}",
-            teks(&r)
-        );
+        assert!(teks(&r).contains("PENGHAPUSAN PLUGIN TIDAK TERSEDIA"), "{}", teks(&r));
         assert_eq!(reaksi(&r), Some("☢"));
     }
 }

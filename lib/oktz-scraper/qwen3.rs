@@ -159,9 +159,9 @@ pub fn qwen3(http: &dyn HttpGet, prompt: &str, options: &Value) -> Result<Value,
                 .and_then(|c| c.get("delta"))
                 .and_then(|d| d.get("content"))
                 .and_then(Value::as_str)
-        {
-            jawaban.push_str(content);
-        }
+            {
+                jawaban.push_str(content);
+            }
     }
 
     Ok(json!({
@@ -297,10 +297,7 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].url, "https://api.overchat.ai/v1/chat/completions");
-        assert_eq!(
-            cari_header(&p[0], "x-device-uuid"),
-            Some("dev-1".to_string())
-        );
+        assert_eq!(cari_header(&p[0], "x-device-uuid"), Some("dev-1".to_string()));
         assert_eq!(
             cari_header(&p[0], "x-device-version"),
             Some("1.0.44".to_string())

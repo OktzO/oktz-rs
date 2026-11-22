@@ -108,6 +108,7 @@ pub fn gag(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
+
     fn run() -> Reply {
         let ctx = Ctx {
             command: "gag".into(),
@@ -165,28 +166,15 @@ mod tests {
     #[test]
     fn an_empty_or_missing_section_disappears_entirely() {
         assert_eq!(format_stock(None, "⚙️ Gear Stock"), "");
-        assert_eq!(
-            format_stock(Some(&serde_json::json!([])), "⚙️ Gear Stock"),
-            ""
-        );
-        assert_eq!(
-            format_stock(Some(&serde_json::json!({})), "⚙️ Gear Stock"),
-            ""
-        );
-        assert_eq!(
-            format_stock(Some(&serde_json::json!(null)), "⚙️ Gear Stock"),
-            ""
-        );
-        assert_eq!(
-            format_stock(Some(&serde_json::json!(5)), "⚙️ Gear Stock"),
-            ""
-        );
+        assert_eq!(format_stock(Some(&serde_json::json!([])), "⚙️ Gear Stock"), "");
+        assert_eq!(format_stock(Some(&serde_json::json!({})), "⚙️ Gear Stock"), "");
+        assert_eq!(format_stock(Some(&serde_json::json!(null)), "⚙️ Gear Stock"), "");
+        assert_eq!(format_stock(Some(&serde_json::json!(5)), "⚙️ Gear Stock"), "");
     }
 
     #[test]
     fn a_section_renders_one_line_per_item_with_a_blank_line_after() {
-        let arr =
-            serde_json::json!([{"name": "watering_can", "value": 3}, {"name": "hoe", "value": 0}]);
+        let arr = serde_json::json!([{"name": "watering_can", "value": 3}, {"name": "hoe", "value": 0}]);
         assert_eq!(
             format_stock(Some(&arr), "⚙️ Gear Stock"),
             "*⚙️ Gear Stock*\n- watering_can: 3\n- hoe: 0\n\n"

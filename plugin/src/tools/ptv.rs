@@ -9,7 +9,7 @@
 //! suara (efek visual sama seperti JS yang juga memakai `gifPlayback: true`).
 //! Upgrade path: tambah flag `ptv` di `Reply::Video` + wire `videoNote`.
 
-use oktz_plugin_api::{Ctx, IncomingKind, MediaOrigin, Reply, plugin};
+use oktz_plugin_api::{plugin, Ctx, IncomingKind, MediaOrigin, Reply};
 
 fn usage(prefix: &str) -> String {
     let prefix = if prefix.is_empty() { "." } else { prefix };
@@ -43,7 +43,9 @@ pub fn ptv(ctx: Ctx) -> Reply {
         (Some(q), _) if q.kind == oktz_plugin_api::QuotedKind::Video => {
             (MediaOrigin::Quoted, "quoted")
         }
-        (None, Some(m)) if matches!(m.kind, IncomingKind::Video) => (MediaOrigin::Trigger, "pesan"),
+        (None, Some(m)) if matches!(m.kind, IncomingKind::Video) => {
+            (MediaOrigin::Trigger, "pesan")
+        }
         _ => return Reply::text(usage(&ctx.prefix)),
     };
 
@@ -66,9 +68,7 @@ pub fn ptv(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{
-        IncomingMedia, MediaError, MediaFetch, QuotedKind, QuotedMessage, Reply as R,
-    };
+    use oktz_plugin_api::{IncomingMedia, MediaError, MediaFetch, QuotedKind, QuotedMessage, Reply as R};
     use std::sync::{Arc, Mutex};
 
     /// Stub unduhan: mencatat origin, mengembalikan hasil tetap.
@@ -95,9 +95,7 @@ mod tests {
     fn stub_err(msg: &str) -> Stub {
         Stub {
             unduhan: Arc::new(Mutex::new(Vec::new())),
-            hasil: Err(MediaError {
-                message: msg.to_string(),
-            }),
+            hasil: Err(MediaError { message: msg.to_string() }),
         }
     }
 
@@ -166,12 +164,7 @@ mod tests {
         let r = run(ctx);
         assert_eq!(*stub.unduhan.lock().unwrap(), vec![MediaOrigin::Quoted]);
         match payload(&r) {
-            R::Video {
-                media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }),
-                caption,
-                gif_playback: true,
-                ..
-            } => {
+            R::Video { media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }), caption, gif_playback: true, .. } => {
                 assert_eq!(data.len(), 500);
                 assert_eq!(mimetype.as_deref(), Some("video/mp4"));
                 assert!(caption.is_empty());
@@ -208,12 +201,7 @@ mod tests {
 
     #[test]
     fn non_video_quote_shows_usage_like_js() {
-        for kind in [
-            QuotedKind::Text,
-            QuotedKind::Image,
-            QuotedKind::Audio,
-            QuotedKind::Sticker,
-        ] {
+        for kind in [QuotedKind::Text, QuotedKind::Image, QuotedKind::Audio, QuotedKind::Sticker] {
             let mut q = quoted_video();
             q.kind = kind.clone();
             let ctx = Ctx {

@@ -10,7 +10,7 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use oktz_scraper::tempmail::{temp_mail_create, temp_mail_inbox};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[plugin(
     name = "tempmail",
@@ -139,7 +139,10 @@ pub fn tempmail(ctx: Ctx) -> Reply {
                 for msg in messages {
                     let from = msg.get("from").and_then(Value::as_str).unwrap_or("-");
                     let subject = msg.get("subject").and_then(Value::as_str).unwrap_or("-");
-                    let created_at = msg.get("created_at").and_then(Value::as_str).unwrap_or("-");
+                    let created_at = msg
+                        .get("created_at")
+                        .and_then(Value::as_str)
+                        .unwrap_or("-");
                     let body_text = msg
                         .get("body_text")
                         .and_then(Value::as_str)
@@ -291,11 +294,7 @@ mod tests {
     #[test]
     fn tanpa_opsi_tampilkan_bantuan_dan_email_aktif_jika_ada() {
         let http = Stub::with_responses(vec![]);
-        let r = run(
-            http.clone(),
-            "",
-            serde_json::json!({ "tempmail": "abc@temp-mail.io" }),
-        );
+        let r = run(http.clone(), "", serde_json::json!({ "tempmail": "abc@temp-mail.io" }));
         assert!(body(&r).contains("Temp Mail"));
         assert!(body(&r).contains("Email aktif: *abc@temp-mail.io*"));
         assert!(r.mutations().is_empty());
@@ -303,17 +302,16 @@ mod tests {
 
     #[test]
     fn create_menyimpan_email_ke_user_dan_balasan_sukses() {
-        let http = Stub::with_responses(vec![(
-            "email/new".to_string(),
-            r#"{"email":"abc1234567@temp-mail.io"}"#.to_string(),
-        )]);
+        let http = Stub::with_responses(vec![
+            (
+                "email/new".to_string(),
+                r#"{"email":"abc1234567@temp-mail.io"}"#.to_string(),
+            ),
+        ]);
         let r = run(http.clone(), "create", serde_json::json!({}));
         assert_eq!(r.mutations().len(), 1);
         let data = stored_user(&r);
-        assert_eq!(
-            data.get("tempmail").and_then(Value::as_str),
-            Some("abc1234567@temp-mail.io")
-        );
+        assert_eq!(data.get("tempmail").and_then(Value::as_str), Some("abc1234567@temp-mail.io"));
         assert!(body(&r).contains("Email Sementara Dibuat!"));
         assert!(body(&r).contains("abc1234567@temp-mail.io"));
         let seen = http.seen.lock().unwrap().clone();
@@ -350,11 +348,7 @@ mod tests {
                 r#"[{"id":"1","from":"a@b.c","subject":"halo","created_at":"2026-01-01","body_text":"isi pesan"}]"#.to_string(),
             ),
         ]);
-        let r = run(
-            http,
-            "inbox",
-            serde_json::json!({ "tempmail": "abc@temp-mail.io" }),
-        );
+        let r = run(http, "inbox", serde_json::json!({ "tempmail": "abc@temp-mail.io" }));
         assert!(body(&r).contains("1 Pesan"));
         assert!(body(&r).contains("halo"));
         assert!(body(&r).contains("isi pesan"));

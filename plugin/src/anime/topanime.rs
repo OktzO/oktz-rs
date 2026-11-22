@@ -76,7 +76,10 @@ fn render_list(list: &Value) -> String {
             "- *Jepang:* {}\n",
             interp(character.get("japanese"))
         ));
-        txt.push_str(&format!("- *Anime:* {}\n", interp(character.get("anime"))));
+        txt.push_str(&format!(
+            "- *Anime:* {}\n",
+            interp(character.get("anime"))
+        ));
         txt.push_str(&format!(
             "- *Favorit:* {} | *Votes:* {}\n\n",
             interp(character.get("favorites")),
@@ -300,7 +303,9 @@ mod tests {
 
     #[test]
     fn at_most_ten_entries_are_rendered() {
-        let list: Vec<Value> = (1..=15).map(|i| entry(i, &format!("C{i}"), None)).collect();
+        let list: Vec<Value> = (1..=15)
+            .map(|i| entry(i, &format!("C{i}"), None))
+            .collect();
         let txt = render_list(&Value::Array(list));
         assert!(txt.contains("*10 - C10*"), "entri ke-10 ikut");
         assert!(!txt.contains("*11 - C11*"), "entri ke-11 harus terpotong");

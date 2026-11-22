@@ -411,7 +411,11 @@ fn e11(s: &str, i: usize, items: &mut Vec<Exported>) -> Option<(usize, String)> 
     }
     let (aw, k) = if has(s, j, "async") {
         let m = ws_fwd(s, j + 5);
-        if m > j + 5 { ("async ", m) } else { ("", j) }
+        if m > j + 5 {
+            ("async ", m)
+        } else {
+            ("", j)
+        }
     } else {
         ("", j)
     };
@@ -509,10 +513,7 @@ pub(crate) fn convert_esm_to_cjs(code: &str) -> String {
     if !items.is_empty() {
         let pairs: Vec<String> = items.iter().map(Exported::pair).collect();
         export_code.push_str(&if state.has_default {
-            format!(
-                "\nmodule.exports = {{ ...module.exports, {} }}",
-                pairs.join(", ")
-            )
+            format!("\nmodule.exports = {{ ...module.exports, {} }}", pairs.join(", "))
         } else {
             format!("\nmodule.exports = {{ {} }}", pairs.join(", "))
         });
@@ -654,24 +655,15 @@ mod tests {
     #[test]
     fn conversions_match_the_js_regex_pipeline() {
         for (src, want) in [
-            (
-                "import axios from 'axios'",
-                "const axios = require('axios')",
-            ),
+            ("import axios from 'axios'", "const axios = require('axios')"),
             (
                 "import axios, { a, b } from 'axios'",
                 "const axios = require('axios')\nconst { a, b } = require('axios')",
             ),
-            (
-                "import { a, b as c } from 'm'",
-                "const { a, b: c } = require('m')",
-            ),
+            ("import { a, b as c } from 'm'", "const { a, b: c } = require('m')"),
             ("import * as ns from 'm'", "const ns = require('m')"),
             ("import 'side-effect'", "require('side-effect')"),
-            (
-                "import {a,b,c} from 'm'",
-                "const { a, b, c } = require('m')",
-            ),
+            ("import {a,b,c} from 'm'", "const { a, b, c } = require('m')"),
             ("export default handler", "\nmodule.exports = handler"),
             ("export default { a: 1 }", "\nmodule.exports = { a: 1 }"),
             ("export { a, b as c }", "\nmodule.exports = { a, c: b }"),
@@ -679,23 +671,11 @@ mod tests {
             ("export const x = 1", "const x = 1\nmodule.exports = { x }"),
             ("export let n = 1", "let n = 1\nmodule.exports = { n }"),
             ("export var n = 1", "var n = 1\nmodule.exports = { n }"),
-            (
-                "export function run() {}",
-                "function run() {}\nmodule.exports = { run }",
-            ),
-            (
-                "export async function run() {}",
-                "async function run() {}\nmodule.exports = { run }",
-            ),
+            ("export function run() {}", "function run() {}\nmodule.exports = { run }"),
+            ("export async function run() {}", "async function run() {}\nmodule.exports = { run }"),
             ("export class K {}", "class K {}\nmodule.exports = { K }"),
-            (
-                "export * from './lib'",
-                "Object.assign(module.exports, require('./lib'))",
-            ),
-            (
-                "export *from 'm'",
-                "Object.assign(module.exports, require('m'))",
-            ),
+            ("export * from './lib'", "Object.assign(module.exports, require('./lib'))"),
+            ("export *from 'm'", "Object.assign(module.exports, require('m'))"),
             ("let z = 3", "let z = 3"),
             (
                 "export const x = 1\nexport const y = 2",
@@ -722,10 +702,7 @@ mod tests {
 
     #[test]
     fn the_state_does_not_leak_between_conversions() {
-        assert_eq!(
-            convert_esm_to_cjs("export default a"),
-            "\nmodule.exports = a"
-        );
+        assert_eq!(convert_esm_to_cjs("export default a"), "\nmodule.exports = a");
         assert_eq!(
             convert_esm_to_cjs("export const b = 1"),
             "const b = 1\nmodule.exports = { b }",

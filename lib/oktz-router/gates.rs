@@ -172,6 +172,7 @@ pub fn is_spam_exempt(caller: &Caller) -> bool {
     caller.is_owner || caller.is_premium
 }
 
+
 /// Setting dari `consumeAutoWorkQuota` (handler.js:382-408).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AutoWorkSettings {
@@ -301,6 +302,7 @@ impl AutoWorkGuard {
     }
 }
 
+
 /// Sumber deadline cooldown per `(user, command)`. Di JS ini field
 /// `user.cooldowns` di DB (`database.js:701-709`) — trait supaya caller bisa
 /// isi dengan DB-nya sendiri tanpa gate ini melakukan I/O.
@@ -388,6 +390,7 @@ pub fn set_cooldown<S: CooldownStore + ?Sized>(
     let end = now_ms.saturating_add(i64::from(cooldown_secs) * 1000);
     store.set_cooldown_end(&caller.sender, cmd_key, end);
 }
+
 
 /// Sumber/penerima saldo energi. `None` = user tidak ada di DB.
 pub trait EnergiBalance {
@@ -695,11 +698,7 @@ mod tests {
         for _ in 0..20 {
             assert!(!is_spamming(&mut rl, &owner(), USER, T0, true));
         }
-        assert_eq!(
-            rl.peek(USER, T0),
-            None,
-            "exempt tak boleh menyentuh limiter"
-        );
+        assert_eq!(rl.peek(USER, T0), None, "exempt tak boleh menyentuh limiter");
     }
 
     #[test]
@@ -781,10 +780,7 @@ mod tests {
             assert_eq!(rl.peek("k", T0), Some(i as u32 + 1));
         }
         let d = consume_auto_work(&mut rl, &user(), "k", &s, Some(10_000), T0);
-        assert!(
-            !d.allowed,
-            "limit auto-work tetap berlaku saat energi dipotong"
-        );
+        assert!(!d.allowed, "limit auto-work tetap berlaku saat energi dipotong");
         assert_eq!(d.deduct, 0, "pesan yang ditolak limiter tak boleh dipotong");
     }
 
@@ -805,14 +801,7 @@ mod tests {
     fn auto_work_owner_skips_limiter_entirely() {
         let mut rl = RateLimiter::auto_work();
         for _ in 0..50 {
-            let d = consume_auto_work(
-                &mut rl,
-                &owner(),
-                "k",
-                &AutoWorkSettings::default(),
-                Some(0),
-                T0,
-            );
+            let d = consume_auto_work(&mut rl, &owner(), "k", &AutoWorkSettings::default(), Some(0), T0);
             assert!(d.allowed, "owner selalu boleh");
             assert_eq!(d.deduct, 0, "owner tidak dipotong energi");
         }
@@ -823,14 +812,8 @@ mod tests {
     fn auto_work_premium_skips_limiter_entirely() {
         let mut rl = RateLimiter::auto_work();
         for _ in 0..50 {
-            let d = consume_auto_work(
-                &mut rl,
-                &premium(),
-                "k",
-                &AutoWorkSettings::default(),
-                Some(0),
-                T0,
-            );
+            let d =
+                consume_auto_work(&mut rl, &premium(), "k", &AutoWorkSettings::default(), Some(0), T0);
             assert!(d.allowed);
             assert_eq!(d.deduct, 0);
         }
@@ -849,15 +832,8 @@ mod tests {
         // Dan `updateEnergi` sendiri yang.skip menulis ulang saldo -1.
         let mut bal = InMemoryEnergi::default();
         bal.set_energy(USER, UNLIMITED);
-        assert_eq!(
-            update_energi(&mut bal, &user(), &EnergiSettings::default(), -1),
-            UNLIMITED
-        );
-        assert_eq!(
-            bal.energy(USER),
-            Some(UNLIMITED),
-            "saldo -1 tak boleh berubah"
-        );
+        assert_eq!(update_energi(&mut bal, &user(), &EnergiSettings::default(), -1), UNLIMITED);
+        assert_eq!(bal.energy(USER), Some(UNLIMITED), "saldo -1 tak boleh berubah");
     }
 
     #[test]
@@ -937,14 +913,11 @@ mod tests {
         let mut guard = AutoWorkGuard::new();
         let mut charges = 0;
         for _ in 0..5 {
-            assert!(
-                !guard
-                    .allow(|| {
-                        charges += 1;
-                        consume_auto_work(&mut rl, &user(), "k", &s, Some(100), T0)
-                    })
-                    .allowed
-            );
+            assert!(!guard.allow(|| {
+                charges += 1;
+                consume_auto_work(&mut rl, &user(), "k", &s, Some(100), T0)
+            })
+            .allowed);
         }
         assert_eq!(charges, 1);
     }
@@ -980,8 +953,7 @@ mod tests {
     fn cooldown_second_call_returns_remaining_seconds() {
         let mut store = InMemoryCooldowns::default();
         set_cooldown(&mut store, &user(), "ping", 5, T0);
-        let remaining =
-            check_cooldown(&store, &user(), "ping", 5, T0 + 1000).expect("harus ditolak");
+        let remaining = check_cooldown(&store, &user(), "ping", 5, T0 + 1000).expect("harus ditolak");
         assert_eq!(remaining, 4, "ceil((5000-1000)/1000)");
     }
 
@@ -1029,11 +1001,7 @@ mod tests {
         let mut store = InMemoryCooldowns::default();
         set_cooldown(&mut store, &user(), "ping", 0, T0);
         assert_eq!(check_cooldown(&store, &user(), "ping", 0, T0), None);
-        assert_eq!(
-            store.cooldown_end(USER, "ping"),
-            None,
-            "tak ada yang ditulis"
-        );
+        assert_eq!(store.cooldown_end(USER, "ping"), None, "tak ada yang ditulis");
     }
 
     #[test]
@@ -1325,10 +1293,7 @@ mod tests {
         // besar dari saldo tidak membuat saldo negatif.
         let mut bal = InMemoryEnergi::default();
         bal.set_energy(USER, 5);
-        assert_eq!(
-            update_energi(&mut bal, &user(), &EnergiSettings::default(), -50),
-            0
-        );
+        assert_eq!(update_energi(&mut bal, &user(), &EnergiSettings::default(), -50), 0);
         assert_eq!(bal.energy(USER), Some(0));
     }
 
@@ -1338,10 +1303,7 @@ mod tests {
         // limit — jadi delta positif harus tetap jalan.
         let mut bal = InMemoryEnergi::default();
         bal.set_energy(USER, 5);
-        assert_eq!(
-            update_energi(&mut bal, &user(), &EnergiSettings::default(), 10),
-            15
-        );
+        assert_eq!(update_energi(&mut bal, &user(), &EnergiSettings::default(), 10), 15);
     }
 
     #[test]
@@ -1360,7 +1322,8 @@ mod tests {
             43,
         );
         assert_eq!(
-            msg, "🔋 Limit berkurang 7. Sisa: 43. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)",
+            msg,
+            "🔋 Limit berkurang 7. Sisa: 43. Jangan dihabiskan terus, b-baka! (˶˃𐃷˂˶)",
             "handler.js:1886"
         );
     }

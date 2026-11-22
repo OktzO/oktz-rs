@@ -256,7 +256,11 @@ fn request_upload(
 }
 
 /// `uploadImage(buffer, filename)` (`imgdrop.js:175-204`).
-pub fn upload_image(http: &dyn HttpGet, buffer: &[u8], filename: &str) -> Result<Value, HttpError> {
+pub fn upload_image(
+    http: &dyn HttpGet,
+    buffer: &[u8],
+    filename: &str,
+) -> Result<Value, HttpError> {
     let cookie_manual = std::env::var("IMGDROP_COOKIE").ok();
     upload_image_dengan_cookie(http, buffer, filename, cookie_manual.as_deref())
 }
@@ -346,14 +350,16 @@ mod tests {
         }
 
         fn dengan_headers(body: &str, headers: Vec<(&str, &str)>) -> Self {
-            Self::baru(vec![(
-                200,
-                body.to_string(),
-                headers
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect(),
-            )])
+            Self::baru(vec![
+                (
+                    200,
+                    body.to_string(),
+                    headers
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect(),
+                ),
+            ])
         }
     }
 
@@ -403,8 +409,13 @@ mod tests {
     fn cookie_dari_lingkungan_menghapus_permintaan_get() {
         // `IMGDROP_COOKIE` = return langsung, tidak ada GET halaman.
         let http = StubHttp::tunggal("{}");
-        let hasil =
-            upload_image_dengan_cookie(&http, &[1, 2, 3], "foto.png", Some("saya=manual")).unwrap();
+        let hasil = upload_image_dengan_cookie(
+            &http,
+            &[1, 2, 3],
+            "foto.png",
+            Some("saya=manual"),
+        )
+        .unwrap();
         assert_eq!(hasil["status"], false, "body `{{}}` tidak punya success");
         assert_eq!(hasil["code"], 200);
         let p = http.permintaan.lock().unwrap();
@@ -437,10 +448,7 @@ mod tests {
         assert!(boundary.len() > "----WebKitFormBoundary".len());
         assert_eq!(cari_header(&p[0], "origin").as_deref(), Some(BASE_URL));
         assert_eq!(cari_header(&p[0], "referer").as_deref(), Some(REFERER));
-        assert_eq!(
-            cari_header(&p[0], "sec-fetch-mode").as_deref(),
-            Some("cors")
-        );
+        assert_eq!(cari_header(&p[0], "sec-fetch-mode").as_deref(), Some("cors"));
         assert_eq!(cari_header(&p[0], "priority").as_deref(), Some("u=1, i"));
 
         // Body: header part + byte berkas + penutup, persis seperti JS.
@@ -482,10 +490,7 @@ mod tests {
                 200,
                 "<p>halama</p>".to_string(),
                 vec![
-                    (
-                        "set-cookie".to_string(),
-                        "cf=1; Path=/; HttpOnly".to_string(),
-                    ),
+                    ("set-cookie".to_string(), "cf=1; Path=/; HttpOnly".to_string()),
                     ("set-cookie".to_string(), "id=2; Secure".to_string()),
                 ],
             ),

@@ -12,7 +12,7 @@
 //! gagal reaksi terakhir yang ikut adalah `☢`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use serde_json::Value;
+use serde_json::{Value};
 
 use super::npmstalk::{FIREFLY, NEXRAY, js_str, or_dash, short_num};
 use crate::tools::phisingataubukan::encode_uri_component;
@@ -82,7 +82,8 @@ pub(crate) fn dari_nexray(r: &Value) -> Profil {
         bio: r["bio"].clone(),
         verified: r["verified"] == Value::Bool(true)
             || r["verified"] == serde_json::json!("Verified"),
-        private: r["private"] == Value::Bool(true) || r["private"] == serde_json::json!("Yes"),
+        private: r["private"] == Value::Bool(true)
+            || r["private"] == serde_json::json!("Yes"),
         followers: nullish(&s["raw_followers"], &s["followers"]).clone(),
         following: nullish(&s["raw_following"], &s["following"]).clone(),
         likes: nullish(&s["raw_likes"], &s["likes"]).clone(),
@@ -150,9 +151,7 @@ pub fn tiktokstalk(ctx: Ctx) -> Reply {
         ))
     {
         let body = res.json().unwrap_or(Value::Null);
-        if body
-            .get("status")
-            .is_some_and(crate::common::js_truthy_value)
+        if body.get("status").is_some_and(crate::common::js_truthy_value)
             && body.get("data").is_some_and(|v| !v.is_null())
         {
             profil = Some(dari_firefly(&body["data"]));
@@ -166,9 +165,7 @@ pub fn tiktokstalk(ctx: Ctx) -> Reply {
         ))
     {
         let body = res.json().unwrap_or(Value::Null);
-        if body
-            .get("status")
-            .is_some_and(crate::common::js_truthy_value)
+        if body.get("status").is_some_and(crate::common::js_truthy_value)
             && body.get("result").is_some_and(|v| !v.is_null())
         {
             profil = Some(dari_nexray(&body["result"]));
@@ -287,9 +284,7 @@ mod tests {
         let r = tiktokstalk(dengan_kunci(Stub::gagal(), "", "K"));
         assert_eq!(
             r.without_mutations().text_body(),
-            Some(
-                "🎵 *ᴛɪᴋᴛᴏᴋ sᴛᴀʟᴋ*\n\n> Masukkan username TikTok\n\n`Contoh: .tiktokstalk mrbeast`"
-            )
+            Some("🎵 *ᴛɪᴋᴛᴏᴋ sᴛᴀʟᴋ*\n\n> Masukkan username TikTok\n\n`Contoh: .tiktokstalk mrbeast`")
         );
         assert_eq!(reaction_of(&r), None);
     }
@@ -353,9 +348,7 @@ mod tests {
 
     #[test]
     fn bio_kosong_dan_avatar_kosong_menghasilkan_teks_biasa() {
-        let http = Stub::baru(&[
-            r#"{"status":true,"data":{"username":"u","nickname":"N","signature":"","avatar":""}}"#,
-        ]);
+        let http = Stub::baru(&[r#"{"status":true,"data":{"username":"u","nickname":"N","signature":"","avatar":""}}"#]);
         let r = tiktokstalk(dengan_kunci(http, "u", "K"));
         assert_eq!(reaction_of(&r), Some("✅"));
         match r.without_mutations() {

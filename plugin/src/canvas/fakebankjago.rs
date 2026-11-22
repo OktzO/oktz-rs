@@ -8,9 +8,9 @@
 //! (dan V8 menulis `100.000.000.000.000.000.000`), sedangkan
 //! `thousands_id` memformat digit apa adanya.
 
+use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use crate::tools::kalkulatormbg::thousands_id;
 use crate::tools::phisingataubukan::encode_uri_component;
-use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 const MAKER_URL: &str = "https://api.nexray.eu.cc/maker/fakebank-jago";
 
@@ -225,7 +225,10 @@ mod tests {
         assert_eq!(emoji(&r), "✅");
 
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen[0], format!("{MAKER_URL}?nama=Furina&saldo=4342342"));
+        assert_eq!(
+            seen[0],
+            format!("{MAKER_URL}?nama=Furina&saldo=4342342")
+        );
     }
 
     #[test]
@@ -290,10 +293,7 @@ mod tests {
     #[test]
     fn a_failed_request_reports_the_error_template() {
         let r = run(Stub::offline(), "Furina|10");
-        assert_eq!(
-            body(&r),
-            crate::common::error_template_bawaan(".", "fakebankjago")
-        );
+        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "fakebankjago"));
         assert_eq!(emoji(&r), "☢");
     }
 
@@ -305,8 +305,11 @@ mod tests {
             seen: Mutex::new(Vec::new()),
         });
         let r = run(http.clone(), "Furina|10");
-        assert_eq!(r.media_source(), Some(&MediaSource::bytes(Vec::new())));
-
+        assert_eq!(
+            r.media_source(),
+            Some(&MediaSource::bytes(Vec::new()))
+        );
+        
         assert_eq!(r.media_source(), Some(&MediaSource::bytes(Vec::new())));
     }
 

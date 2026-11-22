@@ -37,8 +37,7 @@ const TASK_TYPE: &str = "11";
 const CONTENT_TYPE: &str = "2";
 
 const UA: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
-const SEC_CH_UA: &str =
-    "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"";
+const SEC_CH_UA: &str = "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"";
 
 /// Anggaran polling (`wink.js:589-604`). Default lama 80x3s + 120x5s = 840
 /// detik (14 menit) padahal plugin menjanjikan "1-5 menit". Sekarang
@@ -157,10 +156,7 @@ pub fn extract_result_url(data: &Value) -> String {
 /// `extractNextMsgId(data, currentMsgId)` (`wink.js:426-445`).
 pub fn extract_next_msg_id(data: &Value, current_msg_id: &str) -> String {
     let item = &data["item_list"][0];
-    let nilai = item["result"]
-        .get("result")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let nilai = item["result"].get("result").and_then(Value::as_str).unwrap_or("");
     let asli = item["result"]
         .get("msg_id")
         .and_then(Value::as_str)
@@ -258,10 +254,7 @@ fn header_api(gnum: &str) -> Vec<(String, String)> {
     vec![
         ("accept".to_string(), "*/*".to_string()),
         ("origin".to_string(), BASE_URL.to_string()),
-        (
-            "referer".to_string(),
-            format!("{BASE_URL}/video-enhancer/upload"),
-        ),
+        ("referer".to_string(), format!("{BASE_URL}/video-enhancer/upload")),
         ("user-agent".to_string(), UA.to_string()),
         ("sec-ch-ua".to_string(), SEC_CH_UA.to_string()),
         ("sec-ch-ua-mobile".to_string(), "?1".to_string()),
@@ -307,10 +300,7 @@ fn base_params(gnum: &str, extra: &[(&str, String)]) -> String {
 }
 
 /// Header tambahan untuk permintaan form `POST` ke `wink.ai`.
-fn tambah(
-    mut base: Vec<(String, String)>,
-    tambahan: Vec<(String, String)>,
-) -> Vec<(String, String)> {
+fn tambah(mut base: Vec<(String, String)>, tambahan: Vec<(String, String)>) -> Vec<(String, String)> {
     base.extend(tambahan);
     base
 }
@@ -361,8 +351,8 @@ fn get_upload_policy(http: &dyn HttpGet, sign: &Value) -> Result<Value, HttpErro
         ("suffix", js_str(&sign["suffix"])),
         ("type", js_str(&sign["type"])),
     ]);
-    let mut call =
-        HttpCall::get(format!("{STRATEGY_URL}/upload/policy?{params}")).terima_semua_status();
+    let mut call = HttpCall::get(format!("{STRATEGY_URL}/upload/policy?{params}"))
+        .terima_semua_status();
     for (k, v) in header_strategy(&format!("{BASE_URL}/")) {
         call = call.header(&k, &v);
     }
@@ -412,12 +402,14 @@ fn upload_qiniu(
     // `contentType` dari `extToMime` ikut pada part berkas.
     berkas.mimetype = Some(ext_to_mime(nama).to_string());
 
-    let mut call = HttpCall::post(&url).terima_semua_status().multipart(vec![
-        berkas,
-        MultipartPart::field("token", token),
-        MultipartPart::field("key", key.clone()),
-        MultipartPart::field("fname", nama.to_string()),
-    ]);
+    let mut call = HttpCall::post(&url)
+        .terima_semua_status()
+        .multipart(vec![
+            berkas,
+            MultipartPart::field("token", token),
+            MultipartPart::field("key", key.clone()),
+            MultipartPart::field("fname", nama.to_string()),
+        ]);
     for (k, v) in header_strategy(&format!("{BASE_URL}/")) {
         call = call.header(&k, &v);
     }
@@ -453,18 +445,13 @@ fn truthy_str(s: &str) -> bool {
 /// `getVideoInfo(fileKey)` (`wink.js:219-239`).
 fn get_video_info(http: &dyn HttpGet, gnum: &str, file_key: &str) -> Result<Value, HttpError> {
     let body = base_params(gnum, &[("file_key", file_key.to_string())]);
-    let mut call = HttpCall::post(format!(
-        "{BASE_URL}/api/file/video_cover_and_display_info_ext.json"
-    ))
-    .terima_semua_status()
-    .form(body);
+    let mut call = HttpCall::post(format!("{BASE_URL}/api/file/video_cover_and_display_info_ext.json"))
+        .terima_semua_status()
+        .form(body);
     for (k, v) in tambah(header_api(gnum), trace_headers()) {
         call = call.header(&k, &v);
     }
-    call = call.header(
-        "content-type",
-        "application/x-www-form-urlencoded;charset=UTF-8",
-    );
+    call = call.header("content-type", "application/x-www-form-urlencoded;charset=UTF-8");
     let data = cek(http.call(&call))?;
     if data.get("code") != Some(&json!(0)) {
         return Err(HttpError {
@@ -477,16 +464,14 @@ fn get_video_info(http: &dyn HttpGet, gnum: &str, file_key: &str) -> Result<Valu
 /// `startTranscode(fileKey)` (`wink.js:241-259`).
 fn start_transcode(http: &dyn HttpGet, gnum: &str, file_key: &str) -> Result<String, HttpError> {
     let body = base_params(gnum, &[("file_key", file_key.to_string())]);
-    let mut call = HttpCall::post(format!("{BASE_URL}/api/file/video_trans_start.json"))
-        .terima_semua_status()
-        .form(body);
+    let mut call =
+        HttpCall::post(format!("{BASE_URL}/api/file/video_trans_start.json"))
+            .terima_semua_status()
+            .form(body);
     for (k, v) in tambah(header_api(gnum), trace_headers()) {
         call = call.header(&k, &v);
     }
-    call = call.header(
-        "content-type",
-        "application/x-www-form-urlencoded;charset=UTF-8",
-    );
+    call = call.header("content-type", "application/x-www-form-urlencoded;charset=UTF-8");
     let data = cek(http.call(&call))?;
     let id = data["data"]["id"].clone();
     if data.get("code") != Some(&json!(0)) || !crate::common::truthy(&id) {
@@ -500,10 +485,8 @@ fn start_transcode(http: &dyn HttpGet, gnum: &str, file_key: &str) -> Result<Str
 /// `queryTranscode(id)` (`wink.js:261-277`).
 fn query_transcode(http: &dyn HttpGet, gnum: &str, id: &str) -> Result<Value, HttpError> {
     let params = base_params(gnum, &[("id", id.to_string())]);
-    let mut call = HttpCall::get(format!(
-        "{BASE_URL}/api/file/video_trans_query.json?{params}"
-    ))
-    .terima_semua_status();
+    let mut call = HttpCall::get(format!("{BASE_URL}/api/file/video_trans_query.json?{params}"))
+        .terima_semua_status();
     for (k, v) in tambah(header_api(gnum), trace_headers()) {
         call = call.header(&k, &v);
     }
@@ -625,10 +608,7 @@ fn delivery(
     for (k, v) in tambah(header_api(gnum), trace_headers()) {
         call = call.header(&k, &v);
     }
-    call = call.header(
-        "content-type",
-        "application/x-www-form-urlencoded;charset=UTF-8",
-    );
+    call = call.header("content-type", "application/x-www-form-urlencoded;charset=UTF-8");
     let data = cek(http.call(&call))?;
     if data.get("code") != Some(&json!(0)) {
         return Err(HttpError {
@@ -854,11 +834,7 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
-        fn post_multipart(
-            &self,
-            _: &str,
-            _: &[(&str, HttpBody)],
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
         fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
@@ -969,16 +945,8 @@ mod tests {
                 200,
                 r#"[{"qiniu":{"url":"https://upload.qiniu.com/","key":"K","token":"TOK"}}]"#,
             ),
-            (
-                "https://upload.qiniu.com/",
-                200,
-                r#"{"url":"https://cdn/asli.mp4"}"#,
-            ),
-            (
-                "video_cover_and_display_info_ext",
-                200,
-                r#"{"code":0,"data":{}}"#,
-            ),
+            ("https://upload.qiniu.com/", 200, r#"{"url":"https://cdn/asli.mp4"}"#),
+            ("video_cover_and_display_info_ext", 200, r#"{"code":0,"data":{}}"#),
             ("video_trans_start", 200, r#"{"code":0,"data":{"id":"T1"}}"#),
             (
                 "video_trans_query",
@@ -986,11 +954,7 @@ mod tests {
                 r#"{"code":0,"data":{"video":"https://cdn/asli.mp4",
                      "video_transcoded":"https://cdn/ultra.mp4"}}"#,
             ),
-            (
-                "delivery.json",
-                200,
-                r#"{"code":0,"data":{"msg_id":"wpr_1"}}"#,
-            ),
+            ("delivery.json", 200, r#"{"code":0,"data":{"msg_id":"wpr_1"}}"#),
             (
                 "query_batch",
                 200,
@@ -1011,11 +975,7 @@ mod tests {
         let urls: Vec<&str> = p.iter().map(|r| r.url.as_str()).collect();
         assert_eq!(urls.len(), 8);
         assert!(urls[0].starts_with("https://wink.ai/api/file/get_maat_sign.json?"));
-        assert!(
-            urls[1].contains("sig=S"),
-            "policy ikut param sign: {}",
-            urls[1]
-        );
+        assert!(urls[1].contains("sig=S"), "policy ikut param sign: {}", urls[1]);
         assert_eq!(urls[2], "https://upload.qiniu.com/");
         assert_eq!(urls[6], "https://wink.ai/api/meitu_ai/delivery.json");
         // Cookie jar lokal ikut pada setiap permintaan ke wink.ai.
@@ -1051,23 +1011,18 @@ mod tests {
     #[test]
     fn transcode_berulang_melewati_url_sama_dengan_sumber() {
         // URL hasil yang sama dengan sumber belum dianggap jadi enhance.
-        let http = Stub::baru(&[(
-            "video_trans_query",
-            200,
-            r#"{"code":0,"data":{"video":"https://cdn/asli.mp4",
+        let http = Stub::baru(&[
+            (
+                "video_trans_query",
+                200,
+                r#"{"code":0,"data":{"video":"https://cdn/asli.mp4",
                      "video_transcoded":"https://cdn/asli.mp4"}}"#,
-        )]);
-        let err = wait_transcode(
-            http.as_ref(),
-            "G",
-            "T1",
-            "https://cdn/asli.mp4",
-            &tanpa_jeda(),
-        )
-        .unwrap_err();
+            ),
+        ]);
+        let err = wait_transcode(http.as_ref(), "G", "T1", "https://cdn/asli.mp4", &tanpa_jeda())
+            .unwrap_err();
         assert!(
-            err.message
-                .starts_with("Transcode tidak selesai dalam 0 detik."),
+            err.message.starts_with("Transcode tidak selesai dalam 0 detik."),
             "{}",
             err.message
         );
@@ -1091,11 +1046,7 @@ mod tests {
         let err = get_maat_sign(http.as_ref(), "G").unwrap_err();
         assert_eq!(err.message, "HTTP 500");
 
-        let http = Stub::baru(&[(
-            "/api/file/get_maat_sign.json",
-            200,
-            r#"{"code":7,"data":{}}"#,
-        )]);
+        let http = Stub::baru(&[("/api/file/get_maat_sign.json", 200, r#"{"code":7,"data":{}}"#)]);
         assert_eq!(
             get_maat_sign(http.as_ref(), "G").unwrap_err().message,
             r#"get_maat_sign gagal: {"code":7,"data":{}}"#
@@ -1121,8 +1072,7 @@ mod tests {
         )]);
         let err = wait_result(http.as_ref(), "G", "wpr_1", &tanpa_jeda()).unwrap_err();
         assert!(
-            err.message
-                .starts_with("Result belum selesai dalam 0 detik."),
+            err.message.starts_with("Result belum selesai dalam 0 detik."),
             "{}",
             err.message
         );

@@ -121,10 +121,7 @@ pub(crate) fn parse_durasi(args: &[String]) -> Durasi {
         (angka.saturating_mul(60 * 60 * 1000), format!("{angka} jam"))
     } else {
         // unit kosong / "h" / "hari" → hari
-        (
-            angka.saturating_mul(24 * 60 * 60 * 1000),
-            format!("{angka} hari"),
-        )
+        (angka.saturating_mul(24 * 60 * 60 * 1000), format!("{angka} hari"))
     };
     Durasi { ms, label }
 }
@@ -228,11 +225,7 @@ fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
 
     Reply::text(format!(
         "✅ Berhasil {} premium *{target_number}* selama *{}*",
-        if sudah_ada {
-            "memperpanjang"
-        } else {
-            "menambahkan"
-        },
+        if sudah_ada { "memperpanjang" } else { "menambahkan" },
         parse_durasi(&ctx.args).label
     ))
     .with_reaction("💎")
@@ -255,20 +248,18 @@ fn hapus_premium(ctx: &Ctx, target_number: &str) -> Reply {
         return Reply::text(format!("❌ *{target_number}* bukan premium"));
     }
     let next: Vec<String> = daftar.into_iter().filter(|p| p != target_number).collect();
-    Reply::text(format!(
-        "✅ Berhasil menghapus *{target_number}* dari premium"
-    ))
-    .with_reaction("✅")
-    .mutating(vec![
-        Mutation::SetSetting {
-            key: "premiumUsers".into(),
-            value: serde_json::json!(next),
-        },
-        Mutation::SetUser {
-            jid: format!("{target_number}@s.whatsapp.net"),
-            data: serde_json::json!({ "isPremium": false }),
-        },
-    ])
+    Reply::text(format!("✅ Berhasil menghapus *{target_number}* dari premium"))
+        .with_reaction("✅")
+        .mutating(vec![
+            Mutation::SetSetting {
+                key: "premiumUsers".into(),
+                value: serde_json::json!(next),
+            },
+            Mutation::SetUser {
+                jid: format!("{target_number}@s.whatsapp.net"),
+                data: serde_json::json!({ "isPremium": false }),
+            },
+        ])
 }
 
 /// Sumber daftar premium: `settings.premiumUsers` — salah satu sumber
@@ -327,14 +318,7 @@ mod tests {
         assert_eq!(p.meta.name, "addprem");
         assert_eq!(
             p.meta.alias,
-            [
-                "addpremium",
-                "setprem",
-                "delprem",
-                "delpremium",
-                "listprem",
-                "premlist"
-            ]
+            ["addpremium", "setprem", "delprem", "delpremium", "listprem", "premlist"]
         );
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 3);
@@ -345,14 +329,7 @@ mod tests {
 
     #[test]
     fn semua_alias_resolve() {
-        for a in [
-            "addpremium",
-            "setprem",
-            "delprem",
-            "delpremium",
-            "listprem",
-            "premlist",
-        ] {
+        for a in ["addpremium", "setprem", "delprem", "delpremium", "listprem", "premlist"] {
             assert_eq!(
                 oktz_plugin_api::find(a).unwrap().meta.name,
                 "addprem",
@@ -386,32 +363,20 @@ mod tests {
             ekstrak_target(None, &["628999:3@s.whatsapp.net".into()], &[]),
             "6289993"
         );
-        assert_eq!(
-            ekstrak_target(None, &[], &["081234567890".into()]),
-            "081234567890"
-        );
+        assert_eq!(ekstrak_target(None, &[], &["081234567890".into()]), "081234567890");
         assert_eq!(ekstrak_target(None, &[], &[]), "");
     }
 
     #[test]
     fn to_mention_jid_mengembalikan_jid_atau_none() {
-        assert_eq!(
-            to_mention_jid("628123"),
-            Some("628123@s.whatsapp.net".to_string())
-        );
+        assert_eq!(to_mention_jid("628123"), Some("628123@s.whatsapp.net".to_string()));
         assert_eq!(to_mention_jid("abc"), None);
-        assert_eq!(
-            to_mention_jid("628123:3@s.whatsapp.net"),
-            Some("6281233@s.whatsapp.net".to_string())
-        );
+        assert_eq!(to_mention_jid("628123:3@s.whatsapp.net"), Some("6281233@s.whatsapp.net".to_string()));
     }
 
     #[test]
     fn format_tanggal_sama_dengan_date_long() {
-        assert_eq!(
-            format_tanggal(1727602800000),
-            crate::common::date_long(1727602800000)
-        );
+        assert_eq!(format_tanggal(1727602800000), crate::common::date_long(1727602800000));
     }
 
     #[test]
@@ -499,11 +464,7 @@ mod tests {
         c.args = vec!["6281234567890".into()];
         c.settings = serde_json::json!({"premiumUsers": ["6281234567890", "628999"]});
         let r = addprem(c);
-        assert!(
-            teks(&r).contains("Berhasil menghapus *6281234567890*"),
-            "{}",
-            teks(&r)
-        );
+        assert!(teks(&r).contains("Berhasil menghapus *6281234567890*"), "{}", teks(&r));
         for m in r.mutations() {
             if let Mutation::SetSetting { key, value } = m {
                 assert_eq!(key, "premiumUsers");

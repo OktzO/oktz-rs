@@ -155,12 +155,14 @@ pub fn setallmenu(ctx: Ctx) -> Reply {
     let current = variant_aktif(&ctx);
     let list = CardList::new(
         "📋 Pilih Variant Allmenu",
-        vec![CardSection::new("Daftar Variant Allmenu").rows(baris(&ctx.prefix, current))],
+        vec![CardSection::new("Daftar Variant Allmenu").rows(baris(
+            &ctx.prefix, current,
+        ))],
     )
     .icon("DEFAULT");
 
-    let mut reply =
-        Reply::interactive(body_teks(current)).with_button_card(InteractiveButton::select(&list));
+    let mut reply = Reply::interactive(body_teks(current))
+        .with_button_card(InteractiveButton::select(&list));
     if let Some(aset) = ctx.config().assets.get("foto")
         && ctx.berkas().ada(aset)
     {

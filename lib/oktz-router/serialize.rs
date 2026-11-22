@@ -124,7 +124,9 @@ pub fn get_message_body(kind: MessageKind, params: &MessageParams<'_>) -> String
     match kind {
         MessageKind::Conversation => or_empty(params.conversation),
         MessageKind::ExtendedText => or_empty(params.text),
-        MessageKind::Image | MessageKind::Video | MessageKind::Document => or_empty(params.caption),
+        MessageKind::Image | MessageKind::Video | MessageKind::Document => {
+            or_empty(params.caption)
+        }
         MessageKind::ButtonsResponse => or_empty(params.selected_button_id),
         MessageKind::ListResponse => or_empty(params.selected_row_id),
         MessageKind::TemplateButtonReply => or_empty(params.selected_id),
@@ -202,7 +204,10 @@ fn js_truthy_text(value: Option<&Value>) -> Option<String> {
     match value? {
         Value::Null => None,
         Value::Bool(b) => b.then(|| "true".to_string()),
-        Value::Number(n) => n.as_f64().filter(|f| *f != 0.0).map(|_| n.to_string()),
+        Value::Number(n) => n
+            .as_f64()
+            .filter(|f| *f != 0.0)
+            .map(|_| n.to_string()),
         Value::String(s) => (!s.is_empty()).then(|| s.clone()),
         // `[]` di JS truthy tapi bukan teks — tidak ada id yang bisa dikirim.
         Value::Array(_) | Value::Object(_) => None,
@@ -245,10 +250,7 @@ mod tests {
 
     #[test]
     fn unknown_wire_type_is_other() {
-        assert_eq!(
-            MessageKind::from_wire_type("reactionMessage"),
-            MessageKind::Other
-        );
+        assert_eq!(MessageKind::from_wire_type("reactionMessage"), MessageKind::Other);
         assert_eq!(MessageKind::from_wire_type(""), MessageKind::Other);
         assert_eq!(MessageKind::Other.wire_type(), "");
     }
@@ -293,10 +295,7 @@ mod tests {
 
     #[test]
     fn conversation_missing_is_empty() {
-        assert_eq!(
-            get_message_body(MessageKind::Conversation, &MessageParams::default()),
-            ""
-        );
+        assert_eq!(get_message_body(MessageKind::Conversation, &MessageParams::default()), "");
     }
 
     #[test]
@@ -306,10 +305,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(get_message_body(MessageKind::ExtendedText, &p), "buka");
-        assert_eq!(
-            get_message_body(MessageKind::ExtendedText, &MessageParams::default()),
-            ""
-        );
+        assert_eq!(get_message_body(MessageKind::ExtendedText, &MessageParams::default()), "");
     }
 
     // ---- caption: image / video / document -----------------------------
@@ -327,11 +323,7 @@ mod tests {
 
     #[test]
     fn media_kinds_without_caption_are_empty() {
-        for kind in [
-            MessageKind::Image,
-            MessageKind::Video,
-            MessageKind::Document,
-        ] {
+        for kind in [MessageKind::Image, MessageKind::Video, MessageKind::Document] {
             assert_eq!(get_message_body(kind, &MessageParams::default()), "");
         }
     }
@@ -370,10 +362,7 @@ mod tests {
             selected_id: Some("tpl-9"),
             ..Default::default()
         };
-        assert_eq!(
-            get_message_body(MessageKind::TemplateButtonReply, &p),
-            "tpl-9"
-        );
+        assert_eq!(get_message_body(MessageKind::TemplateButtonReply, &p), "tpl-9");
         assert_eq!(
             get_message_body(MessageKind::TemplateButtonReply, &MessageParams::default()),
             ""
@@ -416,10 +405,7 @@ mod tests {
     #[test]
     fn interactive_top_level_id_wins() {
         assert_eq!(
-            get_message_body(
-                MessageKind::InteractiveResponse,
-                &interactive(r#"{"id":"top"}"#)
-            ),
+            get_message_body(MessageKind::InteractiveResponse, &interactive(r#"{"id":"top"}"#)),
             "top"
         );
     }
@@ -577,10 +563,7 @@ mod tests {
     #[test]
     fn parse_failure_top_level_returns_empty() {
         assert_eq!(
-            get_message_body(
-                MessageKind::InteractiveResponse,
-                &interactive("{bukan json")
-            ),
+            get_message_body(MessageKind::InteractiveResponse, &interactive("{bukan json")),
             ""
         );
     }
@@ -639,20 +622,11 @@ mod tests {
     fn js_truthy_text_handles_every_json_type() {
         assert_eq!(js_truthy_text(Some(&Value::Null)), None);
         assert_eq!(js_truthy_text(Some(&Value::Bool(false))), None);
-        assert_eq!(
-            js_truthy_text(Some(&Value::Bool(true))).as_deref(),
-            Some("true")
-        );
+        assert_eq!(js_truthy_text(Some(&Value::Bool(true))).as_deref(), Some("true"));
         assert_eq!(js_truthy_text(Some(&serde_json::json!(0))), None);
-        assert_eq!(
-            js_truthy_text(Some(&serde_json::json!(7))).as_deref(),
-            Some("7")
-        );
+        assert_eq!(js_truthy_text(Some(&serde_json::json!(7))).as_deref(), Some("7"));
         assert_eq!(js_truthy_text(Some(&Value::String(String::new()))), None);
-        assert_eq!(
-            js_truthy_text(Some(&Value::String("x".into()))).as_deref(),
-            Some("x")
-        );
+        assert_eq!(js_truthy_text(Some(&Value::String("x".into()))).as_deref(), Some("x"));
         assert_eq!(js_truthy_text(Some(&serde_json::json!([]))), None);
         assert_eq!(js_truthy_text(Some(&serde_json::json!({}))), None);
         assert_eq!(js_truthy_text(None), None);
@@ -661,10 +635,7 @@ mod tests {
     #[test]
     fn numeric_id_is_stringified_instead_of_crashing() {
         assert_eq!(
-            get_message_body(
-                MessageKind::InteractiveResponse,
-                &interactive(r#"{"id":42}"#)
-            ),
+            get_message_body(MessageKind::InteractiveResponse, &interactive(r#"{"id":42}"#)),
             "42"
         );
     }

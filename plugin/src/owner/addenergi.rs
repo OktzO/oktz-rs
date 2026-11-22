@@ -13,10 +13,7 @@ const UNLIMITED: i64 = -1;
 /// Ribuan bertitik, tanda minus ikut (`-1234` → `-1.234`).
 fn thousands(n: i64) -> String {
     if n < 0 {
-        format!(
-            "-{}",
-            crate::tools::kalkulatormbg::thousands_id(n.unsigned_abs() as f64)
-        )
+        format!("-{}", crate::tools::kalkulatormbg::thousands_id(n.unsigned_abs() as f64))
     } else {
         crate::tools::kalkulatormbg::thousands_id(n as f64)
     }
@@ -61,7 +58,12 @@ fn phone_arg(ctx: &Ctx, num_arg: Option<&str>) -> Option<String> {
                 && a.chars().count() > 5
                 && a.chars().any(|c| c.is_ascii_digit())
         })
-        .map(|a| a.chars().filter(char::is_ascii_digit).collect::<String>() + "@s.whatsapp.net")
+        .map(|a| {
+            a.chars()
+                .filter(char::is_ascii_digit)
+                .collect::<String>()
+                + "@s.whatsapp.net"
+        })
 }
 
 /// Energi tersimpan untuk `jid`.
@@ -119,7 +121,9 @@ pub fn addenergi(ctx: Ctx) -> Reply {
     let is_unlimited = lower.contains("--unlimited") || lower.contains("--unli");
 
     let num_arg = numeric_arg(&ctx);
-    let amount = num_arg.and_then(crate::common::parse_int).unwrap_or(0);
+    let amount = num_arg
+        .and_then(crate::common::parse_int)
+        .unwrap_or(0);
 
     let target = match mentioned_or_quoted(&ctx) {
         Some(jid) => Some(jid),
@@ -319,11 +323,7 @@ mod tests {
     fn a_bare_amount_adds_to_the_sender() {
         let r = run("100", serde_json::json!({ "energi": 40 }));
         assert_eq!(written_energi(&r), (SENDER.to_string(), 140));
-        assert!(
-            text_of(&r).contains("berhasil di tambahkan sebanyak *100*"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("berhasil di tambahkan sebanyak *100*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("mempunyai *140* energi"));
     }
 
@@ -386,15 +386,8 @@ mod tests {
     fn unlimited_writes_minus_one_for_either_spelling() {
         for flag in ["--unlimited", "--unli", "--UNLIMITED"] {
             let r = run(flag, serde_json::json!({ "energi": 12 }));
-            assert_eq!(
-                written_energi(&r),
-                (SENDER.to_string(), UNLIMITED),
-                "flag {flag}"
-            );
-            assert!(
-                text_of(&r).contains("unlimited / tidak terbatas"),
-                "flag {flag}"
-            );
+            assert_eq!(written_energi(&r), (SENDER.to_string(), UNLIMITED), "flag {flag}");
+            assert!(text_of(&r).contains("unlimited / tidak terbatas"), "flag {flag}");
         }
     }
 
@@ -446,10 +439,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(stored_energi(&ctx, "628111@s.whatsapp.net"), DEFAULT_ENERGI);
-        assert_eq!(
-            DEFAULT_ENERGI, 99_999,
-            "config.energi.default tidak berubah"
-        );
+        assert_eq!(DEFAULT_ENERGI, 99_999, "config.energi.default tidak berubah");
     }
 
     #[test]
