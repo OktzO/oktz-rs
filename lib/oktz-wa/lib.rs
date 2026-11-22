@@ -11,7 +11,6 @@ pub(crate) mod bridge;
 pub mod cards;
 pub mod creds;
 pub mod grup_event;
-pub mod load;
 pub mod media_fetch;
 pub mod pairing;
 pub mod pairing_run;
@@ -23,21 +22,18 @@ pub mod tabel;
 // Builder wire balasan rich (V2, list, AIRich, prepared rich).
 pub mod rich;
 pub mod rss;
-pub mod session;
 pub mod sock_client;
 pub mod ui;
 
 pub use bot::{build_device, connect_device, prepare_store};
 pub use cards::{biz_node, build_card, build_list};
 pub use creds::{DeviceMapping, inspect_creds};
-pub use load::{LoadReport, load_into_store};
 pub use pipeline::ReplyTarget;
 pub use pipeline::{
     ClientSender, Dedup, Identity, MessageSender, Outcome, PendingMedia, Pipeline, PipelineError,
     RosterSource, SendBox, SendBoxRoster, StoreContext, normalize_user_key,
 };
 pub use pipeline_gate::GateState;
-pub use session::{ImportStats, import_session_record};
 pub use whatsapp_rust::bot::BotHandle;
 
 // Re-export untuk konsumen (oktz-bin) supaya tidak perlu depend ke whatsapp-rust langsung.

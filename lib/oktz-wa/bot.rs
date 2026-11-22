@@ -661,17 +661,15 @@ fn sesi_lama_boleh_dipakai(db_ada: bool, marker: Option<&str>, sidik: &str) -> b
     db_ada && marker.is_some_and(|m| m.trim() == sidik)
 }
 
-/// Buka store sqlite, simpan device, muat sesi onigis, lalu siap connect.
+/// Buka store sqlite, simpan device, lalu siap connect.
 ///
 /// Db sesi yang sudah ada dan ber-sidik sama DIPAKAI ULANG: di situ device
 /// yang sudah dirotasi library + sesi ratchet bertahan, jadi restart tidak
 /// memaksa dekripsi ulang dari nol. Db yang hilang atau ber-sidik beda
-/// dibangun ulang dari creds.
-pub async fn prepare_store(
-    creds_path: &str,
-    db_path: &str,
-    session_fixture: Option<&str>,
-) -> Result<SqliteStore> {
+/// dibangun ulang dari creds — restore ratchet dari Turso lewat launcher
+/// (`pulihkanTurso`: db utuh ditulis SEBELUM binary jalan, jadi di sini
+/// selalu sidik-match dan dipakai ulang).
+pub async fn prepare_store(creds_path: &str, db_path: &str) -> Result<SqliteStore> {
     let raw = std::fs::read_to_string(creds_path).with_context(|| format!("baca {creds_path}"))?;
     let (_m, c) = crate::creds::inspect_creds(&raw)?;
 
@@ -685,7 +683,7 @@ pub async fn prepare_store(
     // Dipakai [`pairing_run::purge_handler`] saat logout dipercaya.
     pairing_run::note_store_path(&db);
 
-    let mut ident = crate::creds::b64(&c.signed_identity_key.public)?;
+    let ident = crate::creds::b64(&c.signed_identity_key.public)?;
     let sidik = format!(
         "{}:{}",
         c.registration_id,
@@ -705,19 +703,6 @@ pub async fn prepare_store(
 
     let device = build_device(&c).await?;
     store.save_device_data_for_device(1, &device).await?;
-
-    if let Some(fx) = session_fixture {
-        if ident.len() == 32 {
-            ident.insert(0, 0x05);
-        }
-        let report = crate::load::load_into_store(&store, fx, &ident, c.registration_id).await?;
-        tracing::info!(
-            loaded = report.sessions_loaded,
-            failed = report.sessions_failed,
-            write_failed = report.write_failed,
-            "sesi ratchet dimuat (hanya yang benar-benar tersimpan)"
-        );
-    }
 
     // Marker gagal ditulis bukan alasan gagal start — efeknya hanya db ini
     // dibangun ulang pada start berikutnya.

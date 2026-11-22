@@ -56,32 +56,6 @@ fn use_plugin_crates() {
 /// berarti kehilangan device row dan sesi ratchet. Env ini jadi tempat
 /// memindai lokasi data untuk CI atau install yang tidak memakai default.
 const DB_DIR_ENV: &str = "OKTZ_DB_DIR";
-/// Env untuk fixture sesi ratchet. Panel (`launcher.js`) meneruskannya lewat
-/// env, bukan argumen posisi — jadi binary WAJIB membacanya, kalau tidak sesi
-/// hasil restore dibuang dan semua pesan dari kontak lama gagal decrypt.
-const SESSION_FIXTURE_ENV: &str = "OKTZ_SESSION_FIXTURE";
-
-/// Fixture sesi ratchet: argumen posisi ke-5, atau env `OKTZ_SESSION_FIXTURE`.
-///
-/// Panel meneruskan fixture lewat env (`launcher.js:465`), jadi env dibaca
-/// sebagai cadangan — kalau tidak, sesi hasil restore Turso dibuang diam-diam
-/// dan setiap pesan dari kontak lama gagal decrypt ("Bad Mac! Their Mac/Our
-/// Mac", "MAC verification failed") karena device baru tidak punya ratchet.
-///
-/// Argumen posisi menang kalau keduanya ada: itu yang eksplisit di baris
-/// perintah.
-fn fixture_sesi(args: &[String]) -> Option<String> {
-    args.get(5)
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-        .or_else(|| {
-            oktz_core::env::Env::get(SESSION_FIXTURE_ENV)
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-        })
-}
-
 /// Root db yang harus bertahan antar-restart (pairing).
 ///
 /// Default-nya ada di `database/`, folder data proyek yang juga dipakai
@@ -236,25 +210,19 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
             .get(2)
             .cloned()
             .unwrap_or_else(|| "../storage/session/creds.json".into());
-        let fixture = args
-            .get(3)
-            .cloned()
-            .unwrap_or_else(|| "fixtures/turso_session_keys.json".into());
-        let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(90);
+        let hold: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(90);
         let db = db_arg(dev_db(
             &dev_dir(db_dir_env.as_deref()),
             "smoke",
             std::process::id(),
         ))?;
-        return smoke(&creds, &fixture, hold, &db).await;
+        return smoke(&creds, hold, &db).await;
     }
 
-    // `oktz run [creds] [settings.json] [hold_secs] [fixture_sesi.json]` — jalur
-    // produksi: connect dengan pipeline router terpasang, jadi command masuk
-    // benar-benar mencapai plugin. `hold_secs` 0 (default) = daemon sampai
-    // SIGINT/SIGTERM. smoke/send sengaja lewat pairing_run langsung
-    // dan tidak memakai pipeline. Fixture sesi opsional: tanpa itu semua pesan
-    // dari kontak lama gagal decrypt, karena device baru tidak punya ratchet.
+    // `oktz run [creds] [settings.json] [hold_secs]` — jalur produksi: connect
+    // dengan pipeline router terpasang, jadi command masuk benar-benar mencapai
+    // plugin. `hold_secs` 0 (default) = daemon sampai SIGINT/SIGTERM. smoke/send
+    // sengaja lewat pairing_run langsung dan tidak memakai pipeline.
     if mode == "run" {
         let creds = args
             .get(2)
@@ -264,14 +232,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         // 0 = tanpa batas (daemon). Default lama (3600) mematikan bot produksi
         // setelah satu jam.
         let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
-        // Fixture sesi boleh datang dari argumen posisi ke-5 ATAU env
-        // `OKTZ_SESSION_FIXTURE`. Panel meneruskan lewat env
-        // (`launcher.js:465`), jadi env WAJIB dibaca — kalau tidak, sesi
-        // ratchet hasil restore Turso dibuang diam-diam dan SEMUA pesan dari
-        // kontak lama gagal decrypt ("Bad Mac! Their Mac/Our Mac",
-        // "MAC verification failed") karena device baru tidak punya ratchet.
-        let fixture = fixture_sesi(&args);
-        return run(&creds, settings.as_deref(), hold, fixture.as_deref()).await;
+        return run(&creds, settings.as_deref(), hold).await;
     }
 
     // `oktz pair [db] [hold]` — pilih pairing code/QR dari `PAIRING_NUMBER` di .env
@@ -509,13 +470,12 @@ async fn run(
     creds: &str,
     settings: Option<&str>,
     hold_secs: u64,
-    fixture: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = db_arg(resolve_db(
         None,
         data_dir(oktz_core::env::Env::get(DB_DIR_ENV).as_deref()).join("oktz-run.db"),
     ))?;
-    let store = oktz_wa::prepare_store(creds, &db, fixture).await?;
+    let store = oktz_wa::prepare_store(creds, &db).await?;
 
     // Pipeline membaca lokasi settings lewat env saat connect. Argumen harus
     // dipasang SEBELUM connect_device, makanya di sini bukan di dalam closure.
@@ -561,14 +521,9 @@ async fn run(
     Ok(())
 }
 
-/// Smoke produksi: import device + sesi ratchet, connect, print pesan masuk.
-async fn smoke(
-    creds: &str,
-    fixture: &str,
-    hold_secs: u64,
-    db: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let store = oktz_wa::prepare_store(creds, db, Some(fixture)).await?;
+/// Smoke produksi: import device, connect, print pesan masuk.
+async fn smoke(creds: &str, hold_secs: u64, db: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let store = oktz_wa::prepare_store(creds, db).await?;
 
     let (handle, _guard) = oktz_wa::pairing_run::connect_device_guarded(
         store,
@@ -602,7 +557,7 @@ async fn send(
     kind: &str,
     db: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let store = oktz_wa::prepare_store(creds, db, None).await?;
+    let store = oktz_wa::prepare_store(creds, db).await?;
     let to = to.to_string();
     let kind = kind.to_string();
 
@@ -837,42 +792,5 @@ mod tests {
         // ingin datanya bertahan bisa memindahkannya lewat env yang sama.
         let db = dev_db(&dev_dir(Some("/tmp/oktz-ci")), "smoke", 7);
         assert_eq!(db, PathBuf::from("/tmp/oktz-ci/oktz-smoke-7.db"));
-    }
-
-    /// Panel meneruskan fixture sesi lewat env `OKTZ_SESSION_FIXTURE`
-    /// (`launcher.js:465`). Kalau binary mengabaikannya, sesi ratchet hasil
-    /// restore Turso dibuang dan tiap pesan dari kontak lama gagal decrypt.
-    #[test]
-    fn fixture_sesi_dibaca_dari_env_kalau_argumen_kosong() {
-        // `args` di main = `std::env::args()`, jadi indeks 0 = nama program.
-        let args: Vec<String> = ["oktz", "run", "creds.json"]
-            .iter()
-            .map(|s| (*s).to_string())
-            .collect();
-        // Env belum di-set → tidak ada fixture.
-        assert_eq!(fixture_sesi(&args), None);
-
-        unsafe { std::env::set_var(SESSION_FIXTURE_ENV, "/tmp/fix.json") };
-        assert_eq!(
-            fixture_sesi(&args),
-            Some("/tmp/fix.json".to_string()),
-            "fixture dari env harus dipakai"
-        );
-
-        // Argumen posisi ke-5 menang atas env.
-        let mut dengan_posisi = args.clone();
-        dengan_posisi.push(String::new()); // settings.json
-        dengan_posisi.push("0".into()); // hold_secs
-        dengan_posisi.push("/tmp/argumen.json".into());
-        assert_eq!(
-            fixture_sesi(&dengan_posisi),
-            Some("/tmp/argumen.json".to_string())
-        );
-
-        // Env kosong diabaikan.
-        unsafe { std::env::set_var(SESSION_FIXTURE_ENV, "  ") };
-        assert_eq!(fixture_sesi(&args), None);
-
-        unsafe { std::env::remove_var(SESSION_FIXTURE_ENV) };
     }
 }

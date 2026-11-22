@@ -19,8 +19,9 @@ Tanpa argumen launcher mengikuti urutan bot JS lama:
 
 1. `storage/session/creds.json` ada dan sudah paired → `run`.
 2. Belum ada sesi, Turso aktif (`TURSO_URL`/`TURSO_AUTH_TOKEN` di `.env`) →
-   pulihkan `session_creds` + `session_keys` scope `main`, tulis creds +
-   fixture, lalu `run`.
+   pulihkan `session_state` scope `main` (snapshot utuh: db SQLite + creds +
+   marker), tulis `database/wa/oktz-run.db` + `creds.json` + `.ident`, lalu
+   `run`.
 3. Belum ada sesi dan tidak ada Turso → pairing code (atau QR bila
    `USE_PAIRING_CODE=false`), simpan `creds.json`, lalu `run`.
 
@@ -81,7 +82,10 @@ node --test launcher.test.js   # logika versi rilis launcher
   promote/demote, dan badge newsletter belum ada.
 - Sebagian plugin JS belum diport (AI, stalk, game tertentu, arsip, dll);
   plugin stub tidak didaftarkan.
-- Turso baru dipakai launcher untuk memulihkan sesi saat boot
-  (`session_creds` + `session_keys` scope `main`); mirror tulis dari bot Rust
-  belum ada.
+- Turso menyimpan DB bot (blob JSON per store di tabel `stores`) + snapshot
+  sesi utuh (`session_state` scope `main`: db SQLite gzip+base64, creds.json,
+  marker `.ident`) — ditulis bot Rust berkala (write-behind), dibaca launcher
+  saat lokal hilang. Logout dipercaya menghapus snapshot (backup
+  `purged-<ts>` 24 jam). Tabel `session_creds`/`session_keys` lama tidak
+  dipakai lagi.
 - Pairing QR mencetak payload, belum dirender jadi gambar QR.
