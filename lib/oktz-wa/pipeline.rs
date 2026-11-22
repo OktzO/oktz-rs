@@ -4732,6 +4732,7 @@ impl Pipeline {
                     .map(|lid| lid.to_string()),
                 self_mode: self.ctx.mode_settings().mode.eq_ignore_ascii_case("self"),
                 metadata_available: !roster.is_empty(),
+                bot_admin: roster.is_bot_admin,
                 participants: pipeline_gate::participants_from(&roster),
                 now_ms,
             };
@@ -4753,6 +4754,29 @@ impl Pipeline {
             }
             if !matches!(decision, group::Decision::Allow) {
                 return self.execute_group_decision(decision, m, &caller).await;
+            }
+            // Diagnostik lapangan: gate anti grup menyala tapi pesan lolos tanpa
+            // aksi. Membedakan setting mati / metadata gagal / bot bukan admin.
+            let anti_on = settings.antilinkgc.as_deref() == Some("on")
+                || settings.antilinkall.as_deref() == Some("on")
+                || settings.antilink.as_deref() == Some("on")
+                || settings.antitagsw.as_deref() == Some("on");
+            if anti_on {
+                tracing::info!(
+                    chat = %caller.chat,
+                    sender = %caller.sender,
+                    metadata_available = env.metadata_available,
+                    bot_admin = env.bot_admin,
+                    is_bot_admin = gcaller.is_bot_admin,
+                    sender_admin = gcaller.is_admin,
+                    self_mode = env.self_mode,
+                    antilink = ?settings.antilink,
+                    antilinkgc = ?settings.antilinkgc,
+                    antilinkall = ?settings.antilinkall,
+                    antitagsw = ?settings.antitagsw,
+                    body = %gcaller.body,
+                    "gate anti grup: pesan lolos tanpa aksi (Allow)"
+                );
             }
         }
 

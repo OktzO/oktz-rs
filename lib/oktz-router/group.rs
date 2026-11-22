@@ -166,6 +166,11 @@ pub struct GateEnv {
     /// roster kosong terbaca sebagai "bot bukan admin" dan bot membalas
     /// `notAdmin` — balasan yang di JS tidak pernah muncul saat metadata gagal.
     pub metadata_available: bool,
+    /// `roster.is_bot_admin` — dihitung dari metadata dengan ketiga identitas
+    /// peserta (`jid`/`phone_number`/`lid`). Gate memakai ini DULU; hitung ulang
+    /// dari [`Self::participants`] hanya cadangan karena roster router hanya
+    /// membawa `jid` (identitas lain hilang di `participants_from`).
+    pub bot_admin: bool,
     pub participants: Vec<Participant>,
     /// `Date.now()` untuk gate slowmode.
     pub now_ms: i64,
@@ -1218,6 +1223,9 @@ fn is_admin_check(participants: &[Participant], participant: Option<&str>, sende
 
 /// `is_bot_admin_check` versi env — kandidat bot = PN + LID.
 fn is_bot_admin_check(env: &GateEnv) -> bool {
+    if env.bot_admin {
+        return true;
+    }
     let mut bot_jids: Vec<String> = vec![env.bot_number.clone()];
     if let Some(lid) = &env.bot_lid {
         bot_jids.push(lid.clone());
@@ -4614,6 +4622,41 @@ mod tests {
         assert_eq!(
             default_gate_chain().run(&input(&c, &s, &e)),
             Decision::DeleteAndStop
+        );
+    }
+
+    /// Skenario lapangan: grup ber-addressing LID, pesan link channel dari LID,
+    /// roster memakai LID untuk member dan PN untuk bot. Dicek langsung ke gate.
+    #[test]
+    fn lid_group_channel_link_is_deleted() {
+        let mut c = caller();
+        c.sender = "258394745221199@lid".into();
+        c.participant = Some("258394745221199@lid".into());
+        c.body = "https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I".into();
+        let s = GroupSettings {
+            antilinkgc: Some("on".into()),
+            antilinkall: Some("on".into()),
+            ..Default::default()
+        };
+        let mut e = env();
+        e.bot_lid = Some("9998887771@lid".into());
+        e.participants = vec![
+            Participant {
+                id: "628999@s.whatsapp.net".into(),
+                admin: true,
+                ..Default::default()
+            },
+            Participant {
+                id: "258394745221199@lid".into(),
+                ..Default::default()
+            },
+        ];
+        assert!(
+            matches!(
+                run_one(gate_antilink_gc, &c, &s, &e),
+                GateOutcome::Decide(Decision::DeleteAndReply(_))
+            ),
+            "link channel WA di grup LID harus dihapus"
         );
     }
 
