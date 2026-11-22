@@ -90,6 +90,7 @@ impl TursoStore {
             "CREATE TABLE IF NOT EXISTS stores (key TEXT PRIMARY KEY, data TEXT, updated_at INTEGER)",
             "CREATE TABLE IF NOT EXISTS session_creds (scope TEXT PRIMARY KEY, creds TEXT, updated_at INTEGER)",
             "CREATE TABLE IF NOT EXISTS session_keys (scope TEXT, category TEXT, id TEXT, data TEXT, updated_at INTEGER, PRIMARY KEY (scope, category, id))",
+            "CREATE TABLE IF NOT EXISTS session_state (scope TEXT PRIMARY KEY, creds TEXT, db TEXT, ident TEXT, updated_at INTEGER)",
         ] {
             conn.execute(sql, ())
                 .await
@@ -99,7 +100,11 @@ impl TursoStore {
     }
 
     /// Baca satu row `stores`; `None` kalau key belum ada.
-    pub async fn load_store(&self, conn: &libsql::Connection, key: &str) -> Result<Option<serde_json::Value>> {
+    pub async fn load_store(
+        &self,
+        conn: &libsql::Connection,
+        key: &str,
+    ) -> Result<Option<serde_json::Value>> {
         let mut rows = conn
             .query("SELECT data FROM stores WHERE key = ?1", [key])
             .await
@@ -107,17 +112,18 @@ impl TursoStore {
         let Some(row) = rows.next().await.map_err(turso_err("load_store next"))? else {
             return Ok(None);
         };
-        let data: String = row
-            .get(0)
-            .map_err(turso_err("load_store get"))?;
-        serde_json::from_str(&data)
-            .map(Some)
-            .map_err(Error::from)
+        let data: String = row.get(0).map_err(turso_err("load_store get"))?;
+        serde_json::from_str(&data).map(Some).map_err(Error::from)
     }
 
     /// UPSERT satu row `stores` — `INSERT ... ON CONFLICT DO UPDATE`, sama
     /// dengan `writeToTurso` (`oktz-md/src/lib/database.js:401-411`).
-    pub async fn put_store(&self, conn: &libsql::Connection, key: &str, v: &serde_json::Value) -> Result<()> {
+    pub async fn put_store(
+        &self,
+        conn: &libsql::Connection,
+        key: &str,
+        v: &serde_json::Value,
+    ) -> Result<()> {
         let data = crate::lowdb::stringify(v)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -140,7 +146,11 @@ impl TursoStore {
             .query("SELECT 1 FROM stores LIMIT 1", ())
             .await
             .map_err(turso_err("has_any_store"))?;
-        Ok(rows.next().await.map_err(turso_err("has_any_store next"))?.is_some())
+        Ok(rows
+            .next()
+            .await
+            .map_err(turso_err("has_any_store next"))?
+            .is_some())
     }
 
     /// Semua nama store di tabel `stores` — dipakai restore boot.
@@ -150,14 +160,25 @@ impl TursoStore {
             .await
             .map_err(turso_err("list_store_keys"))?;
         let mut out = Vec::new();
-        while let Some(row) = rows.next().await.map_err(turso_err("list_store_keys next"))? {
-            out.push(row.get::<String>(0).map_err(turso_err("list_store_keys get"))?);
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(turso_err("list_store_keys next"))?
+        {
+            out.push(
+                row.get::<String>(0)
+                    .map_err(turso_err("list_store_keys get"))?,
+            );
         }
         Ok(out)
     }
 
     /// `sessionKeyStats` (`plugins/owner/sessionstats.js`) — per kategori.
-    pub async fn session_key_stats(&self, conn: &libsql::Connection, scope: &str) -> Result<Vec<(String, i64, i64)>> {
+    pub async fn session_key_stats(
+        &self,
+        conn: &libsql::Connection,
+        scope: &str,
+    ) -> Result<Vec<(String, i64, i64)>> {
         let mut rows = conn
             .query(
                 "SELECT category, COUNT(*), SUM(LENGTH(data)) FROM session_keys WHERE scope = ?1 GROUP BY category",
@@ -166,7 +187,11 @@ impl TursoStore {
             .await
             .map_err(turso_err("session_key_stats"))?;
         let mut out = Vec::new();
-        while let Some(row) = rows.next().await.map_err(turso_err("session_key_stats next"))? {
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(turso_err("session_key_stats next"))?
+        {
             out.push((
                 row.get::<String>(0).map_err(turso_err("stats cat"))?,
                 row.get::<i64>(1).map_err(turso_err("stats cnt"))?,
@@ -192,7 +217,11 @@ impl TursoStore {
         if rows.is_empty() {
             return Ok(());
         }
-        if !table.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') || table.is_empty() {
+        if !table
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            || table.is_empty()
+        {
             return Err(Error::Config(format!(
                 "turso: nama tabel mirror tidak sah: {table:?}"
             )));
@@ -207,9 +236,7 @@ impl TursoStore {
         // (review I2; ribuan row session = ribuan HTTP request kalau per-baris).
         const CHUNK: usize = 100;
         for chunk in rows.chunks(CHUNK) {
-            let mut sql = format!(
-                "INSERT INTO {table} (k, v) VALUES "
-            );
+            let mut sql = format!("INSERT INTO {table} (k, v) VALUES ");
             for (i, (_, json)) in chunk.iter().enumerate() {
                 if i > 0 {
                     sql.push_str(", ");
@@ -237,6 +264,98 @@ impl TursoStore {
     ) -> Result<()> {
         self.upsert_mirror_rows(conn, table, &[(k, row_json)]).await
     }
+
+    /// Snapshot sesi utuh: creds.json + db SQLite (gzip+base64) + sidik
+    /// identitas — satu row per scope. Pengganti `session_creds` +
+    /// `session_keys` + tabel mirror per-baris.
+    pub async fn put_session_state(
+        &self,
+        conn: &libsql::Connection,
+        scope: &str,
+        creds: &str,
+        db_b64: &str,
+        ident: &str,
+    ) -> Result<()> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        conn.execute(
+            "INSERT INTO session_state (scope, creds, db, ident, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(scope) DO UPDATE SET creds = excluded.creds, db = excluded.db, ident = excluded.ident, updated_at = excluded.updated_at",
+            [scope, creds, db_b64, ident, &now.to_string()],
+        )
+        .await
+        .map_err(turso_err("put_session_state"))?;
+        Ok(())
+    }
+
+    pub async fn get_session_state(
+        &self,
+        conn: &libsql::Connection,
+        scope: &str,
+    ) -> Result<Option<SessionState>> {
+        let mut rows = conn
+            .query(
+                "SELECT creds, db, ident FROM session_state WHERE scope = ?1",
+                [scope],
+            )
+            .await
+            .map_err(turso_err("get_session_state"))?;
+        let Some(row) = rows
+            .next()
+            .await
+            .map_err(turso_err("get_session_state next"))?
+        else {
+            return Ok(None);
+        };
+        let creds: String = row.get(0).map_err(turso_err("get_session_state creds"))?;
+        let db: String = row.get(1).map_err(turso_err("get_session_state db"))?;
+        let ident: String = row.get(2).map_err(turso_err("get_session_state ident"))?;
+        Ok(Some(SessionState { creds, db, ident }))
+    }
+
+    /// `Ok(true)` = ada row yang terhapus.
+    pub async fn delete_session_state(
+        &self,
+        conn: &libsql::Connection,
+        scope: &str,
+    ) -> Result<bool> {
+        let n = conn
+            .execute("DELETE FROM session_state WHERE scope = ?1", [scope])
+            .await
+            .map_err(turso_err("delete_session_state"))?;
+        Ok(n > 0)
+    }
+
+    pub async fn list_session_scopes(&self, conn: &libsql::Connection) -> Result<Vec<String>> {
+        let mut rows = conn
+            .query("SELECT scope FROM session_state ORDER BY scope", ())
+            .await
+            .map_err(turso_err("list_session_scopes"))?;
+        let mut out = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(turso_err("list_session_scopes next"))?
+        {
+            out.push(
+                row.get::<String>(0)
+                    .map_err(turso_err("list_session_scopes get"))?,
+            );
+        }
+        Ok(out)
+    }
+}
+
+/// Isi satu row `session_state`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionState {
+    pub creds: String,
+    /// db SQLite utuh, gzip + base64.
+    pub db: String,
+    /// Sidik identitas (`registration_id:hex ident`) — isi marker `.ident`.
+    pub ident: String,
 }
 
 fn turso_err(konteks: impl Into<String>) -> impl FnOnce(libsql::Error) -> Error {
@@ -258,7 +377,10 @@ mod tests {
     use super::*;
 
     async fn mem() -> (TursoStore, libsql::Connection) {
-        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
         let conn = db.connect().unwrap();
         let store = TursoStore::with_conn(conn.clone());
         store.ensure_tables(&conn).await.unwrap();
@@ -326,7 +448,12 @@ mod tests {
     async fn upsert_mirror_row_upserts_not_duplicates() {
         let (store, conn) = mem().await;
         store
-            .upsert_mirror_row(&conn, "identities", 0, &serde_json::json!({"a":"satu","b":"0102"}))
+            .upsert_mirror_row(
+                &conn,
+                "identities",
+                0,
+                &serde_json::json!({"a":"satu","b":"0102"}),
+            )
             .await
             .unwrap();
         store
@@ -334,7 +461,12 @@ mod tests {
             .await
             .unwrap();
         store
-            .upsert_mirror_row(&conn, "identities", 1, &serde_json::json!({"a":"dua-revisi"}))
+            .upsert_mirror_row(
+                &conn,
+                "identities",
+                1,
+                &serde_json::json!({"a":"dua-revisi"}),
+            )
             .await
             .unwrap();
         let mut rows = conn
@@ -347,9 +479,16 @@ mod tests {
             .query("SELECT v FROM identities WHERE k = 1", ())
             .await
             .unwrap();
-        let v: serde_json::Value =
-            serde_json::from_str(&rows2.next().await.unwrap().unwrap().get::<String>(0).unwrap())
-                .unwrap();
+        let v: serde_json::Value = serde_json::from_str(
+            &rows2
+                .next()
+                .await
+                .unwrap()
+                .unwrap()
+                .get::<String>(0)
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(v["a"], "dua-revisi");
     }
 
@@ -358,5 +497,46 @@ mod tests {
         let (store, conn) = mem().await;
         let s = store.session_key_stats(&conn, "main").await.unwrap();
         assert!(s.is_empty());
+    }
+
+    #[tokio::test]
+    async fn session_state_roundtrip_upsert_delete_list() {
+        let (store, conn) = mem().await;
+        assert_eq!(store.get_session_state(&conn, "main").await.unwrap(), None);
+
+        store
+            .put_session_state(&conn, "main", "creds-1", "db-b64-1", "sidik-1")
+            .await
+            .unwrap();
+        store
+            .put_session_state(&conn, "backup", "creds-2", "db-b64-2", "sidik-2")
+            .await
+            .unwrap();
+        // UPSERT: tulis ulang scope sama tidak menduplikasi.
+        store
+            .put_session_state(&conn, "main", "creds-1b", "db-b64-1b", "sidik-1b")
+            .await
+            .unwrap();
+
+        let st = store
+            .get_session_state(&conn, "main")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(st.creds, "creds-1b");
+        assert_eq!(st.db, "db-b64-1b");
+        assert_eq!(st.ident, "sidik-1b");
+
+        let mut scopes = store.list_session_scopes(&conn).await.unwrap();
+        scopes.sort();
+        assert_eq!(scopes, vec!["backup".to_string(), "main".to_string()]);
+
+        assert!(store.delete_session_state(&conn, "main").await.unwrap());
+        assert!(!store.delete_session_state(&conn, "main").await.unwrap());
+        assert_eq!(store.get_session_state(&conn, "main").await.unwrap(), None);
+        assert_eq!(
+            store.list_session_scopes(&conn).await.unwrap(),
+            vec!["backup".to_string()]
+        );
     }
 }
