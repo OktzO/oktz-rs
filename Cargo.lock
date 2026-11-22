@@ -1640,10 +1640,14 @@ name = "oktz-plugins"
 version = "0.1.0"
 dependencies = [
  "linkme",
+ "oktz-core",
  "oktz-plugin-api",
  "oktz-scraper",
+ "oktz-store",
+ "oktz-wa",
  "rand 0.9.5",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 

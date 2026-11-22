@@ -182,9 +182,65 @@ pub fn prune_broken_sessions(storage_root: &Path, session_base: &str, keep: usiz
     removed
 }
 
+#[cfg(test)]
+mod clear_tests {
+    use super::*;
+
+    #[test]
+    fn clear_broken_sessions_removes_all_quarantine_but_not_active() {
+        let dir = std::env::temp_dir().join(format!("oktz-clear-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(dir.join("sess.broken-1")).unwrap();
+        std::fs::write(dir.join("sess.broken-3"), b"f").unwrap();
+        std::fs::write(dir.join("sess"), b"aktif").unwrap();
+        std::fs::write(dir.join("sess.ident"), b"s").unwrap();
+
+        assert_eq!(clear_broken_sessions(&dir, "sess"), 2);
+        let mut sisa: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+        sisa.sort();
+        assert_eq!(sisa, vec!["sess".to_string(), "sess.ident".to_string()]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
+
 pub fn normalize_pairing_number(input: &str) -> Option<String> {
     let d: String = input.chars().filter(char::is_ascii_digit).collect();
     (!d.is_empty()).then_some(d)
+}
+
+/// Hapus SEMUA karantina `*.broken-*` di `storage_root` (kebalikan
+/// `prune_broken_sessions` yang menyisakan `keep`).
+///
+/// Dipakai plugin `.clearsession`: karantina adalah backup logout lama —
+/// membuangnya aman, db/creds aktif TIDAK ikut (nama mereka tanpa `.broken-`).
+pub fn clear_broken_sessions(storage_root: &Path, session_base: &str) -> usize {
+    let prefix = format!("{session_base}.broken-");
+    let Ok(rd) = std::fs::read_dir(storage_root) else {
+        return 0;
+    };
+    let mut removed = 0;
+    for e in rd.flatten() {
+        let Some(nama) = e.file_name().into_string().ok() else {
+            continue;
+        };
+        if !nama.starts_with(&prefix) {
+            continue;
+        }
+        let p = storage_root.join(&nama);
+        if e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            if std::fs::remove_dir_all(&p).is_ok() {
+                removed += 1;
+            }
+        } else if std::fs::remove_file(&p).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
 }
 
 #[cfg(test)]

@@ -119,6 +119,7 @@ pub mod sewabot;
 pub mod savedb;
 
 // Ditambahkan scripts/pasang-modul.mjs.
+pub mod clearsessiondb;
 pub mod clearsessions;
 
 // Ditambahkan scripts/pasang-modul.mjs.

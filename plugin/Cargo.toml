@@ -17,3 +17,8 @@ rand = "0.9"
 # Tipe `Value` hanya, untuk baca state tersimpan lewat `Ctx::user_field` /
 # `group_field`. Tidak ada I/O store di crate ini.
 serde_json.workspace = true
+# `.clearsession`: hapus snapshot basi di Turso (helper murni di oktz-store).
+oktz-store = { path = "../lib/oktz-store" }
+oktz-core = { path = "../lib/oktz-core" }
+oktz-wa = { path = "../lib/oktz-wa" }
+tokio = { version = "1.53", features = ["rt", "macros"] }

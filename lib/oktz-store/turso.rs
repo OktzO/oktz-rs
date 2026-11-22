@@ -346,6 +346,30 @@ impl TursoStore {
         }
         Ok(out)
     }
+
+    /// Bersihkan snapshot basi: semua scope KECUALI `main` + isi tabel legacy
+    /// `session_creds`/`session_keys`. `main` (sesi aktif) TIDAK disentuh.
+    /// `(jumlah backup terhapus, legacy ada isinya)`.
+    pub async fn clear_session_backups(&self, conn: &libsql::Connection) -> Result<(usize, bool)> {
+        let mut removed = 0usize;
+        for scope in self.list_session_scopes(conn).await? {
+            if scope == "main" || scope.starts_with("main:") {
+                continue;
+            }
+            if self.delete_session_state(conn, &scope).await? {
+                removed += 1;
+            }
+        }
+        let mut legacy = false;
+        for sql in ["DELETE FROM session_creds", "DELETE FROM session_keys"] {
+            let n = conn
+                .execute(sql, ())
+                .await
+                .map_err(turso_err("clear_session_backups legacy"))?;
+            legacy = legacy || n > 0;
+        }
+        Ok((removed, legacy))
+    }
 }
 
 /// Isi satu row `session_state`.
@@ -527,6 +551,64 @@ mod tests {
         let (store, conn) = mem().await;
         let s = store.session_key_stats(&conn, "main").await.unwrap();
         assert!(s.is_empty());
+    }
+
+    #[tokio::test]
+    async fn clear_session_backups_keeps_main_and_legacy_untouched() {
+        let (store, conn) = mem().await;
+        store
+            .put_session_state(&conn, "main", "c", "d", "i")
+            .await
+            .unwrap();
+        store
+            .put_session_state(&conn, "purged-100", "c1", "d1", "i1")
+            .await
+            .unwrap();
+        store
+            .put_session_state(&conn, "purged-200", "c2", "d2", "i2")
+            .await
+            .unwrap();
+        conn.execute(
+            "INSERT INTO session_creds (scope, creds, updated_at) VALUES ('main', 'x', 1)",
+            (),
+        )
+        .await
+        .unwrap();
+        conn.execute(
+            "INSERT INTO session_keys (scope, category, id, data, updated_at) VALUES ('main', 'session', 'k', 'v', 1)",
+            (),
+        )
+        .await
+        .unwrap();
+
+        let (backups, legacy) = store.clear_session_backups(&conn).await.unwrap();
+        assert_eq!(backups, 2, "dua scope purged-* terhapus");
+        assert!(legacy, "tabel legacy dibersihkan");
+
+        // main UTUH — sesi aktif tidak tersentuh.
+        assert!(
+            store
+                .get_session_state(&conn, "main")
+                .await
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(
+            store.list_session_scopes(&conn).await.unwrap(),
+            vec!["main".to_string()],
+            "hanya main yang tersisa"
+        );
+
+        // Kedua kali = no-op.
+        let (b2, l2) = store.clear_session_backups(&conn).await.unwrap();
+        assert_eq!((b2, l2), (0, false));
+        assert!(
+            store
+                .get_session_state(&conn, "main")
+                .await
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]
