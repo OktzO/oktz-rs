@@ -13,3 +13,6 @@
 # Scratch agent.
 /.opencode
 node_modules/
+# Worktree agent.
+/.worktrees
+/.superpowers
