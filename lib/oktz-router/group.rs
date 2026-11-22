@@ -1406,14 +1406,15 @@ fn contains_link(text: &str) -> bool {
 fn contains_wa_specific_link(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     // (prefix, suffix harus alphanumeric kecuali api.whatsapp.com/send)
-    const PREFIXES: &[(&str, bool)] = &[
-        ("chat.whatsapp.com/", true),
-        ("wa.me/", true),
-        ("whatsapp.com/channel/", true),
-        ("whatsapp.com/c/", true),
-        ("api.whatsapp.com/send", false),
+    const PREFIXES: &[(&str, bool, bool)] = &[
+        ("chat.whatsapp.com/", true, false),
+        // `wa.me/[0-9+]+` — nomor boleh diawali `+` (JS regex).
+        ("wa.me/", true, true),
+        ("whatsapp.com/channel/", true, false),
+        ("whatsapp.com/c/", true, false),
+        ("api.whatsapp.com/send", false, false),
     ];
-    for (prefix, need_tail) in PREFIXES {
+    for (prefix, need_tail, allow_plus) in PREFIXES {
         let mut from = 0;
         while let Some(rel) = lower[from..].find(prefix) {
             let tail = &lower[from + rel + prefix.len()..];
@@ -1421,7 +1422,7 @@ fn contains_wa_specific_link(text: &str) -> bool {
                 || tail
                     .chars()
                     .next()
-                    .is_some_and(|c| c.is_ascii_alphanumeric())
+                    .is_some_and(|c| c.is_ascii_alphanumeric() || (*allow_plus && c == '+'))
             {
                 return true;
             }
@@ -5858,6 +5859,7 @@ mod tests {
         for t in [
             "chat.whatsapp.com/AbCd",
             "wa.me/628123",
+            "wa.me/+628123",
             "whatsapp.com/channel/ABC",
             "whatsapp.com/c/ABC",
             "api.whatsapp.com/send",

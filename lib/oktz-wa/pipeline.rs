@@ -4004,15 +4004,12 @@ impl Pipeline {
         roster: &GroupRoster,
     ) -> GroupCaller {
         let sender = caller.sender.clone();
-        // `m.key.participant` — di grup addressing LID ini bisa beda dari
-        // `m.sender`; `is_admin_check` mencocokkan keduanya.
-        let participant = m
-            .message
-            .get_base_message()
-            .extended_text_message
-            .as_option()
-            .and_then(|e| e.context_info.as_option())
-            .and_then(|c| c.participant.clone());
+        // `m.key.participant` sama dengan `source.sender` di wacore
+        // (`messages.rs:1109`), dan di grup LID berisi LID apa adanya.
+        // JANGAN baca `contextInfo.participant`: itu penulis pesan yang
+        // DIKUTIP, sehingga member yang me-reply pesan admin/bot akan
+        // dianggap admin/bot oleh gate (JS: `m.key?.participant`).
+        let participant = Some(sender.clone());
         let parsed = parse_command(body, &self.parse_opts);
         GroupCaller {
             sender: sender.clone(),
@@ -4418,6 +4415,7 @@ impl Pipeline {
             group::Decision::DeleteAndStop
                 | group::Decision::DeleteAndReply(_)
                 | group::Decision::KickAndReply(_)
+                | group::Decision::KickAndReplyFallback { .. }
         );
         if deletes
             && let Err(e) = self
@@ -4434,7 +4432,16 @@ impl Pipeline {
         }
         // JS: delete → kick → reply. Kegagalan kick juga ditelan supaya pesan
         // peringatan tetap terkirim (`src/lib/group-protection.js:1234-1242`).
-        if matches!(decision, group::Decision::KickAndReply(_)) {
+        //
+        // `KickAndReplyFallback` (antilinkgc/antilinkall/judol/phising/custom
+        // mode kick) WAJIB ikut dicabang di sini: di JS kedua gate itu
+        // menghapus pesan lebih dulu, lalu kalau kick gagal tetap membalas
+        // teks mode-remove (`:1911-1926`, `:1966-1979`).
+        let mut kick_failed = false;
+        if matches!(
+            decision,
+            group::Decision::KickAndReply(_) | group::Decision::KickAndReplyFallback { .. }
+        ) {
             let chat = caller.chat.clone();
             let sender = caller.sender.clone();
             if let Err(e) = self
@@ -4453,9 +4460,18 @@ impl Pipeline {
                     peserta = %caller.sender,
                     "gagal kick peserta"
                 );
+                kick_failed = true;
             }
         }
-        match decision.reply_text() {
+        // Kick gagal: `KickAndReplyFallback` mengirim teks remove;
+        // `KickAndReply` tidak punya fallback → jangan kirim apa pun,
+        // sama seperti error yang naik ke `catch` luar JS.
+        let text = if kick_failed {
+            decision.kick_fallback()
+        } else {
+            decision.reply_text()
+        };
+        match text {
             Some(text) => {
                 let reply = Reply::text(text);
                 let target = reply_target(m, &caller.sender);
@@ -8741,6 +8757,53 @@ impl TestPlugin {
     }
 
     #[tokio::test]
+    async fn link_reply_quoting_an_admin_still_gets_deleted() {
+        // JS memakai `m.key.participant` sebagai identitas pengirim
+        // (`group-protection.js:1332/1904/1958`). Port lama membaca
+        // `extendedTextMessage.contextInfo.participant`, yaitu penulis pesan
+        // yang DIKUTIP. Akibatnya member yang me-reply pesan admin dengan link
+        // dianggap admin dan pesannya lolos dari penghapusan.
+        let plug = TestPlugin::new(3, 0, false);
+        let (p, s) = grp(
+            &plug,
+            r#"{"groups": {"120363@g.us": {"antilinkall": "on"}}}"#,
+        );
+        let m = InboundMessage::builder()
+            .message(Arc::new(wa::Message {
+                extended_text_message: MessageField::some(wa::message::ExtendedTextMessage {
+                    text: Some("kunjungi https://contoh.com/x".into()),
+                    context_info: MessageField::some(wa::ContextInfo {
+                        participant: Some("628222@s.whatsapp.net".into()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }))
+            .info(Arc::new(MessageInfo {
+                source: MessageSource {
+                    chat: GROUP.parse().unwrap(),
+                    sender: MEMBER.parse().unwrap(),
+                    is_from_me: false,
+                    is_group: true,
+                    ..Default::default()
+                },
+                id: "QUOTEADMIN1".into(),
+                ..Default::default()
+            }))
+            .build();
+
+        let out = p.process(&m, 1_000).await.unwrap();
+
+        assert_eq!(out, Outcome::Sent);
+        assert_eq!(
+            s.deleted(),
+            vec![(GROUP.to_string(), "QUOTEADMIN1".to_string(), MEMBER.to_string())],
+            "pengirim sebenarnya member, bukan admin yang dikutip"
+        );
+    }
+
+    #[tokio::test]
     async fn blocked_status_tag_is_deleted_without_a_text_body() {
         // `groupStatusMentionMessage` tidak membawa body teks, tapi
         // `.antitagsw` tetap harus menghapusnya — gate grup berjalan sebelum
@@ -9796,6 +9859,8 @@ fn a_null_access_field_keeps_the_existing_grant() {
         meta: Option<Value>,
         /// Grup yang diminta keluar lewat [`Sock::keluar_grup`].
         keluar: Mutex<Vec<String>>,
+        /// `true` = `ubah_peserta` menolak, untuk menguji cabang fallback kick.
+        tolak_kick: bool,
     }
 
     macro_rules! sock_tolak {
@@ -9816,6 +9881,9 @@ fn a_null_access_field_keeps_the_existing_grant() {
             peserta: &[String],
             aksi: oktz_plugin_api::AksiPeserta,
         ) -> Result<(), oktz_plugin_api::SockError> {
+            if self.tolak_kick {
+                return Err(oktz_plugin_api::SockError::baru("kick ditolak uji"));
+            }
             self.aksi
                 .lock()
                 .unwrap()
@@ -10283,6 +10351,85 @@ fn a_null_access_field_keeps_the_existing_grant() {
         assert!(
             sender.texts().iter().any(|t| t.contains("dikick")),
             "balasan terkirim setelah kick: {:?}",
+            sender.texts()
+        );
+    }
+
+    #[tokio::test]
+    async fn keputusan_kick_fallback_tetap_menghapus_dan_mengkick() {
+        // `.antilinkgc/.antilinkall metode kick` → `KickAndReplyFallback`.
+        // JS selalu menghapus pesan DULU, lalu kick (`group-protection.js:1911-1926`).
+        // Versi lama tidak mencocokkan varian ini di `deletes` maupun cabang kick,
+        // jadi pesan pelanggar tidak dihapus dan user tidak di-kick.
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji::default());
+        let ctx = StoreContext::new(store_with("kick-fallback", "{}"));
+        let p = Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+            .with_sock(sock.clone());
+
+        let m = inbound("https://chat.whatsapp.com/AbCdEf", MEMBER, GROUP, true, "KF1");
+        let caller = p.caller_of(&m);
+        p.execute_group_decision(
+            group::Decision::KickAndReplyFallback {
+                kick: "dikick".into(),
+                fallback: "dihapus".into(),
+            },
+            &m,
+            &caller,
+        )
+        .await
+        .expect("keputusan fallback kick harus jalan");
+
+        assert_eq!(
+            sender.deleted(),
+            vec![(GROUP.to_string(), "KF1".to_string(), MEMBER.to_string())],
+            "pesan pelanggar harus dihapus walau mode kick"
+        );
+        assert_eq!(
+            sock.aksi.lock().unwrap().len(),
+            1,
+            "kick harus benar-benar dicoba"
+        );
+        assert!(
+            sender.texts().iter().any(|t| t.contains("dikick")),
+            "balasan mode kick terkirim: {:?}",
+            sender.texts()
+        );
+    }
+
+    #[tokio::test]
+    async fn keputusan_kick_fallback_memakai_teks_remove_saat_kick_gagal() {
+        let sender = Arc::new(RecordingSender::default());
+        let sock = Arc::new(SockUji {
+            tolak_kick: true,
+            ..Default::default()
+        });
+        let ctx = StoreContext::new(store_with("kick-fallback-gagal", "{}"));
+        let p = Pipeline::new(ctx, sender.clone(), BOT, ParseOptions::default())
+            .with_sock(sock);
+
+        let m = inbound("https://chat.whatsapp.com/AbCdEf", MEMBER, GROUP, true, "KF2");
+        let caller = p.caller_of(&m);
+        p.execute_group_decision(
+            group::Decision::KickAndReplyFallback {
+                kick: "dikick".into(),
+                fallback: "dihapus".into(),
+            },
+            &m,
+            &caller,
+        )
+        .await
+        .expect("gagal kick tidak boleh menggagalkan pipeline");
+
+        assert_eq!(sender.deleted().len(), 1, "delete tetap terjadi");
+        assert!(
+            sender.texts().iter().any(|t| t.contains("dihapus")),
+            "kick gagal → teks mode remove: {:?}",
+            sender.texts()
+        );
+        assert!(
+            !sender.texts().iter().any(|t| t.contains("dikick")),
+            "teks kick tidak boleh dikirim saat kick gagal: {:?}",
             sender.texts()
         );
     }
