@@ -466,6 +466,19 @@ async fn tunggu_sinyal() {
 /// `OKTZ_DB_DIR` supaya run lokal tidak butuh `/var/lib/oktz`.
 ///
 /// `hold_secs` = 0 berarti jalan sampai sinyal berhenti (daemon).
+/// Pasang env runtime yang dibaca lapisan bawah saat connect: lokasi creds
+/// (dipakai snapshot session Turso — `bot::CREDS_ENV`) dan settings (dipakai
+/// pipeline). Argumen posisi launcher tidak diteruskan ke sana, jadi tanpa ini
+/// snapshot session tidak pernah jalan di restart biasa.
+///
+/// Aman: dipanggil sebelum task/thread apa pun dibuat (startup single-thread).
+fn pasang_env_runtime(creds: &str, settings: Option<&str>) {
+    unsafe { std::env::set_var(oktz_wa::bot::CREDS_ENV, creds) };
+    if let Some(p) = settings {
+        unsafe { std::env::set_var(oktz_wa::bot::SETTINGS_ENV, p) };
+    }
+}
+
 async fn run(
     creds: &str,
     settings: Option<&str>,
@@ -477,11 +490,8 @@ async fn run(
     ))?;
     let store = oktz_wa::prepare_store(creds, &db).await?;
 
-    // Pipeline membaca lokasi settings lewat env saat connect. Argumen harus
-    // dipasang SEBELUM connect_device, makanya di sini bukan di dalam closure.
+    pasang_env_runtime(creds, settings);
     if let Some(p) = settings {
-        // Aman: masih single-threaded startup, sebelum task apa pun dibuat.
-        unsafe { std::env::set_var(oktz_wa::bot::SETTINGS_ENV, p) };
         tracing::info!(path = %p, "settings dari argumen");
     }
 
@@ -678,6 +688,44 @@ async fn send(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `run` diberi creds lewat argumen posisi, sedangkan snapshot session
+    /// (bot::CREDS_ENV) dan pipeline (bot::SETTINGS_ENV) membacanya lewat env.
+    /// Tanpa pemasangan ini, restart biasa tidak pernah menulis snapshot Turso
+    /// dan restore selalu menemukan `session_state` kosong.
+    #[test]
+    fn pasang_env_runtime_meneruskan_creds_dan_settings() {
+        let kunci = [oktz_wa::bot::CREDS_ENV, oktz_wa::bot::SETTINGS_ENV];
+        let lama: Vec<Option<String>> = kunci.iter().map(|k| std::env::var(k).ok()).collect();
+
+        pasang_env_runtime("/x/creds.json", Some("/y/settings.json"));
+        assert_eq!(
+            oktz_core::env::Env::get(oktz_wa::bot::CREDS_ENV).as_deref(),
+            Some("/x/creds.json")
+        );
+        assert_eq!(
+            oktz_core::env::Env::get(oktz_wa::bot::SETTINGS_ENV).as_deref(),
+            Some("/y/settings.json")
+        );
+
+        // Tanpa settings: creds tetap dipasang, settings tidak diutak-atik.
+        unsafe { std::env::remove_var(oktz_wa::bot::SETTINGS_ENV) };
+        pasang_env_runtime("/z/creds.json", None);
+        assert_eq!(
+            oktz_core::env::Env::get(oktz_wa::bot::CREDS_ENV).as_deref(),
+            Some("/z/creds.json")
+        );
+        assert!(oktz_core::env::Env::get(oktz_wa::bot::SETTINGS_ENV).is_none());
+
+        for (k, v) in kunci.iter().zip(lama) {
+            unsafe {
+                match v {
+                    Some(v) => std::env::set_var(k, v),
+                    None => std::env::remove_var(k),
+                }
+            }
+        }
+    }
 
     #[test]
     fn runtime_satu_core_current_thread_banyak_core_multi() {

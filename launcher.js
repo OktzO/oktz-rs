@@ -338,6 +338,41 @@ async function tursoQuery(endpoint, token, sql, args = []) {
   });
 }
 
+/** Path marker sidik identitas untuk db sesi. HARUS sama dengan yang dibaca
+ * binary Rust (`PathBuf::with_extension("ident")` → ganti ekstensi, jadi
+ * `oktz-run.db` → `oktz-run.ident`). `prepare_store` menolak pakai-ulang db
+ * yang marker-nya tidak ketemu, dan db tanpa marker valid dibangun ulang —
+ * sesi ratchet hasil restore Turso ikut hilang.
+ */
+export function pathMarker(dbPath) {
+  return `${dbPath.replace(/\.db$/, "")}.ident`;
+}
+
+/**
+ * Penanda sesi sudah logout (`<creds>.loggedout`, ditulis Rust saat purge
+ * logout dipercaya). Launcher memakainya untuk MENOLAK restore Turso —
+ * supaya sesi yang baru logout tidak dibangkitkan kembali kalau penghapusan
+ * snapshot di Turso gagal/terlambat.
+ */
+export function pathLogoutMarker(credsPath) {
+  return `${credsPath}.loggedout`;
+}
+
+/** Boleh restore dari Turso? Sesi lokal sehat menang; sesi yang sudah logout tidak dibangkitkan. */
+export function restoreTursoDiizinkan({ credsSiap, markerLogout, tursoAktif }) {
+  if (credsSiap) return false;
+  if (markerLogout) return false;
+  return Boolean(tursoAktif);
+}
+
+/** Path db sesi: `OKTZ_DB_DIR` (relatif `akar`) atau `database/wa/oktz-run.db`. */
+export function pathDbSession(akar) {
+  return path.join(
+    path.resolve(akar, process.env.OKTZ_DB_DIR || "database/wa"),
+    "oktz-run.db"
+  );
+}
+
 /**
  * Pulihkan sesi dari Turso: snapshot utuh `session_state` scope `main` —
  * creds.json + db SQLite (gzip+base64) + marker `.ident`.
@@ -382,14 +417,11 @@ async function pulihkanTurso(creds, turso) {
 
   // Lokasi db harus SAMA dengan yang dibaca binary saat `run`:
   // OKTZ_DB_DIR atau database/wa/oktz-run.db (src/main.rs::run).
-  const dirDb = path.resolve(
-    AKAR,
-    process.env.OKTZ_DB_DIR || "database/wa"
-  );
-  const dbPath = path.join(dirDb, "oktz-run.db");
+  const dbPath = pathDbSession(AKAR);
+  const markerPath = pathMarker(dbPath);
 
   const bersihkan = () => {
-    for (const p of [creds, dbPath, `${dbPath}.ident`]) {
+    for (const p of [creds, dbPath, markerPath]) {
       try {
         rmSync(p, { force: true });
       } catch {}
@@ -398,10 +430,10 @@ async function pulihkanTurso(creds, turso) {
 
   try {
     mkdirSync(path.dirname(creds), { recursive: true });
-    mkdirSync(dirDb, { recursive: true });
+    mkdirSync(path.dirname(dbPath), { recursive: true });
     if (dbBytes) writeFileSync(dbPath, dbBytes, { mode: 0o600 });
     writeFileSync(creds, credsRaw, { mode: 0o600 });
-    if (dbBytes && ident) writeFileSync(`${dbPath}.ident`, ident, { mode: 0o600 });
+    if (dbBytes && ident) writeFileSync(markerPath, ident, { mode: 0o600 });
   } catch (e) {
     bersihkan();
     throw new Error(`tulis artefak sesi gagal: ${e.message}`);
@@ -763,14 +795,34 @@ async function pairing(creds) {
 
 async function boot() {
   const creds = pathCreds();
+  const markerLogout = pathLogoutMarker(creds);
+  const lokalSiap = credsSiap(creds);
 
-  if (credsSiap(creds)) {
+  // Sesi lokal sehat → penanda logout sudah tidak relevan (pair ulang sukses
+  // atau sesi dipulihkan). Bersihkan supaya tidak memblokir restore di masa
+  // depan kalau creds hilang lagi.
+  if (lokalSiap) {
+    try {
+      rmSync(markerLogout, { force: true });
+    } catch {}
     jalankan(["run", creds]);
     return;
   }
 
   const turso = bacaTurso();
-  if (turso.aktif) {
+  const markerAda = existsSync(markerLogout);
+  if (markerAda) {
+    console.error(
+      "[launcher] sesi terakhir logout dipercaya; restore Turso dilewati — pairing ulang"
+    );
+  }
+  if (
+    restoreTursoDiizinkan({
+      credsSiap: lokalSiap,
+      markerLogout: markerAda,
+      tursoAktif: turso.aktif,
+    })
+  ) {
     try {
       await pulihkanTurso(creds, turso);
       console.log("[launcher] sesi dipulihkan dari Turso");

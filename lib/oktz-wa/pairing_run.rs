@@ -540,23 +540,60 @@ pub fn purge_handler_with_turso(
                 "sesi di-purge setelah logout dipercaya; pair ulang dibutuhkan"
             );
             if let Some(t) = &turso {
-                let t = t.clone();
-                tokio::spawn(async move {
-                    let now = now_ms();
-                    match purge_turso_session_state(&t, &PurgePlan::new(None, None), now).await {
-                        Ok(true) => {}
-                        Ok(false) => tracing::info!(
-                            "[turso] session_state main kosong; tidak ada yang dihapus"
-                        ),
-                        Err(e) => tracing::warn!(error = %e, "[turso] hapus session_state gagal"),
+                let now = now_ms();
+                // SINKRON, bukan fire-and-forget: kalau proses exit sebelum
+                // task jalan, `main` bertahan di Turso dan boot berikutnya
+                // memulihkan sesi yang baru logout (zombie/401 loop).
+                match purge_turso_blocking(t, now) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        tracing::info!("[turso] session_state main kosong; tidak ada yang dihapus")
                     }
-                });
+                    Err(e) => tracing::warn!(error = %e, "[turso] hapus session_state gagal"),
+                }
+            }
+            // Penanda logout: launcher memakainya untuk MENOLAK restore Turso
+            // kalau penghapusan di atas gagal / belum sampai.
+            if let Some(creds) = plan.creds.as_deref()
+                && let Err(e) = std::fs::write(logout_marker_path(creds), now_ms().to_string())
+            {
+                tracing::warn!(error = %e, "gagal menulis penanda logout");
             }
         }
         other => {
             tracing::warn!(?other, "aksi logout tanpa purge — state sesi tidak dihapus");
         }
     })
+}
+
+/// Jalankan penghapusan snapshot Turso secara sinkron dari handler logout
+/// (yang sinkron). Runtime sendiri di thread terpisah supaya aman di flavor
+/// `current_thread` (1 core) maupun multi-thread.
+fn purge_turso_blocking(t: &oktz_store::turso::TursoStore, now: u64) -> anyhow::Result<bool> {
+    let t = t.clone();
+    let hasil = std::thread::scope(|s| {
+        s.spawn(move || -> anyhow::Result<bool> {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| anyhow::anyhow!("runtime purge: {e}"))?;
+            rt.block_on(purge_turso_session_state(
+                &t,
+                &PurgePlan::new(None, None),
+                now,
+            ))
+        })
+        .join()
+    });
+    hasil.map_err(|_| anyhow::anyhow!("thread purge Turso panic"))?
+}
+
+/// `<creds>.loggedout` — penanda sesi sudah logout; dicek launcher sebelum
+/// memulihkan dari Turso supaya sesi yang baru di-purge tidak dibangkitkan.
+pub fn logout_marker_path(creds: &Path) -> PathBuf {
+    let mut nama = creds.file_name().unwrap_or_default().to_os_string();
+    nama.push(".loggedout");
+    creds.with_file_name(nama)
 }
 
 /// Kembalikan client ke "boleh reconnect" setelah grace window.
@@ -1301,6 +1338,33 @@ mod tests {
                 .await
                 .unwrap()
         );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn purge_handler_blocking_menulis_penanda_logout_dan_hapus_main() {
+        let dir = scratch("marker-logout");
+        seed(&dir);
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+        t.put_session_state(&conn, "main", "c", "d", "i")
+            .await
+            .unwrap();
+
+        let creds = dir.join("creds.json");
+        let plan = PurgePlan::new(Some(dir.join("oktz-run.db")), Some(creds.clone()));
+        let handler = purge_handler_with_turso(plan, Some(t.clone()));
+
+        // Sinkron: setelah handler kembali, Turso sudah bersih (durable).
+        handler(CloseAction::PurgeSession);
+        assert_eq!(
+            t.get_session_state(&conn, "main").await.unwrap(),
+            None,
+            "main harus sudah terhapus saat handler selesai"
+        );
+        assert!(logout_marker_path(&creds).exists(), "penanda logout ditulis");
         std::fs::remove_dir_all(&dir).ok();
     }
 

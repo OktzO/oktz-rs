@@ -894,14 +894,12 @@ pub async fn snapshot_session_to_turso(
     else {
         return Ok(false);
     };
-    let Some(sidik) = sidik_creds_aktif(&creds_path)? else {
+    let Some(sidik) = sidik_aktif_dengan_marker(&creds_path, db_path)? else {
         return Ok(false);
     };
-    let marker = db_path.with_extension("ident");
-    let Ok(marker_isi) = std::fs::read_to_string(&marker) else {
-        return Ok(false);
-    };
-    if marker_isi.trim() != sidik {
+    // Db harus sudah ada: `establish` di bawah MEMBUAT db kosong kalau purge
+    // sudah memindahkannya — snapshot db kosong menimpa sesi Turso yang sah.
+    if !db_path.exists() {
         return Ok(false);
     }
     let creds = std::fs::read_to_string(&creds_path).context("baca creds.json")?;
@@ -922,12 +920,37 @@ pub async fn snapshot_session_to_turso(
     }
     let raw = std::fs::read(&tmp)?;
     let _ = std::fs::remove_file(&tmp);
-    let db_b64 = oktz_store::gzip_b64(&raw)?;
 
+    // Guard kedua, tepat SEBELUM tulis: VACUUM+gzip memakan waktu, dan purge
+    // logout bisa selesai di antaranya. Tanpa cek ulang, snapshot ini menulis
+    // balik sesi yang baru di-purge (zombie). Sidik wajib masih sama.
+    if sidik_aktif_dengan_marker(&creds_path, db_path)?.as_deref() != Some(sidik.as_str()) {
+        tracing::info!("[turso] sesi berubah saat snapshot; tulis dibatalkan (anti-zombie)");
+        return Ok(false);
+    }
+
+    let db_b64 = oktz_store::gzip_b64(&raw)?;
     store
         .put_session_state(conn, "main", &creds, &db_b64, &sidik)
         .await?;
     Ok(true)
+}
+
+/// Sidik creds aktif HANYA kalau cocok dengan isi marker `<db>.ident`.
+/// `None` = creds tak terbaca / marker hilang/beda (sesi sudah di-purge atau
+/// creds sudah dirotasi) → jangan sentuh Turso.
+fn sidik_aktif_dengan_marker(
+    creds_path: &Path,
+    db_path: &Path,
+) -> anyhow::Result<Option<String>> {
+    let Some(sidik) = sidik_creds_aktif(creds_path)? else {
+        return Ok(None);
+    };
+    let marker = db_path.with_extension("ident");
+    let Ok(marker_isi) = std::fs::read_to_string(&marker) else {
+        return Ok(None);
+    };
+    Ok((marker_isi.trim() == sidik).then_some(sidik))
 }
 
 /// Sidik identitas dari creds.json aktif — sama dengan yang dihitung
@@ -1136,6 +1159,50 @@ mod tests {
             assert_eq!(rows.len(), 1);
             assert_eq!(rows[0].a, "satu");
         }
+
+        unsafe { std::env::remove_var(CREDS_ENV) };
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn snapshot_skip_kalau_db_hilang_dan_tidak_membuat_db_kosong() {
+        // Sesi sudah di-purge: creds+marker masih, db sudah dipindah. Snapshot
+        // tidak boleh membuat db kosong lalu menimpanya ke Turso.
+        let dir = std::env::temp_dir().join(format!(
+            "oktz-snapshot-nodb-{}",
+            SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("oktz-run.db");
+        let d = wacore::store::Device {
+            pn: "6285143885645:59@s.whatsapp.net".parse().ok(),
+            registration_id: 321,
+            ..Default::default()
+        };
+        let creds_json = serde_json::to_string(&crate::creds::device_ke_creds_json(&d)).unwrap();
+        let sidik = {
+            let (_m, c) = crate::creds::inspect_creds(&creds_json).unwrap();
+            let mut ident = crate::creds::b64(&c.signed_identity_key.public).unwrap();
+            if ident.len() == 32 {
+                ident.insert(0, 0x05);
+            }
+            format!("{}:{}", c.registration_id, ident.iter().map(|b| format!("{b:02x}")).collect::<String>())
+        };
+        std::fs::write(db_path.with_extension("ident"), &sidik).unwrap();
+        let creds_path = dir.join("creds.json");
+        std::fs::write(&creds_path, &creds_json).unwrap();
+        unsafe { std::env::set_var(CREDS_ENV, &creds_path) };
+
+        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+
+        let ok = snapshot_session_to_turso(&t, &conn, &db_path).await.unwrap();
+        assert!(!ok, "db hilang → jangan snapshot");
+        assert!(!db_path.exists(), "db kosong tidak boleh dibuat");
+        assert_eq!(t.get_session_state(&conn, "main").await.unwrap(), None);
 
         unsafe { std::env::remove_var(CREDS_ENV) };
         std::fs::remove_dir_all(&dir).ok();
