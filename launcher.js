@@ -9,7 +9,7 @@
 //
 // Tanpa argumen launcher ikut urutan bot JS lama:
 //   1. creds.json ada dan sudah paired -> run
-//   2. Turso aktif dan punya sesi      -> pulihkan creds + sesi ratchet, run
+//   2. Turso aktif dan punya sesi      -> pulihkan snapshot utuh (creds + db), run
 //   3. belum ada sesi                  -> pairing code / QR, lalu run
 //
 //   node launcher.js [argumen oktz...]
@@ -339,25 +339,29 @@ async function tursoQuery(endpoint, token, sql, args = []) {
 }
 
 /**
- * Pulihkan sesi dari Turso seperti useDurableAuthState di JS: creds hanya
- * dipakai kalau sesi lokal belum paired, keys mengisi ratchet yang hilang.
+ * Pulihkan sesi dari Turso: snapshot utuh `session_state` scope `main` —
+ * creds.json + db SQLite (gzip+base64) + marker `.ident`.
  *
- * @returns {Promise<string|null>} path fixture sesi, atau null kalau tanpa keys.
+ * Urutan tulis wajib: db → creds → marker. Gagal di tengah = hapus semua,
+ * jangan setengah-setengah (setengah creds tanpa db membuat bot jalan dengan
+ * ratchet kosong → Bad Mac).
+ *
+ * @returns {Promise<string|null>} null = sukses; throw = gagal total.
  */
 async function pulihkanTurso(creds, turso) {
   const endpoint = tursoEndpoint(turso.url);
-  const credsRows = await tursoQuery(
+  const rows = await tursoQuery(
     endpoint,
     turso.token,
-    "SELECT creds FROM session_creds WHERE scope = ?",
+    "SELECT creds, db, ident FROM session_state WHERE scope = ?",
     ["main"]
   );
-  if (credsRows.length === 0) throw new Error("session_creds kosong (scope main)");
+  if (rows.length === 0) throw new Error("session_state kosong (scope main)");
 
-  const raw = credsRows[0].creds;
+  const { creds: credsRaw, db: dbB64, ident } = rows[0];
   let c;
   try {
-    c = JSON.parse(raw);
+    c = JSON.parse(credsRaw);
   } catch {
     throw new Error("creds Turso bukan JSON");
   }
@@ -365,33 +369,44 @@ async function pulihkanTurso(creds, turso) {
     throw new Error("creds Turso belum paired");
   }
 
-  mkdirSync(path.dirname(creds), { recursive: true });
-  writeFileSync(creds, raw, { mode: 0o600 });
+  // db boleh kosong (snapshot lama) → restore creds saja, db di-pairing ulang.
+  const adaDb = typeof dbB64 === "string" && dbB64.length > 0;
+  let dbBytes = null;
+  if (adaDb) {
+    try {
+      dbBytes = gunzipSync(Buffer.from(dbB64, "base64"));
+    } catch (e) {
+      throw new Error(`db Turso tidak bisa di-gunzip: ${e.message}`);
+    }
+  }
 
-  const keys = await tursoQuery(
-    endpoint,
-    turso.token,
-    "SELECT category, id, data FROM session_keys WHERE scope = ? AND category = ?",
-    ["main", "session"]
-  ).catch((e) => {
-    // Creds sudah tersimpan; kegagalan keys jangan membatalkan restore —
-    // jalankan tanpa fixture lebih baik daripada pairing ulang.
-    console.error(`[launcher] query session_keys gagal: ${e.message}`);
-    return [];
-  });
-  if (keys.length === 0) return null;
+  // Lokasi db harus SAMA dengan yang dibaca binary saat `run`:
+  // OKTZ_DB_DIR atau database/wa/oktz-run.db (src/main.rs::run).
+  const dirDb = path.resolve(
+    AKAR,
+    process.env.OKTZ_DB_DIR || "database/wa"
+  );
+  const dbPath = path.join(dirDb, "oktz-run.db");
 
-  const fixture = path.join(path.dirname(creds), "turso-session.json");
-  const dump = {
-    session: keys.map((r) => ({
-      scope: "main",
-      category: "session",
-      id: r.id,
-      data: r.data,
-    })),
+  const bersihkan = () => {
+    for (const p of [creds, dbPath, `${dbPath}.ident`]) {
+      try {
+        rmSync(p, { force: true });
+      } catch {}
+    }
   };
-  writeFileSync(fixture, JSON.stringify(dump), { mode: 0o600 });
-  return fixture;
+
+  try {
+    mkdirSync(path.dirname(creds), { recursive: true });
+    mkdirSync(dirDb, { recursive: true });
+    if (dbBytes) writeFileSync(dbPath, dbBytes, { mode: 0o600 });
+    writeFileSync(creds, credsRaw, { mode: 0o600 });
+    if (dbBytes && ident) writeFileSync(`${dbPath}.ident`, ident, { mode: 0o600 });
+  } catch (e) {
+    bersihkan();
+    throw new Error(`tulis artefak sesi gagal: ${e.message}`);
+  }
+  return null;
 }
 
 function siap_dipakai(p) {
@@ -757,9 +772,9 @@ async function boot() {
   const turso = bacaTurso();
   if (turso.aktif) {
     try {
-      const fixture = await pulihkanTurso(creds, turso);
+      await pulihkanTurso(creds, turso);
       console.log("[launcher] sesi dipulihkan dari Turso");
-      jalankan(["run", creds], fixture ? { OKTZ_SESSION_FIXTURE: fixture } : {});
+      jalankan(["run", creds]);
       return;
     } catch (e) {
       console.error(`[launcher] restore Turso gagal: ${e.message}`);
