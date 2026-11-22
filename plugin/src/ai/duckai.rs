@@ -54,6 +54,7 @@ HTMLElement.prototype = Object.create(Element.prototype);
 HTMLDivElement.prototype = Object.create(HTMLElement.prototype);
 HTMLIFrameElement.prototype = Object.create(HTMLElement.prototype);
 NodeList.prototype = Object.create(Array.prototype);
+NodeList.prototype.constructor = NodeList;
 
 function __el(ctor, tag) {
   var e = Object.create(ctor.prototype);
@@ -67,6 +68,7 @@ function __el(ctor, tag) {
     set: function (v) { var r = __serialize(String(v)); e.__html = r.html; e.__nodes = r.count; }
   });
   e.srcdoc = "";
+  e.__attached = false;
   e.style = { cssText: "", setProperty: function () {} };
   e.contentWindow = null;
   e.contentDocument = null;
@@ -74,11 +76,34 @@ function __el(ctor, tag) {
   e.setAttribute = function () {};
   e.matches = function () { return false; };
   e.closest = function () { return null; };
-  e.getBoundingClientRect = function () { return { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }; };
+  e.getBoundingClientRect = function () {
+    return e.__attached
+      ? { width: 100, height: 20, top: 0, left: 0, right: 100, bottom: 20, x: 0, y: 0 }
+      : { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 };
+  };
+  Object.defineProperty(e, "offsetWidth", { get: function () { return e.__attached ? 100 : 0; } });
+  Object.defineProperty(e, "offsetHeight", { get: function () { return e.__attached ? 20 : 0; } });
+  Object.defineProperty(e, "clientWidth", { get: function () { return e.__attached ? 100 : 0; } });
+  Object.defineProperty(e, "clientHeight", { get: function () { return e.__attached ? 20 : 0; } });
+  Object.defineProperty(e, "scrollWidth", { get: function () { return e.__attached ? 100 : 0; } });
+  Object.defineProperty(e, "scrollHeight", { get: function () { return e.__attached ? 20 : 0; } });
+  Object.defineProperty(e, "offsetParent", { get: function () { return e.__attached ? __body : null; } });
+  Object.defineProperty(e, "isConnected", { get: function () { return e.__attached; } });
+  Object.defineProperty(e, "parentNode", { get: function () { return e.__parent || null; } });
+  Object.defineProperty(e, "ownerDocument", { get: function () { return __doc; } });
+  Object.defineProperty(e, "textContent", {
+    get: function () { return e.__text || ""; },
+    set: function (v) { e.__text = String(v); }
+  });
+  e.hidden = false;
+  e.clientTop = 0;
+  e.classList = { add: function () {}, remove: function () {}, contains: function () { return false; } };
+  e.dataset = {};
+  e.checkVisibility = function () { return e.__attached; };
   e.getClientRects = function () { return []; };
   e.querySelector = function () { return null; };
   e.querySelectorAll = function () { var l = new NodeList(); l.length = e.__nodes; return l; };
-  e.appendChild = function (c) { e.children.push(c); e.childNodes.push(c); return c; };
+  e.appendChild = function (c) { c.__attached = true; c.__parent = e; e.children.push(c); e.childNodes.push(c); return c; };
   e.removeChild = function (c) {
     var i = e.children.indexOf(c);
     if (i >= 0) { e.children.splice(i, 1); e.childNodes.splice(i, 1); }
@@ -117,12 +142,22 @@ var __doc = {
   createElement: function (tag) {
     var t = String(tag).toLowerCase();
     var e = t === "div" ? __el(HTMLDivElement, tag) : (t === "iframe" ? __el(HTMLIFrameElement, tag) : __el(HTMLElement, tag));
-    if (t === "iframe") { e.contentWindow = { frames: undefined }; e.contentWindow.self = e.contentWindow; }
+    if (t === "iframe") {
+      e.contentWindow = { frames: undefined };
+      e.contentWindow.self = e.contentWindow;
+      e.contentWindow.document = { body: __el(HTMLElement, "body"), children: [], querySelector: function () { return null; }, querySelectorAll: function () { return new NodeList(); } };
+      e.contentDocument = e.contentWindow.document;
+    }
     return e;
   }
 };
 
-var __win = {};
+var __win = globalThis;
+var __origToString = Object.prototype.toString;
+Object.prototype.toString = function () {
+  if (this === __win) return "[object Window]";
+  return __origToString.call(this);
+};
 __win.document = __doc;
 __win.self = __win;
 __win.top = __win;
@@ -143,7 +178,10 @@ __win.Symbol = Symbol;
 __win.Proxy = Proxy;
 __win.Window = function Window() {};
 __win.console = { log: function () {}, warn: function () {} };
-__win.getComputedStyle = function () { return { getPropertyValue: function () { return ""; } }; };
+__win.getComputedStyle = function (el) {
+  var tampil = el && el.__attached ? "block" : "";
+  return { getPropertyValue: function (n) { return n === "display" ? tampil : ""; } };
+};
 __win.matchMedia = function () { return { matches: false }; };
 __win.setTimeout = function (f) { if (typeof f === "function") f(); return 0; };
 __win.location = { origin: "https://duck.ai", href: "https://duck.ai/" };
@@ -309,6 +347,12 @@ fn header_vqd(blob_b64: &str) -> Option<String> {
     Some(b64_encode(serde_json::to_vec(&nilai).ok()?.as_slice()))
 }
 
+fn sloppy() -> rquickjs::context::EvalOptions {
+    let mut o = rquickjs::context::EvalOptions::default();
+    o.strict = false;
+    o
+}
+
 fn jalankan_challenge(js: &str) -> Option<Value> {
     use rquickjs::{Context, Runtime};
     let isi = js
@@ -317,10 +361,14 @@ fn jalankan_challenge(js: &str) -> Option<Value> {
     let rt = Runtime::new().ok()?;
     let ctx = Context::full(&rt).ok()?;
     let siap: Option<()> = ctx.with(|c| -> Option<()> {
-        c.eval::<(), _>(SHIM.replace("__UA__", UA)).ok()?;
-        c.eval::<(), _>(format!(
-            "(async function(){{{isi}}})().then(function(r){{ globalThis.__out = JSON.stringify(r); }}, function(e){{ globalThis.__out = 'ERR ' + (e && e.message ? e.message : e); }});"
-        ))
+        c.eval_with_options::<(), _>(SHIM.replace("__UA__", UA), sloppy())
+            .ok()?;
+        c.eval_with_options::<(), _>(
+            format!(
+                "(async function(){{{isi}}})().then(function(r){{ globalThis.__out = JSON.stringify(r); }}, function(e){{ globalThis.__out = 'ERR ' + (e && e.message ? e.message : e); }});"
+            ),
+            sloppy(),
+        )
         .ok()?;
         Some(())
     });
