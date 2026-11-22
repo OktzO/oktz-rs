@@ -165,7 +165,10 @@ mod tests {
             p.meta.usage,
             ".ramalanjodoh nama1 tgl1 bln1 thn1 nama2 tgl2 bln2 thn2"
         );
-        assert_eq!(p.meta.example, ".ramalanjodoh putu 16 11 2007 keyla 1 1 2008");
+        assert_eq!(
+            p.meta.example,
+            ".ramalanjodoh putu 16 11 2007 keyla 1 1 2008"
+        );
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(!p.meta.is_group && !p.meta.is_private);
@@ -178,7 +181,10 @@ mod tests {
             let r = run_with(Arc::new(NoHttp), &args);
             let t = reply_text(&r);
             assert!(t.starts_with("💑 *ʀᴀᴍᴀʟᴀɴ ᴊᴏᴅᴏʜ*"), "{n} arg: {t}");
-            assert!(t.contains("rama1 tgl1 bln1 thn1 nama2 tgl2 bln2 thn2"), "{t}");
+            assert!(
+                t.contains("rama1 tgl1 bln1 thn1 nama2 tgl2 bln2 thn2"),
+                "{t}"
+            );
         }
     }
 

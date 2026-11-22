@@ -3,7 +3,7 @@
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -116,7 +116,10 @@ mod tests {
         assert_eq!(p.meta.name, "nyapu");
         assert_eq!(p.meta.alias, ["cleaning", "bersih"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(p.meta.description, "Nyapu jalan, siapa tau nemu barang jatuh!");
+        assert_eq!(
+            p.meta.description,
+            "Nyapu jalan, siapa tau nemu barang jatuh!"
+        );
         assert_eq!(p.meta.usage, ".nyapu");
         assert_eq!(p.meta.example, ".nyapu");
         assert_eq!(p.meta.cooldown, 120);

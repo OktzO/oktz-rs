@@ -41,9 +41,7 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> (String, String) {
 }
 
 fn jid_number_of(jid: &str) -> String {
-    jid.chars()
-        .filter(char::is_ascii_digit)
-        .collect::<String>()
+    jid.chars().filter(char::is_ascii_digit).collect::<String>()
 }
 
 /// `targetNumber.startsWith('0') → '62' + slice(1)`.
@@ -119,7 +117,11 @@ pub fn cekowner(ctx: Ctx) -> Reply {
     txt.push_str(&format!("🏷️ Role: *{}*\n", roles.join(" • ")));
     txt.push_str(&format!(
         "📊 Owner DB: *{}*\n",
-        if owners.contains(&number) { "Ya" } else { "Tidak" }
+        if owners.contains(&number) {
+            "Ya"
+        } else {
+            "Tidak"
+        }
     ));
 
     // `db.getUser(targetJid)` hanya terbaca untuk `sender` atau member grup,
@@ -152,7 +154,7 @@ mod tests {
     use crate::common::date_long;
     use oktz_plugin_api::QuotedKind;
     use oktz_plugin_api::QuotedMessage;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     const ME: &str = "628111@s.whatsapp.net";
 
@@ -222,7 +224,11 @@ mod tests {
         });
         ctx.mentioned = vec!["628999@s.whatsapp.net".into()];
         ctx.args = vec!["628333".into()];
-        assert_eq!(resolve_target(&ctx).0, "628222@s.whatsapp.net", "quoted menang");
+        assert_eq!(
+            resolve_target(&ctx).0,
+            "628222@s.whatsapp.net",
+            "quoted menang"
+        );
 
         ctx.quoted = None;
         assert_eq!(
@@ -274,7 +280,10 @@ mod tests {
         let (text, _) = text_of(&run(base()));
         assert!(text.contains("🏷️ Role: *👤 Free User*"), "{text}");
         assert!(text.contains("📊 Owner DB: *Tidak*"), "{text}");
-        assert!(!text.contains("⚡ Energi:"), "tanpa store, blok user disembunyikan: {text}");
+        assert!(
+            !text.contains("⚡ Energi:"),
+            "tanpa store, blok user disembunyikan: {text}"
+        );
     }
 
     #[test]

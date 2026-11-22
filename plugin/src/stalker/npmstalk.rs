@@ -20,9 +20,7 @@ pub(crate) const FIREFLY: &str = "https://firefly.maiku.my.id";
 
 /// `npmstalk.js:26-29` — kartu pakai saat `m.args[0]` kosong.
 pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "📦 *ɴᴘᴍ sᴛᴀʟᴋ*\n\n> Masukkan username NPM\n\n`Contoh: {prefix}npmstalk hanya_zann`"
-    )
+    format!("📦 *ɴᴘᴍ sᴛᴀʟᴋ*\n\n> Masukkan username NPM\n\n`Contoh: {prefix}npmstalk hanya_zann`")
 }
 
 /// `shortNum(num)` (`npmstalk.js:17-24`).
@@ -57,10 +55,7 @@ fn trim_b(n: f64) -> String {
 /// `parseInt(value)` tanpa radix: ambil digit di depan, tanpa tanda dan eksponen.
 fn parse_int_js(v: &Value) -> f64 {
     match v {
-        Value::Number(n) => n
-            .as_f64()
-            .map(|f| f.trunc())
-            .unwrap_or(f64::NAN),
+        Value::Number(n) => n.as_f64().map(|f| f.trunc()).unwrap_or(f64::NAN),
         Value::String(s) => {
             let s = s.trim_start();
             let mut digits = String::new();
@@ -163,7 +158,11 @@ pub(crate) fn caption(p: &Profil) -> String {
     if !p.packages.is_empty() {
         txt.push_str("*Daftar Package:*\n");
         for pkg in p.packages.iter().take(5) {
-            txt.push_str(&format!("> 📦 *{}* (v{})\n", js_str(&pkg["name"]), js_str(&pkg["version"])));
+            txt.push_str(&format!(
+                "> 📦 *{}* (v{})\n",
+                js_str(&pkg["name"]),
+                js_str(&pkg["version"])
+            ));
             txt.push_str(&format!(
                 "> 📉 {} dl/month\n",
                 short_num(&pkg["downloads_monthly"])
@@ -208,7 +207,9 @@ pub fn npmstalk(ctx: Ctx) -> Reply {
         )) {
             Ok(res) => {
                 let body = res.json().unwrap_or(Value::Null);
-                let ok = body.get("status").is_some_and(crate::common::js_truthy_value)
+                let ok = body
+                    .get("status")
+                    .is_some_and(crate::common::js_truthy_value)
                     && body.get("data").is_some_and(|v| !v.is_null());
                 if ok {
                     profil = Some(dari_firefly(&body["data"]));
@@ -232,7 +233,9 @@ pub fn npmstalk(ctx: Ctx) -> Reply {
         )) {
             Ok(res) => {
                 let body = res.json().unwrap_or(Value::Null);
-                let ok = body.get("status").is_some_and(crate::common::js_truthy_value)
+                let ok = body
+                    .get("status")
+                    .is_some_and(crate::common::js_truthy_value)
                     && body.get("result").is_some_and(|v| !v.is_null());
                 if ok {
                     profil = Some(dari_nexray(&body["result"]));
@@ -385,7 +388,9 @@ mod tests {
 
     #[test]
     fn firefly_dipakai_dulu_saat_kunci_ada_dan_tidak_perlu_nexray() {
-        let http = Stub::baru(&[r#"{"status":true,"data":{"username":"zann","name":"Zann","email":"z@x.io","description":"bio","profile":"https://npmjs.com/~zann","avatar":"https://cdn/a.png","packages":[{"name":"pkg","version":"1.2.3","downloads_monthly":2500,"description":"desc"}]}}"#]);
+        let http = Stub::baru(&[
+            r#"{"status":true,"data":{"username":"zann","name":"Zann","email":"z@x.io","description":"bio","profile":"https://npmjs.com/~zann","avatar":"https://cdn/a.png","packages":[{"name":"pkg","version":"1.2.3","downloads_monthly":2500,"description":"desc"}]}}"#,
+        ]);
         let r = npmstalk(ctx(http.clone(), "zann"));
         assert_eq!(reaction_of(&r), Some("✅"));
         let seen = http.seen.lock().unwrap().clone();
@@ -433,9 +438,11 @@ mod tests {
         let r = npmstalk(ctx(http.clone(), "zann"));
         assert_eq!(
             r.without_mutations().text_body(),
-            Some("☢ Ehhh~ command `.npmstalk` lagi ada kendala, User\n\
+            Some(
+                "☢ Ehhh~ command `.npmstalk` lagi ada kendala, User\n\
              B-bukan karena kamu salah kok... coba lagi nanti ya (˃̣̣̥ᯅ˂̣̣̥)\n\n\
-             _Jika masalah berlanjut, hubungi owner bot_")
+             _Jika masalah berlanjut, hubungi owner bot_"
+            )
         );
         assert_eq!(reaction_of(&r), Some("☢"));
     }

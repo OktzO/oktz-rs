@@ -6,8 +6,7 @@
 //! untuk header itu. `saluranCtx()` juga tidak ada padanannya di `Reply`.
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
-use serde_json::{Value};
-
+use serde_json::Value;
 
 use super::aiassist::{AiFailure, clip, failed};
 
@@ -60,7 +59,9 @@ fn feel_better(http: &dyn HttpGet, prompt: &str) -> Result<String, AiFailure> {
             { "role": "user", "content": prompt },
         ],
     });
-    let res = http.post_json(ENDPOINT, &body).map_err(|_| AiFailure::Transport)?;
+    let res = http
+        .post_json(ENDPOINT, &body)
+        .map_err(|_| AiFailure::Transport)?;
     let raw = res.text();
     // `feeb.js:90-93` — `lines.pop()` menyisakan potongan terakhir di buffer,
     // dan `feeb.js:103-106` memproses sisa itu kalau tidak kosong.
@@ -114,8 +115,9 @@ pub fn feelbetter(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("FeelBetter Gagal", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢"),
+        Err(AiFailure::Transport) => {
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+        }
     }
 }
 
@@ -271,9 +273,7 @@ mod tests {
 
     #[test]
     fn a_normal_answer_is_joined_reacted_and_sent() {
-        let http = Stub::ok(
-            "{\"content\":\"Aku \"}\ndata: {\"delta\":\"dengar\"}\ndata: [DONE]\n",
-        );
+        let http = Stub::ok("{\"content\":\"Aku \"}\ndata: {\"delta\":\"dengar\"}\ndata: [DONE]\n");
         let r = run(http.clone(), "lagi sedih nih");
         assert_eq!(body(&r), "Aku dengar");
         assert!(matches!(
@@ -295,13 +295,20 @@ mod tests {
     #[test]
     fn a_trailing_chunk_without_newline_is_still_counted() {
         let http = Stub::ok("{\"content\":\"a\"}\n{\"content\":\"b\"}");
-        assert_eq!(body(&run(http.clone(), "x")), "ab", "sisa buffer ikut diproses");
+        assert_eq!(
+            body(&run(http.clone(), "x")),
+            "ab",
+            "sisa buffer ikut diproses"
+        );
     }
 
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "feelbetter"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "feelbetter")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

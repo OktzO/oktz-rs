@@ -183,9 +183,11 @@ pub fn sewabot(ctx: Ctx) -> Reply {
     }
 
     if args == "off" {
-        return Reply::text("✅ Sistem sewa dinonaktifkan\n\nBot tidak akan meninggalkan grup manapun.")
-            .with_reaction("✅")
-            .with_mutation(set_enabled(&tabel, false));
+        return Reply::text(
+            "✅ Sistem sewa dinonaktifkan\n\nBot tidak akan meninggalkan grup manapun.",
+        )
+        .with_reaction("✅")
+        .with_mutation(set_enabled(&tabel, false));
     }
 
     if args == "on" {
@@ -394,7 +396,10 @@ mod tests {
         assert!(t.contains("Status: *✅ AKTIF*"), "{t}");
         assert!(t.contains("Grup terdaftar: *2*"), "{t}");
         assert!(init_tersimpan(&r).is_none(), "tabel sudah ada");
-        assert!(pending_tersimpan(&s).is_none(), "status tidak menyentuh pending");
+        assert!(
+            pending_tersimpan(&s).is_none(),
+            "status tidak menyentuh pending"
+        );
     }
 
     #[test]
@@ -471,7 +476,11 @@ mod tests {
              Ketik *.sewabot cancel* untuk batal"
         );
         let p = pending_tersimpan(&s).unwrap();
-        assert_eq!(p["timestamp"], serde_json::json!(segar), "JS tidak menimpa pending");
+        assert_eq!(
+            p["timestamp"],
+            serde_json::json!(segar),
+            "JS tidak menimpa pending"
+        );
     }
 
     #[test]
@@ -480,7 +489,11 @@ mod tests {
         let basi = crate::common::now_ms() - PENDING_TTL_MS - 1;
         seed_pending(&s, basi);
         let r = run("on", Value::Null, &s);
-        assert!(text_of(&r).contains("⚠️ *KONFIRMASI AKTIVASI SEWA*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("⚠️ *KONFIRMASI AKTIVASI SEWA*"),
+            "{}",
+            text_of(&r)
+        );
         let p = pending_tersimpan(&s).unwrap();
         assert!(
             p["timestamp"].as_i64().unwrap() > basi,
@@ -508,7 +521,10 @@ mod tests {
             dengan_sewa(false, serde_json::json!({ "a@g.us": {} })),
             &s,
         );
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "sewabot"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "sewabot")
+        );
         assert_eq!(reaksi(&r), Some("✅"));
         let m = init_tersimpan(&r).expect("confirm menulis tabel");
         assert_eq!(m["enabled"], serde_json::json!(true), "{m}");
@@ -562,10 +578,7 @@ mod tests {
     fn leave_saat_nonaktif_menyuruh_aktifkan_dulu() {
         let s = baru();
         let r = run("leave", dengan_sewa(false, serde_json::json!({})), &s);
-        assert_eq!(
-            text_of(&r),
-            "❌ Aktifkan sewabot dulu dengan *.sewabot on*"
-        );
+        assert_eq!(text_of(&r), "❌ Aktifkan sewabot dulu dengan *.sewabot on*");
         assert_eq!(reaksi(&r), None, "guard JS tidak bereaksi");
     }
 
@@ -577,7 +590,10 @@ mod tests {
             dengan_sewa(true, serde_json::json!({ "a@g.us": {} })),
             &s,
         );
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "sewabot"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "sewabot")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
         assert!(r.mutations().is_empty(), "leave tidak menulis store");
     }
@@ -599,7 +615,11 @@ mod tests {
     fn teks_di_trim_dan_lowercase_sebelum_cocok() {
         let s = baru();
         let r = run("  STATUS  ", Value::Null, &s);
-        assert!(text_of(&r).contains("🔧 *SISTEM SEWA BOT*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("🔧 *SISTEM SEWA BOT*"),
+            "{}",
+            text_of(&r)
+        );
 
         let s = baru();
         let r = run("  OFF ", Value::Null, &s);

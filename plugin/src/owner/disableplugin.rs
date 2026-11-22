@@ -57,9 +57,7 @@ pub fn disableplugin(ctx: Ctx) -> Reply {
     };
 
     if !found.meta.is_enabled {
-        return Reply::text(format!(
-            "⚠️ Plugin *{plugin_name}* sudah dinonaktifkan!"
-        ));
+        return Reply::text(format!("⚠️ Plugin *{plugin_name}* sudah dinonaktifkan!"));
     }
 
     // `ponytail:` registry statis — plugin tidak bisa dimatikan saat runtime.
@@ -93,7 +91,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -114,7 +115,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["dplugin", "plugindisable", "offplugin"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("disableplugin"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("disableplugin"),
+                "{a}"
+            );
         }
     }
 

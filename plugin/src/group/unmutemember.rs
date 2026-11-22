@@ -64,16 +64,15 @@ pub fn unmutemember(ctx: Ctx) -> Reply {
     // bukan perintah daftar tersendiri.
     if ctx.command == "listmutemember" || ctx.command == "listmute" {
         if list.is_empty() {
-            return Reply::text("🔇 *LIST MUTED MEMBERS*\n\n> Tidak ada member yang dimute di grup ini");
+            return Reply::text(
+                "🔇 *LIST MUTED MEMBERS*\n\n> Tidak ada member yang dimute di grup ini",
+            );
         }
         let mut txt = String::from("🔇 *LIST MUTED MEMBERS*\n\n╭┈┈⬡「 📋 *ᴅᴀꜰᴛᴀʀ* 」\n");
         for (i, jid) in list.iter().enumerate() {
             txt.push_str(&format!("┃ {}. @{}\n", i + 1, jid_number(jid)));
         }
-        txt.push_str(&format!(
-            "╰┈┈⬡\n\n> Total: `{}` member dimute",
-            list.len()
-        ));
+        txt.push_str(&format!("╰┈┈⬡\n\n> Total: `{}` member dimute", list.len()));
         return Reply::Text {
             text: txt,
             mentions: list,
@@ -115,7 +114,6 @@ pub fn unmutemember(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     fn run(command: &str, group: Value, args: &[&str], mentioned: &[&str]) -> Reply {
         let ctx = Ctx {
@@ -218,7 +216,10 @@ mod tests {
             &[],
             &["628333@s.whatsapp.net"],
         );
-        assert_eq!(group_write(&r), serde_json::json!(["628222@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628222@s.whatsapp.net"])
+        );
         assert_eq!(
             text_of(&r),
             "🔊 *MEMBER DIUNMUTE*\n\n\
@@ -255,14 +256,29 @@ mod tests {
             &[],
             &["628333@s.whatsapp.net"],
         );
-        assert_eq!(group_write(&r), serde_json::json!(["628333:1@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628333:1@s.whatsapp.net"])
+        );
     }
 
     #[test]
     fn a_member_who_is_not_muted_is_reported_without_writing() {
-        for stored in [serde_json::json!({}), serde_json::json!({"mutedMembers": []})] {
-            let r = run("unmutemember", stored.clone(), &[], &["628333@s.whatsapp.net"]);
-            assert_eq!(text_of(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Member @628333 tidak sedang dimute", "input {stored}");
+        for stored in [
+            serde_json::json!({}),
+            serde_json::json!({"mutedMembers": []}),
+        ] {
+            let r = run(
+                "unmutemember",
+                stored.clone(),
+                &[],
+                &["628333@s.whatsapp.net"],
+            );
+            assert_eq!(
+                text_of(&r),
+                "❌ *ɢᴀɢᴀʟ*\n\n> Member @628333 tidak sedang dimute",
+                "input {stored}"
+            );
             assert_eq!(mentions_of(&r), ["628333@s.whatsapp.net"]);
             assert!(r.mutations().is_empty(), "input {stored}");
         }
@@ -284,7 +300,10 @@ mod tests {
              ╰┈┈⬡\n\n\
              > Total: `2` member dimute"
         );
-        assert_eq!(mentions_of(&r), ["628222@s.whatsapp.net", "628333:1@s.whatsapp.net"]);
+        assert_eq!(
+            mentions_of(&r),
+            ["628222@s.whatsapp.net", "628333:1@s.whatsapp.net"]
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -297,13 +316,22 @@ mod tests {
             &[],
             &["628333@s.whatsapp.net"],
         );
-        assert!(text_of(&r).contains("LIST MUTED MEMBERS"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("LIST MUTED MEMBERS"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn an_empty_list_says_there_is_nobody_muted() {
-        let r = run("listmutemember", serde_json::json!({"mutedMembers": []}), &[], &[]);
+        let r = run(
+            "listmutemember",
+            serde_json::json!({"mutedMembers": []}),
+            &[],
+            &[],
+        );
         assert_eq!(
             text_of(&r),
             "🔇 *LIST MUTED MEMBERS*\n\n> Tidak ada member yang dimute di grup ini"

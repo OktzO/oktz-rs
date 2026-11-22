@@ -129,7 +129,11 @@ pub fn antispam(ctx: Ctx) -> Reply {
                 if is_enable { "aktif" } else { "nonaktif" }
             ));
         }
-        let status = if is_enable { "AKTIF ✅" } else { "NONAKTIF ❌" };
+        let status = if is_enable {
+            "AKTIF ✅"
+        } else {
+            "NONAKTIF ❌"
+        };
         let tighten = if is_enable {
             "mengawasi secara ketat"
         } else {
@@ -165,7 +169,7 @@ pub fn antispam(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -198,9 +202,7 @@ mod tests {
     }
 
     fn delay_ms_of(r: &Reply) -> i64 {
-        written(r)["antispamDelay"]
-            .as_i64()
-            .expect("harus angka")
+        written(r)["antispamDelay"].as_i64().expect("harus angka")
     }
 
     #[test]
@@ -240,7 +242,10 @@ mod tests {
         for text in ["", "mungkin", "on2", "s", "-5", "5m", "5x"] {
             let r = run(serde_json::json!({}), text);
             assert_eq!(text_of(&r), help("."), "input {text:?}");
-            assert!(r.mutations().is_empty(), "input {text:?} tidak boleh menulis");
+            assert!(
+                r.mutations().is_empty(),
+                "input {text:?} tidak boleh menulis"
+            );
         }
     }
 
@@ -311,7 +316,11 @@ mod tests {
     #[test]
     fn the_delay_reply_quotes_the_same_seconds_twice() {
         let r = run(serde_json::json!({}), "1500");
-        assert!(text_of(&r).contains("> Jeda Maksimal: *1500 ms* (1.5 detik)"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Jeda Maksimal: *1500 ms* (1.5 detik)"),
+            "{}",
+            text_of(&r)
+        );
         assert!(
             text_of(&r).contains("di bawah *1.5 detik* antar pesannya"),
             "{}",
@@ -380,16 +389,15 @@ mod tests {
                 "KICK",
                 "Menendang member yang membandel secara otomatis",
             ),
-            (
-                "delete",
-                "DELETE",
-                "Menghapus pesan spam yang mengganggu",
-            ),
+            ("delete", "DELETE", "Menghapus pesan spam yang mengganggu"),
         ] {
             let r = run(serde_json::json!({}), input);
             // `antispam.js:20` mentohkan `args[0]` lebih dulu, jadi yang
             // ditulis ke store adalah bentuk huruf kecil.
-            assert_eq!(written(&r), &serde_json::json!({ "antispamAction": input.to_lowercase() }));
+            assert_eq!(
+                written(&r),
+                &serde_json::json!({ "antispamAction": input.to_lowercase() })
+            );
             // JS `antispam.js:88` membungkus deskripsi di dalam asterisk,
             // jadi yang dibandingkan termasuk tandanya.
             assert!(

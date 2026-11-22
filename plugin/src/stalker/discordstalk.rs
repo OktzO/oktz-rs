@@ -25,9 +25,7 @@ fn help(prefix: &str) -> String {
 /// `discordstalk.js:42` — endpoint + query `id` dan `apikey` (key boleh kosong).
 /// `userId` sudah divalidasi hanya angka, jadi tidak perlu di-encode.
 fn api_url(user_id: &str, api_key: &str) -> String {
-    format!(
-        "https://api.neoxr.eu/api/dcstalk?id={user_id}&apikey={api_key}"
-    )
+    format!("https://api.neoxr.eu/api/dcstalk?id={user_id}&apikey={api_key}")
 }
 
 /// `String(v)` untuk nilai JSON yang masuk ke template literal: objek/array
@@ -54,12 +52,7 @@ fn created_at_text(value: Option<&Value>) -> String {
     match ms {
         Some(ms) => {
             let (y, m, d, ..) = crate::common::jakarta_parts(ms);
-            format!(
-                "{} {} {}",
-                d,
-                crate::common::MONTHS_ID[(m - 1) as usize],
-                y
-            )
+            format!("{} {} {}", d, crate::common::MONTHS_ID[(m - 1) as usize], y)
         }
         None => "-".to_string(),
     }
@@ -116,9 +109,7 @@ pub fn discordstalk(ctx: Ctx) -> Reply {
     }
 
     if !user_id.bytes().all(|b| b.is_ascii_digit()) {
-        return Reply::text(
-            "❌ User ID harus berupa angka. Contoh: 297574907510784000",
-        );
+        return Reply::text("❌ User ID harus berupa angka. Contoh: 297574907510784000");
     }
 
     let api_key = ctx.config().api_keys.neoxr.clone();
@@ -126,14 +117,15 @@ pub fn discordstalk(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let body = res.json().unwrap_or(Value::Null);
-    let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
+    let status_ok = body
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value);
     // `!res.data?.status || !res.data?.data` — data falsy ikut gagal.
     let Some(d) = body
         .get("data")
         .filter(|v| status_ok && crate::common::js_truthy_value(v))
     else {
-        return Reply::text(format!("❌ User ID *{user_id}* tidak ditemukan"))
-            .with_reaction("❌");
+        return Reply::text(format!("❌ User ID *{user_id}* tidak ditemukan")).with_reaction("❌");
     };
 
     let caption_text = caption(d);
@@ -396,8 +388,14 @@ mod tests {
     #[test]
     fn created_at_hanya_terima_epoch_angka() {
         // 1767225600000 = 2026-01-01T00:00:00Z -> 07:00 WIB, 1 Januari 2026
-        assert_eq!(created_at_text(Some(&serde_json::json!(1767225600000i64))), "1 Januari 2026");
-        assert_eq!(created_at_text(Some(&serde_json::json!("1767225600000"))), "1 Januari 2026");
+        assert_eq!(
+            created_at_text(Some(&serde_json::json!(1767225600000i64))),
+            "1 Januari 2026"
+        );
+        assert_eq!(
+            created_at_text(Some(&serde_json::json!("1767225600000"))),
+            "1 Januari 2026"
+        );
         // String ISO tidak bisa di-parse tanpa crate tanggal -> "-"
         assert_eq!(
             created_at_text(Some(&serde_json::json!("2026-01-15T08:30:00.000Z"))),

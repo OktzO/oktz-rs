@@ -83,12 +83,13 @@ pub fn colongpp(ctx: Ctx) -> Reply {
     let mut source = SUMBER_PROFIL;
 
     if let Ok(Some(url)) = ctx.sock().foto_profil(&target, "image")
-        && let Ok(res) = ctx.http.get(&url) {
-            let byte = res.body.bytes().to_vec();
-            if !byte.is_empty() {
-                pp_buffer = Some(byte);
-            }
+        && let Ok(res) = ctx.http.get(&url)
+    {
+        let byte = res.body.bytes().to_vec();
+        if !byte.is_empty() {
+            pp_buffer = Some(byte);
         }
+    }
 
     if pp_buffer.is_none() {
         // Fallback PP default (`colongpp.js:53-60`).
@@ -147,7 +148,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Default::default()
         };

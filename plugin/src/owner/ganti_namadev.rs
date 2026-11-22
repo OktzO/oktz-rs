@@ -29,9 +29,7 @@ pub(crate) fn bantuan(prefix: &str, developer_saat_ini: &str) -> String {
 
 /// Sukses (`ganti-namadev.js:40`).
 pub(crate) fn sukses(nama_baru: &str) -> String {
-    format!(
-        "✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama developer diganti ke: *{nama_baru}*"
-    )
+    format!("✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama developer diganti ke: *{nama_baru}*")
 }
 
 /// Ganti nilai di dalam `developer: '...'` / `developer: "..."` (pertama
@@ -79,12 +77,7 @@ pub fn ganti_namadev(ctx: Ctx) -> Reply {
     let nama_baru = ctx.args.join(" ");
 
     if nama_baru.is_empty() {
-        let sekarang = ctx
-            .config()
-            .bot
-            .developer
-            .as_str()
-            .to_string();
+        let sekarang = ctx.config().bot.developer.as_str().to_string();
         let sekarang = if sekarang.is_empty() {
             "-".to_string()
         } else {
@@ -136,16 +129,17 @@ mod tests {
             prefix: ".".into(),
             command: "ganti-namadev".into(),
             berkas: berkas.clone(),
-            config: std::sync::Arc::new(
-                oktz_plugin_api::config::Runtime::default(),
-            ),
+            config: std::sync::Arc::new(oktz_plugin_api::config::Runtime::default()),
             ..Ctx::default()
         };
         ganti_namadev(ctx)
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]

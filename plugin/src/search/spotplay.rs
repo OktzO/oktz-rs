@@ -68,14 +68,13 @@ pub fn spotplay(ctx: Ctx) -> Reply {
         return Reply::text(TIDAK_DITEMUKAN).with_reaction("❌");
     };
 
-    let unduhan =
-        match oktz_scraper::spotify::download_spotify(ctx.http.as_ref(), &first.url) {
-            Ok(v) => v,
-            Err(_) => {
-                // `spotplay.js:52-56` — catch → ☢ + template error.
-                return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
-            }
-        };
+    let unduhan = match oktz_scraper::spotify::download_spotify(ctx.http.as_ref(), &first.url) {
+        Ok(v) => v,
+        Err(_) => {
+            // `spotplay.js:52-56` — catch → ☢ + template error.
+            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+        }
+    };
 
     let Some(url) = unduhan
         .get("url")
@@ -198,10 +197,7 @@ mod tests {
     #[test]
     fn output_sama_dengan_js() {
         // `spotplay.js:19` — kartu pakai: `ᴄᴀʀᴀ ᴘᴀᴋᴀɪ` (bukan `ᴘᴀᴋᴜɪ`).
-        assert_eq!(
-            help("."),
-            "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.spotplay <query>`"
-        );
+        assert_eq!(help("."), "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.spotplay <query>`");
         // `spotplay.js:34` — track tidak ditemukan.
         let http = Stub::baru(vec![r#"{"status":true,"result":[]}"#]);
         let r = run(http, "x");
@@ -227,7 +223,10 @@ mod tests {
             r#"{"post":{"name":"Lagu","artist":"A"}}"#,
         ]);
         let r = run(http, "x");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "spotplay"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "spotplay")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

@@ -4,11 +4,11 @@
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
-    apply_exp, coalesce, math_random, or_default, rpg_int, rpg_map, roll_incl,
+    apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
@@ -202,6 +202,9 @@ mod tests {
                 assert_eq!(d["exp"], serde_json::json!(koin / 20));
             }
         }
-        assert!(ditolak > 0 && viral > 0 && biasa > 0, "{ditolak}/{viral}/{biasa}");
+        assert!(
+            ditolak > 0 && viral > 0 && biasa > 0,
+            "{ditolak}/{viral}/{biasa}"
+        );
     }
 }

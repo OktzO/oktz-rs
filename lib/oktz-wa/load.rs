@@ -208,7 +208,10 @@ mod tests {
             let expected = if device == 0 {
                 format!("{user}@{}.0", if domain == 1 { "lid" } else { "c.us" })
             } else {
-                format!("{user}:{device}@{}.0", if domain == 1 { "lid" } else { "c.us" })
+                format!(
+                    "{user}:{device}@{}.0",
+                    if domain == 1 { "lid" } else { "c.us" }
+                )
             };
             assert_eq!(address, expected, "id: {id}");
         }

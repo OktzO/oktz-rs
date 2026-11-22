@@ -14,17 +14,25 @@ use crate::common::{joined_strings, now_ms};
 
 /// `config.isOwner` → hanya daftar owner.
 fn is_owner(ctx: &Ctx, number: &str) -> bool {
-    joined_strings(ctx.setting_list("owner")).iter().any(|n| n == number)
+    joined_strings(ctx.setting_list("owner"))
+        .iter()
+        .any(|n| n == number)
 }
 
 /// `config.isPartner` — owner otomatis partner (`config.js:466`).
 fn is_partner(ctx: &Ctx, number: &str) -> bool {
-    is_owner(ctx, number) || joined_strings(ctx.setting_list("partner")).iter().any(|n| n == number)
+    is_owner(ctx, number)
+        || joined_strings(ctx.setting_list("partner"))
+            .iter()
+            .any(|n| n == number)
 }
 
 /// `config.isPremium` — owner dan partner otomatis premium (`config.js:406`).
 fn is_premium(ctx: &Ctx, number: &str) -> bool {
-    is_partner(ctx, number) || joined_strings(ctx.setting_list("premium")).iter().any(|n| n == number)
+    is_partner(ctx, number)
+        || joined_strings(ctx.setting_list("premium"))
+            .iter()
+            .any(|n| n == number)
 }
 
 /// `db.data.premium.find(p => typeof p === 'string' ? p === n : p.id === n)`.
@@ -142,7 +150,7 @@ pub fn cekprem(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use crate::common::date_long;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     const ME: &str = "628111@s.whatsapp.net";
 
@@ -204,7 +212,11 @@ mod tests {
 
     #[test]
     fn a_plain_number_is_not_premium() {
-        for settings in [serde_json::json!({}), serde_json::json!({"premium": []}), serde_json::json!({"premium": ["628999"]})] {
+        for settings in [
+            serde_json::json!({}),
+            serde_json::json!({"premium": []}),
+            serde_json::json!({"premium": ["628999"]}),
+        ] {
             let ctx = ctx_with(settings.clone(), serde_json::json!({}));
             let (text, mentions) = text_of(&run(ctx.clone()));
             assert_eq!(text, "❌ @628111 bukan premium", "{settings}");
@@ -214,18 +226,30 @@ mod tests {
 
     #[test]
     fn a_bare_string_entry_is_reported_as_permanent() {
-        let ctx = ctx_with(serde_json::json!({ "premium": ["628111"] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "premium": ["628111"] }),
+            serde_json::json!({}),
+        );
         let (text, _) = text_of(&run(ctx.clone()));
         assert!(text.starts_with("💎 *DETAIL PREMIUM*\n\n"), "{text}");
         assert!(text.contains("👤 User: @628111"), "{text}");
         assert!(text.contains("🏷️ Role: *💎 Premium (Permanent)*"), "{text}");
-        assert!(!text.contains("📊 Sisa"), "permanent tidak punya hitung mundur: {text}");
+        assert!(
+            !text.contains("📊 Sisa"),
+            "permanent tidak punya hitung mundur: {text}"
+        );
     }
 
     #[test]
     fn an_entry_without_an_expiry_is_also_permanent() {
-        for entry in [serde_json::json!({"id": "628111"}), serde_json::json!({"id": "628111", "expired": null})] {
-            let ctx = ctx_with(serde_json::json!({ "premium": [entry.clone()] }), serde_json::json!({}));
+        for entry in [
+            serde_json::json!({"id": "628111"}),
+            serde_json::json!({"id": "628111", "expired": null}),
+        ] {
+            let ctx = ctx_with(
+                serde_json::json!({ "premium": [entry.clone()] }),
+                serde_json::json!({}),
+            );
             let (text, _) = text_of(&run(ctx.clone()));
             assert!(
                 text.contains("🏷️ Role: *💎 Premium (Permanent)*"),
@@ -253,7 +277,10 @@ mod tests {
     fn an_owner_always_reports_the_permanent_owner_role_first() {
         // `isConfigOwner` diperiksa sebelum `premData`, dan owner selalu
         // lolos guard walau tidak ada di daftar premium.
-        let ctx = ctx_with(serde_json::json!({ "owner": ["628111"] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "owner": ["628111"] }),
+            serde_json::json!({}),
+        );
         let (text, _) = text_of(&run(ctx.clone()));
         assert!(text.contains("🏷️ Role: *👑 Owner (Permanent)*"), "{text}");
         assert!(!text.contains("💎 Premium (Permanent)"), "{text}");
@@ -261,7 +288,10 @@ mod tests {
 
     #[test]
     fn a_partner_is_premium_without_being_in_the_premium_list() {
-        let ctx = ctx_with(serde_json::json!({ "partner": ["628111"] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "partner": ["628111"] }),
+            serde_json::json!({}),
+        );
         let (text, _) = text_of(&run(ctx.clone()));
         assert!(text.contains("🏷️ Role: *💎 Premium (Permanent)*"), "{text}");
     }
@@ -281,7 +311,10 @@ mod tests {
 
     #[test]
     fn missing_store_fields_use_the_js_defaults() {
-        let ctx = ctx_with(serde_json::json!({ "premium": ["628111"] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "premium": ["628111"] }),
+            serde_json::json!({}),
+        );
         let (text, _) = text_of(&run(ctx.clone()));
         assert!(text.contains("⚡ Energi: *0*"), "{text}");
         assert!(text.contains("💰 Koin: *0*"), "{text}");
@@ -291,13 +324,19 @@ mod tests {
 
     #[test]
     fn the_plugin_only_reads() {
-        let ctx = ctx_with(serde_json::json!({ "premium": ["628111"] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "premium": ["628111"] }),
+            serde_json::json!({}),
+        );
         assert!(run(ctx.clone()).mutations().is_empty());
     }
 
     #[test]
     fn find_premium_accepts_both_entry_shapes() {
-        let ctx = ctx_with(serde_json::json!({ "premium": ["628111", {"id": "628222"}] }), serde_json::json!({}));
+        let ctx = ctx_with(
+            serde_json::json!({ "premium": ["628111", {"id": "628222"}] }),
+            serde_json::json!({}),
+        );
         assert!(matches!(
             find_premium(&ctx, "628111"),
             Some(Value::String(_))

@@ -339,7 +339,10 @@ mod tests {
                 r#"{"files":[{"url":"https://uguu.se/a.png"}]}"#,
             ),
             (&start, r#"{"data":{"pollUrl":"https://poll/1"}}"#),
-            ("https://poll/1", r#"{"status":1,"data":{"status":"Menunggu"}}"#),
+            (
+                "https://poll/1",
+                r#"{"status":1,"data":{"status":"Menunggu"}}"#,
+            ),
         ]);
         let hasil = img2img(&http, "p", b"x", None).unwrap();
         assert_eq!(hasil["status"], false);

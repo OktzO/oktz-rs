@@ -9,10 +9,8 @@
 //!
 //! `ponytail:` `config.bot.name` jadi footer kartu.
 
+use oktz_plugin_api::registry::{CardContext, CardHeader, CardLocation, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use oktz_plugin_api::registry::{
-    CardContext, CardHeader, CardLocation, InteractiveButton,
-};
 
 use super::ytsearch::{self, Video};
 
@@ -285,10 +283,7 @@ mod tests {
             Reply::Interactive { kartu } => {
                 assert_eq!(kartu.buttons.len(), 2);
                 assert_eq!(kartu.buttons[0].name, "quick_reply");
-                assert_eq!(
-                    kartu.buttons[0].params["display_text"],
-                    "🎥 Unduh Video"
-                );
+                assert_eq!(kartu.buttons[0].params["display_text"], "🎥 Unduh Video");
                 assert_eq!(
                     kartu.buttons[0].params["id"],
                     ".ytmp4 https://www.youtube.com/watch?v=aaaaaaaaaaa"

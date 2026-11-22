@@ -88,9 +88,7 @@ pub fn swgcv2all(ctx: Ctx) -> Reply {
             return Reply::text("❌ Gagal mengunduh media. Silakan coba lagi.");
         }
         let mime = mime_dari(&ctx);
-        if !mime.starts_with("image/")
-            && !mime.starts_with("video/")
-            && !mime.starts_with("audio/")
+        if !mime.starts_with("image/") && !mime.starts_with("video/") && !mime.starts_with("audio/")
         {
             return Reply::text("❌ Format media tidak didukung untuk SW GC.");
         }
@@ -133,9 +131,9 @@ fn ringkasan(total: usize, sukses: usize, gagal: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
     use oktz_plugin_api::find;
     use oktz_plugin_api::sock::{AdaWhatsapp, Sock, SockError};
+    use serde_json::Value;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -199,7 +197,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -228,7 +226,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -286,11 +287,15 @@ mod tests {
                 assert_eq!(list.len(), 2);
                 assert_eq!(
                     list[0].text_body(),
-                    Some("⏳ *Memulai Broadcast Status Grup V2 ke 2 Grup...*\n\n> Proses ini mungkin memakan waktu beberapa saat.")
+                    Some(
+                        "⏳ *Memulai Broadcast Status Grup V2 ke 2 Grup...*\n\n> Proses ini mungkin memakan waktu beberapa saat."
+                    )
                 );
                 assert_eq!(
                     list[1].text_body(),
-                    Some("✅ *sᴡɢᴄᴠ2 ᴀʟʠ sᴇʟᴇsᴀɪ*\n\n╭┈┈⬡「 📊 *ʀᴇsᴜʟᴛ* 」\n┃ 🌐 Total Grup: *2*\n┃ ✅ Sukses: *0*\n┃ ❌ Gagal: *2*\n╰┈┈┈┈┈┈┈┈⬡\n\n> Broadcast Status Grup V2 (Ring Pink) berhasil dikirim ke semua grup!")
+                    Some(
+                        "✅ *sᴡɢᴄᴠ2 ᴀʟʠ sᴇʟᴇsᴀɪ*\n\n╭┈┈⬡「 📊 *ʀᴇsᴜʟᴛ* 」\n┃ 🌐 Total Grup: *2*\n┃ ✅ Sukses: *0*\n┃ ❌ Gagal: *2*\n╰┈┈┈┈┈┈┈┈⬡\n\n> Broadcast Status Grup V2 (Ring Pink) berhasil dikirim ke semua grup!"
+                    )
                 );
             }
             other => panic!("harus Sequence, dapat {other:?}"),

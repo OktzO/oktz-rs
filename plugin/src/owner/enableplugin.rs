@@ -80,7 +80,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -104,7 +107,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["eplugin", "pluginenable", "onplugin"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("enableplugin"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("enableplugin"),
+                "{a}"
+            );
         }
     }
 
@@ -130,9 +137,6 @@ mod tests {
 
     #[test]
     fn plugin_ada_dikatakan_sudah_aktif() {
-        assert_eq!(
-            teks(&run(&["STAR"])),
-            "⚠️ Plugin *star* sudah aktif!"
-        );
+        assert_eq!(teks(&run(&["STAR"])), "⚠️ Plugin *star* sudah aktif!");
     }
 }

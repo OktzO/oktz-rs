@@ -11,7 +11,6 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
 /// `jokowi-ai.js:22-30`.
@@ -54,8 +53,9 @@ pub fn jokowi_ai(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("Jokowi AI Error", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢"),
+        Err(AiFailure::Transport) => {
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+        }
     }
 }
 
@@ -195,13 +195,19 @@ mod tests {
         let sent: Value = serde_json::from_str(&seen[0].1).unwrap();
         let system = sent["messages"][0]["content"].as_str().unwrap();
         assert!(system.starts_with("Kamu adalah Joko Widodo"), "{system}");
-        assert!(system.ends_with("Pertanyaan user: Pak, gimana kabar?"), "{system}");
+        assert!(
+            system.ends_with("Pertanyaan user: Pak, gimana kabar?"),
+            "{system}"
+        );
     }
 
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "jokowi-ai"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "jokowi-ai")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

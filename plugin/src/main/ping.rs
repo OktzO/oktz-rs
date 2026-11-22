@@ -102,11 +102,7 @@ fn cpu_info() -> (String, u64, u64) {
             "processor" => cores += 1,
             "model name" if model.is_empty() => model = nilai.trim().to_string(),
             "cpu MHz" if speed == 0 => {
-                speed = nilai
-                    .trim()
-                    .parse::<f64>()
-                    .map(|n| n as u64)
-                    .unwrap_or(0)
+                speed = nilai.trim().parse::<f64>().map(|n| n as u64).unwrap_or(0)
             }
             _ => {}
         }
@@ -171,7 +167,14 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
         k.garis((0, y), (1200, y), [56, 189, 248, 8]);
     }
 
-    teks_atas(&mut k, "SYSTEM DIAGNOSTICS", 50, 45, 50.0, [56, 189, 248, 255]);
+    teks_atas(
+        &mut k,
+        "SYSTEM DIAGNOSTICS",
+        50,
+        45,
+        50.0,
+        [56, 189, 248, 255],
+    );
     teks_atas(&mut k, "STATUS: ONLINE", 50, 95, 24.0, [203, 213, 225, 255]);
     k.garis((50, 130), (1150, 130), [56, 189, 248, 255]);
 
@@ -197,7 +200,14 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
     let node = "N/A";
     let v8 = "N/A";
 
-    k.kotak_gradient(50, 160, 330, 180, [(30, 41, 59), (15, 23, 42)], (74, 222, 128));
+    k.kotak_gradient(
+        50,
+        160,
+        330,
+        180,
+        [(30, 41, 59), (15, 23, 42)],
+        (74, 222, 128),
+    );
     teks_atas(&mut k, "⌖ LATENCY PING", 70, 195, 22.0, [74, 222, 128, 255]);
     let ping_warna = if ping_ms < 100 {
         [74, 222, 128, 255]
@@ -215,25 +225,76 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
     } else {
         "POOR"
     };
-    k.teks(&format!("CONNECTION: {status_ping}"), 70, 305, 18.0, [203, 213, 225, 255]);
+    k.teks(
+        &format!("CONNECTION: {status_ping}"),
+        70,
+        305,
+        18.0,
+        [203, 213, 225, 255],
+    );
 
-    k.kotak_gradient(50, 360, 330, 230, [(30, 41, 59), (15, 23, 42)], (251, 191, 36));
-    teks_atas(&mut k, "⌖ CPU PROCESSOR", 70, 395, 22.0, [251, 191, 36, 255]);
+    k.kotak_gradient(
+        50,
+        360,
+        330,
+        230,
+        [(30, 41, 59), (15, 23, 42)],
+        (251, 191, 36),
+    );
+    teks_atas(
+        &mut k,
+        "⌖ CPU PROCESSOR",
+        70,
+        395,
+        22.0,
+        [251, 191, 36, 255],
+    );
     let mut y = 430;
     for baris in cpu_model.split_whitespace().collect::<Vec<_>>().chunks(4) {
         k.teks(&baris.join(" "), 70, y, 22.0, [248, 250, 252, 255]);
         y += 30;
     }
     k.teks("Cores:", 70, 520, 20.0, [148, 163, 184, 255]);
-    k.teks(&format!("{cores} Threads"), 160, 520, 20.0, [251, 191, 36, 255]);
+    k.teks(
+        &format!("{cores} Threads"),
+        160,
+        520,
+        20.0,
+        [251, 191, 36, 255],
+    );
     k.teks("Speed:", 70, 555, 20.0, [148, 163, 184, 255]);
     k.teks(&format!("{speed} MHz"), 160, 555, 20.0, [251, 191, 36, 255]);
 
-    k.kotak_gradient(50, 610, 330, 140, [(30, 41, 59), (15, 23, 42)], (244, 63, 94));
+    k.kotak_gradient(
+        50,
+        610,
+        330,
+        140,
+        [(30, 41, 59), (15, 23, 42)],
+        (244, 63, 94),
+    );
     teks_atas(&mut k, "⌖ SYSTEM LOAD", 70, 645, 22.0, [244, 63, 94, 255]);
-    k.teks(&format!("1m:  {:.2}", load[0]), 70, 680, 24.0, [248, 250, 252, 255]);
-    k.teks(&format!("5m:  {:.2}", load[1]), 70, 710, 24.0, [248, 250, 252, 255]);
-    k.teks(&format!("15m: {:.2}", load[2]), 230, 680, 24.0, [248, 250, 252, 255]);
+    k.teks(
+        &format!("1m:  {:.2}", load[0]),
+        70,
+        680,
+        24.0,
+        [248, 250, 252, 255],
+    );
+    k.teks(
+        &format!("5m:  {:.2}", load[1]),
+        70,
+        710,
+        24.0,
+        [248, 250, 252, 255],
+    );
+    k.teks(
+        &format!("15m: {:.2}", load[2]),
+        230,
+        680,
+        24.0,
+        [248, 250, 252, 255],
+    );
 
     let gauge_x = 600;
     let gauge_y = 380;
@@ -241,14 +302,52 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
     k.lingkaran((gauge_x, gauge_y), 140, [255, 255, 255, 8], 0.75, 2.25);
     let sudut = 0.75 + 1.5 * (mem_pct.clamp(0.0, 100.0) / 100.0) as f32;
     k.lingkaran((gauge_x, gauge_y), 140, [192, 132, 252, 255], 0.75, sudut);
-    k.teks(&format!("{mem_pct:.1}%"), gauge_x, 390, 70.0, [255, 255, 255, 255]);
+    k.teks(
+        &format!("{mem_pct:.1}%"),
+        gauge_x,
+        390,
+        70.0,
+        [255, 255, 255, 255],
+    );
     k.teks("USED RAM", gauge_x, 420, 24.0, [192, 132, 252, 255]);
-    k.teks(&format!("Used: {}", fmt_size(used_mem)), gauge_x, 580, 22.0, [148, 163, 184, 255]);
-    k.teks(&format!("Free: {}", fmt_size(free_mem)), gauge_x, 615, 22.0, [148, 163, 184, 255]);
-    k.teks(&format!("TOTAL: {}", fmt_size(total_mem)), gauge_x, 660, 28.0, [248, 250, 252, 255]);
+    k.teks(
+        &format!("Used: {}", fmt_size(used_mem)),
+        gauge_x,
+        580,
+        22.0,
+        [148, 163, 184, 255],
+    );
+    k.teks(
+        &format!("Free: {}", fmt_size(free_mem)),
+        gauge_x,
+        615,
+        22.0,
+        [148, 163, 184, 255],
+    );
+    k.teks(
+        &format!("TOTAL: {}", fmt_size(total_mem)),
+        gauge_x,
+        660,
+        28.0,
+        [248, 250, 252, 255],
+    );
 
-    k.kotak_gradient(820, 160, 330, 230, [(30, 41, 59), (15, 23, 42)], (56, 189, 248));
-    teks_atas(&mut k, "⌖ NODE.JS ENGINE", 840, 195, 22.0, [56, 189, 248, 255]);
+    k.kotak_gradient(
+        820,
+        160,
+        330,
+        230,
+        [(30, 41, 59), (15, 23, 42)],
+        (56, 189, 248),
+    );
+    teks_atas(
+        &mut k,
+        "⌖ NODE.JS ENGINE",
+        840,
+        195,
+        22.0,
+        [56, 189, 248, 255],
+    );
     k.teks("RSS:", 840, 220, 20.0, [148, 163, 184, 255]);
     k.teks(&fmt_size(heap_used), 980, 220, 20.0, [56, 189, 248, 255]);
     k.teks("Heap Used:", 840, 255, 20.0, [148, 163, 184, 255]);
@@ -260,10 +359,30 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
     k.teks("V8 Engine:", 840, 360, 20.0, [148, 163, 184, 255]);
     k.teks(v8, 980, 360, 20.0, [248, 250, 252, 255]);
 
-    k.kotak_gradient(820, 410, 330, 180, [(30, 41, 59), (15, 23, 42)], (168, 85, 247));
-    teks_atas(&mut k, "⌖ SYSTEM SPECS", 840, 445, 22.0, [168, 85, 247, 255]);
+    k.kotak_gradient(
+        820,
+        410,
+        330,
+        180,
+        [(30, 41, 59), (15, 23, 42)],
+        (168, 85, 247),
+    );
+    teks_atas(
+        &mut k,
+        "⌖ SYSTEM SPECS",
+        840,
+        445,
+        22.0,
+        [168, 85, 247, 255],
+    );
     k.teks("OS:", 840, 470, 20.0, [148, 163, 184, 255]);
-    k.teks(&format!("{os_type} {os_rel}"), 900, 470, 20.0, [248, 250, 252, 255]);
+    k.teks(
+        &format!("{os_type} {os_rel}"),
+        900,
+        470,
+        20.0,
+        [248, 250, 252, 255],
+    );
     k.teks("Arch:", 840, 505, 20.0, [148, 163, 184, 255]);
     k.teks(&platform(), 900, 505, 20.0, [248, 250, 252, 255]);
     k.teks("Host:", 840, 540, 20.0, [148, 163, 184, 255]);
@@ -271,7 +390,14 @@ fn gambar_ping(ping_ms: u128, bot_uptime: u64) -> Vec<u8> {
     k.teks("Node:", 840, 575, 20.0, [148, 163, 184, 255]);
     k.teks(node, 900, 575, 20.0, [248, 250, 252, 255]);
 
-    k.kotak_gradient(820, 610, 330, 140, [(30, 41, 59), (15, 23, 42)], (236, 72, 153));
+    k.kotak_gradient(
+        820,
+        610,
+        330,
+        140,
+        [(30, 41, 59), (15, 23, 42)],
+        (236, 72, 153),
+    );
     teks_atas(&mut k, "⌖ UPTIME", 840, 645, 22.0, [236, 72, 153, 255]);
     k.teks("Server:", 840, 670, 20.0, [148, 163, 184, 255]);
     k.teks(&fmt_up(up_server), 940, 670, 22.0, [236, 72, 153, 255]);

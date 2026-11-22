@@ -14,10 +14,8 @@
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-
 /// `music.js:27` — kartu saat nomor lagu di luar 1..65.
-pub(crate) const DAFTAR: &str =
-    "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
+pub(crate) const DAFTAR: &str = "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
 
 /// `music.js:44` — gagal mengambil lagu.
 #[cfg(test)]

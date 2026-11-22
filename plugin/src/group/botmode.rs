@@ -8,16 +8,32 @@
 //! dipakai middleware untuk menyembunyikan command, bukan oleh handler ini,
 //! jadi tidak ikut — lihat laporan batch.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 /// `(key, nama, deskripsi)` — urutan `Object.entries(MODES)` di JS, yang
 /// menentukan urutan baris pada balasan tanpa argumen.
 pub(crate) const MODES: [(&str, &str, &str); 6] = [
-    ("md", "Multi-Device", "Mode default dengan semua fitur standar"),
-    ("all", "All Features", "Semua fitur dari semua mode bisa diakses"),
-    ("cpanel", "CPanel Pterodactyl", "Mode khusus untuk panel server"),
-    ("pushkontak", "Push Kontak", "Mode khusus untuk push kontak ke member"),
+    (
+        "md",
+        "Multi-Device",
+        "Mode default dengan semua fitur standar",
+    ),
+    (
+        "all",
+        "All Features",
+        "Semua fitur dari semua mode bisa diakses",
+    ),
+    (
+        "cpanel",
+        "CPanel Pterodactyl",
+        "Mode khusus untuk panel server",
+    ),
+    (
+        "pushkontak",
+        "Push Kontak",
+        "Mode khusus untuk push kontak ke member",
+    ),
     ("store", "Store/Toko", "Mode khusus untuk toko manual"),
     ("otp", "OTP Service", "Mode layanan OTP otomatis"),
 ];
@@ -183,7 +199,10 @@ mod tests {
         assert_eq!(p.meta.name, "botmodegrup");
         assert_eq!(p.meta.alias, ["setmodegrup", "modegrup"]);
         assert_eq!(p.meta.description, "Atur mode bot untuk grup ini");
-        assert_eq!(p.meta.usage, ".botmodegrup <md/cpanel/pushkontak/store/otp/all>");
+        assert_eq!(
+            p.meta.usage,
+            ".botmodegrup <md/cpanel/pushkontak/store/otp/all>"
+        );
         assert_eq!(p.meta.example, ".botmodegrup store");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
@@ -195,10 +214,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["setmodegrup", "modegrup"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "botmodegrup"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "botmodegrup");
         }
     }
 
@@ -217,7 +233,11 @@ mod tests {
                 text_of(&r)
             );
         }
-        assert!(text_of(&r).contains("┃ `.botmode all` ⬅️"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ `.botmode all` ⬅️"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -229,8 +249,16 @@ mod tests {
             "{}",
             text_of(&r)
         );
-        assert!(text_of(&r).contains("┃ `.botmode otp` ⬅️"), "{}", text_of(&r));
-        assert!(text_of(&r).contains("┃ `.botmode all`\n"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ `.botmode otp` ⬅️"),
+            "{}",
+            text_of(&r)
+        );
+        assert!(
+            text_of(&r).contains("┃ `.botmode all`\n"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -241,14 +269,21 @@ mod tests {
             "{}",
             text_of(&r)
         );
-        assert!(text_of(&r).contains("┃ `.botmode md`\n"), "tidak ada yang ditandai");
+        assert!(
+            text_of(&r).contains("┃ `.botmode md`\n"),
+            "tidak ada yang ditandai"
+        );
     }
 
     #[test]
     fn a_valid_mode_is_written_and_confirmed() {
         let r = run(serde_json::json!({}), "md");
         assert_eq!(written(&r), &serde_json::json!({ "botMode": "md" }));
-        assert!(text_of(&r).contains("> Mode: *MD* (Multi-Device)"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Mode: *MD* (Multi-Device)"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("> Grup: *120363*"), "{}", text_of(&r));
         assert!(!text_of(&r).contains("Manual mode"), "bukan mode store");
     }
@@ -259,7 +294,11 @@ mod tests {
         let data = written(&r);
         assert_eq!(data["botMode"], serde_json::json!("store"));
         assert_eq!(data["storeConfig"]["products"], serde_json::json!([]));
-        assert!(text_of(&r).contains("> Product: `0` item"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Product: `0` item"),
+            "{}",
+            text_of(&r)
+        );
         assert!(
             text_of(&r).contains("`.addprod <kode> <harga> <nama>`"),
             "{}",
@@ -275,7 +314,11 @@ mod tests {
         );
         let data = written(&r);
         assert_eq!(data["storeConfig"]["products"].as_array().unwrap().len(), 2);
-        assert!(text_of(&r).contains("> Product: `2` item"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Product: `2` item"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -287,8 +330,14 @@ mod tests {
 
     #[test]
     fn the_mode_is_lowercased_before_validating() {
-        assert_eq!(written(&run(serde_json::json!({}), "STORE"))["botMode"], serde_json::json!("store"));
-        assert_eq!(written(&run(serde_json::json!({}), "  Md "))["botMode"], serde_json::json!("md"));
+        assert_eq!(
+            written(&run(serde_json::json!({}), "STORE"))["botMode"],
+            serde_json::json!("store")
+        );
+        assert_eq!(
+            written(&run(serde_json::json!({}), "  Md "))["botMode"],
+            serde_json::json!("md")
+        );
     }
 
     #[test]

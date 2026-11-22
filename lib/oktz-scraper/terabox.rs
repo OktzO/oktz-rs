@@ -203,7 +203,8 @@ mod tests {
         }
     }
 
-    const HALAMAN: &str = r#"<html><head><meta name="csrf-token" content="tok123"></head><body></body></html>"#;
+    const HALAMAN: &str =
+        r#"<html><head><meta name="csrf-token" content="tok123"></head><body></body></html>"#;
     const HASIL: &str = r#"{"error":false,"data":[{"file_name":"film.mp4","thumbnail":"https://t/x.jpg",
         "download_url":"https://d/x","stream_url":"https://s/x","file_size":"1.2 GB",
         "file_size_bytes":1288490188,"duration":"10:00","extension":"mp4","share_url":"https://terabox.com/s/abc"}]}"#;
@@ -214,7 +215,10 @@ mod tests {
             (
                 HALAMAN.to_string(),
                 vec![
-                    ("set-cookie".to_string(), "a=1; Path=/; HttpOnly".to_string()),
+                    (
+                        "set-cookie".to_string(),
+                        "a=1; Path=/; HttpOnly".to_string(),
+                    ),
                     ("set-cookie".to_string(), "b=2; Path=/".to_string()),
                 ],
             ),
@@ -260,11 +264,17 @@ mod tests {
         );
         // POST pencarian: token, cookie, dan JSON body.
         assert_eq!(p[1].method, oktz_plugin_api::HttpMethod::Post);
-        assert_eq!(p[1].url, "https://flowvideoplayer.com/telegram/bot/search/video");
+        assert_eq!(
+            p[1].url,
+            "https://flowvideoplayer.com/telegram/bot/search/video"
+        );
         assert_eq!(cari_header(&p[1], "x-csrf-token"), "tok123");
         assert_eq!(cari_header(&p[1], "cookie"), "a=1; b=2");
         assert_eq!(cari_header(&p[1], "origin"), "https://flowvideoplayer.com");
-        assert_eq!(cari_header(&p[1], "referer"), "https://flowvideoplayer.com/");
+        assert_eq!(
+            cari_header(&p[1], "referer"),
+            "https://flowvideoplayer.com/"
+        );
         assert_eq!(
             p[1].body.as_ref().unwrap().bytes(),
             br#"{"url":"https://terabox.com/s/1"}"#

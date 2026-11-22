@@ -18,7 +18,6 @@
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-
 /// `paptt.js:22` — URL tanpa query, templatenya tidak pernah berubah.
 pub(crate) const API_URL: &str = "https://kyzznekoo.zone.id/api/asupan/paptt";
 
@@ -243,7 +242,10 @@ mod tests {
         };
         let r = run(ctx);
         assert!(!r.has_media());
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan("!", "paptt"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan("!", "paptt")
+        );
         assert_eq!(reaction_of(&r), Some("❌"));
     }
 

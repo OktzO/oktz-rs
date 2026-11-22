@@ -30,15 +30,78 @@ type Potion = (
 );
 
 const POTIONS: [Potion; 9] = [
-    ("healthpotion", "❤️ Health Potion", &[("herb", 3)], "Pulihkan 50 HP", 80, "healthpotion"),
-    ("manapotion", "💙 Mana Potion", &[("herb", 2), ("flower", 1)], "Pulihkan 50 Mana", 90, "manapotion"),
-    ("staminapotion", "⚡ Stamina Potion", &[("herb", 2), ("mushroom", 1)], "Pulihkan 30 Stamina", 100, "staminapotion"),
-    ("strengthpotion", "💪 Strength Potion", &[("herb", 3), ("dragonscale", 1)], "+20 ATK (5 menit)", 200, "strengthpotion"),
-    ("defensepotion", "🛡️ Defense Potion", &[("herb", 3), ("iron", 2)], "+15 DEF (5 menit)", 180, "defensepotion"),
-    ("luckpotion", "🍀 Luck Potion", &[("herb", 5), ("diamond", 1)], "+30% Drop Rate (10 menit)", 300, "luckpotion"),
-    ("exppotion", "✨ EXP Potion", &[("herb", 4), ("gold", 2)], "+50% EXP (15 menit)", 250, "exppotion"),
-    ("antidote", "💊 Antidote", &[("herb", 2)], "Sembuhkan racun", 50, "antidote"),
-    ("elixir", "🧪 Elixir", &[("herb", 10), ("diamond", 2), ("gold", 5)], "Pulihkan semua stats", 500, "elixir"),
+    (
+        "healthpotion",
+        "❤️ Health Potion",
+        &[("herb", 3)],
+        "Pulihkan 50 HP",
+        80,
+        "healthpotion",
+    ),
+    (
+        "manapotion",
+        "💙 Mana Potion",
+        &[("herb", 2), ("flower", 1)],
+        "Pulihkan 50 Mana",
+        90,
+        "manapotion",
+    ),
+    (
+        "staminapotion",
+        "⚡ Stamina Potion",
+        &[("herb", 2), ("mushroom", 1)],
+        "Pulihkan 30 Stamina",
+        100,
+        "staminapotion",
+    ),
+    (
+        "strengthpotion",
+        "💪 Strength Potion",
+        &[("herb", 3), ("dragonscale", 1)],
+        "+20 ATK (5 menit)",
+        200,
+        "strengthpotion",
+    ),
+    (
+        "defensepotion",
+        "🛡️ Defense Potion",
+        &[("herb", 3), ("iron", 2)],
+        "+15 DEF (5 menit)",
+        180,
+        "defensepotion",
+    ),
+    (
+        "luckpotion",
+        "🍀 Luck Potion",
+        &[("herb", 5), ("diamond", 1)],
+        "+30% Drop Rate (10 menit)",
+        300,
+        "luckpotion",
+    ),
+    (
+        "exppotion",
+        "✨ EXP Potion",
+        &[("herb", 4), ("gold", 2)],
+        "+50% EXP (15 menit)",
+        250,
+        "exppotion",
+    ),
+    (
+        "antidote",
+        "💊 Antidote",
+        &[("herb", 2)],
+        "Sembuhkan racun",
+        50,
+        "antidote",
+    ),
+    (
+        "elixir",
+        "🧪 Elixir",
+        &[("herb", 10), ("diamond", 2), ("gold", 5)],
+        "Pulihkan semua stats",
+        500,
+        "elixir",
+    ),
 ];
 
 fn potion(key: &str) -> Option<&'static Potion> {
@@ -128,7 +191,10 @@ pub fn alchemy(ctx: Ctx) -> Reply {
             inv.insert((*material).to_string(), serde_json::json!(left));
         }
     }
-    inv.insert(result.to_string(), serde_json::json!(have(&inv, result) + 1));
+    inv.insert(
+        result.to_string(),
+        serde_json::json!(have(&inv, result) + 1),
+    );
 
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp);
@@ -165,7 +231,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -219,7 +289,10 @@ mod tests {
         assert!(t.starts_with("Halo Alchemist!"), "{t}");
         assert!(t.ends_with("dari `.garden` atau `.dungeon`! 🌱"), "{t}");
         for (key, name, ..) in POTIONS {
-            assert!(t.contains(&format!("👉 Ketik: `.alchemy {key}`")), "{key} hilang");
+            assert!(
+                t.contains(&format!("👉 Ketik: `.alchemy {key}`")),
+                "{key} hilang"
+            );
             assert!(t.contains(&format!("*{name}*")), "{key} hilang");
         }
         let pos = |n: &str| t.find(n).expect("resep hilang");
@@ -231,14 +304,20 @@ mod tests {
     fn an_unknown_recipe_name_is_refused_and_nothing_is_written() {
         for bad in ["sword", "POTION", "health", "healthpotionn"] {
             let r = run(serde_json::json!({ "inventory": { "herb": 99 } }), bad);
-            assert!(text_of(&r).starts_with("Waduh, itu racikan berbahaya"), "arg {bad}");
+            assert!(
+                text_of(&r).starts_with("Waduh, itu racikan berbahaya"),
+                "arg {bad}"
+            );
             assert!(r.mutations().is_empty(), "arg {bad}");
         }
     }
 
     #[test]
     fn a_recipe_name_is_case_insensitive() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 3 } }), "HeAlThPoTiOn");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 3 } }),
+            "HeAlThPoTiOn",
+        );
         assert!(text_of(&r).contains("CLLINGGG"), "{}", text_of(&r));
     }
 
@@ -246,7 +325,10 @@ mod tests {
     /// hilang dari tas, bukan jadi 0.
     #[test]
     fn a_spent_material_disappears_from_the_bag_while_a_surplus_stays() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 4, "gold": 2 }, "exp": 0 }), "exppotion");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 4, "gold": 2 }, "exp": 0 }),
+            "exppotion",
+        );
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert!(!inv.contains_key("herb"), "4 - 4 = 0 -> dihapus");
         assert!(!inv.contains_key("gold"), "2 - 2 = 0 -> dihapus");
@@ -255,7 +337,10 @@ mod tests {
 
     #[test]
     fn a_partly_spent_material_keeps_the_remainder() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 10, "gold": 4 } }), "exppotion");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 10, "gold": 4 } }),
+            "exppotion",
+        );
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["herb"], serde_json::json!(6), "10 - 4");
         assert_eq!(inv["gold"], serde_json::json!(2), "4 - 2");
@@ -263,7 +348,10 @@ mod tests {
 
     #[test]
     fn every_missing_material_is_listed_with_have_over_need() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 1, "gold": 0 } }), "elixir");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 1, "gold": 0 } }),
+            "elixir",
+        );
         let t = text_of(&r);
         assert!(t.starts_with("Eits, bahannya belum cukup"), "{t}");
         for line in ["• herb: 1/10", "• gold: 0/5", "• diamond: 0/2"] {
@@ -274,7 +362,10 @@ mod tests {
 
     #[test]
     fn an_exact_stock_is_enough_and_pays_the_recipe_exp() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 2 }, "exp": 0 }), "antidote");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 2 }, "exp": 0 }),
+            "antidote",
+        );
         let data = write_of(&r);
         assert_eq!(data["exp"], serde_json::json!(50), "exp resep antidote");
         assert_eq!(data["inventory"]["antidote"], serde_json::json!(1));
@@ -282,8 +373,14 @@ mod tests {
 
     #[test]
     fn the_result_stack_accumulates_across_brews() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 6 } }), "healthpotion");
-        assert_eq!(write_of(&r)["inventory"]["healthpotion"], serde_json::json!(1));
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 6 } }),
+            "healthpotion",
+        );
+        assert_eq!(
+            write_of(&r)["inventory"]["healthpotion"],
+            serde_json::json!(1)
+        );
     }
 
     #[test]
@@ -300,7 +397,10 @@ mod tests {
     /// selalu mendahului pesan hasil.
     #[test]
     fn output_sama_dengan_js() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 3 }, "exp": 0 }), "healthpotion");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 3 }, "exp": 0 }),
+            "healthpotion",
+        );
         let semua = crate::rpg::heal::reply_texts(&r);
         assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
         assert_eq!(
@@ -308,9 +408,21 @@ mod tests {
             "Blubuk blubuk... BZZZZ! 🧪✨\n\
              Mencampur bahan kimia untuk meracik *❤️ Health Potion*... Awas meledak! 💥"
         );
-        assert!(semua[1].starts_with("CLLINGGG!! RAMUAN BERHASIL DIBUAT! 🎉🧪"), "{}", semua[1]);
-        assert!(semua[1].contains("📦 Item: *❤️ Health Potion*"), "{}", semua[1]);
-        assert!(semua[1].contains("💫 Efek: *Pulihkan 50 HP*"), "{}", semua[1]);
+        assert!(
+            semua[1].starts_with("CLLINGGG!! RAMUAN BERHASIL DIBUAT! 🎉🧪"),
+            "{}",
+            semua[1]
+        );
+        assert!(
+            semua[1].contains("📦 Item: *❤️ Health Potion*"),
+            "{}",
+            semua[1]
+        );
+        assert!(
+            semua[1].contains("💫 Efek: *Pulihkan 50 HP*"),
+            "{}",
+            semua[1]
+        );
         assert!(semua[1].contains("📈 EXP Alchemy: *+80*"), "{}", semua[1]);
     }
 }

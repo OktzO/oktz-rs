@@ -53,30 +53,25 @@ pub fn automedia(ctx: Ctx) -> Reply {
 
     match arg.as_deref() {
         None => Reply::text(status(&ctx)),
-        Some("on" | "1" | "aktif") if current => {
-            Reply::text("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> Sudah aktif!")
-        }
-        Some("on" | "1" | "aktif") => {
-            Reply::text(
-                "🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ✅ Berhasil diaktifkan!\n\
+        Some("on" | "1" | "aktif") if current => Reply::text("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> Sudah aktif!"),
+        Some("on" | "1" | "aktif") => Reply::text(
+            "🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ✅ Berhasil diaktifkan!\n\
                  > Sticker akan otomatis jadi gambar/video",
-            )
-            .with_mutation(Mutation::SetGroup {
-                jid: ctx.chat.clone(),
-                data: serde_json::json!({ "automedia": true }),
-            })
-        }
+        )
+        .with_mutation(Mutation::SetGroup {
+            jid: ctx.chat.clone(),
+            data: serde_json::json!({ "automedia": true }),
+        }),
         Some("off" | "0" | "nonaktif") if !current => {
             Reply::text("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> Sudah nonaktif!")
         }
-        Some("off" | "0" | "nonaktif") => {
-            Reply::text("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ❌ Berhasil dinonaktifkan!").with_mutation(
-                Mutation::SetGroup {
-                    jid: ctx.chat.clone(),
-                    data: serde_json::json!({ "automedia": false }),
-                },
-            )
-        }
+        Some("off" | "0" | "nonaktif") => Reply::text(
+            "🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ❌ Berhasil dinonaktifkan!",
+        )
+        .with_mutation(Mutation::SetGroup {
+            jid: ctx.chat.clone(),
+            data: serde_json::json!({ "automedia": false }),
+        }),
         _ => Reply::text(format!("❌ Gunakan: `{}automedia on/off`", ctx.prefix)),
     }
 }
@@ -84,7 +79,7 @@ pub fn automedia(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(args: &[&str], group: Value) -> Reply {
         let ctx = Ctx {
@@ -137,7 +132,10 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("automedi").unwrap().meta.name, "automedia");
+        assert_eq!(
+            oktz_plugin_api::find("automedi").unwrap().meta.name,
+            "automedia"
+        );
     }
 
     #[test]
@@ -149,9 +147,20 @@ mod tests {
             (serde_json::json!({}), "✅ Aktif"),
         ] {
             let r = run(&[], serde_json::json!({ "automedia": stored }));
-            assert!(body(&r).contains(&format!("> Status: {label}\n")), "{stored}: {}", body(&r));
-            assert!(body(&r).contains("> `.automedia on` - aktifkan"), "{}", body(&r));
-            assert!(r.mutations().is_empty(), "{stored} tidak boleh ditulis ulang");
+            assert!(
+                body(&r).contains(&format!("> Status: {label}\n")),
+                "{stored}: {}",
+                body(&r)
+            );
+            assert!(
+                body(&r).contains("> `.automedia on` - aktifkan"),
+                "{}",
+                body(&r)
+            );
+            assert!(
+                r.mutations().is_empty(),
+                "{stored} tidak boleh ditulis ulang"
+            );
         }
     }
 
@@ -170,7 +179,11 @@ mod tests {
                 "🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ✅ Berhasil diaktifkan!\n> Sticker akan otomatis jadi gambar/video",
                 "arg {arg}"
             );
-            assert_eq!(group_write(&r), &serde_json::json!({"automedia": true}), "arg {arg}");
+            assert_eq!(
+                group_write(&r),
+                &serde_json::json!({"automedia": true}),
+                "arg {arg}"
+            );
         }
     }
 
@@ -183,7 +196,11 @@ mod tests {
                 "🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> ❌ Berhasil dinonaktifkan!",
                 "arg {arg}"
             );
-            assert_eq!(group_write(&r), &serde_json::json!({"automedia": false}), "arg {arg}");
+            assert_eq!(
+                group_write(&r),
+                &serde_json::json!({"automedia": false}),
+                "arg {arg}"
+            );
         }
     }
 
@@ -191,8 +208,16 @@ mod tests {
     fn repeating_the_current_state_reports_it_and_writes_nothing() {
         for (arg, on) in [("on", true), ("off", false)] {
             let r = run(&[arg], serde_json::json!({ "automedia": on }));
-            let expected = if on { "Sudah aktif!" } else { "Sudah nonaktif!" };
-            assert_eq!(body(&r), format!("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> {expected}"), "arg {arg}");
+            let expected = if on {
+                "Sudah aktif!"
+            } else {
+                "Sudah nonaktif!"
+            };
+            assert_eq!(
+                body(&r),
+                format!("🎬 *ᴀᴜᴛᴏᴍᴇᴅɪᴀ*\n\n> {expected}"),
+                "arg {arg}"
+            );
             assert!(r.mutations().is_empty(), "arg {arg} tidak boleh menulis");
         }
     }

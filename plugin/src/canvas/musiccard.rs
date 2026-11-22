@@ -20,7 +20,8 @@ const NAMA_ARTIS_DEFAULT: &str = "Unknown Artist";
 pub(crate) const JUDUL_BELUM_DIISI: &str = "❌ *Judul lagu dan artis belum diisi!*\n\nFormat penulisan yang benar adalah: `.musiccard <judul>|<nama>`\nPisahkan judul dan nama artis dengan simbol pita ( | ).";
 
 /// Keterangan gambar tidak terdeteksi (`musiccard.js:56-58`).
-pub(crate) const GAMBAR_TIDAK_TERDETEKSI: &str = "❌ *Gambar tidak terdeteksi!* Pastikan kamu mengirim gambar dengan benar.";
+pub(crate) const GAMBAR_TIDAK_TERDETEKSI: &str =
+    "❌ *Gambar tidak terdeteksi!* Pastikan kamu mengirim gambar dengan benar.";
 
 /// Unduh gambar: quoted dulu, baru trigger (`musiccard.js:32-36` / `46-50`).
 pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
@@ -93,7 +94,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::MediaFetch for StubFetch {
-        fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
+        fn download(
+            &self,
+            _: oktz_plugin_api::MediaOrigin,
+        ) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
             if self.ok {
                 Ok(self.bytes.clone())
             } else {
@@ -125,8 +129,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        })
+                timestamp: 0,
+            })
         } else {
             None
         };

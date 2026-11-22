@@ -111,7 +111,7 @@ pub fn buykoin(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value, arg: &str) -> Reply {
         let ctx = Ctx {
@@ -120,7 +120,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -146,7 +150,10 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("buykoin").unwrap();
         assert_eq!(p.meta.name, "buykoin");
-        assert_eq!(p.meta.alias, ["belikoin", "belicoin", "exptokoin", "exptocoin"]);
+        assert_eq!(
+            p.meta.alias,
+            ["belikoin", "belicoin", "exptokoin", "exptocoin"]
+        );
         assert_eq!(p.meta.category, "rpg");
         assert_eq!(p.meta.description, "Tukar EXP menjadi Koin");
         assert_eq!(p.meta.usage, ".buykoin <jumlah>");
@@ -168,7 +175,11 @@ mod tests {
     fn no_argument_shows_the_exchange_rate_and_current_balances() {
         for (user, exp_s, koin_s) in [
             (serde_json::json!({}), "0", "0"),
-            (serde_json::json!({"exp": 25000, "koin": 1000}), "25.000", "1.000"),
+            (
+                serde_json::json!({"exp": 25000, "koin": 1000}),
+                "25.000",
+                "1.000",
+            ),
         ] {
             let r = run(user.clone(), "");
             let t = text_of(&r);
@@ -290,7 +301,11 @@ mod tests {
 
     #[test]
     fn a_user_with_no_stored_row_still_gets_the_info_branch_without_panicking() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"exp": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"exp": null}),
+        ] {
             let r = run(user.clone(), "");
             assert!(text_of(&r).starts_with("💱 *Buy Koin*"), "input {user}");
             assert!(r.mutations().is_empty());

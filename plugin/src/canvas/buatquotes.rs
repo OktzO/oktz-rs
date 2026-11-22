@@ -215,11 +215,9 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "buatquotes")
         );
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "☢"
-            )
-        );
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "☢"
+        ));
     }
 }

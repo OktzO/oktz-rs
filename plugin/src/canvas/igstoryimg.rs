@@ -122,7 +122,10 @@ mod tests {
         assert_eq!(p.meta.usage, ".igstoryimg [kirim/reply gambar]");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 2);
-        assert_eq!(oktz_plugin_api::find("igstoryimage").unwrap().meta.name, "igstoryimg");
+        assert_eq!(
+            oktz_plugin_api::find("igstoryimage").unwrap().meta.name,
+            "igstoryimg"
+        );
     }
 
     #[test]

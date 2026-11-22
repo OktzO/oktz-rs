@@ -18,7 +18,7 @@
 //!   statis di `config.js`, jadi `?? false` di ujung sudah mencakupnya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::{body_stripped, js_truthy, now_ms};
 
@@ -77,13 +77,22 @@ fn info_private(ctx: &Ctx) -> String {
          • *{p}autoreply private on/off* — Toggle private\n\
          • *{p}autoreply global add/del/list* — Global triggers\n\n\
          _Catatan: Untuk setting autoreply grup, gunakan perintah ini di dalam grup._",
-        status = if setting_privat(ctx) { "✅ AKTIF" } else { "❌ NONAKTIF" },
+        status = if setting_privat(ctx) {
+            "✅ AKTIF"
+        } else {
+            "❌ NONAKTIF"
+        },
         p = ctx.prefix,
     )
 }
 
 /// Cabang status grup (`:179-213`).
-fn status_text(ctx: &Ctx, group_status: Option<&Value>, custom_len: usize, efektif: bool) -> String {
+fn status_text(
+    ctx: &Ctx,
+    group_status: Option<&Value>,
+    custom_len: usize,
+    efektif: bool,
+) -> String {
     let mut text = format!(
         "🤖 *SISTEM AUTOREPLY GRUP*\n\n\
          Status Global: *{global}*\n\
@@ -98,7 +107,11 @@ fn status_text(ctx: &Ctx, group_status: Option<&Value>, custom_len: usize, efekt
          • *{p}autoreply del <trigger>* — Hapus custom reply\n\
          • *{p}autoreply list* — Lihat semua trigger di grup ini\n\
          • *{p}autoreply reset* — Hapus SEMUA custom di grup ini\n\n",
-        global = if global_smart(ctx) { "✅ AKTIF" } else { "❌ NONAKTIF" },
+        global = if global_smart(ctx) {
+            "✅ AKTIF"
+        } else {
+            "❌ NONAKTIF"
+        },
         // `groupStatus === undefined` — ketat: `null` tersimpan tetap NONAKTIF.
         grup = match group_status {
             None => "DEFAULT".to_string(),
@@ -110,7 +123,11 @@ fn status_text(ctx: &Ctx, group_status: Option<&Value>, custom_len: usize, efekt
                 }
             }
         },
-        privat = if setting_privat(ctx) { "✅ AKTIF" } else { "❌ NONAKTIF" },
+        privat = if setting_privat(ctx) {
+            "✅ AKTIF"
+        } else {
+            "❌ NONAKTIF"
+        },
         efektif = if efektif { "✅ AKTIF" } else { "❌ NONAKTIF" },
         custom_len = custom_len,
         p = ctx.prefix,
@@ -176,7 +193,9 @@ pub fn autoreply(ctx: Ctx) -> Reply {
     // ---- cabang `private` (`:36-63`) — milik owner -------------------------
     if action.as_deref() == Some("private") {
         if !ctx.is_owner {
-            return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Hanya owner yang bisa mengatur autoreply private!");
+            return Reply::text(
+                "❌ *ɢᴀɢᴀʟ*\n\n> Hanya owner yang bisa mengatur autoreply private!",
+            );
         }
         return match ctx.args.get(1).map(|a| a.to_lowercase()).as_deref() {
             Some("on") => Reply::text(
@@ -255,7 +274,8 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                         obj.insert("reply".into(), serde_json::json!(reply));
                     }
                 }
-                None => list.push(serde_json::json!({ "trigger": trigger.to_lowercase(), "reply": reply })),
+                None => list
+                    .push(serde_json::json!({ "trigger": trigger.to_lowercase(), "reply": reply })),
             }
             return Reply::text(format!(
                 "✅ *GLOBAL AUTOREPLY DITAMBAHKAN*\n\n\
@@ -280,7 +300,9 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 .iter()
                 .position(|r| r.get("trigger").and_then(Value::as_str) == Some(trigger.as_str()));
             let Some(i) = posisi else {
-                return Reply::text(format!("❌ *ɢᴀɢᴀʟ*\n\n> Trigger `{trigger}` tidak ditemukan!"));
+                return Reply::text(format!(
+                    "❌ *ɢᴀɢᴀʟ*\n\n> Trigger `{trigger}` tidak ditemukan!"
+                ));
             };
             list.remove(i);
             return Reply::text(format!(
@@ -311,7 +333,11 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 len = list.len(),
             );
             for (i, r) in list.iter().enumerate() {
-                let has_image = if js_truthy(r.get("image")) { "🖼️" } else { "" };
+                let has_image = if js_truthy(r.get("image")) {
+                    "🖼️"
+                } else {
+                    ""
+                };
                 let trigger = match r.get("trigger") {
                     Some(Value::String(s)) => s.clone(),
                     Some(Value::Number(n)) => n.to_string(),
@@ -358,7 +384,12 @@ pub fn autoreply(ctx: Ctx) -> Reply {
             None | Some(Value::Null) => global_smart(&ctx),
             Some(v) => js_truthy(Some(v)),
         };
-        return Reply::text(status_text(&ctx, group_status, custom_replies(&ctx).len(), efektif));
+        return Reply::text(status_text(
+            &ctx,
+            group_status,
+            custom_replies(&ctx).len(),
+            efektif,
+        ));
     }
 
     match action.as_deref() {
@@ -371,14 +402,14 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                     data: serde_json::json!({ "autoreply": true }),
                 })
         }
-        Some("off") => {
-            Reply::text("❌ *ᴀᴜᴛᴏʀᴇᴘʟʏ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Bot tidak akan merespon otomatis di grup ini")
-                .with_reaction("❌")
-                .with_mutation(Mutation::SetGroup {
-                    jid: ctx.chat.clone(),
-                    data: serde_json::json!({ "autoreply": false }),
-                })
-        }
+        Some("off") => Reply::text(
+            "❌ *ᴀᴜᴛᴏʀᴇᴘʟʏ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Bot tidak akan merespon otomatis di grup ini",
+        )
+        .with_reaction("❌")
+        .with_mutation(Mutation::SetGroup {
+            jid: ctx.chat.clone(),
+            data: serde_json::json!({ "autoreply": false }),
+        }),
 
         // ---- add (`:227-335`) ---------------------------------------------
         Some("add") => {
@@ -430,7 +461,10 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 format!("✅ *AUTOREPLY DITAMBAHKAN*\n\n*DETAIL:*\n• Trigger: *{trigger}*\n");
             if !reply.is_empty() {
                 let (potong, lebih) = potong_utf16(&reply, 50);
-                detail.push_str(&format!("• Reply: {potong}{}\n", if lebih { "..." } else { "" }));
+                detail.push_str(&format!(
+                    "• Reply: {potong}{}\n",
+                    if lebih { "..." } else { "" }
+                ));
             }
             detail.push_str(&format!("\nTotal: *{}* replies di grup ini", list.len()));
             Reply::text(detail)
@@ -455,7 +489,9 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 .iter()
                 .position(|r| r.get("trigger").and_then(Value::as_str) == Some(trigger.as_str()));
             let Some(i) = posisi else {
-                return Reply::text(format!("❌ *ɢᴀɢᴀʟ*\n\n> Trigger `{trigger}` tidak ditemukan!"));
+                return Reply::text(format!(
+                    "❌ *ɢᴀɢᴀʟ*\n\n> Trigger `{trigger}` tidak ditemukan!"
+                ));
             };
             // `unlinkSync` pada berkas gambar (`:351-357`) tidak di-port —
             // di JS dibungkus `try/catch` kosong, balasan tidak berubah.
@@ -482,7 +518,11 @@ pub fn autoreply(ctx: Ctx) -> Reply {
             if !list.is_empty() {
                 text.push_str("*CUSTOM TRIGGERS:*\n");
                 for r in &list {
-                    let has_image = if js_truthy(r.get("image")) { "🖼️" } else { "" };
+                    let has_image = if js_truthy(r.get("image")) {
+                        "🖼️"
+                    } else {
+                        ""
+                    };
                     let trigger = match r.get("trigger") {
                         Some(Value::String(s)) => s.clone(),
                         Some(Value::Number(n)) => n.to_string(),
@@ -579,7 +619,10 @@ mod tests {
         assert_eq!(p.meta.name, "autoreply");
         assert_eq!(p.meta.alias, ["smarttrigger", "smarttriggers", "ar"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Mengatur autoreply/smart triggers per grup");
+        assert_eq!(
+            p.meta.description,
+            "Mengatur autoreply/smart triggers per grup"
+        );
         assert_eq!(p.meta.usage, ".autoreply on/off/add/del/list/private");
         assert_eq!(p.meta.example, ".autoreply on");
         assert_eq!(p.meta.cooldown, 5);
@@ -592,7 +635,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_here() {
         for a in ["smarttrigger", "smarttriggers", "ar"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("autoreply"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("autoreply"),
+                "{a}"
+            );
         }
     }
 
@@ -659,7 +706,10 @@ mod tests {
         let c = ctx_owner(ctx_grup(&["global", "add", "halo"], "global add halo"));
         let t = text_of(&run(c));
         assert!(t.contains("*ꜰᴏʀᴍᴀᴛ sᴀʟᴀʜ*"), "{t}");
-        assert!(t.contains("`.autoreply global add halo|Hai {name}!`"), "{t}");
+        assert!(
+            t.contains("`.autoreply global add halo|Hai {name}!`"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -706,10 +756,11 @@ mod tests {
     #[test]
     fn global_list_renders_entries_with_a_utf16_preview() {
         let mut c = ctx_owner(ctx_grup(&["global"], "global"));
-        c.settings = serde_json::json!({ "globalCustomReplies": [{ "trigger": "halo", "reply": "a" }] });
+        c.settings =
+            serde_json::json!({ "globalCustomReplies": [{ "trigger": "halo", "reply": "a" }] });
         let t = text_of(&run(c));
         // `m.reply(text.trim())` (`autoreply.js:150`) membuang newline terakhir,
-// tapi spasi setelah `*halo*` tetap ada karena `hasImage` kosong.
+        // tapi spasi setelah `*halo*` tetap ada karena `hasImage` kosong.
         assert!(t.contains("1. *halo* \n   ↳ a"), "{t}");
         assert!(t.contains("Total: *1* replies"), "{t}");
         // `autoreply.js:145` memakai bentuk TUNGGAL — beda dari daftar grup.
@@ -719,7 +770,8 @@ mod tests {
     #[test]
     fn global_del_removes_by_exact_trigger() {
         let mut c = ctx_owner(ctx_grup(&["global", "del", "halo"], "global del halo"));
-        c.settings = serde_json::json!({ "globalCustomReplies": [{ "trigger": "halo", "reply": "x" }] });
+        c.settings =
+            serde_json::json!({ "globalCustomReplies": [{ "trigger": "halo", "reply": "x" }] });
         let r = run(c);
         assert_eq!(reaction_of(&r), "🗑️");
         assert_eq!(
@@ -855,7 +907,10 @@ mod tests {
         assert!(t.contains("• Trigger: *halo*"), "{t}");
         assert!(t.contains("• Reply: Hai {name}!"), "{t}");
         assert!(t.contains("Total: *1* replies di grup ini"), "{t}");
-        assert!(!t.contains("• Image:"), "jalur unduh tidak pernah sukses: {t}");
+        assert!(
+            !t.contains("• Image:"),
+            "jalur unduh tidak pernah sukses: {t}"
+        );
         let map = match &r.mutations()[0] {
             Mutation::SetGroup { data, .. } => data,
             other => panic!("harus SetGroup, dapat {other:?}"),
@@ -895,7 +950,10 @@ mod tests {
         let list = map.get("customReplies").unwrap().as_array().unwrap();
         assert_eq!(list.len(), 1, "diganti di tempat, bukan ditambah");
         assert_eq!(list[0]["reply"], "baru");
-        assert_eq!(list[0]["image"], "/tmp/lama.jpg", "gambar lama dipertahankan");
+        assert_eq!(
+            list[0]["image"], "/tmp/lama.jpg",
+            "gambar lama dipertahankan"
+        );
         assert!(text_of(&r).contains("• Reply: baru"));
         assert!(text_of(&r).contains("Total: *1* replies di grup ini"));
     }
@@ -906,7 +964,10 @@ mod tests {
         let text = format!("add t|{panjang}");
         let r = run(ctx_grup(&["add", "t"], &text));
         let t = text_of(&r);
-        assert!(t.contains(&format!("• Reply: {}...", "x".repeat(50))), "{t}");
+        assert!(
+            t.contains(&format!("• Reply: {}...", "x".repeat(50))),
+            "{t}"
+        );
         assert!(
             !t.contains(&format!("• Reply: {}x", "x".repeat(51))),
             "lebih dari 50 unit tidak boleh ikut: {t}"

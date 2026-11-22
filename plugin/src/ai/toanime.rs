@@ -80,9 +80,7 @@ pub fn toanime(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use crate::common::uji::{HttpRangkaian, MediaStub, alur_live3d, reaksi, teks};
-    use oktz_plugin_api::{
-        IncomingKind, IncomingMedia, MediaError, QuotedKind, QuotedMessage,
-    };
+    use oktz_plugin_api::{IncomingKind, IncomingMedia, MediaError, QuotedKind, QuotedMessage};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -114,8 +112,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             media_fetch: Arc::new(MediaStub(unduh)),
             http,
             ..Ctx::default()
@@ -186,6 +184,9 @@ mod tests {
             gambar_ok(),
         ));
         assert_eq!(reaksi(&r), ["🕕", "☢"]);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "toanime"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "toanime")
+        );
     }
 }

@@ -624,7 +624,8 @@ mod tests {
         let p = http.panggilan.lock().unwrap();
         assert_eq!(p.len(), 4);
         assert!(
-            p[1].url.starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
+            p[1].url
+                .starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
             "provider pertama harus rinn, dapat {}",
             p[1].url
         );

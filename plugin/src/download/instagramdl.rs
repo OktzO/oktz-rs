@@ -292,7 +292,10 @@ mod tests {
         assert_eq!(p.meta.category, "download");
         assert_eq!(p.meta.description, "Download video/foto Instagram");
         assert_eq!(p.meta.usage, ".instagramdl <url>");
-        assert_eq!(p.meta.example, ".instagramdl https://www.instagram.com/reel/xxx");
+        assert_eq!(
+            p.meta.example,
+            ".instagramdl https://www.instagram.com/reel/xxx"
+        );
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);
         assert!(!p.meta.is_group && !p.meta.is_private);
@@ -303,10 +306,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["igdl", "ig", "instagram"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "instagramdl"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "instagramdl");
         }
     }
 
@@ -374,10 +374,7 @@ mod tests {
         assert!(!build_caption("https://www.instagram.com/p/a", &d).contains("Author"));
 
         let d = download(&[("https://x/a.jpg", false)], "budi", "");
-        assert!(
-            build_caption("https://www.instagram.com/p/a", &d)
-                .contains("👤 *Author*: @budi")
-        );
+        assert!(build_caption("https://www.instagram.com/p/a", &d).contains("👤 *Author*: @budi"));
     }
 
     #[test]
@@ -387,7 +384,10 @@ mod tests {
             &download(&[("https://x/a.jpg", false)], "-", ""),
         );
         assert!(!kosong.contains("Caption"), "{kosong}");
-        assert!(!kosong.contains('\n'), "tanpa isi tidak boleh sisa baris: {kosong}");
+        assert!(
+            !kosong.contains('\n'),
+            "tanpa isi tidak boleh sisa baris: {kosong}"
+        );
 
         let ada = build_caption(
             "https://www.instagram.com/p/a",
@@ -414,7 +414,8 @@ mod tests {
 
     #[test]
     fn a_photo_post_is_sent_as_an_image_with_the_caption() {
-        let balasan = r#"[{"url":"https://cdn.example/a.jpg","thumbnail":"https://cdn.example/t.jpg"}]"#;
+        let balasan =
+            r#"[{"url":"https://cdn.example/a.jpg","thumbnail":"https://cdn.example/t.jpg"}]"#;
         let http = stub(balasan);
         let r = (oktz_plugin_api::find("instagramdl").unwrap().handler)(ctx_http(
             http.clone(),

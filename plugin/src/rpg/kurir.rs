@@ -11,10 +11,12 @@
 //! jadi teks dua pesan lebih dipilih daripada reaksi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
-use crate::rpg::jualan::{apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map};
+use crate::rpg::jualan::{
+    apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map,
+};
 use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 15;
@@ -60,7 +62,10 @@ pub fn kurir(ctx: Ctx) -> Reply {
 
     if gacha < 0.2 {
         let extra = 10;
-        rpg.insert("stamina".into(), serde_json::json!((stamina - extra).max(0)));
+        rpg.insert(
+            "stamina".into(),
+            serde_json::json!((stamina - extra).max(0)),
+        );
         let new_exp = apply_exp(&mut rpg, old_exp, 500);
         return Reply::sequence_text([
             paket,
@@ -106,9 +111,9 @@ pub fn kurir(ctx: Ctx) -> Reply {
     );
 
     Reply::sequence_text([paket, txt]).with_mutation(Mutation::SetUser {
-            jid: ctx.sender.clone(),
-            data: serde_json::json!({ "koin": koin + total, "exp": new_exp, "rpg": rpg }),
-        })
+        jid: ctx.sender.clone(),
+        data: serde_json::json!({ "koin": koin + total, "exp": new_exp, "rpg": rpg }),
+    })
 }
 
 #[cfg(test)]
@@ -154,7 +159,10 @@ mod tests {
         assert_eq!(p.meta.name, "kurir");
         assert_eq!(p.meta.alias, ["antar", "paket"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(p.meta.description, "Nganter paket orang, awas anjing galak!");
+        assert_eq!(
+            p.meta.description,
+            "Nganter paket orang, awas anjing galak!"
+        );
         assert_eq!(p.meta.usage, ".kurir");
         assert_eq!(p.meta.example, ".kurir");
         assert_eq!(p.meta.cooldown, 120);
@@ -174,14 +182,21 @@ mod tests {
     fn zero_stamina_stays_zero_and_is_reported_verbatim() {
         let r = run(serde_json::json!({"rpg": {"stamina": 0}}));
         let t = text_of(&r);
-        assert!(t.starts_with("Pinggang encok kebanyakan bawa kardus!"), "{t}");
+        assert!(
+            t.starts_with("Pinggang encok kebanyakan bawa kardus!"),
+            "{t}"
+        );
         assert!(t.contains("sisa stamina kamu *0*"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn the_missing_stamina_row_defaults_to_the_full_bar() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"rpg": {}})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"rpg": {}}),
+        ] {
             let r = run(user.clone());
             assert!(!text_of(&r).starts_with("Pinggang encok"), "{user}");
             let d = written(&r);
@@ -206,7 +221,10 @@ mod tests {
             assert!((5000..=26998).contains(&koin), "total {koin}");
             let exp = d["exp"].as_i64().unwrap();
             assert_eq!(exp, koin / 20);
-            assert!(ITEMS.iter().any(|i| t.contains(i)), "barang tak dikenal: {t}");
+            assert!(
+                ITEMS.iter().any(|i| t.contains(i)),
+                "barang tak dikenal: {t}"
+            );
         }
     }
 
@@ -230,7 +248,10 @@ mod tests {
                 assert!(written(&r)["koin"].as_i64().unwrap() <= 14999);
             }
         }
-        assert!(with_tips > 0 && without_tips > 0, "kedua varian harus muncul");
+        assert!(
+            with_tips > 0 && without_tips > 0,
+            "kedua varian harus muncul"
+        );
     }
 
     #[test]

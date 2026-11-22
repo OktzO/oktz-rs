@@ -78,11 +78,11 @@ pub fn tafsirmimpi(ctx: Ctx) -> Reply {
     };
 
     // `!data?.status || !data?.data?.hasil?.length`
-    let Some(data) = body
-        .get("data")
-        .filter(|v| truthy(v))
-        .filter(|d| d.get("hasil").and_then(Value::as_array).is_some_and(|a| !a.is_empty()))
-    else {
+    let Some(data) = body.get("data").filter(|v| truthy(v)).filter(|d| {
+        d.get("hasil")
+            .and_then(Value::as_array)
+            .is_some_and(|a| !a.is_empty())
+    }) else {
         return Reply::text(gagal).with_reaction("❌");
     };
     if !body.get("status").is_some_and(truthy) {
@@ -198,7 +198,10 @@ mod tests {
         assert!(t.contains("> Ditemukan: *3 hasil*"), "{t}");
         assert!(t.contains("*1. mimpi 1*\n> tafsir 1\n\n"), "{t}");
         assert!(t.contains("*3. mimpi 3*\n> tafsir 3\n\n"), "{t}");
-        assert!(!t.contains("hasil lainnya"), "total <= 10 tidak ada ekor: {t}");
+        assert!(
+            !t.contains("hasil lainnya"),
+            "total <= 10 tidak ada ekor: {t}"
+        );
     }
 
     /// `r.hasil.slice(0, 10)` — item kesepuluh ikut, sisanya tidak.

@@ -150,9 +150,10 @@ fn extract_rresp(body: &str) -> Option<String> {
     let bersih = body.trim_start_matches(")]}'").trim_start();
     if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(bersih)
         && arr.first().and_then(Value::as_str) == Some("rresp")
-            && let Some(t) = arr.get(1).and_then(Value::as_str) {
-                return Some(t.to_string());
-            }
+        && let Some(t) = arr.get(1).and_then(Value::as_str)
+    {
+        return Some(t.to_string());
+    }
     ambil_antara(bersih, "\"rresp\",\"", '"').map(str::to_string)
 }
 
@@ -530,9 +531,15 @@ mod tests {
 
     #[test]
     fn base64_dan_build_co_sama_dengan_js() {
-        assert_eq!(base64_tanpa_padding(b"https://www.dclookup.id:443"), "aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz");
+        assert_eq!(
+            base64_tanpa_padding(b"https://www.dclookup.id:443"),
+            "aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"
+        );
         assert_eq!(base64_tanpa_padding(b"Ma"), "TWE");
-        assert_eq!(build_co("https://www.dclookup.id"), "aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz");
+        assert_eq!(
+            build_co("https://www.dclookup.id"),
+            "aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"
+        );
     }
 
     #[test]
@@ -563,10 +570,7 @@ mod tests {
         let Reply::Image { media, caption, .. } = r.without_mutations().tanpa_reaksi() else {
             panic!("harus Image: {}", teks(&r));
         };
-        assert_eq!(
-            media,
-            &Some(MediaSource::url("https://cdn.example/a.png"))
-        );
+        assert_eq!(media, &Some(MediaSource::url("https://cdn.example/a.png")));
         assert!(caption.contains("👤 *Username:* budi"), "{caption}");
         assert!(caption.contains("🏷️ *Global Name:* -"));
         assert!(caption.contains("🆔 *User ID:* 123"));
@@ -626,15 +630,27 @@ mod tests {
         );
         assert_eq!(header(&anchor, "sec-fetch-dest"), Some("iframe"));
         assert_eq!(header(&anchor, "referer"), Some("https://www.dclookup.id/"));
-        assert!(anchor.url.contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP"));
-        assert!(anchor.url.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"));
+        assert!(
+            anchor
+                .url
+                .contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP")
+        );
+        assert!(
+            anchor
+                .url
+                .contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz")
+        );
         assert!(anchor.url.contains("hl=id"));
         assert!(anchor.url.contains("size=invisible"));
 
         // 3. reload (`stalkdc.js:108-118`).
         let reload = http.request(2);
         assert_eq!(reload.method, HttpMethod::Post);
-        assert!(reload.url.starts_with("https://www.google.com/recaptcha/api2/reload?k="));
+        assert!(
+            reload
+                .url
+                .starts_with("https://www.google.com/recaptcha/api2/reload?k=")
+        );
         assert_eq!(
             header(&reload, "content-type"),
             Some("application/x-www-form-urlencoded")
@@ -648,8 +664,14 @@ mod tests {
         assert!(body.contains("v=abcDEF-1x"), "{body}");
         assert!(body.contains("reason=q"), "{body}");
         assert!(body.contains("c=TOKEN-C"), "{body}");
-        assert!(body.contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP"), "{body}");
-        assert!(body.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"), "{body}");
+        assert!(
+            body.contains("k=6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP"),
+            "{body}"
+        );
+        assert!(
+            body.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"),
+            "{body}"
+        );
         assert!(body.contains("sa=lookup"), "{body}");
 
         // 4. lookup (`stalkdc.js:136-149`).

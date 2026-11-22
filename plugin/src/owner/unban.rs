@@ -66,7 +66,9 @@ fn stringify(v: &Value) -> String {
 /// `findIndex` JS: cocok kalau sama persis, atau salah satunya sufiks yang lain.
 pub(crate) fn matches(entry: &Value, target: &str) -> bool {
     let c = digits_of(&stringify(entry));
-    c == target || (!c.is_empty() && c.ends_with(target)) || (!target.is_empty() && target.ends_with(&c))
+    c == target
+        || (!c.is_empty() && c.ends_with(target))
+        || (!target.is_empty() && target.ends_with(&c))
 }
 
 pub(crate) fn detail(target: &str, remaining: usize) -> String {
@@ -145,8 +147,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             settings,
             ..Default::default()
         };
@@ -195,7 +197,10 @@ mod tests {
         // `unblock` juga nama `plugins/owner/unblock.js`; nama didahulukan
         // (`plugins.js:539`), jadi alias `unblock` bukan milik unban.
         assert_eq!(oktz_plugin_api::find("delban").unwrap().meta.name, "unban");
-        assert_eq!(oktz_plugin_api::find("unblock").unwrap().meta.name, "unblock");
+        assert_eq!(
+            oktz_plugin_api::find("unblock").unwrap().meta.name,
+            "unblock"
+        );
     }
 
     #[test]
@@ -224,15 +229,7 @@ mod tests {
             ))
             .is_empty()
         );
-        assert!(
-            stored_list(&run(
-                "",
-                &[],
-                Some("6289998887776@s.whatsapp.net"),
-                list
-            ))
-            .is_empty()
-        );
+        assert!(stored_list(&run("", &[], Some("6289998887776@s.whatsapp.net"), list)).is_empty());
     }
 
     #[test]
@@ -253,7 +250,12 @@ mod tests {
     #[test]
     fn a_number_outside_the_length_bounds_is_rejected_before_any_lookup() {
         for bad in ["", "628", "628123456789012345678"] {
-            let r = run(bad, &[], None, serde_json::json!({"bannedUsers": ["6281234567890"]}));
+            let r = run(
+                bad,
+                &[],
+                None,
+                serde_json::json!({"bannedUsers": ["6281234567890"]}),
+            );
             assert!(text_of(&r).starts_with(NO_TARGET), "arg {bad:?}");
             assert!(r.mutations().is_empty(), "arg {bad:?}");
         }
@@ -297,13 +299,25 @@ mod tests {
 
     #[test]
     fn suffix_matching_is_bidirectional() {
-        assert!(matches(&serde_json::json!("6281234567890"), "6281234567890"));
+        assert!(matches(
+            &serde_json::json!("6281234567890"),
+            "6281234567890"
+        ));
         // nomor tersimpan boleh punya awalan/akhiran lain; yang dicari adalah
         // salah satunya sufiks yang lain, persis `findIndex` di JS.
-        assert!(matches(&serde_json::json!("126281234567890"), "6281234567890"));
+        assert!(matches(
+            &serde_json::json!("126281234567890"),
+            "6281234567890"
+        ));
         assert!(matches(&serde_json::json!("234567890"), "6281234567890"));
-        assert!(matches(&serde_json::json!("+62 812-3456-7890"), "6281234567890"));
-        assert!(!matches(&serde_json::json!("6289999999999"), "6281234567890"));
+        assert!(matches(
+            &serde_json::json!("+62 812-3456-7890"),
+            "6281234567890"
+        ));
+        assert!(!matches(
+            &serde_json::json!("6289999999999"),
+            "6281234567890"
+        ));
     }
 
     // `"6281…".endsWith("")` = true di JS, jadi entri kosong di daftar banned

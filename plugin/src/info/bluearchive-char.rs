@@ -19,7 +19,6 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-
 use super::gempa::js_str;
 
 const URL_LIST: &str = "https://api.dotgg.gg/bluearchive/characters";
@@ -91,7 +90,11 @@ fn find_url(input: &str, urls: &[Value]) -> Result<String, ()> {
 /// `const urls = listc.map((c) => c.url)` — daftar `url` apa adanya.
 fn urls_of(list: &Value) -> Option<Vec<Value>> {
     let arr = list.as_array()?;
-    Some(arr.iter().map(|c| c.get("url").cloned().unwrap_or(Value::Null)).collect())
+    Some(
+        arr.iter()
+            .map(|c| c.get("url").cloned().unwrap_or(Value::Null))
+            .collect(),
+    )
 }
 
 /// `char(...)` — `list()`, `findUrl()`, lalu `GET /characters/<url>`.
@@ -128,7 +131,12 @@ fn caption(c: &Value) -> String {
     }
 
     let profile = c.get("profile");
-    let pf = |k: &str| profile.and_then(|p| p.get(k)).filter(|v| crate::common::js_truthy_value(v)).map(|v| s(Some(v)));
+    let pf = |k: &str| {
+        profile
+            .and_then(|p| p.get(k))
+            .filter(|v| crate::common::js_truthy_value(v))
+            .map(|v| s(Some(v)))
+    };
 
     t.push_str("╭┈┈⬡「 📋 *ᴘʀᴏꜰɪʟᴇ* 」\n");
     if let Some(v) = pf("familyName") {
@@ -161,7 +169,10 @@ fn caption(c: &Value) -> String {
     if let Some(v) = c.get("role").filter(|v| crate::common::js_truthy_value(v)) {
         t.push_str(&format!("┃ 🎭 Role: *{}*\n", s(Some(v))));
     }
-    if let Some(v) = c.get("position").filter(|v| crate::common::js_truthy_value(v)) {
+    if let Some(v) = c
+        .get("position")
+        .filter(|v| crate::common::js_truthy_value(v))
+    {
         t.push_str(&format!("┃ 📍 Position: *{}*\n", s(Some(v))));
     }
     if let Some(v) = pf("weaponType") {
@@ -172,7 +183,11 @@ fn caption(c: &Value) -> String {
     }
     t.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
 
-    if let Some(skills) = c.get("skills").and_then(Value::as_array).filter(|a| !a.is_empty()) {
+    if let Some(skills) = c
+        .get("skills")
+        .and_then(Value::as_array)
+        .filter(|a| !a.is_empty())
+    {
         t.push_str("╭┈┈⬡「 ✨ *sᴋɪʟʟs* 」\n");
         for skill in skills.iter().take(4) {
             t.push_str(&format!(
@@ -229,7 +244,7 @@ pub fn bluearchive_char(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse, HttpGet};
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
     use std::sync::Arc;
 
     /// Stub dengan dua halaman: daftar character lalu detail satu character.
@@ -331,7 +346,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().expect("harus ada teks").to_string()
+        r.without_mutations()
+            .text_body()
+            .expect("harus ada teks")
+            .to_string()
     }
 
     #[test]
@@ -347,7 +365,10 @@ mod tests {
         assert_eq!(p.meta.energi, 1);
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
         assert!(!p.meta.is_group && !p.meta.is_private && !p.meta.is_premium);
-        assert_eq!(oktz_plugin_api::find("bachar").unwrap().meta.name, "bluearchive-char");
+        assert_eq!(
+            oktz_plugin_api::find("bachar").unwrap().meta.name,
+            "bluearchive-char"
+        );
     }
 
     #[test]
@@ -389,13 +410,19 @@ mod tests {
         let r = run(stub.clone(), "Hoshino");
         assert_eq!(
             stub.seen.lock().unwrap().as_slice(),
-            [URL_LIST, "https://api.dotgg.gg/bluearchive/characters/hoshino"],
+            [
+                URL_LIST,
+                "https://api.dotgg.gg/bluearchive/characters/hoshino"
+            ],
             "daftar dulu, lalu detail"
         );
         assert!(r.has_media());
         match r.media_source() {
             Some(MediaSource::Url { url, .. }) => {
-                assert_eq!(url, "https://images.dotgg.gg/bluearchive/characters/hoshino.png")
+                assert_eq!(
+                    url,
+                    "https://images.dotgg.gg/bluearchive/characters/hoshino.png"
+                )
             }
             other => panic!("harus Url, dapat {other:?}"),
         }
@@ -474,31 +501,47 @@ mod tests {
             crate::common::error_template_bawaan(".", "bluearchive-char"),
             "saran dari JS juga tidak ikut — thrown sebelum sampai ke sana"
         );
-        assert_eq!(stub.seen.lock().unwrap().len(), 1, "hanya daftar yang diambil");
+        assert_eq!(
+            stub.seen.lock().unwrap().len(),
+            1,
+            "hanya daftar yang diambil"
+        );
     }
 
     #[test]
     fn an_empty_catalog_finds_nothing_and_errors() {
         let r = run(Stub::new("[]", DETAIL), "shiroko");
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "bluearchive-char"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "bluearchive-char")
+        );
     }
 
     #[test]
     fn a_list_that_is_not_an_array_errors_instead_of_panicking() {
         let r = run(Stub::new(r#"{"error":"nope"}"#, DETAIL), "shiroko");
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "bluearchive-char"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "bluearchive-char")
+        );
     }
 
     #[test]
     fn a_catalog_entry_without_url_errors_like_the_js_typeerror() {
         let r = run(Stub::new(r#"[{"name":"Tanpa URL"}]"#, DETAIL), "apa saja");
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "bluearchive-char"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "bluearchive-char")
+        );
     }
 
     #[test]
     fn an_unreachable_api_errors_without_panicking() {
         let r = run(Stub::offline(), "shiroko");
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "bluearchive-char"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "bluearchive-char")
+        );
     }
 
     #[test]

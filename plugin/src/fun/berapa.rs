@@ -71,8 +71,14 @@ mod tests {
 
     #[test]
     fn both_aliases_resolve_back_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("howmuch").unwrap().meta.name, "berapa");
-        assert_eq!(oktz_plugin_api::find("howmany").unwrap().meta.name, "berapa");
+        assert_eq!(
+            oktz_plugin_api::find("howmuch").unwrap().meta.name,
+            "berapa"
+        );
+        assert_eq!(
+            oktz_plugin_api::find("howmany").unwrap().meta.name,
+            "berapa"
+        );
     }
 
     #[test]
@@ -86,7 +92,9 @@ mod tests {
     fn a_question_is_echoed_with_one_of_the_bundled_answers() {
         // `m.body.slice(1)` membuang prefix, jadi "berapa" ikut echoed.
         let t = run("umur jodohku").text_body().unwrap().to_string();
-        let (question, answer) = t.split_once("\n*").expect("harus `pertanyaan?\\n*jawaban*`");
+        let (question, answer) = t
+            .split_once("\n*")
+            .expect("harus `pertanyaan?\\n*jawaban*`");
         assert_eq!(question, "berapa umur jodohku?");
         let answer = answer.strip_suffix('*').expect("penutup *");
         assert!(BERAPA.contains(&answer), "jawaban di luar daftar: {answer}");
@@ -101,7 +109,13 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for _ in 0..500 {
             let t = run("x").text_body().unwrap().to_string();
-            let a = t.split_once("\n*").unwrap().1.strip_suffix('*').unwrap().to_string();
+            let a = t
+                .split_once("\n*")
+                .unwrap()
+                .1
+                .strip_suffix('*')
+                .unwrap()
+                .to_string();
             seen.insert(a);
         }
         assert!(seen.len() > 1, "jawaban selalu sama: {seen:?}");

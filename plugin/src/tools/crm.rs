@@ -100,10 +100,7 @@ fn konten_dari_quoted(q: &QuotedMessage) -> Value {
             );
         }
         QuotedKind::Audio => {
-            map.insert(
-                "audioMessage".into(),
-                json!({ "mimetype": q.mimetype }),
-            );
+            map.insert("audioMessage".into(), json!({ "mimetype": q.mimetype }));
         }
         QuotedKind::Sticker => {
             map.insert("stickerMessage".into(), json!({ "mimetype": q.mimetype }));

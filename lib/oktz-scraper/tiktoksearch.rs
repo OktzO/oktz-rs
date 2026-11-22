@@ -105,7 +105,10 @@ fn normalisasi_item(item: &Value) -> Value {
         "music".to_string(),
         normalisasi_url(field(item, "music_info.url")),
     );
-    out.insert("duration".to_string(), atau(item.get("duration"), json!("")));
+    out.insert(
+        "duration".to_string(),
+        atau(item.get("duration"), json!("")),
+    );
     out.insert("region".to_string(), atau(item.get("region"), json!("")));
     out.insert("id".to_string(), atau(item.get("id"), json!("")));
     out.insert("author".to_string(), Value::Object(penulis));
@@ -149,9 +152,7 @@ fn normalisasi_angka(value: Option<&Value>) -> Value {
     let dibersihkan: String = teks
         .chars()
         .filter(|c| {
-            c.is_ascii_digit()
-                || *c == '.'
-                || matches!(c.to_ascii_uppercase(), 'K' | 'M' | 'B')
+            c.is_ascii_digit() || *c == '.' || matches!(c.to_ascii_uppercase(), 'K' | 'M' | 'B')
         })
         .collect();
     let Some(num) = parse_float_js(&dibersihkan) else {
@@ -208,11 +209,7 @@ fn string_js(v: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
         Value::Null => "null".to_string(),
-        Value::Array(items) => items
-            .iter()
-            .map(string_js)
-            .collect::<Vec<_>>()
-            .join(","),
+        Value::Array(items) => items.iter().map(string_js).collect::<Vec<_>>().join(","),
         Value::Object(_) => "[object Object]".to_string(),
     }
 }
@@ -336,7 +333,8 @@ mod tests {
     #[test]
     fn angka_mentah_dilewatkan_apa_adanya() {
         // `typeof value === "number"` → tidak dibulatkan/dikonversi.
-        let http = stub(r#"{"status":1,"result":[{"data":"https://x/1","stats":{"views":1234.5}}]}"#);
+        let http =
+            stub(r#"{"status":1,"result":[{"data":"https://x/1","stats":{"views":1234.5}}]}"#);
         let hasil = tiktok_search_video(&http, "q").unwrap();
         assert_eq!(hasil[0]["stats"]["plays"], 1234.5);
         assert_eq!(hasil[0]["stats"]["likes"], 0);

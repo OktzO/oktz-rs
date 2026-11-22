@@ -4,8 +4,8 @@
 //! `sock.sendMessage` untuk menghapus pesan dan melempar kicked, dan `Ctx`
 //! tidak punya keduanya. Yang dipindah di sini hanya handler `.antijudol`.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 pub(crate) const ON: &str = "✅ *AntiJudol diaktifkan*";
 pub(crate) const OFF: &str = "❌ *AntiJudol dinonaktifkan*";
@@ -85,7 +85,11 @@ pub fn antijudol(ctx: Ctx) -> Reply {
     }
 
     if option.starts_with("metode") {
-        let method = ctx.args.get(1).map(|a| a.to_lowercase()).unwrap_or_default();
+        let method = ctx
+            .args
+            .get(1)
+            .map(|a| a.to_lowercase())
+            .unwrap_or_default();
         return match method.as_str() {
             "kick" => write(&ctx, MODE_KICK, "on", Some("kick")),
             "remove" | "delete" => write(&ctx, MODE_DELETE, "on", Some("remove")),
@@ -162,7 +166,10 @@ mod tests {
 
     #[test]
     fn stored_status_and_mode_are_read_as_strings_not_booleans() {
-        let r = run(serde_json::json!({"antijudol": "on", "antijudolMode": "kick"}), "");
+        let r = run(
+            serde_json::json!({"antijudol": "on", "antijudolMode": "kick"}),
+            "",
+        );
         assert!(text_of(&r).contains("> Status: *ON*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Mode: *KICK*"), "{}", text_of(&r));
     }

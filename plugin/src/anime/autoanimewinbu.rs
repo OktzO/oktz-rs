@@ -19,8 +19,8 @@
 //! - **`sent.size`** — JS memakai `Set`; di sini array JSON (urutan insertion
 //!   sama seperti iterasi `Set.keys()` untuk pemotongan 5000).
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
+use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value, json};
 
 use crate::common::{error_template, js_truthy};
@@ -81,7 +81,9 @@ fn save_sent(ctx: &Ctx, mut set: Vec<String>) {
         set.drain(..excess);
     }
     let _ = ctx.berkas().buat_folder(DATA_DIR);
-    let _ = ctx.berkas().tulis_teks(SENT_PATH, &serde_json::to_string(&set).unwrap_or_default());
+    let _ = ctx
+        .berkas()
+        .tulis_teks(SENT_PATH, &serde_json::to_string(&set).unwrap_or_default());
 }
 
 /// `isRunning()` — penanda memori proses.
@@ -104,12 +106,20 @@ fn groups(state: &Value) -> Vec<String> {
 
 /// `state.interval || 5` — `||` JS membuat interval `0` ikut default.
 fn interval(state: &Value) -> i64 {
-    state.get("interval").and_then(Value::as_i64).filter(|n| *n != 0).unwrap_or(5)
+    state
+        .get("interval")
+        .and_then(Value::as_i64)
+        .filter(|n| *n != 0)
+        .unwrap_or(5)
 }
 
 /// `x ? a : b` untuk teks.
 fn jika(kondisi: bool, ya: &str, tidak: &str) -> String {
-    if kondisi { ya.to_string() } else { tidak.to_string() }
+    if kondisi {
+        ya.to_string()
+    } else {
+        tidak.to_string()
+    }
 }
 
 /// `(typeof args === 'string' ? args : '').replace(/^(addgrup|addgroup)\s*/i,
@@ -139,7 +149,13 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
     // `const sub = m.text` — di framework JS ini token pertama setelah command
     // (switch(sub) mencocokkan persis 'start' dst), dan `args` adalah sisanya.
     let sub = ctx.args.first().map(String::as_str).unwrap_or("");
-    let sisa_args = ctx.args.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
+    let sisa_args = ctx
+        .args
+        .iter()
+        .skip(1)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ");
     let state = load_state(&ctx);
 
     match sub {
@@ -255,7 +271,14 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
         }
 
         "addgrup" | "addgroup" => {
-            let mut grup_id = strip_sub(&sisa_args, if sub == "addgrup" { "addgrup" } else { "addgroup" });
+            let mut grup_id = strip_sub(
+                &sisa_args,
+                if sub == "addgrup" {
+                    "addgrup"
+                } else {
+                    "addgroup"
+                },
+            );
 
             if grup_id.is_empty() && ctx.is_group {
                 grup_id = ctx.chat.clone();
@@ -286,7 +309,14 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
         }
 
         "delgrup" | "delgroup" => {
-            let mut grup_id = strip_sub(&sisa_args, if sub == "delgrup" { "delgrup" } else { "delgroup" });
+            let mut grup_id = strip_sub(
+                &sisa_args,
+                if sub == "delgrup" {
+                    "delgrup"
+                } else {
+                    "delgroup"
+                },
+            );
 
             if grup_id.is_empty() && ctx.is_group {
                 grup_id = ctx.chat.clone();
@@ -412,7 +442,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn is_running_marker(sessions: &oktz_plugin_api::SessionStore) -> bool {
@@ -439,7 +472,10 @@ mod tests {
         assert!(p.meta.is_owner);
         assert!(!p.meta.is_group && !p.meta.is_private);
         for a in ["aaw", "autoanime"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "autoanimewinbu");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "autoanimewinbu"
+            );
         }
     }
 
@@ -450,14 +486,29 @@ mod tests {
         assert!(body.starts_with("🎬 *ᴀᴜᴛᴏ ᴀɴɪᴍᴇ ᴡɪɴʙᴜ*"), "{body}");
         assert!(body.contains("> Status: *🔴 OFF*"), "{body}");
         assert!(body.contains("`.aaw start` — Mulai auto-check"), "{body}");
-        assert!(body.contains("`.aaw reset` — Reset riwayat terkirim"), "{body}");
+        assert!(
+            body.contains("`.aaw reset` — Reset riwayat terkirim"),
+            "{body}"
+        );
         match r.without_mutations() {
             Reply::Interactive { kartu } => {
                 assert_eq!(kartu.buttons.len(), 2);
                 // Belum berjalan → tombol pertama Start.
                 assert_eq!(kartu.buttons[0].name, "quick_reply");
-                assert!(kartu.buttons[0].params.nilai().to_string().contains("▶️ Start"));
-                assert!(kartu.buttons[0].params.nilai().to_string().contains("start"));
+                assert!(
+                    kartu.buttons[0]
+                        .params
+                        .nilai()
+                        .to_string()
+                        .contains("▶️ Start")
+                );
+                assert!(
+                    kartu.buttons[0]
+                        .params
+                        .nilai()
+                        .to_string()
+                        .contains("start")
+                );
             }
             other => panic!("harus Interactive, dapat {other:?}"),
         }
@@ -466,7 +517,11 @@ mod tests {
     #[test]
     fn start_ditolak_tanpa_grup_target() {
         let r = autoanimewinbu(ctx_dengan("start", None));
-        assert!(teks(&r).starts_with("❌ Belum ada grup target!"), "{}", teks(&r));
+        assert!(
+            teks(&r).starts_with("❌ Belum ada grup target!"),
+            "{}",
+            teks(&r)
+        );
         assert!(teks(&r).contains("`.autoanimewinbu addgrup 120363xxx@g.us`"));
     }
 
@@ -485,14 +540,25 @@ mod tests {
         assert!(body.contains("Max age: *24 jam*"), "{body}");
         assert!(is_running_marker(&ctx.sessions));
         // State enabled=true tersimpan.
-        let v: Value =
-            serde_json::from_str(&ctx.berkas().baca_teks(STATE_PATH).unwrap()).unwrap();
+        let v: Value = serde_json::from_str(&ctx.berkas().baca_teks(STATE_PATH).unwrap()).unwrap();
         assert_eq!(v["enabled"], true);
         // Tombol: Status + Stop.
         match r.without_mutations() {
             Reply::Interactive { kartu } => {
-                assert!(kartu.buttons[0].params.nilai().to_string().contains("📊 Status"));
-                assert!(kartu.buttons[1].params.nilai().to_string().contains("🛑 Stop"));
+                assert!(
+                    kartu.buttons[0]
+                        .params
+                        .nilai()
+                        .to_string()
+                        .contains("📊 Status")
+                );
+                assert!(
+                    kartu.buttons[1]
+                        .params
+                        .nilai()
+                        .to_string()
+                        .contains("🛑 Stop")
+                );
             }
             other => panic!("harus Interactive, dapat {other:?}"),
         }
@@ -511,8 +577,14 @@ mod tests {
 
     #[test]
     fn stop_mematikan_penanda_dan_state() {
-        let ctx = ctx_dengan("stop", Some(json!({ "enabled": true, "groups": ["x@g.us"], "interval": 5 })));
-        ctx.sessions.lock().unwrap().insert(RUNNING_KEY.into(), json!(true));
+        let ctx = ctx_dengan(
+            "stop",
+            Some(json!({ "enabled": true, "groups": ["x@g.us"], "interval": 5 })),
+        );
+        ctx.sessions
+            .lock()
+            .unwrap()
+            .insert(RUNNING_KEY.into(), json!(true));
         let r = autoanimewinbu(ctx);
         assert_eq!(teks(&r), "🛑 *AutoAnime dihentikan*");
     }
@@ -523,7 +595,10 @@ mod tests {
             "status",
             Some(json!({ "enabled": true, "groups": ["a@g.us", "b@g.us"], "interval": 7 })),
         );
-        ctx.sessions.lock().unwrap().insert(RUNNING_KEY.into(), json!(true));
+        ctx.sessions
+            .lock()
+            .unwrap()
+            .insert(RUNNING_KEY.into(), json!(true));
         ctx.berkas()
             .tulis_teks(SENT_PATH, &json!(["satu", "dua"]).to_string())
             .unwrap();
@@ -605,7 +680,11 @@ mod tests {
 
         // ID tidak valid.
         let r = autoanimewinbu(ctx_dengan("addgrup 120363xxx", None));
-        assert!(teks(&r).starts_with("❌ ID grup tidak valid"), "{}", teks(&r));
+        assert!(
+            teks(&r).starts_with("❌ ID grup tidak valid"),
+            "{}",
+            teks(&r)
+        );
     }
 
     #[test]

@@ -13,7 +13,13 @@ const PREMIUM_LIMIT: i64 = 100;
 
 pub(crate) const NO_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada member di grup ini";
 
-fn report(total: usize, added: usize, already: usize, premium_total: usize, subject: &str) -> String {
+fn report(
+    total: usize,
+    added: usize,
+    already: usize,
+    premium_total: usize,
+    subject: &str,
+) -> String {
     format!(
         "💎 *ᴀᴅᴅ ᴘʀᴇᴍɪᴜᴍ ᴀʟʟ*\n\n\
          ╭┈┈⬡「 📋 *ʜᴀsɪʟ* 」\n\
@@ -178,7 +184,10 @@ mod tests {
     #[test]
     fn a_fresh_member_gets_the_full_premium_package() {
         let roster = GroupRoster {
-            participants: vec![member("628111@s.whatsapp.net", serde_json::json!({ "exp": 0, "koin": 0 }))],
+            participants: vec![member(
+                "628111@s.whatsapp.net",
+                serde_json::json!({ "exp": 0, "koin": 0 }),
+            )],
             is_bot_admin: false,
         };
         let __balasan = run(roster.clone());
@@ -217,8 +226,16 @@ mod tests {
         };
         let r = run(roster.clone());
         assert_eq!(writes(&r).len(), 1);
-        assert!(text_of(&r).contains("┃ ⏭️ sᴜᴅᴀʜ ᴘʀᴇᴍɪᴜᴍ: `1`"), "{}", text_of(&r));
-        assert!(text_of(&r).contains("┃ ✅ ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ: `1`"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ ⏭️ sᴜᴅᴀʜ ᴘʀᴇᴍɪᴜᴍ: `1`"),
+            "{}",
+            text_of(&r)
+        );
+        assert!(
+            text_of(&r).contains("┃ ✅ ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ: `1`"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -229,7 +246,11 @@ mod tests {
         };
         let r = run(roster.clone());
         assert!(r.mutations().is_empty());
-        assert!(text_of(&r).contains("┃ ✅ ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ: `0`"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ ✅ ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ: `0`"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

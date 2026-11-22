@@ -8,7 +8,7 @@
 //! default Node `en-US`), bukan titik seperti `toLocaleString("id-ID")`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -260,7 +260,10 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("undian").unwrap().meta.name, "lottery");
+        assert_eq!(
+            oktz_plugin_api::find("undian").unwrap().meta.name,
+            "lottery"
+        );
     }
 
     #[test]
@@ -298,7 +301,10 @@ mod tests {
                 text_of(&r).contains(&format!("Tarik *{expected}x*")),
                 "arg {arg:?} harus jadi {expected}x"
             );
-            assert_eq!(written(&r)["koin"], serde_json::json!(1_000_000 - 500 * expected));
+            assert_eq!(
+                written(&r)["koin"],
+                serde_json::json!(1_000_000 - 500 * expected)
+            );
         }
     }
 
@@ -365,7 +371,11 @@ mod tests {
             let has_l = t.contains("WOOOYYY");
             let has_r = t.contains("Wihh mayan");
             let has_n = t.contains("Ampas...");
-            assert_eq!(has_l as u8 + has_r as u8 + has_n as u8, 1, "tepat satu banner: {t}");
+            assert_eq!(
+                has_l as u8 + has_r as u8 + has_n as u8,
+                1,
+                "tepat satu banner: {t}"
+            );
         }
     }
 

@@ -202,7 +202,9 @@ mod tests {
         assert_eq!(cari_header(&p[0], "application-name"), Some("web"));
         assert_eq!(cari_header(&p[0], "application-version"), Some("4.0.0"));
         assert_eq!(cari_header(&p[0], "referer"), Some("https://temp-mail.io/"));
-        assert!(token_bentuk_ok(cari_header(&p[0], "x-cors-header").unwrap()));
+        assert!(token_bentuk_ok(
+            cari_header(&p[0], "x-cors-header").unwrap()
+        ));
         assert_eq!(
             p[0].body,
             Some(HttpBody::Bytes {

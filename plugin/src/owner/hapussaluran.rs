@@ -49,9 +49,7 @@ pub fn hapussaluran(ctx: Ctx) -> Reply {
     // JS: `sock.newsletterDelete(targetJid)` — tidak ada padanannya di Ctx,
     // jadi mengembalikan teks hasil dan mengabaikan pemanggilan nyata, seperti
     // pola plugin owner lain yang membutuhkan I/O sock.
-    Reply::text(format!(
-        "🗑️ *Saluran dihapus*\n\n> ID: {target_jid}"
-    ))
+    Reply::text(format!("🗑️ *Saluran dihapus*\n\n> ID: {target_jid}"))
 }
 
 #[cfg(test)]

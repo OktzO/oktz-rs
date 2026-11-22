@@ -68,13 +68,13 @@ pub mod akses;
 pub mod exec;
 #[path = "ganti-asset.rs"]
 pub mod ganti_asset;
-#[path = "ganti-rpg.rs"]
-pub mod ganti_rpg;
 pub mod ganti_demote;
 pub mod ganti_foto;
 pub mod ganti_goodbye;
 pub mod ganti_levelup;
 pub mod ganti_pp_kosong;
+#[path = "ganti-rpg.rs"]
+pub mod ganti_rpg;
 pub mod ganti_rules;
 pub mod ganti_store;
 pub mod get;
@@ -133,9 +133,19 @@ pub mod chatclear;
 pub mod colongpp;
 pub mod delsewa;
 pub mod eval;
-pub mod ganticode;
 pub mod ganti_foto3;
 pub mod ganti_gambar;
+#[path = "ganti-games.rs"]
+pub mod ganti_games;
+#[path = "ganti-mp4.rs"]
+pub mod ganti_mp4;
+#[path = "ganti-promote.rs"]
+pub mod ganti_promote;
+#[path = "ganti-v8.rs"]
+pub mod ganti_v8;
+#[path = "ganti-winner.rs"]
+pub mod ganti_winner;
+pub mod ganticode;
 pub mod getplugin;
 pub mod join;
 pub mod listjadibot;
@@ -147,16 +157,6 @@ pub mod startschedule;
 pub mod swgcall;
 pub mod swgcv2;
 pub mod upch;
-#[path = "ganti-games.rs"]
-pub mod ganti_games;
-#[path = "ganti-mp4.rs"]
-pub mod ganti_mp4;
-#[path = "ganti-promote.rs"]
-pub mod ganti_promote;
-#[path = "ganti-v8.rs"]
-pub mod ganti_v8;
-#[path = "ganti-winner.rs"]
-pub mod ganti_winner;
 
 // Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 2).
 pub mod addsewa;
@@ -166,6 +166,14 @@ pub mod buatsaluran;
 pub mod delplugin;
 pub mod disableplugin;
 pub mod enableplugin;
+#[path = "ganti-foto2.rs"]
+pub mod ganti_foto2;
+#[path = "ganti-mp3.rs"]
+pub mod ganti_mp3;
+#[path = "ganti-namabot.rs"]
+pub mod ganti_namabot;
+#[path = "ganti-welcome.rs"]
+pub mod ganti_welcome;
 pub mod gantiscraper;
 pub mod hapusdata;
 pub mod resetdb;
@@ -175,14 +183,6 @@ pub mod sistemdaftar;
 pub mod srt;
 pub mod swgc;
 pub mod swgcv2all;
-#[path = "ganti-foto2.rs"]
-pub mod ganti_foto2;
-#[path = "ganti-mp3.rs"]
-pub mod ganti_mp3;
-#[path = "ganti-namabot.rs"]
-pub mod ganti_namabot;
-#[path = "ganti-welcome.rs"]
-pub mod ganti_welcome;
 
 // Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 3):
 // file yang sudah ada di disk tapi belum dideklarasikan (orphan).

@@ -174,7 +174,10 @@ pub fn maling(ctx: Ctx) -> Reply {
         outcome.msg
     );
     if outcome.fine > 0 {
-        txt.push_str(&format!("💸 Duit Damai/Rampasan: *-Rp {}*\n", format_idr(actual_fine)));
+        txt.push_str(&format!(
+            "💸 Duit Damai/Rampasan: *-Rp {}*\n",
+            format_idr(actual_fine)
+        ));
     }
     if outcome.health > 0 {
         txt.push_str(&format!("🤕 Darah Bercucuran: *-{} HP*", outcome.health));

@@ -31,15 +31,69 @@ type Recipe = (
 
 const RECIPES: [Recipe; 10] = [
     ("bread", "🍞 Roti", &[("wheat", 2)], (10, 5, 0), 30),
-    ("friedrice", "🍚 Nasi Goreng", &[("rice", 2), ("egg", 1)], (25, 15, 0), 60),
-    ("steak", "🥩 Steak", &[("meat", 2), ("herb", 1)], (40, 30, 0), 100),
-    ("soup", "🍲 Sup", &[("carrot", 2), ("potato", 2), ("meat", 1)], (35, 40, 0), 90),
-    ("sushi", "🍣 Sushi", &[("fish", 3), ("rice", 2)], (30, 25, 0), 80),
-    ("cake", "🍰 Kue", &[("wheat", 3), ("egg", 2), ("strawberry", 2)], (50, 20, 0), 120),
-    ("ramen", "🍜 Ramen", &[("wheat", 2), ("egg", 1), ("meat", 1), ("herb", 1)], (45, 35, 0), 110),
-    ("pizza", "🍕 Pizza", &[("wheat", 3), ("tomato", 2), ("meat", 2)], (60, 30, 0), 140),
-    ("smoothie", "🥤 Smoothie", &[("strawberry", 3), ("watermelon", 1)], (30, 0, 20), 70),
-    ("elixir_food", "✨ Elixir Food", &[("herb", 5), ("diamond", 1), ("gold", 2)], (100, 100, 50), 300),
+    (
+        "friedrice",
+        "🍚 Nasi Goreng",
+        &[("rice", 2), ("egg", 1)],
+        (25, 15, 0),
+        60,
+    ),
+    (
+        "steak",
+        "🥩 Steak",
+        &[("meat", 2), ("herb", 1)],
+        (40, 30, 0),
+        100,
+    ),
+    (
+        "soup",
+        "🍲 Sup",
+        &[("carrot", 2), ("potato", 2), ("meat", 1)],
+        (35, 40, 0),
+        90,
+    ),
+    (
+        "sushi",
+        "🍣 Sushi",
+        &[("fish", 3), ("rice", 2)],
+        (30, 25, 0),
+        80,
+    ),
+    (
+        "cake",
+        "🍰 Kue",
+        &[("wheat", 3), ("egg", 2), ("strawberry", 2)],
+        (50, 20, 0),
+        120,
+    ),
+    (
+        "ramen",
+        "🍜 Ramen",
+        &[("wheat", 2), ("egg", 1), ("meat", 1), ("herb", 1)],
+        (45, 35, 0),
+        110,
+    ),
+    (
+        "pizza",
+        "🍕 Pizza",
+        &[("wheat", 3), ("tomato", 2), ("meat", 2)],
+        (60, 30, 0),
+        140,
+    ),
+    (
+        "smoothie",
+        "🥤 Smoothie",
+        &[("strawberry", 3), ("watermelon", 1)],
+        (30, 0, 20),
+        70,
+    ),
+    (
+        "elixir_food",
+        "✨ Elixir Food",
+        &[("herb", 5), ("diamond", 1), ("gold", 2)],
+        (100, 100, 50),
+        300,
+    ),
 ];
 
 fn recipe(key: &str) -> Option<&'static Recipe> {
@@ -60,10 +114,14 @@ fn materials_line(materials: &[(&'static str, i64)]) -> String {
 
 /// `Object.entries(recipe.effect)` — urutan pasangan = urutan field di JS.
 fn effect_lines(effect: Effect) -> Vec<(&'static str, i64)> {
-    [("STAMINA", effect.0), ("HEALTH", effect.1), ("MANA", effect.2)]
-        .into_iter()
-        .filter(|(_, v)| *v != 0)
-        .collect()
+    [
+        ("STAMINA", effect.0),
+        ("HEALTH", effect.1),
+        ("MANA", effect.2),
+    ]
+    .into_iter()
+    .filter(|(_, v)| *v != 0)
+    .collect()
 }
 
 fn book() -> String {
@@ -145,15 +203,24 @@ pub fn cooking(ctx: Ctx) -> Reply {
 
     if gain_stamina != 0 {
         let cur = or_default(rpg.get("stamina").and_then(Value::as_i64), 100);
-        rpg.insert("stamina".into(), serde_json::json!((cur + gain_stamina).min(max_stamina)));
+        rpg.insert(
+            "stamina".into(),
+            serde_json::json!((cur + gain_stamina).min(max_stamina)),
+        );
     }
     if gain_health != 0 {
         let cur = or_default(rpg.get("health").and_then(Value::as_i64), 100);
-        rpg.insert("health".into(), serde_json::json!((cur + gain_health).min(max_health)));
+        rpg.insert(
+            "health".into(),
+            serde_json::json!((cur + gain_health).min(max_health)),
+        );
     }
     if gain_mana != 0 {
         let cur = or_default(rpg.get("mana").and_then(Value::as_i64), 50);
-        rpg.insert("mana".into(), serde_json::json!((cur + gain_mana).min(max_mana)));
+        rpg.insert(
+            "mana".into(),
+            serde_json::json!((cur + gain_mana).min(max_mana)),
+        );
     }
 
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
@@ -197,7 +264,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -247,11 +318,17 @@ mod tests {
         let t = text_of(&t_reply);
         assert!(t.starts_with("Halo Master Chef!"), "{t}");
         for (key, name, ..) in RECIPES {
-            assert!(t.contains(&format!("👉 Ketik: `.cooking {key}`")), "{key} hilang");
+            assert!(
+                t.contains(&format!("👉 Ketik: `.cooking {key}`")),
+                "{key} hilang"
+            );
             assert!(t.contains(&format!("*{name}*")), "{key} hilang");
         }
         assert!(t.contains("💫 Efek: +10 stamina, +5 health"), "{t}");
-        assert!(t.contains("💫 Efek: +30 stamina, +20 mana"), "smoothie tak punya health: {t}");
+        assert!(
+            t.contains("💫 Efek: +30 stamina, +20 mana"),
+            "smoothie tak punya health: {t}"
+        );
         let pos = |n: &str| t.find(n).expect("resep hilang");
         assert!(pos("🍞 Roti") < pos("🍕 Pizza"));
         assert!(pos("🍕 Pizza") < pos("Elixir Food"));
@@ -261,20 +338,29 @@ mod tests {
     fn an_unknown_recipe_is_refused_and_nothing_is_written() {
         for bad in ["nasi", "PIZZA!", "fried_rice"] {
             let r = run(serde_json::json!({ "inventory": { "wheat": 99 } }), bad);
-            assert!(text_of(&r).starts_with("Hayo, resep apaan tuh"), "arg {bad}");
+            assert!(
+                text_of(&r).starts_with("Hayo, resep apaan tuh"),
+                "arg {bad}"
+            );
             assert!(r.mutations().is_empty(), "arg {bad}");
         }
     }
 
     #[test]
     fn a_recipe_name_is_case_insensitive() {
-        let r = run(serde_json::json!({ "inventory": { "wheat": 2 }, "exp": 0 }), "BREAD");
+        let r = run(
+            serde_json::json!({ "inventory": { "wheat": 2 }, "exp": 0 }),
+            "BREAD",
+        );
         assert!(text_of(&r).starts_with("TADAA!"), "{}", text_of(&r));
     }
 
     #[test]
     fn every_short_material_is_listed_with_have_over_need() {
-        let r = run(serde_json::json!({ "inventory": { "wheat": 2, "egg": 0 } }), "cake");
+        let r = run(
+            serde_json::json!({ "inventory": { "wheat": 2, "egg": 0 } }),
+            "cake",
+        );
         let t = text_of(&r);
         assert!(t.starts_with("Eits, bahan kamu belum lengkap"), "{t}");
         assert!(t.contains("• egg: 0/2"), "{t}");
@@ -285,7 +371,10 @@ mod tests {
 
     #[test]
     fn a_depleted_material_leaves_the_bag_and_a_surplus_stays() {
-        let r = run(serde_json::json!({ "inventory": { "rice": 3, "egg": 1 }, "exp": 0 }), "friedrice");
+        let r = run(
+            serde_json::json!({ "inventory": { "rice": 3, "egg": 1 }, "exp": 0 }),
+            "friedrice",
+        );
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert_eq!(inv["rice"], serde_json::json!(1), "3 - 2");
         assert!(!inv.contains_key("egg"), "1 - 1 = 0 -> dihapus");
@@ -300,9 +389,21 @@ mod tests {
             "smoothie",
         );
         let rpg = write_of(&r)["rpg"].clone();
-        assert_eq!(rpg["stamina"], serde_json::json!(100), "80 + 30, mentok 100");
-        assert_eq!(rpg["mana"], serde_json::json!(53), "40 + 20, mentok 50 + 1*3 = 53");
-        assert_eq!(rpg["health"], serde_json::json!(33), "smoothie tak punya efek health");
+        assert_eq!(
+            rpg["stamina"],
+            serde_json::json!(100),
+            "80 + 30, mentok 100"
+        );
+        assert_eq!(
+            rpg["mana"],
+            serde_json::json!(53),
+            "40 + 20, mentok 50 + 1*3 = 53"
+        );
+        assert_eq!(
+            rpg["health"],
+            serde_json::json!(33),
+            "smoothie tak punya efek health"
+        );
     }
 
     /// `maxHealth = 100 + userLevel * 5` — BUKAN `100 + (level - 1) * 10`
@@ -314,12 +415,19 @@ mod tests {
                     "rpg": { "health": 1 }, "exp": 0 }),
             "steak",
         );
-        assert_eq!(write_of(&r)["rpg"]["health"], serde_json::json!(31), "1 + 30, mentok 100 + 10*5 = 150");
+        assert_eq!(
+            write_of(&r)["rpg"]["health"],
+            serde_json::json!(31),
+            "1 + 30, mentok 100 + 10*5 = 150"
+        );
     }
 
     #[test]
     fn the_reply_lists_only_the_effects_that_recipe_actually_has() {
-        let r = run(serde_json::json!({ "inventory": { "wheat": 2 }, "exp": 0 }), "bread");
+        let r = run(
+            serde_json::json!({ "inventory": { "wheat": 2 }, "exp": 0 }),
+            "bread",
+        );
         let t = text_of(&r);
         assert!(t.contains("• STAMINA: +10"), "{t}");
         assert!(t.contains("• HEALTH: +5"), "{t}");
@@ -329,7 +437,10 @@ mod tests {
 
     #[test]
     fn cooking_pays_the_recipe_exp() {
-        let r = run(serde_json::json!({ "inventory": { "herb": 5, "diamond": 1, "gold": 2 }, "exp": 0 }), "elixir_food");
+        let r = run(
+            serde_json::json!({ "inventory": { "herb": 5, "diamond": 1, "gold": 2 }, "exp": 0 }),
+            "elixir_food",
+        );
         assert_eq!(write_of(&r)["exp"], serde_json::json!(300));
     }
 
@@ -338,8 +449,13 @@ mod tests {
         assert_eq!(RECIPES.len(), 10);
         let want: Recipe = ("bread", "🍞 Roti", &[("wheat", 2)], (10, 5, 0), 30);
         assert_eq!(RECIPES[0], want);
-        let want: Recipe = ("elixir_food", "✨ Elixir Food",
-            &[("herb", 5), ("diamond", 1), ("gold", 2)], (100, 100, 50), 300);
+        let want: Recipe = (
+            "elixir_food",
+            "✨ Elixir Food",
+            &[("herb", 5), ("diamond", 1), ("gold", 2)],
+            (100, 100, 50),
+            300,
+        );
         assert_eq!(RECIPES[9], want);
         assert!(recipe("tidak-ada").is_none());
     }

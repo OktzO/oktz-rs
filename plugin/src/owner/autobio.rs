@@ -216,13 +216,20 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("autostatus").unwrap().meta.name, "autobio");
+        assert_eq!(
+            oktz_plugin_api::find("autostatus").unwrap().meta.name,
+            "autobio"
+        );
     }
 
     #[test]
     fn no_argument_shows_status_and_writes_nothing() {
         let r = run("", serde_json::json!({}));
-        assert!(text_of(&r).starts_with("📝 *AUTO BIO SETTINGS*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("📝 *AUTO BIO SETTINGS*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
         // Default: status mati, interval 60 detik, teks bawaan.
         assert!(text_of(&r).contains("Nonaktif ❌"), "{}", text_of(&r));

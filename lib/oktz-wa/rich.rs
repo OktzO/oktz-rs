@@ -36,7 +36,7 @@ use whatsapp_rust::waproto::whatsapp::bot_signature_verification_use_case_proof:
 use whatsapp_rust::waproto::whatsapp::{
     AIRichResponseCodeMetadata, AIRichResponseMessage, AIRichResponseMessageType,
     AIRichResponseSubMessage, AIRichResponseSubMessageType, AIRichResponseTableMetadata,
-    AIRichResponseUnifiedResponse, BotMetadata, BotMessageSharingInfo, BotMetricsEntryPoint,
+    AIRichResponseUnifiedResponse, BotMessageSharingInfo, BotMetadata, BotMetricsEntryPoint,
     BotSignatureVerificationMetadata, BotSignatureVerificationUseCaseProof, BotSourcesMetadata,
     ContextInfo, DeviceListMetadata, ForwardedAIBotMessageInfo, MessageContextInfo,
 };
@@ -405,7 +405,12 @@ pub fn rich_v2_to_message(input: &RichV2, quote: Option<&QuoteSource>) -> wa::Me
         ..Default::default()
     };
     wrap(
-        rich_with_unified(Vec::new(), &response_id, v2_sections(input), v2_context(quote)),
+        rich_with_unified(
+            Vec::new(),
+            &response_id,
+            v2_sections(input),
+            v2_context(quote),
+        ),
         Some(outer),
     )
 }
@@ -447,16 +452,20 @@ fn ai_submessages(input: &[AiSubMessage]) -> Vec<AIRichResponseSubMessage> {
     let hl = |h: Highlight| match h {
         Highlight::Default => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT,
         Highlight::Keyword => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD,
-        Highlight::Method  => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_METHOD,
-        Highlight::Str     => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_STRING,
-        Highlight::Number  => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_NUMBER,
+        Highlight::Method => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_METHOD,
+        Highlight::Str => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_STRING,
+        Highlight::Number => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_NUMBER,
         Highlight::Comment => HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_COMMENT,
     };
     let mut out = Vec::with_capacity(input.len());
     for s in input {
         match s {
             AiSubMessage::Teks { teks } => out.push(sub_text(teks)),
-            AiSubMessage::Tabel { judul, baris, heading } => {
+            AiSubMessage::Tabel {
+                judul,
+                baris,
+                heading,
+            } => {
                 let rows: Vec<AIRichResponseTableRow> = baris
                     .iter()
                     .enumerate()
@@ -523,9 +532,9 @@ fn ai_outer(input: &RichAi, response_id: &str) -> MessageContextInfo {
             // build); TANPA `richResponseSourcesMetadata` kecuali diminta
             // (diagnostik bentuk capture Vanta).
             bot_response_id: Some(response_id.to_string()),
-            rich_response_sources_metadata: fld(
-                input.sources_metadata.then(BotSourcesMetadata::default),
-            ),
+            rich_response_sources_metadata: fld(input
+                .sources_metadata
+                .then(BotSourcesMetadata::default)),
             ..Default::default()
         })),
         ..Default::default()
@@ -680,7 +689,10 @@ mod tests {
     }
 
     fn bot_metadata(msg: &wa::Message) -> &BotMetadata {
-        outer(msg).bot_metadata.as_option().expect("wajib botMetadata")
+        outer(msg)
+            .bot_metadata
+            .as_option()
+            .expect("wajib botMetadata")
     }
 
     // ---------- V2 ----------
@@ -708,7 +720,10 @@ mod tests {
         let parsed = unified_json(&msg);
         let sections = parsed["sections"].as_array().expect("sections array");
         assert_eq!(sections.len(), 4, "heading + teks + tabel + footer");
-        assert_eq!(sections[0]["view_model"]["primitive"]["text"], "Judul Bagian");
+        assert_eq!(
+            sections[0]["view_model"]["primitive"]["text"],
+            "Judul Bagian"
+        );
         assert_eq!(
             sections[0]["view_model"]["primitive"]["__typename"],
             "GenAIMarkdownTextUXPrimitive"
@@ -742,7 +757,10 @@ mod tests {
         );
         // Judul juga kosong: section heading tidak ada sama sekali.
         let kosong = rich_v2_to_message(&RichV2::baru(""), None);
-        assert_eq!(unified_json(&kosong)["sections"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            unified_json(&kosong)["sections"].as_array().unwrap().len(),
+            1
+        );
     }
 
     #[test]
@@ -782,7 +800,10 @@ mod tests {
         let ci = inner_context(&msg);
         assert_eq!(ci.forwarding_score, Some(2), "V2 pakai score 2");
         assert_eq!(ci.is_forwarded, Some(true));
-        assert_eq!(ci.forward_origin, Some(wa::context_info::ForwardOrigin::META_AI));
+        assert_eq!(
+            ci.forward_origin,
+            Some(wa::context_info::ForwardOrigin::META_AI)
+        );
         assert_eq!(bot_jid(&msg).as_deref(), Some("259786046210223@bot"));
     }
 
@@ -837,7 +858,9 @@ mod tests {
         // kosong. Klasifikasi wajib text (upstream whatsapp-rust #1366).
         let msg = rich_ai_to_message(
             &RichAi {
-                submessages: vec![AiSubMessage::Teks { teks: "halo".into() }],
+                submessages: vec![AiSubMessage::Teks {
+                    teks: "halo".into(),
+                }],
                 ..Default::default()
             },
             None,
@@ -857,7 +880,10 @@ mod tests {
         let ai = rich_ai_to_message(&RichAi::default(), None);
         let ci = inner_context(&ai);
         assert_eq!(ci.forwarding_score, Some(1), "AIRich pakai score 1");
-        assert_eq!(ci.forward_origin, Some(wa::context_info::ForwardOrigin::META_AI));
+        assert_eq!(
+            ci.forward_origin,
+            Some(wa::context_info::ForwardOrigin::META_AI)
+        );
         assert_eq!(bot_jid(&ai).as_deref(), Some("867051314767696@bot"));
     }
 
@@ -896,14 +922,15 @@ mod tests {
             None,
             "628111@s.whatsapp.net",
         );
-        let n = whatsapp_rust::wacore::messages::MessageUtils::unpadded_message_len(
-            &pt.recipient,
-            2,
-        )
-        .unwrap();
+        let n =
+            whatsapp_rust::wacore::messages::MessageUtils::unpadded_message_len(&pt.recipient, 2)
+                .unwrap();
         let back = whatsapp_rust::waproto::codec::message_decode(&pt.recipient[..n]).unwrap();
         let mci = back.message_context_info.as_option().expect("mci sampai");
-        assert!(mci.message_secret.is_none(), "secret tidak boleh muncul di wire");
+        assert!(
+            mci.message_secret.is_none(),
+            "secret tidak boleh muncul di wire"
+        );
         assert!(
             mci.bot_metadata.as_option().is_some(),
             "jalur kirim tidak boleh menghapus botMetadata"
@@ -912,10 +939,13 @@ mod tests {
 
     #[test]
     fn ai_rich_disclaimer_lands_in_bot_metadata() {
-        let msg = rich_ai_to_message(&RichAi {
-            disclaimer: Some("Syarat pakai".into()),
-            ..Default::default()
-        }, None);
+        let msg = rich_ai_to_message(
+            &RichAi {
+                disclaimer: Some("Syarat pakai".into()),
+                ..Default::default()
+            },
+            None,
+        );
         assert_eq!(
             bot_metadata(&msg).message_disclaimer_text.as_deref(),
             Some("Syarat pakai")
@@ -931,10 +961,13 @@ mod tests {
                 "__typename": "GenAISingleLayoutViewModel",
             }
         })];
-        let msg = rich_ai_to_message(&RichAi {
-            sections: sections.clone(),
-            ..Default::default()
-        }, None);
+        let msg = rich_ai_to_message(
+            &RichAi {
+                sections: sections.clone(),
+                ..Default::default()
+            },
+            None,
+        );
         assert_eq!(unified_json(&msg)["sections"], json!(sections));
     }
 
@@ -992,7 +1025,10 @@ mod tests {
         assert_eq!(ci.forwarding_score, Some(1));
         assert_eq!(bot_jid(&msg).as_deref(), Some("0@bot"));
         let meta = bot_metadata(&msg);
-        let response_id = unified_json(&msg)["response_id"].as_str().unwrap().to_string();
+        let response_id = unified_json(&msg)["response_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
         assert_eq!(meta.bot_response_id.as_deref(), Some(response_id.as_str()));
         assert_eq!(meta.message_disclaimer_text.as_deref(), Some(""));
         assert!(
@@ -1001,7 +1037,10 @@ mod tests {
         );
         // Mekanisme override skor tetap ada untuk pemakai lain.
         let skor999 = rich_ai_to_message(
-            &RichAi { skor: Some(999), ..Default::default() },
+            &RichAi {
+                skor: Some(999),
+                ..Default::default()
+            },
             None,
         );
         assert_eq!(inner_context(&skor999).forwarding_score, Some(999));
@@ -1022,11 +1061,17 @@ mod tests {
             .rich_response_sources_metadata
             .as_option()
             .expect("sources_metadata diminta → field ada");
-        assert!(sources.sources.is_empty(), "sources kosong ala capture Vanta");
+        assert!(
+            sources.sources.is_empty(),
+            "sources kosong ala capture Vanta"
+        );
         let def = rich_ai_to_message(&RichAi::default(), None);
         assert_eq!(bot_jid(&def).as_deref(), Some("867051314767696@bot"));
         assert!(
-            bot_metadata(&def).rich_response_sources_metadata.as_option().is_none(),
+            bot_metadata(&def)
+                .rich_response_sources_metadata
+                .as_option()
+                .is_none(),
             "default tanpa sources metadata"
         );
     }
@@ -1039,7 +1084,10 @@ mod tests {
         let prepared = prepared_rich_to_message(&PreparedRich::default());
         let ci = inner_context(&prepared);
         assert_eq!(ci.forwarding_score, Some(1));
-        assert_eq!(ci.forward_origin, Some(wa::context_info::ForwardOrigin::META_AI));
+        assert_eq!(
+            ci.forward_origin,
+            Some(wa::context_info::ForwardOrigin::META_AI)
+        );
         assert_eq!(bot_jid(&prepared).as_deref(), Some("867051314767696@bot"));
 
         let proofs = bot_metadata(&prepared)
@@ -1113,7 +1161,9 @@ mod tests {
     #[test]
     fn prepared_rich_submessage_text_is_sent_as_text() {
         let input = PreparedRich {
-            submessages: vec![AiSubMessage::Teks { teks: "halo".into() }],
+            submessages: vec![AiSubMessage::Teks {
+                teks: "halo".into(),
+            }],
             ..Default::default()
         };
         let msg = prepared_rich_to_message(&input);
@@ -1127,32 +1177,32 @@ mod tests {
         );
     }
 
-// Pagar parity byte-level: sections V2 Rust == sections V2 JS.
-//
-// Oracle: `node /tmp/opencode/oracle.mjs` (fungsi `toTableMetadataV2` +
-// blok `sections` disalin dari `rich-messages.js:981-1013`). Byte di bawah
-// disalin dari keluaran oracle itu.
-#[test]
-fn v2_sections_byte_for_byte_match_the_js_oracle() {
-    let oracle = r#"{"response_id":"RID","sections":[{"view_model":{"primitive":{"text":"Judul","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["Metric","Value"]},{"is_header":false,"cells":["Status","Online"]},{"is_header":false,"cells":["Cores",""]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}]}"#;
-    // Sumber: `table = ["Judul", "Metric|Value", "Status|Online", "Cores"]`
-    // — pemisah kolom `|`, pemisah baris `;;`, keduanya dari `splitCols`/
-    // `splitRows` (`:949-958`).
-    let input = RichV2::baru("Judul")
-        .header(["Metric", "Value"])
-        .baris(["Status", "Online"])
-        .baris(["Cores"]);
-    let got = serde_json::to_vec(&serde_json::json!({
-        "response_id": "RID",
-        "sections": v2_sections(&input),
-    }))
-    .unwrap();
-    assert_eq!(
-        String::from_utf8_lossy(&got),
-        oracle,
-        "byte sections V2 wajib sama dengan JS (termasuk padding sel dan urutan key)"
-    );
-}
+    // Pagar parity byte-level: sections V2 Rust == sections V2 JS.
+    //
+    // Oracle: `node /tmp/opencode/oracle.mjs` (fungsi `toTableMetadataV2` +
+    // blok `sections` disalin dari `rich-messages.js:981-1013`). Byte di bawah
+    // disalin dari keluaran oracle itu.
+    #[test]
+    fn v2_sections_byte_for_byte_match_the_js_oracle() {
+        let oracle = r#"{"response_id":"RID","sections":[{"view_model":{"primitive":{"text":"Judul","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["Metric","Value"]},{"is_header":false,"cells":["Status","Online"]},{"is_header":false,"cells":["Cores",""]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}]}"#;
+        // Sumber: `table = ["Judul", "Metric|Value", "Status|Online", "Cores"]`
+        // — pemisah kolom `|`, pemisah baris `;;`, keduanya dari `splitCols`/
+        // `splitRows` (`:949-958`).
+        let input = RichV2::baru("Judul")
+            .header(["Metric", "Value"])
+            .baris(["Status", "Online"])
+            .baris(["Cores"]);
+        let got = serde_json::to_vec(&serde_json::json!({
+            "response_id": "RID",
+            "sections": v2_sections(&input),
+        }))
+        .unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&got),
+            oracle,
+            "byte sections V2 wajib sama dengan JS (termasuk padding sel dan urutan key)"
+        );
+    }
 
     // ---------- pagar regresi ----------
 
@@ -1167,7 +1217,11 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
             .baris(["Status", "Online"]);
         let msg = crate::tabel::tabel_to_message(&tabel, None);
         let rich = rich_response(&msg);
-        assert_eq!(rich.submessages.len(), 1, "tanpa header_teks/footer = 1 submessage");
+        assert_eq!(
+            rich.submessages.len(),
+            1,
+            "tanpa header_teks/footer = 1 submessage"
+        );
         assert!(
             rich.unified_response.as_option().is_none(),
             "tabel V1 tidak punya unifiedResponse"
@@ -1214,20 +1268,38 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
         use oktz_plugin_api::airich::{Highlight, KodeToken};
         use whatsapp_rust::waproto::whatsapp::ai_rich_response_code_metadata::AIRichResponseCodeHighlightType as HT;
         let blok = vec![
-            KodeToken { isi: "const".into(), jenis: Highlight::Keyword },
-            KodeToken { isi: " x".into(),   jenis: Highlight::Default },
+            KodeToken {
+                isi: "const".into(),
+                jenis: Highlight::Keyword,
+            },
+            KodeToken {
+                isi: " x".into(),
+                jenis: Highlight::Default,
+            },
         ];
         let input = RichAi {
-            submessages: vec![AiSubMessage::Kode { bahasa: "javascript".into(), blok }],
+            submessages: vec![AiSubMessage::Kode {
+                bahasa: "javascript".into(),
+                blok,
+            }],
             ..Default::default()
         };
         let msg = rich_ai_to_message(&input, None);
         let sub = &rich_response(&msg).submessages[0];
-        assert_eq!(sub.message_type, Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_CODE));
+        assert_eq!(
+            sub.message_type,
+            Some(AIRichResponseSubMessageType::AI_RICH_RESPONSE_CODE)
+        );
         let cm = sub.code_metadata.as_option().expect("code_metadata");
         assert_eq!(cm.code_language.as_deref(), Some("javascript"));
-        assert_eq!(cm.code_blocks[0].highlight_type, Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD));
-        assert_eq!(cm.code_blocks[1].highlight_type, Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT));
+        assert_eq!(
+            cm.code_blocks[0].highlight_type,
+            Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD)
+        );
+        assert_eq!(
+            cm.code_blocks[1].highlight_type,
+            Some(HT::AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT)
+        );
     }
 
     #[test]
@@ -1236,13 +1308,25 @@ fn v2_sections_byte_for_byte_match_the_js_oracle() {
         // `.ytplay` tanpa judul → `undefined` → field TIDAK dikirim.
         let msg = rich_ai_to_message(&RichAi::default(), None);
         assert_eq!(bot_metadata(&msg).message_disclaimer_text, None);
-        let msg2 = rich_ai_to_message(&RichAi { disclaimer: Some("Syarat".into()), ..Default::default() }, None);
-        assert_eq!(bot_metadata(&msg2).message_disclaimer_text.as_deref(), Some("Syarat"));
+        let msg2 = rich_ai_to_message(
+            &RichAi {
+                disclaimer: Some("Syarat".into()),
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(
+            bot_metadata(&msg2).message_disclaimer_text.as_deref(),
+            Some("Syarat")
+        );
     }
 
     #[test]
     fn stringify_escaped_utf16_surrogate() {
-        assert_eq!(stringify_escaped("a\x7fb\u{1F680}"), "a\\u007fb\\ud83d\\ude80");
+        assert_eq!(
+            stringify_escaped("a\x7fb\u{1F680}"),
+            "a\\u007fb\\ud83d\\ude80"
+        );
         let input = RichAi {
             sections: vec![serde_json::json!({"text": "\u{1F680}"})],
             ..Default::default()

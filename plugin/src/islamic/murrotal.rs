@@ -39,7 +39,9 @@ fn parse_surah_items(html: &str) -> Vec<SurahItem> {
     let mut i = 0;
     let bytes = html.as_bytes();
     while i < bytes.len() {
-        let Some(pos) = html[i..].find("class=\"surah-item\"") else { break };
+        let Some(pos) = html[i..].find("class=\"surah-item\"") else {
+            break;
+        };
         let abs = i + pos;
         // Cari elemen pembuka lengkap (tag yang berisi class="surah-item")
         let tag_start = html[..abs].rfind('<').unwrap_or(abs);
@@ -48,7 +50,9 @@ fn parse_surah_items(html: &str) -> Vec<SurahItem> {
             None => break,
         };
         // Cari penutup elemen ini (asumsi div)
-        let Some(el_end) = html[tag_end..].find("</div>") else { break };
+        let Some(el_end) = html[tag_end..].find("</div>") else {
+            break;
+        };
         let abs_el_end = tag_end + el_end + "</div>".len();
         let item_html = &html[tag_start..abs_el_end];
 
@@ -58,7 +62,12 @@ fn parse_surah_items(html: &str) -> Vec<SurahItem> {
         let audio = attr_value(item_html, "data-audio").unwrap_or_default();
 
         if !audio.is_empty() {
-            daftar.push(SurahItem { no, surah, arti, audio });
+            daftar.push(SurahItem {
+                no,
+                surah,
+                arti,
+                audio,
+            });
         }
         i = abs_el_end;
     }
@@ -150,9 +159,7 @@ pub fn murrotal(ctx: Ctx) -> Reply {
     };
 
     let q = normalisasi(query);
-    let found = daftar.iter().find(|v| {
-        normalisasi(&v.surah).contains(&q)
-    });
+    let found = daftar.iter().find(|v| normalisasi(&v.surah).contains(&q));
 
     let Some(s) = found.filter(|v| !v.audio.is_empty()) else {
         // `m.react("❌")` (`murrotal.js:55`).

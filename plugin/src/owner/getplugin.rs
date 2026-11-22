@@ -38,9 +38,8 @@ pub(crate) const NAMA_INVALID: &str = "❌ Nama plugin tidak valid.";
 
 /// `getplugin.js:146-155` — plugin tidak ditemukan + daftar mirip.
 pub(crate) fn tidak_ditemukan(nama: &str, push: &str, mirip: &[String]) -> String {
-    let mut out = format!(
-        "Maaf ya *{push}*, plugin dengan nama *{nama}* tidak dapat ditemukan.\n\n"
-    );
+    let mut out =
+        format!("Maaf ya *{push}*, plugin dengan nama *{nama}* tidak dapat ditemukan.\n\n");
     if !mirip.is_empty() {
         out.push_str("Mungkin maksud kamu salah satu dari plugin ini:\n");
         for s in mirip {
@@ -111,7 +110,9 @@ fn cari_plugin(ctx: &Ctx, nama: &str) -> Option<Hasil> {
                 continue;
             };
             for berkas in entri {
-                let Ok(isi) = ctx.berkas().baca_teks(&format!("{akar}/{kategori}/{berkas}"))
+                let Ok(isi) = ctx
+                    .berkas()
+                    .baca_teks(&format!("{akar}/{kategori}/{berkas}"))
                 else {
                     continue;
                 };
@@ -243,12 +244,7 @@ pub fn getplugin(ctx: Ctx) -> Reply {
         for (akar, ekstensi) in AKAR {
             let jalur = format!("{akar}/{kategori}/{berkas}.{ekstensi}");
             if ctx.berkas().ada(&jalur) {
-                return kirim_dokumen(
-                    &ctx,
-                    &kategori,
-                    &format!("{berkas}.{ekstensi}"),
-                    &jalur,
-                );
+                return kirim_dokumen(&ctx, &kategori, &format!("{berkas}.{ekstensi}"), &jalur);
             }
         }
         let mirip = plugin_mirip(&ctx, &plugin_name);
@@ -371,10 +367,8 @@ mod tests {
 
     #[test]
     fn plugin_yang_ada_dikirim_sebagai_dokumen_dengan_caption() {
-        let ctx = ctx_dengan_berkas(&[(
-            "plugin/src/owner/menu.rs",
-            "fn main() {}\n// isi berkas\n",
-        )]);
+        let ctx =
+            ctx_dengan_berkas(&[("plugin/src/owner/menu.rs", "fn main() {}\n// isi berkas\n")]);
         let mut ctx = ctx;
         ctx.args = vec!["menu".into()];
         let r = run(ctx);
@@ -391,7 +385,10 @@ mod tests {
 
     #[test]
     fn caption_pola_js() {
-        assert_eq!(caption("owner", "menu.js", 1234), "📁 *owner/menu.js*\n1234 bytes");
+        assert_eq!(
+            caption("owner", "menu.js", 1234),
+            "📁 *owner/menu.js*\n1234 bytes"
+        );
     }
 
     #[test]

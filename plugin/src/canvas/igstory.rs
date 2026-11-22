@@ -28,12 +28,30 @@ pub(crate) const FONT_URL: &str =
 /// `ICON_URLS` (`igstory.js:25-32`).
 #[cfg(test)]
 pub(crate) const ICON_URLS: [(&str, &str); 6] = [
-    ("like", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/like.svg"),
-    ("comment", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/comment.svg"),
-    ("repost", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/repost.svg"),
-    ("share", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/share.svg"),
-    ("save", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/save.svg"),
-    ("verify", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/verifyig.svg"),
+    (
+        "like",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/like.svg",
+    ),
+    (
+        "comment",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/comment.svg",
+    ),
+    (
+        "repost",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/repost.svg",
+    ),
+    (
+        "share",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/share.svg",
+    ),
+    (
+        "save",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/save.svg",
+    ),
+    (
+        "verify",
+        "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/verifyig.svg",
+    ),
 ];
 
 #[cfg(test)]
@@ -135,7 +153,10 @@ mod tests {
         assert_eq!(p.meta.usage, ".igstory [kirim/reply gambar]");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 2);
-        assert_eq!(oktz_plugin_api::find("igstorypost").unwrap().meta.name, "igstory");
+        assert_eq!(
+            oktz_plugin_api::find("igstorypost").unwrap().meta.name,
+            "igstory"
+        );
     }
 
     #[test]
@@ -157,10 +178,7 @@ mod tests {
     #[test]
     fn tanpa_gambar_menampilkan_kartu_pakai() {
         let r = run(false);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            pakai(".")
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), pakai("."));
         assert!(pakai(".").contains("caption `.igstory`"));
         assert!(pakai(".").contains("perintah `.igstory`"));
     }

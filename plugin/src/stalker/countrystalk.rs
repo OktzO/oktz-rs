@@ -28,9 +28,7 @@ pub(crate) fn not_found(text: &str) -> String {
 
 /// `countrystalk.js:30` — endpoint + query `q`.
 pub(crate) fn api_url(query: &str, api_key: &str) -> String {
-    format!(
-        "https://api.neoxr.eu/api/country?q={query}&apikey={api_key}"
-    )
+    format!("https://api.neoxr.eu/api/country?q={query}&apikey={api_key}")
 }
 
 /// `(n).toLocaleString('id-ID')` — pemisah ribuan titik, desimal koma.
@@ -57,7 +55,11 @@ pub(crate) fn locale_id(v: &Value) -> String {
     groups.push(digit[..sisa].to_string());
     groups.reverse();
     let bulat_str = groups.join(".");
-    let bulat_str = if n < 0.0 { format!("-{bulat_str}") } else { bulat_str };
+    let bulat_str = if n < 0.0 {
+        format!("-{bulat_str}")
+    } else {
+        bulat_str
+    };
 
     // maximumFractionDigits default 3: pecahan dibulatkan ke tiga digit dan
     // nol diakhiri dibuang. Pecahan nol tidak dicetak sama sekali.
@@ -174,7 +176,9 @@ pub fn countrystalk(ctx: Ctx) -> Reply {
 
     let body = res.json().unwrap_or(Value::Null);
     let ok = crate::common::js_truthy_value(&body)
-        && body.get("status").is_some_and(crate::common::js_truthy_value)
+        && body
+            .get("status")
+            .is_some_and(crate::common::js_truthy_value)
         && body.get("data").is_some_and(|v| !v.is_null());
     if !ok {
         return Reply::text(not_found(&text)).with_reaction("❌");
@@ -282,9 +286,10 @@ mod tests {
     fn category_dua_spasi_konus_javascript() {
         // `countrystalk.js:7` menulis "stalker  ". Dibulatkan jadi satu
         // spasi akaningen tidak cocok dengan produksi.
-        let teks = std::fs::read_to_string(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../test/fixtures/countrystalk.js"),
-        )
+        let teks = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../test/fixtures/countrystalk.js"
+        ))
         .expect("baca JS");
         let baris = teks
             .lines()
@@ -335,7 +340,11 @@ mod tests {
             serde_json::json!({ "status": true, "data": null }),
         ] {
             let r = countrystalk(ctx(Stub::body(body.clone()), "x"));
-            assert_eq!(r.without_mutations().text_body(), Some(not_found("x").as_str()), "body {body}");
+            assert_eq!(
+                r.without_mutations().text_body(),
+                Some(not_found("x").as_str()),
+                "body {body}"
+            );
             assert_eq!(reaction_of(&r), Some("❌"), "body {body}");
         }
     }
@@ -374,8 +383,7 @@ mod tests {
     #[test]
     fn nama_kosong_jatuh_ke_teks_yang_diketik_user() {
         let c = serde_json::json!({ "names": {} });
-        assert!(caption(&c, "input user")
-            .starts_with("🌍 *INFORMASI NEGARA: INPUT USER* 🌍"));
+        assert!(caption(&c, "input user").starts_with("🌍 *INFORMASI NEGARA: INPUT USER* 🌍"));
     }
 
     #[test]
@@ -403,7 +411,9 @@ mod tests {
 
     #[test]
     fn tanpa_bendera_mengirim_teks_dan_kegagalan_jaringan_membungkus_error() {
-        let http = Stub::body(serde_json::json!({ "status": true, "data": { "names": { "common": "X" } } }));
+        let http = Stub::body(
+            serde_json::json!({ "status": true, "data": { "names": { "common": "X" } } }),
+        );
         let r = countrystalk(ctx(http, "x"));
         assert!(matches!(
             r.without_mutations(),

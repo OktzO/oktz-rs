@@ -20,7 +20,11 @@ use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 /// `|| 12` JS memicu untuk `NaN`, `0`, `-0` (falsy).
 pub(crate) fn get_block(level: &str) -> u32 {
     let nilai: f64 = parse_number(level).unwrap_or(f64::NAN);
-    let nilai = if nilai == 0.0 || nilai.is_nan() { 12.0 } else { nilai };
+    let nilai = if nilai == 0.0 || nilai.is_nan() {
+        12.0
+    } else {
+        nilai
+    };
     let nilai = nilai.clamp(1.0, 40.0);
     (41.0 - nilai) as u32
 }
@@ -39,12 +43,13 @@ pub(crate) fn parse_number(s: &str) -> Option<f64> {
         Some(sisa) => (true, sisa),
         None => (false, t),
     };
-    let infinity = matches!(
-        t.to_ascii_lowercase().as_str(),
-        "infinity" | "inf"
-    );
+    let infinity = matches!(t.to_ascii_lowercase().as_str(), "infinity" | "inf");
     if infinity {
-        return Some(if negatif { f64::NEG_INFINITY } else { f64::INFINITY });
+        return Some(if negatif {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        });
     }
     if t.is_empty() {
         return None;
@@ -82,7 +87,9 @@ pub(crate) fn parse_number(s: &str) -> Option<f64> {
         }
         None => None,
     };
-    let mut nilai: f64 = format!("{}.{}", bulat, pecahan.unwrap_or("")).parse().ok()?;
+    let mut nilai: f64 = format!("{}.{}", bulat, pecahan.unwrap_or(""))
+        .parse()
+        .ok()?;
     if let Some(exp) = exp {
         nilai *= 10f64.powi(exp);
     }
@@ -222,7 +229,10 @@ mod tests {
         assert_eq!(p.meta.name, "topixel");
         assert_eq!(p.meta.alias, ["pixelate", "pixelart"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(p.meta.description, "Ubah foto kamu jadi gambar pixel art yang keren");
+        assert_eq!(
+            p.meta.description,
+            "Ubah foto kamu jadi gambar pixel art yang keren"
+        );
         assert_eq!(p.meta.usage, ".topixel [level] (reply/kirim foto)");
         assert_eq!(p.meta.example, ".topixel 30");
         assert_eq!(p.meta.cooldown, 10);
@@ -313,7 +323,10 @@ mod tests {
         ctx.media = media_gambar();
         ctx.media_fetch = Arc::new(Unduh(Ok(b"IMG".to_vec())));
         let r = run(ctx);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "topixel"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "topixel")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -321,7 +334,9 @@ mod tests {
     fn unduhan_gagal_membalas_gagal_membaca() {
         let mut ctx = ctx_of("");
         ctx.media = media_gambar();
-        ctx.media_fetch = Arc::new(Unduh(Err(MediaError { message: "gagal".into() })));
+        ctx.media_fetch = Arc::new(Unduh(Err(MediaError {
+            message: "gagal".into(),
+        })));
         let r = run(ctx);
         assert_eq!(teks(&r), "❌ Gagal membaca media gambar, coba lagi!");
     }

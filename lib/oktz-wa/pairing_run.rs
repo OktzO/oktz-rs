@@ -457,6 +457,54 @@ pub fn purge_session(plan: &PurgePlan, now: u64) -> PurgeReport {
     r
 }
 
+/// Hapus snapshot sesi `main` di Turso saat logout dipercaya.
+///
+/// Backup dulu ke scope `purged-<now_ms>`: 401 yang dipercaya bisa ternyata
+/// transien, dan backup itu satu-satunya jalur pulih manual. Kegagalan Turso
+/// TIDAK menggagalkan purge filesystem — di sini dikembalikan sebagai
+/// `Ok(false)`/error di report log, bukan panic.
+pub async fn purge_turso_session_state(
+    t: &oktz_store::turso::TursoStore,
+    _plan: &PurgePlan,
+    now: u64,
+) -> anyhow::Result<bool> {
+    let conn = match t.connect().await {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(error = %e, "[turso] purge session_state: koneksi gagal");
+            return Ok(false);
+        }
+    };
+    if let Err(e) = t.ensure_tables(&conn).await {
+        tracing::warn!(error = %e, "[turso] purge session_state: ensure_tables gagal");
+        return Ok(false);
+    }
+    let Some(st) = t
+        .get_session_state(&conn, "main")
+        .await
+        .map_err(anyhow::Error::from)?
+    else {
+        return Ok(false);
+    };
+    t.put_session_state(
+        &conn,
+        &format!("purged-{now}"),
+        &st.creds,
+        &st.db,
+        &st.ident,
+    )
+    .await
+    .map_err(anyhow::Error::from)?;
+    let deleted = t
+        .delete_session_state(&conn, "main")
+        .await
+        .map_err(anyhow::Error::from)?;
+    if deleted {
+        tracing::info!("[turso] session_state 'main' dihapus (backup: purged-{now})");
+    }
+    Ok(deleted)
+}
+
 /// Handler yang dipasang ke [`FalseLogoutGuard::with_purge_handler`].
 ///
 /// Hanya `PurgeSession` yang menghapus apa pun. `ResetPairing` sengaja
@@ -464,6 +512,16 @@ pub fn purge_session(plan: &PurgePlan, now: u64) -> PurgeReport {
 /// sampai ke sini lewat match gabung di guard, jadi keduanya dicatat lalu
 /// diabaikan — lebih aman daripada diam-diam menganggapnya purge.
 pub fn purge_handler(plan: PurgePlan) -> Arc<dyn Fn(CloseAction) + Send + Sync> {
+    purge_handler_with_turso(plan, None)
+}
+
+/// Seperti [`purge_handler`], plus penghapusan snapshot `session_state` Turso
+/// (backup `purged-<ts>` dulu). Turso mati = warning; purge filesystem tetap
+/// jalan di thread-nya sendiri.
+pub fn purge_handler_with_turso(
+    plan: PurgePlan,
+    turso: Option<oktz_store::turso::TursoStore>,
+) -> Arc<dyn Fn(CloseAction) + Send + Sync> {
     Arc::new(move |action| match action {
         CloseAction::PurgeSession => {
             let report = purge_session(&plan, now_ms());
@@ -481,6 +539,19 @@ pub fn purge_handler(plan: PurgePlan) -> Arc<dyn Fn(CloseAction) + Send + Sync> 
                 errors = report.errors.len(),
                 "sesi di-purge setelah logout dipercaya; pair ulang dibutuhkan"
             );
+            if let Some(t) = &turso {
+                let t = t.clone();
+                tokio::spawn(async move {
+                    let now = now_ms();
+                    match purge_turso_session_state(&t, &PurgePlan::new(None, None), now).await {
+                        Ok(true) => {}
+                        Ok(false) => tracing::info!(
+                            "[turso] session_state main kosong; tidak ada yang dihapus"
+                        ),
+                        Err(e) => tracing::warn!(error = %e, "[turso] hapus session_state gagal"),
+                    }
+                });
+            }
         }
         other => {
             tracing::warn!(?other, "aksi logout tanpa purge — state sesi tidak dihapus");
@@ -585,8 +656,24 @@ where
     F: Fn(Arc<Client>) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
+    connect_device_guarded_with_turso(store, creds, plan, None, on_ready).await
+}
+
+/// Seperti [`connect_device_guarded_with_purge`], plus store Turso untuk
+/// purge `session_state` saat logout dipercaya.
+pub async fn connect_device_guarded_with_turso<F, Fut>(
+    store: SqliteStore,
+    creds: Value,
+    plan: PurgePlan,
+    turso: Option<oktz_store::turso::TursoStore>,
+    on_ready: F,
+) -> anyhow::Result<(whatsapp_rust::prelude::BotHandle, Arc<FalseLogoutGuard>)>
+where
+    F: Fn(Arc<Client>) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = ()> + Send + 'static,
+{
     let guard = Arc::new(
-        FalseLogoutGuard::new(creds).with_purge_handler(purge_handler(plan)),
+        FalseLogoutGuard::new(creds).with_purge_handler(purge_handler_with_turso(plan, turso)),
     );
     let bot = with_logout_guard(Bot::builder(), Arc::clone(&guard))
         .with_backend(store)
@@ -622,10 +709,7 @@ const PAIRING_CODE: &str = "OKTZZLAH";
 /// Jalur tujuan dari env [`crate::bot::CREDS_ENV`]; tanpa env (pemakaian
 /// CLI manual / test) fungsi ini no-op. Gagal menulis hanya memperingatkan:
 /// launcher akan gagal dengan pesan eksplisit miliknya.
-async fn ekspor_creds_setelah_paired(
-    store: &SqliteStore,
-    db_path: &str,
-) {
+async fn ekspor_creds_setelah_paired(store: &SqliteStore, db_path: &str) {
     use whatsapp_rust::store::DeviceStore;
 
     let Some(path) = oktz_core::env::Env::get(crate::bot::CREDS_ENV)
@@ -1174,6 +1258,68 @@ mod tests {
         assert_eq!(normalize_pairing_number("abc"), None);
     }
 
+    // ---------- purge Turso session_state ----------
+
+    #[tokio::test]
+    async fn purge_with_turso_moves_main_to_purged_backup_then_deletes() {
+        let dir = scratch("turso");
+        seed(&dir);
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
+        let conn = db.connect().unwrap();
+        let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
+        t.ensure_tables(&conn).await.unwrap();
+        t.put_session_state(&conn, "main", "creds-json", "db-b64", "sidik")
+            .await
+            .unwrap();
+
+        let now = 1_700_000_000_000u64;
+        let report = purge_turso_session_state(
+            &t,
+            &PurgePlan::new(Some(dir.join("oktz-run.db")), Some(dir.join("creds.json"))),
+            now,
+        )
+        .await
+        .unwrap();
+
+        assert!(report, "scope main harus terhapus");
+        assert_eq!(t.get_session_state(&conn, "main").await.unwrap(), None);
+        let backup = t
+            .get_session_state(&conn, &format!("purged-{now}"))
+            .await
+            .unwrap()
+            .expect("backup purged-<ts> harus ada");
+        assert_eq!(backup.creds, "creds-json");
+        assert_eq!(backup.db, "db-b64");
+        assert_eq!(backup.ident, "sidik");
+
+        // Tanpa row main → kedua kalinya no-op, bukan error.
+        assert!(
+            !purge_turso_session_state(&t, &PurgePlan::new(None, None), now)
+                .await
+                .unwrap()
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn purge_turso_survives_connection_failure() {
+        // Store remote tidak terjangkau (URL bogus): purge tetap sukses —
+        // filesystem purge jangan digagalkan oleh Turso mati.
+        let t = oktz_store::turso::TursoStore::bare(
+            "libsql://oktz-tidak-ada.invalid".into(),
+            "token".into(),
+        );
+        let now = 1_700_000_000_001u64;
+        let r = purge_turso_session_state(&t, &PurgePlan::new(None, None), now).await;
+        assert!(r.is_ok() || r.is_err(), "tidak boleh panic");
+        if let Ok(deleted) = r {
+            assert!(!deleted, "koneksi gagal = tidak ada yang terhapus");
+        }
+    }
+
     // ---------- on_purge: Dipanggil atau tidak ----------
 
     /// Guard dengan pencatat, plus plan yang menunjuk file di temp dir.
@@ -1229,7 +1375,10 @@ mod tests {
         assert!(q.join("oktz-run.db").exists());
         assert!(q.join("oktz-run.db-wal").exists());
         assert!(dir.join("creds.json.broken-1700000000000").exists());
-        assert!(!dir.join(".pairing-cooldown").exists(), "cooldown tidak lahir");
+        assert!(
+            !dir.join(".pairing-cooldown").exists(),
+            "cooldown tidak lahir"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -1316,8 +1465,14 @@ mod tests {
             guard.handle_logged_out(&stream_error("401"), t0 + FALSE_LOGOUT_GRACE_MS + 1),
             LogoutDecision::Apply(CloseAction::ResetPairing)
         );
-        assert!(seen.lock().unwrap().is_empty(), "reset-pairing tidak boleh purge");
-        assert!(dir.join("oktz-run.db").exists(), "src/connection.js:1006-1007");
+        assert!(
+            seen.lock().unwrap().is_empty(),
+            "reset-pairing tidak boleh purge"
+        );
+        assert!(
+            dir.join("oktz-run.db").exists(),
+            "src/connection.js:1006-1007"
+        );
         assert!(dir.join("creds.json").exists());
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -1332,7 +1487,10 @@ mod tests {
         ));
         for a in [CloseAction::Reconnect, CloseAction::ResetPairing] {
             h(a);
-            assert!(dir.join("oktz-run.db").exists(), "{a:?} tidak boleh menghapus apa pun");
+            assert!(
+                dir.join("oktz-run.db").exists(),
+                "{a:?} tidak boleh menghapus apa pun"
+            );
             assert!(dir.join("creds.json").exists(), "{a:?}");
         }
         h(CloseAction::PurgeSession);
@@ -1362,15 +1520,24 @@ mod tests {
             now,
         );
         assert_eq!(r.pruned, 1);
-        assert!(!dir.join("oktz-run.db.broken-100").exists(), "tertua dibuang");
+        assert!(
+            !dir.join("oktz-run.db.broken-100").exists(),
+            "tertua dibuang"
+        );
         for ts in [200u64, 300, 400] {
-            assert!(dir.join(format!("oktz-run.db.broken-{ts}")).exists(), "ts {ts} harus bertahan");
+            assert!(
+                dir.join(format!("oktz-run.db.broken-{ts}")).exists(),
+                "ts {ts} harus bertahan"
+            );
         }
         // Karantina yang selamat tetap utuh: db DAN sidecar-nya sepadan.
         for ts in [200u64, 300, 400] {
             let d = dir.join(format!("oktz-run.db.broken-{ts}"));
             assert!(d.join("oktz-run.db").exists(), "db ts {ts}");
-            assert!(d.join("oktz-run.db-wal").exists(), "sidecar ts {ts} ikut, bukan dibuang");
+            assert!(
+                d.join("oktz-run.db-wal").exists(),
+                "sidecar ts {ts} ikut, bukan dibuang"
+            );
         }
         assert!(dir.join(format!("oktz-run.db.broken-{now}")).is_dir());
         std::fs::remove_dir_all(&dir).ok();
@@ -1443,7 +1610,10 @@ mod tests {
             &PurgePlan::new(Some(dir.join("oktz-run.db")), Some(dir.join("creds.json"))),
             1_700_000_000_000,
         );
-        assert!(dir.join(".pairing-cooldown").exists(), "cooldown harus utuh");
+        assert!(
+            dir.join(".pairing-cooldown").exists(),
+            "cooldown harus utuh"
+        );
         assert_eq!(pairing::read_cooldown(&dir), 123);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -1480,11 +1650,11 @@ mod tests {
     }
 
     /// Path yang dipakai dua tes yang menyentuh `LAST_STORE`. `cargo test`
-/// menjalankan tes dalam satu proses secara paralel, jadi keduanya harus
-/// mencatat path yang sama — kalau tidak, assertions saling menimpa.
-const SHARED_STORE: &str = "oktz-run.db";
+    /// menjalankan tes dalam satu proses secara paralel, jadi keduanya harus
+    /// mencatat path yang sama — kalau tidak, assertions saling menimpa.
+    const SHARED_STORE: &str = "oktz-run.db";
 
-#[test]
+    #[test]
     fn the_remembered_store_path_round_trips() {
         // `prepare_store` mencatatnya; ini yang membuat purge bekerja tanpa
         // `SqliteStore` mengekspos path-nya.

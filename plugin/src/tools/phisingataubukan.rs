@@ -74,14 +74,8 @@ pub(crate) fn render(result: &Value) -> String {
     for (label, key) in [
         ("Phising", "is_phishing"),
         ("Mengandung Malware", "contains_malware"),
-        (
-            "Membawa ke Situs Berbahaya",
-            "sends_to_harmful_sites",
-        ),
-        (
-            "Menginstal Software Jahat",
-            "installs_malicious_software",
-        ),
+        ("Membawa ke Situs Berbahaya", "sends_to_harmful_sites"),
+        ("Menginstal Software Jahat", "installs_malicious_software"),
         ("Unduhan Tidak Wajar", "uncommon_downloads"),
     ] {
         info.push_str(&format!("- {label}: {}\n", flag(field(result, key))));
@@ -99,8 +93,18 @@ pub(crate) fn encode_uri_component(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for b in raw.as_bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'!' | b'~' | b'*'
-            | b'\'' | b'(' | b')' => out.push(*b as char),
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'!'
+            | b'~'
+            | b'*'
+            | b'\''
+            | b'('
+            | b')' => out.push(*b as char),
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -268,7 +272,9 @@ pub fn phisingataubukan(ctx: Ctx) -> Reply {
 
     // `!data.status || !data.result` — `result` boleh objek kosong: objek itu
     // truthy di JS, jadi tidak boleh disamakan dengan "tidak ada".
-    if !crate::common::js_truthy(data.get("status")) || !crate::common::js_truthy(data.get("result")) {
+    if !crate::common::js_truthy(data.get("status"))
+        || !crate::common::js_truthy(data.get("result"))
+    {
         return Reply::text(SCAN_FAILED).with_reaction("❌");
     }
 
@@ -310,7 +316,9 @@ mod tests {
             let text = self
                 .result
                 .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+                .map_err(|()| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -412,7 +420,10 @@ mod tests {
             assert!(body(&r).contains("`.phisingataubukan https://google.com`"));
             assert_eq!(reaction(&r), None, "tanpa reaksi di cabang ini");
         }
-        assert!(http.seen.lock().unwrap().is_empty(), "tidak boleh ada request");
+        assert!(
+            http.seen.lock().unwrap().is_empty(),
+            "tidak boleh ada request"
+        );
     }
 
     #[test]
@@ -512,10 +523,18 @@ mod tests {
 
     #[test]
     fn encode_uri_component_differs_from_url_search_params_on_space() {
-        assert_eq!(encode_uri_component("a b"), "a%20b", "encodeURIComponent, bukan '+'");
+        assert_eq!(
+            encode_uri_component("a b"),
+            "a%20b",
+            "encodeURIComponent, bukan '+'"
+        );
         assert_eq!(encode_uri_component("a+b"), "a%2Bb", "'+' ikut di-encode");
         assert_eq!(encode_uri_component("küfte"), "k%C3%BCfte");
-        assert_eq!(encode_uri_component("-_.!~*'()"), "-_.!~*'()", "unreserved tak di-encode");
+        assert_eq!(
+            encode_uri_component("-_.!~*'()"),
+            "-_.!~*'()",
+            "unreserved tak di-encode"
+        );
     }
 
     // Semua nilai di bawah diambil dari `TZ=Asia/Jakarta node -e ...`, bukan
@@ -619,8 +638,14 @@ mod tests {
         // `new Date(null)` -> epoch 0, bukan Invalid Date. Kalau plugin ini
         // pernah menerima `last_modified: null` dari API, teks yang tampil di
         // produksi adalah "01/01/1970 07.00.00".
-        assert_eq!(to_locale_string(Some(&serde_json::json!(null))), "01/01/1970 07.00.00");
-        assert_eq!(to_locale_string(Some(&serde_json::json!(false))), "01/01/1970 07.00.00");
+        assert_eq!(
+            to_locale_string(Some(&serde_json::json!(null))),
+            "01/01/1970 07.00.00"
+        );
+        assert_eq!(
+            to_locale_string(Some(&serde_json::json!(false))),
+            "01/01/1970 07.00.00"
+        );
         assert_eq!(
             to_locale_string(Some(&serde_json::json!(true))),
             "01/01/1970 07.00.00",

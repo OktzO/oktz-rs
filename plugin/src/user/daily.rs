@@ -44,7 +44,13 @@ pub(crate) fn jakarta_hour(now: i64) -> u32 {
     ((local.rem_euclid(86_400)) / 3600) as u32
 }
 
-pub(crate) fn success(greeting: &str, sender_num: &str, exp: i64, koin: i64, potion: i64) -> String {
+pub(crate) fn success(
+    greeting: &str,
+    sender_num: &str,
+    exp: i64,
+    koin: i64,
+    potion: i64,
+) -> String {
     format!(
         "🎉 *ᴅᴀɪʟʏ ᴄʟᴀɪᴍ sᴜᴋsᴇs*\n\
          > {greeting}, @{sender_num}\n\n\
@@ -138,7 +144,7 @@ fn _assert_same_timezone(now: i64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value) -> Reply {
         let ctx = Ctx {
@@ -180,7 +186,10 @@ mod tests {
         assert_eq!(p.meta.name, "daily");
         assert_eq!(p.meta.alias, ["claim", "harian", "bonus"]);
         assert_eq!(p.meta.category, "user");
-        assert_eq!(p.meta.description, "Claim hadiah harian (Exp, Money, Potion)");
+        assert_eq!(
+            p.meta.description,
+            "Claim hadiah harian (Exp, Money, Potion)"
+        );
         assert_eq!(p.meta.usage, ".daily");
         assert_eq!(p.meta.example, ".daily");
         assert_eq!(p.meta.cooldown, 0);
@@ -269,8 +278,12 @@ mod tests {
 
     #[test]
     fn a_user_with_no_cooldown_row_can_claim_immediately() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"cooldowns": {}})] {
-            let r = run(user.clone(), );
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"cooldowns": {}}),
+        ] {
+            let r = run(user.clone());
             assert!(text_of(&r).starts_with("🎉"), "input {user}");
             assert_eq!(r.mutations().len(), 1, "input {user}");
         }
@@ -305,7 +318,11 @@ mod tests {
         let before = now_ms();
         let r = run(serde_json::json!({ "cooldowns": { "lain": 12345 } }));
         let d = write_of(&r);
-        assert_eq!(d["cooldowns"]["lain"], serde_json::json!(12345), "cooldown lain utuh");
+        assert_eq!(
+            d["cooldowns"]["lain"],
+            serde_json::json!(12345),
+            "cooldown lain utuh"
+        );
         assert!(
             d["cooldowns"]["daily"].as_i64().unwrap() >= before,
             "daily harus dicatat"
@@ -316,7 +333,11 @@ mod tests {
     fn other_inventory_items_survive_the_potion_update() {
         let r = run(serde_json::json!({ "inventory": { "kunai": 3 } }));
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
-        assert_eq!(inv["kunai"], serde_json::json!(3), "item lain tidak boleh hilang");
+        assert_eq!(
+            inv["kunai"],
+            serde_json::json!(3),
+            "item lain tidak boleh hilang"
+        );
         assert!(inv["potion"].as_i64().unwrap() >= 1);
     }
 

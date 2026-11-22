@@ -76,10 +76,7 @@ pub fn coinflip(ctx: Ctx) -> Reply {
         return Reply::text("Taruhan receh ditolak! Minimal *Rp 1.000* ya bos! 🪙");
     }
 
-    let koin = user
-        .get("koin")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let koin = user.get("koin").and_then(Value::as_i64).unwrap_or(0);
 
     if koin < bet {
         return Reply::text(format!(
@@ -126,11 +123,10 @@ pub fn coinflip(ctx: Ctx) -> Reply {
             emoji,
             format_idr(winnings)
         );
-        return Reply::text(txt)
-            .with_mutation(Mutation::SetUser {
-                jid: ctx.sender.clone(),
-                data: serde_json::json!({ "koin": new_user["koin"], "rpg": rpg }),
-            });
+        return Reply::text(txt).with_mutation(Mutation::SetUser {
+            jid: ctx.sender.clone(),
+            data: serde_json::json!({ "koin": new_user["koin"], "rpg": rpg }),
+        });
     }
 
     let txt = format!(
@@ -144,11 +140,10 @@ pub fn coinflip(ctx: Ctx) -> Reply {
         emoji,
         format_idr(bet)
     );
-    Reply::text(txt)
-        .with_mutation(Mutation::SetUser {
-            jid: ctx.sender.clone(),
-            data: serde_json::json!({ "koin": remaining_koin, "rpg": rpg }),
-        })
+    Reply::text(txt).with_mutation(Mutation::SetUser {
+        jid: ctx.sender.clone(),
+        data: serde_json::json!({ "koin": remaining_koin, "rpg": rpg }),
+    })
 }
 
 #[cfg(test)]

@@ -131,7 +131,10 @@ fn init_session(http: &dyn HttpGet, jar: &mut CookieSederhana) {
         .header("User-Agent", UA)
         .header("Origin", BASE_URL)
         .header("Referer", HOME)
-        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+        .header(
+            "Accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        )
         .header("Sec-Fetch-Mode", "navigate");
     if let Ok(res) = http.call(&req) {
         jar.serap(&res);
@@ -267,20 +270,20 @@ fn kumpulkan_target(node: &Value, keluar: &mut Vec<Value>) {
 ///
 /// Balikan `array` target; `catch` di JS mengembalikan `[]`, jadi kegagalan
 /// juga `Ok([])` — bukan `Err`.
-pub fn get_available_targets(
-    http: &dyn HttpGet,
-    filename: &str,
-) -> Result<Value, HttpError> {
+pub fn get_available_targets(http: &dyn HttpGet, filename: &str) -> Result<Value, HttpError> {
     let mut jar = CookieSederhana::default();
     init_session(http, &mut jar);
 
     // `filename.split('.').pop().toLowerCase()`
-    let ext = filename.rsplit('.').next().unwrap_or(filename).to_lowercase();
+    let ext = filename
+        .rsplit('.')
+        .next()
+        .unwrap_or(filename)
+        .to_lowercase();
 
     let res = http.call(
-        &header_ajax(HttpCall::post(format!("{BASE_URL}{GET_TARGETS}")), &jar).multipart(vec![
-            MultipartPart::field("extensions", ext.clone()),
-        ]),
+        &header_ajax(HttpCall::post(format!("{BASE_URL}{GET_TARGETS}")), &jar)
+            .multipart(vec![MultipartPart::field("extensions", ext.clone())]),
     );
 
     let Ok(res) = res else {
@@ -365,16 +368,15 @@ fn alur(
         encode_form(&filename),
     );
     let res = http.call(
-        &header_ajax(HttpCall::post(format!("{BASE_URL}{UPLOAD}?{params}")), jar)
-            .multipart(vec![part_berkas("file", isi.iter().take(1).copied().collect())]),
+        &header_ajax(HttpCall::post(format!("{BASE_URL}{UPLOAD}?{params}")), jar).multipart(vec![
+            part_berkas("file", isi.iter().take(1).copied().collect()),
+        ]),
     )?;
     jar.serap(&res);
     let data = res.json().unwrap_or(Value::Null);
     if let Some(pesan) = field(&data, "error").filter(|v| truthy(v)) {
         return Err(HttpError {
-            message: field(pesan, "message")
-                .map(teks_js)
-                .unwrap_or_default(),
+            message: field(pesan, "message").map(teks_js).unwrap_or_default(),
         });
     }
     let token = data.get("token").cloned().unwrap_or(Value::Null);
@@ -399,9 +401,7 @@ fn alur(
         let data = res.json().unwrap_or(Value::Null);
         if let Some(pesan) = field(&data, "error").filter(|v| truthy(v)) {
             return Err(HttpError {
-                message: field(pesan, "message")
-                    .map(teks_js)
-                    .unwrap_or_default(),
+                message: field(pesan, "message").map(teks_js).unwrap_or_default(),
             });
         }
         if !data.get("awaiting_chunks").map(truthy).unwrap_or(false) {
@@ -511,11 +511,9 @@ mod tests {
                     },
                     headers: headers.clone(),
                 }),
-                None => {
-                    Err(HttpError {
-                        message: format!("tidak ada balasan untuk {url}"),
-                    })
-                }
+                None => Err(HttpError {
+                    message: format!("tidak ada balasan untuk {url}"),
+                }),
             }
         }
     }
@@ -525,11 +523,7 @@ mod tests {
             self.permintaan.lock().unwrap().push(HttpCall::get(url));
             self.jawab(url)
         }
-        fn post_json(
-            &self,
-            _url: &str,
-            _body: &Value,
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_json(&self, _url: &str, _body: &Value) -> Result<HttpResponse, HttpError> {
             unreachable!("mconverter lewat HttpCall::call")
         }
         fn post_form(&self, _url: &str, _form: &str) -> Result<HttpResponse, HttpError> {
@@ -556,7 +550,7 @@ mod tests {
     }
 
     /// Berkas uji di temp dir. Nomor urut dipakai supaya dua test dengan nama
-/// yang sama tidak saling menimpa isi (test jalan paralel).
+    /// yang sama tidak saling menimpa isi (test jalan paralel).
     fn nama_berkas_sementara(nama: &str, isi: &[u8]) -> std::path::PathBuf {
         static URUT: AtomicUsize = AtomicUsize::new(0);
         let mut path = std::env::temp_dir();
@@ -576,12 +570,7 @@ mod tests {
     /// `oktz-test-<pid>-<n>-`. Jadi nama di fixture harus dihitung dari
     /// `path`, bukan dari nama yang diminta test — kalau tidak, stub tidak
     /// pernah kena dan hasilnya "tidak ada balasan untuk ...".
-    fn url_unggah_awal(
-        path: &std::path::Path,
-        target: &str,
-        mime: &str,
-        ukuran: usize,
-    ) -> String {
+    fn url_unggah_awal(path: &std::path::Path, target: &str, mime: &str, ukuran: usize) -> String {
         let nama = path.file_name().unwrap().to_string_lossy();
         format!(
             "{BASE_URL}{UPLOAD}?target_format={}&total_size={ukuran}&source_mime={}&filename={}&abd=false&captcha=",
@@ -602,7 +591,11 @@ mod tests {
         )]);
         let hasil = get_available_targets(&http, "foto.JPG").unwrap();
         let arr = hasil.as_array().unwrap();
-        assert_eq!(arr.len(), 2, "duplikat nama hilang, yang tanpa nama dibuang");
+        assert_eq!(
+            arr.len(),
+            2,
+            "duplikat nama hilang, yang tanpa nama dibuang"
+        );
         assert_eq!(arr[0]["name"], "jpg", "urutan locale: jpg sebelum PNG");
         assert_eq!(arr[1]["name"], "PNG");
         // `new Map` menyimpan nilai TERAKHIR untuk kunci kembar pada posisi
@@ -618,7 +611,10 @@ mod tests {
             cari_header(&p[0], "x-requested-with").is_none(),
             "X-Requested-With undefined tidak dikirim"
         );
-        assert_eq!(cari_header(&p[0], "sec-fetch-mode"), Some("navigate".to_string()));
+        assert_eq!(
+            cari_header(&p[0], "sec-fetch-mode"),
+            Some("navigate".to_string())
+        );
 
         let Some(HttpBody::Multipart(parts)) = &p[1].body else {
             panic!("body bukan multipart");
@@ -626,7 +622,10 @@ mod tests {
         assert_eq!(parts.len(), 1);
         assert_eq!(parts[0].name, "extensions");
         assert_eq!(parts[0].body.bytes(), b"jpg", "ekstensi huruf kecil");
-        assert_eq!(cari_header(&p[1], "x-requested-with"), Some("XMLHttpRequest".to_string()));
+        assert_eq!(
+            cari_header(&p[1], "x-requested-with"),
+            Some("XMLHttpRequest".to_string())
+        );
         assert_eq!(cari_header(&p[1], "origin"), Some(BASE_URL.to_string()));
     }
 
@@ -672,7 +671,11 @@ mod tests {
         };
         assert_eq!(parts[0].name, "file");
         assert_eq!(parts[0].file_name, None, "createReadStream tanpa filename");
-        assert_eq!(parts[0].body.bytes(), b"A", "hanya 1 byte pada unggah pertama");
+        assert_eq!(
+            parts[0].body.bytes(),
+            b"A",
+            "hanya 1 byte pada unggah pertama"
+        );
         let _ = std::fs::remove_file(&path);
     }
 

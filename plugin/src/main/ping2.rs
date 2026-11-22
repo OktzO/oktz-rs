@@ -205,8 +205,14 @@ fn baca_disk() -> (u64, u64) {
         return (0, 0);
     };
     let mut kolom = baris.split_whitespace();
-    let total = kolom.next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
-    let dipakai = kolom.next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
+    let total = kolom
+        .next()
+        .and_then(|n| n.parse::<u64>().ok())
+        .unwrap_or(0);
+    let dipakai = kolom
+        .next()
+        .and_then(|n| n.parse::<u64>().ok())
+        .unwrap_or(0);
     (dipakai.saturating_mul(1024), total.saturating_mul(1024))
 }
 
@@ -301,14 +307,8 @@ fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
     t = t.with_table_row(["Users".to_string(), users.to_string()]);
     t = t.with_table_row(["Premium".to_string(), premium.to_string()]);
     t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
-    t = t.with_table_row([
-        "Uptime Bot".to_string(),
-        fmt_up(ctx.uptime_secs as f64),
-    ]);
-    t = t.with_table_row([
-        "Uptime Server".to_string(),
-        fmt_up(baca_uptime_server()),
-    ]);
+    t = t.with_table_row(["Uptime Bot".to_string(), fmt_up(ctx.uptime_secs as f64)]);
+    t = t.with_table_row(["Uptime Server".to_string(), fmt_up(baca_uptime_server())]);
 
     t.with_table_footer("🍃 Realtime Monitoring")
 }
@@ -467,7 +467,10 @@ mod tests {
         let t = tabel_dari(&balasan);
         for kunci in ["Users", "Premium", "Groups"] {
             assert_eq!(
-                t.baris.iter().find(|b| b[0] == kunci).map(|b| b[1].as_str()),
+                t.baris
+                    .iter()
+                    .find(|b| b[0] == kunci)
+                    .map(|b| b[1].as_str()),
                 Some("0"),
                 "{kunci}"
             );

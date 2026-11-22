@@ -54,7 +54,9 @@ fn source_slug(s: &NewsSource) -> &'static str {
 }
 
 fn find_source(slug: &str) -> Option<&'static NewsSource> {
-    SOURCES.iter().find(|s| source_slug(s) == slug || s.name.to_ascii_lowercase() == slug)
+    SOURCES
+        .iter()
+        .find(|s| source_slug(s) == slug || s.name.to_ascii_lowercase() == slug)
 }
 
 /// Daftar sumber untuk balasan `.berita` tanpa argumen.
@@ -74,10 +76,7 @@ fn daftar_sumber(prefix: &str) -> String {
 }
 
 /// `fetchRSS` — ambil RSS dan parse `<item>` (maksimal 10).
-fn fetch_rss(
-    http: &dyn oktz_plugin_api::HttpGet,
-    url: &str,
-) -> Result<Vec<Article>, String> {
+fn fetch_rss(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> Result<Vec<Article>, String> {
     let res = http
         .get(url)
         .map_err(|e| format!("Gagal mengambil RSS: {}", e.message))?;
@@ -98,9 +97,13 @@ fn parse_items(html: &str) -> Vec<Article> {
     let mut items = Vec::new();
     let mut i = 0;
     while i < html.len() && items.len() < 10 {
-        let Some(item_start) = html[i..].find("<item>") else { break };
+        let Some(item_start) = html[i..].find("<item>") else {
+            break;
+        };
         let abs_start = i + item_start;
-        let Some(item_end) = html[abs_start..].find("</item>") else { break };
+        let Some(item_end) = html[abs_start..].find("</item>") else {
+            break;
+        };
         let abs_end = abs_start + item_end + "</item>".len();
         let item_html = &html[abs_start..abs_end];
         let title = tag_content(item_html, "title");
@@ -224,8 +227,7 @@ fn format_rss_date(date_str: &str) -> String {
 }
 
 const MONTH_ID_SHORT: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-    "Jul", "Ags", "Sep", "Okt", "Nov", "Des",
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des",
 ];
 
 /// Parse RFC 2822 tanggal, balik (hari, bulan 0-based, tahun, jam, menit).

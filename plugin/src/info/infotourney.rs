@@ -35,7 +35,10 @@ fn fetch_tournaments(http: &dyn oktz_plugin_api::HttpGet) -> Result<Vec<Tourname
         .get("https://infotourney.com/tournament/mobile-legends")
         .map_err(|e| format!("Gagal mengambil halaman: {}", e.message))?;
     let html = res.text();
-    Ok(parse_tournaments(&html, "https://infotourney.com/tournament/mobile-legends"))
+    Ok(parse_tournaments(
+        &html,
+        "https://infotourney.com/tournament/mobile-legends",
+    ))
 }
 
 /// Parse `.items-row .item` dari HTML.
@@ -44,7 +47,9 @@ fn parse_tournaments(html: &str, base_url: &str) -> Vec<Tournament> {
     // Cari setiap `.item` di dalam `.items-row`
     let mut i = 0;
     while i < html.len() {
-        let Some(item_pos) = html[i..].find("class=\"item\"") else { break };
+        let Some(item_pos) = html[i..].find("class=\"item\"") else {
+            break;
+        };
         let abs = i + item_pos;
         // Cari tag pembuka div.item
         let tag_start = html[..abs].rfind('<').unwrap_or(abs);
@@ -148,8 +153,14 @@ fn tag_inner_html(html: &str, _selector: &str) -> String {
 fn split_description(html: &str) -> (String, String) {
     let decoded = decode_html_entities(html);
     let parts: Vec<&str> = decoded.split("<br>").collect();
-    let description = parts.first().map(|s| s.trim().to_string()).unwrap_or_default();
-    let info = parts.get(1).map(|s| s.trim().to_string()).unwrap_or_default();
+    let description = parts
+        .first()
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    let info = parts
+        .get(1)
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
     (description, info)
 }
 
@@ -252,8 +263,7 @@ pub fn infotourney(ctx: Ctx) -> Reply {
     if let Some(first) = tampil.first()
         && !first.image_url.is_empty()
     {
-        return Reply::image(MediaSource::url(first.image_url.clone()), text)
-            .with_reaction("✅");
+        return Reply::image(MediaSource::url(first.image_url.clone()), text).with_reaction("✅");
     }
 
     Reply::text(text).with_reaction("✅")
@@ -376,16 +386,16 @@ mod tests {
 
     #[test]
     fn nbsp_diganti_spasi() {
-        assert_eq!(
-            decode_html_entities("a&nbsp;b"),
-            "a b"
-        );
+        assert_eq!(decode_html_entities("a&nbsp;b"), "a b");
     }
 
     #[test]
     fn url_relatif_diresolve() {
         assert_eq!(
-            resolve_url("/img/x.jpg", "https://infotourney.com/tournament/mobile-legends"),
+            resolve_url(
+                "/img/x.jpg",
+                "https://infotourney.com/tournament/mobile-legends"
+            ),
             "https://infotourney.com/img/x.jpg"
         );
         assert_eq!(
@@ -396,10 +406,7 @@ mod tests {
 
     #[test]
     fn tanggal_diformat_sederhana() {
-        assert_eq!(
-            format_tanggal("2024-01-15T10:00:00"),
-            "2024-01-15 10:00:00"
-        );
+        assert_eq!(format_tanggal("2024-01-15T10:00:00"), "2024-01-15 10:00:00");
     }
 
     #[test]
@@ -421,7 +428,10 @@ mod tests {
         match r.without_mutations().tanpa_reaksi() {
             Reply::Image { media, caption, .. } => {
                 let src = media.as_ref().expect("harus ada media");
-                assert_eq!(src, &MediaSource::url("https://infotourney.com/img/ml1.jpg"));
+                assert_eq!(
+                    src,
+                    &MediaSource::url("https://infotourney.com/img/ml1.jpg")
+                );
                 assert!(caption.contains("Turnamen ML 1"));
             }
             other => panic!("harus Image, dapat {other:?}"),

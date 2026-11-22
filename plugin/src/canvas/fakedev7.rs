@@ -125,11 +125,11 @@ pub fn fakedev7(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::sock::{AdaWhatsapp, AksiPeserta};
     use oktz_plugin_api::{
         HttpBody, HttpCall, HttpError, HttpResponse, MediaError, MediaFetch, MediaOrigin,
         QuotedKind, QuotedMessage, Sock, SockError,
     };
-    use oktz_plugin_api::sock::{AdaWhatsapp, AksiPeserta};
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -184,7 +184,11 @@ mod tests {
             Err(SockError::baru("tidak dipakai"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
-            self.foto.lock().unwrap().clone().unwrap_or(Err(SockError::baru("mati")))
+            self.foto
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or(Err(SockError::baru("mati")))
         }
         fn metadata_grup(&self, _: &str) -> Result<Value, SockError> {
             Err(SockError::baru("tidak dipakai"))
@@ -228,7 +232,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -343,7 +347,10 @@ mod tests {
         });
         ctx.media_fetch = Arc::new(Unduh { ok: false });
         let r = run(ctx);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakedev7"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakedev7")
+        );
         assert_eq!(reaksi(&r), None);
     }
 

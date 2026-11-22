@@ -129,9 +129,18 @@ use crate::airich::KodeToken;
 /// tabel (`messageType: 4`), kode (`messageType: 5`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AiSubMessage {
-    Teks { teks: String },
-    Tabel { judul: String, baris: Vec<Vec<String>>, heading: bool },
-    Kode { bahasa: String, blok: Vec<KodeToken> },
+    Teks {
+        teks: String,
+    },
+    Tabel {
+        judul: String,
+        baris: Vec<Vec<String>>,
+        heading: bool,
+    },
+    Kode {
+        bahasa: String,
+        blok: Vec<KodeToken>,
+    },
 }
 
 /// AI rich — kontrak ruby-baileys `AIRich` (`MessageBuilder/index.js:2174-2380`),
@@ -261,7 +270,12 @@ mod tests {
             baris: vec![vec!["a".into()]],
             heading: true,
         };
-        let AiSubMessage::Tabel { judul, baris: rows, heading } = &s else {
+        let AiSubMessage::Tabel {
+            judul,
+            baris: rows,
+            heading,
+        } = &s
+        else {
             panic!("tabel harus terisi");
         };
         assert_eq!(judul, "J");

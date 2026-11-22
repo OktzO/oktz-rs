@@ -17,21 +17,14 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
 use crate::rpg::heal::{
-    apply_exp, coalesce, inventory_map, or_default, rpg_int, rpg_map, roll_incl, roll_percent,
+    apply_exp, coalesce, inventory_map, or_default, roll_incl, roll_percent, rpg_int, rpg_map,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
 const STAMINA_COST: i64 = 20;
 
 /// `(item, name, chance, min, max, price)`.
-type Crop = (
-    &'static str,
-    &'static str,
-    i64,
-    i64,
-    i64,
-    i64,
-);
+type Crop = (&'static str, &'static str, i64, i64, i64, i64);
 
 const CROPS: [Crop; 6] = [
     ("padi", "🌾 Padi", 90, 2, 8, 100),
@@ -183,7 +176,10 @@ mod tests {
         for stamina in [0, 19] {
             let r = run(serde_json::json!({ "rpg": { "stamina": stamina } }));
             let t = text_of(&r);
-            assert!(t.starts_with("Aduh kak, encok nih badan"), "stamina {stamina}: {t}");
+            assert!(
+                t.starts_with("Aduh kak, encok nih badan"),
+                "stamina {stamina}: {t}"
+            );
             assert!(t.contains(&format!("sisa stamina kamu *{stamina}*")), "{t}");
             assert!(r.mutations().is_empty(), "stamina {stamina}");
         }
@@ -225,7 +221,11 @@ mod tests {
                 continue;
             }
             fallback += 1;
-            assert_eq!(t.matches("Est. Rp").count(), 1, "fallback tak boleh baris lain: {t}");
+            assert_eq!(
+                t.matches("Est. Rp").count(),
+                1,
+                "fallback tak boleh baris lain: {t}"
+            );
             assert_eq!(write_of(&r)["inventory"]["padi"], serde_json::json!(1));
         }
         assert!(fallback > 0, "dalam 2400 percobaan harus ada panen kosong");

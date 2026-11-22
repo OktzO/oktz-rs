@@ -228,14 +228,12 @@ pub fn scdl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     // `info.view_count.toLocaleString()` dan `info.like_count.toLocaleString()`.
     let Some(view_count) = info.get("view_count") else {
         return Err(HttpError {
-            message: "Cannot read properties of undefined (reading 'toLocaleString')"
-                .to_string(),
+            message: "Cannot read properties of undefined (reading 'toLocaleString')".to_string(),
         });
     };
     let Some(like_count) = info.get("like_count") else {
         return Err(HttpError {
-            message: "Cannot read properties of undefined (reading 'toLocaleString')"
-                .to_string(),
+            message: "Cannot read properties of undefined (reading 'toLocaleString')".to_string(),
         });
     };
     let views = locale_number(view_count)?;
@@ -322,10 +320,18 @@ mod tests {
         fn get(&self, _url: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma POST")
         }
-        fn post_json(&self, _url: &str, _body: &Value) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
-        fn post_form(&self, _url: &str, _form: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_form(
+            &self,
+            _url: &str,
+            _form: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
         fn post_multipart(
@@ -472,7 +478,10 @@ mod tests {
         assert_eq!(hasil["duration"], "NaN:NaN");
         assert_eq!(hasil["size"], "NaN MB");
         assert_eq!(hasil["views"], "0");
-        assert_eq!(hasil["download_url"], "https://convertico.com/soundcloud-downloader//a.mp3");
+        assert_eq!(
+            hasil["download_url"],
+            "https://convertico.com/soundcloud-downloader//a.mp3"
+        );
         assert!(hasil.get("title").is_none());
         assert!(hasil.get("thumbnail").is_none());
         assert!(hasil.get("format").is_none());

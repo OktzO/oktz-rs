@@ -14,10 +14,8 @@
 //! `savekontak.js:72-77`) adalah `contactsMessage` WA; `Reply` tidak punya
 //! varian itu, jadi hanya dokumen VCF yang dikirim.
 
+use oktz_plugin_api::registry::{CardContext, CardList, CardRow, CardSection, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use oktz_plugin_api::registry::{
-    CardContext, CardList, CardRow, CardSection, InteractiveButton,
-};
 use serde_json::Value;
 
 /// Footer kartu (`savekontak.js:113`).
@@ -165,8 +163,11 @@ pub fn savekontak(ctx: Ctx) -> Reply {
                 .get("participants")
                 .and_then(Value::as_array)
                 .map_or(0, Vec::len);
-            CardRow::new(subjek, format!("{}savekontak get {jid} {base_name}", ctx.prefix))
-                .description(format!("Anggota: {jumlah}"))
+            CardRow::new(
+                subjek,
+                format!("{}savekontak get {jid} {base_name}", ctx.prefix),
+            )
+            .description(format!("Anggota: {jumlah}"))
         })
         .collect();
 
@@ -269,7 +270,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -312,7 +313,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -337,7 +341,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["sv", "svkontak"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("savekontak"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("savekontak"),
+                "{a}"
+            );
         }
     }
 
@@ -347,8 +355,14 @@ mod tests {
         let t = teks(&r);
         assert!(t.starts_with("📇 *SISTEM SAVE KONTAK (VCF)*"), "{t}");
         assert!(t.contains("Nama Base: *Fulan*"), "{t}");
-        assert!(t.contains("• *.savekontak <nama>* — Menyimpan dengan nama kustom"), "{t}");
-        assert!(t.contains("• *.savekontak* — Menyimpan dengan nama default \"User\""), "{t}");
+        assert!(
+            t.contains("• *.savekontak <nama>* — Menyimpan dengan nama kustom"),
+            "{t}"
+        );
+        assert!(
+            t.contains("• *.savekontak* — Menyimpan dengan nama default \"User\""),
+            "{t}"
+        );
         match r.without_mutations() {
             Reply::Interactive { kartu } => {
                 assert_eq!(kartu.footer.as_deref(), Some(FOOTER));

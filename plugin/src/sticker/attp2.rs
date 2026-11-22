@@ -26,9 +26,7 @@ pub(crate) const WARNA: [&str; 6] = [
 
 /// Kartu pakai / teks kosong (`attp2.js:70-72`).
 pub(crate) fn pakai(prefix: &str, command: &str) -> String {
-    format!(
-        "⚠️ Harap masukkan teks!\nContoh: `{prefix}{command} Halo semua`"
-    )
+    format!("⚠️ Harap masukkan teks!\nContoh: `{prefix}{command} Halo semua`")
 }
 
 #[plugin(
@@ -109,7 +107,10 @@ mod tests {
             ..Ctx::default()
         };
         let r = attp2(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), pakai(".", "attp2"));
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            pakai(".", "attp2")
+        );
     }
 
     #[test]
@@ -127,12 +128,10 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "attp2")
         );
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "☢"
-            )
-        );
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "☢"
+        ));
     }
 
     #[test]
@@ -154,12 +153,15 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Ctx::default()
         };
         let r = attp2(ctx);
-        assert_ne!(r.without_mutations().text_body().unwrap(), pakai(".", "attp2"));
+        assert_ne!(
+            r.without_mutations().text_body().unwrap(),
+            pakai(".", "attp2")
+        );
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "attp2")

@@ -40,7 +40,11 @@ fn digits_only(s: &str) -> String {
     is_bot_admin = false
 )]
 pub fn mutechat(ctx: Ctx) -> Reply {
-    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let action = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     let mut mute = true;
     let mut target_jid: Option<String> = None;
 
@@ -100,8 +104,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             } else {
                 None
             },
@@ -155,7 +159,12 @@ mod tests {
 
     #[test]
     fn mention_wins_over_argument() {
-        let r = run(&["628111111111"], Some("628999222222@s.whatsapp.net"), false, false);
+        let r = run(
+            &["628111111111"],
+            Some("628999222222@s.whatsapp.net"),
+            false,
+            false,
+        );
         assert!(body(&r).contains("> Target: 628999222222"));
     }
 }

@@ -16,7 +16,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
@@ -120,8 +120,7 @@ pub fn apkmod(ctx: Ctx) -> Reply {
     };
     let apps = &apps[..apps.len().min(15)];
 
-    Reply::interactive(format_list(apps, text))
-    .with_reaction("✅")
+    Reply::interactive(format_list(apps, text)).with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -154,9 +153,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -236,7 +238,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["modapk2", "apkpremium"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "apkmod", "alias {a}");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "apkmod",
+                "alias {a}"
+            );
         }
     }
 
@@ -244,7 +250,11 @@ mod tests {
     fn a_blank_query_shows_the_usage_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "  \t "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -267,7 +277,10 @@ mod tests {
             "{body}"
         );
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Interactive { .. }));
+        assert!(matches!(
+            r.without_mutations().tanpa_reaksi(),
+            Reply::Interactive { .. }
+        ));
 
         assert_eq!(
             http.seen.lock().unwrap()[0],
@@ -280,7 +293,10 @@ mod tests {
         let apps: Vec<Value> = (0..20)
             .map(|i| serde_json::json!({"name": format!("App {i}"), "version": "1", "mod": "M"}))
             .collect();
-        let body = format!("{{\"status\": true, \"data\": {}}}", serde_json::json!(apps));
+        let body = format!(
+            "{{\"status\": true, \"data\": {}}}",
+            serde_json::json!(apps)
+        );
         let out = body_of(&run(Stub::new(&body), "app"));
         assert!(out.contains("*15.* App 14\n"), "{out}");
         assert!(!out.contains("App 15"), "hasil ke-16 terpotong: {out}");
@@ -314,7 +330,10 @@ mod tests {
     #[test]
     fn a_non_array_payload_hits_the_catch_branch_like_the_foreach_type_error() {
         let r = run(Stub::new(r#"{"status": true, "data": "x"}"#), "q");
-        assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "apkmod"));
+        assert_eq!(
+            body_of(&r),
+            crate::common::error_template_bawaan(".", "apkmod")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -345,9 +364,16 @@ mod tests {
 
     #[test]
     fn the_caption_helper_never_panics_on_strange_values() {
-        let apps = [serde_json::json!("bukan objek"), serde_json::json!(null), serde_json::json!({"name": 7})];
+        let apps = [
+            serde_json::json!("bukan objek"),
+            serde_json::json!(null),
+            serde_json::json!({"name": 7}),
+        ];
         let out = format_list(&apps, "🚀 \u{0} ñ");
-        assert!(out.starts_with("📱 *Hasil pencarian dari 🚀 \u{0} ñ*\n\n"), "{out}");
+        assert!(
+            out.starts_with("📱 *Hasil pencarian dari 🚀 \u{0} ñ*\n\n"),
+            "{out}"
+        );
         // JS: `app.name` pada string primitif = undefined; `null.name`
         // melempar TypeError, di sini diturunkan jadi undefined supaya helper
         // tidak panik; `{name: 7}` -> string "7".

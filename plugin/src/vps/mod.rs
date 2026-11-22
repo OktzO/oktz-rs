@@ -91,8 +91,18 @@ pub(crate) fn fmt_num(n: f64) -> String {
 /// Nama bulan panjang bahasa Indonesia — `Intl.DateTimeFormat('id-ID', {
 /// month: 'long' })` (`src/lib/time.js:23-26`).
 pub(crate) const BULAN: [&str; 12] = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September",
-    "Oktober", "November", "Desember",
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
 ];
 
 /// Ubah timestamp ISO-8601 menjadi bagian waktu Asia/Jakarta (UTC+7).

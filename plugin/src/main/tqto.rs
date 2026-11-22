@@ -168,8 +168,7 @@ mod tests {
         assert_eq!(lines.len(), CREDITS.len());
         assert_eq!(lines[0], "*1. *hyuuOkkotsuX* [ 👨‍💻 Lead Staff ]");
         assert_eq!(
-            lines[1],
-            "*2. *Zann* [ 👨‍💻 Creator ]",
+            lines[1], "*2. *Zann* [ 👨‍💻 Creator ]",
             "nomor harus i + 1, bukan i"
         );
         assert_eq!(
@@ -187,13 +186,21 @@ mod tests {
             )),
             "{out}"
         );
-        assert!(out.ends_with('}'), "penutup kurung kurawal dari template JS: {out}");
+        assert!(
+            out.ends_with('}'),
+            "penutup kurung kurawal dari template JS: {out}"
+        );
         for (i, line) in credit_lines().iter().enumerate() {
             assert!(out.contains(line.as_str()), "baris hilang: {line}");
             if i == 0 {
-                assert!(out.contains(&format!("
+                assert!(
+                    out.contains(&format!(
+                        "
 {line}
-")), "{out}");
+"
+                    )),
+                    "{out}"
+                );
             }
         }
     }

@@ -110,9 +110,7 @@ pub fn tolak(ctx: Ctx) -> Reply {
         .and_then(Value::as_str);
     if pasangan != Some(ctx.sender.as_str()) && tembak_target != Some(ctx.sender.as_str()) {
         return Reply::Text {
-            text: format!(
-                "❌ *ᴛɪᴅᴀᴋ ᴍᴇɴᴇᴍʙᴀᴋ*\n\n> @{shooter_num} tidak sedang menembakmu"
-            ),
+            text: format!("❌ *ᴛɪᴅᴀᴋ ᴍᴇɴᴇᴍʙᴀᴋ*\n\n> @{shooter_num} tidak sedang menembakmu"),
             mentions: vec![shooter_jid],
         };
     }
@@ -163,7 +161,12 @@ mod tests {
         }
     }
 
-    fn run(data_shooter: Value, quoted: Option<&str>, mention: Option<&str>, sesi_ada: bool) -> Reply {
+    fn run(
+        data_shooter: Value,
+        quoted: Option<&str>,
+        mention: Option<&str>,
+        sesi_ada: bool,
+    ) -> Reply {
         let sessions = oktz_plugin_api::new_session_store();
         if sesi_ada {
             sessions.lock().unwrap().insert(
@@ -200,7 +203,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -271,7 +277,10 @@ mod tests {
         match isi {
             Reply::Text { text, mentions } => {
                 assert_eq!(text, tolak_text("628222", "628111"));
-                assert!(text.starts_with("💔 *WADUHH, YANG SABAR YAK* @628222"), "{text}");
+                assert!(
+                    text.starts_with("💔 *WADUHH, YANG SABAR YAK* @628222"),
+                    "{text}"
+                );
                 assert_eq!(mentions, &[ME.to_string(), SHOOTER.to_string()]);
             }
             other => panic!("harus Text, dapat {other:?}"),

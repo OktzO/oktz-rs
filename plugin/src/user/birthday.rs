@@ -73,7 +73,10 @@ pub(crate) fn render(ctx: &Ctx, now: i64) -> String {
     let (_, diff_days, is_today) = next_birthday(now, day, month);
     let mut text = String::from("🎂 *ʙɪʀᴛʜᴅᴀʏ ɪɴғᴏ*\n\n");
     text.push_str("╭┈┈⬡「 👤 *ᴜsᴇʀ* 」\n");
-    text.push_str(&format!("┃ 🏷️ @{}\n", crate::common::jid_number(&ctx.sender)));
+    text.push_str(&format!(
+        "┃ 🏷️ @{}\n",
+        crate::common::jid_number(&ctx.sender)
+    ));
     text.push_str(&format!("┃ 📅 {day} {}\n", MONTHS_ID[(month - 1) as usize]));
     if is_today {
         text.push_str("┃ 🎉 *HARI INI ULTAH!*\n");
@@ -138,11 +141,20 @@ mod tests {
         for (user, head) in [
             (serde_json::json!(null), "❌ Kamu belum set birthday!"),
             (serde_json::json!({}), "❌ Kamu belum set birthday!"),
-            (serde_json::json!({"birthday": "25-12"}), "🎂 *ʙɪʀᴛʜᴅᴀʏ ɪɴғᴏ*"),
-            (serde_json::json!({"birthday": "salah"}), "❌ Kamu belum set birthday!"),
+            (
+                serde_json::json!({"birthday": "25-12"}),
+                "🎂 *ʙɪʀᴛʜᴅᴀʏ ɪɴғᴏ*",
+            ),
+            (
+                serde_json::json!({"birthday": "salah"}),
+                "❌ Kamu belum set birthday!",
+            ),
         ] {
             let reply = (entry.handler)(ctx_of(user.clone(), vec![]));
-            let body = reply.without_mutations().text_body().expect("harus ada teks");
+            let body = reply
+                .without_mutations()
+                .text_body()
+                .expect("harus ada teks");
             assert!(body.starts_with(head), "{user}: {body:?}");
             match reply {
                 Reply::Text { mentions, .. } => assert_eq!(mentions, ["628111@s.whatsapp.net"]),
@@ -180,7 +192,11 @@ mod tests {
     fn parse_birthday_accepts_the_setbirthday_output_format() {
         assert_eq!(parse_birthday("25-12"), Some((25, 12)));
         assert_eq!(parse_birthday("01-01"), Some((1, 1)));
-        assert_eq!(parse_birthday("29-02"), Some((29, 2)), "leap day ikut diterima");
+        assert_eq!(
+            parse_birthday("29-02"),
+            Some((29, 2)),
+            "leap day ikut diterima"
+        );
         assert_eq!(parse_birthday(""), None);
         assert_eq!(parse_birthday("25"), None);
         assert_eq!(parse_birthday("25-13"), None);
@@ -192,7 +208,12 @@ mod tests {
 
     #[test]
     fn absent_birthday_for_self_asks_to_set_one_with_the_prefix() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"birthday": null}), serde_json::json!({"birthday": ""})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"birthday": null}),
+            serde_json::json!({"birthday": ""}),
+        ] {
             let out = run(user.clone(), JUNE_15, vec![]);
             assert_eq!(
                 out,
@@ -204,7 +225,11 @@ mod tests {
 
     #[test]
     fn absent_birthday_for_a_mention_says_the_shorter_line() {
-        let out = run(serde_json::json!({}), JUNE_15, vec!["628999@s.whatsapp.net"]);
+        let out = run(
+            serde_json::json!({}),
+            JUNE_15,
+            vec!["628999@s.whatsapp.net"],
+        );
         assert_eq!(out, "❌ User belum set birthday!");
     }
 
@@ -213,9 +238,14 @@ mod tests {
     #[test]
     fn a_future_birthday_counts_down_in_whole_days() {
         let out = run(serde_json::json!({"birthday": "25-12"}), JUNE_15, vec![]);
-        assert!(out.starts_with("🎂 *ʙɪʀᴛʜᴅᴀʏ ɪɴғᴏ*\n\n╭┈┈⬡「 👤 *ᴜsᴇʀ* 」\n┃ 🏷️ @628111\n┃ 📅 25 Desember\n"));
+        assert!(out.starts_with(
+            "🎂 *ʙɪʀᴛʜᴅᴀʏ ɪɴғᴏ*\n\n╭┈┈⬡「 👤 *ᴜsᴇʀ* 」\n┃ 🏷️ @628111\n┃ 📅 25 Desember\n"
+        ));
         assert!(out.contains("┃ 🕕 193 hari lagi\n"));
-        assert!(out.ends_with("╰┈┈┈┈┈┈┈┈⬡"), "tanpa tambahan jika bukan hari ini");
+        assert!(
+            out.ends_with("╰┈┈┈┈┈┈┈┈⬡"),
+            "tanpa tambahan jika bukan hari ini"
+        );
         assert!(!out.contains("HAPPY BIRTHDAY"));
     }
 
@@ -265,7 +295,11 @@ mod tests {
 
     #[test]
     fn a_corrupt_birthday_falls_into_the_not_set_branch_instead_of_panicking() {
-        let out = run(serde_json::json!({"birthday": "bukan-tanggal"}), JUNE_15, vec![]);
+        let out = run(
+            serde_json::json!({"birthday": "bukan-tanggal"}),
+            JUNE_15,
+            vec![],
+        );
         assert!(out.starts_with("❌ Kamu belum set birthday!"));
     }
 

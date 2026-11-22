@@ -35,7 +35,9 @@ fn is_video_input(ctx: &Ctx) -> bool {
         Some(m) => {
             m.kind == IncomingKind::Video
                 || (m.kind == IncomingKind::Document
-                    && m.mimetype.as_deref().is_some_and(|mt| mt.starts_with("video")))
+                    && m.mimetype
+                        .as_deref()
+                        .is_some_and(|mt| mt.starts_with("video")))
         }
         None => false,
     };
@@ -44,7 +46,9 @@ fn is_video_input(ctx: &Ctx) -> bool {
         .map(|q| {
             q.kind == QuotedKind::Video
                 || (q.kind == QuotedKind::Document
-                    && q.mimetype.as_deref().is_some_and(|mt| mt.starts_with("video")))
+                    && q.mimetype
+                        .as_deref()
+                        .is_some_and(|mt| mt.starts_with("video")))
         })
         .unwrap_or(false);
     dari_pemicu || dari_quoted
@@ -77,23 +81,29 @@ pub fn hdvid(ctx: Ctx) -> Reply {
         .map(|q| {
             q.kind == QuotedKind::Video
                 || (q.kind == QuotedKind::Document
-                    && q.mimetype.as_deref().is_some_and(|mt| mt.starts_with("video")))
+                    && q.mimetype
+                        .as_deref()
+                        .is_some_and(|mt| mt.starts_with("video")))
         })
         .unwrap_or(false)
     {
         match ctx.download_quoted_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *GAGAL*\n\nAduh kak, videonya gagal diunduh! Coba kirim ulang ya.")
-                    .with_reaction("❌");
+                return Reply::text(
+                    "❌ *GAGAL*\n\nAduh kak, videonya gagal diunduh! Coba kirim ulang ya.",
+                )
+                .with_reaction("❌");
             }
         }
     } else {
         match ctx.download_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *GAGAL*\n\nAduh kak, videonya gagal diunduh! Coba kirim ulang ya.")
-                    .with_reaction("❌");
+                return Reply::text(
+                    "❌ *GAGAL*\n\nAduh kak, videonya gagal diunduh! Coba kirim ulang ya.",
+                )
+                .with_reaction("❌");
             }
         }
     };
@@ -104,8 +114,10 @@ pub fn hdvid(ctx: Ctx) -> Reply {
     }
 
     if buffer.len() as u64 > MAX_SIZE {
-        return Reply::text("❌ *FILE TERLALU BESAR*\n\nMaaf kak, maksimal ukuran video cuma 50MB ya!")
-            .with_reaction("❌");
+        return Reply::text(
+            "❌ *FILE TERLALU BESAR*\n\nMaaf kak, maksimal ukuran video cuma 50MB ya!",
+        )
+        .with_reaction("❌");
     }
 
     let argumen = [
@@ -133,7 +145,7 @@ pub fn hdvid(ctx: Ctx) -> Reply {
             return Reply::text(format!(
                 "❌ Maaf kak, proses enhance videonya gagal! 😭\n\nDetail: {e}"
             ))
-            .with_reaction("❌")
+            .with_reaction("❌");
         }
     };
 

@@ -20,11 +20,8 @@ pub(crate) const QUERIES_CEWE: [&str; 3] = [
     "gadis cantik",
     "wanita indonesia cantik",
 ];
-pub(crate) const QUERIES_COWO: [&str; 3] = [
-    "cowo ganteng indonesia",
-    "pria tampan",
-    "cowok ganteng",
-];
+pub(crate) const QUERIES_COWO: [&str; 3] =
+    ["cowo ganteng indonesia", "pria tampan", "cowok ganteng"];
 pub(crate) const QUERIES_FEMBOY: [&str; 3] = ["femboy", "femboy anime", "femboy aesthetic"];
 
 /// `VALID_TYPES = Object.keys(QUERIES)` (`pap.js:37`) — urutan itu penting
@@ -162,7 +159,11 @@ fn acak(urls: &[String]) -> Vec<&str> {
 pub fn pap(ctx: Ctx) -> Reply {
     // `typeof raw === "string" ? raw.trim().toLowerCase() : ""` (`:143-144`).
     // `m.args` di `Ctx` selalu `Vec<String>`, jadi non-string tidak mungkin.
-    let arg = ctx.args.first().map(|a| a.trim().to_lowercase()).unwrap_or_default();
+    let arg = ctx
+        .args
+        .first()
+        .map(|a| a.trim().to_lowercase())
+        .unwrap_or_default();
 
     if !VALID_TYPES.contains(&arg.as_str()) {
         // `safeReply` menelan error, jadi balasan ini selalu terkirim.
@@ -252,11 +253,7 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.call(&HttpCall::get(url))
         }
-        fn post_json(
-            &self,
-            _: &str,
-            _: &serde_json::Value,
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
@@ -355,7 +352,11 @@ mod tests {
     fn a_valid_type_without_network_reaches_the_error_branch() {
         for tipe in VALID_TYPES {
             let r = run(tipe);
-            assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pap"), "tipe {tipe}");
+            assert_eq!(
+                text_of(&r),
+                crate::common::error_template_bawaan(".", "pap"),
+                "tipe {tipe}"
+            );
             assert_eq!(reaction_of(&r), Some("☢"), "tipe {tipe}");
         }
     }
@@ -382,12 +383,20 @@ mod tests {
 
         let seen = http.seen.lock().unwrap();
         assert_eq!(seen.len(), 2, "query pertama sudah menjawab, tak lanjut");
-        assert!(seen[0].url.contains("/search/pinterest?q=cewe%20cantik%20indonesia"), "{}", seen[0].url);
+        assert!(
+            seen[0]
+                .url
+                .contains("/search/pinterest?q=cewe%20cantik%20indonesia"),
+            "{}",
+            seen[0].url
+        );
         assert_eq!(seen[1].url, "https://i.pinimg.com/a.jpg");
-        assert!(seen[1]
-            .headers
-            .iter()
-            .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/"));
+        assert!(
+            seen[1]
+                .headers
+                .iter()
+                .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/")
+        );
     }
 
     #[test]
@@ -401,7 +410,11 @@ mod tests {
         let r = run_http("cowo", http.clone());
         assert_eq!(text_of(&r), kosong("cowo"));
         assert_eq!(reaction_of(&r), Some("❌"));
-        assert_eq!(http.seen.lock().unwrap().len(), 3, "ketiga query dijawab kosong");
+        assert_eq!(
+            http.seen.lock().unwrap().len(),
+            3,
+            "ketiga query dijawab kosong"
+        );
     }
 
     #[test]
@@ -427,9 +440,16 @@ mod tests {
 
     #[test]
     fn all_queries_failing_reply_with_the_error_template() {
-        let http = Stub::baru(vec![(500, Vec::new()), (500, Vec::new()), (500, Vec::new())]);
+        let http = Stub::baru(vec![
+            (500, Vec::new()),
+            (500, Vec::new()),
+            (500, Vec::new()),
+        ]);
         let r = run_http("femboy", http.clone());
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pap"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pap")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
         assert_eq!(http.seen.lock().unwrap().len(), 3, "ketiga query dicoba");
     }
@@ -470,7 +490,9 @@ mod tests {
         webp[0..4].copy_from_slice(b"RIFF");
         webp[8..12].copy_from_slice(b"WEBP");
         let gif = [0x47u8, b'I', b'F', b'8', b'9', b'a', 0, 0, 0, 0, 0, 0];
-        let html = [0x3cu8, b'!', b'D', b'O', b'C', b'T', b'Y', b'P', b'E', 0, 0, 0];
+        let html = [
+            0x3cu8, b'!', b'D', b'O', b'C', b'T', b'Y', b'P', b'E', 0, 0, 0,
+        ];
 
         assert!(is_image(&jpeg));
         assert!(is_image(&png));
@@ -517,9 +539,10 @@ mod tests {
     fn the_pinterest_request_carries_the_referer_header() {
         let call = download_request("https://i.pinimg.com/originals/x.jpg");
         assert_eq!(call.method, oktz_plugin_api::HttpMethod::Get);
-        assert!(call
-            .headers
-            .iter()
-            .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/"));
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/")
+        );
     }
 }

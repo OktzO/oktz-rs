@@ -115,10 +115,7 @@ pub fn converter(ctx: Ctx) -> Reply {
     let ext = ekstensi(&nama_berkas);
     let temp_dir = "temp";
     let _ = ctx.berkas().buat_folder(temp_dir);
-    let temp_path = format!(
-        "{temp_dir}/convert_{}.{ext}",
-        crate::common::now_ms()
-    );
+    let temp_path = format!("{temp_dir}/convert_{}.{ext}", crate::common::now_ms());
     if ctx.berkas().tulis(&temp_path, &buffer).is_err() {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
@@ -176,7 +173,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Ctx::default()
         }

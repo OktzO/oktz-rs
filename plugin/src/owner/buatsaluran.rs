@@ -95,7 +95,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -151,6 +154,10 @@ mod tests {
             command: "buatsaluran".into(),
             ..Ctx::default()
         });
-        assert!(teks(&r).contains("> `!buatsaluran Nama Saluran`"), "{}", teks(&r));
+        assert!(
+            teks(&r).contains("> `!buatsaluran Nama Saluran`"),
+            "{}",
+            teks(&r)
+        );
     }
 }

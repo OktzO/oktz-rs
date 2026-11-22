@@ -80,7 +80,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["sessionstat", "statkeys"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("sessionstats"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("sessionstats"),
+                "{a}"
+            );
         }
     }
 
@@ -92,7 +96,9 @@ mod tests {
         });
         assert_eq!(
             r.without_mutations().text_body(),
-            Some("╭┈┈⬡「 📊 *sᴇssɪᴏɴ sᴛᴀᴛs* 」\n┃\n┃ ɴᴏ ᴋᴇʏ ᴛᴇʀsɪᴍᴘᴀɴ\n> _Turso tidak aktif atau belum ada key._\n╰┈┈⬡")
+            Some(
+                "╭┈┈⬡「 📊 *sᴇssɪᴏɴ sᴛᴀᴛs* 」\n┃\n┃ ɴᴏ ᴋᴇʏ ᴛᴇʀsɪᴍᴘᴀɴ\n> _Turso tidak aktif atau belum ada key._\n╰┈┈⬡"
+            )
         );
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "📊"),

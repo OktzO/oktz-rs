@@ -190,8 +190,8 @@ fn kontrol(ctx: Ctx, command: &str) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::Arc;
 
     #[derive(Debug)]

@@ -271,10 +271,18 @@ mod tests {
         fn get(&self, _url: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
-        fn post_json(&self, _url: &str, _body: &Value) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma GET")
         }
-        fn post_form(&self, _url: &str, _form: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_form(
+            &self,
+            _url: &str,
+            _form: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma GET")
         }
         fn post_multipart(

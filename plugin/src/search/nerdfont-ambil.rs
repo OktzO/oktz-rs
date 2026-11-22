@@ -34,9 +34,7 @@ pub(crate) fn caption(prefix: &str) -> String {
 /// `find` mengembalikan item PERTAMA, bukan yang terbaik.
 pub(crate) fn cari<'a>(fonts: &'a [Font], query: &str) -> Option<&'a Font> {
     let q = query.to_lowercase();
-    fonts
-        .iter()
-        .find(|f| f.name.to_lowercase() == q)
+    fonts.iter().find(|f| f.name.to_lowercase() == q)
 }
 
 #[plugin(
@@ -83,9 +81,7 @@ pub fn nerdfont_ambil(ctx: Ctx) -> Reply {
     // `document: { url }, fileName: data.name, mimetype: "application/zip"`.
     // `jpegThumbnail` butuh `sharp` — tidak ada di API plugin.
     Reply::Document {
-        media: Some(
-            MediaSource::url(&font.download_url).with_mimetype("application/zip"),
-        ),
+        media: Some(MediaSource::url(&font.download_url).with_mimetype("application/zip")),
         file_name: font.name.clone(),
         caption: caption(&ctx.prefix),
         mentions: Vec::new(),
@@ -124,10 +120,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            let text = self.body.clone().map_err(|()| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -261,9 +256,18 @@ Info: A patched font</div>
         let fonts = parse_fonts(HALAMAN).unwrap();
         assert_eq!(cari(&fonts, "coolvetica").unwrap().name, "Coolvetica");
         assert_eq!(cari(&fonts, "COOLVETICA").unwrap().name, "Coolvetica");
-        assert_eq!(cari(&fonts, "Hack Nerd Font").unwrap().name, "Hack Nerd Font");
-        assert!(cari(&fonts, "coolv").is_none(), "pencocokan persis, bukan sebagian");
-        assert!(cari(&fonts, "coolvetica ").is_none(), "spasi excess tidak dipangkas");
+        assert_eq!(
+            cari(&fonts, "Hack Nerd Font").unwrap().name,
+            "Hack Nerd Font"
+        );
+        assert!(
+            cari(&fonts, "coolv").is_none(),
+            "pencocokan persis, bukan sebagian"
+        );
+        assert!(
+            cari(&fonts, "coolvetica ").is_none(),
+            "spasi excess tidak dipangkas"
+        );
         assert!(cari(&fonts, "").is_none());
     }
 
@@ -276,7 +280,10 @@ Info: A patched font</div>
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "Coolvetica");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "nerdfont-ambil"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "nerdfont-ambil")
+        );
     }
 
     #[test]
@@ -288,12 +295,20 @@ Info: A patched font</div>
       <a class="nf-fa-download" href="/d.zip"></a>
     </div>"#;
         let r = run(Stub::html(rusak), "X");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "nerdfont-ambil"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "nerdfont-ambil")
+        );
     }
 
     #[test]
     fn empty_and_hostile_pages_do_not_panic() {
-        for html in ["", "<html></html>", "<div class=\"item\"></div>", "<div class=\"item\">"] {
+        for html in [
+            "",
+            "<html></html>",
+            "<div class=\"item\"></div>",
+            "<div class=\"item\">",
+        ] {
             let r = run(Stub::html(html), "apa saja");
             assert!(!text_of(&r).is_empty(), "html {html:?}");
         }
@@ -302,7 +317,12 @@ Info: A patched font</div>
     #[test]
     fn odd_and_very_long_names_do_not_panic() {
         for input in [
-            "<b>", "a|b", "🎨", "'\"", "a\u{202e}b", "Coolvetica\u{0}",
+            "<b>",
+            "a|b",
+            "🎨",
+            "'\"",
+            "a\u{202e}b",
+            "Coolvetica\u{0}",
             &"x".repeat(5000),
         ] {
             let r = run(Stub::html(HALAMAN), input);

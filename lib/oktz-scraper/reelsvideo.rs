@@ -396,7 +396,10 @@ mod tests {
             .split('&')
             .map(|bagian| bagian.split_once('=').unwrap())
             .collect();
-        assert_eq!(bagian["id"], "https%3A%2F%2Fwww.instagram.com%2Freel%2Fx%3Fa%3Db");
+        assert_eq!(
+            bagian["id"],
+            "https%3A%2F%2Fwww.instagram.com%2Freel%2Fx%3Fa%3Db"
+        );
         assert_eq!(bagian["locale"], "en");
         assert_eq!(bagian["cf-turnstile-response"], "");
         let ts: u64 = bagian["ts"].parse().unwrap();

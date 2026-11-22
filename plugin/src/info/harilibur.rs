@@ -106,7 +106,6 @@ pub fn harilibur(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run() -> Reply {
         let ctx = Ctx {
             command: "harilibur".into(),

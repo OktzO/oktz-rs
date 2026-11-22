@@ -28,7 +28,9 @@ use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
-use crate::common::{JAKARTA_OFFSET_SECS, date_dmy, error_template, jakarta_parts, js_truthy, now_ms};
+use crate::common::{
+    JAKARTA_OFFSET_SECS, date_dmy, error_template, jakarta_parts, js_truthy, now_ms,
+};
 use crate::rpg::heal::{MAX_KOIN, apply_exp, math_random, rpg_map, thousands_en};
 
 /// `TIER_ORDER` (`src/lib/romance.js:5`).
@@ -52,11 +54,46 @@ pub(crate) struct Dowry {
 }
 
 const DOWRY: [(&str, Dowry); 5] = [
-    ("Common", Dowry { limit: 1000, koin: 20000, exp: 500 }),
-    ("Rare", Dowry { limit: 3000, koin: 60000, exp: 1500 }),
-    ("Epic", Dowry { limit: 8000, koin: 200000, exp: 5000 }),
-    ("Legendary", Dowry { limit: 15000, koin: 500000, exp: 12000 }),
-    ("Mythic", Dowry { limit: 30000, koin: 1000000, exp: 30000 }),
+    (
+        "Common",
+        Dowry {
+            limit: 1000,
+            koin: 20000,
+            exp: 500,
+        },
+    ),
+    (
+        "Rare",
+        Dowry {
+            limit: 3000,
+            koin: 60000,
+            exp: 1500,
+        },
+    ),
+    (
+        "Epic",
+        Dowry {
+            limit: 8000,
+            koin: 200000,
+            exp: 5000,
+        },
+    ),
+    (
+        "Legendary",
+        Dowry {
+            limit: 15000,
+            koin: 500000,
+            exp: 12000,
+        },
+    ),
+    (
+        "Mythic",
+        Dowry {
+            limit: 30000,
+            koin: 1000000,
+            exp: 30000,
+        },
+    ),
 ];
 
 /// `MOOD_MULT` (`src/lib/romance.js:20`).
@@ -93,172 +130,489 @@ pub(crate) struct ActionDef {
 }
 
 const ACTIONS_APPROACH: &[ActionDef] = &[
-    ActionDef { key: "jalan_taman", phase: "approach", base: (10.0, 18.0), exp: 40,
+    ActionDef {
+        key: "jalan_taman",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
         likes: &["tsundere", "dandere", "kuudere", "genki", "amayadori"],
         dislikes: &["himedere", "ojou-sama"],
-        text: "🌳 Suasana taman sejuk. *{n}* tersenyum riang sambil menggandeng lenganmu." },
-    ActionDef { key: "jalan_mall", phase: "approach", base: (4.0, 10.0), exp: 25,
-        likes: &["himedere"], dislikes: &["dandere", "kuudere", "genki"],
-        text: "🏢 Mall ramai dan bising. *{n}* hanya berkeliling tanpa terlalu menikmatinya." },
-    ActionDef { key: "jalan_pantai", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["genki", "amayadori", "kuudere"], dislikes: &["himedere"],
-        text: "🏖️ Ombak pantai menenangkan. *{n}* menikmati angin laut dan menutup mata." },
-    ActionDef { key: "jalan_kota", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "deredere"], dislikes: &["dandere", "amayadori"],
-        text: "🌆 Kalian berjalan di tepi kota saat lampu mulai menyala. *{n}* terlihat kagum." },
-    ActionDef { key: "kafe_kopi", phase: "approach", base: (4.0, 8.0), exp: 25,
-        likes: &["kuudere"], dislikes: &["himedere"],
-        text: "☕ *{n}* meringis meneguk kopi pahit. Sepertinya ia kurang suka." },
-    ActionDef { key: "kafe_matcha", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["dandere", "deredere", "kuudere"], dislikes: &[],
-        text: "🍵 Matcha latte manis bikin *{n}* tersenyum manis padamu. Pilihan tepat!" },
-    ActionDef { key: "kafe_kue", phase: "approach", base: (8.0, 15.0), exp: 35,
-        likes: &["deredere", "himedere", "genki"], dislikes: &[],
-        text: "🍰 Berbagi sepotong kue di kafe. *{n}* terlihat bahagia menikmatinya." },
-    ActionDef { key: "kafe_susu", phase: "approach", base: (5.0, 10.0), exp: 25,
-        likes: &["amayadori", "dandere"], dislikes: &[],
-        text: "🥛 Segelas susu hangat. *{n}* menyeruput pelan dan mengangguk puas." },
-    ActionDef { key: "bioskop_romantis", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["deredere", "kuudere", "onee-san"], dislikes: &["genki"],
-        text: "🎬 Film romantis membuat *{n}* menyenderkan kepala di bahumu." },
-    ActionDef { key: "bioskop_horor", phase: "approach", base: (10.0, 20.0), exp: 40,
-        likes: &["genki", "tsundere"], dislikes: &["dandere", "kuudere"],
-        text: "👻 JUMPSCARE! *{n}* menjerit dan memeluk lenganmu erat sepanjang film." },
-    ActionDef { key: "bioskop_animasi", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "amayadori"], dislikes: &["ojou-sama"],
-        text: "🎨 Film animasi seru. *{n}* tertawa lepas di beberapa adegan." },
-    ActionDef { key: "belanja_baju", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "himedere"], dislikes: &["amayadori"],
-        text: "👗 Kamu membelikannya baju lucu. *{n}* memamerkannya sambil pipi merona." },
-    ActionDef { key: "belanja_perhiasan", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["himedere", "ojou-sama"], dislikes: &["kuudere"],
-        text: "💎 Perhiasan mahal membuat mata *{n}* berbinar bahagia." },
-    ActionDef { key: "belanja_boneka", phase: "approach", base: (5.0, 10.0), exp: 25,
-        likes: &["deredere", "dandere"], dislikes: &["ojou-sama"],
-        text: "🧸 Boneka kecil mungil. *{n}* memeluknya gemas sepanjang perjalanan." },
-    ActionDef { key: "karaoke_duet", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["genki", "deredere"], dislikes: &["kuudere", "himedere"],
-        text: "🎤 Duet lagu favorit membuat *{n}* semangat tinggi. Kalian tertawa bersama." },
-    ActionDef { key: "karaoke_solo", phase: "approach", base: (4.0, 10.0), exp: 25,
-        likes: &["tsundere"], dislikes: &["genki"],
-        text: "🎵 Kamu menyanyi sendirian sementara *{n}* menonton dengan tatapan datar." },
-    ActionDef { key: "arcade_duo", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "tsundere"], dislikes: &["kuudere"],
-        text: "🕹️ Adu skor di arcade. *{n}* menantangmu lagi dan lagi." },
-    ActionDef { key: "arcade_boneka", phase: "approach", base: (8.0, 14.0), exp: 35,
-        likes: &["genki", "deredere"], dislikes: &[],
-        text: "🎯 Kamu memenangkan boneka untuk *{n}*. Wajahnya berseri-seri." },
-    ActionDef { key: "piknik_taman", phase: "approach", base: (8.0, 15.0), exp: 35,
-        likes: &["kuudere", "amayadori", "dandere"], dislikes: &["himedere"],
-        text: "🧺 Piknik di atas tikar rumput. *{n}* bersandar santai dan menatap awan." },
-    ActionDef { key: "piknik_pantai", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["genki", "amayadori"], dislikes: &["ojou-sama"],
-        text: "🏝️ Piknik pantai dengan bekal buatan sendiri. *{n}* sangat menikmatinya." },
-    ActionDef { key: "masak_bareng", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["dandere", "onee-san", "deredere"], dislikes: &[],
-        text: "🍳 Kalian masak bareng di dapur. *{n}* antusias mengaduk sausnya." },
-    ActionDef { key: "masak_kue", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["dandere", "onee-san", "himedere"], dislikes: &[],
-        text: "🍰 Memanggang kue bersama. *{n}* bangga dengan hasil kreasimu berdua." },
-    ActionDef { key: "restoran_makan", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["deredere", "onee-san", "amayadori"], dislikes: &["kuudere"],
-        text: "🍽️ Makan malam di restoran romantis. *{n}* tersenyum menatapmu dari seberang meja." },
-    ActionDef { key: "restoran_dimsum", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "deredere"], dislikes: &["ojou-sama"],
-        text: "🥟 Cicip dimsum bareng! *{n}* rebutan denganmu sampai tawa." },
-    ActionDef { key: "restoran_bbq", phase: "approach", base: (8.0, 14.0), exp: 35,
-        likes: &["genki", "onee-san"], dislikes: &["himedere"],
-        text: "🍖 Bakar-bakar di BBQ. *{n}* memangangkan daging untukmu." },
-    ActionDef { key: "olahraga_hiking", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["genki", "kuudere"], dislikes: &["himedere", "ojou-sama"],
-        text: "⛰️ Mendaki bukit. *{n}* terengah-engah tapi semangat!" },
-    ActionDef { key: "olahraga_lari", phase: "approach", base: (8.0, 14.0), exp: 35,
-        likes: &["genki", "tsundere"], dislikes: &["dandere"],
-        text: "🏃 Lari pagi keliling taman. *{n}* menantangmu balapan." },
-    ActionDef { key: "olahraga_panjat", phase: "approach", base: (5.0, 10.0), exp: 25,
-        likes: &["genki"], dislikes: &["himedere", "ojou-sama"],
-        text: "🧗 Panjat tebing indoor. *{n}* gemetaran tapi tak mau menyerah." },
-    ActionDef { key: "alam_camping", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["kuudere", "amayadori", "dandere"], dislikes: &["himedere"],
-        text: "🏕️ Camping di bawah bintang. *{n}* bersandar santai menatap langit malam." },
-    ActionDef { key: "alam_mancing", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["kuudere", "onee-san"], dislikes: &["genki"],
-        text: "🎣 Memancing di danau tenang. *{n}* senang saat akhirnya dapat ikan." },
-    ActionDef { key: "alam_perahu", phase: "approach", base: (8.0, 16.0), exp: 35,
-        likes: &["genki", "amayadori"], dislikes: &["tsundere"],
-        text: "⛵ Menyusuri sungai naik perahu. *{n}* menutup mata menikmati angin." },
-    ActionDef { key: "seni_museum", phase: "approach", base: (6.0, 12.0), exp: 30,
-        likes: &["kuudere", "dandere"], dislikes: &["genki"],
-        text: "🖼️ Menjelajahi museum. *{n}* takjub di depan lukisan tua." },
-    ActionDef { key: "seni_melukis", phase: "approach", base: (8.0, 15.0), exp: 35,
-        likes: &["deredere", "dandere", "onee-san"], dislikes: &[],
-        text: "🎨 Melukis bareng di studio. Karya *{n}* kacau balau tapi lucu." },
-    ActionDef { key: "seni_konser", phase: "approach", base: (10.0, 18.0), exp: 40,
-        likes: &["genki", "deredere", "amayadori"], dislikes: &["kuudere"],
-        text: "🎸 Nonton konser. *{n}* bernyanyi keras tanpa malu." },
+        text: "🌳 Suasana taman sejuk. *{n}* tersenyum riang sambil menggandeng lenganmu.",
+    },
+    ActionDef {
+        key: "jalan_mall",
+        phase: "approach",
+        base: (4.0, 10.0),
+        exp: 25,
+        likes: &["himedere"],
+        dislikes: &["dandere", "kuudere", "genki"],
+        text: "🏢 Mall ramai dan bising. *{n}* hanya berkeliling tanpa terlalu menikmatinya.",
+    },
+    ActionDef {
+        key: "jalan_pantai",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["genki", "amayadori", "kuudere"],
+        dislikes: &["himedere"],
+        text: "🏖️ Ombak pantai menenangkan. *{n}* menikmati angin laut dan menutup mata.",
+    },
+    ActionDef {
+        key: "jalan_kota",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "deredere"],
+        dislikes: &["dandere", "amayadori"],
+        text: "🌆 Kalian berjalan di tepi kota saat lampu mulai menyala. *{n}* terlihat kagum.",
+    },
+    ActionDef {
+        key: "kafe_kopi",
+        phase: "approach",
+        base: (4.0, 8.0),
+        exp: 25,
+        likes: &["kuudere"],
+        dislikes: &["himedere"],
+        text: "☕ *{n}* meringis meneguk kopi pahit. Sepertinya ia kurang suka.",
+    },
+    ActionDef {
+        key: "kafe_matcha",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["dandere", "deredere", "kuudere"],
+        dislikes: &[],
+        text: "🍵 Matcha latte manis bikin *{n}* tersenyum manis padamu. Pilihan tepat!",
+    },
+    ActionDef {
+        key: "kafe_kue",
+        phase: "approach",
+        base: (8.0, 15.0),
+        exp: 35,
+        likes: &["deredere", "himedere", "genki"],
+        dislikes: &[],
+        text: "🍰 Berbagi sepotong kue di kafe. *{n}* terlihat bahagia menikmatinya.",
+    },
+    ActionDef {
+        key: "kafe_susu",
+        phase: "approach",
+        base: (5.0, 10.0),
+        exp: 25,
+        likes: &["amayadori", "dandere"],
+        dislikes: &[],
+        text: "🥛 Segelas susu hangat. *{n}* menyeruput pelan dan mengangguk puas.",
+    },
+    ActionDef {
+        key: "bioskop_romantis",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["deredere", "kuudere", "onee-san"],
+        dislikes: &["genki"],
+        text: "🎬 Film romantis membuat *{n}* menyenderkan kepala di bahumu.",
+    },
+    ActionDef {
+        key: "bioskop_horor",
+        phase: "approach",
+        base: (10.0, 20.0),
+        exp: 40,
+        likes: &["genki", "tsundere"],
+        dislikes: &["dandere", "kuudere"],
+        text: "👻 JUMPSCARE! *{n}* menjerit dan memeluk lenganmu erat sepanjang film.",
+    },
+    ActionDef {
+        key: "bioskop_animasi",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "amayadori"],
+        dislikes: &["ojou-sama"],
+        text: "🎨 Film animasi seru. *{n}* tertawa lepas di beberapa adegan.",
+    },
+    ActionDef {
+        key: "belanja_baju",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "himedere"],
+        dislikes: &["amayadori"],
+        text: "👗 Kamu membelikannya baju lucu. *{n}* memamerkannya sambil pipi merona.",
+    },
+    ActionDef {
+        key: "belanja_perhiasan",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["himedere", "ojou-sama"],
+        dislikes: &["kuudere"],
+        text: "💎 Perhiasan mahal membuat mata *{n}* berbinar bahagia.",
+    },
+    ActionDef {
+        key: "belanja_boneka",
+        phase: "approach",
+        base: (5.0, 10.0),
+        exp: 25,
+        likes: &["deredere", "dandere"],
+        dislikes: &["ojou-sama"],
+        text: "🧸 Boneka kecil mungil. *{n}* memeluknya gemas sepanjang perjalanan.",
+    },
+    ActionDef {
+        key: "karaoke_duet",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["genki", "deredere"],
+        dislikes: &["kuudere", "himedere"],
+        text: "🎤 Duet lagu favorit membuat *{n}* semangat tinggi. Kalian tertawa bersama.",
+    },
+    ActionDef {
+        key: "karaoke_solo",
+        phase: "approach",
+        base: (4.0, 10.0),
+        exp: 25,
+        likes: &["tsundere"],
+        dislikes: &["genki"],
+        text: "🎵 Kamu menyanyi sendirian sementara *{n}* menonton dengan tatapan datar.",
+    },
+    ActionDef {
+        key: "arcade_duo",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "tsundere"],
+        dislikes: &["kuudere"],
+        text: "🕹️ Adu skor di arcade. *{n}* menantangmu lagi dan lagi.",
+    },
+    ActionDef {
+        key: "arcade_boneka",
+        phase: "approach",
+        base: (8.0, 14.0),
+        exp: 35,
+        likes: &["genki", "deredere"],
+        dislikes: &[],
+        text: "🎯 Kamu memenangkan boneka untuk *{n}*. Wajahnya berseri-seri.",
+    },
+    ActionDef {
+        key: "piknik_taman",
+        phase: "approach",
+        base: (8.0, 15.0),
+        exp: 35,
+        likes: &["kuudere", "amayadori", "dandere"],
+        dislikes: &["himedere"],
+        text: "🧺 Piknik di atas tikar rumput. *{n}* bersandar santai dan menatap awan.",
+    },
+    ActionDef {
+        key: "piknik_pantai",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["genki", "amayadori"],
+        dislikes: &["ojou-sama"],
+        text: "🏝️ Piknik pantai dengan bekal buatan sendiri. *{n}* sangat menikmatinya.",
+    },
+    ActionDef {
+        key: "masak_bareng",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["dandere", "onee-san", "deredere"],
+        dislikes: &[],
+        text: "🍳 Kalian masak bareng di dapur. *{n}* antusias mengaduk sausnya.",
+    },
+    ActionDef {
+        key: "masak_kue",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["dandere", "onee-san", "himedere"],
+        dislikes: &[],
+        text: "🍰 Memanggang kue bersama. *{n}* bangga dengan hasil kreasimu berdua.",
+    },
+    ActionDef {
+        key: "restoran_makan",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["deredere", "onee-san", "amayadori"],
+        dislikes: &["kuudere"],
+        text: "🍽️ Makan malam di restoran romantis. *{n}* tersenyum menatapmu dari seberang meja.",
+    },
+    ActionDef {
+        key: "restoran_dimsum",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "deredere"],
+        dislikes: &["ojou-sama"],
+        text: "🥟 Cicip dimsum bareng! *{n}* rebutan denganmu sampai tawa.",
+    },
+    ActionDef {
+        key: "restoran_bbq",
+        phase: "approach",
+        base: (8.0, 14.0),
+        exp: 35,
+        likes: &["genki", "onee-san"],
+        dislikes: &["himedere"],
+        text: "🍖 Bakar-bakar di BBQ. *{n}* memangangkan daging untukmu.",
+    },
+    ActionDef {
+        key: "olahraga_hiking",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["genki", "kuudere"],
+        dislikes: &["himedere", "ojou-sama"],
+        text: "⛰️ Mendaki bukit. *{n}* terengah-engah tapi semangat!",
+    },
+    ActionDef {
+        key: "olahraga_lari",
+        phase: "approach",
+        base: (8.0, 14.0),
+        exp: 35,
+        likes: &["genki", "tsundere"],
+        dislikes: &["dandere"],
+        text: "🏃 Lari pagi keliling taman. *{n}* menantangmu balapan.",
+    },
+    ActionDef {
+        key: "olahraga_panjat",
+        phase: "approach",
+        base: (5.0, 10.0),
+        exp: 25,
+        likes: &["genki"],
+        dislikes: &["himedere", "ojou-sama"],
+        text: "🧗 Panjat tebing indoor. *{n}* gemetaran tapi tak mau menyerah.",
+    },
+    ActionDef {
+        key: "alam_camping",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["kuudere", "amayadori", "dandere"],
+        dislikes: &["himedere"],
+        text: "🏕️ Camping di bawah bintang. *{n}* bersandar santai menatap langit malam.",
+    },
+    ActionDef {
+        key: "alam_mancing",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["kuudere", "onee-san"],
+        dislikes: &["genki"],
+        text: "🎣 Memancing di danau tenang. *{n}* senang saat akhirnya dapat ikan.",
+    },
+    ActionDef {
+        key: "alam_perahu",
+        phase: "approach",
+        base: (8.0, 16.0),
+        exp: 35,
+        likes: &["genki", "amayadori"],
+        dislikes: &["tsundere"],
+        text: "⛵ Menyusuri sungai naik perahu. *{n}* menutup mata menikmati angin.",
+    },
+    ActionDef {
+        key: "seni_museum",
+        phase: "approach",
+        base: (6.0, 12.0),
+        exp: 30,
+        likes: &["kuudere", "dandere"],
+        dislikes: &["genki"],
+        text: "🖼️ Menjelajahi museum. *{n}* takjub di depan lukisan tua.",
+    },
+    ActionDef {
+        key: "seni_melukis",
+        phase: "approach",
+        base: (8.0, 15.0),
+        exp: 35,
+        likes: &["deredere", "dandere", "onee-san"],
+        dislikes: &[],
+        text: "🎨 Melukis bareng di studio. Karya *{n}* kacau balau tapi lucu.",
+    },
+    ActionDef {
+        key: "seni_konser",
+        phase: "approach",
+        base: (10.0, 18.0),
+        exp: 40,
+        likes: &["genki", "deredere", "amayadori"],
+        dislikes: &["kuudere"],
+        text: "🎸 Nonton konser. *{n}* bernyanyi keras tanpa malu.",
+    },
 ];
 
 const ACTIONS_INTIM: &[ActionDef] = &[
-    ActionDef { key: "peluk_belakang", phase: "intim", base: (10.0, 18.0), exp: 45,
-        likes: &["yandere", "deredere", "tsundere"], dislikes: &[],
-        text: "🤗 Kamu memeluk *{n}* dari belakang. Ia terkejut sesaat lalu tersenyum aman." },
-    ActionDef { key: "peluk_depan", phase: "intim", base: (12.0, 20.0), exp: 50,
-        likes: &["yandere", "deredere", "onee-san"], dislikes: &[],
-        text: "💑 Kalian saling berhadapan dan berpelukan erat. Detak jantung berdebar seirama." },
-    ActionDef { key: "cium_kening", phase: "intim", base: (10.0, 18.0), exp: 45,
-        likes: &["dandere", "tsundere", "yandere"], dislikes: &[],
-        text: "😚 Kecupan lembut di kening membuat *{n}* memejamkan mata bahagia." },
-    ActionDef { key: "cium_bibir", phase: "intim", base: (14.0, 24.0), exp: 55,
-        likes: &["yandere", "deredere"], dislikes: &["kuudere"],
-        text: "💋 Ciuman lembut dan panjang. *{n}* membalas dengan desahan kecil." },
-    ActionDef { key: "tidur_kelon", phase: "intim", base: (10.0, 16.0), exp: 45,
-        likes: &["amayadori", "onee-san"], dislikes: &[],
-        text: "🛏️ *{n}* merebahkan kepalanya di dadamu dan tertidur pulas. Tenang sekali." },
-    ActionDef { key: "tidur_serandu", phase: "intim", base: (12.0, 20.0), exp: 50,
-        likes: &["onee-san", "amayadori", "yandere"], dislikes: &[],
-        text: "🌙 Kalian berpelukan erat di ranjang. *{n}* berbisik bahwa ia merasa aman." },
-    ActionDef { key: "mandi_punggung", phase: "intim", base: (10.0, 16.0), exp: 45,
-        likes: &["onee-san", "kuudere"], dislikes: &[],
-        text: "🛁 Kamu menggosok punggung *{n}* dengan lembut. Ia mendesah rileks." },
-    ActionDef { key: "mandi_bahu", phase: "intim", base: (12.0, 20.0), exp: 50,
-        likes: &["deredere", "onee-san"], dislikes: &[],
-        text: "🧼 *{n}* menunduk malu saat kamu mengusap bahunya di air hangat." },
-    ActionDef { key: "gendong_putri", phase: "intim", base: (10.0, 18.0), exp: 45,
-        likes: &["deredere", "yandere", "tsundere"], dislikes: &[],
-        text: "👸 Kamu menggendong *{n}* dengan gaya putri. Ia memeluk lehermu erat." },
-    ActionDef { key: "gendong_punggung", phase: "intim", base: (8.0, 14.0), exp: 40,
-        likes: &["genki", "amayadori"], dislikes: &[],
-        text: "🏃 *{n}* menaiki punggungmu tertawa-tawa sepanjang jalan pulang." },
-    ActionDef { key: "tepuk_kepala", phase: "intim", base: (6.0, 12.0), exp: 35,
-        likes: &["dandere", "tsundere"], dislikes: &[],
-        text: "🖐️ Kamu menepuk kepala *{n}* pelan. Ia mendengus tapi pipinya memerah." },
-    ActionDef { key: "pijat_bahu", phase: "intim", base: (10.0, 18.0), exp: 45,
-        likes: &["onee-san", "yandere", "deredere"], dislikes: &[],
-        text: "💆 Kamu memijat bahu *{n}* yang tegang. Ia mendesah rileks." },
+    ActionDef {
+        key: "peluk_belakang",
+        phase: "intim",
+        base: (10.0, 18.0),
+        exp: 45,
+        likes: &["yandere", "deredere", "tsundere"],
+        dislikes: &[],
+        text: "🤗 Kamu memeluk *{n}* dari belakang. Ia terkejut sesaat lalu tersenyum aman.",
+    },
+    ActionDef {
+        key: "peluk_depan",
+        phase: "intim",
+        base: (12.0, 20.0),
+        exp: 50,
+        likes: &["yandere", "deredere", "onee-san"],
+        dislikes: &[],
+        text: "💑 Kalian saling berhadapan dan berpelukan erat. Detak jantung berdebar seirama.",
+    },
+    ActionDef {
+        key: "cium_kening",
+        phase: "intim",
+        base: (10.0, 18.0),
+        exp: 45,
+        likes: &["dandere", "tsundere", "yandere"],
+        dislikes: &[],
+        text: "😚 Kecupan lembut di kening membuat *{n}* memejamkan mata bahagia.",
+    },
+    ActionDef {
+        key: "cium_bibir",
+        phase: "intim",
+        base: (14.0, 24.0),
+        exp: 55,
+        likes: &["yandere", "deredere"],
+        dislikes: &["kuudere"],
+        text: "💋 Ciuman lembut dan panjang. *{n}* membalas dengan desahan kecil.",
+    },
+    ActionDef {
+        key: "tidur_kelon",
+        phase: "intim",
+        base: (10.0, 16.0),
+        exp: 45,
+        likes: &["amayadori", "onee-san"],
+        dislikes: &[],
+        text: "🛏️ *{n}* merebahkan kepalanya di dadamu dan tertidur pulas. Tenang sekali.",
+    },
+    ActionDef {
+        key: "tidur_serandu",
+        phase: "intim",
+        base: (12.0, 20.0),
+        exp: 50,
+        likes: &["onee-san", "amayadori", "yandere"],
+        dislikes: &[],
+        text: "🌙 Kalian berpelukan erat di ranjang. *{n}* berbisik bahwa ia merasa aman.",
+    },
+    ActionDef {
+        key: "mandi_punggung",
+        phase: "intim",
+        base: (10.0, 16.0),
+        exp: 45,
+        likes: &["onee-san", "kuudere"],
+        dislikes: &[],
+        text: "🛁 Kamu menggosok punggung *{n}* dengan lembut. Ia mendesah rileks.",
+    },
+    ActionDef {
+        key: "mandi_bahu",
+        phase: "intim",
+        base: (12.0, 20.0),
+        exp: 50,
+        likes: &["deredere", "onee-san"],
+        dislikes: &[],
+        text: "🧼 *{n}* menunduk malu saat kamu mengusap bahunya di air hangat.",
+    },
+    ActionDef {
+        key: "gendong_putri",
+        phase: "intim",
+        base: (10.0, 18.0),
+        exp: 45,
+        likes: &["deredere", "yandere", "tsundere"],
+        dislikes: &[],
+        text: "👸 Kamu menggendong *{n}* dengan gaya putri. Ia memeluk lehermu erat.",
+    },
+    ActionDef {
+        key: "gendong_punggung",
+        phase: "intim",
+        base: (8.0, 14.0),
+        exp: 40,
+        likes: &["genki", "amayadori"],
+        dislikes: &[],
+        text: "🏃 *{n}* menaiki punggungmu tertawa-tawa sepanjang jalan pulang.",
+    },
+    ActionDef {
+        key: "tepuk_kepala",
+        phase: "intim",
+        base: (6.0, 12.0),
+        exp: 35,
+        likes: &["dandere", "tsundere"],
+        dislikes: &[],
+        text: "🖐️ Kamu menepuk kepala *{n}* pelan. Ia mendengus tapi pipinya memerah.",
+    },
+    ActionDef {
+        key: "pijat_bahu",
+        phase: "intim",
+        base: (10.0, 18.0),
+        exp: 45,
+        likes: &["onee-san", "yandere", "deredere"],
+        dislikes: &[],
+        text: "💆 Kamu memijat bahu *{n}* yang tegang. Ia mendesah rileks.",
+    },
 ];
 
 const ACTIONS_MARRIED: &[ActionDef] = &[
-    ActionDef { key: "mesra", phase: "married", base: (6.0, 12.0), exp: 35,
-        likes: &["deredere", "onee-san"], dislikes: &[],
-        text: "👩‍❤️‍👨 Kalian menghabiskan malam dengan mesra sebagai pasangan suami istri." },
-    ActionDef { key: "rayu", phase: "married", base: (8.0, 14.0), exp: 40,
-        likes: &["tsundere", "deredere"], dislikes: &[],
-        text: "💌 Kata-kata rayuanmu membuat *{n}* tersipu dan memelukmu." },
-    ActionDef { key: "hadiah", phase: "married", base: (10.0, 16.0), exp: 45,
-        likes: &["himedere", "ojou-sama"], dislikes: &[],
-        text: "🎁 Hadiah kejutan membuat *{n}* melompat bahagia seperti anak kecil." },
-    ActionDef { key: "bulanmadu_pantai", phase: "married", base: (12.0, 20.0), exp: 50,
-        likes: &["genki", "amayadori"], dislikes: &[],
-        text: "🌴 Bulan madu di pantai tropis. *{n}* menggandengmu menikmati sunset." },
-    ActionDef { key: "bulanmadu_hotel", phase: "married", base: (14.0, 24.0), exp: 55,
-        likes: &["onee-san", "yandere"], dislikes: &[],
-        text: "🏨 Suite hotel mewah. Malam penuh kehangatan berdua saja." },
-    ActionDef { key: "nontonrumah", phase: "married", base: (8.0, 14.0), exp: 40,
-        likes: &["deredere", "dandere", "tsundere"], dislikes: &[],
-        text: "📺 Nonton maraton film di sofa. *{n}* nyender di bahumu sampai ketiduran." },
-    ActionDef { key: "jalanpagi", phase: "married", base: (10.0, 16.0), exp: 45,
-        likes: &["genki", "onee-san", "amayadori"], dislikes: &[],
-        text: "🌅 Jalan santai pagi hari sambil beli sarapan. *{n}* menggandengmu." },
+    ActionDef {
+        key: "mesra",
+        phase: "married",
+        base: (6.0, 12.0),
+        exp: 35,
+        likes: &["deredere", "onee-san"],
+        dislikes: &[],
+        text: "👩‍❤️‍👨 Kalian menghabiskan malam dengan mesra sebagai pasangan suami istri.",
+    },
+    ActionDef {
+        key: "rayu",
+        phase: "married",
+        base: (8.0, 14.0),
+        exp: 40,
+        likes: &["tsundere", "deredere"],
+        dislikes: &[],
+        text: "💌 Kata-kata rayuanmu membuat *{n}* tersipu dan memelukmu.",
+    },
+    ActionDef {
+        key: "hadiah",
+        phase: "married",
+        base: (10.0, 16.0),
+        exp: 45,
+        likes: &["himedere", "ojou-sama"],
+        dislikes: &[],
+        text: "🎁 Hadiah kejutan membuat *{n}* melompat bahagia seperti anak kecil.",
+    },
+    ActionDef {
+        key: "bulanmadu_pantai",
+        phase: "married",
+        base: (12.0, 20.0),
+        exp: 50,
+        likes: &["genki", "amayadori"],
+        dislikes: &[],
+        text: "🌴 Bulan madu di pantai tropis. *{n}* menggandengmu menikmati sunset.",
+    },
+    ActionDef {
+        key: "bulanmadu_hotel",
+        phase: "married",
+        base: (14.0, 24.0),
+        exp: 55,
+        likes: &["onee-san", "yandere"],
+        dislikes: &[],
+        text: "🏨 Suite hotel mewah. Malam penuh kehangatan berdua saja.",
+    },
+    ActionDef {
+        key: "nontonrumah",
+        phase: "married",
+        base: (8.0, 14.0),
+        exp: 40,
+        likes: &["deredere", "dandere", "tsundere"],
+        dislikes: &[],
+        text: "📺 Nonton maraton film di sofa. *{n}* nyender di bahumu sampai ketiduran.",
+    },
+    ActionDef {
+        key: "jalanpagi",
+        phase: "married",
+        base: (10.0, 16.0),
+        exp: 45,
+        likes: &["genki", "onee-san", "amayadori"],
+        dislikes: &[],
+        text: "🌅 Jalan santai pagi hari sambil beli sarapan. *{n}* menggandengmu.",
+    },
 ];
 
 /// `ACTIONS[key]` (`src/lib/waifu.js:126`) — cari lintas tiga fase.
@@ -274,14 +628,38 @@ pub(crate) fn find_action(key: &str) -> Option<&'static ActionDef> {
 const PERSONALITY_TAG: [(&str, &[&str], &[&str]); 10] = [
     ("tsundere", &["jalan_taman", "piknik_taman"], &["rayu"]),
     ("deredere", &["peluk_depan", "cium_bibir", "mesra"], &[]),
-    ("kuudere", &["kafe_kopi", "bioskop_romantis", "piknik_taman"], &["arcade_duo"]),
+    (
+        "kuudere",
+        &["kafe_kopi", "bioskop_romantis", "piknik_taman"],
+        &["arcade_duo"],
+    ),
     ("dandere", &["kafe_matcha", "masak_bareng"], &["jalan_mall"]),
-    ("yandere", &["peluk_belakang", "cium_kening", "cium_bibir"], &["jalan_mall"]),
+    (
+        "yandere",
+        &["peluk_belakang", "cium_kening", "cium_bibir"],
+        &["jalan_mall"],
+    ),
     ("onee-san", &["masak_bareng", "tidur_kelon"], &[]),
-    ("genki", &["karaoke_duet", "arcade_duo", "piknik_pantai"], &["kafe_kopi"]),
-    ("himedere", &["belanja_perhiasan", "hadiah"], &["jalan_taman"]),
-    ("ojou-sama", &["belanja_perhiasan", "kafe_kue"], &["jalan_pantai"]),
-    ("amayadori", &["tidur_kelon", "piknik_taman"], &["karaoke_solo"]),
+    (
+        "genki",
+        &["karaoke_duet", "arcade_duo", "piknik_pantai"],
+        &["kafe_kopi"],
+    ),
+    (
+        "himedere",
+        &["belanja_perhiasan", "hadiah"],
+        &["jalan_taman"],
+    ),
+    (
+        "ojou-sama",
+        &["belanja_perhiasan", "kafe_kue"],
+        &["jalan_pantai"],
+    ),
+    (
+        "amayadori",
+        &["tidur_kelon", "piknik_taman"],
+        &["karaoke_solo"],
+    ),
 ];
 
 /// Varian `aff` di `EVENTS` (`src/lib/waifu.js:90-111`).
@@ -314,66 +692,246 @@ struct EventDef {
 }
 
 const EVENTS: &[EventDef] = &[
-    EventDef { id: "rain", phase: "any", married_only: false, aff: EventAff::Fixed(5.0), koin: None,
-        yandere_aff: 0.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🌧️ Hujan deras turun! Kalian berbagi satu payung, bahu menempel bahu. *{n}* tersenyum malu." },
-    EventDef { id: "wallet", phase: "any", married_only: false, aff: EventAff::Fixed(0.0),
-        yandere_aff: 0.0, koin: Some(EventKoin::Wallet), mood: None, next_mult: 1.0, anger: 0.0,
-        text: "💸 Kamu menemukan dompet di jalan dan mengembalikannya. Rezeki mengalir!" },
-    EventDef { id: "rival", phase: "any", married_only: false, aff: EventAff::Fixed(-4.0), koin: None,
-        yandere_aff: 5.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "😠 Seorang rival mendekati *{n}*! Ia gelisah dan mood-nya turun." },
-    EventDef { id: "idol", phase: "any", married_only: false, aff: EventAff::Fixed(6.0), koin: None,
-        yandere_aff: 0.0, mood: Some("ceria"), next_mult: 1.0, anger: 0.0,
-        text: "🎤 Idola favoritnya lewat di jalanan! *{n}* kegirangan dan mood-nya naik." },
-    EventDef { id: "cat", phase: "any", married_only: false, aff: EventAff::Cat, koin: None,
-        yandere_aff: 0.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🐱 Seekor kucing lucu tersangkut di pohon. Kalian menyelamatkannya!" },
-    EventDef { id: "lottery", phase: "any", married_only: false, aff: EventAff::Fixed(0.0),
-        yandere_aff: 0.0, koin: Some(EventKoin::Lottery), mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🎰 Tiket lotre jatuh dari langit! Kamu coba keberuntunganmu..." },
-    EventDef { id: "late", phase: "any", married_only: false, aff: EventAff::Fixed(0.0), koin: None,
-        yandere_aff: 0.0, mood: Some("sedih"), next_mult: 0.8, anger: 0.0,
-        text: "📉 Kamu hampir telat janji temu! *{n}* cemberut sepanjang hari." },
-    EventDef { id: "anniv", phase: "any", married_only: true, aff: EventAff::Fixed(6.0), koin: None,
-        yandere_aff: 0.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "💍 Kenangan hari pernikahan kalian teringat kembali. Kalian terharu bersama." },
-    EventDef { id: "intimate", phase: "intim", married_only: false, aff: EventAff::Fixed(10.0),
-        yandere_aff: 0.0, koin: None, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🔥 Momen kalian berlanjut. *{n}* berbisik pelan, \"jangan berhenti...\"" },
-    EventDef { id: "rainbow", phase: "approach", married_only: false, aff: EventAff::Fixed(5.0),
-        yandere_aff: 0.0, koin: None, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🌈 Pelangi muncul setelah hujan reda. Kalian berhenti untuk mengabadikannya." },
-    EventDef { id: "confess", phase: "intim", married_only: false, aff: EventAff::Fixed(8.0),
-        yandere_aff: 0.0, koin: None, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "💞 *{n}* mengaku bahwa ia mulai benar-benar mencintaimu." },
-    EventDef { id: "gift", phase: "married", married_only: true, aff: EventAff::Fixed(0.0),
-        yandere_aff: 0.0, koin: Some(EventKoin::Gift), mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🎁 Hadiah kejutan kecil untukmu sebagai pasangan." },
-    EventDef { id: "foto", phase: "any", married_only: false, aff: EventAff::Fixed(4.0), koin: None,
-        yandere_aff: 0.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "📸 Foto bareng! *{n}* melotot saat kejepret momen memalukan." },
-    EventDef { id: "lomba", phase: "any", married_only: false, aff: EventAff::Fixed(0.0),
-        yandere_aff: 0.0, koin: Some(EventKoin::Lomba), mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🏅 Kamu ikut lomba jalan santai dan menang hadiah receh!" },
-    EventDef { id: "salahpaham", phase: "any", married_only: false, aff: EventAff::Fixed(-5.0),
-        yandere_aff: 0.0, koin: None, mood: None, next_mult: 1.0, anger: 12.0,
-        text: "📵 *{n}* melihat notif dari akun lain di ponselmu dan salah paham!" },
-    EventDef { id: "pujian", phase: "any", married_only: false, aff: EventAff::Fixed(5.0), koin: None,
-        yandere_aff: 0.0, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🗣️ Seseorang memuji kalian: \"cocok banget!\" *{n}* tersipu." },
-    EventDef { id: "sunset", phase: "any", married_only: false, aff: EventAff::Fixed(6.0), koin: None,
-        yandere_aff: 0.0, mood: Some("romantis"), next_mult: 1.0, anger: 0.0,
-        text: "🌇 Kalian berhenti menikmati matahari terbenam. Momen tak terlupakan." },
-    EventDef { id: "kenangan", phase: "any", married_only: true, aff: EventAff::Fixed(7.0),
-        yandere_aff: 0.0, koin: None, mood: None, next_mult: 1.0, anger: 0.0,
-        text: "📿 Kamu menemukan foto lama kalian. *{n}* terharu dan memelukmu erat." },
-    EventDef { id: "badai", phase: "any", married_only: false, aff: EventAff::Fixed(-4.0), koin: None,
-        yandere_aff: 0.0, mood: Some("marah"), next_mult: 1.0, anger: 0.0,
-        text: "⛈️ Hujan badai datang! *{n}* kehujanan dan mood-nya rusak." },
-    EventDef { id: "rezeki", phase: "any", married_only: false, aff: EventAff::Fixed(0.0),
-        yandere_aff: 0.0, koin: Some(EventKoin::Rezeki), mood: None, next_mult: 1.0, anger: 0.0,
-        text: "🍀 Rezeki nomplok! Kamu dapat uang tak terduga." },
+    EventDef {
+        id: "rain",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(5.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🌧️ Hujan deras turun! Kalian berbagi satu payung, bahu menempel bahu. *{n}* tersenyum malu.",
+    },
+    EventDef {
+        id: "wallet",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(0.0),
+        yandere_aff: 0.0,
+        koin: Some(EventKoin::Wallet),
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "💸 Kamu menemukan dompet di jalan dan mengembalikannya. Rezeki mengalir!",
+    },
+    EventDef {
+        id: "rival",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(-4.0),
+        koin: None,
+        yandere_aff: 5.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "😠 Seorang rival mendekati *{n}*! Ia gelisah dan mood-nya turun.",
+    },
+    EventDef {
+        id: "idol",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(6.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: Some("ceria"),
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🎤 Idola favoritnya lewat di jalanan! *{n}* kegirangan dan mood-nya naik.",
+    },
+    EventDef {
+        id: "cat",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Cat,
+        koin: None,
+        yandere_aff: 0.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🐱 Seekor kucing lucu tersangkut di pohon. Kalian menyelamatkannya!",
+    },
+    EventDef {
+        id: "lottery",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(0.0),
+        yandere_aff: 0.0,
+        koin: Some(EventKoin::Lottery),
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🎰 Tiket lotre jatuh dari langit! Kamu coba keberuntunganmu...",
+    },
+    EventDef {
+        id: "late",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(0.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: Some("sedih"),
+        next_mult: 0.8,
+        anger: 0.0,
+        text: "📉 Kamu hampir telat janji temu! *{n}* cemberut sepanjang hari.",
+    },
+    EventDef {
+        id: "anniv",
+        phase: "any",
+        married_only: true,
+        aff: EventAff::Fixed(6.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "💍 Kenangan hari pernikahan kalian teringat kembali. Kalian terharu bersama.",
+    },
+    EventDef {
+        id: "intimate",
+        phase: "intim",
+        married_only: false,
+        aff: EventAff::Fixed(10.0),
+        yandere_aff: 0.0,
+        koin: None,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🔥 Momen kalian berlanjut. *{n}* berbisik pelan, \"jangan berhenti...\"",
+    },
+    EventDef {
+        id: "rainbow",
+        phase: "approach",
+        married_only: false,
+        aff: EventAff::Fixed(5.0),
+        yandere_aff: 0.0,
+        koin: None,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🌈 Pelangi muncul setelah hujan reda. Kalian berhenti untuk mengabadikannya.",
+    },
+    EventDef {
+        id: "confess",
+        phase: "intim",
+        married_only: false,
+        aff: EventAff::Fixed(8.0),
+        yandere_aff: 0.0,
+        koin: None,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "💞 *{n}* mengaku bahwa ia mulai benar-benar mencintaimu.",
+    },
+    EventDef {
+        id: "gift",
+        phase: "married",
+        married_only: true,
+        aff: EventAff::Fixed(0.0),
+        yandere_aff: 0.0,
+        koin: Some(EventKoin::Gift),
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🎁 Hadiah kejutan kecil untukmu sebagai pasangan.",
+    },
+    EventDef {
+        id: "foto",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(4.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "📸 Foto bareng! *{n}* melotot saat kejepret momen memalukan.",
+    },
+    EventDef {
+        id: "lomba",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(0.0),
+        yandere_aff: 0.0,
+        koin: Some(EventKoin::Lomba),
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🏅 Kamu ikut lomba jalan santai dan menang hadiah receh!",
+    },
+    EventDef {
+        id: "salahpaham",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(-5.0),
+        yandere_aff: 0.0,
+        koin: None,
+        mood: None,
+        next_mult: 1.0,
+        anger: 12.0,
+        text: "📵 *{n}* melihat notif dari akun lain di ponselmu dan salah paham!",
+    },
+    EventDef {
+        id: "pujian",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(5.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🗣️ Seseorang memuji kalian: \"cocok banget!\" *{n}* tersipu.",
+    },
+    EventDef {
+        id: "sunset",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(6.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: Some("romantis"),
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🌇 Kalian berhenti menikmati matahari terbenam. Momen tak terlupakan.",
+    },
+    EventDef {
+        id: "kenangan",
+        phase: "any",
+        married_only: true,
+        aff: EventAff::Fixed(7.0),
+        yandere_aff: 0.0,
+        koin: None,
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "📿 Kamu menemukan foto lama kalian. *{n}* terharu dan memelukmu erat.",
+    },
+    EventDef {
+        id: "badai",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(-4.0),
+        koin: None,
+        yandere_aff: 0.0,
+        mood: Some("marah"),
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "⛈️ Hujan badai datang! *{n}* kehujanan dan mood-nya rusak.",
+    },
+    EventDef {
+        id: "rezeki",
+        phase: "any",
+        married_only: false,
+        aff: EventAff::Fixed(0.0),
+        yandere_aff: 0.0,
+        koin: Some(EventKoin::Rezeki),
+        mood: None,
+        next_mult: 1.0,
+        anger: 0.0,
+        text: "🍀 Rezeki nomplok! Kamu dapat uang tak terduga.",
+    },
 ];
 
 /// Opsi menu: label + id aksi.
@@ -449,7 +1007,10 @@ const MENUS: [Menu; 19] = [
     (
         "menu_masak",
         "🍳 Masak bareng...",
-        &[("🍳 Masakan Rumah", "masak_bareng"), ("🍰 Kue", "masak_kue")],
+        &[
+            ("🍳 Masakan Rumah", "masak_bareng"),
+            ("🍰 Kue", "masak_kue"),
+        ],
     ),
     (
         "menu_kuliner",
@@ -551,10 +1112,7 @@ fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str
             ("🖐️ Tepuk Kepala", "tepuk_kepala"),
         ]
     } else {
-        &[
-            ("🌴 Bulan Madu", "menu_bulanmadu"),
-            ("💝 Hadiah", "hadiah"),
-        ]
+        &[("🌴 Bulan Madu", "menu_bulanmadu"), ("💝 Hadiah", "hadiah")]
     }
 }
 
@@ -577,10 +1135,7 @@ fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'sta
             ("🎁 Lainnya", "menu_lainnya"),
         ]
     } else if !married {
-        &[
-            ("💍 Nikahi", "nikah"),
-            ("💝 Hadiah", "hadiah"),
-        ]
+        &[("💍 Nikahi", "nikah"), ("💝 Hadiah", "hadiah")]
     } else {
         &[
             ("👩‍❤️‍👨 Mesra", "mesra"),
@@ -617,7 +1172,11 @@ fn kartu_waifu(
     let (footer, opsi): (&str, Vec<(&str, &str)>) = match custom {
         Some(list) => (FOOTER_MENU, list.to_vec()),
         None => (
-            if married { FOOTER_MARRIED } else { FOOTER_DEFAULT },
+            if married {
+                FOOTER_MARRIED
+            } else {
+                FOOTER_DEFAULT
+            },
             tombol_utama(affection, married).to_vec(),
         ),
     };
@@ -857,8 +1416,19 @@ pub(crate) fn iso_to_ms(iso: &str) -> Option<i64> {
         return None;
     }
     let num = |a: usize, c: usize| iso.get(a..c)?.parse::<i64>().ok();
-    let (y, mo, d, h, mi, s) = (num(0, 4)?, num(5, 7)?, num(8, 10)?, num(11, 13)?, num(14, 16)?, num(17, 19)?);
-    let millis = if b.len() >= 24 && b[19] == b'.' { num(20, 23)? } else { 0 };
+    let (y, mo, d, h, mi, s) = (
+        num(0, 4)?,
+        num(5, 7)?,
+        num(8, 10)?,
+        num(11, 13)?,
+        num(14, 16)?,
+        num(17, 19)?,
+    );
+    let millis = if b.len() >= 24 && b[19] == b'.' {
+        num(20, 23)?
+    } else {
+        0
+    };
     let days = crate::common::days_from_civil(y, mo as u32, d as u32);
     Some(days * 86_400_000 + (h * 3600 + mi * 60 + s) * 1000 + millis)
 }
@@ -950,7 +1520,10 @@ pub(crate) fn apply_neglect(waifu: &mut Map<String, Value>, now: i64) -> i64 {
     if decay > 0 {
         let affection = mnum(waifu.get("affection")).unwrap_or(50.0);
         let anger = mnum(waifu.get("anger")).unwrap_or(0.0);
-        waifu.insert("affection".into(), jnum((affection - decay as f64).max(0.0)));
+        waifu.insert(
+            "affection".into(),
+            jnum((affection - decay as f64).max(0.0)),
+        );
         waifu.insert("anger".into(), jnum((anger - 10.0).max(0.0)));
     }
     waifu.insert("lastInteractionAt".into(), jnum(now as f64));
@@ -958,12 +1531,7 @@ pub(crate) fn apply_neglect(waifu: &mut Map<String, Value>, now: i64) -> i64 {
 }
 
 /// `finalGain` — `Math.round(change * fm)` setelah diminish, lalu drain anger.
-pub(crate) fn final_gain(
-    raw_change: i64,
-    affection: f64,
-    actions_today: i64,
-    anger: f64,
-) -> Gain {
+pub(crate) fn final_gain(raw_change: i64, affection: f64, actions_today: i64, anger: f64) -> Gain {
     let angry = anger >= ANGER_THRESHOLD;
     let mut extra = Vec::new();
     let mut change = diminish(raw_change as f64, affection);
@@ -1117,8 +1685,7 @@ pub(crate) fn apply_action(
     let tag = PERSONALITY_TAG.iter().find(|(p, _, _)| *p == personality);
     let (tag_like, tag_dislike) = tag.map_or((&[][..], &[][..]), |(_, l, d)| (&l[..], &d[..]));
     let liked = action.likes.contains(&personality.as_str()) || tag_like.contains(&key);
-    let disliked =
-        action.dislikes.contains(&personality.as_str()) || tag_dislike.contains(&key);
+    let disliked = action.dislikes.contains(&personality.as_str()) || tag_dislike.contains(&key);
     if liked {
         mult *= 1.2;
     } else if disliked {
@@ -1321,7 +1888,12 @@ pub(crate) fn set_user(jid: &str, patch: Map<String, Value>) -> Mutation {
 }
 
 /// Balasan teks + opsional satu patch `SetUser` + opsional reaksi.
-fn balas(jid: &str, text: String, patch: Option<Map<String, Value>>, reaction: Option<&str>) -> Reply {
+fn balas(
+    jid: &str,
+    text: String,
+    patch: Option<Map<String, Value>>,
+    reaction: Option<&str>,
+) -> Reply {
     let reply = match patch {
         Some(p) => Reply::text(text).with_mutation(set_user(jid, p)),
         None => Reply::text(text),
@@ -1442,7 +2014,11 @@ fn tinggalin_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     let mut mutations = Vec::new();
     let mut patch = Map::new();
     if js_truthy(w.get("married")) {
-        if map_of(user.get("fun")).get("pasangan").and_then(Value::as_str) == Some(jid.as_str()) {
+        if map_of(user.get("fun"))
+            .get("pasangan")
+            .and_then(Value::as_str)
+            == Some(jid.as_str())
+        {
             let mut fun = map_of(user.get("fun"));
             fun.insert("pasangan".into(), Value::from(""));
             patch.insert("fun".into(), Value::Object(fun));
@@ -1515,7 +2091,11 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
             Some("😡"),
         );
     }
-    let sub = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let sub = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     if sub != "start" {
         // `gachawaifu.js:262-278` — kartu panduan tanpa header, footer
         // "Tekan tombol untuk mulai!" dan satu tombol Mulai Gacha.
@@ -1542,7 +2122,10 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     w.insert("name".into(), Value::from(picked.name.clone()));
     w.insert("series".into(), Value::from(picked.series.clone()));
     w.insert("tier".into(), Value::from(picked.tier.clone()));
-    w.insert("personality".into(), Value::from(picked.personality.clone()));
+    w.insert(
+        "personality".into(),
+        Value::from(picked.personality.clone()),
+    );
     w.insert("keyword".into(), Value::from(picked.keyword.clone()));
     w.insert("age".into(), jnum(picked.age as f64));
     w.insert("height".into(), Value::from(picked.height.clone()));
@@ -1613,7 +2196,11 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
             Some("❌"),
         );
     }
-    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let action = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     let mut w = map_of(user.get("waifu"));
     let now = now_ms();
 
@@ -1629,11 +2216,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
         dirty = true;
     }
     let dirty_patch = |w: &Map<String, Value>| -> Option<Map<String, Value>> {
-        if dirty {
-            Some(waifu_patch(w))
-        } else {
-            None
-        }
+        if dirty { Some(waifu_patch(w)) } else { None }
     };
 
     if let Some((_, title, opsi)) = MENUS.iter().find(|(k, _, _)| *k == action) {
@@ -1653,10 +2236,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     if MESUM_ACTIONS.contains(&action.as_str()) && mnum_or(w.get("affection"), 0.0) < 80.0 {
         let drop = (rng() * 30.0).floor() as i64 + 30;
         let affection = mnum_or(w.get("affection"), 50.0);
-        w.insert(
-            "affection".into(),
-            jnum((affection - drop as f64).max(0.0)),
-        );
+        w.insert("affection".into(), jnum((affection - drop as f64).max(0.0)));
         let text = format!(
             "💢 *PLAKK!!* Kamu mencoba bersikap mesum kepada *{}*, tapi kalian belum sedekat itu! Dia menamparmu keras.\n💞 *Affection -{drop}*",
             js_str(w.get("name"))
@@ -1744,7 +2324,8 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
         let g = 300 + (rng() * 401.0).floor() as i64;
         let mut patch = dirty_patch(&w);
         if let Some(new_energi) = energi_gain(user, g, ctx.is_owner) {
-            patch.get_or_insert_with(Map::new)
+            patch
+                .get_or_insert_with(Map::new)
                 .insert("energi".into(), jnum(new_energi as f64));
         }
         let text = format!(
@@ -1987,7 +2568,9 @@ fn action_engine(
         aff_text = "💞 *Affection MAKSIMAL! (100/100)* 🎉\n💍 *Nikahi dia sekarang!*".to_string();
     }
     if neg_decay > 0 {
-        aff_text.push_str(&format!("\n📉 *Neglect: -{neg_decay} aff* (jarang interaksi)"));
+        aff_text.push_str(&format!(
+            "\n📉 *Neglect: -{neg_decay} aff* (jarang interaksi)"
+        ));
     }
     if eff.angry {
         aff_text.push_str(&format!("\n😡 *Dia MARAH!* Drain -{} aff", eff.drain));
@@ -2001,7 +2584,10 @@ fn action_engine(
         let mut mutations = Vec::new();
         if married {
             let jid = waifu_jid(&name);
-            if map_of(user.get("fun")).get("pasangan").and_then(Value::as_str) == Some(jid.as_str())
+            if map_of(user.get("fun"))
+                .get("pasangan")
+                .and_then(Value::as_str)
+                == Some(jid.as_str())
             {
                 let mut fun = map_of(user.get("fun"));
                 fun.insert("pasangan".into(), Value::from(""));
@@ -2083,7 +2669,9 @@ mod tests {
                     },
                     headers: Vec::new(),
                 }),
-                None => Err(HttpError { message: "pinterest mati".into() }),
+                None => Err(HttpError {
+                    message: "pinterest mati".into(),
+                }),
             }
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
@@ -2101,7 +2689,13 @@ mod tests {
         }
     }
 
-    fn run_pinterest(command: &str, args: &[&str], user: Value, seq: Vec<f64>, p: Pinterest) -> Reply {
+    fn run_pinterest(
+        command: &str,
+        args: &[&str],
+        user: Value,
+        seq: Vec<f64>,
+        p: Pinterest,
+    ) -> Reply {
         let mut rng = scripted(seq);
         let ctx = Ctx {
             http: Arc::new(p),
@@ -2292,7 +2886,11 @@ mod tests {
     #[test]
     fn menu_lainnya_ada_judulnya() {
         assert_eq!(
-            MENUS.iter().find(|(k, _, _)| *k == "menu_lainnya").unwrap().1,
+            MENUS
+                .iter()
+                .find(|(k, _, _)| *k == "menu_lainnya")
+                .unwrap()
+                .1,
             "🎮 Aksi lainnya..."
         );
     }
@@ -2361,8 +2959,16 @@ mod tests {
     #[test]
     fn diminish_floor_dan_lantai_15_persen() {
         assert_eq!(diminish(10.0, 50.0), 6, "10 * 0.55 = 5.5 → round 6");
-        assert_eq!(diminish(1.0, 100.0), 1, "f = 0.15, hasil dibulatkan 0 → max(1)");
-        assert_eq!(diminish(100.0, 0.0), 55, "affection 0 → `(current || 50)` → f 0.55");
+        assert_eq!(
+            diminish(1.0, 100.0),
+            1,
+            "f = 0.15, hasil dibulatkan 0 → max(1)"
+        );
+        assert_eq!(
+            diminish(100.0, 0.0),
+            55,
+            "affection 0 → `(current || 50)` → f 0.55"
+        );
     }
 
     #[test]
@@ -2432,21 +3038,27 @@ mod tests {
     fn apply_action_urutan_mult_like_menang_atas_dislike() {
         // rayu: `likes` memuat tsundere, TAPI tag tsundere men-dislike `rayu`
         // — JS memakai `if (liked) ... else if (disliked)`, jadi 1.2.
-        let w = map_of(Some(&serde_json::json!({ "name": "Yuki", "personality": "tsundere" })));
+        let w = map_of(Some(
+            &serde_json::json!({ "name": "Yuki", "personality": "tsundere" }),
+        ));
         let mut rng = scripted(vec![0.0]);
         let r = apply_action("rayu", &w, "biasa", 1.0, &mut rng).unwrap();
         assert_eq!(r.change, 10, "8 * 1.2 = 9.6 → 10");
         assert!(r.like && r.dislike);
 
         // himedere vs kafe_kopi: hanya dislike → 0.7.
-        let w = map_of(Some(&serde_json::json!({ "name": "Yuki", "personality": "himedere" })));
+        let w = map_of(Some(
+            &serde_json::json!({ "name": "Yuki", "personality": "himedere" }),
+        ));
         let mut rng = scripted(vec![0.0]);
         let r = apply_action("kafe_kopi", &w, "biasa", 1.0, &mut rng).unwrap();
         assert_eq!(r.change, 3, "4 * 0.7 = 2.8 → 3");
         assert!(!r.like && r.dislike);
 
         // Mood & mult override ikut mengali: 4 * 0.5 * 0.8 * 1.2 = 1.92 → 2.
-        let w = map_of(Some(&serde_json::json!({ "name": "Yuki", "personality": "tsundere" })));
+        let w = map_of(Some(
+            &serde_json::json!({ "name": "Yuki", "personality": "tsundere" }),
+        ));
         let mut rng = scripted(vec![0.0]);
         let r = apply_action("karaoke_solo", &w, "marah", 0.8, &mut rng).unwrap();
         assert_eq!(r.change, 2);
@@ -2454,7 +3066,9 @@ mod tests {
 
     #[test]
     fn apply_action_none_untuk_aksi_atau_personality_hilang() {
-        let w = map_of(Some(&serde_json::json!({ "name": "Yuki", "personality": "genki" })));
+        let w = map_of(Some(
+            &serde_json::json!({ "name": "Yuki", "personality": "genki" }),
+        ));
         let mut rng = scripted(vec![]);
         assert!(apply_action("tidak_ada", &w, "biasa", 1.0, &mut rng).is_none());
         let kosong = map_of(Some(&serde_json::json!({ "name": "Yuki" })));
@@ -2645,17 +3259,46 @@ mod tests {
     fn record_pull_menghitung_tier_pity_rarest_dan_cap_100() {
         let mut stats = default_stats();
         let mut user = map_of(None);
-        record_pull(&mut stats, &mut user, "Yuki", "Seri", "Common", "2026-01-01T00:00:00.000Z");
+        record_pull(
+            &mut stats,
+            &mut user,
+            "Yuki",
+            "Seri",
+            "Common",
+            "2026-01-01T00:00:00.000Z",
+        );
         assert_eq!(stats["totalGacha"], serde_json::json!(1));
         assert_eq!(stats["byTier"]["Common"], serde_json::json!(1));
-        assert_eq!(stats["pityCounter"], serde_json::json!(1), "Common tidak reset pity");
+        assert_eq!(
+            stats["pityCounter"],
+            serde_json::json!(1),
+            "Common tidak reset pity"
+        );
         assert_eq!(stats["rarest"]["name"], serde_json::json!("Yuki"));
 
-        record_pull(&mut stats, &mut user, "Miku", "Seri", "Epic", "2026-01-02T00:00:00.000Z");
-        assert_eq!(stats["pityCounter"], serde_json::json!(0), "Epic reset pity");
+        record_pull(
+            &mut stats,
+            &mut user,
+            "Miku",
+            "Seri",
+            "Epic",
+            "2026-01-02T00:00:00.000Z",
+        );
+        assert_eq!(
+            stats["pityCounter"],
+            serde_json::json!(0),
+            "Epic reset pity"
+        );
         assert_eq!(stats["rarest"]["name"], serde_json::json!("Miku"));
         // Rarest tidak diturunkan saat tier lebih rendah.
-        record_pull(&mut stats, &mut user, "Rin", "Seri", "Rare", "2026-01-03T00:00:00.000Z");
+        record_pull(
+            &mut stats,
+            &mut user,
+            "Rin",
+            "Seri",
+            "Rare",
+            "2026-01-03T00:00:00.000Z",
+        );
         assert_eq!(stats["rarest"]["name"], serde_json::json!("Miku"));
 
         // Cap 100: dorong 100 entri lalu satu pull lagi.
@@ -2671,7 +3314,11 @@ mod tests {
         }
         let history = user["waifuHistory"].as_array().unwrap();
         assert_eq!(history.len(), 100, "slice(-100)");
-        assert_eq!(history[0]["name"], serde_json::json!("W0"), "yang tertua dibuang");
+        assert_eq!(
+            history[0]["name"],
+            serde_json::json!("W0"),
+            "yang tertua dibuang"
+        );
         assert_eq!(history[99]["name"], serde_json::json!("W99"));
     }
 
@@ -2736,8 +3383,14 @@ mod tests {
         w["lastInteractionAt"] = serde_json::json!(now - 50 * 3_600_000);
         let r = run("waifuku", &[], user_with(w), vec![]);
         let text = text_of(&r);
-        assert!(text.starts_with("📸 *STATUS WAIFU KAMU* 📸\n\n💖 *Nama:* Yuki\n"), "{text}");
-        assert!(text.contains("💎 *Tier:* Rare\n🎭 *Personality:* tsundere\n"), "{text}");
+        assert!(
+            text.starts_with("📸 *STATUS WAIFU KAMU* 📸\n\n💖 *Nama:* Yuki\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("💎 *Tier:* Rare\n🎭 *Personality:* tsundere\n"),
+            "{text}"
+        );
         assert!(text.contains("🌤️ *Mood hari ini:* biasa 🙂\n"), "{text}");
         assert!(text.contains("😡 *Anger:* █████░░░░░ (50/100)\n"), "{text}");
         assert!(text.contains("💞 *Affection:* 44/100\n"), "{text}");
@@ -2750,7 +3403,10 @@ mod tests {
             text.contains("⚠️ *Dia sedang MARAH!* Perbaiki hubungan sebelum affection habis!\n"),
             "anger 50 sisa masih kena ambang"
         );
-        assert!(text.ends_with("Lanjutkan interaksi dengan memilih aksi di bawah!"), "{text}");
+        assert!(
+            text.ends_with("Lanjutkan interaksi dengan memilih aksi di bawah!"),
+            "{text}"
+        );
         assert_eq!(reaction_of(&r).as_deref(), Some("✅"));
 
         let patch = patch_of(&r);
@@ -2768,7 +3424,10 @@ mod tests {
         w["lastInteractionAt"] = serde_json::json!(now);
         let r = run("waifuku", &[], user_with(w), vec![]);
         let text = text_of(&r);
-        assert!(text.contains("💍 *Status:* Telah Menikah 💍\n🗓️ *Hari ke-7* 🎉\n"), "{text}");
+        assert!(
+            text.contains("💍 *Status:* Telah Menikah 💍\n🗓️ *Hari ke-7* 🎉\n"),
+            "{text}"
+        );
         assert!(text.contains("💞 *Affection:* 100/100\n"), "{text}");
         assert!(!text.contains("Neglect"), "baru interaksi: {text}");
         assert!(!text.contains("MARAH"));
@@ -2793,7 +3452,10 @@ mod tests {
         assert_eq!(written_jids(&r), [ME.to_string()]);
         let patch = patch_of(&r);
         assert_eq!(patch["waifu"], Value::Null);
-        assert!(patch.get("fun").is_none(), "pasangan tidak ada, tidak ditulis");
+        assert!(
+            patch.get("fun").is_none(),
+            "pasangan tidak ada, tidak ditulis"
+        );
         assert!(
             text_of(&r).contains("💔 *KAMU MEMUTUSKAN UNTUK MENINGGALKAN YUKI!*"),
             "{}",
@@ -2844,9 +3506,18 @@ mod tests {
         let text = text_of(&r);
         assert!(text.starts_with("💕 *SISTEM GACHA WAIFU* 💕\n\n"), "{text}");
         assert!(text.contains("• *.gachawaifu* — Panduan ini"), "{text}");
-        assert!(text.contains("• *.tinggalinwaifu* — Putuskan hubungan"), "{text}");
-        assert!(text.contains("4. Pity: 20 roll tanpa Epic+ dijamin dapat Epic+."), "{text}");
-        assert!(text.ends_with("5. Aksi memberi EXP + reward ekonomi."), "{text}");
+        assert!(
+            text.contains("• *.tinggalinwaifu* — Putuskan hubungan"),
+            "{text}"
+        );
+        assert!(
+            text.contains("4. Pity: 20 roll tanpa Epic+ dijamin dapat Epic+."),
+            "{text}"
+        );
+        assert!(
+            text.ends_with("5. Aksi memberi EXP + reward ekonomi."),
+            "{text}"
+        );
         assert!(r.mutations().is_empty());
         assert!(reaction_of(&r).is_none());
     }
@@ -2854,8 +3525,17 @@ mod tests {
     #[test]
     fn gacha_start_memilih_dan_menyimpan_waifu() {
         // `rollWaifu` JS tetap memanggil rng() sekali walau total bobot 0.
-        let r = run("gachawaifu", &["start"], serde_json::json!({ "exp": 0 }), vec![0.0]);
-        assert!(text_of(&r).starts_with("🎉 *SELAMAT! KAMU MENDAPATKAN WAIFU BARU!* 🎉"), "{}", text_of(&r));
+        let r = run(
+            "gachawaifu",
+            &["start"],
+            serde_json::json!({ "exp": 0 }),
+            vec![0.0],
+        );
+        assert!(
+            text_of(&r).starts_with("🎉 *SELAMAT! KAMU MENDAPATKAN WAIFU BARU!* 🎉"),
+            "{}",
+            text_of(&r)
+        );
         assert_eq!(reaction_of(&r).as_deref(), Some("✅"));
         assert!(!r.mutations().is_empty(), "gacha baru menyimpan user");
     }
@@ -2889,7 +3569,12 @@ mod tests {
 
     #[test]
     fn waifuaction_tanpa_waifu_ditolak() {
-        let r = run("waifuaction", &["menu_peluk"], serde_json::json!({}), vec![]);
+        let r = run(
+            "waifuaction",
+            &["menu_peluk"],
+            serde_json::json!({}),
+            vec![],
+        );
         assert_eq!(
             text_of(&r),
             "Kamu belum memiliki waifu! Ketik *.gachawaifu* untuk memulai."
@@ -3100,7 +3785,10 @@ mod tests {
         w["married"] = serde_json::json!(true);
         w["lastClaimDate"] = serde_json::json!(today_str(now_ms()));
         let sudah = run("waifuaction", &["klaim"], user_with(w), vec![]);
-        assert_eq!(text_of(&sudah), "⚠️ Kamu sudah klaim hari ini! Coba lagi besok.");
+        assert_eq!(
+            text_of(&sudah),
+            "⚠️ Kamu sudah klaim hari ini! Coba lagi besok."
+        );
         assert!(sudah.mutations().is_empty());
     }
 
@@ -3110,12 +3798,7 @@ mod tests {
         let mut w = waifu_json("Yuki", "Rare", 100, "genki");
         w["married"] = serde_json::json!(true);
         w["marriedDate"] = serde_json::json!(iso_now(now));
-        let r = run(
-            "waifuaction",
-            &["klaim"],
-            user_with(w),
-            vec![0.0, 0.0],
-        );
+        let r = run("waifuaction", &["klaim"], user_with(w), vec![0.0, 0.0]);
         assert_eq!(
             text_of(&r),
             "🎁 *Yuki* memberi hadiah harian!\n💰 +6,000 Koin\n✨ +240 EXP"
@@ -3202,14 +3885,23 @@ mod tests {
             vec![0.0, 0.0, 0.7],
         );
         let text = text_of(&r);
-        assert!(text.starts_with("💔 *YUKI MENINGGALKANMU!* 💔\n\n"), "{text}");
-        assert!(text.ends_with("*(Ketik .gachawaifu untuk memulai ulang)*"), "{text}");
+        assert!(
+            text.starts_with("💔 *YUKI MENINGGALKANMU!* 💔\n\n"),
+            "{text}"
+        );
+        assert!(
+            text.ends_with("*(Ketik .gachawaifu untuk memulai ulang)*"),
+            "{text}"
+        );
         assert_eq!(reaction_of(&r).as_deref(), Some("💔"));
         assert_eq!(written_jids(&r), [ME.to_string()]);
         let patch = patch_of(&r);
         assert_eq!(patch["waifu"], Value::Null);
         assert_eq!(patch["exp"], serde_json::json!(40), "25 + 15 event");
-        assert!(patch.get("koin").is_none(), "event salahpaham tidak memberi koin");
+        assert!(
+            patch.get("koin").is_none(),
+            "event salahpaham tidak memberi koin"
+        );
     }
 
     #[test]
@@ -3221,10 +3913,7 @@ mod tests {
         user["fun"] = serde_json::json!({ "pasangan": jid });
         let r = run("waifuaction", &["kafe_kopi"], user, vec![0.0, 0.0, 0.7]);
         assert_eq!(written_jids(&r), [jid.clone(), ME.to_string()]);
-        assert_eq!(
-            patch_to(&r, &jid)["fun"]["pasangan"],
-            serde_json::json!("")
-        );
+        assert_eq!(patch_to(&r, &jid)["fun"]["pasangan"], serde_json::json!(""));
         let patch = patch_of(&r);
         assert_eq!(patch["waifu"], Value::Null);
         assert_eq!(patch["fun"]["pasangan"], serde_json::json!(""));
@@ -3242,7 +3931,9 @@ mod tests {
         assert_eq!(patch["exp"], serde_json::json!(35));
         let text = text_of(&r);
         assert!(
-            text.contains("👩‍❤️‍👨 Kalian menghabiskan malam dengan mesra sebagai pasangan suami istri."),
+            text.contains(
+                "👩‍❤️‍👨 Kalian menghabiskan malam dengan mesra sebagai pasangan suami istri."
+            ),
             "{text}"
         );
         assert!(

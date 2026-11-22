@@ -11,9 +11,7 @@ use serde_json::Value;
 
 /// Kartu pakai saat teks kosong.
 pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "🎭 *ᴇᴍᴏᴊɪ ᴍɪx*\n\n> Gabungkan 2 emoji menjadi 1\n\n`Contoh: {prefix}emojimix 😂🔥`"
-    )
+    format!("🎭 *ᴇᴍᴏᴊɪ ᴍɪx*\n\n> Gabungkan 2 emoji menjadi 1\n\n`Contoh: {prefix}emojimix 😂🔥`")
 }
 
 /// Endpoint emoji mix Neoxr.
@@ -85,7 +83,8 @@ pub fn emojimix(ctx: Ctx) -> Reply {
     let body = res.json().unwrap_or(Value::Null);
     // JS `emojimix.js:50` — `data?.status && data?.data?.url` (data = body).
     let data = body.get("data").filter(|_| {
-        body.get("status").is_some_and(|s| s.as_bool() == Some(true) || s.as_i64().unwrap_or(0) != 0)
+        body.get("status")
+            .is_some_and(|s| s.as_bool() == Some(true) || s.as_i64().unwrap_or(0) != 0)
     });
     let Some(gambar_url) = data
         .and_then(|d| d.get("url").and_then(Value::as_str))

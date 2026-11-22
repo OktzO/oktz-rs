@@ -15,7 +15,7 @@
 
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// `config.saluran?.id || "120363400911374213@newsletter"` (`cekidgc.js:121`).
 const SALURAN_ID_DEFAULT: &str = "120363400911374213@newsletter";
@@ -52,7 +52,11 @@ fn format_date(ms: i64) -> String {
         return "—".to_string();
     }
     // `cekidgc.js:27-29` — timestamp < 1e12 dibaca sebagai detik.
-    let ms = if ms < 1_000_000_000_000 { ms * 1000 } else { ms };
+    let ms = if ms < 1_000_000_000_000 {
+        ms * 1000
+    } else {
+        ms
+    };
     let (y, m, d, h, mi, _s) = crate::common::jakarta_parts(ms);
     format!("{d:02}/{m:02}/{y} {h:02}:{mi:02}")
 }
@@ -376,9 +380,9 @@ mod tests {
             if *self.undangan_gagal.lock().unwrap() {
                 return Err(SockError::baru("expired"));
             }
-            Ok(self.undangan.lock().unwrap().clone().unwrap_or_else(|| {
-                serde_json::json!({"id": "629999@g.us", "subject": "Grup Undangan"})
-            }))
+            Ok(self.undangan.lock().unwrap().clone().unwrap_or_else(
+                || serde_json::json!({"id": "629999@g.us", "subject": "Grup Undangan"}),
+            ))
         }
         fn buat_grup(&self, _: &str, _: &[String]) -> Result<Value, SockError> {
             Err(SockError::baru("x"))
@@ -401,7 +405,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -449,7 +453,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -491,7 +498,10 @@ mod tests {
         assert!(t.contains("── .✦ 𝗚𝗥𝗢𝗨𝗣 𝗜𝗡𝗙𝗢 ✦. ── 𝜗ৎ"), "{t}");
         assert!(t.contains("╭─〔 Coba Grup 〕───⬣"), "{t}");
         assert!(t.contains("│  ✦ ɴᴀᴍᴀ        : *Coba Grup*"), "{t}");
-        assert!(t.contains("│  ✦ ɪᴅ             : `621234567890@g.us`"), "{t}");
+        assert!(
+            t.contains("│  ✦ ɪᴅ             : `621234567890@g.us`"),
+            "{t}"
+        );
         assert!(t.contains("│  ✦ ᴍᴇᴍʙᴇʀ     : *3*"), "{t}");
         assert!(t.contains("│  ✦ ᴀᴅᴍɪɴ        : *2*"), "{t}");
         assert!(t.contains("│  ✦ ᴏᴡɴᴇʀ       : @628111"), "{t}");
@@ -511,8 +521,7 @@ mod tests {
     #[test]
     fn output_sama_dengan_js_kartu_interaktif() {
         let r = run("621234567890@g.us", true, "");
-        let Reply::Interactive { kartu } = r.without_mutations().tanpa_reaksi()
-        else {
+        let Reply::Interactive { kartu } = r.without_mutations().tanpa_reaksi() else {
             panic!("harus Interactive");
         };
         let body = &kartu.body;
@@ -526,7 +535,10 @@ mod tests {
         assert_eq!(buttons[0].params["display_text"], "✦ Copy ID Grup");
         assert_eq!(buttons[0].params["copy_code"], "621234567890@g.us");
         let ctx = *context;
-        assert_eq!(ctx.mentioned, vec!["628999@s.whatsapp.net", "628111@s.whatsapp.net"]);
+        assert_eq!(
+            ctx.mentioned,
+            vec!["628999@s.whatsapp.net", "628111@s.whatsapp.net"]
+        );
         assert!(ctx.is_forwarded);
         assert_eq!(ctx.forwarding_score, 9999);
         let nl = ctx.forwarded_newsletter.expect("newsletter wajib");

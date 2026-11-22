@@ -151,8 +151,14 @@ mod tests {
             Some(AIRichResponseMessageType::AI_RICH_RESPONSE_TYPE_STANDARD)
         );
         assert_eq!(rich.submessages.len(), 3);
-        assert_eq!(rich.submessages[0].message_text.as_deref(), Some("🎄 Statistik"));
-        assert_eq!(rich.submessages[2].message_text.as_deref(), Some("🍃 Realtime Monitoring"));
+        assert_eq!(
+            rich.submessages[0].message_text.as_deref(),
+            Some("🎄 Statistik")
+        );
+        assert_eq!(
+            rich.submessages[2].message_text.as_deref(),
+            Some("🍃 Realtime Monitoring")
+        );
         let table = rich.submessages[1].table_metadata.as_option().unwrap();
         assert_eq!(table.title.as_deref(), Some("⚡ System Performance"));
         assert_eq!(table.rows.len(), 2);

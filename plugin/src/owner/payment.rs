@@ -70,8 +70,18 @@ fn build_payment_text(
         .unwrap_or_default();
 
     if !custom_text.is_empty() {
-        let methods_txt = methods.iter().copied().map(metode_baris).collect::<Vec<_>>().join("\n");
-        let banks_txt = banks.iter().copied().map(metode_baris).collect::<Vec<_>>().join("\n");
+        let methods_txt = methods
+            .iter()
+            .copied()
+            .map(metode_baris)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let banks_txt = banks
+            .iter()
+            .copied()
+            .map(metode_baris)
+            .collect::<Vec<_>>()
+            .join("\n");
         let qris_txt = if payment
             .get("qrisUrl")
             .and_then(serde_json::Value::as_str)

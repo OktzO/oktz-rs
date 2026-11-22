@@ -340,7 +340,10 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, HttpMethod::Post);
-        assert!(p[0].url.starts_with("https://www.youtube.com/youtubei/v1/search?key="));
+        assert!(
+            p[0].url
+                .starts_with("https://www.youtube.com/youtubei/v1/search?key=")
+        );
     }
 
     #[test]

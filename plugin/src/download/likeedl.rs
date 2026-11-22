@@ -17,7 +17,6 @@
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-
 /// `likeedl.js:31` — `/likee\.(video|com)/i`, tidak dikunci ke host.
 pub(crate) fn is_likee_url(url: &str) -> bool {
     let lower = url.to_lowercase();
@@ -267,7 +266,11 @@ mod tests {
     fn an_empty_argument_shows_the_usage_card_without_any_request() {
         let http = Stub::template("");
         for text in ["", "   "] {
-            assert_eq!(text_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                text_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -363,10 +366,7 @@ mod tests {
     #[test]
     fn output_sama_dengan_js() {
         // `likeedl.js:41` — pesan "gagal mengambil video".
-        assert_eq!(
-            GAGAL_AMBIL,
-            "❌ Gagal mengambil video. Coba link lain."
-        );
+        assert_eq!(GAGAL_AMBIL, "❌ Gagal mengambil video. Coba link lain.");
         // `likeedl.js:47` — video tidak ditemukan.
         assert_eq!(NO_VIDEO, "❌ Video tidak ditemukan.");
         // `likeedl.js:32` — URL bukan Likee.
@@ -381,14 +381,21 @@ mod tests {
             serde_json::json!({ "template": "" }),
         ] {
             let r = run(Stub::body(body.clone()), "https://likee.video/@x");
-            assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "lkdl"), "body {body}");
+            assert_eq!(
+                text_of(&r),
+                crate::common::error_template_bawaan(".", "lkdl"),
+                "body {body}"
+            );
         }
     }
 
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "https://likee.video/@x");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "lkdl"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "lkdl")
+        );
     }
 
     #[test]

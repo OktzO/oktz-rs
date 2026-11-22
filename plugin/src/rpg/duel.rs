@@ -90,7 +90,7 @@ pub fn duel(ctx: Ctx) -> Reply {
                  *Cara Menantang:*\n\
                  👉 `.duel @user 5000`\n\
                  _(Artinya kamu ngajak dia duel dengan taruhan Rp 5.000)_",
-            )
+            );
         }
     };
 

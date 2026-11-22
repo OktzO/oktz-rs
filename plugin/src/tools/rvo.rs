@@ -6,7 +6,7 @@
 //! dokumen `rvo_<timestamp>.<ext>`. Setelah sukses: reaksi ✅; gagal: reaksi ☢
 //! + pesan "Gagal Membuka View Once".
 
-use oktz_plugin_api::{plugin, Ctx, MediaOrigin, Reply};
+use oktz_plugin_api::{Ctx, MediaOrigin, Reply, plugin};
 
 fn no_quote(prefix: &str) -> String {
     format!(
@@ -31,13 +31,23 @@ fn galat_kadaluarsa() -> &'static str {
 /// Deteksi galat unduh yang mengindikasikan media hangus dari server
 /// (`rvo.js:95-101`).
 fn galat_mengarah_ke_kadaluarsa(msg: &str) -> bool {
-    ["Gagal download", "decrypt", "download", "Timeout", "404", "Gone"]
-        .iter()
-        .any(|k| msg.contains(k))
+    [
+        "Gagal download",
+        "decrypt",
+        "download",
+        "Timeout",
+        "404",
+        "Gone",
+    ]
+    .iter()
+    .any(|k| msg.contains(k))
 }
 
 fn mimetype_default(default: &str, quoted: &oktz_plugin_api::QuotedMessage) -> String {
-    quoted.mimetype.clone().unwrap_or_else(|| default.to_string())
+    quoted
+        .mimetype
+        .clone()
+        .unwrap_or_else(|| default.to_string())
 }
 
 fn caption_of(quoted_text: &str) -> String {
@@ -52,7 +62,11 @@ fn ekstensi_dari_kind(kind: &oktz_plugin_api::QuotedKind) -> String {
     // `wire_type()` = "imageMessage" dst; `Other(s)` menyimpan tipe wire mentah.
     let wire = kind.wire_type();
     let ext = wire.trim_end_matches("Message").to_lowercase();
-    if ext.is_empty() { "bin".to_string() } else { ext }
+    if ext.is_empty() {
+        "bin".to_string()
+    } else {
+        ext
+    }
 }
 
 fn timestamp_now() -> i64 {
@@ -134,7 +148,9 @@ pub fn rvo(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{IncomingKind, IncomingMedia, MediaError, MediaFetch, QuotedKind, QuotedMessage, Reply as R};
+    use oktz_plugin_api::{
+        IncomingKind, IncomingMedia, MediaError, MediaFetch, QuotedKind, QuotedMessage, Reply as R,
+    };
     use std::sync::{Arc, Mutex};
 
     /// PNG 32x32 valid (>100 byte) — fixture tanpa crate `image` di tests.
@@ -150,8 +166,8 @@ mod tests {
         30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108,
         163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61,
         216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65,
-        30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 193, 215,
-        227, 15, 22, 232, 50, 37, 254, 230, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+        30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 65, 30, 108, 163, 61, 216, 193, 215, 227,
+        15, 22, 232, 50, 37, 254, 230, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
     ];
 
     /// Stub unduhan: mencatat origin, mengembalikan hasil tetap.
@@ -236,10 +252,21 @@ mod tests {
         let r = run(ctx);
         assert_eq!(*stub.unduhan.lock().unwrap(), vec![MediaOrigin::Quoted]);
         match payload(&r) {
-            R::Image { media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }), caption, .. } => {
+            R::Image {
+                media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }),
+                caption,
+                ..
+            } => {
                 assert_eq!(&data[..4], &[0x89, b'P', b'N', b'G']);
-                assert_eq!(mimetype.as_deref(), Some("image/webp"), "mimetype quoted harus diwarisi");
-                assert!(caption.contains("isi pesan"), "caption harus ikut: {caption}");
+                assert_eq!(
+                    mimetype.as_deref(),
+                    Some("image/webp"),
+                    "mimetype quoted harus diwarisi"
+                );
+                assert!(
+                    caption.contains("isi pesan"),
+                    "caption harus ikut: {caption}"
+                );
             }
             other => panic!("harus Image, dapat {other:?}"),
         }
@@ -257,7 +284,12 @@ mod tests {
             ..Default::default()
         };
         match payload(&run(ctx)) {
-            R::Video { media: Some(_), caption, gif_playback: false, .. } => {
+            R::Video {
+                media: Some(_),
+                caption,
+                gif_playback: false,
+                ..
+            } => {
                 assert!(caption.contains("isi pesan"));
             }
             other => panic!("harus Video, dapat {other:?}"),
@@ -276,7 +308,10 @@ mod tests {
             ..Default::default()
         };
         match payload(&run(ctx)) {
-            R::Audio { media: Some(_), ptt: false } => {}
+            R::Audio {
+                media: Some(_),
+                ptt: false,
+            } => {}
             other => panic!("harus Audio, dapat {other:?}"),
         }
     }
@@ -295,7 +330,10 @@ mod tests {
         match payload(&run(ctx)) {
             R::Document { file_name, .. } => {
                 assert!(file_name.starts_with("rvo_"), "file_name = {file_name}");
-                assert!(file_name.ends_with(".document"), "ekstensi dari wire kind: {file_name}");
+                assert!(
+                    file_name.ends_with(".document"),
+                    "ekstensi dari wire kind: {file_name}"
+                );
             }
             other => panic!("harus Document, dapat {other:?}"),
         }
@@ -317,14 +355,19 @@ mod tests {
         let r = run(ctx);
         let t = r.text_body().unwrap();
         assert!(t.contains("Gagal Membuka View Once"), "{t}");
-        assert!(t.contains("kadaluarsa"), "unduhan kosong = media hangus: {t}");
+        assert!(
+            t.contains("kadaluarsa"),
+            "unduhan kosong = media hangus: {t}"
+        );
     }
 
     #[test]
     fn expired_media_error_gets_friendly_message_and_radio_reaction() {
         let stub = Stub {
             unduhan: Arc::new(Mutex::new(vec![])),
-            hasil: Err(MediaError { message: "Gagal download media: 404".into() }),
+            hasil: Err(MediaError {
+                message: "Gagal download media: 404".into(),
+            }),
         };
         let ctx = Ctx {
             quoted: Some(quoted(QuotedKind::Image)),
@@ -349,7 +392,9 @@ mod tests {
     fn generic_download_error_keeps_original_message() {
         let stub = Stub {
             unduhan: Arc::new(Mutex::new(vec![])),
-            hasil: Err(MediaError { message: "kripto rusak total".into() }),
+            hasil: Err(MediaError {
+                message: "kripto rusak total".into(),
+            }),
         };
         let ctx = Ctx {
             quoted: Some(quoted(QuotedKind::Image)),
@@ -358,7 +403,10 @@ mod tests {
         };
         let r = run(ctx);
         let t = r.text_body().unwrap();
-        assert!(t.contains("kripto rusak total"), "pesan asli harus dipertahankan: {t}");
+        assert!(
+            t.contains("kripto rusak total"),
+            "pesan asli harus dipertahankan: {t}"
+        );
         assert!(!t.contains("kadaluarsa"));
     }
 

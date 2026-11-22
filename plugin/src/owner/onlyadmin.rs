@@ -49,8 +49,11 @@ pub(crate) fn flag_mutations(ctx: &Ctx, flags: &[(&str, bool)]) -> Vec<Mutation>
 /// Tiga flag yang selalu ditulis bersama saat menyalakan — `selfAdmin` dan
 /// `publicAdmin` harus ikut mati kalau tidak, kalau tidak router masih
 /// melihat mode lama.
-pub(crate) const ON_FLAGS: [(&str, bool); 3] =
-    [("onlyAdmin", true), ("selfAdmin", false), ("publicAdmin", false)];
+pub(crate) const ON_FLAGS: [(&str, bool); 3] = [
+    ("onlyAdmin", true),
+    ("selfAdmin", false),
+    ("publicAdmin", false),
+];
 pub(crate) const OFF_FLAGS: [(&str, bool); 1] = [("onlyAdmin", false)];
 
 pub(crate) fn access_box(public_private: bool) -> String {
@@ -121,12 +124,9 @@ pub fn onlyadmin(ctx: Ctx) -> Reply {
     match args.as_deref() {
         None | Some("status") => Reply::text(status_text(current)),
         Some("on") if current => Reply::text(WARN_ON),
-        Some("on") => Reply::text(format!(
-            "✅ *ᴏɴʟʏᴀᴅᴍɪɴ ᴀᴋᴛɪꜰ*\n\n{}",
-            access_box(true)
-        ))
-        .with_reaction("✅")
-        .mutating(flag_mutations(&ctx, &ON_FLAGS)),
+        Some("on") => Reply::text(format!("✅ *ᴏɴʟʏᴀᴅᴍɪɴ ᴀᴋᴛɪꜰ*\n\n{}", access_box(true)))
+            .with_reaction("✅")
+            .mutating(flag_mutations(&ctx, &ON_FLAGS)),
         Some("off") if !current => Reply::text(WARN_OFF),
         Some("off") => Reply::text(OFF_TEXT)
             .with_reaction("❌")
@@ -138,7 +138,7 @@ pub fn onlyadmin(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(command: &str, args: &str, is_group: bool, group: Value, settings: Value) -> Reply {
         let args_vec: Vec<String> = args.split_whitespace().map(str::to_string).collect();
@@ -184,10 +184,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("onlyadmin").unwrap();
         assert_eq!(p.meta.name, "onlyadmin");
-        assert_eq!(
-            p.meta.alias,
-            ["selfadmin", "publicadmin", "adminonly"]
-        );
+        assert_eq!(p.meta.alias, ["selfadmin", "publicadmin", "adminonly"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(
             p.meta.description,
@@ -218,12 +215,18 @@ mod tests {
             assert!(text_of(&r).contains(expected), "settings {settings}");
             assert!(r.mutations().is_empty());
         }
-        assert!(text_of(&private("onlyadmin", "status", serde_json::json!({}))).contains("❌ Nonaktif"));
+        assert!(
+            text_of(&private("onlyadmin", "status", serde_json::json!({}))).contains("❌ Nonaktif")
+        );
     }
 
     #[test]
     fn on_writes_all_three_flags_so_the_router_cannot_keep_the_old_mode() {
-        let r = private("onlyadmin", "on", serde_json::json!({"onlyAdmin": false, "selfAdmin": true}));
+        let r = private(
+            "onlyadmin",
+            "on",
+            serde_json::json!({"onlyAdmin": false, "selfAdmin": true}),
+        );
         let w = written(&r, false);
         assert_eq!(
             w,
@@ -246,7 +249,10 @@ mod tests {
     #[test]
     fn off_writes_only_onlyadmin_and_warns_when_it_was_already_off() {
         let r = private("onlyadmin", "off", serde_json::json!({"onlyAdmin": true}));
-        assert_eq!(written(&r, false), vec![("onlyAdmin".to_string(), serde_json::json!(false))]);
+        assert_eq!(
+            written(&r, false),
+            vec![("onlyAdmin".to_string(), serde_json::json!(false))]
+        );
         assert_eq!(text_of(&r), OFF_TEXT);
 
         let r = private("onlyadmin", "off", serde_json::json!({}));
@@ -268,13 +274,25 @@ mod tests {
         let w = written(&r, true);
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].0, "120363@g.us");
-        assert_eq!(w[0].1, serde_json::json!({"onlyAdmin": true, "selfAdmin": false, "publicAdmin": false}));
+        assert_eq!(
+            w[0].1,
+            serde_json::json!({"onlyAdmin": true, "selfAdmin": false, "publicAdmin": false})
+        );
     }
 
     #[test]
     fn a_group_without_the_key_falls_back_to_the_global_setting() {
-        let r = run("onlyadmin", "", true, serde_json::json!({"mute": true}), serde_json::json!({"onlyAdmin": true}));
-        assert!(text_of(&r).contains("✅ Aktif"), "harus baca setting global");
+        let r = run(
+            "onlyadmin",
+            "",
+            true,
+            serde_json::json!({"mute": true}),
+            serde_json::json!({"onlyAdmin": true}),
+        );
+        assert!(
+            text_of(&r).contains("✅ Aktif"),
+            "harus baca setting global"
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -295,7 +313,10 @@ mod tests {
     fn selfadmin_turns_the_flag_off_again() {
         let r = private("selfadmin", "", serde_json::json!({"onlyAdmin": true}));
         assert_eq!(text_of(&r), OFF_TEXT);
-        assert_eq!(written(&r, false), vec![("onlyAdmin".to_string(), serde_json::json!(false))]);
+        assert_eq!(
+            written(&r, false),
+            vec![("onlyAdmin".to_string(), serde_json::json!(false))]
+        );
     }
 
     #[test]

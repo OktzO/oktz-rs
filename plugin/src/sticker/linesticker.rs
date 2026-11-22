@@ -90,9 +90,7 @@ pub(crate) fn berhasil_kirim(terkirim: usize, total: usize) -> String {
 /// `linesticker.js:61-63` — daftar URL sticker: yang animasi kalau ada,
 /// kalau tidak `sticker_url`.
 pub(crate) fn url_sticker(data: &serde_json::Value, animated: bool) -> Vec<String> {
-    let animated_urls = data
-        .get("sticker_animation_url")
-        .and_then(|v| v.as_array());
+    let animated_urls = data.get("sticker_animation_url").and_then(|v| v.as_array());
     if animated
         && let Some(list) = animated_urls
         && !list.is_empty()
@@ -144,8 +142,7 @@ pub fn linesticker(ctx: Ctx) -> Reply {
     }
 
     let Ok(res) = ctx.http.get(&api_url(url, &apikey)) else {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let data = res.json().unwrap_or(serde_json::Value::Null);
     if !respons_valid(&data) {
@@ -153,9 +150,17 @@ pub fn linesticker(ctx: Ctx) -> Reply {
     }
 
     let pack = data.get("data").unwrap_or(&serde_json::Value::Null);
-    let title = pack.get("title").and_then(|v| v.as_str()).unwrap_or("LINE Sticker");
-    let author = pack.get("author").and_then(|v| v.as_str()).unwrap_or("Unknown");
-    let animated = pack.get("animated").is_some_and(|v| crate::common::js_truthy(Some(v)));
+    let title = pack
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("LINE Sticker");
+    let author = pack
+        .get("author")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Unknown");
+    let animated = pack
+        .get("animated")
+        .is_some_and(|v| crate::common::js_truthy(Some(v)));
     let sticker_urls = url_sticker(pack, animated);
 
     // `linesticker.js:65-68` — pack tanpa sticker.
@@ -213,7 +218,9 @@ mod tests {
         assert!(
             pakai(".").contains(".linesticker https://store.line.me/stickershop/product/9801/en")
         );
-        assert!(is_url_line("https://store.line.me/stickershop/product/9801/en"));
+        assert!(is_url_line(
+            "https://store.line.me/stickershop/product/9801/en"
+        ));
         assert!(is_url_line("http://store.line.me/x"));
         assert!(!is_url_line("https://google.com"));
         assert!(!is_url_line("store.line.me/x"));
@@ -231,8 +238,12 @@ mod tests {
     fn respons_valid_miripkan_js() {
         assert!(!respons_valid(&serde_json::json!({})));
         assert!(!respons_valid(&serde_json::json!({ "status": true })));
-        assert!(!respons_valid(&serde_json::json!({ "status": false, "data": {} })));
-        assert!(respons_valid(&serde_json::json!({ "status": true, "data": {} })));
+        assert!(!respons_valid(
+            &serde_json::json!({ "status": false, "data": {} })
+        ));
+        assert!(respons_valid(
+            &serde_json::json!({ "status": true, "data": {} })
+        ));
     }
 
     #[test]
@@ -263,10 +274,7 @@ mod tests {
             ..Ctx::default()
         };
         let r = linesticker(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            pakai(".")
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), pakai("."));
     }
 
     #[test]
@@ -281,12 +289,10 @@ mod tests {
         };
         let r = linesticker(ctx);
         assert_eq!(r.without_mutations().text_body().unwrap(), KUNCI_TIDAK_ADA);
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "❌"
-            )
-        );
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "❌"
+        ));
     }
 
     #[test]
@@ -312,7 +318,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::HttpGet for Stub {
-        fn get(&self, url: &str) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+        fn get(
+            &self,
+            url: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
             let body = if url.contains("neoxr") {
                 self.body.clone().into_bytes()
@@ -399,12 +408,10 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             TIDAK_ADA_STICKER
         );
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "❌"
-            )
-        );
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "❌"
+        ));
     }
 
     #[test]
@@ -435,7 +442,10 @@ mod tests {
             url_sticker(&data, true),
             vec!["https://cdn/a.mp4".to_string()]
         );
-        assert_eq!(url_sticker(&data, false), vec!["https://cdn/a.png".to_string()]);
+        assert_eq!(
+            url_sticker(&data, false),
+            vec!["https://cdn/a.png".to_string()]
+        );
         // Tanpa daftar animasi → jatuh ke `sticker_url`.
         let kosong = serde_json::json!({"sticker_url": ["https://cdn/a.png"]});
         assert_eq!(

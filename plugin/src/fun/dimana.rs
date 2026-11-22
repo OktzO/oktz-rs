@@ -84,7 +84,9 @@ mod tests {
     #[test]
     fn a_question_is_echoed_with_one_of_the_bundled_answers() {
         let t = run("jodohku berada").text_body().unwrap().to_string();
-        let (question, answer) = t.split_once("\n*").expect("harus `pertanyaan?\\n*jawaban*`");
+        let (question, answer) = t
+            .split_once("\n*")
+            .expect("harus `pertanyaan?\\n*jawaban*`");
         assert_eq!(question, "dimana jodohku berada?");
         let answer = answer.strip_suffix('*').expect("penutup *");
         assert!(DIMANA.contains(&answer), "jawaban di luar daftar: {answer}");

@@ -105,10 +105,7 @@ mod tests {
         assert_eq!(p.meta.category, "group");
         assert_eq!(p.meta.description, "Set pesan intro grup (admin only)");
         assert_eq!(p.meta.usage, ".setintro <pesan>");
-        assert_eq!(
-            p.meta.example,
-            ".setintro Selamat datang @user di @group!"
-        );
+        assert_eq!(p.meta.example, ".setintro Selamat datang @user di @group!");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
@@ -140,7 +137,9 @@ mod tests {
     fn the_help_branch_lists_every_placeholder_and_the_example() {
         let r = run(serde_json::json!({}), "");
         let t = text_of(&r);
-        for token in ["@user", "@group", "@count", "@date", "@time", "@desc", "@botname"] {
+        for token in [
+            "@user", "@group", "@count", "@date", "@time", "@desc", "@botname",
+        ] {
             assert!(t.contains(token), "placeholder {token} hilang dari help");
         }
         assert!(t.contains(".setintro Selamat datang @user di grup @group! 👋"));

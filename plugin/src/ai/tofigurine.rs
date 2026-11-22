@@ -40,18 +40,13 @@ fn help(prefix: &str) -> String {
 )]
 pub fn tofigurine(ctx: Ctx) -> Reply {
     let is_image = ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_image());
+        || ctx.quoted().is_some_and(|q| q.kind.is_image());
 
     if !is_image {
         return Reply::text(help(&ctx.prefix));
     }
 
-    let origin = if ctx
-        .quoted()
-        .is_some_and(|q| q.kind.is_image())
-    {
+    let origin = if ctx.quoted().is_some_and(|q| q.kind.is_image()) {
         oktz_plugin_api::MediaOrigin::Quoted
     } else {
         oktz_plugin_api::MediaOrigin::Trigger
@@ -204,8 +199,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             } else {
                 None
             },
@@ -267,8 +262,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             media_fetch: Arc::new(StubMedia::default()),
             http: StubHttp::offline(),
             ..Ctx::default()
@@ -301,7 +296,10 @@ mod tests {
             ..ctx
         };
         let r = tofigurine(ctx);
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "tofigure3"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "tofigure3")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -309,10 +307,16 @@ mod tests {
     fn jalur_berhasil_mengirim_gambar_byte_dan_reaksi_check() {
         // `live3d`: upload, PUT byte, sign, nanobanana, ambil gambar.
         let http = StubHttp::urutan(vec![
-            (200, br#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#.to_vec()),
+            (
+                200,
+                br#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#.to_vec(),
+            ),
             (200, Vec::new()),
             (200, br#"{"result":{"url":"https://s/x.jpg"}}"#.to_vec()),
-            (200, br#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#.to_vec()),
+            (
+                200,
+                br#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#.to_vec(),
+            ),
             (200, vec![7, 8, 9]),
         ]);
         let ctx = Ctx {
@@ -339,10 +343,16 @@ mod tests {
     fn quoted_digunakan_saat_ada() {
         // quoted image harus dipakai (origin Quoted), bukan media trigger.
         let http = StubHttp::urutan(vec![
-            (200, br#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#.to_vec()),
+            (
+                200,
+                br#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#.to_vec(),
+            ),
             (200, Vec::new()),
             (200, br#"{"result":{"url":"https://s/x.jpg"}}"#.to_vec()),
-            (200, br#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#.to_vec()),
+            (
+                200,
+                br#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#.to_vec(),
+            ),
             (200, vec![5, 6]),
         ]);
         let ctx = Ctx {
@@ -362,8 +372,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             media_fetch: Arc::new(StubMedia {
                 hasil: Ok(vec![5, 6]),
             }),

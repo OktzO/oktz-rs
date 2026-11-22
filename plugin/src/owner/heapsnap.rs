@@ -67,7 +67,11 @@ pub(crate) fn unavailable(label: &str) -> String {
     is_bot_admin = false
 )]
 pub fn heapsnap(ctx: Ctx) -> Reply {
-    let sub = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let sub = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     if sub == "status" || sub.is_empty() {
         return Reply::text(status(&ctx.prefix));
     }
@@ -103,7 +107,10 @@ mod tests {
             "alias JS memuat nama sendiri; dibiarkan apa adanya"
         );
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Ambil heap snapshot (dengan guard RSS — Owner Only)");
+        assert_eq!(
+            p.meta.description,
+            "Ambil heap snapshot (dengan guard RSS — Owner Only)"
+        );
         assert_eq!(p.meta.usage, ".heapsnap [label] | .heapsnap status");
         assert_eq!(p.meta.example, ".heapsnap before-ocr");
         assert_eq!(p.meta.cooldown, 30);
@@ -143,7 +150,10 @@ mod tests {
         let out = run(&["status"]);
         assert!(out.contains("400.0MB (ceiling)"), "{out}");
         assert!(out.contains("800.0MB (ceiling)"), "{out}");
-        assert!(out.contains("> Alasan: `process.memoryUsage()` tidak ada di `Ctx`"), "{out}");
+        assert!(
+            out.contains("> Alasan: `process.memoryUsage()` tidak ada di `Ctx`"),
+            "{out}"
+        );
         assert!(out.contains("Gunakan *.heapsnap [label]*"), "{out}");
     }
 
@@ -155,8 +165,14 @@ mod tests {
 
     #[test]
     fn any_other_word_becomes_the_snapshot_label() {
-        assert!(run(&["before-ocr"]).contains("Label: `before-ocr`"), "label apa adanya");
-        assert!(run(&["AFTER"]).contains("Label: `after`"), "cuma argumen yang di-lowercase");
+        assert!(
+            run(&["before-ocr"]).contains("Label: `before-ocr`"),
+            "label apa adanya"
+        );
+        assert!(
+            run(&["AFTER"]).contains("Label: `after`"),
+            "cuma argumen yang di-lowercase"
+        );
     }
 
     #[test]
@@ -169,6 +185,10 @@ mod tests {
             args: vec!["before-ocr".into()],
             ..Default::default()
         };
-        assert!((find("heapsnap").unwrap().handler)(ctx).mutations().is_empty());
+        assert!(
+            (find("heapsnap").unwrap().handler)(ctx)
+                .mutations()
+                .is_empty()
+        );
     }
 }

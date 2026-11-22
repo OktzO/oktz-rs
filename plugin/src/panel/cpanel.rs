@@ -34,7 +34,9 @@ fn mark(ok: bool) -> &'static str {
 fn block(txt: &mut String, title: &str, suffix: &str, prefix: &str) {
     txt.push_str(&format!("╭─「 {title} 」\n"));
     for ver in VALID_SERVERS {
-        txt.push_str(&format!("┃ `{prefix}1gb{ver}` - `{prefix}10gb{ver}` | `{prefix}{suffix}{ver}`\n"));
+        txt.push_str(&format!(
+            "┃ `{prefix}1gb{ver}` - `{prefix}10gb{ver}` | `{prefix}{suffix}{ver}`\n"
+        ));
     }
     txt.push_str("╰───────────────\n\n");
 }
@@ -43,7 +45,9 @@ fn block(txt: &mut String, title: &str, suffix: &str, prefix: &str) {
 fn tri_block(txt: &mut String, title: &str, prefix: &str, a: &str, b: &str, c: &str) {
     txt.push_str(&format!("╭─「 {title} 」\n"));
     for ver in VALID_SERVERS {
-        txt.push_str(&format!("┃ `{prefix}{a}{ver}` | `{prefix}{b}{ver}` | `{prefix}{c}{ver}`\n"));
+        txt.push_str(&format!(
+            "┃ `{prefix}{a}{ver}` | `{prefix}{b}{ver}` | `{prefix}{c}{ver}`\n"
+        ));
     }
     txt.push_str("╰───────────────\n\n");
 }
@@ -69,11 +73,46 @@ pub(crate) fn build_menu(prefix: &str, roles: &str) -> String {
     txt.push_str(&format!("> Role kamu: *{roles}*\n\n"));
 
     block(&mut txt, "📦 *ᴄʀᴇᴀᴛᴇ sᴇʀᴠᴇʀ*", "unli", prefix);
-    tri_block(&mut txt, "👑 *ᴏᴡɴᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*", prefix, "addowner", "delowner", "listowner");
-    tri_block(&mut txt, "🎯 *ᴄᴇᴏ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*", prefix, "addceo", "delceo", "listceo");
-    tri_block(&mut txt, "👥 *ʀᴇsᴇʟʟᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*", prefix, "addreseller", "delreseller", "listreseller");
-    tri_block(&mut txt, "🔐 *ᴀᴅᴍɪɴ ᴘᴀɴᴇʟ*", prefix, "cadmin", "deladmin", "listadmin");
-    tri_block(&mut txt, "🖥️ *sᴇʀᴠᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*", prefix, "listserver", "delserver", "serverinfo");
+    tri_block(
+        &mut txt,
+        "👑 *ᴏᴡɴᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*",
+        prefix,
+        "addowner",
+        "delowner",
+        "listowner",
+    );
+    tri_block(
+        &mut txt,
+        "🎯 *ᴄᴇᴏ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*",
+        prefix,
+        "addceo",
+        "delceo",
+        "listceo",
+    );
+    tri_block(
+        &mut txt,
+        "👥 *ʀᴇsᴇʟʟᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*",
+        prefix,
+        "addreseller",
+        "delreseller",
+        "listreseller",
+    );
+    tri_block(
+        &mut txt,
+        "🔐 *ᴀᴅᴍɪɴ ᴘᴀɴᴇʟ*",
+        prefix,
+        "cadmin",
+        "deladmin",
+        "listadmin",
+    );
+    tri_block(
+        &mut txt,
+        "🖥️ *sᴇʀᴠᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ*",
+        prefix,
+        "listserver",
+        "delserver",
+        "serverinfo",
+    );
 
     txt.push_str("╭─「 👤 *ᴜsᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ* 」\n");
     for ver in VALID_SERVERS {
@@ -83,7 +122,9 @@ pub(crate) fn build_menu(prefix: &str, roles: &str) -> String {
 
     txt.push_str("╭─「 🏪 *ɢᴄ sᴇʟʟᴇʀ ᴘᴀɴᴇʟ* 」\n");
     for ver in VALID_SERVERS {
-        txt.push_str(&format!("┃ `{prefix}addgcseller{ver}` | `{prefix}resetgcseller{ver}`\n"));
+        txt.push_str(&format!(
+            "┃ `{prefix}addgcseller{ver}` | `{prefix}resetgcseller{ver}`\n"
+        ));
     }
     txt.push_str("╰───────────────\n\n");
 
@@ -97,10 +138,14 @@ pub(crate) fn build_menu(prefix: &str, roles: &str) -> String {
     txt.push_str(&format!("┃ `{prefix}vps8g4c` - 8GB/4CPU\n"));
     txt.push_str("┃\n");
     txt.push_str("┃ 🔧 *ᴍᴀɴᴀɢᴇ:*\n");
-    txt.push_str(&format!("┃ `{prefix}listvps` | `{prefix}cekvps` | `{prefix}delvps` | `{prefix}sisavps`\n"));
+    txt.push_str(&format!(
+        "┃ `{prefix}listvps` | `{prefix}cekvps` | `{prefix}delvps` | `{prefix}sisavps`\n"
+    ));
     txt.push_str("┃\n");
     txt.push_str("┃ ⚡ *ᴋᴏɴᴛʀᴏʟ:*\n");
-    txt.push_str(&format!("┃ `{prefix}turnon` | `{prefix}turnoff` | `{prefix}restartvps`\n"));
+    txt.push_str(&format!(
+        "┃ `{prefix}turnon` | `{prefix}turnoff` | `{prefix}restartvps`\n"
+    ));
     txt.push_str("╰───────────────\n\n");
 
     txt.push_str(&format!("> _Powered by {WEBSITE}_"));
@@ -125,7 +170,11 @@ pub(crate) fn build_menu(prefix: &str, roles: &str) -> String {
 )]
 pub fn cpanel(ctx: Ctx) -> Reply {
     // JS: `const prefix = m.prefix || '.'` — mode noprefix tetap pakai titik.
-    let prefix = if ctx.prefix.is_empty() { "." } else { ctx.prefix.as_str() };
+    let prefix = if ctx.prefix.is_empty() {
+        "."
+    } else {
+        ctx.prefix.as_str()
+    };
     Reply::text(build_menu(prefix, &role_list(&ctx)))
 }
 
@@ -147,7 +196,9 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body().expect("plugin harus membalas teks").to_string()
+        r.text_body()
+            .expect("plugin harus membalas teks")
+            .to_string()
     }
 
     #[test]

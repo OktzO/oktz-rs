@@ -8,7 +8,8 @@
 use std::path::PathBuf;
 
 fn fixture() -> serde_json::Value {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/parity/config_text.json");
+    let p =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/parity/config_text.json");
     let raw = std::fs::read_to_string(&p)
         .unwrap_or_else(|e| panic!("fixture parity tidak terbaca: {p:?}: {e}"));
     serde_json::from_str(&raw).expect("fixture parity bukan JSON")

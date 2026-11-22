@@ -8,9 +8,7 @@ const PROMPT: &str = "Transform skin tone to a darker complexion, maintain facia
 
 /// Kartu pakai saat tidak ada gambar.
 pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "🖤 *ʙʟᴀᴄᴋ sᴛʏʟᴇ*\n\n> Kirim/reply gambar\n\n`{prefix}toblack`"
-    )
+    format!("🖤 *ʙʟᴀᴄᴋ sᴛʏʟᴇ*\n\n> Kirim/reply gambar\n\n`{prefix}toblack`")
 }
 
 /// Ambil byte media dari pesan pemicu atau pesan yang di-reply, sama urutan

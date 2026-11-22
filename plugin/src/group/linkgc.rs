@@ -65,7 +65,10 @@ mod tests {
                 None => Err(SockError::baru("tidak ada kode")),
             }
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -115,7 +118,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -148,7 +151,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<String> {
@@ -202,11 +208,7 @@ mod tests {
     fn output_sama_dengan_js_saat_gagal() {
         let sock = Arc::new(StubSock { kode: None });
         let r = linkgc(ctx_dengan(sock));
-        assert!(
-            teks(&r).contains("coba lagi nanti ya"),
-            "{:?}",
-            teks(&r)
-        );
+        assert!(teks(&r).contains("coba lagi nanti ya"), "{:?}", teks(&r));
         assert_eq!(reaksi(&r), Some("☢".to_string()));
     }
 }

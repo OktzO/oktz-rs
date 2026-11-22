@@ -213,7 +213,8 @@ mod tests {
         }
     }
 
-    const DUA_HASIL: &str = r#"{"status": true, "result": ["https://img.example/a.png", "https://img.example/b.png"]}"#;
+    const DUA_HASIL: &str =
+        r#"{"status": true, "result": ["https://img.example/a.png", "https://img.example/b.png"]}"#;
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -293,7 +294,11 @@ mod tests {
             r#"{"status": true}"#,
         ] {
             let r = run(Stub::new(body), "rem");
-            assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "carigambar"), "{body}");
+            assert_eq!(
+                body_of(&r),
+                crate::common::error_template_bawaan(".", "carigambar"),
+                "{body}"
+            );
             assert_eq!(reaction_of(&r), Some("☢"), "{body}");
         }
     }
@@ -302,16 +307,27 @@ mod tests {
     fn one_failed_image_download_rejects_the_whole_promise_all() {
         let http = Stub::offline(DUA_HASIL);
         let r = run(http.clone(), "rem");
-        assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "carigambar"));
+        assert_eq!(
+            body_of(&r),
+            crate::common::error_template_bawaan(".", "carigambar")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
-        assert_eq!(http.seen.lock().unwrap().len(), 2, "berhenti di gambar pertama");
+        assert_eq!(
+            http.seen.lock().unwrap().len(),
+            2,
+            "berhenti di gambar pertama"
+        );
     }
 
     #[test]
     fn a_transport_failure_on_the_search_reports_the_error_template() {
         let http = Stub::empty();
         let r = run(http, "rem");
-        assert!(body_of(&r).contains("command `.carigambar`"), "{}", body_of(&r));
+        assert!(
+            body_of(&r).contains("command `.carigambar`"),
+            "{}",
+            body_of(&r)
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -320,7 +336,10 @@ mod tests {
         let http = Stub::new(r#"{"status": true, "result": []}"#);
         let r = run(http.clone(), "rem");
         let seen = http.seen.lock().unwrap().clone();
-        assert_eq!(seen, ["https://api-faa.my.id/faa/google-image?query=rem&apikey="]);
+        assert_eq!(
+            seen,
+            ["https://api-faa.my.id/faa/google-image?query=rem&apikey="]
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
         assert!(matches!(inner_of(&r), Reply::None));
     }

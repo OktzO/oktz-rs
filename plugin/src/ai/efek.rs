@@ -299,7 +299,8 @@ pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
         .rsplit_once('.')
         .map(|(_, e)| e.to_ascii_lowercase())
         .unwrap_or_default();
-    let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
+    let is_image =
+        ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
     // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
     // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
@@ -379,7 +380,10 @@ pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
 pub(crate) fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
     // Alias lokal: pecah tipe kompleks pasangan nama + fn provider.
-    type ProviderUnggah = (&'static str, fn(&dyn HttpGet, &[u8]) -> Result<String, String>);
+    type ProviderUnggah = (
+        &'static str,
+        fn(&dyn HttpGet, &[u8]) -> Result<String, String>,
+    );
     let providers: [ProviderUnggah; 6] = [
         ("Litterbox", litterbox),
         ("Kappa", kappa),
@@ -423,7 +427,11 @@ pub(crate) fn looks_like_image(buf: &[u8]) -> bool {
 /// `ponytail:` `withTimeout(..., 45000)` dan loop provider
 /// (`effect-api.js:106-120`) tidak bisa disalin tanpa timer + config; ekspos
 /// `effectApi` di `Runtime` kalau host cadangan mau dipakai.
-pub(crate) fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn apply_image_effect(
+    http: &dyn HttpGet,
+    effect: &str,
+    image_url: &str,
+) -> Result<Vec<u8>, String> {
     let url = format!(
         "https://api-faa.my.id/faa/{}?url={}",
         encode_uri_component(effect),
@@ -445,7 +453,6 @@ pub(crate) fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &s
     }
     Ok(buf)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -475,12 +482,15 @@ mod tests {
             Some("https://x/y")
         );
         assert_eq!(
-            file_src_upload_ee(r#"<input id="file_src" name="x" value="https://upload.ee/a.html">"#)
-                .as_deref(),
+            file_src_upload_ee(
+                r#"<input id="file_src" name="x" value="https://upload.ee/a.html">"#
+            )
+            .as_deref(),
             Some("https://upload.ee/a.html")
         );
         assert_eq!(
-            view_file_upload_ee("View file: <br /><a href=\"https://upload.ee/b.html\">").as_deref(),
+            view_file_upload_ee("View file: <br /><a href=\"https://upload.ee/b.html\">")
+                .as_deref(),
             Some("https://upload.ee/b.html")
         );
         assert_eq!(

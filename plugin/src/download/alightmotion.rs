@@ -39,7 +39,9 @@ fn api_url(target_url: &str) -> String {
 /// `data.data.url` string tidak kosong. `||` JS membuat `0`/`""`/`null` gagal,
 // jadi `as_str` yang kosong ikut ditolak.
 fn download_url(body: &Value) -> Option<String> {
-    let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
+    let status_ok = body
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value);
     let d = body.get("data").filter(|v| status_ok && !v.is_null())?;
     d.get("url")
         .and_then(Value::as_str)
@@ -284,7 +286,9 @@ mod tests {
         );
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
-            &["https://kyzznekoo.zone.id/api/alightmotion/download?url=https%3A%2F%2Falight.link%2Fabc"]
+            &[
+                "https://kyzznekoo.zone.id/api/alightmotion/download?url=https%3A%2F%2Falight.link%2Fabc"
+            ]
         );
     }
 

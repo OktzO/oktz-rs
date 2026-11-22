@@ -161,8 +161,16 @@ mod tests {
                 .filter(|(_, t)| text.contains(**t))
                 .map(|(i, _)| i)
                 .collect();
-            assert_eq!(hits.len(), 1, "harus tepat satu tier, dapat {hits:?}: {text}");
-            assert_eq!(TIERS[hits[0]], berat_desc(kg), "tier beda dari ambang: {text}");
+            assert_eq!(
+                hits.len(),
+                1,
+                "harus tepat satu tier, dapat {hits:?}: {text}"
+            );
+            assert_eq!(
+                TIERS[hits[0]],
+                berat_desc(kg),
+                "tier beda dari ambang: {text}"
+            );
         }
     }
 

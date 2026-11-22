@@ -106,7 +106,10 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("howgay").unwrap().meta.name, "gaycheck");
+        assert_eq!(
+            oktz_plugin_api::find("howgay").unwrap().meta.name,
+            "gaycheck"
+        );
     }
 
     #[test]
@@ -136,7 +139,10 @@ mod tests {
             assert!(!text.contains("@s.whatsapp.net"), "server harus dibuang");
             for m in &mentions {
                 assert!(["628111@s.whatsapp.net", "628222@s.whatsapp.net"].contains(&m.as_str()));
-                assert!(text.contains(&format!("@{}", jid_number(m))), "{text} vs {mentions:?}");
+                assert!(
+                    text.contains(&format!("@{}", jid_number(m))),
+                    "{text} vs {mentions:?}"
+                );
             }
         }
     }

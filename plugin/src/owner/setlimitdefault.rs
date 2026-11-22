@@ -53,10 +53,7 @@ pub(crate) fn usage(ctx: &Ctx) -> String {
 pub fn setlimitdefault(ctx: Ctx) -> Reply {
     // `!args[0] || isNaN(parseInt(args[0]))` — `parseInt("50px")` = 50, jadi
     // "50px" DITERIMA di sini, beda dari `dellevel` yang memakai `isNaN`.
-    let parsed = ctx
-        .args
-        .first()
-        .and_then(|a| crate::common::parse_int(a));
+    let parsed = ctx.args.first().and_then(|a| crate::common::parse_int(a));
 
     let Some(new_limit) = parsed else {
         return Reply::text(usage(&ctx));
@@ -76,7 +73,7 @@ pub fn setlimitdefault(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(args: &str, settings: Value) -> Reply {
         let ctx = Ctx {
@@ -121,7 +118,10 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["setdefaultlimit", "limitdefault"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "setlimitdefault");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "setlimitdefault"
+            );
         }
     }
 
@@ -141,7 +141,10 @@ mod tests {
         }
         // batas inklusif
         for good in ["1", "1000"] {
-            assert!(written(&run(good, serde_json::json!({}))).is_some(), "arg {good}");
+            assert!(
+                written(&run(good, serde_json::json!({}))).is_some(),
+                "arg {good}"
+            );
         }
     }
 
@@ -149,7 +152,10 @@ mod tests {
     fn a_missing_or_unparsable_argument_shows_usage_and_writes_nothing() {
         for bad in ["", "abc", "abc def"] {
             let r = run(bad, serde_json::json!({}));
-            assert!(text_of(&r).starts_with("📊 *sᴇᴛ ᴅᴇғᴀᴜʟᴛ ʟɪᴍɪᴛ*"), "arg {bad:?}");
+            assert!(
+                text_of(&r).starts_with("📊 *sᴇᴛ ᴅᴇғᴀᴜʟᴛ ʟɪᴍɪᴛ*"),
+                "arg {bad:?}"
+            );
             assert!(r.mutations().is_empty(), "arg {bad:?}");
         }
     }

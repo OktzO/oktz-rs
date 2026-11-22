@@ -47,7 +47,7 @@ fn prompt() -> String {
     "🎩✨ *ᴘᴇʀᴛᴜɴᴊᴜᴋᴀɴ sᴜʟᴀᴘ*\n\n\
      Siapa yang ingin dihilangkan?\n\n\
      > Reply pesan ini + mention orangnya"
-    .to_string()
+        .to_string()
 }
 
 /// Baris sukses acak — `successLines[Math.floor(Math.random() * len)]`.
@@ -101,7 +101,10 @@ pub fn sulap_reply(ctx: Ctx) -> Option<Reply> {
 
     // Kedaluwarsa 120 detik — padanan `setTimeout(..., 120000)` yang menghapus
     // sesi; di sini dicek malas lalu sesi dibuang.
-    let timestamp = session.get("timestamp").and_then(|v| v.as_i64()).unwrap_or(0);
+    let timestamp = session
+        .get("timestamp")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
     if now_ms() - timestamp >= EXPIRED_MS {
         ctx.session_take(&key);
         return None;
@@ -150,7 +153,11 @@ pub fn sulap_reply(ctx: Ctx) -> Option<Reply> {
 
     // `sock.groupParticipantsUpdate(m.chat, [targetJid], 'remove')`; kegagalan
     // jatuh ke `catch` JS: "😅 Sulapnya gagal...".
-    if let Err(e) = ctx.sock().ubah_peserta(&ctx.chat, std::slice::from_ref(&target_jid), AksiPeserta::Keluar) {
+    if let Err(e) = ctx.sock().ubah_peserta(
+        &ctx.chat,
+        std::slice::from_ref(&target_jid),
+        AksiPeserta::Keluar,
+    ) {
         return Some(Reply::text(format!(
             "😅 Sulapnya gagal...\n\n> {}",
             e.pesan
@@ -210,7 +217,11 @@ mod tests {
         ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
-        fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, oktz_plugin_api::SockError> {
+        fn foto_profil(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<Option<String>, oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
         fn metadata_grup(&self, _: &str) -> Result<serde_json::Value, oktz_plugin_api::SockError> {
@@ -265,10 +276,13 @@ mod tests {
         fn nama_kontak(&self, _: &str) -> Result<String, oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
-        fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, oktz_plugin_api::SockError> {
+        fn profil_bisnis(
+            &self,
+            _: &str,
+        ) -> Result<Option<serde_json::Value>, oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), oktz_plugin_api::SockError> {
             Err(oktz_plugin_api::SockError::baru("x"))
         }
@@ -329,7 +343,10 @@ mod tests {
         assert_eq!(p.meta.name, "sulap");
         assert_eq!(p.meta.alias, ["magic", "magictrick"]);
         assert_eq!(p.meta.category, "fun");
-        assert_eq!(p.meta.description, "Pertunjukan sulap - kick member secara dramatis");
+        assert_eq!(
+            p.meta.description,
+            "Pertunjukan sulap - kick member secara dramatis"
+        );
         assert_eq!(p.meta.usage, ".sulap");
         assert_eq!(p.meta.example, ".sulap");
         assert_eq!(p.meta.cooldown, 60);
@@ -384,7 +401,13 @@ mod tests {
         sulap(ctx_prompt(sessions.clone()));
         let r = sulap_reply(reply_ctx(sessions.clone(), "bot@x")).expect("harus menangani");
         // Sesi habis setelah dipakai.
-        assert!(sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none());
+        assert!(
+            sessions
+                .lock()
+                .unwrap()
+                .get(&session_key("120363@g.us", ME))
+                .is_none()
+        );
         let Reply::Sequence(list) = r else {
             panic!("harus Sequence, dapat {r:?}");
         };
@@ -399,7 +422,10 @@ mod tests {
             Reply::Text { text, mentions } => {
                 let num = jid_number(ME);
                 assert!(text.contains("🎯 @628222 telah menghilang!"), "{text}");
-                assert!(text.contains(format!("🎩 Pesulap: @{num}").as_str()), "{text}");
+                assert!(
+                    text.contains(format!("🎩 Pesulap: @{num}").as_str()),
+                    "{text}"
+                );
                 assert!(text.ends_with("> _Pertunjukan selesai~_ ✨"), "{text}");
                 assert_eq!(mentions, &[TARGET.to_string(), ME.to_string()]);
             }
@@ -495,7 +521,11 @@ mod tests {
         let r = sulap_reply(reply_ctx(sessions.clone(), "bot@x"));
         assert!(r.is_none(), "sesi kadaluarsa harus ditolak");
         assert!(
-            sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none(),
+            sessions
+                .lock()
+                .unwrap()
+                .get(&session_key("120363@g.us", ME))
+                .is_none(),
             "sesi kadaluarsa harus dihapus"
         );
     }

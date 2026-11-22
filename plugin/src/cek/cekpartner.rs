@@ -98,11 +98,11 @@ pub fn cekpartner(ctx: Ctx) -> Reply {
     let mut txt = String::from("🤝 *DETAIL PARTNER*\n\n");
     txt.push_str(&format!("👤 User: @{number}\n"));
     txt.push_str(&format!("📛 Nama: *{}*\n", name_of(&info)));
+    txt.push_str(&format!("📅 Mulai: *{}*\n", added_at(&info)));
     txt.push_str(&format!(
-        "📅 Mulai: *{}*\n",
-        added_at(&info)
+        "⏳ Expired: *{}*\n",
+        format_date(info.get("expired"))
     ));
-    txt.push_str(&format!("⏳ Expired: *{}*\n", format_date(info.get("expired"))));
     txt.push_str(&format!("🗓️ Durasi: *{} hari*\n", total_days(&info)));
     txt.push_str(&format!(
         "📊 Sisa: *{}*\n",
@@ -137,7 +137,7 @@ pub fn cekpartner(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     const ME: &str = "628111@s.whatsapp.net";
 
@@ -191,7 +191,11 @@ mod tests {
 
     #[test]
     fn a_number_outside_the_list_takes_the_short_error_branch() {
-        for settings in [serde_json::json!({}), serde_json::json!({"partner": []}), serde_json::json!({"partner": "x"})] {
+        for settings in [
+            serde_json::json!({}),
+            serde_json::json!({"partner": []}),
+            serde_json::json!({"partner": "x"}),
+        ] {
             let ctx = Ctx {
                 settings: settings.clone(),
                 ..base()
@@ -218,8 +222,14 @@ mod tests {
         assert!(text.contains("📛 Nama: *Zann*"), "{text}");
         assert!(text.contains("🗓️ Durasi: *30 hari*"), "{text}");
         assert!(text.contains("📊 Sisa: *20 hari*"), "{text}");
-        assert!(text.contains(&format!("📅 Mulai: *{}*", date_long(added))), "{text}");
-        assert!(text.contains(&format!("⏳ Expired: *{}*", date_long(expired))), "{text}");
+        assert!(
+            text.contains(&format!("📅 Mulai: *{}*", date_long(added))),
+            "{text}"
+        );
+        assert!(
+            text.contains(&format!("⏳ Expired: *{}*", date_long(expired))),
+            "{text}"
+        );
         assert_eq!(mentions, vec![ME.to_string()]);
     }
 
@@ -295,7 +305,10 @@ mod tests {
     fn format_date_passes_through_a_non_numeric_timestamp() {
         assert_eq!(format_date(Some(&Value::Null)), "Invalid Date");
         assert_eq!(format_date(None), "Invalid Date");
-        assert_eq!(format_date(Some(&serde_json::json!("nope"))), "Invalid Date");
+        assert_eq!(
+            format_date(Some(&serde_json::json!("nope"))),
+            "Invalid Date"
+        );
     }
 
     /// Prefiks normalisasi nomor di JS (`cekpartner.js:44`):

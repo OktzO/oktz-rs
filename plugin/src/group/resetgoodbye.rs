@@ -40,7 +40,7 @@ pub fn resetgoodbye(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value) -> Reply {
         let ctx = Ctx {
@@ -82,7 +82,10 @@ mod tests {
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && p.meta.is_admin && !p.meta.is_private);
-        assert!(!p.meta.is_bot_admin, "isBotAdmin tidak ada di pluginConfig JS");
+        assert!(
+            !p.meta.is_bot_admin,
+            "isBotAdmin tidak ada di pluginConfig JS"
+        );
     }
 
     #[test]

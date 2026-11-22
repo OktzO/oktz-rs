@@ -3,7 +3,7 @@
 //! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -188,7 +188,10 @@ mod tests {
             }
             assert_eq!(d["rpg"]["stamina"], serde_json::json!(88));
         }
-        assert!(razia > 0 && jackpot > 0 && biasa > 0, "{razia}/{jackpot}/{biasa}");
+        assert!(
+            razia > 0 && jackpot > 0 && biasa > 0,
+            "{razia}/{jackpot}/{biasa}"
+        );
     }
 
     #[test]
@@ -196,7 +199,11 @@ mod tests {
         for _ in 0..6000 {
             let r = run(serde_json::json!({"rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
             if text_of(&r).starts_with("WADUH ADA RAZIA") {
-                assert_eq!(written(&r)["koin"], serde_json::json!(0), "Math.max(0, ...)");
+                assert_eq!(
+                    written(&r)["koin"],
+                    serde_json::json!(0),
+                    "Math.max(0, ...)"
+                );
                 return;
             }
         }

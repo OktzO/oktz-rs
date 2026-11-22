@@ -43,11 +43,7 @@ pub fn lahelu(ctx: Ctx) -> Reply {
 
     let res = match ctx.http.get(&url) {
         Ok(r) => r,
-        Err(_) => {
-            return Reply::text(
-                "☢ Terjadi kesalahan saat mengambil data lahelu.",
-            )
-        }
+        Err(_) => return Reply::text("☢ Terjadi kesalahan saat mengambil data lahelu."),
     };
 
     let data = match res.json() {
@@ -66,14 +62,8 @@ pub fn lahelu(ctx: Ctx) -> Reply {
 
     let idx = crate::common::random_index(arr.len());
     let random = &arr[idx];
-    let media = random
-        .get("media")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let title = random
-        .get("title")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let media = random.get("media").and_then(Value::as_str).unwrap_or("");
+    let title = random.get("title").and_then(Value::as_str).unwrap_or("");
 
     if media.contains(".mp4") {
         Reply::video(MediaSource::url(media), title)
@@ -116,7 +106,9 @@ mod tests {
                     },
                     headers: Vec::new(),
                 }),
-                None => Err(oktz_plugin_api::HttpError { message: "offline".into() }),
+                None => Err(oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                }),
             }
         }
         fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
@@ -125,7 +117,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
     }

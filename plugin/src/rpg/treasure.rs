@@ -4,7 +4,7 @@
 //! `toLocaleString()` tanpa locale memakai koma (default Node `en-US`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -17,8 +17,24 @@ pub(crate) const CHESTS: [(&str, &str, i64, i64, i64, i64, &str); 5] = [
     ("woodenchest", "📦 Wooden Chest", 50, 200, 30, 80, "common"),
     ("ironchest", "🗃️ Iron Chest", 150, 500, 80, 150, "uncommon"),
     ("goldchest", "🎁 Gold Chest", 400, 1200, 150, 300, "rare"),
-    ("diamondchest", "💎 Diamond Chest", 1000, 3000, 300, 600, "epic"),
-    ("mysterybox", "🎲 Mystery Box", 500, 5000, 200, 800, "legendary"),
+    (
+        "diamondchest",
+        "💎 Diamond Chest",
+        1000,
+        3000,
+        300,
+        600,
+        "epic",
+    ),
+    (
+        "mysterybox",
+        "🎲 Mystery Box",
+        500,
+        5000,
+        200,
+        800,
+        "legendary",
+    ),
 ];
 
 /// `(item, qty min, qty max, chance persen)`.
@@ -74,7 +90,9 @@ pub(crate) const LOOT: [(&str, &[LootEntry]); 5] = [
     ),
 ];
 
-pub(crate) fn find_chest(key: &str) -> Option<&'static (&'static str, &'static str, i64, i64, i64, i64, &'static str)> {
+pub(crate) fn find_chest(
+    key: &str,
+) -> Option<&'static (&'static str, &'static str, i64, i64, i64, i64, &'static str)> {
     CHESTS.iter().find(|c| c.0 == key)
 }
 
@@ -151,7 +169,9 @@ pub fn treasure(ctx: Ctx) -> Reply {
     for (item, qmin, qmax, chance) in loot_of(rarity).iter() {
         if math_random() * 100.0 < *chance {
             let q = roll_incl(*qmin, *qmax);
-            let slot = inv.entry((*item).to_string()).or_insert(serde_json::json!(0));
+            let slot = inv
+                .entry((*item).to_string())
+                .or_insert(serde_json::json!(0));
             let prev = slot.as_i64().unwrap_or(0);
             *slot = serde_json::json!(prev + q);
             dropped.push(format!("{item} (x{q})"));
@@ -235,7 +255,10 @@ mod tests {
         assert_eq!(p.meta.name, "treasure");
         assert_eq!(p.meta.alias, ["chest", "peti", "openbox"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(p.meta.description, "Buka treasure chest untuk hadiah random");
+        assert_eq!(
+            p.meta.description,
+            "Buka treasure chest untuk hadiah random"
+        );
         assert_eq!(p.meta.usage, ".treasure");
         assert_eq!(p.meta.example, ".treasure");
         assert_eq!(p.meta.cooldown, 30);
@@ -263,7 +286,10 @@ mod tests {
 
     #[test]
     fn the_vault_lists_only_the_chests_actually_owned() {
-        let r = run(&[], serde_json::json!({"inventory": {"goldchest": 2, "woodenchest": 5, "mysterybox": 0}}));
+        let r = run(
+            &[],
+            serde_json::json!({"inventory": {"goldchest": 2, "woodenchest": 5, "mysterybox": 0}}),
+        );
         let t = text_of(&r);
         assert!(t.contains("📦 🎁 Gold Chest: *2 pcs*"), "{t}");
         assert!(t.contains("📦 📦 Wooden Chest: *5 pcs*"), "{t}");
@@ -277,7 +303,10 @@ mod tests {
         let unknown = text(run(&["emasbesar"], serde_json::json!({})));
         assert_eq!(unknown, "Peti *emasbesar* nggak ada di database kak!");
 
-        let empty = text(run(&["goldchest"], serde_json::json!({"inventory": {"goldchest": 0}})));
+        let empty = text(run(
+            &["goldchest"],
+            serde_json::json!({"inventory": {"goldchest": 0}}),
+        ));
         assert_eq!(empty, "Peti *🎁 Gold Chest* kamu lagi kosong kak! 😅");
     }
 
@@ -314,11 +343,17 @@ mod tests {
 
     #[test]
     fn the_chest_itself_is_consumed_and_a_lone_copy_disappears() {
-        let r = run(&["ironchest"], serde_json::json!({"inventory": {"ironchest": 1}}));
+        let r = run(
+            &["ironchest"],
+            serde_json::json!({"inventory": {"ironchest": 1}}),
+        );
         let inv = written(&r)["inventory"].as_object().unwrap().clone();
         assert!(!inv.contains_key("ironchest"), "sisa 0 dihapus: {inv:?}");
 
-        let r = run(&["ironchest"], serde_json::json!({"inventory": {"ironchest": 3}}));
+        let r = run(
+            &["ironchest"],
+            serde_json::json!({"inventory": {"ironchest": 3}}),
+        );
         assert_eq!(written(&r)["inventory"]["ironchest"], serde_json::json!(2));
     }
 
@@ -346,7 +381,10 @@ mod tests {
                     });
                 match listed {
                     Some(q) => {
-                        assert!((*qmin..=*qmax).contains(&q), "{item}: {q} di luar {qmin}..{qmax}");
+                        assert!(
+                            (*qmin..=*qmax).contains(&q),
+                            "{item}: {q} di luar {qmin}..{qmax}"
+                        );
                         assert!(inv.get(*item).and_then(Value::as_i64).unwrap_or(0) >= q);
                     }
                     None => assert!(
@@ -363,7 +401,10 @@ mod tests {
         for &(key, _, _, _, _, _, rarity) in CHESTS.iter() {
             let loud = matches!(rarity, "epic" | "legendary");
             for _ in 0..60 {
-                let r = run(&[key], serde_json::json!({"koin": 0, "exp": 0, "inventory": {key: 1}}));
+                let r = run(
+                    &[key],
+                    serde_json::json!({"koin": 0, "exp": 0, "inventory": {key: 1}}),
+                );
                 assert_eq!(
                     text_of(&r).contains("HOKI BANGET KAK!"),
                     loud,
@@ -384,7 +425,10 @@ mod tests {
             let t = text_of(&r);
             if t.contains("nggak dapet item tambahan") {
                 seen = true;
-                let listed = t.lines().filter(|l| l.trim_start().starts_with("• ")).count();
+                let listed = t
+                    .lines()
+                    .filter(|l| l.trim_start().starts_with("• "))
+                    .count();
                 assert_eq!(listed, 0, "{t}");
                 break;
             }

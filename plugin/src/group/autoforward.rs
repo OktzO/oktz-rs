@@ -69,7 +69,7 @@ pub fn autoforward(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -136,18 +136,30 @@ mod tests {
     #[test]
     fn no_argument_reports_status_without_writing() {
         let off = run(serde_json::json!({}), "");
-        assert!(text_of(&off).contains("┃ ◦ Status: *❌ OFF*"), "{}", text_of(&off));
+        assert!(
+            text_of(&off).contains("┃ ◦ Status: *❌ OFF*"),
+            "{}",
+            text_of(&off)
+        );
         assert!(off.mutations().is_empty());
 
         let on = run(serde_json::json!({"autoforward": true}), "");
-        assert!(text_of(&on).contains("┃ ◦ Status: *✅ ON*"), "{}", text_of(&on));
+        assert!(
+            text_of(&on).contains("┃ ◦ Status: *✅ ON*"),
+            "{}",
+            text_of(&on)
+        );
         assert!(on.mutations().is_empty());
     }
 
     #[test]
     fn a_non_boolean_stored_value_counts_as_active_like_javascript() {
         let r = run(serde_json::json!({"autoforward": "ya"}), "");
-        assert!(text_of(&r).contains("┃ ◦ Status: *✅ ON*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ ◦ Status: *✅ ON*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

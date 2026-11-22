@@ -39,7 +39,11 @@ fn format_date(timestamp: Option<i64>) -> String {
         return "—".to_string();
     }
     // `typeof timestamp === "number" && timestamp < 1e12 ? ts * 1000 : ts`
-    let ms = if ts < 1_000_000_000_000 { ts * 1000 } else { ts };
+    let ms = if ts < 1_000_000_000_000 {
+        ts * 1000
+    } else {
+        ts
+    };
     let parts = crate::common::jakarta_parts(ms);
     format!(
         "{:02}/{:02}/{} {:02}:{:02}",
@@ -120,9 +124,13 @@ fn html_unescape(raw: &str) -> String {
 fn meta_content(html: &str, key: &str) -> Option<String> {
     let mut nilai = String::new();
     for pola in [format!("property=\"{key}\""), format!("name=\"{key}\"")] {
-        let Some(pos) = html.find(&pola) else { continue };
+        let Some(pos) = html.find(&pola) else {
+            continue;
+        };
         let tag = &html[pos..pos + html[pos..].find('>')?];
-        let Some(cpos) = tag.find("content=\"") else { continue };
+        let Some(cpos) = tag.find("content=\"") else {
+            continue;
+        };
         let vstart = cpos + "content=\"".len();
         let vend = tag[vstart..].find('"')?;
         nilai = html_unescape(&tag[vstart..vstart + vend]);
@@ -162,10 +170,20 @@ fn status_verifikasi(verification: Option<&str>) -> &'static str {
 /// Ambil ID channel dari link — `socket.js:1313-1320`.
 fn channel_id_dari(url: &str) -> String {
     if let Some(rest) = url.split("whatsapp.com/channel/").nth(1) {
-        return rest.split(['/', '?', '#'].as_slice()).next().unwrap_or("").trim().to_string();
+        return rest
+            .split(['/', '?', '#'].as_slice())
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
     }
     if let Some(rest) = url.split("wa.me/channel/").nth(1) {
-        return rest.split(['/', '?', '#'].as_slice()).next().unwrap_or("").trim().to_string();
+        return rest
+            .split(['/', '?', '#'].as_slice())
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
     }
     url.to_string()
 }
@@ -398,11 +416,7 @@ mod tests {
                 }),
             }
         }
-        fn post_json(
-            &self,
-            _: &str,
-            _: &serde_json::Value,
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_json(&self, _: &str, _: &serde_json::Value) -> Result<HttpResponse, HttpError> {
             unimplemented!("cuma GET")
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
@@ -488,6 +502,9 @@ mod tests {
             channel_id_dari("https://whatsapp.com/channel/0029ABC?x=1"),
             "0029ABC"
         );
-        assert_eq!(channel_id_dari("https://wa.me/channel/0029XYZ/1"), "0029XYZ");
+        assert_eq!(
+            channel_id_dari("https://wa.me/channel/0029XYZ/1"),
+            "0029XYZ"
+        );
     }
 }

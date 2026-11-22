@@ -13,12 +13,28 @@ fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema, judul: &str, contoh: &str) -> 
     let png = oktz_plugin_api::render_brat(&parsed, tema, blur).unwrap_or_default();
     let cfg = ctx.config();
     let (pn, au) = (
-        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
-        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
+        if cfg.sticker.packname.is_empty() {
+            "Sticker".to_string()
+        } else {
+            cfg.sticker.packname.clone()
+        },
+        if cfg.sticker.author.is_empty() {
+            "Bot".to_string()
+        } else {
+            cfg.sticker.author.clone()
+        },
     );
     let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).unwrap_or(png.clone());
-    let bytes = oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp);
-    Reply::sticker_opsi(MediaSource::bytes(bytes).with_mimetype("image/webp"), oktz_plugin_api::StickerOpsi::gambar().with_packname(pn).with_author(au)).with_reaction("✅")
+    let bytes =
+        oktz_plugin_api::tempel_metadata_stiker(&webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS)
+            .unwrap_or(webp);
+    Reply::sticker_opsi(
+        MediaSource::bytes(bytes).with_mimetype("image/webp"),
+        oktz_plugin_api::StickerOpsi::gambar()
+            .with_packname(pn)
+            .with_author(au),
+    )
+    .with_reaction("✅")
 }
 
 #[plugin(
@@ -34,7 +50,12 @@ fn run(ctx: Ctx, tema: oktz_plugin_api::BratTema, judul: &str, contoh: &str) -> 
     is_private = false
 )]
 pub fn bratgreen(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Hijau, "BRAT GREEN", "bratgreen")
+    run(
+        ctx,
+        oktz_plugin_api::BratTema::Hijau,
+        "BRAT GREEN",
+        "bratgreen",
+    )
 }
 
 #[plugin(
@@ -50,7 +71,12 @@ pub fn bratgreen(ctx: Ctx) -> Reply {
     is_private = false
 )]
 pub fn bratanime(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Anime, "ʙʀᴀᴛ ᴀɴɪᴍᴇ sᴛɪᴄᴋᴇʀ", "animebrat")
+    run(
+        ctx,
+        oktz_plugin_api::BratTema::Anime,
+        "ʙʀᴀᴛ ᴀɴɪᴍᴇ sᴛɪᴄᴋᴇʀ",
+        "animebrat",
+    )
 }
 
 #[plugin(
@@ -66,5 +92,10 @@ pub fn bratanime(ctx: Ctx) -> Reply {
     is_private = false
 )]
 pub fn bratcewek(ctx: Ctx) -> Reply {
-    run(ctx, oktz_plugin_api::BratTema::Cewek, "ʙʀᴀᴛ cᴇᴡᴇᴋ sᴛɪᴄᴋᴇʀ", "bratcewek")
+    run(
+        ctx,
+        oktz_plugin_api::BratTema::Cewek,
+        "ʙʀᴀᴛ cᴇᴡᴇᴋ sᴛɪᴄᴋᴇʀ",
+        "bratcewek",
+    )
 }

@@ -209,7 +209,12 @@ mod tests {
         }
     }
 
-    fn run(quoted: Option<QuotedMessage>, media: Option<IncomingMedia>, unduh: Unduh, sock: Arc<SockUji>) -> String {
+    fn run(
+        quoted: Option<QuotedMessage>,
+        media: Option<IncomingMedia>,
+        unduh: Unduh,
+        sock: Arc<SockUji>,
+    ) -> String {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "setpp".into(),
@@ -227,7 +232,9 @@ mod tests {
     }
 
     fn unduh_ok() -> Unduh {
-        Unduh { hasil: Ok(PNG_FIXTURE.to_vec()) }
+        Unduh {
+            hasil: Ok(PNG_FIXTURE.to_vec()),
+        }
     }
 
     #[test]
@@ -245,9 +252,19 @@ mod tests {
     fn without_an_image_it_shows_the_usage_card() {
         // JS: `buffer` tetap null untuk quoted non-gambar dan pesan tanpa media.
         assert_eq!(run(None, None, unduh_ok(), Default::default()), usage("."));
-        for kind in [QuotedKind::Text, QuotedKind::Video, QuotedKind::Sticker, QuotedKind::Document] {
+        for kind in [
+            QuotedKind::Text,
+            QuotedKind::Video,
+            QuotedKind::Sticker,
+            QuotedKind::Document,
+        ] {
             assert_eq!(
-                run(Some(quoted(kind.clone())), None, unduh_ok(), Default::default()),
+                run(
+                    Some(quoted(kind.clone())),
+                    None,
+                    unduh_ok(),
+                    Default::default()
+                ),
                 usage("."),
                 "{kind:?}"
             );
@@ -274,7 +291,11 @@ mod tests {
 
     #[test]
     fn download_failure_is_gagal_ambil() {
-        let unduh = Unduh { hasil: Err(MediaError { message: "410".into() }) };
+        let unduh = Unduh {
+            hasil: Err(MediaError {
+                message: "410".into(),
+            }),
+        };
         assert_eq!(
             run(Some(quoted_image()), None, unduh, Default::default()),
             gagal_ambil()
@@ -285,12 +306,21 @@ mod tests {
     fn empty_download_shows_the_usage_card_like_js() {
         // JS `if (!buffer)` — unduhan kosong = tidak ada gambar.
         let unduh = Unduh { hasil: Ok(vec![]) };
-        assert_eq!(run(Some(quoted_image()), None, unduh, Default::default()), usage("."));
+        assert_eq!(
+            run(Some(quoted_image()), None, unduh, Default::default()),
+            usage(".")
+        );
     }
 
     #[test]
     fn sock_failure_carries_the_error_message() {
-        let sock = Arc::new(SockUji { foto: Mutex::new(Vec::new()), gagal: true });
-        assert_eq!(run(Some(quoted_image()), None, unduh_ok(), sock), gagal("IQ gagal: timeout"));
+        let sock = Arc::new(SockUji {
+            foto: Mutex::new(Vec::new()),
+            gagal: true,
+        });
+        assert_eq!(
+            run(Some(quoted_image()), None, unduh_ok(), sock),
+            gagal("IQ gagal: timeout")
+        );
     }
 }

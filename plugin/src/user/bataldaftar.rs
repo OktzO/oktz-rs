@@ -59,7 +59,7 @@ pub fn bataldaftar(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::{Ctx, SessionStore, new_session_store};
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(sessions: Value, sender: &str) -> (Reply, bool) {
         let store: SessionStore = new_session_store();
@@ -86,12 +86,12 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("bataldaftar").unwrap();
         assert_eq!(p.meta.name, "bataldaftar");
-        assert_eq!(
-            p.meta.alias,
-            ["cancelreg", "canceldaftar", "regcancel"]
-        );
+        assert_eq!(p.meta.alias, ["cancelreg", "canceldaftar", "regcancel"]);
         assert_eq!(p.meta.category, "user");
-        assert_eq!(p.meta.description, "Batalkan sesi pendaftaran yang sedang aktif");
+        assert_eq!(
+            p.meta.description,
+            "Batalkan sesi pendaftaran yang sedang aktif"
+        );
         assert_eq!(p.meta.usage, ".bataldaftar");
         assert_eq!(p.meta.example, ".bataldaftar");
         assert_eq!(p.meta.cooldown, 3);
@@ -122,10 +122,16 @@ mod tests {
 
     #[test]
     fn an_existing_session_is_cleared_and_confirmed() {
-        let (r, had) = run(serde_json::json!({"628111": {"step": "name"}}), "628111@s.whatsapp.net");
+        let (r, had) = run(
+            serde_json::json!({"628111": {"step": "name"}}),
+            "628111@s.whatsapp.net",
+        );
         assert!(had, "sesi harus ada sebelum handler jalan");
         let t = text_of(&r);
-        assert!(t.starts_with("✅ Sesi pendaftaran berhasil dibatalkan."), "{t}");
+        assert!(
+            t.starts_with("✅ Sesi pendaftaran berhasil dibatalkan."),
+            "{t}"
+        );
         assert!(t.contains("> Mulai lagi dengan: `.daftar`"), "{t}");
     }
 
@@ -151,7 +157,10 @@ mod tests {
     #[test]
     fn a_session_belonging_to_someone_else_is_untouched() {
         let store = new_session_store();
-        store.lock().unwrap().insert("628999".into(), serde_json::json!({"step": "name"}));
+        store
+            .lock()
+            .unwrap()
+            .insert("628999".into(), serde_json::json!({"step": "name"}));
         let ctx = Ctx {
             prefix: ".".into(),
             command: "bataldaftar".into(),
@@ -176,11 +185,16 @@ mod tests {
                 sessions: store.clone(),
                 ..Default::default()
             };
-            text_of(&(oktz_plugin_api::find("bataldaftar").unwrap().handler)(ctx))
+            text_of(&(oktz_plugin_api::find("bataldaftar").unwrap().handler)(
+                ctx,
+            ))
         };
 
         let store = new_session_store();
-        store.lock().unwrap().insert("6281115".into(), serde_json::json!({"step": "age"}));
+        store
+            .lock()
+            .unwrap()
+            .insert("6281115".into(), serde_json::json!({"step": "age"}));
         assert!(
             clear(store).starts_with("✅ Sesi pendaftaran berhasil dibatalkan."),
             "kunci digit-only `6281115` harus ketemu"
@@ -191,7 +205,11 @@ mod tests {
             .lock()
             .unwrap()
             .insert("628111".into(), serde_json::json!({"step": "age"}));
-        assert_eq!(clear(store), NONE, "suffix device menggeser kunci, bukan diabaikan");
+        assert_eq!(
+            clear(store),
+            NONE,
+            "suffix device menggeser kunci, bukan diabaikan"
+        );
     }
 
     // `getRegistrationSessionEntry` (daftar.js:108) jatuh ke kunci legacy
@@ -199,10 +217,10 @@ mod tests {
     #[test]
     fn a_session_stored_under_the_raw_jid_is_still_found() {
         let store = new_session_store();
-        store
-            .lock()
-            .unwrap()
-            .insert("628111@s.whatsapp.net".into(), serde_json::json!({"step": "name"}));
+        store.lock().unwrap().insert(
+            "628111@s.whatsapp.net".into(),
+            serde_json::json!({"step": "name"}),
+        );
         let ctx = Ctx {
             prefix: ".".into(),
             command: "bataldaftar".into(),
@@ -211,8 +229,10 @@ mod tests {
             ..Default::default()
         };
         assert!(
-            text_of(&(oktz_plugin_api::find("bataldaftar").unwrap().handler)(ctx))
-                .starts_with("✅ Sesi pendaftaran berhasil dibatalkan.")
+            text_of(&(oktz_plugin_api::find("bataldaftar").unwrap().handler)(
+                ctx
+            ))
+            .starts_with("✅ Sesi pendaftaran berhasil dibatalkan.")
         );
         assert!(store.lock().unwrap().is_empty());
     }

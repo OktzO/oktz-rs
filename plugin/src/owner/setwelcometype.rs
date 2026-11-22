@@ -20,14 +20,34 @@ use serde_json::Value;
 
 /// `VARIANTS` (`setwelcometype.js:17-38`) — `(id, name, desc, emoji)`.
 const VARIANTS: &[(&str, &str, &str, &str)] = &[
-    ("1", "Canvas Image", "Gambar canvas dengan foto profil", "🎨"),
-    ("2", "Carousel Cards", "Kartu carousel interaktif dengan tombol", "🃏"),
+    (
+        "1",
+        "Canvas Image",
+        "Gambar canvas dengan foto profil",
+        "🎨",
+    ),
+    (
+        "2",
+        "Carousel Cards",
+        "Kartu carousel interaktif dengan tombol",
+        "🃏",
+    ),
     ("3", "Text Only", "Pesan teks minimalis tanpa gambar", "📝"),
     ("4", "Group", "ContextInfo group style", "👥"),
     ("5", "Simple", "Pesan teks simple + foto profile", "✨"),
     ("6", "Video", "Kirim video perkenalan", "🎥"),
-    ("7", "Interactive Quoted", "Interactive message dengan fake quoted", "💬"),
-    ("8", "Super Simple", "Pesan teks sangat singkat tanpa hiasan", "👋"),
+    (
+        "7",
+        "Interactive Quoted",
+        "Interactive message dengan fake quoted",
+        "💬",
+    ),
+    (
+        "8",
+        "Super Simple",
+        "Pesan teks sangat singkat tanpa hiasan",
+        "👋",
+    ),
 ];
 
 /// `VARIANTS[id]` — pencarian key persis (`id` sudah di-string-kan JS).
@@ -176,9 +196,15 @@ mod tests {
     fn terdaftar_dengan_meta_js() {
         let p = find("setwelcometype").unwrap();
         assert_eq!(p.meta.name, "setwelcometype");
-        assert_eq!(p.meta.alias, ["welcometype", "welcomevariant", "welcomestyle"]);
+        assert_eq!(
+            p.meta.alias,
+            ["welcometype", "welcomevariant", "welcomestyle"]
+        );
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Mengatur variant tampilan welcome message");
+        assert_eq!(
+            p.meta.description,
+            "Mengatur variant tampilan welcome message"
+        );
         assert_eq!(p.meta.usage, ".setwelcometype");
         assert_eq!(p.meta.example, ".setwelcometype");
         assert_eq!(p.meta.cooldown, 3);
@@ -217,14 +243,22 @@ mod tests {
         assert_eq!(tipe_tersimpan(&r), Some(serde_json::json!(5)));
 
         let r = run(&["8"], Value::Null);
-        assert!(text_of(&r).contains("👋 *V8 — Super Simple*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("👋 *V8 — Super Simple*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
     fn hanya_argumen_pertama_yang_dibaca() {
         // `args[0]` — sisa teks diabaikan, jadi "v2 apa saja" tetap sukses.
         let r = run(&["v2", "apa", "saja"], Value::Null);
-        assert!(text_of(&r).contains("🃏 *V2 — Carousel Cards*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("🃏 *V2 — Carousel Cards*"),
+            "{}",
+            text_of(&r)
+        );
         assert_eq!(tipe_tersimpan(&r), Some(serde_json::json!(2)));
     }
 
@@ -233,7 +267,10 @@ mod tests {
         for teks in ["v9", "0", "v0", "9", "v1v", "abc", "v3extra"] {
             let r = run(&[teks], Value::Null);
             assert!(text_of(&r).contains("👋🎨 *WELCOME TYPE*"), "{teks:?}");
-            assert!(tipe_tersimpan(&r).is_none(), "{teks:?} tidak boleh menyimpan");
+            assert!(
+                tipe_tersimpan(&r).is_none(),
+                "{teks:?} tidak boleh menyimpan"
+            );
         }
     }
 
@@ -241,10 +278,17 @@ mod tests {
     fn tanpa_argumen_menampilkan_daftar_lengkap() {
         let r = run(&[], Value::Null);
         let body = text_of(&r);
-        assert!(body.contains("Tipe aktif saat ini: *V1 — Canvas Image* 🎯"), "{body}");
+        assert!(
+            body.contains("Tipe aktif saat ini: *V1 — Canvas Image* 🎯"),
+            "{body}"
+        );
         assert!(body.contains("🎨 V1 ✓ — Canvas Image"), "{body}");
         assert!(!body.contains("V2 ✓"), "{body}");
-        assert_eq!(body.matches("\n   ").count(), 8, "harus 8 baris tombol: {body}");
+        assert_eq!(
+            body.matches("\n   ").count(),
+            8,
+            "harus 8 baris tombol: {body}"
+        );
         assert!(r.mutations().is_empty(), "daftar tidak menulis apa pun");
     }
 
@@ -268,12 +312,18 @@ mod tests {
         let body = text_of(&run(&[], serde_json::json!({"welcomeType": 5})));
         assert!(body.contains("✨ V5 ✓ — Simple"), "{body}");
         assert!(!body.contains("V1 ✓"), "{body}");
-        assert!(body.contains("Tipe aktif saat ini: *V5 — Simple* 🎯"), "{body}");
+        assert!(
+            body.contains("Tipe aktif saat ini: *V5 — Simple* 🎯"),
+            "{body}"
+        );
 
         // `"5"` string tidak === 5: tidak ada tanda, nama tetap kebaca.
         let body = text_of(&run(&[], serde_json::json!({"welcomeType": "5"})));
         assert!(!body.contains('✓'), "{body}");
-        assert!(body.contains("Tipe aktif saat ini: *V5 — Simple* 🎯"), "{body}");
+        assert!(
+            body.contains("Tipe aktif saat ini: *V5 — Simple* 🎯"),
+            "{body}"
+        );
     }
 
     #[test]
@@ -287,7 +337,11 @@ mod tests {
     #[test]
     fn tipe_tersimpan_di_luar_1_sampai_8_berakhir_error_template() {
         // JS: `VARIANTS[current].name` melempar TypeError (`:75`).
-        for rusak in [serde_json::json!(99), serde_json::json!("x"), serde_json::json!(true)] {
+        for rusak in [
+            serde_json::json!(99),
+            serde_json::json!("x"),
+            serde_json::json!(true),
+        ] {
             let r = run(&[], serde_json::json!({ "welcomeType": rusak }));
             assert_eq!(
                 text_of(&r),

@@ -51,16 +51,14 @@ pub fn nanobanana(ctx: Ctx) -> Reply {
         match ctx.download_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar")
-                    .with_reaction("❌");
+                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar").with_reaction("❌");
             }
         }
     } else {
         match ctx.download_quoted_media() {
             Ok(b) => b,
             Err(_) => {
-                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar")
-                    .with_reaction("❌");
+                return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh gambar").with_reaction("❌");
             }
         }
     };
@@ -177,7 +175,11 @@ mod tests {
         quoted: bool,
         text: &str,
     ) -> Reply {
-        let args: Vec<String> = text.split_whitespace().skip(1).map(|s| s.to_string()).collect();
+        let args: Vec<String> = text
+            .split_whitespace()
+            .skip(1)
+            .map(|s| s.to_string())
+            .collect();
         let ctx = Ctx {
             text: text.to_string(),
             args,
@@ -205,8 +207,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             } else {
                 None
             },
@@ -229,9 +231,7 @@ mod tests {
     fn bytes_gambar(r: &Reply) -> (Vec<u8>, Option<String>) {
         match r.without_mutations().tanpa_reaksi() {
             Reply::Image { media, .. } => match media {
-                Some(MediaSource::Bytes { data, mimetype }) => {
-                    (data.to_vec(), mimetype.clone())
-                }
+                Some(MediaSource::Bytes { data, mimetype }) => (data.to_vec(), mimetype.clone()),
                 lain => panic!("harus bytes, dapat {lain:?}"),
             },
             lain => panic!("harus image, dapat {lain:?}"),
@@ -267,7 +267,13 @@ mod tests {
 
     #[test]
     fn tanpa_gambar_tampilkan_pesan() {
-        let r = run(HttpStub::offline(), None, false, false, ".nanobanana ubah merah");
+        let r = run(
+            HttpStub::offline(),
+            None,
+            false,
+            false,
+            ".nanobanana ubah merah",
+        );
         assert_eq!(
             body(&r),
             "🍌 *ɴᴀɴᴏ ʙᴀɴᴀɴᴀ*\n\n> Reply atau kirim gambar dengan caption"
@@ -281,9 +287,18 @@ mod tests {
             r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "PNGDATA",
         ]);
-        let r = run(http.clone(), Some(vec![9, 8, 7]), false, false, ".nanobanana ubah merah");
+        let r = run(
+            http.clone(),
+            Some(vec![9, 8, 7]),
+            false,
+            false,
+            ".nanobanana ubah merah",
+        );
         // "PNGDATA" bukan signature PNG asli, jadi sniff jatuh ke JPEG.
-        assert_eq!(bytes_gambar(&r), (b"PNGDATA".to_vec(), Some("image/jpeg".into())));
+        assert_eq!(
+            bytes_gambar(&r),
+            (b"PNGDATA".to_vec(), Some("image/jpeg".into()))
+        );
         assert_eq!(reaksi(&r), Some("✅".into()));
         // Urutan request: unggah (uguu) dulu, baru nanobanana.
         let seen = http.seen.lock().unwrap().clone();
@@ -320,7 +335,13 @@ mod tests {
     #[test]
     fn unggah_gagal_kembalikan_pesan_kendala() {
         // Stub offline: uguu + kappa dua-duanya gagal -> unggah gagal.
-        let r = run(HttpStub::offline(), Some(vec![1, 2, 3]), false, false, ".nanobanana ubah merah");
+        let r = run(
+            HttpStub::offline(),
+            Some(vec![1, 2, 3]),
+            false,
+            false,
+            ".nanobanana ubah merah",
+        );
         assert_eq!(body(&r), GAGAL);
         assert_eq!(reaksi(&r), Some("❌".into()));
     }
@@ -332,7 +353,13 @@ mod tests {
             r#"{"files":[{"url":"https://uguu.example/x.jpg"}]}"#,
             "",
         ]);
-        let r = run(http, Some(vec![1, 2, 3]), false, false, ".nanobanana ubah merah");
+        let r = run(
+            http,
+            Some(vec![1, 2, 3]),
+            false,
+            false,
+            ".nanobanana ubah merah",
+        );
         assert_eq!(body(&r), GAGAL);
         assert_eq!(reaksi(&r), Some("❌".into()));
     }

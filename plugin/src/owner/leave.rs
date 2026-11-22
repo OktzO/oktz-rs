@@ -107,7 +107,10 @@ mod tests {
 
     #[test]
     fn kode_pendek_ditolak() {
-        assert_eq!(extract_invite_code("https://chat.whatsapp.com/abc123"), None);
+        assert_eq!(
+            extract_invite_code("https://chat.whatsapp.com/abc123"),
+            None
+        );
     }
 
     #[test]
@@ -121,10 +124,7 @@ mod tests {
             ..Ctx::default()
         };
         let r = leave(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            help(".")
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), help("."));
         assert!(matches!(r, Reply::Text { .. }));
     }
 
@@ -156,7 +156,10 @@ mod tests {
             ..Ctx::default()
         };
         let r = leave(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), crate::common::error_template_bawaan(".", "leave"));
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            crate::common::error_template_bawaan(".", "leave")
+        );
         assert!(matches!(r.without_mutations(), Reply::Reaction { .. }));
     }
 }

@@ -78,7 +78,10 @@ mod tests {
         assert_eq!(p.meta.name, "backupdb");
         assert_eq!(p.meta.alias, ["dbbackup", "backupstore", "storebackup"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Backup database/store dan kirim ke owner");
+        assert_eq!(
+            p.meta.description,
+            "Backup database/store dan kirim ke owner"
+        );
         assert_eq!(p.meta.usage, ".backupdb");
         assert_eq!(p.meta.cooldown, 3, "tidak ada di JS, jadi defaultConfig");
         assert_eq!(p.meta.energi, 0);

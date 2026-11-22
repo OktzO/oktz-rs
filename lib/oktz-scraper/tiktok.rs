@@ -110,11 +110,7 @@ fn string_js(v: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
         Value::Null => "null".to_string(),
-        Value::Array(items) => items
-            .iter()
-            .map(string_js)
-            .collect::<Vec<_>>()
-            .join(","),
+        Value::Array(items) => items.iter().map(string_js).collect::<Vec<_>>().join(","),
         Value::Object(_) => "[object Object]".to_string(),
     }
 }
@@ -321,11 +317,7 @@ pub fn ttdown_from_tikwm(http: &dyn HttpGet, url: &str) -> Result<Value, HttpErr
         }
         bagian.push(s[mulai..].to_string());
         let hasil = bagian.join(".");
-        if n < 0 {
-            format!("-{hasil}")
-        } else {
-            hasil
-        }
+        if n < 0 { format!("-{hasil}") } else { hasil }
     };
 
     let mut statistik = Map::new();
@@ -388,7 +380,10 @@ pub fn ttdown_from_tikwm(http: &dyn HttpGet, url: &str) -> Result<Value, HttpErr
     let durasi_num = data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
     let mut out = Map::new();
-    out.insert("title".to_string(), Value::String(atau_kosong(data.get("title"))));
+    out.insert(
+        "title".to_string(),
+        Value::String(atau_kosong(data.get("title"))),
+    );
     out.insert("author".to_string(), Value::Object(penulis));
     out.insert("cover".to_string(), prefixed_atau_null(data.get("cover")));
     out.insert("downloads".to_string(), Value::Array(downloads));
@@ -437,9 +432,8 @@ fn format_waktu(epoch: i64) -> String {
 
 /// `getSaveTTToken()` (`tiktok.js:76-85`).
 fn get_token_savett(http: &dyn HttpGet) -> Result<(String, String), HttpError> {
-    let res = http.call(
-        &HttpCall::get("https://savett.cc/en1/download").header("User-Agent", UA_SAVETT),
-    )?;
+    let res = http
+        .call(&HttpCall::get("https://savett.cc/en1/download").header("User-Agent", UA_SAVETT))?;
     let html = res.text();
     let csrf = pola_csrf()
         .captures(&html)
@@ -725,8 +719,8 @@ pub fn ttdown_from_musical_down(http: &dyn HttpGet, url: &str) -> Result<Value, 
     for el in semua_dalam(&akar, &|el| el.tag == "a" && punya_kelas(el, "download")) {
         // `$elem.data("event")` membaca atribut `data-event`, dan
         // `.replace("_download_click", "")` hanya mengganti kemunculan PERTAMA.
-        let tipe = atribut(el, "data-event")
-            .map(|v| Value::String(v.replacen("_download_click", "", 1)));
+        let tipe =
+            atribut(el, "data-event").map(|v| Value::String(v.replacen("_download_click", "", 1)));
         let label = teks_dari(el).trim().to_string();
         let Some(url_unduh) = atribut(el, "href").filter(|v| !v.is_empty()) else {
             continue;
@@ -757,11 +751,9 @@ pub fn ttdown_from_musical_down(http: &dyn HttpGet, url: &str) -> Result<Value, 
     ));
     // `.attr("src")` pada koleksi = elemen PERTAMA; `undefined` tidak ikut di
     // `JSON.stringify`.
-    let avatar = semua_dalam_berlapis(
-        &akar,
-        &|el| punya_kelas(el, "img-area"),
-        &|el| el.tag == "img",
-    )
+    let avatar = semua_dalam_berlapis(&akar, &|el| punya_kelas(el, "img-area"), &|el| {
+        el.tag == "img"
+    })
     .first()
     .and_then(|el| atribut(el, "src"))
     .map(Value::String);
@@ -1262,16 +1254,14 @@ mod tests {
         }
 
         fn dengan_headers(body: &str, headers: Vec<(&str, &str)>) -> Self {
-            Self::baru(vec![
-                (
-                    200,
-                    body.to_string(),
-                    headers
-                        .into_iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect(),
-                ),
-            ])
+            Self::baru(vec![(
+                200,
+                body.to_string(),
+                headers
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect(),
+            )])
         }
     }
 
@@ -1563,18 +1553,24 @@ mod tests {
     fn yukulabs_menolak_status_false_dengan_pesan_data() {
         let http = StubHttp::tunggal(r#"{"status":false,"message":"limit"}"#);
         assert_eq!(
-            ttdown_from_yuu_labs(&http, "https://x").unwrap_err().message,
+            ttdown_from_yuu_labs(&http, "https://x")
+                .unwrap_err()
+                .message,
             "limit"
         );
         let http = StubHttp::tunggal(r#"{"status":true}"#);
         assert_eq!(
-            ttdown_from_yuu_labs(&http, "https://x").unwrap_err().message,
+            ttdown_from_yuu_labs(&http, "https://x")
+                .unwrap_err()
+                .message,
             "YuuLabs response invalid"
         );
         // Body bukan JSON → `data` string → `status` undefined → teks bawaan.
         let http = StubHttp::tunggal("html");
         assert_eq!(
-            ttdown_from_yuu_labs(&http, "https://x").unwrap_err().message,
+            ttdown_from_yuu_labs(&http, "https://x")
+                .unwrap_err()
+                .message,
             "YuuLabs response invalid"
         );
     }
@@ -1608,7 +1604,9 @@ mod tests {
     fn yukulabs_tanpa_link_melempar_pesannya() {
         let http = StubHttp::tunggal(r#"{"status":true,"result":{"description":"D"}}"#);
         assert_eq!(
-            ttdown_from_yuu_labs(&http, "https://x").unwrap_err().message,
+            ttdown_from_yuu_labs(&http, "https://x")
+                .unwrap_err()
+                .message,
             "YuuLabs tidak mengembalikan link download"
         );
     }
@@ -1681,7 +1679,9 @@ mod tests {
             (200, "<p>kosong</p>".to_string(), Vec::new()),
         ]);
         assert_eq!(
-            ttdown_from_musical_down(&http, "https://x").unwrap_err().message,
+            ttdown_from_musical_down(&http, "https://x")
+                .unwrap_err()
+                .message,
             "MusicalDown tidak mengembalikan link download"
         );
     }
@@ -1726,11 +1726,16 @@ mod tests {
         assert_eq!(p[0].method, HttpMethod::Get);
         assert_eq!(p[0].url, "https://vt.tiktok.com/abc");
         assert!(
-            p[1].url.starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
+            p[1].url
+                .starts_with("https://apiii-xrina.my.id/download/tiktok2?url="),
             "rinn dicoba dulu, dapat {}",
             p[1].url
         );
-        assert_eq!(p[2].method, HttpMethod::Post, "TikWM jalan setelah rinn gagal");
+        assert_eq!(
+            p[2].method,
+            HttpMethod::Post,
+            "TikWM jalan setelah rinn gagal"
+        );
     }
 
     #[test]

@@ -35,10 +35,8 @@ pub fn onlythisgrup(ctx: Ctx) -> Reply {
         .is_some_and(|jid| jid == ctx.chat);
 
     if already_locked {
-        let mut r = Reply::text(
-            "🔓 *UNLOCKED*\n\nBot kembali aktif di semua grup secara publik.",
-        )
-        .with_reaction("🔓");
+        let mut r = Reply::text("🔓 *UNLOCKED*\n\nBot kembali aktif di semua grup secara publik.")
+            .with_reaction("🔓");
         r = r.with_mutation(Mutation::SetSetting {
             key: "onlyThisGroup".into(),
             value: Value::Null,
@@ -57,7 +55,7 @@ pub fn onlythisgrup(ctx: Ctx) -> Reply {
         Err(_) => {
             return Reply::text(
                 "❌ Gagal mengambil tautan undangan grup. Pastikan bot adalah admin yang sah.",
-            )
+            );
         }
     };
 

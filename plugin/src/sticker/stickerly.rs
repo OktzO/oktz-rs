@@ -93,8 +93,7 @@ fn mutasi_sesi(ctx: &Ctx, sesi: Value) -> Mutation {
 /// `Date.now() - session.time > SESSION_TIMEOUT` (`stickerly.js:85`).
 /// `time` yang bukan angka membuat JS menghitung `NaN`, dan `NaN > X` false.
 fn kedaluwarsa(sesi: &Value, sekarang: i64) -> bool {
-    sesi
-        .get("time")
+    sesi.get("time")
         .and_then(Value::as_i64)
         .is_some_and(|t| sekarang - t > SESSION_TIMEOUT_MS)
 }
@@ -111,12 +110,7 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
     };
     // `packInfo.trayResourceUrl.split(...)` di JS melempar kalau fieldnya tidak
     // ada; lemparan itu ditangkap `catch` luar (`stickerly.js:181-185`).
-    let rusak = || {
-        Reply::sequence(vec![
-            mengunduh.clone(),
-            Reply::text(error_template(ctx)),
-        ])
-    };
+    let rusak = || Reply::sequence(vec![mengunduh.clone(), Reply::text(error_template(ctx))]);
 
     let Ok(res) = ctx.http.get(&url_pack(pack)) else {
         return rusak();
@@ -269,10 +263,12 @@ pub fn stickerly(ctx: Ctx) -> Reply {
          untuk membatalkan pencarian.",
     );
 
-    Reply::text(daftar).with_reaction("✅").with_mutation(mutasi_sesi(
-        &ctx,
-        json!({ "results": sesi, "time": now_ms() }),
-    ))
+    Reply::text(daftar)
+        .with_reaction("✅")
+        .with_mutation(mutasi_sesi(
+            &ctx,
+            json!({ "results": sesi, "time": now_ms() }),
+        ))
 }
 
 /// `stickerlyAnswerHandler` (`stickerly.js:74-112`) — jawaban angka/batal.
@@ -587,8 +583,14 @@ mod tests {
         let r = jalankan(http.clone(), "anime");
 
         let t = teks_dari(&r);
-        assert!(t.starts_with("🎨 *HASIL PENCARIAN STICKER.LY: ANIME*"), "{t}");
-        assert!(t.contains("Ditemukan beberapa pack, pilih salah satu ya:"), "{t}");
+        assert!(
+            t.starts_with("🎨 *HASIL PENCARIAN STICKER.LY: ANIME*"),
+            "{t}"
+        );
+        assert!(
+            t.contains("Ditemukan beberapa pack, pilih salah satu ya:"),
+            "{t}"
+        );
         assert!(t.contains("*1.* Pack 1 by Penulis 1\n"), "{t}");
         assert!(t.contains("*10.* Pack 10 by Penulis 10\n"), "{t}");
         assert!(!t.contains("*11.*"), "maks 10 hasil: {t}");
@@ -604,7 +606,10 @@ mod tests {
         let sesi = sesi_tertulis(&r);
         assert_eq!(sesi["results"].as_array().unwrap().len(), 10);
         assert_eq!(sesi["results"][0]["name"], json!("Pack 1"));
-        assert_eq!(sesi["results"][0]["url"], json!("https://sticker.ly/s/AAA1"));
+        assert_eq!(
+            sesi["results"][0]["url"],
+            json!("https://sticker.ly/s/AAA1")
+        );
         assert_eq!(sesi["results"][0]["author"], json!("Penulis 1"));
         assert!(sesi["time"].as_i64().unwrap() > 0);
 
@@ -678,7 +683,9 @@ mod tests {
         assert_eq!(emojis, ["✨"]);
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
-            &["https://my.izuka-api.xyz/api/search/stickerly-pack?url=https%3A%2F%2Fsticker.ly%2Fs%2FAAA"]
+            &[
+                "https://my.izuka-api.xyz/api/search/stickerly-pack?url=https%3A%2F%2Fsticker.ly%2Fs%2FAAA"
+            ]
         );
     }
 
@@ -703,12 +710,13 @@ mod tests {
             json!({ "status": true, "result": { "stickers": [] } }),
             Value::Null,
         ] {
-            let r = jalankan(
-                Stub::baru(vec![body.clone()]),
-                "https://sticker.ly/s/AAA",
-            );
+            let r = jalankan(Stub::baru(vec![body.clone()]), "https://sticker.ly/s/AAA");
             assert_eq!(reaksi(&r), None, "{body}");
-            assert_eq!(teks_terakhir(&r), "❌ Gagal mengambil detail pack.", "{body}");
+            assert_eq!(
+                teks_terakhir(&r),
+                "❌ Gagal mengambil detail pack.",
+                "{body}"
+            );
             assert!(r.mutations().is_empty(), "{body}");
         }
     }
@@ -723,10 +731,7 @@ mod tests {
             }),
             json!({ "status": true, "result": { "stickers": ["bukan objek"] } }),
         ] {
-            let r = jalankan(
-                Stub::baru(vec![body.clone()]),
-                "https://sticker.ly/s/AAA",
-            );
+            let r = jalankan(Stub::baru(vec![body.clone()]), "https://sticker.ly/s/AAA");
             assert_eq!(reaksi(&r), None, "{body}");
             assert!(teks_terakhir(&r).contains("lagi ada kendala"), "{body}");
         }
@@ -736,10 +741,19 @@ mod tests {
     fn batas_kedaluwarsa_lima_menit() {
         let t = 1_000_000;
         assert!(!kedaluwarsa(&json!({ "time": t }), t + SESSION_TIMEOUT_MS));
-        assert!(kedaluwarsa(&json!({ "time": t }), t + SESSION_TIMEOUT_MS + 1));
+        assert!(kedaluwarsa(
+            &json!({ "time": t }),
+            t + SESSION_TIMEOUT_MS + 1
+        ));
         // Tanpa `time` JS menghitung NaN, dan `NaN > X` false.
-        assert!(!kedaluwarsa(&json!({ "results": [] }), t + SESSION_TIMEOUT_MS + 1));
-        assert!(!kedaluwarsa(&json!({ "time": "x" }), t + SESSION_TIMEOUT_MS + 1));
+        assert!(!kedaluwarsa(
+            &json!({ "results": [] }),
+            t + SESSION_TIMEOUT_MS + 1
+        ));
+        assert!(!kedaluwarsa(
+            &json!({ "time": "x" }),
+            t + SESSION_TIMEOUT_MS + 1
+        ));
     }
 
     #[test]
@@ -823,7 +837,9 @@ mod tests {
         assert_eq!(sesi_tertulis(&r), Value::Null);
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
-            &["https://my.izuka-api.xyz/api/search/stickerly-pack?url=https%3A%2F%2Fsticker.ly%2Fs%2FAAA2"]
+            &[
+                "https://my.izuka-api.xyz/api/search/stickerly-pack?url=https%3A%2F%2Fsticker.ly%2Fs%2FAAA2"
+            ]
         );
     }
 
@@ -836,9 +852,16 @@ mod tests {
         });
         let r = stickerly_answer(ctx_jawaban(http.clone(), "1", sesi)).expect("harus menjawab");
 
-        assert!(teks_dari(&r).contains("⏰ *SESI KEDALUWARSA*"), "{}", teks_dari(&r));
+        assert!(
+            teks_dari(&r).contains("⏰ *SESI KEDALUWARSA*"),
+            "{}",
+            teks_dari(&r)
+        );
         assert_eq!(reaksi(&r), None);
         assert_eq!(sesi_tertulis(&r), Value::Null);
-        assert!(http.seen.lock().unwrap().is_empty(), "tidak ada HTTP saat kedaluwarsa");
+        assert!(
+            http.seen.lock().unwrap().is_empty(),
+            "tidak ada HTTP saat kedaluwarsa"
+        );
     }
 }

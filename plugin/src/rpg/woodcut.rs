@@ -6,10 +6,10 @@
 //! nol dianggap falsy, jadi penebang dengan bar kosong tetap boleh masuk.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::jualan::{
-    apply_exp, inventory_map, math_random, or_default, rpg_int, rpg_map, roll_incl,
+    apply_exp, inventory_map, math_random, or_default, roll_incl, rpg_int, rpg_map,
 };
 
 pub(crate) const STAMINA_COST: i64 = 15;
@@ -57,7 +57,9 @@ pub fn woodcut(ctx: Ctx) -> Reply {
         }
     }
     if results.is_empty() {
-        let slot = inv.entry("wood".to_string()).or_insert(serde_json::json!(0));
+        let slot = inv
+            .entry("wood".to_string())
+            .or_insert(serde_json::json!(0));
         let have = slot.as_i64().unwrap_or(0);
         *slot = serde_json::json!(have + 1);
         results.push(("🪵 Kayu", 1));
@@ -149,7 +151,11 @@ mod tests {
         assert!(r.mutations().is_empty());
 
         let r = run(serde_json::json!({"rpg": {"stamina": 0}, "exp": 0}));
-        assert_eq!(written(&r)["rpg"]["stamina"], serde_json::json!(85), "0 || 100 -> 100 - 15");
+        assert_eq!(
+            written(&r)["rpg"]["stamina"],
+            serde_json::json!(85),
+            "0 || 100 -> 100 - 15"
+        );
     }
 
     #[test]

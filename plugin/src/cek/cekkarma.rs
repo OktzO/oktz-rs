@@ -152,15 +152,26 @@ mod tests {
         for _ in 0..2000 {
             let (text, _) = split(&run(ctx_with(Some(OTHER))));
             let percent = percent_of(&text);
-            assert!((0..=100).contains(&percent), "persen di luar rentang JS: {percent}");
+            assert!(
+                (0..=100).contains(&percent),
+                "persen di luar rentang JS: {percent}"
+            );
             let hits: Vec<usize> = TIERS
                 .iter()
                 .enumerate()
                 .filter(|(_, t)| text.contains(**t))
                 .map(|(i, _)| i)
                 .collect();
-            assert_eq!(hits.len(), 1, "harus tepat satu tier, dapat {hits:?}: {text}");
-            assert_eq!(TIERS[hits[0]], karma_desc(percent), "tier beda dari ambang: {text}");
+            assert_eq!(
+                hits.len(),
+                1,
+                "harus tepat satu tier, dapat {hits:?}: {text}"
+            );
+            assert_eq!(
+                TIERS[hits[0]],
+                karma_desc(percent),
+                "tier beda dari ambang: {text}"
+            );
         }
     }
 

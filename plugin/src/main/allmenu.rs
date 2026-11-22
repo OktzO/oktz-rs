@@ -88,26 +88,8 @@ const CATEGORY_EMOJIS: &[(&str, &str)] = &[
 /// Kategori di luar daftar ini dapat indeks 999, sama seperti
 /// `indexOf(...) === -1 ? 999` di JS.
 const URUTAN_KATEGORI: &[&str] = &[
-    "owner",
-    "main",
-    "utility",
-    "tools",
-    "fun",
-    "game",
-    "download",
-    "search",
-    "sticker",
-    "media",
-    "ai",
-    "group",
-    "religi",
-    "info",
-    "cek",
-    "economy",
-    "user",
-    "canvas",
-    "random",
-    "premium",
+    "owner", "main", "utility", "tools", "fun", "game", "download", "search", "sticker", "media",
+    "ai", "group", "religi", "info", "cek", "economy", "user", "canvas", "random", "premium",
 ];
 
 /// `MODES` (`plugins/group/botmode.js:19-56`) yang dipakai `allmenu.js:197-207`:
@@ -115,7 +97,11 @@ const URUTAN_KATEGORI: &[&str] = &[
 ///
 /// `None` berarti "tidak ada batas" — persis `null` di JS, yang berarti
 /// seluruh kategori lolos.
-type ModeKatori = (&'static str, Option<&'static [&'static str]>, Option<&'static [&'static str]>);
+type ModeKatori = (
+    &'static str,
+    Option<&'static [&'static str]>,
+    Option<&'static [&'static str]>,
+);
 
 const MODE: &[ModeKatori] = &[
     ("md", None, Some(&["cpanel", "pushkontak", "store"])),
@@ -130,8 +116,16 @@ const MODE: &[ModeKatori] = &[
         Some(&["main", "group", "sticker", "owner", "pushkontak"]),
         None,
     ),
-    ("store", Some(&["main", "group", "sticker", "owner", "store"]), None),
-    ("otp", Some(&["main", "group", "sticker", "owner", "otp"]), None),
+    (
+        "store",
+        Some(&["main", "group", "sticker", "owner", "store"]),
+        None,
+    ),
+    (
+        "otp",
+        Some(&["main", "group", "sticker", "owner", "otp"]),
+        None,
+    ),
 ];
 
 /// `db.setting("allmenuVariant") || botConfig.ui?.allmenuVariant || 2`
@@ -335,10 +329,7 @@ fn kategori_terlihat(ctx: &Ctx) -> Vec<&'static str> {
 /// `totalCommands` (`allmenu.js:113-116`) — jumlah plugin aktif di semua
 /// kategori (kategori `owner` ikut dihitung, sama seperti JS).
 fn total_perintah() -> usize {
-    all_plugins()
-        .iter()
-        .filter(|p| p.meta.is_enabled)
-        .count()
+    all_plugins().iter().filter(|p| p.meta.is_enabled).count()
 }
 
 // ---------------------------------------------------------------------------
@@ -824,8 +815,12 @@ mod tests {
     /// kartu bisa dibangun. Audio menu aktif (default JS).
     fn ctx_dengan_aset(variant: i64) -> Ctx {
         let berkas = BerkasPalsu::baru();
-        berkas.tulis("./assets/image/foto.jpeg", &[1, 2, 3]).unwrap();
-        berkas.tulis("./assets/image/foto2.jpeg", &[1, 2, 3]).unwrap();
+        berkas
+            .tulis("./assets/image/foto.jpeg", &[1, 2, 3])
+            .unwrap();
+        berkas
+            .tulis("./assets/image/foto2.jpeg", &[1, 2, 3])
+            .unwrap();
         berkas.tulis("./assets/video/mp4.mp4", &[1, 2, 3]).unwrap();
         Ctx {
             prefix: ".".into(),
@@ -850,12 +845,19 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn kartu(r: &Reply) -> (&str, Option<&str>, &[oktz_plugin_api::kartu::Tombol]) {
         match r.without_mutations() {
-            Reply::Interactive { kartu } => (kartu.body.as_str(), kartu.footer.as_deref(), kartu.buttons.as_slice()),
+            Reply::Interactive { kartu } => (
+                kartu.body.as_str(),
+                kartu.footer.as_deref(),
+                kartu.buttons.as_slice(),
+            ),
             other => panic!("harus kartu interaktif, dapat {other:?}"),
         }
     }
@@ -867,11 +869,7 @@ mod tests {
         let p = oktz_plugin_api::find("allmenu").unwrap();
         assert_eq!(p.meta.name, "allmenu");
         assert_eq!(
-            p.meta
-                .alias
-                .iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            p.meta.alias.iter().map(String::as_str).collect::<Vec<_>>(),
             ["fullmenu", "allcommand", "semua"]
         );
         assert_eq!(p.meta.category, "main");
@@ -890,7 +888,8 @@ mod tests {
     #[test]
     fn setiap_alias_menunjuk_ke_allmenu() {
         for alias in ["fullmenu", "allcommand", "semua"] {
-            let found = oktz_plugin_api::find(alias).unwrap_or_else(|| panic!("alias {alias} hilang"));
+            let found =
+                oktz_plugin_api::find(alias).unwrap_or_else(|| panic!("alias {alias} hilang"));
             assert_eq!(found.meta.name, "allmenu", "alias {alias} salah resolve");
         }
     }
@@ -1026,8 +1025,7 @@ mod tests {
         assert_eq!(buttons[0].params["display_text"], TOMBOL_MENU_UTAMA);
         assert_eq!(buttons[0].params["id"], ".menu");
 
-        let Reply::Interactive { kartu } = r.without_mutations()
-        else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu");
         };
         let header = kartu.header_card.as_ref().expect("header wajib ada");
@@ -1039,7 +1037,10 @@ mod tests {
         }
         let params = kartu.params.as_ref().expect("params wajib ada");
         assert_eq!(params["limited_time_offer"]["url"], "Hai");
-        assert_eq!(params["limited_time_offer"]["copy_code"], "Dibuat oleh Zann");
+        assert_eq!(
+            params["limited_time_offer"]["copy_code"],
+            "Dibuat oleh Zann"
+        );
 
         let context = kartu.context_card.as_ref().expect("context wajib ada");
         assert!(context.is_forwarded);
@@ -1062,12 +1063,14 @@ mod tests {
         // Slot kosong pertama, lalu daftar kategori, lalu menu utama.
         assert_eq!(buttons.len(), 3);
         assert_eq!(buttons[0].name, "");
-        assert_eq!(buttons[0].params.nilai(), &serde_json::Value::String(String::new()));
+        assert_eq!(
+            buttons[0].params.nilai(),
+            &serde_json::Value::String(String::new())
+        );
         assert_eq!(buttons[1].params["id"], ".menucat");
         assert_eq!(buttons[2].params["id"], ".menu");
 
-        let Reply::Interactive { kartu } = r.without_mutations()
-        else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu");
         };
         let header = kartu.header_card.as_ref().expect("header wajib ada");
@@ -1076,8 +1079,14 @@ mod tests {
             Some(oktz_plugin_api::registry::CardMedia::Video { .. })
         ));
         let params = kartu.params.as_ref().expect("params wajib ada");
-        assert_eq!(params["bottom_sheet"]["list_title"], "Please select the menu");
-        assert_eq!(params["tap_target_configuration"]["domain"], "shop.example.com");
+        assert_eq!(
+            params["bottom_sheet"]["list_title"],
+            "Please select the menu"
+        );
+        assert_eq!(
+            params["tap_target_configuration"]["domain"],
+            "shop.example.com"
+        );
         assert_eq!(params["limited_time_offer"]["url"], "Hai");
 
         let context = kartu.context_card.as_ref().expect("context wajib ada");
@@ -1144,7 +1153,10 @@ mod tests {
             panic!("harus sequence, dapat {:?}", r.without_mutations());
         };
         assert_eq!(list.len(), 2);
-        assert!(matches!(list[0].without_mutations(), Reply::Interactive { .. }));
+        assert!(matches!(
+            list[0].without_mutations(),
+            Reply::Interactive { .. }
+        ));
         match list[1].without_mutations() {
             Reply::Audio { media, ptt } => {
                 assert!(!ptt, "MP3 dikirim sebagai audio, bukan voice note");

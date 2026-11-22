@@ -118,7 +118,13 @@ pub(crate) fn jenis_kelamin(value: Option<&Value>) -> Option<&'static str> {
 }
 
 /// `pddikti.js:97-115` — ringkasan mode `all`.
-pub(crate) fn all_message(query: &str, mhs: usize, dosen: usize, pt: usize, prodi: usize) -> String {
+pub(crate) fn all_message(
+    query: &str,
+    mhs: usize,
+    dosen: usize,
+    pt: usize,
+    prodi: usize,
+) -> String {
     format!(
         "🔍 {} hasil untuk \"{query}\" ({mhs} mhs, {dosen} dosen, {pt} pt, {prodi} prodi)",
         mhs + dosen + pt + prodi
@@ -139,25 +145,60 @@ pub(crate) fn list_message(mode: &str, query: &str, count: usize) -> String {
 pub(crate) fn detail_block(data: &Value) -> String {
     let jk = jenis_kelamin(data.get("jenis_kelamin")).unwrap_or("-");
     let mut txt = String::from("🎓 *DETAIL MAHASISWA*\n\n");
-    txt.push_str(&format!("- 📝 Nama          : *{}*\n", interp(data.get("nama"))));
-    txt.push_str(&format!("- 🆔 NIM           : *{}*\n", interp(data.get("nim"))));
+    txt.push_str(&format!(
+        "- 📝 Nama          : *{}*\n",
+        interp(data.get("nama"))
+    ));
+    txt.push_str(&format!(
+        "- 🆔 NIM           : *{}*\n",
+        interp(data.get("nim"))
+    ));
     txt.push_str(&format!("- 👤 Jenis Kelamin : *{jk}*\n"));
-    txt.push_str(&format!("- 🎓 Jenjang       : *{}*\n", interp(data.get("jenjang"))));
-    txt.push_str(&format!("- 📚 Prodi         : *{}*\n", interp(data.get("prodi"))));
-    txt.push_str(&format!("- 🏛️ Perguruan T.  : *{}*\n", interp(data.get("nama_pt"))));
-    txt.push_str(&format!("- 📅 Tgl Masuk     : *{}*\n", interp(data.get("tanggal_masuk"))));
-    txt.push_str(&format!("- 📊 Status        : *{}*\n", interp(data.get("status_saat_ini"))));
-    txt.push_str(&format!("- 💼 Jenis Daftar  : *{}*\n", interp(data.get("jenis_daftar"))));
+    txt.push_str(&format!(
+        "- 🎓 Jenjang       : *{}*\n",
+        interp(data.get("jenjang"))
+    ));
+    txt.push_str(&format!(
+        "- 📚 Prodi         : *{}*\n",
+        interp(data.get("prodi"))
+    ));
+    txt.push_str(&format!(
+        "- 🏛️ Perguruan T.  : *{}*\n",
+        interp(data.get("nama_pt"))
+    ));
+    txt.push_str(&format!(
+        "- 📅 Tgl Masuk     : *{}*\n",
+        interp(data.get("tanggal_masuk"))
+    ));
+    txt.push_str(&format!(
+        "- 📊 Status        : *{}*\n",
+        interp(data.get("status_saat_ini"))
+    ));
+    txt.push_str(&format!(
+        "- 💼 Jenis Daftar  : *{}*\n",
+        interp(data.get("jenis_daftar"))
+    ));
     txt
 }
 
 /// `pddikti.js:198-245` — blok hasil mode `all`; tiap kategori maksimal 3.
 pub(crate) fn all_block(data: &Value, query: &str) -> String {
     let ambil = |k: &str| -> Vec<Value> {
-        data.get(k).and_then(Value::as_array).cloned().unwrap_or_default()
+        data.get(k)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
     };
-    let (mhs, dosen, pt, prodi) = (ambil("mahasiswa"), ambil("dosen"), ambil("pt"), ambil("prodi"));
-    let mut txt = format!("*{}*\n\n", all_message(query, mhs.len(), dosen.len(), pt.len(), prodi.len()));
+    let (mhs, dosen, pt, prodi) = (
+        ambil("mahasiswa"),
+        ambil("dosen"),
+        ambil("pt"),
+        ambil("prodi"),
+    );
+    let mut txt = format!(
+        "*{}*\n\n",
+        all_message(query, mhs.len(), dosen.len(), pt.len(), prodi.len())
+    );
 
     let top3 = |v: &Vec<Value>| -> Vec<Value> { v.iter().take(3).cloned().collect() };
     let mh = top3(&mhs);
@@ -210,7 +251,11 @@ pub(crate) fn all_block(data: &Value, query: &str) -> String {
     if !pr3.is_empty() {
         txt.push_str("📚 *PRODI (top 3):*\n");
         for p in &pr3 {
-            txt.push_str(&format!("- {} @ {}\n", interp(p.get("nama")), interp(p.get("nama_pt"))));
+            txt.push_str(&format!(
+                "- {} @ {}\n",
+                interp(p.get("nama")),
+                interp(p.get("nama_pt"))
+            ));
         }
         txt.push('\n');
     }
@@ -296,10 +341,7 @@ pub(crate) fn http_error(status: u16, body: &str) -> String {
             .unwrap_or_else(|_| String::from("undefined"))
     };
     let chars: Vec<char> = json.chars().collect();
-    let potong: String = chars
-        .iter()
-        .take(150)
-        .collect::<String>();
+    let potong: String = chars.iter().take(150).collect::<String>();
     format!("PDDIKTI HTTP {status}: {potong}")
 }
 
@@ -341,11 +383,8 @@ pub fn pddikti(ctx: Ctx) -> Reply {
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         };
         if res.status != 200 {
-            return Reply::text(format!(
-                "❌ {}",
-                http_error(res.status, &res.text())
-            ))
-            .with_reaction("❌");
+            return Reply::text(format!("❌ {}", http_error(res.status, &res.text())))
+                .with_reaction("❌");
         }
         let data = res.json().unwrap_or(Value::Null);
         return Reply::text(detail_block(&data)).with_reaction("✅");
@@ -547,7 +586,10 @@ mod tests {
         assert_eq!(path_for("dosen", "X").unwrap(), "/pencarian/dosen/X");
         assert_eq!(path_for("pt", "X").unwrap(), "/pencarian/pt/X");
         assert_eq!(path_for("prodi", "X").unwrap(), "/pencarian/prodi/X");
-        assert!(path_for("detail", "X").is_none(), "detail punya jalurnya sendiri");
+        assert!(
+            path_for("detail", "X").is_none(),
+            "detail punya jalurnya sendiri"
+        );
         assert!(path_for("ngawur", "X").is_none());
         assert_eq!(
             unknown_mode("ngawur"),
@@ -559,11 +601,7 @@ mod tests {
     fn short_queries_and_unknown_modes_never_reach_the_network() {
         let http = Stub::offline();
         for (text, msg, reaksi) in [
-            (
-                "mhs ab",
-                "❌ Query terlalu pendek (min 3 karakter).",
-                "❌",
-            ),
+            ("mhs ab", "❌ Query terlalu pendek (min 3 karakter).", "❌"),
             // Guard `if (!query)` di `:189` tidak bereaksi lagi: `🕕` dari
             // `:156` masih yang terakhir.
             ("all  ", "❌ Masukkan kata kunci pencarian!", "🕕"),
@@ -583,11 +621,11 @@ mod tests {
 
     #[test]
     fn a_three_character_query_is_accepted() {
-        assert_eq!(QUERY_TERLALU_PENDEK, "Query terlalu pendek (min 3 karakter).");
         assert_eq!(
-            BUTUH_KATA_KUNCI,
-            "❌ Masukkan kata kunci pencarian!"
+            QUERY_TERLALU_PENDEK,
+            "Query terlalu pendek (min 3 karakter)."
         );
+        assert_eq!(BUTUH_KATA_KUNCI, "❌ Masukkan kata kunci pencarian!");
         assert!(BUTUH_MHS_ID.starts_with("Field 'mahasiswaId' wajib"));
         // Tiga karakter tepat lolos: handler memanggil jaringan.
         let http = Stub::offline();
@@ -603,11 +641,16 @@ mod tests {
             call.url,
             "https://cors.rifkyshre.biz.id/https://api-pddikti.kemdiktisaintek.go.id/pencarian/mhs/Gibran%20Khalil"
         );
-        assert!(call.headers.iter().any(|(k, v)| k == "Accept" && v == "application/json"));
-        assert!(call
-            .headers
-            .iter()
-            .any(|(k, v)| k == "X-Cors-Spoof-Origin" && v == FRONTEND_ORIGIN));
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "Accept" && v == "application/json")
+        );
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "X-Cors-Spoof-Origin" && v == FRONTEND_ORIGIN)
+        );
         assert!(call.terima_semua_status, "validateStatus: () => true");
     }
 
@@ -620,18 +663,34 @@ mod tests {
             "prodi": [ { "nama": "S1 Informatika", "nama_pt": "ITB" } ],
         });
         let t = all_block(&body, "x");
-        assert!(t.starts_with("*🔍 11 hasil untuk \"x\" (5 mhs, 4 dosen, 1 pt, 1 prodi)*\n\n"), "{t}");
-        assert!(t.contains("👨🎓 *MAHASISWA (top 3):*\n- Mhs 0 [220] — TI, PT\n"), "{t}");
-        assert!(t.contains("👨🏫 *DOSEN (top 3):*\n- Dosen 0 [NIDN 000] — TI, PT\n"), "{t}");
-        assert!(t.contains("🏛️ *PERGURUAN TINGGI (top 3):*\n- ITB (ITB)\n"), "{t}");
-        assert!(t.contains("📚 *PRODI (top 3):*\n- S1 Informatika @ ITB\n"), "{t}");
+        assert!(
+            t.starts_with("*🔍 11 hasil untuk \"x\" (5 mhs, 4 dosen, 1 pt, 1 prodi)*\n\n"),
+            "{t}"
+        );
+        assert!(
+            t.contains("👨🎓 *MAHASISWA (top 3):*\n- Mhs 0 [220] — TI, PT\n"),
+            "{t}"
+        );
+        assert!(
+            t.contains("👨🏫 *DOSEN (top 3):*\n- Dosen 0 [NIDN 000] — TI, PT\n"),
+            "{t}"
+        );
+        assert!(
+            t.contains("🏛️ *PERGURUAN TINGGI (top 3):*\n- ITB (ITB)\n"),
+            "{t}"
+        );
+        assert!(
+            t.contains("📚 *PRODI (top 3):*\n- S1 Informatika @ ITB\n"),
+            "{t}"
+        );
         assert!(!t.contains("Mhs 3"), "top 3: {t}");
         assert!(!t.contains("Dosen 3"), "top 3: {t}");
     }
 
     #[test]
     fn a_pt_without_a_short_name_falls_back_to_the_acronym_field() {
-        let body = serde_json::json!({ "pt": [ { "nama": "Institut Teknologi", "sinkatan_pt": "IT" } ] });
+        let body =
+            serde_json::json!({ "pt": [ { "nama": "Institut Teknologi", "sinkatan_pt": "IT" } ] });
         assert!(all_block(&body, "q").contains("- Institut Teknologi (IT)\n"));
         let body = serde_json::json!({ "pt": [ { "nama": "Tanpa apa-apa" } ] });
         assert!(all_block(&body, "q").contains("- Tanpa apa-apa (-)\n"));
@@ -640,7 +699,10 @@ mod tests {
     #[test]
     fn an_empty_all_object_produces_only_the_headline() {
         let t = all_block(&serde_json::json!({}), " gibran ");
-        assert_eq!(t, "*🔍 0 hasil untuk \" gibran \" (0 mhs, 0 dosen, 0 pt, 0 prodi)*\n\n");
+        assert_eq!(
+            t,
+            "*🔍 0 hasil untuk \" gibran \" (0 mhs, 0 dosen, 0 pt, 0 prodi)*\n\n"
+        );
     }
 
     #[test]
@@ -650,7 +712,10 @@ mod tests {
             .collect();
         let t = list_block(&items, "mhs", "s", 13);
         assert!(t.starts_with("*🔍 13 hasil mhs untuk \"s\"*\n\n"), "{t}");
-        assert!(t.contains("*#1 S0 [NIM 1]*\n- 📚 P @ U (-)\n- 🆔 ID: `id-0`\n"), "{t}");
+        assert!(
+            t.contains("*#1 S0 [NIM 1]*\n- 📚 P @ U (-)\n- 🆔 ID: `id-0`\n"),
+            "{t}"
+        );
         assert!(t.contains("*#10 S9 [NIM 1]*"), "{t}");
         assert!(!t.contains("*#11"), "baris ke-11 terpotong: {t}");
         assert!(t.contains("> ... +3 hasil lainnya.\n"), "{t}");
@@ -676,7 +741,10 @@ mod tests {
             "`??` bukan `||`: string kosong tetap tampil"
         );
         let dosen = vec![serde_json::json!({ "nama": "D", "nidn": "1" })];
-        assert!(list_block(&dosen, "dosen", "q", 1).contains("*#1 D [NIDN 1]*\n- 📚 undefined @ undefined\n\n"));
+        assert!(
+            list_block(&dosen, "dosen", "q", 1)
+                .contains("*#1 D [NIDN 1]*\n- 📚 undefined @ undefined\n\n")
+        );
         let prodi = vec![serde_json::json!({ "nama": "P" })];
         assert!(list_block(&prodi, "prodi", "q", 1).contains("*#1 P*\n- @ -\n\n"));
     }
@@ -689,17 +757,29 @@ mod tests {
             "status_saat_ini": "Aktif", "jenis_daftar": "Reguler",
         });
         let t = detail_block(&data);
-        assert!(t.starts_with("🎓 *DETAIL MAHASISWA*\n\n- 📝 Nama          : *Gibran*\n"), "{t}");
+        assert!(
+            t.starts_with("🎓 *DETAIL MAHASISWA*\n\n- 📝 Nama          : *Gibran*\n"),
+            "{t}"
+        );
         assert!(t.contains("- 👤 Jenis Kelamin : *Laki-laki*\n"), "{t}");
         assert!(t.contains("- 💼 Jenis Daftar  : *Reguler*\n"), "{t}");
         assert!(detail_message(&data).starts_with("🎓 Gibran — 22 | Informatika @ ITB"));
-        assert_eq!(detail_message(&serde_json::json!({})), "🎓 Detail mahasiswa");
+        assert_eq!(
+            detail_message(&serde_json::json!({})),
+            "🎓 Detail mahasiswa"
+        );
     }
 
     #[test]
     fn an_unknown_gender_prints_the_dash_fallback() {
-        assert_eq!(jenis_kelamin(Some(&serde_json::json!("L"))), Some("Laki-laki"));
-        assert_eq!(jenis_kelamin(Some(&serde_json::json!("P"))), Some("Perempuan"));
+        assert_eq!(
+            jenis_kelamin(Some(&serde_json::json!("L"))),
+            Some("Laki-laki")
+        );
+        assert_eq!(
+            jenis_kelamin(Some(&serde_json::json!("P"))),
+            Some("Perempuan")
+        );
         assert_eq!(jenis_kelamin(Some(&serde_json::json!("X"))), None);
         assert_eq!(jenis_kelamin(None), None);
         assert!(detail_block(&serde_json::json!({})).contains("Jenis Kelamin : *-*\n"));
@@ -721,7 +801,11 @@ mod tests {
             ),
         ]);
         let r = run(http.clone(), "mhs Gibran");
-        assert!(text_of(&r).contains("*#1 Gibran [NIM 221]*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("*#1 Gibran [NIM 221]*"),
+            "{}",
+            text_of(&r)
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
         assert_eq!(
             http.seen.lock().unwrap()[0],
@@ -763,14 +847,22 @@ mod tests {
     #[test]
     fn a_transport_failure_falls_back_to_the_error_template() {
         let r = run(Stub::offline(), "all gibran");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pddikti"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pddikti")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
     #[test]
     fn odd_and_very_long_queries_do_not_panic() {
         for input in [
-            "mhs <b>", "mhs a|b", "mhs 🎨🎨🎨", "mhs '\"", "mhs a\u{202e}b", "mhs ??",
+            "mhs <b>",
+            "mhs a|b",
+            "mhs 🎨🎨🎨",
+            "mhs '\"",
+            "mhs a\u{202e}b",
+            "mhs ??",
         ] {
             let r = run(Stub::offline(), input);
             assert!(!text_of(&r).is_empty(), "input {input:?}");

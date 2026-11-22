@@ -291,8 +291,12 @@ mod tests {
         // objek error yang sama dengan JS.
         assert!(is_rate_limit_error(&json!({"message": "rate-overlimit"})));
         assert!(is_rate_limit_error(&json!({"message": "boom 429"})));
-        assert!(is_rate_limit_error(&json!({"message": "x", "output": {"statusCode": 429}})));
-        assert!(!is_rate_limit_error(&json!({"message": "ok", "output": {"statusCode": 200}})));
+        assert!(is_rate_limit_error(
+            &json!({"message": "x", "output": {"statusCode": 429}})
+        ));
+        assert!(!is_rate_limit_error(
+            &json!({"message": "ok", "output": {"statusCode": 200}})
+        ));
     }
 
     #[test]
@@ -312,7 +316,9 @@ mod tests {
 
     #[test]
     fn rate_limit_from_data_number() {
-        assert!(is_rate_limit_error(&json!({"message": "send failed", "data": 429})));
+        assert!(is_rate_limit_error(
+            &json!({"message": "send failed", "data": 429})
+        ));
     }
 
     #[test]
@@ -324,8 +330,12 @@ mod tests {
 
     #[test]
     fn not_rate_limit_without_any_signal() {
-        assert!(!is_rate_limit_error(&json!({"message": "connection reset"})));
-        assert!(!is_rate_limit_error(&json!({"output": {"statusCode": 500}})));
+        assert!(!is_rate_limit_error(
+            &json!({"message": "connection reset"})
+        ));
+        assert!(!is_rate_limit_error(
+            &json!({"output": {"statusCode": 500}})
+        ));
         assert!(!is_rate_limit_error(&json!({"data": {"statusCode": 500}})));
         assert!(!is_rate_limit_error(&json!({})));
         assert!(!is_rate_limit_error(&Value::Null));

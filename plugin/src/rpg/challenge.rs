@@ -11,7 +11,7 @@
 //! yang menulis `rpg.dailyChallenge.progress`; plugin ini hanya membacanya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::heal::{apply_exp, or_default, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
@@ -101,7 +101,10 @@ pub fn challenge(ctx: Ctx) -> Reply {
     let reward = field(&fresh, "reward");
     let gold = reward.get("gold").and_then(Value::as_i64).unwrap_or(0);
     let exp = reward.get("exp").and_then(Value::as_i64).unwrap_or(0);
-    let name = field(&fresh, "name").as_str().unwrap_or_default().to_string();
+    let name = field(&fresh, "name")
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
 
     if crate::common::first_keyword(&ctx).as_deref() == Some("claim") {
         if !is_complete {
@@ -154,7 +157,11 @@ pub fn challenge(ctx: Ctx) -> Reply {
          *🎁 Hadiah Tambahan:*\n\
          💰 Koin: *Rp {}*\n\
          ✨ EXP: *{}*\n\n",
-        if is_complete { "✅ *BISA DICLAIM!*" } else { "⏳ _Sedang dikerjakan..._" },
+        if is_complete {
+            "✅ *BISA DICLAIM!*"
+        } else {
+            "⏳ _Sedang dikerjakan..._"
+        },
         thousands_id(gold as f64),
         thousands_id(exp as f64)
     );
@@ -178,7 +185,6 @@ pub fn challenge(ctx: Ctx) -> Reply {
     })
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,7 +196,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -261,19 +271,29 @@ mod tests {
             "",
         );
         let task = task_of(&r);
-        assert_ne!(task["name"], serde_json::json!("LAMA"), "tanggal beda -> diacak ulang");
+        assert_ne!(
+            task["name"],
+            serde_json::json!("LAMA"),
+            "tanggal beda -> diacak ulang"
+        );
         assert_eq!(task["progress"], serde_json::json!(0));
         assert_eq!(task["claimed"], serde_json::json!(false));
-        assert!(CHALLENGES
-            .iter()
-            .any(|(n, ..)| *n == task["name"].as_str().unwrap()));
+        assert!(
+            CHALLENGES
+                .iter()
+                .any(|(n, ..)| *n == task["name"].as_str().unwrap())
+        );
     }
 
     #[test]
     fn the_same_day_keeps_the_stored_challenge_untouched() {
         let r = run(today_task(2, 5, false), "");
         let task = task_of(&r);
-        assert_eq!(task["progress"], serde_json::json!(2), "tidak boleh diacak ulang");
+        assert_eq!(
+            task["progress"],
+            serde_json::json!(2),
+            "tidak boleh diacak ulang"
+        );
         assert_eq!(task["target"], serde_json::json!(5));
         let t = text_of(&r);
         assert!(t.contains("🎯 *⚔️ Kalahkan 5 Monster*"), "{t}");
@@ -309,15 +329,26 @@ mod tests {
         };
         assert_eq!(data["koin"], serde_json::json!(500));
         assert_eq!(data["exp"], serde_json::json!(200));
-        assert_eq!(data["rpg"]["dailyChallenge"]["claimed"], serde_json::json!(true));
-        assert_eq!(data["rpg"]["dailyChallenge"]["progress"], serde_json::json!(5), "progres tak direset");
+        assert_eq!(
+            data["rpg"]["dailyChallenge"]["claimed"],
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            data["rpg"]["dailyChallenge"]["progress"],
+            serde_json::json!(5),
+            "progres tak direset"
+        );
     }
 
     #[test]
     fn progress_past_the_target_still_counts_as_complete() {
         let r = run(today_task(9, 5, false), "");
-        assert!(text_of(&r).contains("✅ *BISA DICLAIM!*"), "{}", text_of(&r));
-        }
+        assert!(
+            text_of(&r).contains("✅ *BISA DICLAIM!*"),
+            "{}",
+            text_of(&r)
+        );
+    }
 
     #[test]
     fn the_footer_tells_the_user_which_of_the_three_states_it_is_in() {
@@ -328,9 +359,16 @@ mod tests {
 
     #[test]
     fn a_missing_user_row_still_gets_a_challenge_and_persists_it() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": {} })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "rpg": {} }),
+        ] {
             let r = run(user.clone(), "");
-            assert!(text_of(&r).starts_with("📋 *TANTANGAN HARIAN GUILD*"), "input {user}");
+            assert!(
+                text_of(&r).starts_with("📋 *TANTANGAN HARIAN GUILD*"),
+                "input {user}"
+            );
             assert_eq!(r.mutations().len(), 1, "challenge baru harus disimpan");
         }
     }
@@ -338,7 +376,13 @@ mod tests {
     #[test]
     fn the_challenge_table_keeps_every_js_row() {
         assert_eq!(CHALLENGES.len(), 7);
-        assert_eq!(CHALLENGES[0], ("⚔️ Kalahkan 5 Monster", "kill", 5, 500, 200));
-        assert_eq!(CHALLENGES[6], ("🗺️ Selesaikan 2 Ekspedisi", "expedition", 2, 600, 300));
+        assert_eq!(
+            CHALLENGES[0],
+            ("⚔️ Kalahkan 5 Monster", "kill", 5, 500, 200)
+        );
+        assert_eq!(
+            CHALLENGES[6],
+            ("🗺️ Selesaikan 2 Ekspedisi", "expedition", 2, 600, 300)
+        );
     }
 }

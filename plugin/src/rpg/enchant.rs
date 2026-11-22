@@ -11,14 +11,7 @@ use crate::rpg::heal::{apply_exp, inventory_map, math_random, or_default, rpg_ma
 
 /// `(key, name, stat, bonus, cost, successRate)` — urutan object literal =
 /// urutan tampil.
-type Enchantable = (
-    &'static str,
-    &'static str,
-    &'static str,
-    i64,
-    i64,
-    i64,
-);
+type Enchantable = (&'static str, &'static str, &'static str, i64, i64, i64);
 
 const ENCHANTABLE: [Enchantable; 7] = [
     ("sword", "⚔️ Pedang", "attack", 5, 500, 70),
@@ -56,7 +49,9 @@ fn roll_succeeds(rate: i64, roll: f64) -> bool {
 }
 
 fn book(rpg: &Map<String, Value>) -> String {
-    let mut txt = String::from("✨ *ᴇɴᴄʜᴀɴᴛ - ᴅᴘɢʀᴀᴅᴇ ᴇǫᴜɪᴘ*\n\n> Tingkatkan equipment untuk bonus stats!\n\n*📦 *ɪᴛᴇᴍ:*\n\n");
+    let mut txt = String::from(
+        "✨ *ᴇɴᴄʜᴀɴᴛ - ᴅᴘɢʀᴀᴅᴇ ᴇǫᴜɪᴘ*\n\n> Tingkatkan equipment untuk bonus stats!\n\n*📦 *ɪᴛᴇᴍ:*\n\n",
+    );
     for (key, name, stat, bonus, cost, rate) in ENCHANTABLE {
         let level = enchant_level(rpg, key);
         txt.push_str(&format!(
@@ -181,7 +176,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -226,14 +225,23 @@ mod tests {
 
     #[test]
     fn without_an_argument_the_catalogue_lists_every_row_with_its_level() {
-        let t_reply = run(serde_json::json!({ "rpg": { "enchants": { "sword": 3 } } }), "");
+        let t_reply = run(
+            serde_json::json!({ "rpg": { "enchants": { "sword": 3 } } }),
+            "",
+        );
         let t = text_of(&t_reply);
         assert!(t.starts_with("✨ *ᴇɴᴄʜᴀɴᴛ - ᴅᴘɢʀᴀᴅᴇ ᴇǫᴜɪᴘ*"), "{t}");
         for (key, name, stat, bonus, cost, rate) in ENCHANTABLE {
             assert!(t.contains(&format!("→ `{key}`")), "{key} hilang");
             assert!(t.contains(&format!("> {name}\n")), "{name} hilang");
-            assert!(t.contains(&format!("💪 Bonus: +{bonus} {stat}")), "{key} salah");
-            assert!(t.contains(&format!("💰 Cost: {}", thousands(cost))), "{key} salah");
+            assert!(
+                t.contains(&format!("💪 Bonus: +{bonus} {stat}")),
+                "{key} salah"
+            );
+            assert!(
+                t.contains(&format!("💰 Cost: {}", thousands(cost))),
+                "{key} salah"
+            );
             assert!(t.contains(&format!("🎯 Rate: {rate}%")), "{key} salah");
         }
         assert!(t.contains("📊 Level: 3/10\n"), "sword: {t}");
@@ -246,7 +254,10 @@ mod tests {
 
     #[test]
     fn an_unknown_item_is_refused() {
-        let r = run(serde_json::json!({ "inventory": { "sword": 1 }, "koin": 99_999 }), "potion");
+        let r = run(
+            serde_json::json!({ "inventory": { "sword": 1 }, "koin": 99_999 }),
+            "potion",
+        );
         let t = text_of(&r);
         assert!(t.starts_with("❌ Item tidak bisa di-enchant!"), "{t}");
         assert!(t.contains("`.enchant` untuk melihat daftar"), "{t}");
@@ -256,8 +267,14 @@ mod tests {
     #[test]
     fn the_item_has_to_be_owned_first() {
         for owned in [0, -1] {
-            let r = run(serde_json::json!({ "inventory": { "sword": owned }, "koin": 99_999 }), "sword");
-            assert!(text_of(&r).starts_with("❌ Kamu tidak punya ⚔️ Pedang!"), "owned {owned}");
+            let r = run(
+                serde_json::json!({ "inventory": { "sword": owned }, "koin": 99_999 }),
+                "sword",
+            );
+            assert!(
+                text_of(&r).starts_with("❌ Kamu tidak punya ⚔️ Pedang!"),
+                "owned {owned}"
+            );
             assert!(r.mutations().is_empty(), "owned {owned}");
         }
     }
@@ -315,7 +332,10 @@ mod tests {
             assert!(t.contains("💰 Cost: *-500*"), "{t}");
             assert!(t.contains("✨ EXP: *+150*"), "{t}");
         }
-        assert!(won > 0, "dalam 600 percobaan harus ada setidaknya satu sukses");
+        assert!(
+            won > 0,
+            "dalam 600 percobaan harus ada setidaknya satu sukses"
+        );
     }
 
     /// Batas lemparannya deterministik: `<` ketat, jadi roll tepat sama dengan
@@ -352,7 +372,10 @@ mod tests {
             assert!(data.get("rpg").is_none(), "gagal tak menyentuh rpg");
             assert!(t.contains("Rate: 25%"), "{t}");
         }
-        assert!(lost > 0, "dalam 600 percobaan harus ada setidaknya satu gagal");
+        assert!(
+            lost > 0,
+            "dalam 600 percobaan harus ada setidaknya satu gagal"
+        );
     }
 
     /// `Math.max(20, rate - level * 5)` — tidak pernah di bawah 20.
@@ -375,9 +398,16 @@ mod tests {
         );
         let t = text_of(&r);
         if t.starts_with("💔") {
-            assert!(write_of(&r).get("rpg").is_none(), "gagal tak boleh menulis rpg");
+            assert!(
+                write_of(&r).get("rpg").is_none(),
+                "gagal tak boleh menulis rpg"
+            );
         } else {
-            assert_eq!(write_of(&r)["rpg"]["enchants"]["bow"], serde_json::json!(4), "level bow tak boleh hilang");
+            assert_eq!(
+                write_of(&r)["rpg"]["enchants"]["bow"],
+                serde_json::json!(4),
+                "level bow tak boleh hilang"
+            );
         }
     }
 }

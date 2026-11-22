@@ -51,9 +51,7 @@ pub fn delvps(ctx: Ctx) -> Reply {
     }
 
     // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `...`')` (`delvps.js:35`).
-    let progres = Reply::text(format!(
-        "🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `{droplet_id}`"
-    ));
+    let progres = Reply::text(format!("🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `{droplet_id}`"));
 
     let url = format!("https://api.digitalocean.com/v2/droplets/{droplet_id}");
     let call = oktz_plugin_api::HttpCall::new(oktz_plugin_api::HttpMethod::Delete, url)
@@ -64,10 +62,8 @@ pub fn delvps(ctx: Ctx) -> Reply {
 
     Reply::sequence(vec![
         progres,
-        Reply::text(format!(
-            "✅ *ᴠᴘs ʙᴇʀʜᴀsɪʟ ᴅɪʜᴀᴘᴜs*\n\n> ID: `{droplet_id}`"
-        ))
-        .with_reaction("✅"),
+        Reply::text(format!("✅ *ᴠᴘs ʙᴇʀʜᴀsɪʟ ᴅɪʜᴀᴘᴜs*\n\n> ID: `{droplet_id}`"))
+            .with_reaction("✅"),
     ])
 }
 

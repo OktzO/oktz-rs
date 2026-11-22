@@ -1,7 +1,7 @@
 //! `plugins/rpg/petshop.js` — beli pet dari toko.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{rpg_map, thousands_en};
@@ -20,7 +20,12 @@ pub(crate) const PETS: [(&str, &str, i64, &str); 5] = [
         6000,
         "Penjaga setia (Attack tinggi, Defense bagus)",
     ),
-    ("bird", "🐦 Burung", 4500, "Lincah & Hoki (Luck sangat tinggi)"),
+    (
+        "bird",
+        "🐦 Burung",
+        4500,
+        "Lincah & Hoki (Luck sangat tinggi)",
+    ),
     ("fish", "🐟 Ikan", 3000, "Murah meriah (Bawa keberuntungan)"),
     (
         "rabbit",
@@ -30,7 +35,9 @@ pub(crate) const PETS: [(&str, &str, i64, &str); 5] = [
     ),
 ];
 
-pub(crate) fn find_pet(key: &str) -> Option<&'static (&'static str, &'static str, i64, &'static str)> {
+pub(crate) fn find_pet(
+    key: &str,
+) -> Option<&'static (&'static str, &'static str, i64, &'static str)> {
     PETS.iter().find(|p| p.0 == key)
 }
 
@@ -83,10 +90,7 @@ pub fn petshop(ctx: Ctx) -> Reply {
         ));
     };
 
-    if ctx
-        .user_field("rpg.pet")
-        .is_some_and(|p| !p.is_null())
-    {
+    if ctx.user_field("rpg.pet").is_some_and(|p| !p.is_null()) {
         return Reply::text(
             "Waduh kak, kamu kan udah punya peliharaan! 😭\n\
              Kasihan nanti dia cemburu. Lepas dulu peliharaan lamamu atau coba sistem kawin silang (`.breeding`).",
@@ -208,7 +212,10 @@ mod tests {
             let pos = |s: &str| t.find(s).expect(s);
             assert!(pos("🐱 Kucing") < pos("🐰 Kelinci"), "{args:?} -> {t}");
             assert!(t.contains("💰 Harga: Rp 5,000"), "{args:?} -> {t}");
-            assert!(t.contains("👉 Adopsi: `.petshop buy fish`"), "{args:?} -> {t}");
+            assert!(
+                t.contains("👉 Adopsi: `.petshop buy fish`"),
+                "{args:?} -> {t}"
+            );
             assert!(t.ends_with("💰 *Uang Kamu:* Rp 12,345"), "{args:?} -> {t}");
         }
     }
@@ -226,14 +233,20 @@ mod tests {
             &["buy", "cat"],
             serde_json::json!({"koin": 9999, "rpg": {"pet": {"type": "dog"}}}),
         ));
-        assert!(t.starts_with("Waduh kak, kamu kan udah punya peliharaan!"), "{t}");
+        assert!(
+            t.starts_with("Waduh kak, kamu kan udah punya peliharaan!"),
+            "{t}"
+        );
         assert!(t.contains("`.breeding`"), "{t}");
     }
 
     #[test]
     fn a_null_pet_still_counts_as_the_default_empty_bag() {
         // `if (user.rpg.pet)` — `null` falsy, jadi adopsi boleh jalan.
-        let r = run(&["buy", "cat"], serde_json::json!({"koin": 9999, "rpg": {"pet": null}}));
+        let r = run(
+            &["buy", "cat"],
+            serde_json::json!({"koin": 9999, "rpg": {"pet": null}}),
+        );
         assert!(text_of(&r).contains("SELAMAT!"));
     }
 

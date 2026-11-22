@@ -16,7 +16,7 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-use serde_json::{Value};
+use serde_json::Value;
 
 /// Awalan key session — `global.anticustomSessions` punya peta sendiri di JS,
 /// sedangkan `Ctx::sessions` satu map global untuk semua plugin.
@@ -33,7 +33,9 @@ fn rules(group_data: &Value) -> Vec<Value> {
         .and_then(Value::as_array)
         .map(|list| {
             list.iter()
-                .filter(|r| crate::common::js_truthy_value(r) && crate::common::js_truthy(r.get("pattern")))
+                .filter(|r| {
+                    crate::common::js_truthy_value(r) && crate::common::js_truthy(r.get("pattern"))
+                })
                 .cloned()
                 .collect()
         })
@@ -45,7 +47,10 @@ fn rules(group_data: &Value) -> Vec<Value> {
 /// `String(action || fallback)` berarti argumen kosong/null ikut `fallback`;
 /// `delete`/`hapus` diseragamkan jadi `remove`.
 fn normalize_action(action: Option<&str>, fallback: &str) -> String {
-    let value = action.filter(|a| !a.is_empty()).unwrap_or(fallback).to_lowercase();
+    let value = action
+        .filter(|a| !a.is_empty())
+        .unwrap_or(fallback)
+        .to_lowercase();
     match value.as_str() {
         "kick" => "kick".to_string(),
         "remove" => "remove".to_string(),
@@ -197,8 +202,16 @@ pub fn anticustom(ctx: Ctx) -> Reply {
             ctx.session_take(&session_key(&ctx));
             Reply::text("✅ Sesi AntiCustom dibatalkan.")
         }
-        "on" => set_group(&ctx, serde_json::json!({ "anticustom": "on" }), "✅ *AntiCustom diaktifkan*"),
-        "off" => set_group(&ctx, serde_json::json!({ "anticustom": "off" }), "❌ *AntiCustom dinonaktifkan*"),
+        "on" => set_group(
+            &ctx,
+            serde_json::json!({ "anticustom": "on" }),
+            "✅ *AntiCustom diaktifkan*",
+        ),
+        "off" => set_group(
+            &ctx,
+            serde_json::json!({ "anticustom": "off" }),
+            "❌ *AntiCustom dinonaktifkan*",
+        ),
         "metode" => {
             let action = normalize_action(ctx.args.get(1).map(String::as_str), "");
             if action.is_empty() {
@@ -206,29 +219,39 @@ pub fn anticustom(ctx: Ctx) -> Reply {
                     "❌ Gunakan: `.anticustom metode kick` atau `.anticustom metode remove`",
                 );
             }
-            let text = format!("✅ *Mode default AntiCustom sekarang {}*", action.to_uppercase());
-            set_group(&ctx, serde_json::json!({ "anticustom": "on", "anticustomMode": action }), text)
+            let text = format!(
+                "✅ *Mode default AntiCustom sekarang {}*",
+                action.to_uppercase()
+            );
+            set_group(
+                &ctx,
+                serde_json::json!({ "anticustom": "on", "anticustomMode": action }),
+                text,
+            )
         }
         "list" => {
             if list.is_empty() {
                 return Reply::text("📋 Belum ada rule AntiCustom di grup ini.");
             }
-            let body: Vec<String> = list.iter().enumerate().map(|(i, r)| format_rule(r, i)).collect();
-            Reply::text(format!(
-                "📋 *ʟɪsᴛ ᴀɴᴛɪᴄᴜsᴛᴏᴍ*\n\n{}",
-                body.join("\n\n")
-            ))
+            let body: Vec<String> = list
+                .iter()
+                .enumerate()
+                .map(|(i, r)| format_rule(r, i))
+                .collect();
+            Reply::text(format!("📋 *ʟɪsᴛ ᴀɴᴛɪᴄᴜsᴛᴏᴍ*\n\n{}", body.join("\n\n")))
         }
         "del" | "delete" | "remove" => {
             let name = ctx.args[1..].join(" ").trim().to_lowercase();
             if name.is_empty() {
                 return Reply::text("❌ Format: `.anticustom del <judul>`");
             }
-            let kept: Vec<Value> = list.iter().filter(|r| !rule_matches(r, &name)).cloned().collect();
+            let kept: Vec<Value> = list
+                .iter()
+                .filter(|r| !rule_matches(r, &name))
+                .cloned()
+                .collect();
             if kept.len() == list.len() {
-                return Reply::text(format!(
-                    "❌ Rule dengan judul `{name}` tidak ditemukan."
-                ));
+                return Reply::text(format!("❌ Rule dengan judul `{name}` tidak ditemukan."));
             }
             set_group(
                 &ctx,
@@ -246,8 +269,16 @@ pub fn anticustom(ctx: Ctx) -> Reply {
 /// sama persis dengan judul yang diketik, atau nama mulai dengan `"{judul} #"`
 /// (suffix yang ditambahkan wizard saat satu rule punya banyak pattern).
 fn rule_matches(rule: &Value, name: &str) -> bool {
-    let rule_name = rule.get("name").and_then(Value::as_str).unwrap_or("").to_lowercase();
-    let group_name = rule.get("groupName").and_then(Value::as_str).unwrap_or("").to_lowercase();
+    let rule_name = rule
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_lowercase();
+    let group_name = rule
+        .get("groupName")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_lowercase();
     rule_name == name || group_name == name || rule_name.starts_with(&format!("{name} #"))
 }
 
@@ -286,7 +317,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn written(r: &Reply) -> Value {
@@ -306,8 +340,14 @@ mod tests {
         assert_eq!(p.meta.name, "anticustom");
         assert_eq!(p.meta.alias, ["antiaddcustom", "customanti"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Bikin AntiCustom lewat sesi tanya jawab per langkah");
-        assert_eq!(p.meta.usage, ".anticustom <on/off/list/add/del/metode/cancel>");
+        assert_eq!(
+            p.meta.description,
+            "Bikin AntiCustom lewat sesi tanya jawab per langkah"
+        );
+        assert_eq!(
+            p.meta.usage,
+            ".anticustom <on/off/list/add/del/metode/cancel>"
+        );
         assert_eq!(p.meta.example, ".anticustom");
         assert_eq!(p.meta.cooldown, 3);
         assert_eq!(p.meta.energi, 0);
@@ -319,7 +359,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
         for a in ["antiaddcustom", "customanti"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("anticustom"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("anticustom"),
+                "{a}"
+            );
         }
     }
 
@@ -328,12 +372,20 @@ mod tests {
         let sessions = oktz_plugin_api::new_session_store();
         let r = run(&[], serde_json::json!({}), Some(sessions.clone()));
         let t = text_of(&r);
-        assert!(t.starts_with("🛡️ *Selamat datang di setup AntiCustom*"), "{t}");
+        assert!(
+            t.starts_with("🛡️ *Selamat datang di setup AntiCustom*"),
+            "{t}"
+        );
         assert!(t.contains("*Alurnya:*\n1. Tentukan judul rule"), "{t}");
         assert!(t.contains("*Pertanyaan 1/4*"), "{t}");
         assert!(t.ends_with("> Contoh: `Anti Kata Kotor`"), "{t}");
         let key = format!("{SESSION_PREFIX}:{CHAT}:{ME}");
-        let s = sessions.lock().unwrap().get(&key).cloned().expect("sesi tersimpan");
+        let s = sessions
+            .lock()
+            .unwrap()
+            .get(&key)
+            .cloned()
+            .expect("sesi tersimpan");
         assert_eq!(s["step"], serde_json::json!("title"));
         assert_eq!(s["type"], serde_json::json!("contains"));
         assert_eq!(s["action"], serde_json::json!("remove"));
@@ -354,8 +406,14 @@ mod tests {
                 t.starts_with("⚠️ Kamu masih punya sesi AntiCustom yang belum selesai."),
                 "input {sub:?}: {t}"
             );
-            assert!(t.contains("> Atau batalkan dengan `.anticustom cancel`"), "{t}");
-            assert!(r.mutations().is_empty(), "{sub:?} tidak boleh menulis apa pun");
+            assert!(
+                t.contains("> Atau batalkan dengan `.anticustom cancel`"),
+                "{t}"
+            );
+            assert!(
+                r.mutations().is_empty(),
+                "{sub:?} tidak boleh menulis apa pun"
+            );
         }
     }
 
@@ -370,7 +428,11 @@ mod tests {
 
     #[test]
     fn with_rules_the_default_action_prints_the_guide() {
-        let r = run(&[], serde_json::json!({ "anticustomRules": [rule("Kata Kotor", "anjing")] }), None);
+        let r = run(
+            &[],
+            serde_json::json!({ "anticustomRules": [rule("Kata Kotor", "anjing")] }),
+            None,
+        );
         let t = text_of(&r);
         assert!(t.starts_with("🛡️ *ᴀɴᴛɪᴄᴜsᴛᴏᴍ*"), "{t}");
         assert!(t.contains("> Status: *OFF*"), "{t}");
@@ -388,7 +450,8 @@ mod tests {
         assert!(t.contains("> Mode default: *KICK*"), "{t}");
 
         // `delete` diseragamkan jadi `remove` oleh `normalizeAction`.
-        let g = serde_json::json!({ "anticustomMode": "delete", "anticustomRules": [rule("a", "b")] });
+        let g =
+            serde_json::json!({ "anticustomMode": "delete", "anticustomRules": [rule("a", "b")] });
         let t = text_of(&run(&[], g, None));
         assert!(t.contains("> Mode default: *REMOVE*"), "{t}");
     }
@@ -402,10 +465,22 @@ mod tests {
 
     #[test]
     fn on_and_off_write_only_the_status_field() {
-        assert_eq!(written(&run(&["on"], serde_json::json!({}), None)), serde_json::json!({ "anticustom": "on" }));
-        assert_eq!(text_of(&run(&["on"], serde_json::json!({}), None)), "✅ *AntiCustom diaktifkan*");
-        assert_eq!(written(&run(&["off"], serde_json::json!({}), None)), serde_json::json!({ "anticustom": "off" }));
-        assert_eq!(text_of(&run(&["off"], serde_json::json!({}), None)), "❌ *AntiCustom dinonaktifkan*");
+        assert_eq!(
+            written(&run(&["on"], serde_json::json!({}), None)),
+            serde_json::json!({ "anticustom": "on" })
+        );
+        assert_eq!(
+            text_of(&run(&["on"], serde_json::json!({}), None)),
+            "✅ *AntiCustom diaktifkan*"
+        );
+        assert_eq!(
+            written(&run(&["off"], serde_json::json!({}), None)),
+            serde_json::json!({ "anticustom": "off" })
+        );
+        assert_eq!(
+            text_of(&run(&["off"], serde_json::json!({}), None)),
+            "❌ *AntiCustom dinonaktifkan*"
+        );
     }
 
     #[test]
@@ -417,8 +492,16 @@ mod tests {
             ("hapus", "remove", "REMOVE"),
         ] {
             let r = run(&["metode", arg], serde_json::json!({}), None);
-            assert_eq!(written(&r), serde_json::json!({ "anticustom": "on", "anticustomMode": stored }), "{arg}");
-            assert_eq!(text_of(&r), format!("✅ *Mode default AntiCustom sekarang {shown}*"), "{arg}");
+            assert_eq!(
+                written(&r),
+                serde_json::json!({ "anticustom": "on", "anticustomMode": stored }),
+                "{arg}"
+            );
+            assert_eq!(
+                text_of(&r),
+                format!("✅ *Mode default AntiCustom sekarang {shown}*"),
+                "{arg}"
+            );
         }
     }
 
@@ -443,9 +526,14 @@ mod tests {
         ] });
         let t = text_of(&run(&["list"], g, None));
         assert!(t.starts_with("📋 *ʟɪsᴛ ᴀɴᴛɪᴄᴜsᴛᴏᴍ*\n\n1."), "{t}");
-        assert!(t.contains("1. *Jahat*\n> pattern: `tolol`\n> type: *regex*\n> action: *kick*"), "{t}");
         assert!(
-            t.contains("\n\n2. *Kotor*\n> pattern: `anjing`\n> type: *contains*\n> action: *remove*"),
+            t.contains("1. *Jahat*\n> pattern: `tolol`\n> type: *regex*\n> action: *kick*"),
+            "{t}"
+        );
+        assert!(
+            t.contains(
+                "\n\n2. *Kotor*\n> pattern: `anjing`\n> type: *contains*\n> action: *remove*"
+            ),
             "{t}"
         );
     }
@@ -472,8 +560,14 @@ mod tests {
     fn del_removes_the_matching_rule_and_writes_the_rest() {
         let g = serde_json::json!({ "anticustomRules": [rule("Jahat", "a"), rule("Kotor", "b")] });
         let r = run(&["del", "Jahat"], g, None);
-        assert_eq!(written(&r), serde_json::json!({ "anticustomRules": [rule("Kotor", "b")] }));
-        assert_eq!(text_of(&r), "✅ Rule dengan judul `jahat` berhasil dihapus.");
+        assert_eq!(
+            written(&r),
+            serde_json::json!({ "anticustomRules": [rule("Kotor", "b")] })
+        );
+        assert_eq!(
+            text_of(&r),
+            "✅ Rule dengan judul `jahat` berhasil dihapus."
+        );
     }
 
     #[test]
@@ -494,12 +588,23 @@ mod tests {
 
     #[test]
     fn del_needs_a_title_and_reports_an_unknown_one() {
-        let r = run(&["del"], serde_json::json!({ "anticustomRules": [rule("a", "b")] }), None);
+        let r = run(
+            &["del"],
+            serde_json::json!({ "anticustomRules": [rule("a", "b")] }),
+            None,
+        );
         assert_eq!(text_of(&r), "❌ Format: `.anticustom del <judul>`");
         assert!(r.mutations().is_empty());
 
-        let r = run(&["del", "TidakAda"], serde_json::json!({ "anticustomRules": [rule("a", "b")] }), None);
-        assert_eq!(text_of(&r), "❌ Rule dengan judul `tidakada` tidak ditemukan.");
+        let r = run(
+            &["del", "TidakAda"],
+            serde_json::json!({ "anticustomRules": [rule("a", "b")] }),
+            None,
+        );
+        assert_eq!(
+            text_of(&r),
+            "❌ Rule dengan judul `tidakada` tidak ditemukan."
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -508,7 +613,11 @@ mod tests {
         let g = serde_json::json!({ "anticustomRules": [rule("Jahat", "a"), rule("Kotor", "b")] });
         for sub in ["del", "delete", "remove"] {
             let r = run(&[sub, "Kotor"], g.clone(), None);
-            assert_eq!(written(&r), serde_json::json!({ "anticustomRules": [rule("Jahat", "a")] }), "{sub}");
+            assert_eq!(
+                written(&r),
+                serde_json::json!({ "anticustomRules": [rule("Jahat", "a")] }),
+                "{sub}"
+            );
         }
     }
 
@@ -516,7 +625,10 @@ mod tests {
     fn cancel_clears_the_session_and_refuses_when_there_is_none() {
         let sessions = oktz_plugin_api::new_session_store();
         let r = run(&["cancel"], serde_json::json!({}), Some(sessions.clone()));
-        assert_eq!(text_of(&r), "⚠️ Tidak ada sesi AntiCustom yang sedang berjalan.");
+        assert_eq!(
+            text_of(&r),
+            "⚠️ Tidak ada sesi AntiCustom yang sedang berjalan."
+        );
 
         let key = format!("{SESSION_PREFIX}:{CHAT}:{ME}");
         for sub in ["cancel", "batal"] {
@@ -527,17 +639,20 @@ mod tests {
                 .insert(key.clone(), serde_json::json!({ "step": "title" }));
             let r = run(&[sub], serde_json::json!({}), Some(sessions.clone()));
             assert_eq!(text_of(&r), "✅ Sesi AntiCustom dibatalkan.", "{sub}");
-            assert!(!sessions.lock().unwrap().contains_key(&key), "{sub} harus menghapus sesi");
+            assert!(
+                !sessions.lock().unwrap().contains_key(&key),
+                "{sub} harus menghapus sesi"
+            );
         }
     }
 
     #[test]
     fn a_session_of_another_user_does_not_block_the_wizard() {
         let sessions = oktz_plugin_api::new_session_store();
-        sessions
-            .lock()
-            .unwrap()
-            .insert(format!("{SESSION_PREFIX}:{CHAT}:628999@s.whatsapp.net"), serde_json::json!({}));
+        sessions.lock().unwrap().insert(
+            format!("{SESSION_PREFIX}:{CHAT}:628999@s.whatsapp.net"),
+            serde_json::json!({}),
+        );
         let r = run(&["add"], serde_json::json!({}), Some(sessions));
         assert!(text_of(&r).starts_with("🛡️ *Yuk tambah rule AntiCustom baru*"));
     }

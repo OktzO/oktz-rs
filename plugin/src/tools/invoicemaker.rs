@@ -15,9 +15,11 @@ use crate::tools::phisingataubukan::encode_uri_component;
 const API_BASE: &str = "https://api.neoxr.eu/api/invoice-maker";
 const QR_IMAGE: &str = "https://i.ibb.co.com/kt5fyrg/qr.jpg";
 
-const ERR_FORMAT: &str = "❌ Format tidak lengkap! Butuh 6 parameter (toko|invoice|tanggal|status|items|total)";
+const ERR_FORMAT: &str =
+    "❌ Format tidak lengkap! Butuh 6 parameter (toko|invoice|tanggal|status|items|total)";
 const ERR_STATUS: &str = "❌ Status harus 'paid' atau 'unpaid'!";
-const ERR_ITEMS: &str = "❌ Format items salah! Gunakan: Nama:unit:harga (pisah koma untuk multiple)";
+const ERR_ITEMS: &str =
+    "❌ Format items salah! Gunakan: Nama:unit:harga (pisah koma untuk multiple)";
 const ERR_NEGATIF: &str = "❌ Harga item tidak boleh negatif! Gunakan angka positif.";
 const ERR_TOTAL_NEGATIF: &str = "❌ Total tidak boleh negatif! Gunakan angka positif.";
 
@@ -117,7 +119,11 @@ pub fn invoicemaker(ctx: Ctx) -> Reply {
             return Reply::text(ERR_NEGATIF);
         }
         items.push(Item {
-            nama: if nama.is_empty() { "Item".to_string() } else { nama.to_string() },
+            nama: if nama.is_empty() {
+                "Item".to_string()
+            } else {
+                nama.to_string()
+            },
             unit: unit.to_string(),
             harga,
         });
@@ -159,8 +165,14 @@ pub fn invoicemaker(ctx: Ctx) -> Reply {
         None => return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Balasan API bukan JSON"),
     };
 
-    if !data.get("status").is_some_and(crate::common::js_truthy_value)
-        || data.get("data").and_then(|v| v.get("image")).and_then(|v| v.get("url")).is_none()
+    if !data
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value)
+        || data
+            .get("data")
+            .and_then(|v| v.get("image"))
+            .and_then(|v| v.get("url"))
+            .is_none()
     {
         return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> API tidak mengembalikan data yang valid");
     }
@@ -168,10 +180,22 @@ pub fn invoicemaker(ctx: Ctx) -> Reply {
     let image_url = data["data"]["image"]["url"].as_str().unwrap_or("");
     let data_obj = data.get("data").cloned().unwrap_or(Value::Null);
 
-    let store_v = data_obj.get("store").and_then(|v| v.as_str()).unwrap_or(store);
-    let invoice_v = data_obj.get("invoice").and_then(|v| v.as_str()).unwrap_or(invoice);
-    let date_v = data_obj.get("date").and_then(|v| v.as_str()).unwrap_or(date);
-    let status_v = data_obj.get("status").and_then(|v| v.as_str()).unwrap_or(status);
+    let store_v = data_obj
+        .get("store")
+        .and_then(|v| v.as_str())
+        .unwrap_or(store);
+    let invoice_v = data_obj
+        .get("invoice")
+        .and_then(|v| v.as_str())
+        .unwrap_or(invoice);
+    let date_v = data_obj
+        .get("date")
+        .and_then(|v| v.as_str())
+        .unwrap_or(date);
+    let status_v = data_obj
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or(status);
 
     let mut caption = format!(
         "🧾 *ɪɴᴠᴏɪᴄᴇ ɢᴇɴᴇʀᴀᴛᴇᴅ*\n\n\
@@ -182,7 +206,11 @@ pub fn invoicemaker(ctx: Ctx) -> Reply {
         ┃ 📌 Status: *{}*\n\
         ╰┈┈⬡\n\n\
         ╭┈┈⬡「 🛒 *ɪᴛᴇᴍs* 」\n",
-        if status_v == "paid" { "✅ LUNAS" } else { "❌ BELUM LUNAS" }
+        if status_v == "paid" {
+            "✅ LUNAS"
+        } else {
+            "❌ BELUM LUNAS"
+        }
     );
     let items_arr = data_obj
         .get("items")
@@ -201,11 +229,11 @@ pub fn invoicemaker(ctx: Ctx) -> Reply {
             rupiah(harga)
         ));
     }
-    let total_v = data_obj.get("total").and_then(|v| v.as_i64()).unwrap_or(total);
-    caption.push_str(&format!(
-        "╰┈┈⬡\n\n> 💰 Total: *Rp{}*",
-        rupiah(total_v)
-    ));
+    let total_v = data_obj
+        .get("total")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(total);
+    caption.push_str(&format!("╰┈┈⬡\n\n> 💰 Total: *Rp{}*", rupiah(total_v)));
 
     Reply::image(MediaSource::url(image_url.to_string()), caption)
 }
@@ -343,7 +371,10 @@ mod tests {
             }
         })));
         let r = run(http, &["T|I|D|paid|:1x:100|100"]);
-        assert!(image_of(&r).is_some(), "nama kosong harus jadi 'Item', tidak ditolak");
+        assert!(
+            image_of(&r).is_some(),
+            "nama kosong harus jadi 'Item', tidak ditolak"
+        );
     }
 
     #[test]
@@ -377,8 +408,13 @@ mod tests {
                 "image": {"url": "https://cdn/invoice.png"}
             }
         })));
-        let r = run(http.clone(), &["TokoKu|INV001|15/01/2026|paid|Nasi Goreng:1x:15000,Es Teh:2x:6000|21000"]);
-        let Some(url) = image_of(&r) else { panic!("harus image"); };
+        let r = run(
+            http.clone(),
+            &["TokoKu|INV001|15/01/2026|paid|Nasi Goreng:1x:15000,Es Teh:2x:6000|21000"],
+        );
+        let Some(url) = image_of(&r) else {
+            panic!("harus image");
+        };
         assert_eq!(url, "https://cdn/invoice.png");
         let cap = body_of(&r);
         assert!(cap.contains("🧾 *ɪɴᴠᴏɪᴄᴇ ɢᴇɴᴇʀᴀᴛᴇᴅ*"));

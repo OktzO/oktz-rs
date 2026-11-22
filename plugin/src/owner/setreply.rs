@@ -24,7 +24,13 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v2", 2, "PREMIUM", "", "🖼️"),
     ("v3", 3, "TITANIUM", "", "📨"),
     ("v4", 4, "LV", "", "💼"),
-    ("v5", 5, "FAKE ORDER", "Teks dengan fake quoted order message", "🛒"),
+    (
+        "v5",
+        5,
+        "FAKE ORDER",
+        "Teks dengan fake quoted order message",
+        "🛒",
+    ),
     (
         "v6",
         6,
@@ -32,8 +38,20 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
         "Seperti V2 tapi tanpa fake contact quote (quoted ori)",
         "📄",
     ),
-    ("v7", 7, "FAKE LOCATION", "Teks dengan fake quoted location message", "📍"),
-    ("v8", 8, "FAKE SIGNUP", "Teks dengan fake quoted signup message", "🥠"),
+    (
+        "v7",
+        7,
+        "FAKE LOCATION",
+        "Teks dengan fake quoted location message",
+        "📍",
+    ),
+    (
+        "v8",
+        8,
+        "FAKE SIGNUP",
+        "Teks dengan fake quoted signup message",
+        "🥠",
+    ),
     (
         "v9",
         9,
@@ -41,7 +59,13 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
         "Teks dengan fake quoted order message ( gak direkomendasikan )",
         "🍙",
     ),
-    ("v10", 10, "TAGIHAN / PAYMENT", "Tampilan struk tagihan (Payment Request)", "💳"),
+    (
+        "v10",
+        10,
+        "TAGIHAN / PAYMENT",
+        "Tampilan struk tagihan (Payment Request)",
+        "💳",
+    ),
     ("v11", 11, "PREVIEW", "Link preview", "🌀"),
 ];
 
@@ -54,9 +78,10 @@ fn cari(key: &str) -> Option<(&'static str, i64, &'static str, &'static str, &'s
 fn teks(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
-        Value::Number(n) => n
-            .as_i64()
-            .map_or_else(|| n.as_f64().map(|f| format!("{f}")).unwrap_or_default(), |i| i.to_string()),
+        Value::Number(n) => n.as_i64().map_or_else(
+            || n.as_f64().map(|f| format!("{f}")).unwrap_or_default(),
+            |i| i.to_string(),
+        ),
         other => other.to_string(),
     }
 }
@@ -187,7 +212,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["replyvariant", "replystyle"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("setreply"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("setreply"),
+                "{a}"
+            );
         }
     }
 
@@ -229,7 +258,11 @@ mod tests {
     #[test]
     fn v11_kenal_sebagai_varian_terakhir() {
         let r = run("v11", Value::Null);
-        assert!(text_of(&r).contains("🌀 *V11 — PREVIEW*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("🌀 *V11 — PREVIEW*"),
+            "{}",
+            text_of(&r)
+        );
         assert_eq!(variant_tersimpan(&r), Some(serde_json::json!(11)));
     }
 
@@ -265,7 +298,11 @@ mod tests {
             body.contains("Variant aktif saat ini: *V1 — BASIC* 🎯"),
             "{body}"
         );
-        assert_eq!(body.matches("\n   ").count(), 11, "harus 11 baris tombol: {body}");
+        assert_eq!(
+            body.matches("\n   ").count(),
+            11,
+            "harus 11 baris tombol: {body}"
+        );
         for (_, _, nama, ..) in VARIANTS {
             assert!(body.contains(*nama), "nama varian {nama} tidak ada: {body}");
         }
@@ -279,20 +316,29 @@ mod tests {
         let body = text_of(&r);
         assert!(body.contains("📨 V3 ✓ — TITANIUM"), "{body}");
         assert!(!body.contains("V1 ✓"), "hanya V3 yang ditandai: {body}");
-        assert!(body.contains("Variant aktif saat ini: *V3 — TITANIUM* 🎯"), "{body}");
+        assert!(
+            body.contains("Variant aktif saat ini: *V3 — TITANIUM* 🎯"),
+            "{body}"
+        );
 
         // `"3"` string tidak === 3, jadi tidak ada tanda, tapi nama tetap kebaca.
         let r = run("", serde_json::json!({"replyVariant": "3"}));
         let body = text_of(&r);
         assert!(!body.contains('✓'), "string tidak menandai apa pun: {body}");
-        assert!(body.contains("Variant aktif saat ini: *V3 — TITANIUM* 🎯"), "{body}");
+        assert!(
+            body.contains("Variant aktif saat ini: *V3 — TITANIUM* 🎯"),
+            "{body}"
+        );
     }
 
     #[test]
     fn nilai_tersimpan_bukan_variant_memberi_unknown() {
         let r = run("", serde_json::json!({"replyVariant": "9x"}));
         let body = text_of(&r);
-        assert!(body.contains("Variant aktif saat ini: *V9x — Unknown* 🎯"), "{body}");
+        assert!(
+            body.contains("Variant aktif saat ini: *V9x — Unknown* 🎯"),
+            "{body}"
+        );
         assert!(!body.contains('✓'), "{body}");
     }
 

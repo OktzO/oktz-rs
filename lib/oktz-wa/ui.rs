@@ -8,9 +8,9 @@
 //! otomatis diam + tanpa warna, supaya unit test pipeline yang memanggil
 //! `process()` tidak berisik.
 
+use chrono::{DateTime, Local, Utc};
 use std::io::{IsTerminal, Write};
 use std::sync::OnceLock;
-use chrono::{DateTime, Local, Utc};
 
 // SGR codes — tanpa crate warna supaya dep tetap ramping.
 pub const ABU: &str = "\x1b[90m";
@@ -33,10 +33,9 @@ pub fn tampil_selalu(v: bool) {
 }
 
 fn boleh_tampil() -> bool {
-    *ADA_TTY.get_or_init(|| {
-        std::io::stdout().is_terminal()
-            && std::env::var_os("NO_COLOR").is_none()
-    }) || PAKSA.load(std::sync::atomic::Ordering::Relaxed)
+    *ADA_TTY
+        .get_or_init(|| std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none())
+        || PAKSA.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Bungkus teks dengan kode warna; tanpa tty balikan polos.
@@ -166,13 +165,18 @@ mod tests {
     use super::*;
 
     fn contoh_ts() -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339("2026-11-16T02:41:05Z").unwrap().into()
+        DateTime::parse_from_rfc3339("2026-11-16T02:41:05Z")
+            .unwrap()
+            .into()
     }
 
     #[test]
     fn md_dirender_tanpa_tty_tetap_bersih() {
         // warna mati di test (bukan tty) → marker hilang, teks bersih
-        assert_eq!(render_md("*halo* _dunia_ ~x~ ```kode```"), "halo dunia x kode");
+        assert_eq!(
+            render_md("*halo* _dunia_ ~x~ ```kode```"),
+            "halo dunia x kode"
+        );
     }
 
     #[test]

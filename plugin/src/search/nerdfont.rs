@@ -18,7 +18,6 @@ use oktz_plugin_api::registry::InteractiveButton;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::json;
 
-
 /// `nerdfont.js:5` — satu-satunya endpoint.
 pub(crate) const URL: &str = "https://www.nerdfonts.com/font-downloads";
 
@@ -64,7 +63,11 @@ fn url_dari_style(style: &str) -> Option<String> {
     let at = low.find("background-image")?;
     let mut rest = &low[at + "background-image".len()..];
     rest = rest.trim_start().strip_prefix(':')?.trim_start();
-    rest = rest.trim_start().strip_prefix("url").unwrap_or(rest).trim_start();
+    rest = rest
+        .trim_start()
+        .strip_prefix("url")
+        .unwrap_or(rest)
+        .trim_start();
     rest = rest.strip_prefix('(')?.trim_start();
     let inner = rest
         .strip_prefix('\'')
@@ -162,10 +165,9 @@ pub(crate) fn parse_fonts(html: &str) -> Result<Vec<Font>, String> {
         let (preview_at, _) = link_dengan_kelas(block, "font-preview").ok_or_else(gagal)?;
         let style = atribut(block, preview_at, "style").unwrap_or_default();
         let src = url_dari_style(&style).ok_or_else(gagal)?;
-        let preview_url = link_dengan_kelas(block, "nf-oct-link_external")
-            .and_then(|(_, href)| href);
-        let download_url = link_dengan_kelas(block, "nf-fa-download")
-            .and_then(|(_, href)| href);
+        let preview_url =
+            link_dengan_kelas(block, "nf-oct-link_external").and_then(|(_, href)| href);
+        let download_url = link_dengan_kelas(block, "nf-fa-download").and_then(|(_, href)| href);
 
         // `if (name && download_url)` — `download_url` undefined tidak lolos.
         if !name.is_empty()
@@ -211,9 +213,7 @@ fn tag_punya_kelas(html: &str, pos: usize, class: &str) -> bool {
     let Some(close) = tag[at..].find('"') else {
         return false;
     };
-    tag[at..at + close]
-        .split_whitespace()
-        .any(|k| k == class)
+    tag[at..at + close].split_whitespace().any(|k| k == class)
 }
 
 /// `nerdfont.js:71-92` — kartu interaktif beserta barisnya.
@@ -306,10 +306,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+            let text = self.body.clone().map_err(|()| oktz_plugin_api::HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -391,16 +390,25 @@ Creator: Arthur Deng</div>
             fonts[0].preview_image,
             "https://www.nerdfonts.com/preview/coolvetica.png"
         );
-        assert_eq!(fonts[0].preview_url, "https://github.com/ryanoasis/nerd-fonts");
+        assert_eq!(
+            fonts[0].preview_url,
+            "https://github.com/ryanoasis/nerd-fonts"
+        );
         assert_eq!(fonts[0].download_url, "/releases/Coolvetica.zip");
     }
 
     #[test]
     fn the_prefix_is_added_to_the_background_url_only() {
         let fonts = parse_fonts(SEBUAH_ITEM).unwrap();
-        assert!(fonts[0].preview_image.starts_with("https://www.nerdfonts.com/"));
         assert!(
-            !fonts[0].preview_image.contains("https://www.nerdfonts.comhttps"),
+            fonts[0]
+                .preview_image
+                .starts_with("https://www.nerdfonts.com/")
+        );
+        assert!(
+            !fonts[0]
+                .preview_image
+                .contains("https://www.nerdfonts.comhttps"),
             "path absolut tidak digandakan"
         );
     }
@@ -479,7 +487,10 @@ Info: Y</div>
     </div>"#;
         assert!(parse_fonts(html).is_err());
         let r = run(Stub::html(html), "");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "nerdfont"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "nerdfont")
+        );
     }
 
     #[test]
@@ -506,15 +517,26 @@ Info: Y</div>
 
     #[test]
     fn the_label_capture_stops_at_the_line_break() {
-        assert_eq!(setelah_label("Version: 1.1.0\nInfo: X", "Version:").unwrap(), "1.1.0");
-        assert_eq!(setelah_label("Version:  2.0  \r\nInfo: X", "Version:").unwrap(), "2.0");
+        assert_eq!(
+            setelah_label("Version: 1.1.0\nInfo: X", "Version:").unwrap(),
+            "1.1.0"
+        );
+        assert_eq!(
+            setelah_label("Version:  2.0  \r\nInfo: X", "Version:").unwrap(),
+            "2.0"
+        );
         assert_eq!(setelah_label("Version:\nInfo: X", "Version:").unwrap(), "");
         assert_eq!(setelah_label("Info saja", "Version:"), None);
     }
 
     #[test]
     fn empty_and_broken_pages_do_not_panic() {
-        for html in ["", "<html></html>", "<div class=\"item\"></div>", "<div class=\"item\">"] {
+        for html in [
+            "",
+            "<html></html>",
+            "<div class=\"item\"></div>",
+            "<div class=\"item\">",
+        ] {
             let _ = parse_fonts(html);
             let r = run(Stub::html(html), "");
             assert!(!text_of(&r).is_empty(), "html {html:?}");
@@ -542,8 +564,7 @@ Info: Y</div>
     fn the_card_carries_the_button_rows_in_order() {
         let fonts = parse_fonts(SEBUAH_ITEM).unwrap();
         let r = kartu(&fonts, "!");
-        let Reply::Interactive { kartu } = r.without_mutations()
-        else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu interaktif");
         };
         let body = &kartu.body;
@@ -571,7 +592,10 @@ Info: Y</div>
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "nerdfont"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "nerdfont")
+        );
         let seen = Stub::offline();
         let _ = run(seen.clone(), "Coolvetica");
         assert_eq!(seen.seen.lock().unwrap()[0], URL);
@@ -582,8 +606,15 @@ Info: Y</div>
         let http = Stub::html(SEBUAH_ITEM);
         for input in ["<b>", "a|b", "🎨", "'\"", "a\u{202e}b", &"x".repeat(5000)] {
             let r = run(http.clone(), input);
-            assert!(text_of(&r).contains("Silahkan pilih font"), "input {input:?}");
+            assert!(
+                text_of(&r).contains("Silahkan pilih font"),
+                "input {input:?}"
+            );
         }
-        assert_eq!(http.seen.lock().unwrap().len(), 6, "input diabaikan, bukan guard");
+        assert_eq!(
+            http.seen.lock().unwrap().len(),
+            6,
+            "input diabaikan, bukan guard"
+        );
     }
 }

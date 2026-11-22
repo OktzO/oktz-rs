@@ -67,7 +67,10 @@ fn json_default() -> Value {
 /// `prefix.js:15-21` — tulis JSON, buat folder induk jika perlu.
 fn simpan_awalan(ctx: &Ctx, data: &Value) {
     let _ = ctx.berkas().buat_folder("database");
-    let _ = ctx.berkas().tulis_teks(PREF_DB_PATH, &serde_json::to_string_pretty(data).unwrap_or_default());
+    let _ = ctx.berkas().tulis_teks(
+        PREF_DB_PATH,
+        &serde_json::to_string_pretty(data).unwrap_or_default(),
+    );
 }
 
 fn prefixes_arr(data: &Value) -> Vec<String> {
@@ -82,7 +85,9 @@ fn prefixes_arr(data: &Value) -> Vec<String> {
 }
 
 fn noprefix_aktif(data: &Value) -> bool {
-    data.get("noprefix").and_then(Value::as_bool).unwrap_or(false)
+    data.get("noprefix")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 /// `prefix.js:23-28` — gabung config prefix + database, dedup.
@@ -105,14 +110,18 @@ fn cmd_addprefix(ctx: &Ctx, data: &Value) -> Reply {
         ));
     }
 
-    if ctx.args.iter().any(|a| a == "<noprefix>" || a == "noprefix") {
+    if ctx
+        .args
+        .iter()
+        .any(|a| a == "<noprefix>" || a == "noprefix")
+    {
         let mut data = data.clone();
         if let Some(obj) = data.as_object_mut() {
             obj.insert("noprefix".to_string(), Value::Bool(true));
         }
         simpan_awalan(ctx, &data);
         return Reply::text(
-            "✅ *ɴᴏᴘʀᴇғɪx ᴅɪᴀᴋᴛɪғᴋᴀɴ*\n\n> Bot sekarang bisa dijalankan tanpa prefix\n> Ketik langsung nama command (misal: `menu`)"
+            "✅ *ɴᴏᴘʀᴇғɪx ᴅɪᴀᴋᴛɪғᴋᴀɴ*\n\n> Bot sekarang bisa dijalankan tanpa prefix\n> Ketik langsung nama command (misal: `menu`)",
         );
     }
 
@@ -135,7 +144,10 @@ fn cmd_addprefix(ctx: &Ctx, data: &Value) -> Reply {
         }
     }
     if let Some(obj) = data.as_object_mut() {
-        obj.insert("prefixes".to_string(), Value::Array(semua.iter().map(|s| Value::String(s.clone())).collect()));
+        obj.insert(
+            "prefixes".to_string(),
+            Value::Array(semua.iter().map(|s| Value::String(s.clone())).collect()),
+        );
     }
     simpan_awalan(ctx, &data);
 
@@ -163,7 +175,10 @@ fn cmd_ganti_awalan(ctx: &Ctx, data: &Value) -> Reply {
         ));
     }
 
-    let has_noprefix = ctx.args.iter().any(|a| a == "<noprefix>" || a == "noprefix");
+    let has_noprefix = ctx
+        .args
+        .iter()
+        .any(|a| a == "<noprefix>" || a == "noprefix");
     let baru: Vec<String> = ctx
         .args
         .iter()
@@ -204,7 +219,11 @@ fn cmd_hapus_awalan(ctx: &Ctx, data: &Value) -> Reply {
         ));
     }
 
-    if ctx.args.iter().any(|a| a == "<noprefix>" || a == "noprefix") {
+    if ctx
+        .args
+        .iter()
+        .any(|a| a == "<noprefix>" || a == "noprefix")
+    {
         let mut data = data.clone();
         if let Some(obj) = data.as_object_mut() {
             obj.insert("noprefix".to_string(), Value::Bool(false));
@@ -216,17 +235,23 @@ fn cmd_hapus_awalan(ctx: &Ctx, data: &Value) -> Reply {
     let mut data = data.clone();
     let semua = prefixes_arr(&data);
     let mut deleted: Vec<String> = Vec::new();
-    let sisa: Vec<String> = semua.into_iter().filter(|p| {
-        if ctx.args.contains(p) {
-            deleted.push(p.clone());
-            false
-        } else {
-            true
-        }
-    }).collect();
+    let sisa: Vec<String> = semua
+        .into_iter()
+        .filter(|p| {
+            if ctx.args.contains(p) {
+                deleted.push(p.clone());
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
 
     if let Some(obj) = data.as_object_mut() {
-        obj.insert("prefixes".to_string(), Value::Array(sisa.iter().map(|s| Value::String(s.clone())).collect()));
+        obj.insert(
+            "prefixes".to_string(),
+            Value::Array(sisa.iter().map(|s| Value::String(s.clone())).collect()),
+        );
     }
     simpan_awalan(ctx, &data);
 
@@ -238,7 +263,11 @@ fn cmd_hapus_awalan(ctx: &Ctx, data: &Value) -> Reply {
     };
     Reply::text(format!(
         "✅ *ᴘʀᴇғɪx ᴅɪʜᴀᴘᴜs*\n\n> Deleted: `{}`\n\n*Semua prefix aktif:*\n> `{}`{}",
-        if deleted.is_empty() { "None".to_string() } else { deleted.join("` `") },
+        if deleted.is_empty() {
+            "None".to_string()
+        } else {
+            deleted.join("` `")
+        },
         all.join("` `"),
         noprefix_suffix
     ))
@@ -250,7 +279,11 @@ fn daftar_awalan(ctx: &Ctx, data: &Value) -> String {
     let mut text = format!(
         "📋 *ʟɪsᴛ ᴘʀᴇғɪx*\n\n╭┈┈⬡「 ⚙️ *ᴄᴏɴғɪɢ* 」\n┃ Default: `{}`\n┃ Noprefix: {}\n╰┈┈┈┈┈┈┈┈⬡\n\n",
         CONFIG_PREFIX,
-        if noprefix_aktif(data) { "✅ Aktif" } else { "❌ Nonaktif" }
+        if noprefix_aktif(data) {
+            "✅ Aktif"
+        } else {
+            "❌ Nonaktif"
+        }
     );
 
     let db = prefixes_arr(data);
@@ -360,10 +393,7 @@ mod tests {
         let c = ctx();
         let mut data = muat_awalan(&c);
         if let Some(obj) = data.as_object_mut() {
-            obj.insert(
-                "prefixes".to_string(),
-                serde_json::json!(["!", "#"]),
-            );
+            obj.insert("prefixes".to_string(), serde_json::json!(["!", "#"]));
         }
         let text = daftar_awalan(&c, &data);
         assert!(text.contains("┃ 1. `!`"), "{text}");

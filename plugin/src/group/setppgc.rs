@@ -121,7 +121,11 @@ mod tests {
             QuotedKind::Document,
         ] {
             let r = run(Some(quoted(kind.clone())));
-            assert!(r.is_none(), "jenis {} tidak boleh replied", kind.wire_type());
+            assert!(
+                r.is_none(),
+                "jenis {} tidak boleh replied",
+                kind.wire_type()
+            );
             assert!(r.mutations().is_empty(), "jenis {}", kind.wire_type());
         }
     }

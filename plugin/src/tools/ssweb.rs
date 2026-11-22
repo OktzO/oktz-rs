@@ -10,11 +10,7 @@ const THUM: &str = "https://image.thum.io/get";
 
 /// `width` dari mode (`ssweb.js:20-22`).
 pub(crate) fn lebar(mode: &str) -> u32 {
-    if mode == "mobile" {
-        720
-    } else {
-        1920
-    }
+    if mode == "mobile" { 720 } else { 1920 }
 }
 
 /// `apiUrl` (`ssweb.js:22`).
@@ -36,7 +32,11 @@ pub(crate) fn pakai(prefix: &str) -> String {
 /// Pisahkan opsi `--mobile`/`--hp` dari URL (`ssweb.js:44-47`).
 pub(crate) fn pisah_mode_opsi(text: &str) -> (&str, String) {
     if text.contains("--mobile") || text.contains("--hp") {
-        let bersih = text.replace("--mobile", "").replace("--hp", "").trim().to_string();
+        let bersih = text
+            .replace("--mobile", "")
+            .replace("--hp", "")
+            .trim()
+            .to_string();
         ("mobile", bersih)
     } else {
         ("desktop", text.to_string())
@@ -73,8 +73,7 @@ pub fn ssweb(ctx: Ctx) -> Reply {
     };
 
     let Ok(res) = ctx.http.get(&api_url(&url, mode)) else {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let bytes = res.body.bytes().to_vec();
 
@@ -225,7 +224,11 @@ mod tests {
         let _ = pisah_mode_opsi("google.com");
         // menangani manual karena pisah_mode_opsi mengembalikan tuple
         let (_, url) = pisah_mode_opsi("google.com");
-        let url = if url.starts_with("http") { url } else { format!("https://{url}") };
+        let url = if url.starts_with("http") {
+            url
+        } else {
+            format!("https://{url}")
+        };
         assert_eq!(url, "https://google.com");
     }
 
@@ -252,7 +255,9 @@ mod tests {
         }
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1);
-        assert!(seen[0].starts_with("https://image.thum.io/get/width/1920/crop/1080/noanimate/https://google.com"));
+        assert!(seen[0].starts_with(
+            "https://image.thum.io/get/width/1920/crop/1080/noanimate/https://google.com"
+        ));
     }
 
     #[test]
@@ -267,10 +272,7 @@ mod tests {
     fn transport_gagal_error_template_dan_reaksi_sil() {
         let http = Stub::offline();
         let r = run(http, "google.com");
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "ssweb")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "ssweb"));
         assert_eq!(reaksi(&r), Some("☢"));
     }
 }

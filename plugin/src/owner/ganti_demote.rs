@@ -101,7 +101,10 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "❌ Gagal mendownload gambar"
+        );
     }
 
     #[test]
@@ -120,13 +123,16 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "❌ Gagal mendownload gambar"
+        );
     }
 
     #[test]
@@ -149,6 +155,9 @@ mod tests {
             ..Ctx::default()
         };
         let r = ganti_demote(ctx);
-        assert_eq!(r.without_mutations().text_body().unwrap(), "❌ Gagal mendownload gambar");
+        assert_eq!(
+            r.without_mutations().text_body().unwrap(),
+            "❌ Gagal mendownload gambar"
+        );
     }
 }

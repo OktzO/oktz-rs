@@ -127,7 +127,9 @@ pub fn githubstalk(ctx: Ctx) -> Reply {
         ))
     {
         let body = res.json().unwrap_or(Value::Null);
-        if body.get("status").is_some_and(crate::common::js_truthy_value)
+        if body
+            .get("status")
+            .is_some_and(crate::common::js_truthy_value)
             && body.get("data").is_some_and(|v| !v.is_null())
         {
             profil = Some(dari_firefly(&body["data"]));
@@ -141,7 +143,9 @@ pub fn githubstalk(ctx: Ctx) -> Reply {
         ))
     {
         let body = res.json().unwrap_or(Value::Null);
-        if body.get("status").is_some_and(crate::common::js_truthy_value)
+        if body
+            .get("status")
+            .is_some_and(crate::common::js_truthy_value)
             && body.get("result").is_some_and(|v| !v.is_null())
         {
             profil = Some(dari_nexray(&body["result"]));
@@ -264,24 +268,33 @@ mod tests {
         let r = githubstalk(dengan_kunci(Stub::gagal(), "", "K"));
         assert_eq!(
             r.without_mutations().text_body(),
-            Some("🐙 *ɢɪᴛʜᴜʙ sᴛᴀʟᴋ*\n\n> Masukkan username GitHub\n\n`Contoh: .githubstalk torvalds`")
+            Some(
+                "🐙 *ɢɪᴛʜᴜʙ sᴛᴀʟᴋ*\n\n> Masukkan username GitHub\n\n`Contoh: .githubstalk torvalds`"
+            )
         );
         assert_eq!(reaction_of(&r), None);
     }
 
     #[test]
     fn kunci_kosong_langsung_lompat_ke_nexray() {
-        let http = Stub::baru(&[r#"{"status":true,"result":{"username":"t","nickname":"T","url":"https://github.com/t"}}"#]);
+        let http = Stub::baru(&[
+            r#"{"status":true,"result":{"username":"t","nickname":"T","url":"https://github.com/t"}}"#,
+        ]);
         let r = githubstalk(dengan_kunci(http.clone(), "t", ""));
         assert_eq!(reaction_of(&r), Some("✅"));
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1, "firefly dilewati: {seen:?}");
-        assert_eq!(seen[0], "https://api.nexray.eu.cc/stalker/github?username=t");
+        assert_eq!(
+            seen[0],
+            "https://api.nexray.eu.cc/stalker/github?username=t"
+        );
     }
 
     #[test]
     fn firefly_dipakai_dulu_bila_kunci_ada() {
-        let http = Stub::baru(&[r#"{"status":true,"data":{"username":"t","name":"T","company":"Linux","location":"US","bio":"bio","url":"https://github.com/t","avatar":"https://cdn/a.png","public_repos":9,"followers":100,"following":5}}"#]);
+        let http = Stub::baru(&[
+            r#"{"status":true,"data":{"username":"t","name":"T","company":"Linux","location":"US","bio":"bio","url":"https://github.com/t","avatar":"https://cdn/a.png","public_repos":9,"followers":100,"following":5}}"#,
+        ]);
         let r = githubstalk(dengan_kunci(http.clone(), "t", "K"));
         assert_eq!(reaction_of(&r), Some("✅"));
         let seen = http.seen.lock().unwrap().clone();
@@ -310,7 +323,9 @@ mod tests {
 
     #[test]
     fn nexray_memetakan_nama_field_berbeda() {
-        let http = Stub::baru(&[r#"{"status":true,"result":{"username":"t","nickname":"Nick","profile_pic":"https://cdn/p.png","public_repo":12,"url":"https://github.com/t"}}"#]);
+        let http = Stub::baru(&[
+            r#"{"status":true,"result":{"username":"t","nickname":"Nick","profile_pic":"https://cdn/p.png","public_repo":12,"url":"https://github.com/t"}}"#,
+        ]);
         let r = githubstalk(dengan_kunci(http.clone(), "t", ""));
         let txt = r.without_mutations().text_body().unwrap_or("").to_string();
         assert!(txt.contains("📛 *Nama:* Nick"));

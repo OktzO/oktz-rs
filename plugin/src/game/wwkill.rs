@@ -99,16 +99,14 @@ pub(crate) fn plan(
         p.get("role").and_then(Value::as_str).unwrap_or("")
     }
 
-    let Some(player) = list.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(sender))
+    let Some(player) = list
+        .iter()
+        .find(|p| p.get("id").and_then(Value::as_str) == Some(sender))
     else {
-        return Err(Refusal::Message(
-            "❌ Kamu sudah mati atau bukan player!",
-        ));
+        return Err(Refusal::Message("❌ Kamu sudah mati atau bukan player!"));
     };
     if player.get("alive") != Some(&Value::Bool(true)) {
-        return Err(Refusal::Message(
-            "❌ Kamu sudah mati atau bukan player!",
-        ));
+        return Err(Refusal::Message("❌ Kamu sudah mati atau bukan player!"));
     }
     if crate::common::js_truthy(player.get("skillUsed")) {
         return Err(Refusal::Message(
@@ -123,12 +121,14 @@ pub(crate) fn plan(
         p.get("number").and_then(Value::as_i64) == Some(target_num)
             && p.get("alive") == Some(&Value::Bool(true))
     }) else {
-        return Err(Refusal::Message(
-            "❌ Target tidak valid atau sudah mati!",
-        ));
+        return Err(Refusal::Message("❌ Target tidak valid atau sudah mati!"));
     };
 
-    let target_id = target.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+    let target_id = target
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let target_role = role_of(target);
     let my_role = role_of(player);
     let num = crate::common::jid_number(&target_id);
@@ -165,7 +165,11 @@ pub(crate) fn plan(
             Ok(Plan {
                 text: format!(
                     "🔮 *HASIL PENGLIHATAN*\n\n@{num} adalah:\n{emoji} *{name}*\n\n> Team: {}",
-                    if team == "wolf" { "🐺 Wolf" } else { "👨‍🌾 Village" }
+                    if team == "wolf" {
+                        "🐺 Wolf"
+                    } else {
+                        "👨‍🌾 Village"
+                    }
                 ),
                 mentions: mention(),
                 kill: None,
@@ -252,9 +256,11 @@ pub(crate) fn night_action(ctx: &Ctx, cmd: &str) -> Reply {
 
         let game = games[&chat].clone();
         match plan(&game, &ctx.sender, cmd, target_num) {
-            Err(Refusal::NoTarget) => out = Some(Reply::text(format!(
-                "❌ Masukkan nomor target! Contoh: `{prefix}{cmd} 2`"
-            ))),
+            Err(Refusal::NoTarget) => {
+                out = Some(Reply::text(format!(
+                    "❌ Masukkan nomor target! Contoh: `{prefix}{cmd} 2`"
+                )))
+            }
             Err(Refusal::Template) => out = Some(error_reply(prefix, cmd)),
             Err(Refusal::Message(msg)) => out = Some(Reply::text(msg)),
             Ok(plan) => {
@@ -294,12 +300,7 @@ pub(crate) fn player(id: &str, number: i64, role: &str, alive: bool, skill_used:
 
 /// Bangun `Ctx` untuk aksi malam atas state game tertentu.
 // const dipakai jalur non-test juga; jangan disaring cfg(test).
-pub(crate) fn night_ctx(
-    sender: &str,
-    cmd: &str,
-    arg: &str,
-    games: Map<String, Value>,
-) -> Ctx {
+pub(crate) fn night_ctx(sender: &str, cmd: &str, arg: &str, games: Map<String, Value>) -> Ctx {
     Ctx {
         prefix: ".".into(),
         command: cmd.into(),
@@ -313,7 +314,10 @@ pub(crate) fn night_ctx(
         },
         sessions: {
             let store = oktz_plugin_api::new_session_store();
-            store.lock().unwrap().insert(GAMES_KEY.into(), Value::Object(games));
+            store
+                .lock()
+                .unwrap()
+                .insert(GAMES_KEY.into(), Value::Object(games));
             store
         },
         ..Default::default()
@@ -400,7 +404,10 @@ mod tests {
         for cmd in ["wwkill", "wwprotect", "wwsee", "wwsorcerer"] {
             assert_eq!(owned(run(cmd, None, "1")), NOT_IN_GAME, "cmd {cmd}");
         }
-        let day = game_fixture("day", serde_json::json!([player(WOLF, 1, "werewolf", true, false)]));
+        let day = game_fixture(
+            "day",
+            serde_json::json!([player(WOLF, 1, "werewolf", true, false)]),
+        );
         assert_eq!(owned(run("wwkill", Some(day), "1")), NOT_IN_GAME);
     }
 
@@ -434,7 +441,9 @@ mod tests {
         );
         assert_eq!(
             plan(&g, WOLF, "wwkill", None),
-            Err(Refusal::Message("❌ Kamu sudah menggunakan skill malam ini!"))
+            Err(Refusal::Message(
+                "❌ Kamu sudah menggunakan skill malam ini!"
+            ))
         );
         assert_eq!(
             owned(run("wwkill", Some(g), "")),
@@ -452,8 +461,7 @@ mod tests {
                 "cmd {cmd}"
             );
             assert!(
-                owned(run(cmd, Some(night_game()), "abc"))
-                    .starts_with("❌ Masukkan nomor target!"),
+                owned(run(cmd, Some(night_game()), "abc")).starts_with("❌ Masukkan nomor target!"),
                 "cmd {cmd}: {}",
                 owned(run(cmd, Some(night_game()), "abc"))
             );
@@ -508,8 +516,7 @@ mod tests {
         let g = night_game();
         let p = plan(&g, WOLF, "wwprotect", Some(2)).expect("branch akhir");
         assert_eq!(
-            p.text,
-            "❌ Kamu tidak memiliki kemampuan ini!\n> Role kamu: Werewolf",
+            p.text, "❌ Kamu tidak memiliki kemampuan ini!\n> Role kamu: Werewolf",
             "`ROLES[role].name` tidak ikut memuat emoji — emoji field terpisah"
         );
         assert!(p.kill.is_none() && p.protect.is_none());
@@ -517,7 +524,11 @@ mod tests {
 
         // Alias bukan nama command kanonik → tidak cocok cabang mana pun.
         let p = plan(&g, WOLF, "wk", Some(2)).expect("alias");
-        assert!(p.text.contains("tidak memiliki kemampuan ini"), "{}", p.text);
+        assert!(
+            p.text.contains("tidak memiliki kemampuan ini"),
+            "{}",
+            p.text
+        );
     }
 
     #[test]
@@ -541,7 +552,10 @@ mod tests {
         assert!(text_of(&r).starts_with("❌ Masukkan nomor target!"));
         let g = ctx.session_get(GAMES_KEY).unwrap();
         assert!(
-            g["120363@g.us"]["nightActions"].as_object().unwrap().is_empty(),
+            g["120363@g.us"]["nightActions"]
+                .as_object()
+                .unwrap()
+                .is_empty(),
             "tidak ada nightActions yang tertulis"
         );
     }
@@ -552,8 +566,14 @@ mod tests {
         let r = night_action(&ctx, "wwkill");
         assert!(text_of(&r).contains("TARGET TERPILIH"));
         let g = ctx.session_get(GAMES_KEY).unwrap();
-        assert_eq!(g["120363@g.us"]["nightActions"]["kill"], serde_json::json!(OTHER));
-        assert_eq!(g["120363@g.us"]["players"][0]["skillUsed"], serde_json::json!(true));
+        assert_eq!(
+            g["120363@g.us"]["nightActions"]["kill"],
+            serde_json::json!(OTHER)
+        );
+        assert_eq!(
+            g["120363@g.us"]["players"][0]["skillUsed"],
+            serde_json::json!(true)
+        );
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(mentions, &[OTHER.to_string()]),
             other => panic!("harus Text, dapat {other:?}"),

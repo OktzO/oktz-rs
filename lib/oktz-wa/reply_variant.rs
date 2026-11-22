@@ -282,10 +282,7 @@ fn kontak_palsu(input: &VariantInput<'_>) -> QuoteSource {
         participant: Some("0@s.whatsapp.net".into()),
         message: Box::new(wa::Message {
             contact_message: MessageField::some(wa::message::ContactMessage {
-                display_name: Some(format!(
-                    "{EMAIL_BATU_KARANG} {}",
-                    nama_bot(input.config)
-                )),
+                display_name: Some(format!("{EMAIL_BATU_KARANG} {}", nama_bot(input.config))),
                 vcard: Some(VCARD_KONTAK_PALSU.to_string()),
                 ..Default::default()
             }),
@@ -314,8 +311,8 @@ fn dokumen(input: &VariantInput<'_>, quote: Option<QuoteSource>) -> PendingMedia
         preview: None,
         sticker: None,
         sticker_pack: None,
-                        width: None,
-                        height: None,
+        width: None,
+        height: None,
     }
 }
 
@@ -334,8 +331,7 @@ fn dokumen(input: &VariantInput<'_>, quote: Option<QuoteSource>) -> PendingMedia
 fn video(input: &VariantInput<'_>) -> PendingMedia {
     PendingMedia {
         kind: MediaKind::Video,
-        source: oktz_plugin_api::MediaSource::path(MP4)
-            .with_mimetype("video/mp4"),
+        source: oktz_plugin_api::MediaSource::path(MP4).with_mimetype("video/mp4"),
         caption: input.text.to_string(),
         mentions: mentions(input),
         quote: input.target.quote.clone(),
@@ -347,8 +343,8 @@ fn video(input: &VariantInput<'_>) -> PendingMedia {
         preview: None,
         sticker: None,
         sticker_pack: None,
-                        width: None,
-                        height: None,
+        width: None,
+        height: None,
     }
 }
 
@@ -370,8 +366,11 @@ fn link_preview(input: &VariantInput<'_>) -> PendingMedia {
     let mut ci = context_kutipan(input);
     ci.is_forwarded = Some(true);
     ci.forwarding_score = Some(SKOR_LINK);
-    ci.forwarded_newsletter_message_info =
-        MessageField::some(newsletter_info(input, nama_saluran_atau_bot(input.config), true));
+    ci.forwarded_newsletter_message_info = MessageField::some(newsletter_info(
+        input,
+        nama_saluran_atau_bot(input.config),
+        true,
+    ));
 
     let ext = wa::message::ExtendedTextMessage {
         text: Some(format!("{website}\n\n{}", input.text)),
@@ -415,8 +414,8 @@ fn link_preview(input: &VariantInput<'_>) -> PendingMedia {
         }),
         sticker: None,
         sticker_pack: None,
-                        width: None,
-                        height: None,
+        width: None,
+        height: None,
     }
 }
 
@@ -629,11 +628,7 @@ fn order(input: &VariantInput<'_>) -> wa::Message {
 
 /// Tanda tangan lama yang dipakai `main.rs --kind order9`: varian 9 tanpa
 /// pemicu, thumbnail dari pipeline pemanggil.
-pub fn render_variant_9(
-    text: &str,
-    target: &ReplyTarget,
-    thumbnail: Option<&[u8]>,
-) -> Rendered {
+pub fn render_variant_9(text: &str, target: &ReplyTarget, thumbnail: Option<&[u8]>) -> Rendered {
     let mentions = mentions_untuk_target(target);
     let input = VariantInput {
         text,
@@ -647,10 +642,7 @@ pub fn render_variant_9(
         VariantRender::Wire(m) => Some(m),
         VariantRender::Media(_) => None,
     });
-    Rendered::wire(
-        msg.unwrap_or_else(|| wa::Message::text(text)),
-        Vec::new(),
-    )
+    Rendered::wire(msg.unwrap_or_else(|| wa::Message::text(text)), Vec::new())
 }
 
 /// `[m?.sender]` untuk pemanggil tanpa daftar mention eksplisit.
@@ -683,7 +675,9 @@ fn pembayaran(input: &VariantInput<'_>) -> wa::Message {
             currency_code_iso4217: Some("IDR".into()),
             amount1000: Some(75_000_000),
             // `m?.sender || "0@s.whatsapp.net"`.
-            request_from: Some(jid_atau_kosong(&input.target.sender).unwrap_or_else(|| "0@s.whatsapp.net".into())),
+            request_from: Some(
+                jid_atau_kosong(&input.target.sender).unwrap_or_else(|| "0@s.whatsapp.net".into()),
+            ),
             note_message: MessageField::some(wa::Message {
                 extended_text_message: MessageField::some(note),
                 ..Default::default()
@@ -773,8 +767,8 @@ fn favicon(input: &VariantInput<'_>) -> PendingMedia {
         }),
         sticker: None,
         sticker_pack: None,
-                        width: None,
-                        height: None,
+        width: None,
+        height: None,
     }
 }
 
@@ -842,14 +836,12 @@ pub fn thumbnail_bytes(root: &Path) -> Option<Vec<u8>> {
             .filter_map(|e| e.ok())
             .map(|e| e.path())
             .filter(|p| {
-                p.extension()
-                    .and_then(|e| e.to_str())
-                    .is_some_and(|e| {
-                        matches!(
-                            e.to_ascii_lowercase().as_str(),
-                            "webp" | "jpg" | "jpeg" | "png"
-                        )
-                    })
+                p.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+                    matches!(
+                        e.to_ascii_lowercase().as_str(),
+                        "webp" | "jpg" | "jpeg" | "png"
+                    )
+                })
             })
             .collect();
         if !files.is_empty() {
@@ -957,7 +949,10 @@ mod tests {
     }
 
     fn ctx_of(m: &wa::Message) -> Option<&wa::ContextInfo> {
-        m.extended_text_message.as_option()?.context_info.as_option()
+        m.extended_text_message
+            .as_option()?
+            .context_info
+            .as_option()
     }
 
     #[test]
@@ -1001,7 +996,11 @@ mod tests {
             ReplyVariant::FaviconPreview
         );
         // String angka di luar 2..11 tetap Basic.
-        for nilai in [json!({"replyVariant": "0"}), json!({"replyVariant": "1"}), json!({"replyVariant": "12"})] {
+        for nilai in [
+            json!({"replyVariant": "0"}),
+            json!({"replyVariant": "1"}),
+            json!({"replyVariant": "12"}),
+        ] {
             assert_eq!(variant_from(&nilai), ReplyVariant::Basic, "{nilai}");
         }
     }
@@ -1086,7 +1085,10 @@ mod tests {
         let (t, c) = (target(), config());
         let p = media(ReplyVariant::LinkPreview, &input("hai", &t, &c));
         let preview = p.preview.as_ref().expect("varian 4 upload thumbnail-link");
-        assert!(!preview.favicon, "varian 4 mengisi preview link, bukan favicon");
+        assert!(
+            !preview.favicon,
+            "varian 4 mengisi preview link, bukan favicon"
+        );
         assert_eq!(preview.bytes, b"srt-image".to_vec());
 
         let ext = preview
@@ -1101,7 +1103,11 @@ mod tests {
             ext.description.as_deref(),
             Some("Pengembang: Oktz | Versi: 3.3.1")
         );
-        assert_eq!(ext.preview_type, Some(PreviewType::NONE), "`previewType: 0`");
+        assert_eq!(
+            ext.preview_type,
+            Some(PreviewType::NONE),
+            "`previewType: 0`"
+        );
         assert_eq!(ext.jpeg_thumbnail.as_deref(), Some(&b"srt-image"[..]));
 
         let ci = ext.context_info.as_option().expect("contextInfo");
@@ -1116,8 +1122,14 @@ mod tests {
             info.newsletter_jid.as_deref(),
             Some("120363411617217441@newsletter")
         );
-        assert_eq!(info.newsletter_name.as_deref(), Some("Join saluran resmi Oktz"));
-        assert!(info.server_message_id.is_some(), "`Math.floor(Math.random()*1e6)`");
+        assert_eq!(
+            info.newsletter_name.as_deref(),
+            Some("Join saluran resmi Oktz")
+        );
+        assert!(
+            info.server_message_id.is_some(),
+            "`Math.floor(Math.random()*1e6)`"
+        );
         // `quoted: m` — kutipan pemicu seperti yang dibaca pipeline.
         assert_eq!(ci.participant.as_deref(), Some("6281@s.whatsapp.net"));
         assert_eq!(ci.stanza_id.as_deref(), Some("STANZA7"));
@@ -1193,7 +1205,10 @@ mod tests {
             .message_context_info
             .as_option()
             .expect("messageContextInfo wajib ada");
-        assert!(outer.device_list_metadata.as_option().is_none(), "{outer:?}");
+        assert!(
+            outer.device_list_metadata.as_option().is_none(),
+            "{outer:?}"
+        );
         assert!(outer.device_list_metadata_version.is_none());
         assert!(outer.message_secret.is_none());
         assert!(msg.message_context_info.as_option().is_none());
@@ -1208,7 +1223,10 @@ mod tests {
         );
         let header = im.header.as_option().expect("header");
         assert_eq!(header.has_media_attachment, Some(true));
-        assert!(header.title.is_none(), "varian 7 tidak menulis header.title");
+        assert!(
+            header.title.is_none(),
+            "varian 7 tidak menulis header.title"
+        );
         match &header.media {
             Some(HeaderMedia::LocationMessage(loc)) => {
                 // `Message.LocationMessage` — latitude/name langsung di sana.
@@ -1277,7 +1295,11 @@ mod tests {
         }
         let ci = im.context_info.as_option().expect("contextInfo");
         assert_eq!(ci.participant.as_deref(), Some("6289@s.whatsapp.net"));
-        assert_eq!(ci.remote_jid.as_deref(), Some("120363@g.us"), "`remoteJid: m.chat`");
+        assert_eq!(
+            ci.remote_jid.as_deref(),
+            Some("120363@g.us"),
+            "`remoteJid: m.chat`"
+        );
         assert_eq!(ci.forwarding_score, Some(999));
         assert_eq!(ci.is_forwarded, Some(true));
         assert!(ci.stanza_id.is_none(), "varian 8 tidak menulis stanzaId");
@@ -1348,7 +1370,11 @@ mod tests {
             .as_option()
             .unwrap();
         assert_eq!(
-            ci.quoted_message.as_option().unwrap().conversation.as_deref(),
+            ci.quoted_message
+                .as_option()
+                .unwrap()
+                .conversation
+                .as_deref(),
             Some("teks terparsing")
         );
     }
@@ -1376,7 +1402,11 @@ mod tests {
         assert_eq!(ci.participant.as_deref(), Some("6289@s.whatsapp.net"));
         assert_eq!(ci.mentioned_jid, vec!["6289@s.whatsapp.net".to_string()]);
         assert_eq!(
-            ci.quoted_message.as_option().unwrap().conversation.as_deref(),
+            ci.quoted_message
+                .as_option()
+                .unwrap()
+                .conversation
+                .as_deref(),
             Some("pesan asal")
         );
 
@@ -1404,9 +1434,16 @@ mod tests {
             .context_info
             .as_option()
             .unwrap();
-        assert!(ci.participant.is_none(), "sender kosong = tanpa participant");
+        assert!(
+            ci.participant.is_none(),
+            "sender kosong = tanpa participant"
+        );
         assert_eq!(
-            ci.quoted_message.as_option().unwrap().conversation.as_deref(),
+            ci.quoted_message
+                .as_option()
+                .unwrap()
+                .conversation
+                .as_deref(),
             Some("")
         );
     }
@@ -1428,7 +1465,11 @@ mod tests {
         assert_eq!(ext.matched_text.as_deref(), Some("https://oktzz.xyz"));
         assert_eq!(ext.title.as_deref(), Some("Oktz Bot"));
         assert_eq!(ext.description.as_deref(), Some("Hello Budi"));
-        assert_eq!(ext.preview_type, Some(PreviewType::VIDEO), "`previewType: 1`");
+        assert_eq!(
+            ext.preview_type,
+            Some(PreviewType::VIDEO),
+            "`previewType: 1`"
+        );
         assert_eq!(ext.jpeg_thumbnail.as_deref(), Some(&b"srt-image"[..]));
         assert!(
             ext.favicon_mms_metadata.as_option().is_none(),
@@ -1445,7 +1486,10 @@ mod tests {
             info.newsletter_jid.as_deref(),
             Some("120363411617217441@newsletter")
         );
-        assert_eq!(info.newsletter_name.as_deref(), Some("Join saluran resmi Oktz"));
+        assert_eq!(
+            info.newsletter_name.as_deref(),
+            Some("Join saluran resmi Oktz")
+        );
         assert!(
             info.server_message_id.is_none(),
             "varian 11 cuma newsletterJid/newsletterName (`serialize.js:1321-1324`)"

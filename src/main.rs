@@ -221,11 +221,13 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         // Pakai db bot asli bila ada: kirim butuh sesi ratchet + prekey yang
         // dikenal server. dev db baru per-proses menghapus semuanya — pesan
         // "SENT" ke WS tapi server membuangnya (tidak pernah sampai).
-        let db = db_arg(if std::path::Path::new("database/wa/oktz-run.db").exists() {
-            std::path::PathBuf::from("database/wa/oktz-run.db")
-        } else {
-            dev_db(&dev_dir(db_dir_env.as_deref()), "send", std::process::id())
-        })?;
+        let db = db_arg(
+            if std::path::Path::new("database/wa/oktz-run.db").exists() {
+                std::path::PathBuf::from("database/wa/oktz-run.db")
+            } else {
+                dev_db(&dev_dir(db_dir_env.as_deref()), "send", std::process::id())
+            },
+        )?;
         return send(&creds, &to, hold, &kind, &db).await;
     }
 
@@ -239,7 +241,11 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
             .cloned()
             .unwrap_or_else(|| "fixtures/turso_session_keys.json".into());
         let hold: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(90);
-        let db = db_arg(dev_db(&dev_dir(db_dir_env.as_deref()), "smoke", std::process::id()))?;
+        let db = db_arg(dev_db(
+            &dev_dir(db_dir_env.as_deref()),
+            "smoke",
+            std::process::id(),
+        ))?;
         return smoke(&creds, &fixture, hold, &db).await;
     }
 
@@ -265,13 +271,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         // kontak lama gagal decrypt ("Bad Mac! Their Mac/Our Mac",
         // "MAC verification failed") karena device baru tidak punya ratchet.
         let fixture = fixture_sesi(&args);
-        return run(
-            &creds,
-            settings.as_deref(),
-            hold,
-            fixture.as_deref(),
-        )
-        .await;
+        return run(&creds, settings.as_deref(), hold, fixture.as_deref()).await;
     }
 
     // `oktz pair [db] [hold]` — pilih pairing code/QR dari `PAIRING_NUMBER` di .env
@@ -475,8 +475,9 @@ fn creds_for_guard(path: &str) -> serde_json::Value {
 async fn tunggu_sinyal() {
     #[cfg(unix)]
     {
-        let mut term = match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        {
+        let mut term = match tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::terminate(),
+        ) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(error = %e, "SIGTERM tidak bisa dipasang; hanya Ctrl-C yang aktif");
@@ -512,8 +513,7 @@ async fn run(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let db = db_arg(resolve_db(
         None,
-        data_dir(oktz_core::env::Env::get(DB_DIR_ENV).as_deref())
-            .join("oktz-run.db"),
+        data_dir(oktz_core::env::Env::get(DB_DIR_ENV).as_deref()).join("oktz-run.db"),
     ))?;
     let store = oktz_wa::prepare_store(creds, &db, fixture).await?;
 
@@ -531,7 +531,10 @@ async fn run(
         ui::sistem(
             "pairing",
             ui::CYAN_TERANG,
-            &format!("device tersambung · rss {}", ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))),
+            &format!(
+                "device tersambung · rss {}",
+                ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))
+            ),
         );
         let _ = &client;
     })
@@ -549,7 +552,10 @@ async fn run(
     ui::sistem(
         "launcher",
         ui::KUNING,
-        &format!("selesai · rss {}", ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))),
+        &format!(
+            "selesai · rss {}",
+            ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))
+        ),
     );
     handle.shutdown().await;
     Ok(())
@@ -620,12 +626,11 @@ async fn send(
                 // Tabel/rich TIDAK pakai node biz (JS relayMessage pola);
                 // biz node hanya untuk kartu native-flow.
                 let biz_untuk = matches!(kind.as_str(), "card" | "list");
-                let opts = oktz_wa::SendOptions::default()
-                    .with_extra_stanza_nodes(if biz_untuk {
-                        vec![oktz_wa::biz_node()]
-                    } else {
-                        Vec::new()
-                    });
+                let opts = oktz_wa::SendOptions::default().with_extra_stanza_nodes(if biz_untuk {
+                    vec![oktz_wa::biz_node()]
+                } else {
+                    Vec::new()
+                });
 
                 let msg = match kind.as_str() {
                     "card" => {
@@ -635,15 +640,17 @@ async fn send(
                     // replyVariant 9 — bentuk balasan yang aktif di produksi.
                     // Tanpa pemicu, jadi tidak ada kutipan/mention; yang
                     // diuji di sini adalah bubble orderMessage-nya.
-                    "order9" => oktz_wa::reply_variant::render_variant_9(
-                        "Balasan produksi Rust (replyVariant 9)",
-                        &oktz_wa::ReplyTarget::default(),
-                        oktz_wa::reply_variant::thumbnail_bytes(
-                            &std::env::current_dir().unwrap_or_default(),
+                    "order9" => {
+                        oktz_wa::reply_variant::render_variant_9(
+                            "Balasan produksi Rust (replyVariant 9)",
+                            &oktz_wa::ReplyTarget::default(),
+                            oktz_wa::reply_variant::thumbnail_bytes(
+                                &std::env::current_dir().unwrap_or_default(),
+                            )
+                            .as_deref(),
                         )
-                        .as_deref(),
-                    )
-                    .message,
+                        .message
+                    }
                     // Tabel V2 (sendTableV2) — wire terbukti dirender WA.
                     "tabel2" => oktz_wa::rich::rich_v2_to_message(
                         &oktz_plugin_api::RichV2::baru("⚡ Test Tabel V2")

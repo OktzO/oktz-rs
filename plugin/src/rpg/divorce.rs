@@ -155,7 +155,11 @@ mod tests {
 
     #[test]
     fn an_unmarried_user_is_mocked_and_nothing_is_written() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": {} })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "rpg": {} }),
+        ] {
             let r = run(user.clone(), None);
             assert!(
                 text_of(&r).starts_with("Halu tingkat tinggi... Nikah aja belum"),
@@ -167,7 +171,10 @@ mod tests {
 
     #[test]
     fn the_fee_is_charged_and_the_marriage_is_cleared() {
-        let r = run(married(50_000), Some(serde_json::json!({ "rpg": { "spouse": "628111@s.whatsapp.net" } })));
+        let r = run(
+            married(50_000),
+            Some(serde_json::json!({ "rpg": { "spouse": "628111@s.whatsapp.net" } })),
+        );
         let t = text_of(&r);
         assert!(t.starts_with("⛈️ *SIDANG PERCERAIAN SELESAI*"), "{t}");
         assert!(t.contains("💔 @628111"), "{t}");
@@ -188,18 +195,23 @@ mod tests {
         // Private chat: roster kosong, `db.getUser(spouseJid)` tak terbaca.
         let r = run(married(50_000), None);
         assert_eq!(r.mutations().len(), 1);
-        assert_eq!(r.mutations()[0].clone(), Mutation::SetUser {
-            jid: "628111@s.whatsapp.net".into(),
-            data: serde_json::json!({ "koin": 25_000,
+        assert_eq!(
+            r.mutations()[0].clone(),
+            Mutation::SetUser {
+                jid: "628111@s.whatsapp.net".into(),
+                data: serde_json::json!({ "koin": 25_000,
                           "rpg": { "spouse": Value::Null, "marriedAt": Value::Null } }),
-        });
+            }
+        );
     }
 
     #[test]
     fn a_readable_partner_with_rpg_is_cleared_too() {
         let r = run(
             married(50_000),
-            Some(serde_json::json!({ "rpg": { "spouse": "628111@s.whatsapp.net", "marriedAt": 1, "love": 40 } })),
+            Some(
+                serde_json::json!({ "rpg": { "spouse": "628111@s.whatsapp.net", "marriedAt": 1, "love": 40 } }),
+            ),
         );
         assert_eq!(r.mutations().len(), 2);
         let second = &r.mutations()[1];
@@ -220,7 +232,10 @@ mod tests {
         for koin in [0, 24_999] {
             let r = run(married(koin), None);
             let t = text_of(&r);
-            assert!(t.starts_with("Aduh, biaya pengacara buat cerai mahal"), "koin {koin}: {t}");
+            assert!(
+                t.starts_with("Aduh, biaya pengacara buat cerai mahal"),
+                "koin {koin}: {t}"
+            );
             assert!(
                 t.contains(&format!(
                     "duit lu cuma *Rp {}*",
@@ -235,12 +250,19 @@ mod tests {
     #[test]
     fn exactly_twenty_five_thousand_is_enough() {
         let r = run(married(DIVORCE_COST), None);
-        assert!(text_of(&r).starts_with("⛈️ *SIDANG PERCERAIAN SELESAI*"), "{}", text_of(&r));
-        assert_eq!(r.mutations()[0].clone(), Mutation::SetUser {
-            jid: "628111@s.whatsapp.net".into(),
-            data: serde_json::json!({ "koin": 0,
+        assert!(
+            text_of(&r).starts_with("⛈️ *SIDANG PERCERAIAN SELESAI*"),
+            "{}",
+            text_of(&r)
+        );
+        assert_eq!(
+            r.mutations()[0].clone(),
+            Mutation::SetUser {
+                jid: "628111@s.whatsapp.net".into(),
+                data: serde_json::json!({ "koin": 0,
                           "rpg": { "spouse": Value::Null, "marriedAt": Value::Null } }),
-        });
+            }
+        );
     }
 
     #[test]

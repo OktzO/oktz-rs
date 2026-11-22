@@ -3,12 +3,13 @@
 //! `ponytail:` hanya handler `.antilinkgc` yang dipindah; filter per-pesan ada
 //! di middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 pub(crate) const ON: &str = "✅ *ᴀɴᴛɪʟɪɴᴋ ᴡᴀ* diaktifkan!\n\n> Link WA akan dihapus otomatis.";
 pub(crate) const OFF: &str = "❌ *ᴀɴᴛɪʟɪɴᴋ ᴡᴀ* dinonaktifkan!";
-pub(crate) const MODE_KICK: &str = "✅ *ᴀɴᴛɪʟɪɴᴋ ᴡᴀ* mode KICK diaktifkan!\n\n> User yang kirim link WA akan di-kick.";
+pub(crate) const MODE_KICK: &str =
+    "✅ *ᴀɴᴛɪʟɪɴᴋ ᴡᴀ* mode KICK diaktifkan!\n\n> User yang kirim link WA akan di-kick.";
 pub(crate) const MODE_DELETE: &str =
     "✅ *ᴀɴᴛɪʟɪɴᴋ ᴡᴀ* mode DELETE diaktifkan!\n\n> Pesan dengan link WA akan dihapus.";
 pub(crate) const BAD_OPTION: &str =
@@ -81,7 +82,11 @@ pub fn antilinkgc(ctx: Ctx) -> Reply {
     }
 
     if option.starts_with("metode") {
-        let method = ctx.args.get(1).map(|a| a.to_lowercase()).unwrap_or_default();
+        let method = ctx
+            .args
+            .get(1)
+            .map(|a| a.to_lowercase())
+            .unwrap_or_default();
         return match method.as_str() {
             "kick" => write(&ctx, MODE_KICK, "on", Some("kick")),
             "remove" | "delete" => write(&ctx, MODE_DELETE, "on", Some("remove")),
@@ -135,7 +140,10 @@ mod tests {
         assert_eq!(p.meta.name, "antilinkgc");
         assert_eq!(p.meta.alias, ["algc", "antilinkgrup"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Anti link WhatsApp (grup, saluran, wa.me)");
+        assert_eq!(
+            p.meta.description,
+            "Anti link WhatsApp (grup, saluran, wa.me)"
+        );
         assert_eq!(p.meta.usage, ".antilinkgc <on/off/metode> [kick/remove]");
         assert_eq!(p.meta.example, ".antilinkgc on");
         assert_eq!(p.meta.cooldown, 3);
@@ -155,13 +163,20 @@ mod tests {
     fn no_argument_defaults_to_off_and_remove_without_writing() {
         let r = run(serde_json::json!({}), "");
         assert!(text_of(&r).contains("┃ ◦ Status: *OFF*"), "{}", text_of(&r));
-        assert!(text_of(&r).contains("┃ ◦ Mode: *REMOVE*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ ◦ Mode: *REMOVE*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_stored_setting_is_uppercased_for_the_status_panel() {
-        let r = run(serde_json::json!({"antilinkgc": "on", "antilinkgcMode": "kick"}), "");
+        let r = run(
+            serde_json::json!({"antilinkgc": "on", "antilinkgcMode": "kick"}),
+            "",
+        );
         assert!(text_of(&r).contains("┃ ◦ Status: *ON*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("┃ ◦ Mode: *KICK*"), "{}", text_of(&r));
     }

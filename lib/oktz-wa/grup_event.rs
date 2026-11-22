@@ -172,7 +172,11 @@ fn lid_pn_metadata(m: &Value) -> (String, String) {
     let jid = teks("jid");
     let lid = teks("lid");
     let pn = teks("phoneNumber");
-    let id_atau_jid = if id.is_empty() { jid.clone() } else { id.clone() };
+    let id_atau_jid = if id.is_empty() {
+        jid.clone()
+    } else {
+        id.clone()
+    };
 
     if lid.ends_with("@lid") {
         (lid, id_atau_jid)
@@ -251,12 +255,7 @@ pub struct WaktuLokal {
 pub fn waktu_lokal() -> WaktuLokal {
     let kini = Local::now();
     WaktuLokal {
-        tanggal: format!(
-            "{:02}/{:02}/{:04}",
-            kini.day(),
-            kini.month(),
-            kini.year()
-        ),
+        tanggal: format!("{:02}/{:02}/{:04}", kini.day(), kini.month(), kini.year()),
         jam: format!("{:02}:{:02}", kini.hour(), kini.minute()),
         hari: nama_hari(kini.weekday()).to_string(),
         jam_angka: kini.hour(),
@@ -406,8 +405,10 @@ mod tests {
         assert!(j[3].is_ascii_digit() && j[4].is_ascii_digit());
         assert!(w.jam_angka <= 23, "jam_angka: {}", w.jam_angka);
         assert!(
-            ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-                .contains(&w.hari.as_str()),
+            [
+                "Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"
+            ]
+            .contains(&w.hari.as_str()),
             "hari: {}",
             w.hari
         );

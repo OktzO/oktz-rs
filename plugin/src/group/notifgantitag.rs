@@ -218,14 +218,22 @@ mod tests {
 
     #[test]
     fn turning_off_writes_the_flag_and_the_full_message() {
-        let r = run(serde_json::json!({"notifLabelChange": true}), &["off"], false);
+        let r = run(
+            serde_json::json!({"notifLabelChange": true}),
+            &["off"],
+            false,
+        );
         assert_eq!(body(&r), NOW_OFF);
         assert_eq!(write(&r), serde_json::json!({"notifLabelChange": false}));
     }
 
     #[test]
     fn repeating_the_same_state_only_warns() {
-        let on = run(serde_json::json!({"notifLabelChange": true}), &["on"], false);
+        let on = run(
+            serde_json::json!({"notifLabelChange": true}),
+            &["on"],
+            false,
+        );
         assert!(body(&on).starts_with("⚠️ *ɴᴏᴛɪꜰ ʟᴀʙᴇʟ ᴀʟʀᴇᴀᴅʏ ᴀᴄᴛɪᴠᴇ*"));
         assert!(on.mutations().is_empty());
 
@@ -237,13 +245,22 @@ mod tests {
     #[test]
     fn only_the_literal_true_counts_as_on() {
         // `=== true`, bukan kebenaran JS: 1 dan "on" tetap "nonaktif".
-        for stored in [serde_json::json!(1), serde_json::json!("on"), serde_json::json!("true"), serde_json::json!({})] {
+        for stored in [
+            serde_json::json!(1),
+            serde_json::json!("on"),
+            serde_json::json!("true"),
+            serde_json::json!({}),
+        ] {
             let r = run(
                 serde_json::json!({ "notifLabelChange": stored.clone() }),
                 &["on"],
                 false,
             );
-            assert_eq!(write(&r), serde_json::json!({"notifLabelChange": true}), "{stored}");
+            assert_eq!(
+                write(&r),
+                serde_json::json!({"notifLabelChange": true}),
+                "{stored}"
+            );
         }
     }
 
@@ -251,9 +268,13 @@ mod tests {
     fn the_action_is_lowercased_before_matching() {
         assert!(run(serde_json::json!({}), &["ON"], false).mutations().len() == 1);
         assert!(
-            run(serde_json::json!({"notifLabelChange": true}), &["Off"], false)
-                .mutations()
-                .len()
+            run(
+                serde_json::json!({"notifLabelChange": true}),
+                &["Off"],
+                false
+            )
+            .mutations()
+            .len()
                 == 1
         );
         // Argumen lain jatuh ke menu, tanpa menulis.

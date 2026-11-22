@@ -8,7 +8,7 @@
 //! `rpg.spouse` bisa terlewat — lihat catatan helper itu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::common::now_ms;
@@ -180,8 +180,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             user_data: user,
             roster: oktz_plugin_api::registry::GroupRoster {
                 participants: vec![Participant {
@@ -235,7 +235,11 @@ mod tests {
 
     #[test]
     fn without_a_target_it_prints_the_civil_registry_notice() {
-        let r = run(serde_json::json!({"koin": 999_999}), None, serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 999_999}),
+            None,
+            serde_json::json!({}),
+        );
         let t = text_of(&r);
         assert!(t.starts_with("💒 *CATATAN SIPIL RPG*"), "{t}");
         assert!(t.contains("👉 `.marry @user`"), "{t}");
@@ -264,7 +268,10 @@ mod tests {
             serde_json::json!({}),
         );
         let t = text_of(&r);
-        assert!(t.starts_with("HEH! Lu kan udah punya pasangan si @628777!"), "{t}");
+        assert!(
+            t.starts_with("HEH! Lu kan udah punya pasangan si @628777!"),
+            "{t}"
+        );
         assert!(t.contains("`.divorce`"), "{t}");
         assert_eq!(r.mutations().len(), 0);
         match r.without_mutations() {
@@ -283,23 +290,37 @@ mod tests {
             serde_json::json!({"rpg": {"spouse": "628888@s.whatsapp.net"}}),
         );
         let t = text_of(&r);
-        assert!(t.contains("@628999 ternyata udah nikah sama orang lain!"), "{t}");
+        assert!(
+            t.contains("@628999 ternyata udah nikah sama orang lain!"),
+            "{t}"
+        );
         assert!(t.contains("friendzone"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_broke_proposer_is_turned_away_with_their_actual_balance() {
-        let r = run(serde_json::json!({"koin": 49_999}), Some(TARGET), serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 49_999}),
+            Some(TARGET),
+            serde_json::json!({}),
+        );
         let t = text_of(&r);
-        assert!(t.starts_with("Astaga... miskin kok nekat mau nikah?"), "{t}");
+        assert!(
+            t.starts_with("Astaga... miskin kok nekat mau nikah?"),
+            "{t}"
+        );
         assert!(t.contains("*Rp 49.999*"), "{t}");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_wedding_writes_both_rows_and_mentions_both_people() {
-        let r = run(serde_json::json!({"koin": 100_000}), Some(TARGET), serde_json::json!({"rpg": {}}));
+        let r = run(
+            serde_json::json!({"koin": 100_000}),
+            Some(TARGET),
+            serde_json::json!({"rpg": {}}),
+        );
         let w = writes(&r);
         assert_eq!(w.len(), 2, "dua bar harus ditulis");
         assert_eq!(w[0].0, SENDER);
@@ -329,7 +350,11 @@ mod tests {
 
     #[test]
     fn the_wedding_reaction_wraps_the_announcement() {
-        let r = run(serde_json::json!({"koin": 100_000}), Some(TARGET), serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 100_000}),
+            Some(TARGET),
+            serde_json::json!({}),
+        );
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "💍"),
             other => panic!("harus Reaction, dapat {other:?}"),

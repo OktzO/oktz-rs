@@ -98,7 +98,10 @@ mod tests {
                 "subject": "Grup Uji",
             }))
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -148,7 +151,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -185,7 +188,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn mentions(r: &Reply) -> Vec<String> {
@@ -201,7 +207,10 @@ mod tests {
         assert_eq!(p.meta.name, "close");
         assert_eq!(p.meta.alias, ["tutup", "closegroup", "tutupgroup"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Menutup grup agar hanya admin yang bisa chat");
+        assert_eq!(
+            p.meta.description,
+            "Menutup grup agar hanya admin yang bisa chat"
+        );
         assert_eq!(p.meta.usage, ".close");
         assert_eq!(p.meta.example, ".close");
         assert_eq!(p.meta.cooldown, 10);

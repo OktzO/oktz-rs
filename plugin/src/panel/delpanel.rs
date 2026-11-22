@@ -22,9 +22,18 @@ struct KonfigServer {
     apikey: &'static str,
 }
 
-const SERVER1: KonfigServer = KonfigServer { domain: "", apikey: "" };
-const SERVER2: KonfigServer = KonfigServer { domain: "", apikey: "" };
-const SERVER3: KonfigServer = KonfigServer { domain: "", apikey: "" };
+const SERVER1: KonfigServer = KonfigServer {
+    domain: "",
+    apikey: "",
+};
+const SERVER2: KonfigServer = KonfigServer {
+    domain: "",
+    apikey: "",
+};
+const SERVER3: KonfigServer = KonfigServer {
+    domain: "",
+    apikey: "",
+};
 
 /// `validateServerConfig` (`delpanel.js:29-34`).
 fn field_hilang(cfg: &KonfigServer) -> Vec<&'static str> {
@@ -71,12 +80,7 @@ pub fn delpanel(ctx: Ctx) -> Reply {
 }
 
 /// Badan handler, diparameterisasi supaya test bisa memakai konfigurasi palsu.
-fn kerjakan(
-    ctx: &Ctx,
-    s1: &KonfigServer,
-    s2: &KonfigServer,
-    s3: &KonfigServer,
-) -> Reply {
+fn kerjakan(ctx: &Ctx, s1: &KonfigServer, s2: &KonfigServer, s3: &KonfigServer) -> Reply {
     // `m.text?.trim().split(' ')` — `ctx.args` sudah token split-whitespace.
     let mut server_key = "s1";
     let mut rest: &[String] = &ctx.args;
@@ -142,7 +146,11 @@ fn konfig_server_dari<'a>(
     }
 }
 
-fn server_tersedia_dari(s1: &KonfigServer, s2: &KonfigServer, s3: &KonfigServer) -> Vec<&'static str> {
+fn server_tersedia_dari(
+    s1: &KonfigServer,
+    s2: &KonfigServer,
+    s3: &KonfigServer,
+) -> Vec<&'static str> {
     let mut out = Vec::new();
     for (nama, cfg) in [("s1", s1), ("s2", s2), ("s3", s3)] {
         if !cfg.domain.is_empty() && !cfg.apikey.is_empty() {
@@ -203,7 +211,11 @@ fn alur_hapus(
         .and_then(|u| u.get("username"))
         .map(|v| v.as_str().unwrap_or("undefined").to_string());
 
-    let mode = if option == Some("full") { "Server + User" } else { "Server saja" };
+    let mode = if option == Some("full") {
+        "Server + User"
+    } else {
+        "Server saja"
+    };
 
     // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴘᴀɴᴇʟ...*...')` (`delpanel.js:108`).
     let tahap_satu = format!(
@@ -321,12 +333,24 @@ mod tests {
     #[test]
     fn field_hilang_meniru_validate_server_config() {
         assert_eq!(
-            field_hilang(&KonfigServer { domain: "", apikey: "" }),
+            field_hilang(&KonfigServer {
+                domain: "",
+                apikey: ""
+            }),
             vec!["domain", "apikey (PTLA)"]
         );
-        assert!(field_hilang(&KonfigServer { domain: "http://x", apikey: "k" }).is_empty());
+        assert!(
+            field_hilang(&KonfigServer {
+                domain: "http://x",
+                apikey: "k"
+            })
+            .is_empty()
+        );
         assert_eq!(
-            field_hilang(&KonfigServer { domain: "http://x", apikey: "" }),
+            field_hilang(&KonfigServer {
+                domain: "http://x",
+                apikey: ""
+            }),
             vec!["apikey (PTLA)"]
         );
     }
@@ -334,7 +358,10 @@ mod tests {
     #[test]
     fn konfigurasi_palsu_tanpa_http_jatuh_ke_template_error() {
         // `fetch`/`axios` gagal (NoHttp) → catch luar → `te(...)` tanpa reaksi.
-        let cfg_ok = KonfigServer { domain: "http://panel.test", apikey: "k" };
+        let cfg_ok = KonfigServer {
+            domain: "http://panel.test",
+            apikey: "k",
+        };
         let r = kerjakan(&ctx("delpanel", &["5"]), &cfg_ok, &cfg_ok, &cfg_ok);
         assert!(
             teks(&r).contains("Ehhh~ command `.delpanel`"),
@@ -346,20 +373,24 @@ mod tests {
 
     #[test]
     fn server_id_bukan_angka_ditolak_sebelum_http() {
-        let cfg_ok = KonfigServer { domain: "http://panel.test", apikey: "k" };
-        let r = kerjakan(
-            &ctx("delpanel", &["abc"]),
-            &cfg_ok,
-            &cfg_ok,
-            &cfg_ok,
-        );
+        let cfg_ok = KonfigServer {
+            domain: "http://panel.test",
+            apikey: "k",
+        };
+        let r = kerjakan(&ctx("delpanel", &["abc"]), &cfg_ok, &cfg_ok, &cfg_ok);
         assert_eq!(teks(&r), "❌ Server ID harus berupa angka.");
     }
 
     #[test]
     fn server_tersedia_dari_konfigurasi_terisi() {
-        let kosong = KonfigServer { domain: "", apikey: "" };
-        let isi = KonfigServer { domain: "http://x", apikey: "k" };
+        let kosong = KonfigServer {
+            domain: "",
+            apikey: "",
+        };
+        let isi = KonfigServer {
+            domain: "http://x",
+            apikey: "k",
+        };
         assert!(server_tersedia_dari(&kosong, &kosong, &kosong).is_empty());
         assert_eq!(server_tersedia_dari(&isi, &kosong, &isi), vec!["s1", "s3"]);
     }

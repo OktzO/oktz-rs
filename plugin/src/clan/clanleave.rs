@@ -1,11 +1,9 @@
 //! `plugins/clan/clanleave.js` — keluar dari clan; leader terakhir membubarkan clan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
-use crate::clan::clancreate::{
-    clans, emblem, field_str, members, members_value, save_clans,
-};
+use crate::clan::clancreate::{clans, emblem, field_str, members, members_value, save_clans};
 
 pub(crate) fn cleaned() -> &'static str {
     "❌ Clan tidak ditemukan, data dibersihkan"
@@ -164,14 +162,20 @@ mod tests {
 
     #[test]
     fn a_user_without_a_clan_is_stopped_before_anything_is_written() {
-        let r = run(serde_json::json!({}), serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }));
+        let r = run(
+            serde_json::json!({}),
+            serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }),
+        );
         assert_eq!(text_of(&r), "❌ Kamu belum punya clan");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_dangling_clan_id_is_cleaned_up_instead_of_failing() {
-        let r = run(serde_json::json!({"clanId": "HILANG"}), serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }));
+        let r = run(
+            serde_json::json!({"clanId": "HILANG"}),
+            serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }),
+        );
         assert_eq!(text_of(&r), cleaned());
         assert_eq!(cleared(&r), Value::Null);
         assert_eq!(
@@ -193,7 +197,10 @@ mod tests {
 
     #[test]
     fn a_lone_leader_disbands_the_clan_and_clears_the_pointer() {
-        let r = run(serde_json::json!({"clanId": "DRG"}), serde_json::json!({ "DRG": clan(SENDER, serde_json::json!([SENDER])) }));
+        let r = run(
+            serde_json::json!({"clanId": "DRG"}),
+            serde_json::json!({ "DRG": clan(SENDER, serde_json::json!([SENDER])) }),
+        );
         assert_eq!(text_of(&r), "🐉 Clan *Dragon* telah dibubarkan");
         assert_eq!(cleared(&r), Value::Null);
         let written = clans_written(&r);
@@ -213,7 +220,11 @@ mod tests {
         assert_eq!(cleared(&r), Value::Null);
         let written = clans_written(&r);
         assert_eq!(written["DRG"]["members"], serde_json::json!([OTHER]));
-        assert_eq!(written["DRG"]["leader"], serde_json::json!(OTHER), "leader tidak berubah");
+        assert_eq!(
+            written["DRG"]["leader"],
+            serde_json::json!(OTHER),
+            "leader tidak berubah"
+        );
     }
 
     #[test]
@@ -224,6 +235,9 @@ mod tests {
             serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }),
         );
         assert_eq!(text_of(&r), "👋 Kamu keluar dari *Dragon*");
-        assert_eq!(clans_written(&r)["DRG"]["members"], serde_json::json!([OTHER]));
+        assert_eq!(
+            clans_written(&r)["DRG"]["members"],
+            serde_json::json!([OTHER])
+        );
     }
 }

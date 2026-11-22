@@ -190,7 +190,11 @@ mod tests {
     fn a_bare_amount_adds_to_the_sender_and_reports_the_added_value() {
         let r = run("100000", serde_json::json!({ "koin": 5 }), None);
         assert_eq!(written(&r), (SENDER.to_string(), 100_005));
-        assert!(text_of(&r).contains("sebanyak *100.00K*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("sebanyak *100.00K*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("*@628111*"), "{}", text_of(&r));
     }
 
@@ -212,7 +216,11 @@ mod tests {
     #[test]
     fn an_unlimited_koin_holder_is_refused_and_nothing_is_written() {
         let r = run("100", serde_json::json!({ "koin": -1 }), None);
-        assert!(text_of(&r).starts_with("💰 *INFORMATION*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("💰 *INFORMATION*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(mentions, &[SENDER.to_string()]),

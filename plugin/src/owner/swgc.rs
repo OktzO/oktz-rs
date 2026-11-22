@@ -17,10 +17,8 @@
 //! key `swgc:pending:<sender>`; media disimpan ke `temp/swgc_<ts>.<ext>` —
 //! padanan persis dari `tempFile` JS (`swgc.js:205`).
 
+use oktz_plugin_api::registry::{CardContext, CardList, CardRow, CardSection, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use oktz_plugin_api::registry::{
-    CardContext, CardList, CardRow, CardSection, InteractiveButton,
-};
 use serde_json::Value;
 
 /// Prefix key session pending (`pendingSwgc`).
@@ -87,9 +85,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
         let target_group_id = args[1].clone();
         let pending = ctx.session_get(&pending_key(&ctx));
         let Some(pending) = pending else {
-            return Reply::text(
-                "⚠️ *Tidak ada data pending. Silakan kirim ulang media + .swgc*",
-            );
+            return Reply::text("⚠️ *Tidak ada data pending. Silakan kirim ulang media + .swgc*");
         };
 
         let _group_name = ctx
@@ -117,10 +113,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
     }
 
     // Deteksi media (quoted dulu, lalu pemicu) — `swgc.js:193-258`.
-    let (jenis, buffer) = if ctx
-        .quoted()
-        .is_some_and(|q| q.kind.is_media())
-    {
+    let (jenis, buffer) = if ctx.quoted().is_some_and(|q| q.kind.is_media()) {
         match ctx.download_quoted_media() {
             Ok(b) => (jenis_dari_quoted(&ctx), Some(b)),
             Err(_) => {
@@ -210,10 +203,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
         .with_footer(footer)
         .with_buttons(vec![
             InteractiveButton::select(&list),
-            InteractiveButton::quick_reply(
-                "❌ Batal",
-                format!("{}cancelswgc", ctx.prefix),
-            ),
+            InteractiveButton::quick_reply("❌ Batal", format!("{}cancelswgc", ctx.prefix)),
         ])
         .with_context(CardContext::new().quote_trigger())
 }
@@ -319,7 +309,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -352,7 +342,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -446,7 +439,11 @@ mod tests {
             ..Ctx::default()
         };
         let _ = swgc(ctx.clone());
-        assert!(s.lock().unwrap().contains_key("swgc:pending:628111@s.whatsapp.net"));
+        assert!(
+            s.lock()
+                .unwrap()
+                .contains_key("swgc:pending:628111@s.whatsapp.net")
+        );
 
         let r = swgc(Ctx {
             text: String::new(),
@@ -460,6 +457,10 @@ mod tests {
              > Gagal posting story.\n\
              > _grup status (groupStatusMessage) tidak tersedia di versi Rust_"
         );
-        assert!(!s.lock().unwrap().contains_key("swgc:pending:628111@s.whatsapp.net"));
+        assert!(
+            !s.lock()
+                .unwrap()
+                .contains_key("swgc:pending:628111@s.whatsapp.net")
+        );
     }
 }

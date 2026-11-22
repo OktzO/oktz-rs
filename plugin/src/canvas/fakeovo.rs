@@ -233,7 +233,10 @@ mod tests {
         };
         let r = (oktz_plugin_api::find("fakeovo").unwrap().handler)(ctx);
         assert!(!r.has_media());
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "fake-ovo"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "fake-ovo")
+        );
         assert_eq!(reaction_of(&r), Some("❌"));
     }
 }

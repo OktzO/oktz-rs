@@ -14,9 +14,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-use crate::rpg::heal::{
-    apply_exp, coalesce, math_random, or_default, rpg_int, rpg_map, roll_incl,
-};
+use crate::rpg::heal::{apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 const STAMINA_COST: i64 = 25;
@@ -179,7 +177,10 @@ mod tests {
         for stamina in [0, 24] {
             let r = run(serde_json::json!({ "rpg": { "stamina": stamina } }));
             let t = text_of(&r);
-            assert!(t.starts_with("Otak ngebul mikirin error!"), "stamina {stamina}: {t}");
+            assert!(
+                t.starts_with("Otak ngebul mikirin error!"),
+                "stamina {stamina}: {t}"
+            );
             assert!(t.contains(&format!("sisa stamina kamu *{stamina}*")), "{t}");
             assert!(r.mutations().is_empty(), "stamina {stamina}");
         }
@@ -210,10 +211,16 @@ mod tests {
                 let paid = data["koin"].as_i64().unwrap();
                 assert!((15_000..=54_999).contains(&paid), "bayar {paid}");
                 assert_eq!(data["exp"], serde_json::json!(paid / 20));
-                assert!(t.contains(&format!("+Rp {}", thousands_id(paid as f64))), "{t}");
+                assert!(
+                    t.contains(&format!("+Rp {}", thousands_id(paid as f64))),
+                    "{t}"
+                );
             }
         }
-        assert!(ghosted > 0 && dollar > 0 && local > 0, "ghosted={ghosted} dollar={dollar} local={local}");
+        assert!(
+            ghosted > 0 && dollar > 0 && local > 0,
+            "ghosted={ghosted} dollar={dollar} local={local}"
+        );
     }
 
     /// `user.rpg.stamina ?? 100` — `??` hanya menutup null/undefined, jadi nol
@@ -227,14 +234,24 @@ mod tests {
         assert!(r.mutations().is_empty(), "nol tak jadi 100");
 
         // `null` dan field yang hilang justru jatuh ke 100, lalu lolos gerbang.
-        for user in [serde_json::json!({ "rpg": { "stamina": null } }), serde_json::json!({ "rpg": {} })] {
-            assert!(!text_of(&run(user.clone())).starts_with("Otak ngebul"), "{user}");
+        for user in [
+            serde_json::json!({ "rpg": { "stamina": null } }),
+            serde_json::json!({ "rpg": {} }),
+        ] {
+            assert!(
+                !text_of(&run(user.clone())).starts_with("Otak ngebul"),
+                "{user}"
+            );
         }
     }
 
     #[test]
     fn a_missing_user_row_never_panics() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": null })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "rpg": null }),
+        ] {
             let r = run(user.clone());
             assert!(!text_of(&r).is_empty(), "input {user}");
         }

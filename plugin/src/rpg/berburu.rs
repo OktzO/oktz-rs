@@ -18,7 +18,7 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
 use crate::rpg::heal::{
-    apply_exp, coalesce, inventory_map, or_default, rpg_int, rpg_map, roll_incl, roll_percent,
+    apply_exp, coalesce, inventory_map, or_default, roll_incl, roll_percent, rpg_int, rpg_map,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
@@ -205,7 +205,10 @@ mod tests {
         for stamina in [0, 1, 24] {
             let r = run(serde_json::json!({ "rpg": { "stamina": stamina }, "koin": 500 }));
             let t = text_of(&r);
-            assert!(t.starts_with("Aduh kak, stamina kamu abis"), "stamina {stamina}: {t}");
+            assert!(
+                t.starts_with("Aduh kak, stamina kamu abis"),
+                "stamina {stamina}: {t}"
+            );
             assert!(t.contains(&format!("sisa *{stamina}*")), "{t}");
             assert!(r.mutations().is_empty(), "stamina {stamina}");
         }
@@ -241,7 +244,11 @@ mod tests {
             if !text_of(&r).starts_with("CROOT!") {
                 empty += 1;
                 let data = write_of(&r);
-                assert_eq!(data["rpg"]["stamina"], serde_json::json!(75), "stamina tetap kepotong");
+                assert_eq!(
+                    data["rpg"]["stamina"],
+                    serde_json::json!(75),
+                    "stamina tetap kepotong"
+                );
                 assert!(data.get("koin").is_none(), "buruan kosong tak menulis koin");
                 assert!(data.get("inventory").is_none());
             }
@@ -280,7 +287,10 @@ mod tests {
             let money = data["koin"].as_i64().unwrap();
             let exp = data["exp"].as_i64().unwrap();
             assert!(money > 0 && exp > 0, "koin {money} exp {exp}");
-            assert!(t.contains(&format!("+Rp {}", thousands_id(money as f64))), "{t}");
+            assert!(
+                t.contains(&format!("+Rp {}", thousands_id(money as f64))),
+                "{t}"
+            );
             assert!(t.contains(&format!("*+{exp}*")), "{t}");
         }
     }
@@ -288,8 +298,14 @@ mod tests {
     #[test]
     fn the_animal_table_keeps_every_js_row() {
         assert_eq!(ANIMALS.len(), 6);
-        assert_eq!(ANIMALS[0], ("🐰 Kelinci", "daging_kelinci", 80, 1, 3, 50, 500));
-        assert_eq!(ANIMALS[5], ("🦁 Singa", "taring_singa", 5, 1, 1, 1000, 25000));
+        assert_eq!(
+            ANIMALS[0],
+            ("🐰 Kelinci", "daging_kelinci", 80, 1, 3, 50, 500)
+        );
+        assert_eq!(
+            ANIMALS[5],
+            ("🦁 Singa", "taring_singa", 5, 1, 1, 1000, 25000)
+        );
     }
 
     /// `berburu.js:37` — pesan sebelum jeda persis sama dengan JS, dan

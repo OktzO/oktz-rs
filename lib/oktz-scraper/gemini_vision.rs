@@ -32,7 +32,11 @@ fn teks_js(v: Option<&Value>) -> String {
         Value::String(s) => s.clone(),
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
-        Value::Array(a) => a.iter().map(|x| teks_js(Some(x))).collect::<Vec<_>>().join(","),
+        Value::Array(a) => a
+            .iter()
+            .map(|x| teks_js(Some(x)))
+            .collect::<Vec<_>>()
+            .join(","),
         Value::Object(_) => "[object Object]".to_string(),
         Value::Null => String::new(),
     }
@@ -152,29 +156,15 @@ mod tests {
         fn baru(balasan: &[(u16, &str)]) -> Self {
             Self {
                 permintaan: Mutex::new(Vec::new()),
-                balasan: Mutex::new(
-                    balasan
-                        .iter()
-                        .map(|(s, t)| (*s, t.to_string()))
-                        .collect(),
-                ),
+                balasan: Mutex::new(balasan.iter().map(|(s, t)| (*s, t.to_string())).collect()),
                 hitung: Mutex::new(0),
             }
         }
 
         /// Dua balasan: cookie lalu blok jawaban.
         fn gemini(jawaban: &str) -> Self {
-            let parsed = json!([
-                "wrb.fr",
-                ["id_lama"],
-                null,
-                null,
-                [["id_baru", [jawaban]]]
-            ]);
-            let stream = format!(
-                "5\n{}\n",
-                json!([["wrb.fr", null, parsed.to_string()]])
-            );
+            let parsed = json!(["wrb.fr", ["id_lama"], null, null, [["id_baru", [jawaban]]]]);
+            let stream = format!("5\n{}\n", json!([["wrb.fr", null, parsed.to_string()]]));
             let http = Self::baru(&[(200, stream.as_str())]);
             *http.balasan.lock().unwrap() = vec![(200, String::new()), (200, stream)];
             http
@@ -185,11 +175,7 @@ mod tests {
         fn get(&self, _url: &str) -> Result<HttpResponse, HttpError> {
             unreachable!("geminiVision cuma POST lewat gemini")
         }
-        fn post_json(
-            &self,
-            _url: &str,
-            _body: &Value,
-        ) -> Result<HttpResponse, HttpError> {
+        fn post_json(&self, _url: &str, _body: &Value) -> Result<HttpResponse, HttpError> {
             unreachable!("lewat HttpCall::call")
         }
         fn post_form(&self, _url: &str, _form: &str) -> Result<HttpResponse, HttpError> {
@@ -237,7 +223,10 @@ mod tests {
         let payload: Value = serde_json::from_str(&decoded).expect("f.req JSON");
         let request_body: Value =
             serde_json::from_str(payload[1].as_str().expect("payload[1]")).unwrap();
-        request_body[0][0].as_str().expect("pesan string").to_string()
+        request_body[0][0]
+            .as_str()
+            .expect("pesan string")
+            .to_string()
     }
 
     fn decode_form(s: &str) -> String {
@@ -361,6 +350,9 @@ mod tests {
         ];
         chat(&http, "hai", "", None, &history).unwrap();
         // `42` jadi "42"; `false` dan `undefined` jadi kosong lalu dibuang.
-        assert_eq!(pesan_terkirim(&http), "Riwayat percakapan:\nAssistant: 42\n\nhai");
+        assert_eq!(
+            pesan_terkirim(&http),
+            "Riwayat percakapan:\nAssistant: 42\n\nhai"
+        );
     }
 }

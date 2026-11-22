@@ -180,7 +180,11 @@ mod tests {
 
     #[test]
     fn absent_state_shows_zero_exp_and_level_one() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"exp": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"exp": null}),
+        ] {
             let out = run(user.clone(), vec![]);
             assert_eq!(
                 out,
@@ -200,7 +204,10 @@ mod tests {
 
     #[test]
     fn a_mention_shows_the_target_number() {
-        let out = run(serde_json::json!({"exp": 50_000}), vec!["628999@s.whatsapp.net"]);
+        let out = run(
+            serde_json::json!({"exp": 50_000}),
+            vec!["628999@s.whatsapp.net"],
+        );
         assert!(out.contains("*〔 👤 User 〕* 628999\n"));
         assert!(out.contains("*〔 🏆 Level 〕* 6\n"));
         assert!(out.contains("*〔 🎖️ Title 〕* 🛡️ Warrior\n"));

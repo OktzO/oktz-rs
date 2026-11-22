@@ -156,7 +156,9 @@ mod tests {
             let text = self
                 .result
                 .clone()
-                .map_err(|()| oktz_plugin_api::HttpError { message: "offline".into() })?;
+                .map_err(|()| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -274,7 +276,10 @@ mod tests {
             assert_eq!(t, help("."), "input {text:?}");
             assert!(t.contains(".applemusic <query>"), "{t}");
         }
-        assert!(http.seen.lock().unwrap().is_empty(), "tidak boleh ada request");
+        assert!(
+            http.seen.lock().unwrap().is_empty(),
+            "tidak boleh ada request"
+        );
     }
 
     #[test]
@@ -319,7 +324,11 @@ mod tests {
 
     #[test]
     fn an_empty_result_list_reports_not_found() {
-        for body in [serde_json::json!({ "status": false, "result": [] }), serde_json::json!({}), serde_json::json!({"result": null})] {
+        for body in [
+            serde_json::json!({ "status": false, "result": [] }),
+            serde_json::json!({}),
+            serde_json::json!({"result": null}),
+        ] {
             let http = Stub::body(body.clone());
             let t = owned(run(http.clone(), "tidak ada"));
             assert_eq!(t, not_found("tidak ada"), "body {body}");
@@ -329,7 +338,10 @@ mod tests {
     #[test]
     fn a_transport_or_parsing_failure_reports_the_generic_error_template() {
         let http = Stub::offline();
-        assert_eq!(owned(run(http.clone(), "x")), error_reply(".", "applemusic"));
+        assert_eq!(
+            owned(run(http.clone(), "x")),
+            error_reply(".", "applemusic")
+        );
 
         let http = Stub::raw("<html>bukan json</html>");
         let t = owned(run(http.clone(), "x"));
@@ -343,6 +355,10 @@ mod tests {
         assert_eq!(encode("a&b=c"), "a%26b%3Dc");
         assert_eq!(encode("küfte"), "k%C3%BCfte");
         assert_eq!(encode("a/b?c#d"), "a%2Fb%3Fc%23d");
-        assert_eq!(encode("safe-._*"), "safe-._*", "karakter unreserved tak di-encode");
+        assert_eq!(
+            encode("safe-._*"),
+            "safe-._*",
+            "karakter unreserved tak di-encode"
+        );
     }
 }

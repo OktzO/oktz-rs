@@ -15,8 +15,7 @@ pub(crate) const ENDPOINT: &str = "https://api.cuki.biz.id/api/aicode/caribug";
 
 /// `explainFailure(new MissingApiKeyError('cuki', 'APIKEY_CUKI'), ..)`
 /// (`stalker-fallback.js:29-45`).
-pub(crate) const MISSING_KEY: &str =
-    "❌ *API Key belum diset!*\n\n> Command `.caribug` butuh `APIKEY_CUKI` di `.env`\n> Saat ini belum ada, jadi tidak bisa dipanggil.";
+pub(crate) const MISSING_KEY: &str = "❌ *API Key belum diset!*\n\n> Command `.caribug` butuh `APIKEY_CUKI` di `.env`\n> Saat ini belum ada, jadi tidak bisa dipanggil.";
 
 pub(crate) const SCAN_FAILED: &str = "Gagal menganalisa kode dari server";
 
@@ -52,10 +51,7 @@ fn rendered(data: &Value) -> String {
     let meta = data.get("metadata").unwrap_or(&Value::Null);
     let bug_info = data.get("bugsFound").unwrap_or(&Value::Null);
 
-    let total = bug_info
-        .get("total")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
+    let total = bug_info.get("total").and_then(Value::as_u64).unwrap_or(0);
 
     let mut text = format!(
         "🐛 *HASIL ANALISA BUG*\n\n\
@@ -82,13 +78,13 @@ fn rendered(data: &Value) -> String {
         .and_then(Value::as_str)
         && !fixed.is_empty()
     {
-            let lang = meta
-                .get("detectedLanguage")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            text.push_str(&format!(
-                "*✨ Kode Perbaikan:*\n```{lang}\n{fixed}\n```\n\n"
-            ));
+        let lang = meta
+            .get("detectedLanguage")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        text.push_str(&format!(
+            "*✨ Kode Perbaikan:*\n```{lang}\n{fixed}\n```\n\n"
+        ));
     }
 
     if let Some(details) = bug_info.get("details").and_then(Value::as_array)
@@ -147,7 +143,9 @@ pub fn caribug(ctx: Ctx) -> Reply {
     };
     let body = res.json().unwrap_or(Value::Null);
 
-    let success = body.get("success").is_some_and(crate::common::js_truthy_value);
+    let success = body
+        .get("success")
+        .is_some_and(crate::common::js_truthy_value);
     let Some(data) = body.get("data").filter(|v| success && !v.is_null()) else {
         return Reply::text(SCAN_FAILED).with_reaction("❌");
     };
@@ -329,7 +327,9 @@ mod tests {
         assert!(t.contains("- tidak ada penanganan error"));
         assert_eq!(
             http.seen.lock().unwrap().as_slice(),
-            &["https://api.cuki.biz.id/api/aicode/caribug?apikey=KUNCI&code=function%20x()%20%7B%7D&language=auto"]
+            &[
+                "https://api.cuki.biz.id/api/aicode/caribug?apikey=KUNCI&code=function%20x()%20%7B%7D&language=auto"
+            ]
         );
     }
 

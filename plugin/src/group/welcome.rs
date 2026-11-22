@@ -19,7 +19,7 @@
 //!   `welcomeType` 2..8.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 /// `config.messages.ownerOnly` (`config.js:198`) — literal statis di config,
 /// sama seperti `CONFIG_PREFIX` di `common.rs`.
@@ -158,7 +158,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaction_of(r: &Reply) -> &str {
@@ -234,7 +237,10 @@ mod tests {
         let off = text_of(&run(serde_json::json!({}), &[], false));
         assert!(off.starts_with("👋 *ᴡᴇʟᴄᴏᴍᴇ sᴇᴛᴛɪɴɢs*"), "{off}");
         assert!(off.contains("> Status: *❌ OFF*"), "{off}");
-        assert!(off.contains("> `.welcome on all` → Global ON (owner)"), "{off}");
+        assert!(
+            off.contains("> `.welcome on all` → Global ON (owner)"),
+            "{off}"
+        );
 
         let on = text_of(&run(serde_json::json!({ "welcome": true }), &[], false));
         assert!(on.contains("> Status: *✅ ON*"), "{on}");
@@ -245,7 +251,12 @@ mod tests {
         // `"true"` (string) dan `1` tidak dihitung aktif, persis `=== true`.
         for weird in [serde_json::json!("true"), serde_json::json!(1)] {
             assert!(
-                text_of(&run(serde_json::json!({ "welcome": weird }), &["on"], false)).contains("ᴀᴋᴛɪꜰ"),
+                text_of(&run(
+                    serde_json::json!({ "welcome": weird }),
+                    &["on"],
+                    false
+                ))
+                .contains("ᴀᴋᴛɪꜰ"),
                 "harus tetap bisa dinyalakan: {weird}"
             );
         }

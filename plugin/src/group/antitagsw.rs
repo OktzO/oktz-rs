@@ -1,10 +1,9 @@
 //! `plugins/group/antitagsw.js` — sakelar anti tag status.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
-pub(crate) const ON: &str =
-    "✅ *ᴀɴᴛɪᴛᴀɢsᴡ ᴀᴋᴛɪꜰ*\n\n> Anti tag status berhasil diaktifkan!\n> Pesan tag status akan dihapus otomatis.";
+pub(crate) const ON: &str = "✅ *ᴀɴᴛɪᴛᴀɢsᴡ ᴀᴋᴛɪꜰ*\n\n> Anti tag status berhasil diaktifkan!\n> Pesan tag status akan dihapus otomatis.";
 pub(crate) const OFF: &str = "❌ *ᴀɴᴛɪᴛᴀɢsᴡ ɴᴏɴᴀᴋᴛɪꜰ*\n\n> Anti tag status berhasil dinonaktifkan.";
 pub(crate) const BAD_ACTION: &str = "❌ *ᴘɪʟɪʜᴀɴ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*\n\n> Gunakan: on atau off";
 
@@ -42,7 +41,11 @@ pub fn antitagsw(ctx: Ctx) -> Reply {
              ```━━━ ᴘɪʟɪʜᴀɴ ━━━```\n\
              > `{}antitagsw on` → Aktifkan\n\
              > `{}antitagsw off` → Nonaktifkan",
-            if status == "on" { "✅ Aktif" } else { "❌ Nonaktif" },
+            if status == "on" {
+                "✅ Aktif"
+            } else {
+                "❌ Nonaktif"
+            },
             ctx.prefix,
             ctx.prefix
         ));
@@ -159,6 +162,9 @@ mod tests {
 
     #[test]
     fn the_action_is_lowercased_before_matching() {
-        assert_eq!(written(&run(serde_json::json!({}), "Off")), &serde_json::json!({ "antitagsw": "off" }));
+        assert_eq!(
+            written(&run(serde_json::json!({}), "Off")),
+            &serde_json::json!({ "antitagsw": "off" })
+        );
     }
 }

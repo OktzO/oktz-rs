@@ -121,7 +121,9 @@ pub fn addseller(ctx: Ctx) -> Reply {
 
     // Guard akses sebelum cabang mana pun (`addseller.js:70-72`).
     if !punya_akses(&ctx, &data) {
-        return Reply::text("❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*\n\n> Fitur ini hanya untuk Owner atau Owner Panel.");
+        return Reply::text(
+            "❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*\n\n> Fitur ini hanya untuk Owner atau Owner Panel.",
+        );
     }
 
     let is_add = cmd == "addseller" || cmd == "addreseller";
@@ -139,7 +141,11 @@ pub fn addseller(ctx: Ctx) -> Reply {
         nomor_dari_jid(jid)
     } else if !ctx.text.trim().is_empty() {
         let digits: String = ctx.text.chars().filter(|c| c.is_ascii_digit()).collect();
-        if digits.is_empty() { None } else { Some(digits) }
+        if digits.is_empty() {
+            None
+        } else {
+            Some(digits)
+        }
     } else {
         nomor_dari_jid(&ctx.sender)
     };
@@ -287,16 +293,33 @@ mod tests {
     #[test]
     fn semua_enam_kunci_js_resolve() {
         for kunci in [
-            "addseller", "addreseller", "delseller", "delreseller", "listseller", "listreseller",
+            "addseller",
+            "addreseller",
+            "delseller",
+            "delreseller",
+            "listseller",
+            "listreseller",
         ] {
             assert_eq!(
-                find(kunci).unwrap_or_else(|| panic!("{kunci} tidak terdaftar")).meta.name,
+                find(kunci)
+                    .unwrap_or_else(|| panic!("{kunci} tidak terdaftar"))
+                    .meta
+                    .name,
                 "addseller",
                 "kunci {kunci}"
             );
         }
         let m = &find("addseller").unwrap().meta;
-        assert_eq!(m.alias, ["addreseller", "delseller", "delreseller", "listseller", "listreseller"]);
+        assert_eq!(
+            m.alias,
+            [
+                "addreseller",
+                "delseller",
+                "delreseller",
+                "listseller",
+                "listreseller"
+            ]
+        );
         assert_eq!(m.category, "panel");
         assert_eq!(m.description, "Kelola seller/reseller panel");
         assert_eq!(m.cooldown, 5);
@@ -334,7 +357,11 @@ mod tests {
             ..Ctx::default()
         };
         let r = addseller(c);
-        assert!(teks(&r).contains("Belum ada seller terdaftar"), "{}", teks(&r));
+        assert!(
+            teks(&r).contains("Belum ada seller terdaftar"),
+            "{}",
+            teks(&r)
+        );
     }
 
     #[test]
@@ -364,7 +391,10 @@ mod tests {
         let t = teks(&addseller(buat("listseller")));
         assert!(t.contains("1. `628777`"), "{t}");
         assert!(t.contains("> Total: *1* seller"), "{t}");
-        assert!(t.contains("_Seller bisa create server (1gb-10gb v1/v2/v3)_"), "{t}");
+        assert!(
+            t.contains("_Seller bisa create server (1gb-10gb v1/v2/v3)_"),
+            "{t}"
+        );
     }
 
     #[test]

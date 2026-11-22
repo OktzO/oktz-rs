@@ -22,7 +22,12 @@ fn format_number(n: &str) -> String {
 }
 
 fn trim_text(text: &str, max: usize) -> String {
-    let value = text.split_whitespace().collect::<Vec<_>>().join(" ").trim().to_string();
+    let value = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
     if value.is_empty() {
         return "-".to_string();
     }
@@ -71,23 +76,34 @@ pub fn tiktokfoto(ctx: Ctx) -> Reply {
     };
     let body = res.json().unwrap_or(Value::Null);
 
-    let success = body.get("data")
+    let success = body
+        .get("data")
         .and_then(|d| d.get("success").and_then(Value::as_bool))
         .unwrap_or(false);
     if !success {
-        let message = body.get("data")
+        let message = body
+            .get("data")
             .and_then(|d| d.get("message").and_then(Value::as_str))
             .unwrap_or("Foto TikTok tidak ditemukan");
         return Reply::text(format!("❌ {message}"));
     }
 
     let data = body.get("data").unwrap();
-    let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+    let results = data
+        .get("results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let post = results.first().cloned().unwrap_or(Value::Null);
 
-    let images = post.get("images")
+    let images = post
+        .get("images")
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
 
     if images.is_empty() {
@@ -95,28 +111,42 @@ pub fn tiktokfoto(ctx: Ctx) -> Reply {
     }
 
     let title = trim_text(
-        post.get("title").or_else(|| post.get("description"))
-            .and_then(Value::as_str).unwrap_or(""),
+        post.get("title")
+            .or_else(|| post.get("description"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         180,
     );
-    let author = post.get("author")
+    let author = post
+        .get("author")
         .and_then(|a| a.get("nickname").and_then(Value::as_str))
         .unwrap_or("-");
     let region = post.get("region").and_then(Value::as_str).unwrap_or("-");
-    let image_count = post.get("image_count").and_then(Value::as_i64).unwrap_or(images.len() as i64);
+    let image_count = post
+        .get("image_count")
+        .and_then(Value::as_i64)
+        .unwrap_or(images.len() as i64);
     let like = format_number(
-        post.get("stats").and_then(|s| s.get("like").and_then(Value::as_str)).unwrap_or("0"),
+        post.get("stats")
+            .and_then(|s| s.get("like").and_then(Value::as_str))
+            .unwrap_or("0"),
     );
     let comment = format_number(
-        post.get("stats").and_then(|s| s.get("comment").and_then(Value::as_str)).unwrap_or("0"),
+        post.get("stats")
+            .and_then(|s| s.get("comment").and_then(Value::as_str))
+            .unwrap_or("0"),
     );
     let share = format_number(
-        post.get("stats").and_then(|s| s.get("share").and_then(Value::as_str)).unwrap_or("0"),
+        post.get("stats")
+            .and_then(|s| s.get("share").and_then(Value::as_str))
+            .unwrap_or("0"),
     );
     let post_id = post.get("id").and_then(Value::as_str).unwrap_or("-");
     let description = trim_text(
-        post.get("description").or_else(|| post.get("title"))
-            .and_then(Value::as_str).unwrap_or(""),
+        post.get("description")
+            .or_else(|| post.get("title"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         220,
     );
     let result_query = data.get("query").and_then(Value::as_str).unwrap_or(query);
@@ -151,7 +181,9 @@ fn url_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         let c = b as char;
-        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')') {
+        if c.is_ascii_alphanumeric()
+            || matches!(c, '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')')
+        {
             out.push(c);
         } else {
             out.push_str(&format!("%{b:02X}"));

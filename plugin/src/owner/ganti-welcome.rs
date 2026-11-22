@@ -57,9 +57,9 @@ pub fn ganti_welcome(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::IncomingMedia;
     use oktz_plugin_api::berkas::{Berkas, BerkasPalsu};
     use oktz_plugin_api::find;
-    use oktz_plugin_api::IncomingMedia;
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -114,7 +114,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -123,7 +126,10 @@ mod tests {
         assert_eq!(p.meta.name, "ganti-welcome.jpg");
         assert_eq!(p.meta.alias, ["gantiwelcome", "setfotowelcome"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Ganti gambar welcome.jpg (thumbnail welcome)");
+        assert_eq!(
+            p.meta.description,
+            "Ganti gambar welcome.jpg (thumbnail welcome)"
+        );
         assert_eq!(p.meta.usage, ".ganti-welcome.jpg (reply/kirim gambar)");
         assert_eq!(p.meta.example, ".ganti-welcome.jpg");
         assert_eq!(p.meta.cooldown, 5);

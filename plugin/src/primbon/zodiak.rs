@@ -160,14 +160,23 @@ mod tests {
 
     #[test]
     fn an_unknown_or_missing_sign_lists_the_twelve_valid_ones() {
-        for arg in [None, Some(""), Some("aries "), Some("cancer-ish"), Some("😀")] {
+        for arg in [
+            None,
+            Some(""),
+            Some("aries "),
+            Some("cancer-ish"),
+            Some("😀"),
+        ] {
             let r = run_with(Arc::new(NoHttp), arg);
             let t = reply_text(&r);
             assert!(t.starts_with("⭐ *ᴢᴏᴅɪᴀᴋ*"), "{arg:?}: {t}");
             assert!(t.contains("• aries"), "{arg:?}: {t}");
             assert!(t.contains("• pisces"), "{arg:?}: {t}");
             // Tidak ada reaksi: JS `return` sebelum `m.react`.
-            assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Text { .. }));
+            assert!(matches!(
+                r.without_mutations().tanpa_reaksi(),
+                Reply::Text { .. }
+            ));
         }
     }
 
@@ -175,7 +184,10 @@ mod tests {
     #[test]
     fn the_sign_is_lowercased_before_the_membership_check() {
         let r = run_with(Arc::new(NoHttp), Some("ARIES"));
-        assert!(reply_text(&r).starts_with("☢ Ehhh~ command "), "tidak masuk daftar");
+        assert!(
+            reply_text(&r).starts_with("☢ Ehhh~ command "),
+            "tidak masuk daftar"
+        );
     }
 
     #[test]
@@ -208,12 +220,13 @@ mod tests {
 
     #[test]
     fn a_falsy_status_or_data_gives_the_failure_message() {
-        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({ "status": 0, "data": 1 })] {
+        for body in [
+            serde_json::json!({ "data": {} }),
+            serde_json::json!({ "status": true }),
+            serde_json::json!({ "status": 0, "data": 1 }),
+        ] {
             let r = run_with(Arc::new(Stub(body)), Some("aries"));
-            assert_eq!(
-                reply_text(&r),
-                "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendapatkan ramalan"
-            );
+            assert_eq!(reply_text(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendapatkan ramalan");
         }
     }
 

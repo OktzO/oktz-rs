@@ -142,10 +142,7 @@ mod tests {
     fn nama_ikut_dalam_teks_hasil() {
         let hasil = cek_femboy(&TanpaHttp, "Siti").unwrap();
         assert!(
-            hasil["hasil"]
-                .as_str()
-                .unwrap()
-                .starts_with("Siti, kamu "),
+            hasil["hasil"].as_str().unwrap().starts_with("Siti, kamu "),
             "nama harus jadi awalan: {}",
             hasil["hasil"]
         );

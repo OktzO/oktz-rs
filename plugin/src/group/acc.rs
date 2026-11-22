@@ -48,8 +48,7 @@ pub fn acc(ctx: Ctx) -> Reply {
         // `!sub || !['list', 'approve', 'reject'].includes(sub)` → bantuan.
         Some("list") | Some("approve") | Some("reject") => {
             // Jalur `catch` JS (`acc.js:139-142`) — `sock.*` tidak ada di Ctx.
-            Reply::text(crate::common::error_template(&ctx))
-                .with_reaction("☢")
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
         }
         _ => Reply::text(help_text(&ctx.prefix)),
     }
@@ -74,7 +73,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaction_of(r: &Reply) -> &str {
@@ -133,7 +135,10 @@ mod tests {
         for sub in ["list", "approve", "reject", "LIST"] {
             let r = run(&[sub], ".");
             assert_eq!(reaction_of(&r), "☢", "sub {sub}");
-            assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "acc"));
+            assert_eq!(
+                text_of(&r),
+                crate::common::error_template_bawaan(".", "acc")
+            );
             assert!(r.mutations().is_empty());
         }
     }

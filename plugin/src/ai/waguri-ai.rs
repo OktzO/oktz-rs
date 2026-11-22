@@ -8,7 +8,6 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
 /// `waguri-ai.js:23-30`.
@@ -51,8 +50,9 @@ pub fn waguri_ai(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("Waguri AI Error", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢"),
+        Err(AiFailure::Transport) => {
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+        }
     }
 }
 
@@ -249,7 +249,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "waguri-ai"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "waguri-ai")
+        );
         assert_eq!(emoji(&r), "☢");
     }
 }

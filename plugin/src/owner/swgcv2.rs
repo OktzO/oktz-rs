@@ -107,9 +107,7 @@ pub fn swgcv2(ctx: Ctx) -> Reply {
     let text = ctx.text.trim();
 
     // `--confirm <id grup>` (`swgcv2.js:53-151`).
-    if args.first().map(|a| a.as_str()) == Some("--confirm")
-        && args.len() > 1
-    {
+    if args.first().map(|a| a.as_str()) == Some("--confirm") && args.len() > 1 {
         let group_id = args[1].clone();
         let pending = ctx.session_get("swgcv2:pending");
         if pending.is_none() {
@@ -151,13 +149,19 @@ pub fn swgcv2(ctx: Ctx) -> Reply {
     let rows: Vec<CardRow> = grup
         .iter()
         .map(|(id, subject)| {
-            CardRow::new(subject.clone(), format!("{}swgcv2 --confirm {id}", ctx.prefix))
-                .description(id.clone())
+            CardRow::new(
+                subject.clone(),
+                format!("{}swgcv2 --confirm {id}", ctx.prefix),
+            )
+            .description(id.clone())
         })
         .collect();
 
-    let list = CardList::new("🏠 Pilih Grup", vec![CardSection::new("Daftar Grup").rows(rows)])
-        .icon("DEFAULT");
+    let list = CardList::new(
+        "🏠 Pilih Grup",
+        vec![CardSection::new("Daftar Grup").rows(rows)],
+    )
+    .icon("DEFAULT");
 
     let footer = {
         let nama = ctx.config().bot.name.clone();

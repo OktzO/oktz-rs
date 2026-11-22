@@ -210,8 +210,16 @@ pub fn islami(ctx: Ctx) -> Reply {
 
     Reply::text(match command.as_str() {
         "asmaulhusna" => asmaul_husna(body["data"].as_array().map(Vec::as_slice).unwrap_or(&[])),
-        "niatsholat" | "niatshalat" => niat_sholat(body.as_array().map(Vec::as_slice).unwrap_or(&[]), &text, &prefix),
-        "doa" | "berdoa" => doa(body.as_array().map(Vec::as_slice).unwrap_or(&[]), &text, &prefix),
+        "niatsholat" | "niatshalat" => niat_sholat(
+            body.as_array().map(Vec::as_slice).unwrap_or(&[]),
+            &text,
+            &prefix,
+        ),
+        "doa" | "berdoa" => doa(
+            body.as_array().map(Vec::as_slice).unwrap_or(&[]),
+            &text,
+            &prefix,
+        ),
         "surah" => {
             let data = body["data"].as_array().map(Vec::as_slice).unwrap_or(&[]);
             if data.is_empty() {
@@ -285,7 +293,14 @@ mod tests {
     /// urutan registrasi.
     #[test]
     fn every_other_alias_resolves_to_this_plugin() {
-        for a in ["niatsholat", "niatshalat", "surah", "doa", "berdoa", "gislam"] {
+        for a in [
+            "niatsholat",
+            "niatshalat",
+            "surah",
+            "doa",
+            "berdoa",
+            "gislam",
+        ] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "islami", "{a}");
         }
     }
@@ -353,7 +368,10 @@ mod tests {
 
         let daftar = doa(arr, "", ".");
         assert!(daftar.starts_with("🤲 *DAFTAR DOA*"), "{daftar}");
-        assert!(daftar.contains("- Doa Sebelum Tidur\n- Doa Setelah Sholat"), "{daftar}");
+        assert!(
+            daftar.contains("- Doa Sebelum Tidur\n- Doa Setelah Sholat"),
+            "{daftar}"
+        );
         assert!(
             daftar.ends_with(
                 "\n\n📌 Ketik `.doa [nama doa]` untuk melihat doa\nContoh: `.doa doa sebelum tidur`"
@@ -416,12 +434,18 @@ mod tests {
             ] }
         });
         let t = artikel(&ok, "puasa");
-        assert!(t.starts_with("📚 *HASIL PENCARIAN: PUASA*\nTotal: 2\n\n"), "{t}");
+        assert!(
+            t.starts_with("📚 *HASIL PENCARIAN: PUASA*\nTotal: 2\n\n"),
+            "{t}"
+        );
         assert!(t.contains("1. *Puasa*\n🔗 https://a/1\n\n"), "{t}");
         assert!(t.contains("2. *Zakat*\n🔗 https://a/2\n\n"), "{t}");
 
         assert_eq!(
-            artikel(&serde_json::json!({ "success": true, "data": { "data": [] } }), "x"),
+            artikel(
+                &serde_json::json!({ "success": true, "data": { "data": [] } }),
+                "x"
+            ),
             "❌ Artikel tidak ditemukan."
         );
         assert_eq!(

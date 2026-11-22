@@ -149,7 +149,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -170,7 +173,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["cleardb", "wipedb"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("resetdb"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("resetdb"),
+                "{a}"
+            );
         }
     }
 
@@ -202,7 +209,10 @@ mod tests {
     #[test]
     fn confirm_tanpa_permintaan_memberi_timeout() {
         let r = run("confirm", true);
-        assert_eq!(teks(&r), "❌ Timeout! Ketik *.resetdb* ulang untuk memulai.");
+        assert_eq!(
+            teks(&r),
+            "❌ Timeout! Ketik *.resetdb* ulang untuk memulai."
+        );
     }
 
     #[test]
@@ -218,7 +228,10 @@ mod tests {
             ..Ctx::default()
         };
         let _ = resetdb(ctx.clone());
-        assert!(ctx.session_get("resetdb:pending:628111@s.whatsapp.net").is_some());
+        assert!(
+            ctx.session_get("resetdb:pending:628111@s.whatsapp.net")
+                .is_some()
+        );
         ctx.text = "confirm".into();
         ctx.args = vec!["confirm".to_string()];
         let r = resetdb(ctx.clone());
@@ -228,6 +241,9 @@ mod tests {
         assert!(t.contains("┃ 👥 Groups: 0"), "{t}");
         assert!(t.contains("┃ ⚔️ Clans: 0"), "{t}");
         assert!(t.contains("> Backup disimpan di:\n> `db_backup_"), "{t}");
-        assert!(ctx.session_get("resetdb:pending:628111@s.whatsapp.net").is_none());
+        assert!(
+            ctx.session_get("resetdb:pending:628111@s.whatsapp.net")
+                .is_none()
+        );
     }
 }

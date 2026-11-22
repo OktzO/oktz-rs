@@ -16,10 +16,7 @@ pub(crate) fn parse_duration_ms(s: &str) -> Option<i64> {
     if LIFETIME_KATA.iter().any(|k| s.to_lowercase() == *k) {
         return Some(i64::MAX);
     }
-    let caps = s
-        .as_bytes()
-        .iter()
-        .position(|b| !b.is_ascii_digit());
+    let caps = s.as_bytes().iter().position(|b| !b.is_ascii_digit());
     let idx = caps?;
     let angka: &str = &s[..idx];
     let unit: &str = &s[idx..];
@@ -44,10 +41,7 @@ pub(crate) fn format_duration(s: &str) -> String {
     if LIFETIME_KATA.iter().any(|k| s.to_lowercase() == *k) {
         return "Permanent".to_string();
     }
-    let caps = s
-        .as_bytes()
-        .iter()
-        .position(|b| !b.is_ascii_digit());
+    let caps = s.as_bytes().iter().position(|b| !b.is_ascii_digit());
     let Some(idx) = caps else {
         return s.to_string();
     };

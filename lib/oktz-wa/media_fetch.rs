@@ -27,9 +27,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use oktz_plugin_api::{
-    IncomingKind, IncomingMedia, MediaError, MediaFetch, MediaOrigin,
-};
+use oktz_plugin_api::{IncomingKind, IncomingMedia, MediaError, MediaFetch, MediaOrigin};
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::wacore::download::{Downloadable, MediaType};
 
@@ -278,10 +276,7 @@ pub fn ctx_media(
         Some(client)
             if trigger.is_some()
                 || quoted.is_some()
-                || !recent
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .is_empty() =>
+                || !recent.lock().unwrap_or_else(|e| e.into_inner()).is_empty() =>
         {
             Some(Arc::new(WaMediaFetch {
                 client,

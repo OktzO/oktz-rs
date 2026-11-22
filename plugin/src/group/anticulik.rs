@@ -103,7 +103,7 @@ pub fn anticulik(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::find;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(text: &str, group: Value, setting: Value) -> Reply {
         (find("anticulik").unwrap().handler)(Ctx {
@@ -122,7 +122,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn written(r: &Reply) -> Value {
@@ -159,7 +162,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
         for a in ["antikidnap", "antiileng", "anticulikgc"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("anticulik"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("anticulik"),
+                "{a}"
+            );
         }
     }
 
@@ -172,7 +179,11 @@ mod tests {
 
     #[test]
     fn status_prefers_group_then_global_setting() {
-        let r = run("", serde_json::json!({ "anticulik": "on" }), serde_json::json!("on"));
+        let r = run(
+            "",
+            serde_json::json!({ "anticulik": "on" }),
+            serde_json::json!("on"),
+        );
         assert!(text_of(&r).contains("> Mode: *Aktif ✅*"));
 
         // Group belum punya key, setting global yang menentukan.
@@ -180,7 +191,11 @@ mod tests {
         assert!(text_of(&r).contains("> Mode: *Aktif ✅*"));
 
         // Group wins walau global berbeda.
-        let r = run("", serde_json::json!({ "anticulik": "off" }), serde_json::json!("on"));
+        let r = run(
+            "",
+            serde_json::json!({ "anticulik": "off" }),
+            serde_json::json!("on"),
+        );
         assert!(text_of(&r).contains("> Mode: *Nonaktif ❌*"));
     }
 
@@ -188,8 +203,16 @@ mod tests {
     fn a_falsy_group_value_does_not_fall_through_to_the_setting() {
         // `??` hanya melompati null/undefined; `false` tetap dipakai, jadi
         // status nonaktif walau setting global `on`.
-        let r = run("", serde_json::json!({ "anticulik": false }), serde_json::json!("on"));
-        assert!(text_of(&r).contains("> Mode: *Nonaktif ❌*"), "{}", text_of(&r));
+        let r = run(
+            "",
+            serde_json::json!({ "anticulik": false }),
+            serde_json::json!("on"),
+        );
+        assert!(
+            text_of(&r).contains("> Mode: *Nonaktif ❌*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -211,8 +234,14 @@ mod tests {
 
     #[test]
     fn the_option_is_lowercased_and_trimmed() {
-        assert_eq!(written(&run("  ON  ", serde_json::json!({}), Value::Null)), serde_json::json!({ "anticulik": "on" }));
-        assert_eq!(written(&run("Off", serde_json::json!({}), Value::Null)), serde_json::json!({ "anticulik": "off" }));
+        assert_eq!(
+            written(&run("  ON  ", serde_json::json!({}), Value::Null)),
+            serde_json::json!({ "anticulik": "on" })
+        );
+        assert_eq!(
+            written(&run("Off", serde_json::json!({}), Value::Null)),
+            serde_json::json!({ "anticulik": "off" })
+        );
     }
 
     #[test]

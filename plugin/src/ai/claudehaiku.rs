@@ -13,8 +13,7 @@
 //!    (pola hex yang sama, sumber acaknya `crate::common::roll`).
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
-use serde_json::{Value};
-
+use serde_json::Value;
 
 use super::aiassist::{AiFailure, clip, failed, uuid_v4};
 
@@ -43,7 +42,10 @@ pub(crate) fn sse_answer(raw: &str) -> String {
         let Ok(v) = serde_json::from_str::<Value>(data) else {
             continue;
         };
-        if let Some(c) = v.pointer("/choices/0/delta/content").and_then(Value::as_str) {
+        if let Some(c) = v
+            .pointer("/choices/0/delta/content")
+            .and_then(Value::as_str)
+        {
             answer.push_str(c);
         }
     }
@@ -80,7 +82,9 @@ pub(crate) fn overchat_chat(
         "top_p": 0.95,
     });
 
-    let res = http.post_json(ENDPOINT, &body).map_err(|_| AiFailure::Transport)?;
+    let res = http
+        .post_json(ENDPOINT, &body)
+        .map_err(|_| AiFailure::Transport)?;
     Ok(sse_answer(&res.text()))
 }
 
@@ -126,8 +130,9 @@ pub fn claudehaiku(ctx: Ctx) -> Reply {
         Err(AiFailure::Rejected(e)) => {
             Reply::text(failed("Claude Haiku Gagal", &e)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢"),
+        Err(AiFailure::Transport) => {
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
+        }
     }
 }
 
@@ -221,7 +226,10 @@ mod tests {
         assert_eq!(p.meta.name, "claudehaiku");
         assert_eq!(p.meta.alias, ["claude", "haiku", "chiku"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(p.meta.description, "Chat dengan Claude Haiku 4.5 via OverChat");
+        assert_eq!(
+            p.meta.description,
+            "Chat dengan Claude Haiku 4.5 via OverChat"
+        );
         assert_eq!(p.meta.usage, ".claudehaiku <pertanyaan>");
         assert_eq!(p.meta.example, ".claudehaiku Jelaskan teori relativitas");
         assert_eq!(p.meta.cooldown, 10);
@@ -268,7 +276,9 @@ mod tests {
     #[test]
     fn the_last_unterminated_line_is_dropped_like_the_js_buffer() {
         assert_eq!(
-            sse_answer("data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\ndata: {\"choices\":[{\"delta\":{\"content\":\"b\"}}]}"),
+            sse_answer(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\ndata: {\"choices\":[{\"delta\":{\"content\":\"b\"}}]}"
+            ),
             "a"
         );
     }
@@ -293,13 +303,18 @@ mod tests {
         assert_eq!(sent["messages"].as_array().unwrap().len(), 2);
         assert_eq!(sent["messages"][0]["role"], "user");
         assert_eq!(sent["messages"][1]["role"], "system");
-        assert_eq!(sent["messages"][1]["content"], "Ikuti bahasa user dan jawab dengan gaya natural, singkat, dan jelas.");
+        assert_eq!(
+            sent["messages"][1]["content"],
+            "Ikuti bahasa user dan jawab dengan gaya natural, singkat, dan jelas."
+        );
     }
 
     #[test]
     fn an_overlong_answer_is_cut_with_an_ellipsis() {
         let big = "y".repeat(6000);
-        let http = Stub::ok(&format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{big}\"}}}}]}}\n"));
+        let http = Stub::ok(&format!(
+            "data: {{\"choices\":[{{\"delta\":{{\"content\":\"{big}\"}}}}]}}\n"
+        ));
         let __balasan = run(http.clone(), "panjang");
         let t = body(&__balasan);
         assert!(t.ends_with("..."));
@@ -309,7 +324,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "claudehaiku"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "claudehaiku")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

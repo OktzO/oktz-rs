@@ -17,12 +17,8 @@
 //! `open.spotify.com/track/`. Kalau salah satu tidak terpenuhi, plugin
 //! mengirim teks polos — persis `spotify.js:62-104`.
 
-use oktz_plugin_api::{
-    Ctx, HttpError, HttpGet, Reply, plugin,
-};
-use oktz_plugin_api::registry::{
-    CardContext, CardHeader, CardLocation, InteractiveButton,
-};
+use oktz_plugin_api::registry::{CardContext, CardHeader, CardLocation, InteractiveButton};
+use oktz_plugin_api::{Ctx, HttpError, HttpGet, Reply, plugin};
 use serde_json::Value;
 
 /// `aggregator.hit("nexray", "/search/spotify", { params: { q } })`
@@ -66,7 +62,8 @@ pub(crate) fn cari_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Track>, HttpE
             Some(v) if v.is_object() || v.is_array() => v.clone(),
             _ => {
                 return Err(HttpError {
-                    message: "spotify: aggregator menjawab tanpa result yang bisa dipakai".to_string(),
+                    message: "spotify: aggregator menjawab tanpa result yang bisa dipakai"
+                        .to_string(),
                 });
             }
         }
@@ -172,7 +169,9 @@ pub(crate) fn tanpa_kunci() -> String {
 
 /// `spotify.js:35` — tidak ada hasil.
 pub(crate) fn tidak_ditemukan(text: &str) -> String {
-    format!("⚠️ *Maaf, lagu tidak ditemukan!* \n\nAku sudah mencari dengan kata kunci *{text}* tapi tidak ada hasil di Spotify. Coba gunakan judul yang lebih spesifik ya.")
+    format!(
+        "⚠️ *Maaf, lagu tidak ditemukan!* \n\nAku sudah mencari dengan kata kunci *{text}* tapi tidak ada hasil di Spotify. Coba gunakan judul yang lebih spesifik ya."
+    )
 }
 
 /// `spotify.js:111` — API bermasalah.
@@ -182,7 +181,9 @@ pub(crate) fn api_bermasalah() -> String {
 
 /// Teks daftar hasil + catatan (`spotify.js:40-77`).
 pub(crate) fn teks_hasil(text: &str, hasil: &[Track], pakai_tombol: bool) -> String {
-    let mut content = format!("✨ *HASIL PENCARIAN SPOTIFY* ✨\n\nHalo! Aku berhasil menemukan beberapa lagu berdasarkan kata kunci *{text}*. Berikut adalah daftar teratasnya:\n\n");
+    let mut content = format!(
+        "✨ *HASIL PENCARIAN SPOTIFY* ✨\n\nHalo! Aku berhasil menemukan beberapa lagu berdasarkan kata kunci *{text}*. Berikut adalah daftar teratasnya:\n\n"
+    );
     for (i, t) in hasil.iter().enumerate() {
         content.push_str(&format!("*{}. {}*\n", i + 1, t.title));
         content.push_str(&format!("   🎤 Artis: {}\n", t.artist));
@@ -312,12 +313,9 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let text = self
-                .body
-                .clone()
-                .ok_or_else(|| HttpError {
-                    message: "offline".into(),
-                })?;
+            let text = self.body.clone().ok_or_else(|| HttpError {
+                message: "offline".into(),
+            })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -400,7 +398,10 @@ mod tests {
             "❌ *Waduh, kata kuncinya mana nih?*\n\nKamu harus memasukkan judul lagu atau nama artis yang ingin dicari di Spotify. \n\nContoh penggunaan: `.spotify bruno mars`"
         );
         // `spotify.js:35` — tidak ada hasil.
-        let r = run(Stub::body(serde_json::json!({ "status": true, "result": [] })), "x");
+        let r = run(
+            Stub::body(serde_json::json!({ "status": true, "result": [] })),
+            "x",
+        );
         assert_eq!(
             text_of(&r),
             "⚠️ *Maaf, lagu tidak ditemukan!* \n\nAku sudah mencari dengan kata kunci *x* tapi tidak ada hasil di Spotify. Coba gunakan judul yang lebih spesifik ya."
@@ -478,15 +479,9 @@ mod tests {
 
     #[test]
     fn tautan_track_spotify_hanya_yang_track() {
-        assert!(tautan_track_spotify(
-            "https://open.spotify.com/track/abc"
-        ));
-        assert!(tautan_track_spotify(
-            "HTTPS://OPEN.SPOTIFY.COM/TRACK/abc"
-        ));
-        assert!(!tautan_track_spotify(
-            "https://open.spotify.com/album/abc"
-        ));
+        assert!(tautan_track_spotify("https://open.spotify.com/track/abc"));
+        assert!(tautan_track_spotify("HTTPS://OPEN.SPOTIFY.COM/TRACK/abc"));
+        assert!(!tautan_track_spotify("https://open.spotify.com/album/abc"));
         assert!(!tautan_track_spotify("https://spotify.com/track/abc"));
     }
 }

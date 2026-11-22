@@ -73,8 +73,9 @@ pub fn demote(ctx: Ctx) -> Reply {
         std::slice::from_ref(&p.jid),
         AksiPeserta::Turunkan,
     ) {
-        Ok(()) => Reply::text(format!("@{number} sekarang bukan admin lagi."))
-            .with_mentions(vec![target]),
+        Ok(()) => {
+            Reply::text(format!("@{number} sekarang bukan admin lagi.")).with_mentions(vec![target])
+        }
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }
@@ -216,7 +217,10 @@ mod tests {
                 ..Default::default()
             }),
         ));
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "demote"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "demote")
+        );
     }
 
     #[test]

@@ -194,7 +194,10 @@ mod tests {
     #[test]
     fn plugin_tidak_ada_menampilkan_pesan_tidak_ditemukan() {
         let r = run("plugin-hantu-xyz");
-        assert_eq!(teks(&r), "❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Plugin `plugin-hantu-xyz` tidak ditemukan");
+        assert_eq!(
+            teks(&r),
+            "❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Plugin `plugin-hantu-xyz` tidak ditemukan"
+        );
         assert_eq!(reaksi(&r), Some("❌"));
     }
 
@@ -204,9 +207,15 @@ mod tests {
         let t = teks(&r);
         assert!(t.starts_with("📋 *ɪɴꜰᴏ ᴘʟᴜɢɪɴ*"), "{t}");
         assert!(t.contains("┃ 📛 ɴᴀᴍᴀ: `searchplugin`"), "{t}");
-        assert!(t.contains("┃ 🏷️ ᴀʟɪᴀs: `splugin, findplugin, infoplugin`"), "{t}");
+        assert!(
+            t.contains("┃ 🏷️ ᴀʟɪᴀs: `splugin, findplugin, infoplugin`"),
+            "{t}"
+        );
         assert!(t.contains("┃ 📁 ᴄᴀᴛᴇɢᴏʀʏ: `owner`"), "{t}");
-        assert!(t.contains("┃ 📄 ᴅᴇsᴄ: Cari dan tampilkan info plugin"), "{t}");
+        assert!(
+            t.contains("┃ 📄 ᴅᴇsᴄ: Cari dan tampilkan info plugin"),
+            "{t}"
+        );
         assert!(t.contains("┃ 📝 ᴜsᴀɢᴇ: `.splugin <nama>`"), "{t}");
         assert!(t.contains("┃ 📌 ᴇxᴀᴍᴘʟᴇ: `.splugin sticker`"), "{t}");
         assert!(t.contains("┃ 🔓 ᴇɴᴀʙʟᴇᴅ: ✅ Ya"), "{t}");

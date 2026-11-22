@@ -89,9 +89,14 @@ pub fn kick(ctx: Ctx) -> Reply {
 
     // `kick.js:84-86` — keluarkan, lalu lapor dengan mention.
     let target_number = target.split('@').next().unwrap_or(&target);
-    match ctx.sock().ubah_peserta(&ctx.chat, std::slice::from_ref(&p.jid), AksiPeserta::Keluar) {
-        Ok(()) => Reply::text(format!("✅ @{target_number} telah dikeluarkan dari grup ini."))
-            .with_mentions(vec![target]),
+    match ctx
+        .sock()
+        .ubah_peserta(&ctx.chat, std::slice::from_ref(&p.jid), AksiPeserta::Keluar)
+    {
+        Ok(()) => Reply::text(format!(
+            "✅ @{target_number} telah dikeluarkan dari grup ini."
+        ))
+        .with_mentions(vec![target]),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }
@@ -99,9 +104,9 @@ pub fn kick(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{QuotedKind, QuotedMessage, Sock, SockError};
     use oktz_plugin_api::find;
     use oktz_plugin_api::registry::GroupRoster;
+    use oktz_plugin_api::{QuotedKind, QuotedMessage, Sock, SockError};
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -112,15 +117,26 @@ mod tests {
     }
 
     impl Sock for StubSock {
-        fn ubah_peserta(&self, jid: &str, peserta: &[String], aksi: AksiPeserta) -> Result<(), SockError> {
-            self.seen.lock().unwrap().push((jid.to_string(), peserta.to_vec(), aksi));
+        fn ubah_peserta(
+            &self,
+            jid: &str,
+            peserta: &[String],
+            aksi: AksiPeserta,
+        ) -> Result<(), SockError> {
+            self.seen
+                .lock()
+                .unwrap()
+                .push((jid.to_string(), peserta.to_vec(), aksi));
             if self.gagal {
                 Err(SockError::baru("gagal"))
             } else {
                 Ok(())
             }
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -290,11 +306,19 @@ mod tests {
     #[test]
     fn a_plain_member_is_kicked_and_reported_with_a_mention() {
         let sock = Arc::new(StubSock::default());
-        let r = (find("kick").unwrap().handler)(ctx_with_sock(Some("628999@s.whatsapp.net"), false, sock.clone()));
+        let r = (find("kick").unwrap().handler)(ctx_with_sock(
+            Some("628999@s.whatsapp.net"),
+            false,
+            sock.clone(),
+        ));
         assert_eq!(body(&r), "✅ @628999 telah dikeluarkan dari grup ini.");
         assert_eq!(
             sock.seen.lock().unwrap().as_slice(),
-            [("120363@g.us".to_string(), vec!["628999@s.whatsapp.net".to_string()], AksiPeserta::Keluar)],
+            [(
+                "120363@g.us".to_string(),
+                vec!["628999@s.whatsapp.net".to_string()],
+                AksiPeserta::Keluar
+            )],
             "kick.js:84 — groupParticipantsUpdate(chat, [id], 'remove')"
         );
     }
@@ -304,7 +328,10 @@ mod tests {
         let r = (find("kick").unwrap().handler)(ctx_with_sock(
             Some("628999@s.whatsapp.net"),
             false,
-            Arc::new(StubSock { gagal: true, ..StubSock::default() }),
+            Arc::new(StubSock {
+                gagal: true,
+                ..StubSock::default()
+            }),
         ));
         assert_eq!(body(&r), crate::common::error_template_bawaan(".", "kick"));
     }
@@ -321,8 +348,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             mentioned: vec!["628777@s.whatsapp.net".into()],
             ..ctx_with(Some("628777@s.whatsapp.net"), false)
         };

@@ -11,7 +11,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
@@ -108,8 +108,11 @@ pub fn chords(ctx: Ctx) -> Reply {
     // Nexray tidak punya endpoint chord (dicek live di `chords.js:38`), jadi
     // tidak ada fallback: tanpa key plugin berhenti di sini.
     if NEOXR_APIKEY.is_empty() {
-        return Reply::text(missing_key("APIKEY_NEOXR", &format!("{}chords", ctx.prefix)))
-            .with_reaction("❌");
+        return Reply::text(missing_key(
+            "APIKEY_NEOXR",
+            &format!("{}chords", ctx.prefix),
+        ))
+        .with_reaction("❌");
     }
 
     let Some(resp) = ctx.http.get(&api_url(text)).ok() else {
@@ -222,7 +225,11 @@ mod tests {
     fn a_blank_title_shows_the_usage_card_without_a_request() {
         let http = Stub::new();
         for text in ["", "   "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }

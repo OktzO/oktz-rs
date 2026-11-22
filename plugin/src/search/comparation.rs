@@ -96,11 +96,7 @@ pub(crate) fn render_list(query: &str, items: &[Value]) -> String {
     let mut txt = format!("📊 *PENCARIAN DEVICE 1: {}*\n\n", query.to_uppercase());
     txt.push_str("Silahkan Pilih yang lebih spesifik:\n\n");
     for (i, item) in items.iter().take(max).enumerate() {
-        txt.push_str(&format!(
-            "*{}.* {}\n",
-            i + 1,
-            interp(item.get("label"))
-        ));
+        txt.push_str(&format!("*{}.* {}\n", i + 1, interp(item.get("label"))));
     }
     txt.push_str(
         "\n> 💡 *Kirim angka (contoh: 1)* untuk memilih perangkat pertama, atau ketik `batal` untuk membatalkan.",
@@ -143,11 +139,20 @@ pub fn advance_comparation(ctx: Ctx) -> Reply {
 
     // `type` hanya ikut kalau `args[0]` ada di `VALID_TYPES`; kalau tidak,
     // `query` tetap seluruh `m.text` (termasuk kata "phone" yang tidak valid).
-    let first = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let first = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     let (device_type, query) = if VALID_TYPES.contains(&first.as_str()) {
         (
             first.clone(),
-            ctx.args.iter().skip(1).cloned().collect::<Vec<_>>().join(" "),
+            ctx.args
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" "),
         )
     } else {
         ("phone".to_string(), ctx.text.clone())
@@ -205,9 +210,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -243,7 +251,9 @@ mod tests {
             http,
             ..Default::default()
         };
-        (oktz_plugin_api::find("advance-comparation").unwrap().handler)(ctx)
+        (oktz_plugin_api::find("advance-comparation")
+            .unwrap()
+            .handler)(ctx)
     }
 
     fn body_of(r: &Reply) -> String {
@@ -264,7 +274,9 @@ mod tests {
         match r.mutations().first() {
             Some(Mutation::SetUser { jid, data }) => {
                 assert_eq!(jid, "628111@s.whatsapp.net");
-                data.get("compare_session").cloned().expect("harus ada sesi")
+                data.get("compare_session")
+                    .cloned()
+                    .expect("harus ada sesi")
             }
             other => panic!("harus SetUser, dapat {other:?}"),
         }
@@ -313,9 +325,15 @@ mod tests {
         let http = Stub::empty();
         let out = body_of(&run(http.clone(), ""));
         assert!(out.starts_with("📊 *ADVANCE COMPARATION*\n\n"), "{out}");
-        assert!(out.contains("> *.bandingkan-device <tipe> <query>*"), "{out}");
+        assert!(
+            out.contains("> *.bandingkan-device <tipe> <query>*"),
+            "{out}"
+        );
         for t in VALID_TYPES {
-            assert!(out.contains(&format!("> - {t}\n")), "tipe {t} hilang: {out}");
+            assert!(
+                out.contains(&format!("> - {t}\n")),
+                "tipe {t} hilang: {out}"
+            );
         }
         assert!(
             out.ends_with("*Contoh:* .bandingkan-device phone samsung s24"),
@@ -380,13 +398,18 @@ mod tests {
         let items = items_of(&res).unwrap();
         let out = render_list("s24 pro", &items[..items.len().min(10)]);
         assert!(
-            out.starts_with("📊 *PENCARIAN DEVICE 1: S24 PRO*\n\nSilahkan Pilih yang lebih spesifik:\n\n"),
+            out.starts_with(
+                "📊 *PENCARIAN DEVICE 1: S24 PRO*\n\nSilahkan Pilih yang lebih spesifik:\n\n"
+            ),
             "{out}"
         );
         assert!(out.contains("*1.* Device 0\n"), "{out}");
         assert!(out.contains("*10.* Device 9\n"), "{out}");
         assert!(!out.contains("Device 10"), "hasil ke-11 terpotong: {out}");
-        assert!(out.ends_with("untuk memilih perangkat pertama, atau ketik `batal` untuk membatalkan."), "{out}");
+        assert!(
+            out.ends_with("untuk memilih perangkat pertama, atau ketik `batal` untuk membatalkan."),
+            "{out}"
+        );
     }
 
     #[test]
@@ -416,9 +439,15 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::empty(), "samsung s24");
-        assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "bandingkan-device"));
+        assert_eq!(
+            body_of(&r),
+            crate::common::error_template_bawaan(".", "bandingkan-device")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
-        assert!(r.mutations().is_empty(), "sesi tidak boleh ditulis saat gagal");
+        assert!(
+            r.mutations().is_empty(),
+            "sesi tidak boleh ditulis saat gagal"
+        );
     }
 
     #[test]

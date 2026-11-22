@@ -413,17 +413,17 @@ fn clean_title(raw: Option<&Value>) -> String {
     t = p
         .kurung
         // `lp.test(m)` tanpa flag `g`, jadi selalu posisi nol. Balikan
-            // closure harus `String`: `&str` yang dipinjam dari `Captures`
-            // hidup lebih singkat dari `Cow` yang sedang dibangun.
-            .replace_all(&t, |m: &Captures| {
-                let isi = m.get(0).map(|x| x.as_str()).unwrap_or("");
-                if p.lp.is_match(isi) {
-                    String::new()
-                } else {
-                    isi.to_string()
-                }
-            })
-            .into_owned();
+        // closure harus `String`: `&str` yang dipinjam dari `Captures`
+        // hidup lebih singkat dari `Cow` yang sedang dibangun.
+        .replace_all(&t, |m: &Captures| {
+            let isi = m.get(0).map(|x| x.as_str()).unwrap_or("");
+            if p.lp.is_match(isi) {
+                String::new()
+            } else {
+                isi.to_string()
+            }
+        })
+        .into_owned();
     t = p.garis_miring.replace_all(&t, " - ").into_owned();
     t = p.pisah.replace_all(&t, " ").into_owned();
     t = p.tag.replace_all(&t, "").into_owned();
@@ -496,10 +496,8 @@ fn dari_hex(s: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(b.len() / 2);
     let mut i = 0;
     while i + 1 < b.len() {
-        if let (Some(hi), Some(lo)) = (
-            (b[i] as char).to_digit(16),
-            (b[i + 1] as char).to_digit(16),
-        ) {
+        if let (Some(hi), Some(lo)) = ((b[i] as char).to_digit(16), (b[i + 1] as char).to_digit(16))
+        {
             out.push((hi * 16 + lo) as u8);
         }
         i += 2;
@@ -801,9 +799,7 @@ mod tests {
             let req = HttpCall::get(_url);
             self.permintaan.lock().unwrap().push(req);
             match &self.gagal {
-                Some(p) => Err(HttpError {
-                    message: p.clone(),
-                }),
+                Some(p) => Err(HttpError { message: p.clone() }),
                 None => Ok(self.balasan_berikut()),
             }
         }
@@ -823,9 +819,7 @@ mod tests {
         fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
             self.permintaan.lock().unwrap().push(req.clone());
             match &self.gagal {
-                Some(p) => Err(HttpError {
-                    message: p.clone(),
-                }),
+                Some(p) => Err(HttpError { message: p.clone() }),
                 None => Ok(self.balasan_berikut()),
             }
         }
@@ -998,7 +992,10 @@ mod tests {
             cari_header(&p[1], "referer").as_deref(),
             Some("https://save-tube.com/")
         );
-        assert_eq!(cari_header(&p[1], "user-agent").as_deref(), Some(UA_SAVETUBE));
+        assert_eq!(
+            cari_header(&p[1], "user-agent").as_deref(),
+            Some(UA_SAVETUBE)
+        );
         assert_eq!(p[2].url, "https://cdn.savetube.vip/download");
         assert_eq!(
             p[2].body.as_ref().unwrap().bytes(),

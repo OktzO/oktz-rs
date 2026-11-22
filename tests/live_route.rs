@@ -16,12 +16,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+use oktz_router::command::ParseOptions;
 use oktz_store::json_store::JsonStore;
 use oktz_wa::{
-    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node, Outcome, Pipeline,
-    RosterSource, SendBox, SendBoxRoster, StoreContext,
+    InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node, Outcome,
+    Pipeline, RosterSource, SendBox, SendBoxRoster, StoreContext,
 };
-use oktz_router::command::ParseOptions;
 
 /// Tanpa rujukan ini `oktz_plugins` tidak ter-link ke binari test dan
 /// `find()` mengembalikan `None` untuk semua command — bukan karena pluginnya
@@ -71,17 +71,17 @@ struct Recorder {
 
 impl Recorder {
     fn texts(&self) -> Vec<String> {
-        self.sent.lock().unwrap().iter().map(|(_, b)| b.clone()).collect()
+        self.sent
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, b)| b.clone())
+            .collect()
     }
 }
 
 impl MessageSender for Recorder {
-    fn send(
-        &self,
-        to: &str,
-        message: Message,
-        _extra_nodes: Vec<Node>,
-    ) -> SendBox<'_> {
+    fn send(&self, to: &str, message: Message, _extra_nodes: Vec<Node>) -> SendBox<'_> {
         let body = message
             .conversation
             .clone()
@@ -142,7 +142,10 @@ async fn a_real_inbound_command_reaches_the_real_plugin_registry() {
         ParseOptions::default(),
     );
 
-    let out = p.process(&inbound(".benefitpartner", "R1"), 1_000).await.unwrap();
+    let out = p
+        .process(&inbound(".benefitpartner", "R1"), 1_000)
+        .await
+        .unwrap();
     assert_eq!(out, Outcome::Sent, "command nyata harus menjalankan plugin");
 
     let texts = rec.texts();
@@ -158,7 +161,8 @@ async fn a_real_inbound_command_reaches_the_real_plugin_registry() {
         texts[0]
     );
     assert_eq!(
-        rec.sent.lock().unwrap()[0].0, GROUP,
+        rec.sent.lock().unwrap()[0].0,
+        GROUP,
         "balasan harus dikirim ke chat asal"
     );
 }
@@ -178,7 +182,11 @@ async fn an_unknown_command_is_not_routed_anywhere() {
         .await
         .unwrap();
     assert_eq!(out, Outcome::NotACommand);
-    assert!(rec.texts().is_empty(), "tidak boleh ada balasan: {:?}", rec.texts());
+    assert!(
+        rec.texts().is_empty(),
+        "tidak boleh ada balasan: {:?}",
+        rec.texts()
+    );
 }
 
 #[tokio::test]

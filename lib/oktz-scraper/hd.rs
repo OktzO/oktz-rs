@@ -256,7 +256,10 @@ mod tests {
             cari("sec-ch-ua").unwrap(),
             r#""Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99""#
         );
-        assert_eq!(cari("accept-language").unwrap(), "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7");
+        assert_eq!(
+            cari("accept-language").unwrap(),
+            "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7"
+        );
     }
 
     #[test]
@@ -282,8 +285,14 @@ mod tests {
         assert_eq!(hasil["downloadUrls"][0], "https://x");
 
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(p[0].url, "https://photoai.imglarger.com/api/PhoAi/CheckStatus");
-        assert_eq!(p[0].body.as_ref().unwrap().bytes(), br#"{"code":"c1","type":13}"#);
+        assert_eq!(
+            p[0].url,
+            "https://photoai.imglarger.com/api/PhoAi/CheckStatus"
+        );
+        assert_eq!(
+            p[0].body.as_ref().unwrap().bytes(),
+            br#"{"code":"c1","type":13}"#
+        );
         let cari = |nama: &str| {
             p[0].headers
                 .iter()
@@ -291,6 +300,9 @@ mod tests {
                 .map(|(_, v)| v.clone())
         };
         assert_eq!(cari("content-type"), Some("application/json".to_string()));
-        assert_eq!(cari("accept"), Some("application/json, text/plain, */*".to_string()));
+        assert_eq!(
+            cari("accept"),
+            Some("application/json, text/plain, */*".to_string())
+        );
     }
 }

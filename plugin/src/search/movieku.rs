@@ -36,13 +36,14 @@ pub(crate) fn help(prefix: &str) -> String {
 
 /// `movieku.js:114` — tidak ada hasil.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
-    format!("❌ Film dengan kata kunci *{query}* tidak ditemukan, coba gunakan judul yang lebih spesifik ya")
+    format!(
+        "❌ Film dengan kata kunci *{query}* tidak ditemukan, coba gunakan judul yang lebih spesifik ya"
+    )
 }
 
 /// `movieku.js:161-170` — blok "HASIL LAINNYA". Maksimal 10 judul dari indeks 1.
 #[allow(dead_code)]
-pub(crate)
-fn hasil_lainnya(movies: &[Value]) -> String {
+pub(crate) fn hasil_lainnya(movies: &[Value]) -> String {
     let mut list = String::from("🎬 *HASIL LAINNYA*\n\n");
     list.push_str(&format!(
         "Ditemukan *{}* film yang cocok dengan pencarianmu, berikut daftar lengkapnya:\n\n",
@@ -231,9 +232,7 @@ pub(crate) fn parse_detail(html: &str) -> Detail {
     // `a[href*="abyssplayer"]` pertama.
     let mut at = 0;
     while let Some(pos) = buka_tag(html, at, "a") {
-        if atribut(html, pos, "href")
-            .is_some_and(|h| h.contains("abyssplayer"))
-        {
+        if atribut(html, pos, "href").is_some_and(|h| h.contains("abyssplayer")) {
             d.stream = atribut(html, pos, "href").unwrap_or_default();
             break;
         }
@@ -374,7 +373,10 @@ pub(crate) fn format_downloads(downloads: &[(String, Vec<(String, String)>)]) ->
 /// `movieku.js:120-146` — kartu film.
 pub(crate) fn format_movie(detail: &Detail, movie: &Value, query: &str) -> String {
     let judul = if detail.title.is_empty() {
-        let dari_post = movie.get("post_title").and_then(Value::as_str).unwrap_or("");
+        let dari_post = movie
+            .get("post_title")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if dari_post.is_empty() {
             query.to_uppercase()
         } else {
@@ -414,10 +416,7 @@ pub(crate) fn format_movie(detail: &Detail, movie: &Value, query: &str) -> Strin
         txt.push_str(&format!("\n▶️ *Streaming:* {}\n", detail.stream));
     }
     txt.push_str(&format_downloads(&detail.downloads));
-    txt.push_str(&format!(
-        "🔗 {}",
-        interp(movie.get("post_link"))
-    ));
+    txt.push_str(&format!("🔗 {}", interp(movie.get("post_link"))));
     txt
 }
 
@@ -541,9 +540,14 @@ mod tests {
     impl Stub {
         fn jawab(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let hit = self.pages.iter().find(|(u, _, _)| url.starts_with(u.as_str()));
+            let hit = self
+                .pages
+                .iter()
+                .find(|(u, _, _)| url.starts_with(u.as_str()));
             let Some((_, status, body)) = hit else {
-                return Err(oktz_plugin_api::HttpError { message: "tanpa stub".into() });
+                return Err(oktz_plugin_api::HttpError {
+                    message: "tanpa stub".into(),
+                });
             };
             Ok(HttpResponse {
                 status: *status,
@@ -671,8 +675,7 @@ mod tests {
         assert_eq!(d.title, "Avengers: Endgame");
         assert_eq!(d.synopsis, "SetelahLOCEAN Events", "p pertama saja");
         assert_eq!(
-            d.poster,
-            "https://movieku.rest/wp-content/uploads/2019/poster.jpg",
+            d.poster, "https://movieku.rest/wp-content/uploads/2019/poster.jpg",
             "hanya img yang memuat wp-content/uploads"
         );
         assert_eq!(d.genre, "Action, Sci-Fi", "link digabung dengan koma");
@@ -701,7 +704,10 @@ mod tests {
         assert!(txt.contains("- Mirror 1: https://dl/1080-a\n"), "{txt}");
         assert!(txt.contains("- Server A: https://dl/360-a\n"), "{txt}");
         assert!(txt.contains("- Server B: https://dl/360-b\n"), "{txt}");
-        assert!(!txt.contains("📀 *480p*"), "kualitas absen tidak dicetak: {txt}");
+        assert!(
+            !txt.contains("📀 *480p*"),
+            "kualitas absen tidak dicetak: {txt}"
+        );
         // `<a>` milik paragraf lain tidak ikut masuk ke label sebelumnya.
         assert!(!txt.contains("https://dl/720-a\n📀"), "{txt}");
     }
@@ -709,8 +715,11 @@ mod tests {
     #[test]
     fn an_empty_download_map_produces_nothing() {
         assert_eq!(format_downloads(&[]), "");
-        assert_eq!(format_downloads(&[("1080p".into(), vec![])]), "\n🔽 *LINK DOWNLOAD*\n\n",
-            "kualitas tanpa link tetap mencetak header");
+        assert_eq!(
+            format_downloads(&[("1080p".into(), vec![])]),
+            "\n🔽 *LINK DOWNLOAD*\n\n",
+            "kualitas tanpa link tetap mencetak header"
+        );
     }
 
     #[test]
@@ -718,15 +727,27 @@ mod tests {
         let movie = serde_json::json!({ "post_link": "https://movieku.rest/film/avengers", "post_image": "https://i/p.jpg" });
         let d = parse_detail(DETAIL);
         let txt = format_movie(&d, &movie, "avengers");
-        assert!(txt.starts_with("🎬 *Avengers: Endgame*\n\n📝 *Sinopsis:*\nSetelahLOCEAN Events\n\n"), "{txt}");
+        assert!(
+            txt.starts_with("🎬 *Avengers: Endgame*\n\n📝 *Sinopsis:*\nSetelahLOCEAN Events\n\n"),
+            "{txt}"
+        );
         assert!(txt.contains("🎭 Genre: *Action, Sci-Fi*\n"), "{txt}");
         assert!(txt.contains("📅 Rilis: *2019*\n"), "{txt}");
-        assert!(txt.contains("▶️ *Streaming:* https://abyssplayer.to/watch/xyz\n"), "{txt}");
-        assert!(txt.ends_with("🔗 https://movieku.rest/film/avengers"), "{txt}");
+        assert!(
+            txt.contains("▶️ *Streaming:* https://abyssplayer.to/watch/xyz\n"),
+            "{txt}"
+        );
+        assert!(
+            txt.ends_with("🔗 https://movieku.rest/film/avengers"),
+            "{txt}"
+        );
 
         let kosong = Detail::default();
         let txt = format_movie(&kosong, &Value::Null, "one piece");
-        assert!(txt.starts_with("🎬 *ONE PIECE*\n\n📋 *DETAIL FILM*\n\n🔗 undefined"), "{txt}");
+        assert!(
+            txt.starts_with("🎬 *ONE PIECE*\n\n📋 *DETAIL FILM*\n\n🔗 undefined"),
+            "{txt}"
+        );
         assert!(!txt.contains("Genre:"), "baris kosong dilewati: {txt}");
         assert!(!txt.contains("Sinopsis"), "sinopsis kosong dilewati: {txt}");
     }
@@ -744,10 +765,16 @@ mod tests {
         d.synopsis = "y".repeat(600);
         let movie = serde_json::json!({ "post_link": "https://x" });
         let txt = format_movie(&d, &movie, "q");
-        assert!(txt.contains(&format!("📝 *Sinopsis:*\n{}...\n", "y".repeat(497))), "{txt}");
+        assert!(
+            txt.contains(&format!("📝 *Sinopsis:*\n{}...\n", "y".repeat(497))),
+            "{txt}"
+        );
         d.synopsis = "z".repeat(500);
         let txt = format_movie(&d, &movie, "q");
-        assert!(txt.contains(&format!("📝 *Sinopsis:*\n{}\n\n", "z".repeat(500))), "tepat 500 tidak dipotong");
+        assert!(
+            txt.contains(&format!("📝 *Sinopsis:*\n{}\n\n", "z".repeat(500))),
+            "tepat 500 tidak dipotong"
+        );
         assert!(!txt.contains("..."), "{txt}");
     }
 
@@ -761,7 +788,10 @@ mod tests {
         assert!(txt.contains("- *Film 1*\n  > https://x/1\n"), "{txt}");
         // Baris terakhir sudah di-trim, jadi tanpa newline penutup.
         assert!(txt.ends_with("- *Film 3*\n  > https://x/3"), "{txt}");
-        assert!(!txt.contains("Film 0"), "film pertama jadi kartu utama: {txt}");
+        assert!(
+            !txt.contains("Film 0"),
+            "film pertama jadi kartu utama: {txt}"
+        );
     }
 
     #[test]
@@ -787,7 +817,12 @@ mod tests {
 
     #[test]
     fn a_malformed_search_payload_is_treated_as_no_result() {
-        for body in ["{}", r#"{"post":[]}"#, r#"{"post":[{"all":{}}]}"#, "bukan json"] {
+        for body in [
+            "{}",
+            r#"{"post":[]}"#,
+            r#"{"post":[{"all":{}}]}"#,
+            "bukan json",
+        ] {
             let http = Stub::new(&[(ENDPOINT, 200, body)]);
             let r = run(http, "q");
             assert!(text_of(&r).contains("tidak ditemukan"), "body {body}");
@@ -817,8 +852,7 @@ mod tests {
                 let src = media.as_ref().unwrap();
                 match src {
                     MediaSource::Url { url, .. } => assert_eq!(
-                        url,
-                        "https://movieku.rest/wp-content/uploads/2019/poster.jpg",
+                        url, "https://movieku.rest/wp-content/uploads/2019/poster.jpg",
                         "poster halaman menang atas post_image"
                     ),
                     other => panic!("harus Url, dapat {other:?}"),
@@ -839,7 +873,11 @@ mod tests {
                 200,
                 r#"{"post":[{"all":[{"post_link":"https://movieku.rest/film/x","post_image":"https://i/fallback.jpg"}]}]}"#,
             ),
-            ("https://movieku.rest/film/x", 200, "<html><h1>X</h1></html>"),
+            (
+                "https://movieku.rest/film/x",
+                200,
+                "<html><h1>X</h1></html>",
+            ),
         ]);
         let r = run(http, "x");
         assert!(r.has_media(), "post_image dipakai");
@@ -854,7 +892,11 @@ mod tests {
                 200,
                 r#"{"post":[{"all":[{"post_link":"https://movieku.rest/film/y"}]}]}"#,
             ),
-            ("https://movieku.rest/film/y", 200, "<html><h1>Y</h1></html>"),
+            (
+                "https://movieku.rest/film/y",
+                200,
+                "<html><h1>Y</h1></html>",
+            ),
         ]);
         let r = run(http, "y");
         assert!(!r.has_media());
@@ -864,7 +906,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "avengers");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "movieku"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "movieku")
+        );
     }
 
     #[test]
@@ -872,17 +917,20 @@ mod tests {
         let call = search_request("one piece");
         assert_eq!(call.method, oktz_plugin_api::HttpMethod::Post);
         assert_eq!(call.url, ENDPOINT);
-        assert!(call.headers.iter().any(|(k, v)| k == "Content-Type"
-            && v == "application/x-www-form-urlencoded"));
-        assert!(call
-            .headers
-            .iter()
-            .any(|(k, v)| k == "X-Requested-With" && v == "XMLHttpRequest"));
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "Content-Type" && v == "application/x-www-form-urlencoded")
+        );
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "X-Requested-With" && v == "XMLHttpRequest")
+        );
         match &call.body {
-            Some(HttpBody::Form(f)) => assert_eq!(
-                f,
-                "action=ts_ac_do_search&ts_ac_query=one%20piece"
-            ),
+            Some(HttpBody::Form(f)) => {
+                assert_eq!(f, "action=ts_ac_do_search&ts_ac_query=one%20piece")
+            }
             other => panic!("harus Form, dapat {other:?}"),
         }
     }

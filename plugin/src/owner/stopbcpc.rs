@@ -15,7 +15,8 @@ pub(crate) const NOT_RUNNING: &str = "❌ Tidak ada broadcast private yang sedan
 pub(crate) const STOPPING: &str = "⏹️ Menghentikan broadcast private...";
 
 pub(crate) fn is_running(ctx: &Ctx) -> bool {
-    ctx.session_get(STATUS_KEY).is_some_and(|v| crate::common::js_truthy_value(&v))
+    ctx.session_get(STATUS_KEY)
+        .is_some_and(|v| crate::common::js_truthy_value(&v))
 }
 
 #[plugin(
@@ -45,7 +46,7 @@ pub fn stopbcpc(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(entries: &[(&str, Value)]) -> Reply {
         let mut map = std::collections::HashMap::new();

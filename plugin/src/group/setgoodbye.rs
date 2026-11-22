@@ -108,10 +108,7 @@ mod tests {
         assert_eq!(p.meta.category, "group");
         assert_eq!(p.meta.description, "Set custom goodbye message");
         assert_eq!(p.meta.usage, ".setgoodbye <pesan>");
-        assert_eq!(
-            p.meta.example,
-            ".setgoodbye Bye {user}, sampai jumpa lagi!"
-        );
+        assert_eq!(p.meta.example, ".setgoodbye Bye {user}, sampai jumpa lagi!");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
@@ -128,7 +125,11 @@ mod tests {
 
     #[test]
     fn an_empty_message_shows_help_and_writes_nothing() {
-        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"goodbyeMsg": "lama"})] {
+        for g in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"goodbyeMsg": "lama"}),
+        ] {
             let r = run(g.clone(), "");
             assert!(text_of(&r).starts_with("📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ*"), "input {g}");
             assert!(text_of(&r).contains("{user}"));
@@ -138,12 +139,16 @@ mod tests {
 
     #[test]
     fn all_three_flags_are_written_together() {
-        let r = run(serde_json::json!({"goodbye": false, "leave": false}), "Bye {user}!");
+        let r = run(
+            serde_json::json!({"goodbye": false, "leave": false}),
+            "Bye {user}!",
+        );
         let data = group_write(&r);
         assert_eq!(data["goodbyeMsg"], serde_json::json!("Bye {user}!"));
         assert_eq!(data["goodbye"], serde_json::json!(true));
         assert_eq!(
-            data["leave"], serde_json::json!(true),
+            data["leave"],
+            serde_json::json!(true),
             "`leave` yang memicu pesan perpisahan saat member keluar"
         );
         assert_eq!(data.as_object().unwrap().len(), 3);
@@ -167,13 +172,15 @@ mod tests {
         assert_eq!(group_write(&r)["goodbyeMsg"], serde_json::json!(" "));
     }
 
-#[test]
+    #[test]
     fn resetgoodbyes_alias_is_not_claimed_here() {
         // Nama pasangannya ada di modul sendiri; alias plugin ini tidak boleh
         // ikut mengarah ke sini.
-        assert!(!oktz_plugin_api::find("setgoodbye")
-            .unwrap()
-            .meta
-            .matches("delgoodbye"));
+        assert!(
+            !oktz_plugin_api::find("setgoodbye")
+                .unwrap()
+                .meta
+                .matches("delgoodbye")
+        );
     }
 }

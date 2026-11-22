@@ -35,7 +35,10 @@ const PRODUK: &str = "storeProducts";
 /// juga jatuh ke 0.
 pub(crate) fn date_ke_ms(value: &serde_json::Value) -> i64 {
     match value {
-        serde_json::Value::Number(n) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).unwrap_or(0),
+        serde_json::Value::Number(n) => n
+            .as_i64()
+            .or_else(|| n.as_f64().map(|f| f as i64))
+            .unwrap_or(0),
         serde_json::Value::String(s) => iso_ke_ms(s),
         _ => 0,
     }
@@ -96,7 +99,10 @@ pub(crate) fn iso_ke_ms(s: &str) -> i64 {
 pub(crate) fn ms_ke_iso(ms: i64) -> String {
     // UTC = Asia/Jakarta - 7 jam (lihat `common::JAKARTA_OFFSET_SECS`).
     let (y, mo, d, h, mi, s) = crate::common::jakarta_parts(ms - 7 * 3_600_000);
-    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{ms_pad:03}Z", ms_pad = (ms.rem_euclid(1000)))
+    format!(
+        "{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{ms_pad:03}Z",
+        ms_pad = (ms.rem_euclid(1000))
+    )
 }
 
 /// `toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })` — `d/m/yyyy, hh.mm.ss`.
@@ -156,7 +162,9 @@ fn pending_list(prefix: &str, trx_id: &str, pending: &[&serde_json::Value]) -> S
         ));
         txt.push_str(&format!("  🕐 _{}_ \n\n", lokali(ms)));
     }
-    txt.push_str(&format!("📌 Reply pesan pembeli lalu ketik: `{prefix}done <nomor_trx>`"));
+    txt.push_str(&format!(
+        "📌 Reply pesan pembeli lalu ketik: `{prefix}done <nomor_trx>`"
+    ));
     txt
 }
 
@@ -172,7 +180,9 @@ fn sudah_selesai(trx_id: &str, trx: &serde_json::Value) -> String {
          ✅ Selesai pada: {}\n\n\
          _Transaksi ini sudah dikonfirmasi sebelumnya_ 🔒",
         if fisik { "📦" } else { "🔑" },
-        trx.get("productName").and_then(|v| v.as_str()).unwrap_or(""),
+        trx.get("productName")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
         trx.get("buyerName").and_then(|v| v.as_str()).unwrap_or(""),
         lokali(ms),
     )
@@ -208,7 +218,9 @@ fn invoice(
         txt.push_str(&format!("🔑 *Data Produk:*\n```\n{detail}\n```\n\n"));
         txt.push_str("⚠️ _Simpan data di atas dengan baik. Jangan bagikan ke siapapun_ 🔒\n\n");
     } else if fisik {
-        txt.push_str("📦 _Produk fisik akan dikirim oleh admin. Silakan konfirmasi alamat pengiriman._\n\n");
+        txt.push_str(
+            "📦 _Produk fisik akan dikirim oleh admin. Silakan konfirmasi alamat pengiriman._\n\n",
+        );
     }
     txt.push_str("🙏 Terima kasih telah berbelanja! _Next order ya_ ✨");
     txt
@@ -276,12 +288,13 @@ pub fn done(ctx: Ctx) -> Reply {
 
     // `if (m.quoted && m.isGroup)` — pembeli = pengirim pesan yang di-reply.
     if let Some(quoted) = ctx.quoted()
-        && ctx.is_group {
-            let quoted_sender = quoted.sender.clone();
-            if !quoted_sender.is_empty() && quoted_sender != ctx.sender {
-                buyer_jid = quoted_sender;
-            }
+        && ctx.is_group
+    {
+        let quoted_sender = quoted.sender.clone();
+        if !quoted_sender.is_empty() && quoted_sender != ctx.sender {
+            buyer_jid = quoted_sender;
         }
+    }
 
     if buyer_jid.is_empty() {
         return Reply::text(
@@ -317,7 +330,10 @@ pub fn done(ctx: Ctx) -> Reply {
                 .is_none_or(|a| a.is_empty());
             if !items_kosong {
                 // `const item = product.stockItems.shift()` (`done.js:96-98`).
-                let item = products[idx]["stockItems"].as_array_mut().unwrap().remove(0);
+                let item = products[idx]["stockItems"]
+                    .as_array_mut()
+                    .unwrap()
+                    .remove(0);
                 stock_item_detail = item
                     .get("detail")
                     .filter(|v| crate::common::js_truthy_value(v))
@@ -332,20 +348,21 @@ pub fn done(ctx: Ctx) -> Reply {
                 .get("detail")
                 .is_some_and(crate::common::js_truthy_value)
             {
-                stock_item_detail =
-                    products[idx].get("detail").cloned();
+                stock_item_detail = products[idx].get("detail").cloned();
             }
         } else {
             // Fisik: kurangi stok kecuali unlimited.
             let stock = products[idx].get("stock").and_then(|v| v.as_i64());
             if let Some(stock) = stock
-                && stock != -1 && stock > 0 {
-                    products[idx]["stock"] = serde_json::json!(stock - 1);
-                    mutations.push(Mutation::SetSetting {
-                        key: PRODUK.into(),
-                        value: serde_json::Value::Array(products.clone()),
-                    });
-                }
+                && stock != -1
+                && stock > 0
+            {
+                products[idx]["stock"] = serde_json::json!(stock - 1);
+                mutations.push(Mutation::SetSetting {
+                    key: PRODUK.into(),
+                    value: serde_json::Value::Array(products.clone()),
+                });
+            }
         }
     }
 
@@ -373,8 +390,14 @@ pub fn done(ctx: Ctx) -> Reply {
          👤 Pembeli: *{}*\n\
          📱 Nomor: `{}`\n\
          💰 Harga: *{}*\n",
-        if trx.get("productType").and_then(|v| v.as_str()) == Some("fisik") { "📦" } else { "🔑" },
-        trx.get("productName").and_then(|v| v.as_str()).unwrap_or(""),
+        if trx.get("productType").and_then(|v| v.as_str()) == Some("fisik") {
+            "📦"
+        } else {
+            "🔑"
+        },
+        trx.get("productName")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
         trx.get("buyerName").and_then(|v| v.as_str()).unwrap_or(""),
         buyer_num,
         rupiah(price_of(&trx)),
@@ -508,7 +531,9 @@ mod tests {
         let trx = trx_baru.unwrap();
         assert_eq!(trx["TRX-001"]["status"], "completed");
         assert!(
-            trx["TRX-001"]["completedAt"].as_str().is_some_and(|s| s.ends_with('Z')),
+            trx["TRX-001"]["completedAt"]
+                .as_str()
+                .is_some_and(|s| s.ends_with('Z')),
             "completedAt ISO seperti JS"
         );
         assert_eq!(trx["TRX-001"]["stockItemDetail"], "user:pass-1");
@@ -631,7 +656,11 @@ mod tests {
             }
         }
         assert!(!stok_mutation, "stok -1 tidak ditulis ulang");
-        assert!(r.text_body().unwrap().contains("📊 Sisa stok: *♾️ Unlimited*"));
+        assert!(
+            r.text_body()
+                .unwrap()
+                .contains("📊 Sisa stok: *♾️ Unlimited*")
+        );
     }
 
     #[test]
@@ -647,17 +676,11 @@ mod tests {
     fn iso_dan_angka_diparse_sama() {
         assert_eq!(iso_ke_ms("2026-01-01T00:00:00.000Z"), 1_767_225_600_000);
         assert_eq!(iso_ke_ms("2026-01-01T00:00:00Z"), 1_767_225_600_000);
-        assert_eq!(
-            date_ke_ms(&json!(1_767_225_600_000i64)),
-            1_767_225_600_000
-        );
+        assert_eq!(date_ke_ms(&json!(1_767_225_600_000i64)), 1_767_225_600_000);
         assert_eq!(date_ke_ms(&json!("bukan tanggal")), 0);
         // Asia/Jakarta = UTC+7
         assert_eq!(lokali(0), "1/1/1970, 07.00.00");
         assert_eq!(lokali_pendek(1_767_225_600_000), "01/01/2026, 07.00");
-        assert_eq!(
-            ms_ke_iso(1_767_225_600_000),
-            "2026-01-01T00:00:00.000Z"
-        );
+        assert_eq!(ms_ke_iso(1_767_225_600_000), "2026-01-01T00:00:00.000Z");
     }
 }

@@ -1,6 +1,5 @@
 //! `plugins/sticker/sticker.js` — command `.s`.
 
-
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, OpsiS, Reply, StickerOpsi, plugin};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,17 +34,11 @@ impl MediaFetch for Unduhan {
 }
 
 fn is_gambar(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_image())
+    ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image())
 }
 
 fn is_video(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Video)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_video())
+    ctx.is_media_kind(IncomingKind::Video) || ctx.quoted().is_some_and(|q| q.kind.is_video())
 }
 
 fn pakai(prefix: &str) -> String {
@@ -79,7 +72,11 @@ fn terlalu_panjang(durasi: f64) -> String {
     )
 }
 
-pub(crate) fn metadata(ctx: &Ctx, packname: Option<String>, author: Option<String>) -> (String, String) {
+pub(crate) fn metadata(
+    ctx: &Ctx,
+    packname: Option<String>,
+    author: Option<String>,
+) -> (String, String) {
     let cfg = ctx.config();
     let nama_pack = packname
         .or_else(|| (!cfg.sticker.packname.is_empty()).then(|| cfg.sticker.packname.clone()))
@@ -93,13 +90,8 @@ pub(crate) fn metadata(ctx: &Ctx, packname: Option<String>, author: Option<Strin
 }
 
 fn unduh(ctx: &Ctx) -> Result<Vec<u8>, String> {
-    if ctx
-        .quoted()
-        .is_some_and(|q| q.kind.is_media())
-    {
-        return ctx
-            .download_quoted_media()
-            .map_err(|e| e.message);
+    if ctx.quoted().is_some_and(|q| q.kind.is_media()) {
+        return ctx.download_quoted_media().map_err(|e| e.message);
     }
     ctx.download_media().map_err(|e| e.message)
 }
@@ -129,8 +121,17 @@ fn siapkan(
         Jenis::Gambar => oktz_plugin_api::gambar_ke_stiker_webp(data, opsi)?,
         Jenis::Video => oktz_plugin_api::video_ke_stiker_webp(data, opsi)?,
     };
-    let bytes = oktz_plugin_api::tempel_metadata_stiker(&bytes, packname, author, &[&opsi_wire.emojis.first().cloned().unwrap_or_else(|| "🤖".to_string())])
-        .unwrap_or(bytes);
+    let bytes = oktz_plugin_api::tempel_metadata_stiker(
+        &bytes,
+        packname,
+        author,
+        &[&opsi_wire
+            .emojis
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "🤖".to_string())],
+    )
+    .unwrap_or(bytes);
     Ok((bytes, opsi_wire))
 }
 
@@ -173,23 +174,27 @@ pub fn sticker(ctx: Ctx) -> Reply {
             .find(|m| ctx.quoted().map(|q| q.id.as_str()) == Some(m.id.as_str()))
             .map(|m| m.timestamp)
             .unwrap_or(0);
-        let (selected, skipped) =
-            oktz_plugin_api::pilih_album_media(ctx.album_media(), ctx.quoted().unwrap().id.as_str(), anchor_ts);
+        let (selected, skipped) = oktz_plugin_api::pilih_album_media(
+            ctx.album_media(),
+            ctx.quoted().unwrap().id.as_str(),
+            anchor_ts,
+        );
         if selected.len() >= 2 {
             let mut buffers = Vec::new();
             for item in selected {
                 if let Ok(bytes) = ctx.download_album_media(&item.id)
-                    && let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[]) {
-                        let (pn, au) = metadata(&ctx, Some(packname.clone()), Some(author.clone()));
-                        let webp = oktz_plugin_api::tempel_metadata_stiker(
-                            &webp,
-                            &pn,
-                            &au,
-                            &oktz_plugin_api::EXIF_EMOJIS,
-                        )
-                        .unwrap_or(webp);
-                        buffers.push(webp);
-                    }
+                    && let Ok(webp) = oktz_plugin_api::gambar_ke_stiker_webp(&bytes, &[])
+                {
+                    let (pn, au) = metadata(&ctx, Some(packname.clone()), Some(author.clone()));
+                    let webp = oktz_plugin_api::tempel_metadata_stiker(
+                        &webp,
+                        &pn,
+                        &au,
+                        &oktz_plugin_api::EXIF_EMOJIS,
+                    )
+                    .unwrap_or(webp);
+                    buffers.push(webp);
+                }
             }
             if buffers.len() >= 2 {
                 let mut urutan = vec![
@@ -251,25 +256,23 @@ pub fn sticker(ctx: Ctx) -> Reply {
             reaksi("✅"),
         ]),
 
-        Err(_) if has_processing => {
-            match siapkan(jenis, &data, &[], &packname, &author) {
-                Ok((bytes, opsi_wire)) => Reply::sequence(vec![
-                    reaksi("🕕"),
-                    Reply::sticker_opsi(
-                        MediaSource::bytes(bytes).with_mimetype("image/webp"),
-                        opsi_wire,
-                    ),
-                    reaksi("✅"),
-                    Reply::text(
-                        "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._",
-                    ),
-                ]),
-                Err(_) => Reply::sequence(vec![
-                    Reply::text(crate::common::error_template(&ctx)),
-                    reaksi("❌"),
-                ]),
-            }
-        }
+        Err(_) if has_processing => match siapkan(jenis, &data, &[], &packname, &author) {
+            Ok((bytes, opsi_wire)) => Reply::sequence(vec![
+                reaksi("🕕"),
+                Reply::sticker_opsi(
+                    MediaSource::bytes(bytes).with_mimetype("image/webp"),
+                    opsi_wire,
+                ),
+                reaksi("✅"),
+                Reply::text(
+                    "⚠️ *Efek tidak bisa diterapkan*\n\n> Sticker sudah dikirim, tapi efek yang kakak minta gagal diproses.\n> _Sebaiknya cek format/ukuran sumbernya ya._",
+                ),
+            ]),
+            Err(_) => Reply::sequence(vec![
+                Reply::text(crate::common::error_template(&ctx)),
+                reaksi("❌"),
+            ]),
+        },
         Err(_) => Reply::sequence(vec![
             Reply::text(crate::common::error_template(&ctx)),
             reaksi("❌"),
@@ -280,9 +283,9 @@ pub fn sticker(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::config::Runtime;
     use oktz_plugin_api::IncomingMedia;
-        use std::fs;
+    use oktz_plugin_api::config::Runtime;
+    use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::sync::Mutex;
 
@@ -357,13 +360,17 @@ mod tests {
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
         for key in ["s", "stiker", "stickergif"] {
-            assert_eq!(oktz_plugin_api::find(key).map(|p| p.meta.name.as_str()), Some("sticker"));
+            assert_eq!(
+                oktz_plugin_api::find(key).map(|p| p.meta.name.as_str()),
+                Some("sticker")
+            );
         }
     }
 
     #[test]
     fn option_parser_matches_js_first_two_named_tokens() {
-        let (opsi, packname, author) = oktz_plugin_api::opsi_s("--resize 256x256 Pack Author ketiga");
+        let (opsi, packname, author) =
+            oktz_plugin_api::opsi_s("--resize 256x256 Pack Author ketiga");
         assert_eq!(opsi, vec![OpsiS::Resize(256, 256)]);
         assert_eq!(packname.as_deref(), Some("Pack"));
         assert_eq!(author.as_deref(), Some("Author"));
@@ -387,7 +394,11 @@ mod tests {
     #[test]
     fn video_sticker_tanpa_context_info() {
         let _guard = STICKER_TEST_LOCK.lock().unwrap();
-        let r = sticker(ctx_media(IncomingKind::Video, b"RIFF0000WEBP".to_vec(), Vec::new()));
+        let r = sticker(ctx_media(
+            IncomingKind::Video,
+            b"RIFF0000WEBP".to_vec(),
+            Vec::new(),
+        ));
         let Reply::Sequence(list) = r else {
             panic!("harus sequence: {r:?}")
         };
@@ -401,7 +412,11 @@ mod tests {
     #[test]
     fn quoted_media_is_downloaded_before_trigger() {
         let _guard = STICKER_TEST_LOCK.lock().unwrap();
-        let r = sticker(ctx_kutipan(IncomingKind::Video, b"RIFF0000WEBP".to_vec(), b"RIFF0000WEBP".to_vec()));
+        let r = sticker(ctx_kutipan(
+            IncomingKind::Video,
+            b"RIFF0000WEBP".to_vec(),
+            b"RIFF0000WEBP".to_vec(),
+        ));
         let Reply::Sequence(list) = r else {
             panic!("harus sequence: {r:?}")
         };
@@ -449,10 +464,7 @@ mod tests {
             ..Ctx::default()
         };
         let r = sticker(ctx);
-        assert_eq!(
-            r.without_mutations().text_body().unwrap(),
-            pakai(".")
-        );
+        assert_eq!(r.without_mutations().text_body().unwrap(), pakai("."));
     }
 
     #[test]
@@ -466,7 +478,10 @@ mod tests {
             config: Arc::new(cfg),
             ..Ctx::default()
         };
-        assert_eq!(metadata(&ctx, None, None), ("Foto-AI".to_string(), "Oktz".to_string()));
+        assert_eq!(
+            metadata(&ctx, None, None),
+            ("Foto-AI".to_string(), "Oktz".to_string())
+        );
     }
 
     #[test]

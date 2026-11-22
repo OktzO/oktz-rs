@@ -59,12 +59,16 @@ fn data_user(ctx: &Ctx, jid: &str) -> Value {
 
 /// `data.fun?.pasangan`.
 fn pasangan(data: &Value) -> Option<&str> {
-    data.get("fun").and_then(|f| f.get("pasangan")).and_then(Value::as_str)
+    data.get("fun")
+        .and_then(|f| f.get("pasangan"))
+        .and_then(Value::as_str)
 }
 
 /// `data.fun?.tembakTarget`.
 fn tembak_target(data: &Value) -> Option<&str> {
-    data.get("fun").and_then(|f| f.get("tembakTarget")).and_then(Value::as_str)
+    data.get("fun")
+        .and_then(|f| f.get("tembakTarget"))
+        .and_then(Value::as_str)
 }
 
 /// Kartu cara pakai (`tembak.js:39-45`).
@@ -136,18 +140,19 @@ pub fn tembak(ctx: Ctx) -> Reply {
 
     // Target sudah pacaran dengan orang lain (`tembak.js:74-83`).
     if let Some(pasangan_target) = pasangan(&target_data)
-        && pasangan_target != ctx.sender {
-            let partner_data = data_user(&ctx, pasangan_target);
-            if pasangan(&partner_data) == Some(target_jid.as_str()) {
-                return Reply::Text {
-                    text: format!(
-                        "💔 *ᴅɪᴀ sᴜᴅᴀʜ ᴘᴀᴄᴀʀᴀɴ*\n\nPasangannya: @{}",
-                        jid_number(pasangan_target)
-                    ),
-                    mentions: vec![pasangan_target.to_string()],
-                };
-            }
+        && pasangan_target != ctx.sender
+    {
+        let partner_data = data_user(&ctx, pasangan_target);
+        if pasangan(&partner_data) == Some(target_jid.as_str()) {
+            return Reply::Text {
+                text: format!(
+                    "💔 *ᴅɪᴀ sᴜᴅᴀʜ ᴘᴀᴄᴀʀᴀɴ*\n\nPasangannya: @{}",
+                    jid_number(pasangan_target)
+                ),
+                mentions: vec![pasangan_target.to_string()],
+            };
         }
+    }
 
     // Target pernah menembak pengirim (atau sudah pasangannya) → balasan
     // diterima langsung (`tembak.js:85-104`).
@@ -236,17 +241,16 @@ pub fn tembak_answer(ctx: Ctx) -> Option<Reply> {
     // Semua sesi dengan target = pengirim di chat ini (`tembak.js:151-153`),
     // yang belum kedaluwarsa satu jam (`:157-161`).
     let kunci = {
-        let map = ctx
-            .sessions
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let map = ctx.sessions.lock().unwrap_or_else(|e| e.into_inner());
         map.iter()
             .filter(|(k, v)| {
                 k.starts_with(&format!("{SESSION_PREFIX}:"))
                     && v.get("target").and_then(Value::as_str) == Some(ctx.sender.as_str())
                     && v.get("chat").and_then(Value::as_str) == Some(ctx.chat.as_str())
             })
-            .find(|(_, v)| now_ms() - v.get("timestamp").and_then(Value::as_i64).unwrap_or(0) < EXPIRED_MS)
+            .find(|(_, v)| {
+                now_ms() - v.get("timestamp").and_then(Value::as_i64).unwrap_or(0) < EXPIRED_MS
+            })
             .map(|(k, _)| k.clone())
     }?;
     let sesi = ctx.session_get(&kunci)?;
@@ -336,7 +340,13 @@ mod tests {
         }
     }
 
-    fn run(user_data: Value, data_target: Value, quoted: Option<&str>, mention: Option<&str>, arg: Option<&str>) -> Reply {
+    fn run(
+        user_data: Value,
+        data_target: Value,
+        quoted: Option<&str>,
+        mention: Option<&str>,
+        arg: Option<&str>,
+    ) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "tembak".into(),
@@ -366,7 +376,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -382,23 +395,30 @@ mod tests {
         assert_eq!(p.meta.energi, 1);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium && !p.meta.is_admin);
-        assert_eq!(
-            oktz_plugin_api::find("nembak").unwrap().meta.name,
-            "tembak"
-        );
+        assert_eq!(oktz_plugin_api::find("nembak").unwrap().meta.name, "tembak");
     }
 
     #[test]
     fn tanpa_target_menampilkan_cara_pakai() {
         for (quoted, mention, arg) in [(None, None, None), (None, None, Some("12"))] {
             let r = run(Value::Null, Value::Null, quoted, mention, arg);
-            assert_eq!(teks(&r), cara_pakai("."), "quoted={quoted:?} mention={mention:?} arg={arg:?}");
+            assert_eq!(
+                teks(&r),
+                cara_pakai("."),
+                "quoted={quoted:?} mention={mention:?} arg={arg:?}"
+            );
         }
     }
 
     #[test]
     fn argumen_angka_valid_menjadi_target() {
-        let r = run(Value::Null, Value::Null, None, None, Some("+62 812-3456-789"));
+        let r = run(
+            Value::Null,
+            Value::Null,
+            None,
+            None,
+            Some("+62 812-3456-789"),
+        );
         assert!(teks(&r).contains("Hei @628123456789 ,"), "{}", teks(&r));
     }
 
@@ -433,9 +453,17 @@ mod tests {
             ..Default::default()
         };
         let r = tembak(ctx);
-        assert!(teks(&r).starts_with("❌ *sᴜᴅᴀʜ ᴘᴜɴʏᴀ ᴘᴀsᴀɴɢᴀɴ*"), "{}", teks(&r));
+        assert!(
+            teks(&r).starts_with("❌ *sᴜᴅᴀʜ ᴘᴜɴʏᴀ ᴘᴀsᴀɴɢᴀɴ*"),
+            "{}",
+            teks(&r)
+        );
         assert!(teks(&r).contains("Pasanganmu: @628333"), "{}", teks(&r));
-        assert!(teks(&r).contains("Putus dulu sama Budi dengan cara: `.putus`"), "{}", teks(&r));
+        assert!(
+            teks(&r).contains("Putus dulu sama Budi dengan cara: `.putus`"),
+            "{}",
+            teks(&r)
+        );
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(mentions, &[OTHER.to_string()]),
             other => panic!("harus Text, dapat {other:?}"),
@@ -464,7 +492,11 @@ mod tests {
             ..Default::default()
         };
         let r = tembak(ctx);
-        assert!(teks(&r).starts_with("💔 *ᴅɪᴀ sᴜᴅᴀʜ ᴘᴀᴄᴀʀᴀɴ*"), "{}", teks(&r));
+        assert!(
+            teks(&r).starts_with("💔 *ᴅɪᴀ sᴜᴅᴀʜ ᴘᴀᴄᴀʀᴀɴ*"),
+            "{}",
+            teks(&r)
+        );
         assert!(teks(&r).contains("Pasangannya: @628333"), "{}", teks(&r));
     }
 
@@ -479,7 +511,10 @@ mod tests {
         assert_eq!(emoji, "💕");
         match isi {
             Reply::Text { text, mentions } => {
-                assert!(text.contains("@628111 dan @628222 resmi pacaran !"), "{text}");
+                assert!(
+                    text.contains("@628111 dan @628222 resmi pacaran !"),
+                    "{text}"
+                );
                 assert_eq!(mentions, &[ME.to_string(), THEM.to_string()]);
             }
             other => panic!("harus Text, dapat {other:?}"),
@@ -512,7 +547,10 @@ mod tests {
         match isi {
             Reply::Text { text, mentions } => {
                 assert!(text.starts_with("💘 *ADA YANG NEMBAK NIHH*"), "{text}");
-                assert!(text.contains("Hei @628222 , kamu ditembak oleh @628111 nichh"), "{text}");
+                assert!(
+                    text.contains("Hei @628222 , kamu ditembak oleh @628111 nichh"),
+                    "{text}"
+                );
                 assert!(text.contains("gunakan: `.terima` / `.tolak`"), "{text}");
                 assert_eq!(mentions, &[THEM.to_string(), ME.to_string()]);
             }
@@ -546,7 +584,10 @@ mod tests {
                 sessions: sessions.clone(),
                 ..Default::default()
             };
-            assert!(tembak_answer(c).is_none(), "teks {teks_masuk:?} harus ditolak");
+            assert!(
+                tembak_answer(c).is_none(),
+                "teks {teks_masuk:?} harus ditolak"
+            );
         }
         // Teks valid tapi tanpa quoted → None.
         let c = Ctx {
@@ -586,7 +627,13 @@ mod tests {
             ..Default::default()
         };
         let r = tembak_answer(c).expect("harus menangani");
-        assert!(sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none());
+        assert!(
+            sessions
+                .lock()
+                .unwrap()
+                .get(&session_key("120363@g.us", ME))
+                .is_none()
+        );
         let (emoji, isi) = match r.without_mutations() {
             Reply::Reaction { emoji, reply } => (emoji.clone(), reply.as_ref().clone()),
             other => panic!("harus Reaction, dapat {other:?}"),
@@ -693,6 +740,9 @@ mod tests {
             sessions: sessions.clone(),
             ..Default::default()
         };
-        assert!(tembak_answer(c).is_none(), "sesi kedaluwarsa harus diabaikan");
+        assert!(
+            tembak_answer(c).is_none(),
+            "sesi kedaluwarsa harus diabaikan"
+        );
     }
 }

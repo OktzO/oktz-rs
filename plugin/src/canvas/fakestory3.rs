@@ -163,9 +163,15 @@ mod tests {
         assert_eq!(p.meta.name, "fakestory3");
         assert_eq!(p.meta.alias, ["fstory3", "igstory3", "quotestory"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(p.meta.description, "Fake Instagram story dengan text overlay");
+        assert_eq!(
+            p.meta.description,
+            "Fake Instagram story dengan text overlay"
+        );
         assert_eq!(p.meta.usage, ".fakestory3 <nama>|<text1>|<text2>");
-        assert_eq!(p.meta.example, ".fakestory3 Misaki|Tersenyumlah|untuk menutupi kesedihan");
+        assert_eq!(
+            p.meta.example,
+            ".fakestory3 Misaki|Tersenyumlah|untuk menutupi kesedihan"
+        );
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);
         for k in ["fakestory3", "fstory3", "igstory3", "quotestory"] {
@@ -218,7 +224,10 @@ mod tests {
         ctx.media = media_gambar();
         ctx.media_fetch = Arc::new(Unduh(Ok(b"IMG".to_vec())));
         let r = run(ctx);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory3"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakestory3")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -226,7 +235,9 @@ mod tests {
     fn unduhan_gagal_membalas_pesan_gagal_unduh() {
         let mut ctx = ctx_sukses_avatar("Misaki|a|b");
         ctx.media = media_gambar();
-        ctx.media_fetch = Arc::new(Unduh(Err(MediaError { message: "gagal".into() })));
+        ctx.media_fetch = Arc::new(Unduh(Err(MediaError {
+            message: "gagal".into(),
+        })));
         let r = run(ctx);
         assert_eq!(teks(&r), GAGAL_UNDUH);
         assert_eq!(reaksi(&r), Some("❌".into()));

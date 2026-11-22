@@ -188,7 +188,10 @@ pub fn addstok(ctx: Ctx) -> Reply {
             );
         }
         if has_detail(&products[idx], &detail) {
-            let name = products[idx].get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let name = products[idx]
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             return Reply::text(format!(
                 "⚠️ *Data stok sudah ada.*\n\n\
                  Item dengan detail yang sama sudah terdaftar di produk *{name}* 🔑"
@@ -200,7 +203,11 @@ pub fn addstok(ctx: Ctx) -> Reply {
         item["detail"] = serde_json::json!(detail);
         item["addedAt"] = serde_json::json!(crate::common::now_ms());
         // `if (!product.stockItems) product.stockItems = []` (addstok.js:221).
-        if next[idx].get("stockItems").and_then(|v| v.as_array()).is_none() {
+        if next[idx]
+            .get("stockItems")
+            .and_then(|v| v.as_array())
+            .is_none()
+        {
             next[idx]["stockItems"] = serde_json::json!([]);
         }
         next[idx]["stockItems"]
@@ -209,7 +216,10 @@ pub fn addstok(ctx: Ctx) -> Reply {
             .push(item);
         let total = next[idx]["stockItems"].as_array().map_or(0, Vec::len);
         next[idx]["stock"] = serde_json::json!(total);
-        let name = products[idx].get("name").and_then(|v| v.as_str()).unwrap_or("");
+        let name = products[idx]
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
 
         return Reply::text(digital_added(&ctx.prefix, idx as i64 + 1, name, total))
             .with_reaction("✅")
@@ -222,14 +232,20 @@ pub fn addstok(ctx: Ctx) -> Reply {
     // Tanpa `|`: `<nomor> <jumlah>` untuk produk fisik, sisanya kartu bantuan
     // (jalur import `.txt` tidak di-port — lihat `ponytail:` modul).
     let parts: Vec<&str> = text.split_whitespace().collect();
-    let product_no = parts.first().and_then(|p| parse_int(p)).map_or(-1, |n| n - 1);
+    let product_no = parts
+        .first()
+        .and_then(|p| parse_int(p))
+        .map_or(-1, |n| n - 1);
     if product_no >= 0 && product_no < products.len() as i64 {
         let idx = product_no as usize;
         if is_fisik(&products[idx]) {
             match parts.get(1).and_then(|p| parse_int(p)) {
                 Some(add) if add > 0 => return add_physical(&ctx, idx, add),
                 _ => {
-                    let name = products[idx].get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    let name = products[idx]
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
                     return Reply::text(physical_hint(
                         &ctx.prefix,
                         product_no + 1,
@@ -247,7 +263,7 @@ pub fn addstok(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(text: &str, settings: Value, is_group: bool) -> Reply {
         let ctx = Ctx {
@@ -333,7 +349,10 @@ mod tests {
 
     #[test]
     fn an_empty_product_list_is_reported_and_nothing_is_written() {
-        for s in [serde_json::json!({}), serde_json::json!({"storeProducts": []})] {
+        for s in [
+            serde_json::json!({}),
+            serde_json::json!({"storeProducts": []}),
+        ] {
             let r = run("1|baru@mail", s.clone(), false);
             assert!(text_of(&r).starts_with("📭 *Belum ada produk.*"), "{s}");
             assert!(r.mutations().is_empty(), "{s}");
@@ -346,14 +365,25 @@ mod tests {
         let p = &products_write(&r)[0];
         let items = p["stockItems"].as_array().unwrap();
         assert_eq!(items.len(), 3);
-        assert_eq!(items[0]["detail"], serde_json::json!("lama@mail"), "yang lama utuh");
-        assert_eq!(items[2]["detail"], serde_json::json!("Email: baru@mail.com\nPassword: p4ss"));
+        assert_eq!(
+            items[0]["detail"],
+            serde_json::json!("lama@mail"),
+            "yang lama utuh"
+        );
+        assert_eq!(
+            items[2]["detail"],
+            serde_json::json!("Email: baru@mail.com\nPassword: p4ss")
+        );
         assert_eq!(
             p["stock"],
             serde_json::json!(3),
             "stock = jumlah stockItems, bukan 2+1"
         );
-        assert!(items[2]["addedAt"].is_i64(), "addedAt numeric: {:?}", items[2]["addedAt"]);
+        assert!(
+            items[2]["addedAt"].is_i64(),
+            "addedAt numeric: {:?}",
+            items[2]["addedAt"]
+        );
     }
 
     #[test]
@@ -363,7 +393,10 @@ mod tests {
         for input in ["1|lama@mail", "1|  lama@mail  ", "1| lain@mail"] {
             let r = run(input, sample(), false);
             let t = text_of(&r);
-            assert!(t.starts_with("⚠️ *Data stok sudah ada.*"), "input {input}: {t}");
+            assert!(
+                t.starts_with("⚠️ *Data stok sudah ada.*"),
+                "input {input}: {t}"
+            );
             assert!(t.contains("produk *Netflix*"), "input {input}: {t}");
             assert!(r.mutations().is_empty(), "input {input}");
         }
@@ -385,7 +418,10 @@ mod tests {
     #[test]
     fn exactly_three_characters_is_accepted() {
         let r = run("1|abc", sample(), false);
-        assert_eq!(products_write(&r)[0]["stockItems"][2]["detail"], serde_json::json!("abc"));
+        assert_eq!(
+            products_write(&r)[0]["stockItems"][2]["detail"],
+            serde_json::json!("abc")
+        );
     }
 
     #[test]
@@ -395,7 +431,11 @@ mod tests {
         let r = run("1|baru@mail", s, false);
         let p = &products_write(&r)[0];
         assert_eq!(p["stockItems"][0]["detail"], serde_json::json!("baru@mail"));
-        assert_eq!(p["stock"], serde_json::json!(1), "stock = panjang stockItems");
+        assert_eq!(
+            p["stock"],
+            serde_json::json!(1),
+            "stock = panjang stockItems"
+        );
     }
 
     #[test]
@@ -428,7 +468,10 @@ mod tests {
         assert!(t.contains("🏷️ Produk: *Kaos*"), "{t}");
         assert!(t.contains("➕ Ditambahkan: *8 pcs*"), "{t}");
         assert!(t.contains("📊 Total stok: *18 pcs*"), "{t}");
-        assert!(!t.contains("Tambah lagi"), "tanpa `|` tidak ada footer: {t}");
+        assert!(
+            !t.contains("Tambah lagi"),
+            "tanpa `|` tidak ada footer: {t}"
+        );
         assert_eq!(products_write(&r)[1]["stock"], serde_json::json!(18));
     }
 
@@ -436,7 +479,10 @@ mod tests {
     fn a_zero_or_negative_physical_count_is_refused() {
         for input in ["2|0", "2|-5"] {
             let r = run(input, sample(), false);
-            assert!(text_of(&r).starts_with("📦 *Produk ini bertipe Fisik*"), "input {input}");
+            assert!(
+                text_of(&r).starts_with("📦 *Produk ini bertipe Fisik*"),
+                "input {input}"
+            );
             assert!(r.mutations().is_empty(), "input {input}");
         }
     }
@@ -450,7 +496,11 @@ mod tests {
         ]});
         let r = run("1|3", s, false);
         assert_eq!(products_write(&r)[0]["stock"], serde_json::json!(3));
-        assert!(text_of(&r).contains("Total stok: *3 pcs*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Total stok: *3 pcs*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -489,9 +539,13 @@ mod tests {
         assert!(
             text_of(&run("1", s, false)).contains("Stok saat ini: *♾️ Unlimited*"),
             "{}",
-            text_of(&run("1", serde_json::json!({"storeProducts": [
-                {"name": "Kaos", "type": "fisik", "price": 1, "stock": -1}
-            ]}), false))
+            text_of(&run(
+                "1",
+                serde_json::json!({"storeProducts": [
+                    {"name": "Kaos", "type": "fisik", "price": 1, "stock": -1}
+                ]}),
+                false
+            ))
         );
     }
 

@@ -8,7 +8,6 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
 /// `kobo-ai.js:22-30`.
@@ -48,11 +47,10 @@ pub fn kobo_ai(ctx: Ctx) -> Reply {
     }
     match unlimited_ai(&*ctx.http, "kobo-ai", &text) {
         Ok(answer) => Reply::text(clip(&answer)).with_reaction("✅"),
-        Err(AiFailure::Rejected(e)) => {
-            Reply::text(failed("Kobo AI Error", &e)).with_reaction("☢")
+        Err(AiFailure::Rejected(e)) => Reply::text(failed("Kobo AI Error", &e)).with_reaction("☢"),
+        Err(AiFailure::Transport) => {
+            Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
         }
-        Err(AiFailure::Transport) => Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢"),
     }
 }
 
@@ -184,7 +182,9 @@ mod tests {
 
     #[test]
     fn the_kobo_character_prompt_is_the_one_sent() {
-        let http = Stub::ok("{\"type\":\"delta\",\"delta\":\"DAJOOR!\"}\n{\"type\":\"delta\",\"delta\":\"HMPH!\"}\n");
+        let http = Stub::ok(
+            "{\"type\":\"delta\",\"delta\":\"DAJOOR!\"}\n{\"type\":\"delta\",\"delta\":\"HMPH!\"}\n",
+        );
         let r = run(http.clone(), "Kobo lagi apa?");
         assert_eq!(body(&r), "DAJOOR!HMPH!");
 
@@ -192,13 +192,19 @@ mod tests {
         let v: Value = serde_json::from_str(&sent).unwrap();
         let system = v["messages"][0]["content"].as_str().unwrap();
         assert!(system.starts_with("Kamu adalah Kobo Kanaeru"), "{system}");
-        assert!(system.ends_with("Pertanyaan user: Kobo lagi apa?"), "{system}");
+        assert!(
+            system.ends_with("Pertanyaan user: Kobo lagi apa?"),
+            "{system}"
+        );
     }
 
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "kobo-ai"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "kobo-ai")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

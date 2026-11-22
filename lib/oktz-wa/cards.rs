@@ -72,9 +72,7 @@ pub fn kartu_to_message(
     header_media: Option<wa::Message>,
     context_info: Option<wa::ContextInfo>,
 ) -> wa::Message {
-    use wa::message::interactive_message::{
-        Body, Footer, native_flow_message::NativeFlowButton,
-    };
+    use wa::message::interactive_message::{Body, Footer, native_flow_message::NativeFlowButton};
 
     let buttons: Vec<NativeFlowButton> = kartu
         .buttons
@@ -194,7 +192,7 @@ pub fn params_bottom_sheet(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::kartu::{Baris, Bagian, Daftar};
+    use oktz_plugin_api::kartu::{Bagian, Baris, Daftar};
     use serde_json::json;
     use whatsapp_rust::wacore_binary::NodeContent;
     use whatsapp_rust::waproto::buffa::Message as _;
@@ -252,7 +250,10 @@ mod tests {
 
     #[test]
     fn build_card_payload_has_no_hardcoded_demo_text() {
-        let bytes = payload(&build_card("body dari pemanggil", Some("footer dari pemanggil")));
+        let bytes = payload(&build_card(
+            "body dari pemanggil",
+            Some("footer dari pemanggil"),
+        ));
         for demo in DEMO {
             assert!(
                 !contains(&bytes, demo),
@@ -301,16 +302,20 @@ mod tests {
         assert_eq!(flow.buttons[0].name.as_deref(), Some("quick_reply"));
         assert_eq!(flow.buttons[1].name.as_deref(), Some("cta_copy"));
         assert_eq!(flow.buttons[2].name.as_deref(), Some("cta_url"));
-        assert!(flow.buttons[0]
-            .button_params_json
-            .as_deref()
-            .unwrap()
-            .contains("cmd_ya"));
-        assert!(flow.buttons[2]
-            .button_params_json
-            .as_deref()
-            .unwrap()
-            .contains("merchant_url"));
+        assert!(
+            flow.buttons[0]
+                .button_params_json
+                .as_deref()
+                .unwrap()
+                .contains("cmd_ya")
+        );
+        assert!(
+            flow.buttons[2]
+                .button_params_json
+                .as_deref()
+                .unwrap()
+                .contains("merchant_url")
+        );
     }
 
     #[test]
@@ -357,7 +362,8 @@ mod tests {
 
     #[test]
     fn header_tanpa_media_tidak_menandai_lampiran() {
-        let kartu = Kartu::baru("body").header(oktz_plugin_api::kartu::KartuHeader::baru().subjudul("Bot"));
+        let kartu =
+            Kartu::baru("body").header(oktz_plugin_api::kartu::KartuHeader::baru().subjudul("Bot"));
         let msg = kartu_to_message(&kartu, None, None);
         let header = interactive(&msg).header.as_option().unwrap();
         assert_eq!(header.subtitle.as_deref(), Some("Bot"));

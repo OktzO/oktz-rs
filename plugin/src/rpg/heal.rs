@@ -187,7 +187,11 @@ pub(crate) fn reply_texts(reply: &Reply) -> Vec<String> {
     match reply.without_mutations() {
         Reply::Sequence(list) => list.iter().flat_map(reply_texts).collect(),
         Reply::Reaction { reply: inner, .. } => reply_texts(inner),
-        other => other.text_body().map(|t| t.to_string()).into_iter().collect(),
+        other => other
+            .text_body()
+            .map(|t| t.to_string())
+            .into_iter()
+            .collect(),
     }
 }
 
@@ -312,7 +316,10 @@ mod tests {
                            "stamina": 100, "maxStamina": 100}}),
         ] {
             let r = run(user.clone());
-            assert!(text_of(&r).starts_with("Eits, badan kamu masih seger"), "input {user}");
+            assert!(
+                text_of(&r).starts_with("Eits, badan kamu masih seger"),
+                "input {user}"
+            );
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -349,8 +356,10 @@ mod tests {
 
     #[test]
     fn unrelated_rpg_fields_survive_the_write() {
-        let r = run(serde_json::json!({"rpg": {"bank": 5000, "pet": {"type": "dog"},
-                                   "health": 10}}));
+        let r = run(
+            serde_json::json!({"rpg": {"bank": 5000, "pet": {"type": "dog"},
+                                   "health": 10}}),
+        );
         let rpg = rpg_of(&r);
         assert_eq!(rpg["bank"], serde_json::json!(5000));
         assert_eq!(rpg["pet"], serde_json::json!({"type": "dog"}));

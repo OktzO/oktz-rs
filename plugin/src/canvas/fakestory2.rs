@@ -66,9 +66,7 @@ pub fn fakestory2(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{
-        IncomingMedia, MediaError, MediaFetch, MediaOrigin,
-    };
+    use oktz_plugin_api::{IncomingMedia, MediaError, MediaFetch, MediaOrigin};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -130,7 +128,10 @@ mod tests {
         assert_eq!(p.meta.name, "fakestory2");
         assert_eq!(p.meta.alias, ["fstory2", "igstory2"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(p.meta.description, "Fake Instagram story dengan 1 gambar full");
+        assert_eq!(
+            p.meta.description,
+            "Fake Instagram story dengan 1 gambar full"
+        );
         assert_eq!(p.meta.usage, ".fakestory2 <nama>");
         assert_eq!(p.meta.example, ".fakestory2 Misaki (reply gambar)");
         assert_eq!(p.meta.cooldown, 10);
@@ -151,7 +152,10 @@ mod tests {
             command: "fakestory2".into(),
             ..Ctx::default()
         });
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory2"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakestory2")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -168,7 +172,10 @@ mod tests {
         ctx.media = media_gambar();
         ctx.media_fetch = Arc::new(Unduh(Ok(b"IMG".to_vec())));
         let r = run(ctx);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory2"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakestory2")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -176,7 +183,9 @@ mod tests {
     fn unduhan_gagal_membalas_pesan_gagal_unduh() {
         let mut ctx = ctx_sukses_avatar("Misaki");
         ctx.media = media_gambar();
-        ctx.media_fetch = Arc::new(Unduh(Err(MediaError { message: "gagal".into() })));
+        ctx.media_fetch = Arc::new(Unduh(Err(MediaError {
+            message: "gagal".into(),
+        })));
         let r = run(ctx);
         assert_eq!(teks(&r), GAGAL_UNDUH);
         assert_eq!(reaksi(&r), Some("❌".into()));

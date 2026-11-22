@@ -12,7 +12,7 @@
 //! terjadi di JS ketika cheerio tidak menemukan satu pun `<li>`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::download::douyindl::query_encode;
 
@@ -317,8 +317,10 @@ pub fn gsmarena(ctx: Ctx) -> Reply {
     let error = error_reply(&ctx.prefix, &ctx.command);
 
     // `results.php3?sQuickSearch=yes&sName=<query>` (`search.js:6`).
-    let search_url =
-        format!("{BASE}/results.php3?sQuickSearch=yes&sName={}", query_encode(&query));
+    let search_url = format!(
+        "{BASE}/results.php3?sQuickSearch=yes&sName={}",
+        query_encode(&query)
+    );
     let Some(html) = ctx.http.get(&search_url).ok().map(|r| r.text()) else {
         return Reply::text(error);
     };
@@ -466,10 +468,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["gsm", "phonespec", "spesifikasi"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "gsmarena"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "gsmarena");
         }
     }
 
@@ -477,7 +476,11 @@ mod tests {
     fn an_empty_query_shows_the_usage_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   "] {
-            assert_eq!(text_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                text_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -503,8 +506,14 @@ mod tests {
         );
         assert!(t.contains("1. 📱 *Infinix Hot 50 6.78 inch*"), "{t}");
         assert!(t.contains("2. 📱 *Infinix Hot 60*"), "{t}");
-        assert!(t.contains("> Infinix Hot 50\n"), "deskripsi = title img: {t}");
-        assert!(t.ends_with("> Ketik `.gsmarena <nama lengkap>` untuk detail"), "{t}");
+        assert!(
+            t.contains("> Infinix Hot 50\n"),
+            "deskripsi = title img: {t}"
+        );
+        assert!(
+            t.ends_with("> Ketik `.gsmarena <nama lengkap>` untuk detail"),
+            "{t}"
+        );
         assert_eq!(
             http.seen.lock().unwrap().len(),
             1,
@@ -550,10 +559,7 @@ mod tests {
     fn a_single_hit_opens_the_detail_page_and_renders_both_sections() {
         let http = Stub::new(&[
             ("https://www.gsmarena.com/results.php3", ONE_RESULT),
-            (
-                "https://www.gsmarena.com/infinix_hot_50-11800.php",
-                DETAIL,
-            ),
+            ("https://www.gsmarena.com/infinix_hot_50-11800.php", DETAIL),
         ]);
         let __balasan = run(http.clone(), "infinix hot 50");
         let t = text_of(&__balasan);
@@ -607,7 +613,11 @@ mod tests {
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::empty(), "hp nova");
         assert_eq!(text_of(&r), error_reply(".", "gsmarena"));
-        assert!(text_of(&r).contains("command `.gsmarena`"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("command `.gsmarena`"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

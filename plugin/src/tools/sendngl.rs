@@ -46,12 +46,7 @@ fn error_template(prefix: &str, command: &str) -> String {
 // JSON `{ link, text }`; sukses kalau `res.data.success !== false`.
 /// Nexray: `GET https://api.nexray.eu.cc/tools/spamngl?url=...&jumlah=1&pesan=...`;
 /// sukses kalau `res.data.status` truthy.
-fn send_ngl(
-    http: &dyn HttpGet,
-    cuki_key: &str,
-    link: &str,
-    kata: &str,
-) -> Result<(), HttpError> {
+fn send_ngl(http: &dyn HttpGet, cuki_key: &str, link: &str, kata: &str) -> Result<(), HttpError> {
     if !cuki_key.is_empty() {
         let url = format!(
             "https://api.cuki.biz.id/api/ephoto/ngl?apikey={}",
@@ -75,7 +70,10 @@ fn send_ngl(
     );
     let res = http.get(&url)?;
     let data = res.json().unwrap_or(Value::Null);
-    if data.get("status").is_some_and(crate::common::js_truthy_value) {
+    if data
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value)
+    {
         Ok(())
     } else {
         Err(oktz_plugin_api::HttpError {
@@ -302,7 +300,10 @@ mod tests {
     fn cuki_berhasil_tanpa_mengirim_ke_nexray() {
         let http = Stub::cuki_ok();
         let r = run_dengan_kunci(http.clone(), "https://ngl.link/x | hai");
-        assert_eq!(text_of(&r), "✅ *DONE*\n\nBerhasil mengirim pesan!\nTarget: https://ngl.link/x\nPesan: hai");
+        assert_eq!(
+            text_of(&r),
+            "✅ *DONE*\n\nBerhasil mengirim pesan!\nTarget: https://ngl.link/x\nPesan: hai"
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1);
@@ -310,14 +311,20 @@ mod tests {
             seen[0].0,
             "https://api.cuki.biz.id/api/ephoto/ngl?apikey=KUNCI"
         );
-        assert_eq!(seen[0].1.as_deref(), Some(r#"{"link":"https://ngl.link/x","text":"hai"}"#));
+        assert_eq!(
+            seen[0].1.as_deref(),
+            Some(r#"{"link":"https://ngl.link/x","text":"hai"}"#)
+        );
     }
 
     #[test]
     fn cuki_tanpa_kunci_menggunakan_nexray() {
         let http = Stub::nexray_ok();
         let r = run(http.clone(), "https://ngl.link/x | hai");
-        assert_eq!(text_of(&r), "✅ *DONE*\n\nBerhasil mengirim pesan!\nTarget: https://ngl.link/x\nPesan: hai");
+        assert_eq!(
+            text_of(&r),
+            "✅ *DONE*\n\nBerhasil mengirim pesan!\nTarget: https://ngl.link/x\nPesan: hai"
+        );
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1);
         assert_eq!(

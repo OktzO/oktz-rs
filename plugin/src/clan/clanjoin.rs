@@ -12,7 +12,13 @@ pub(crate) fn help() -> &'static str {
     "🏰 *JOIN CLAN*\n\nMasukkan ID clan!\n\nContoh: *.clanjoin clan_123456*\nCek ID: *.clanleaderboard*"
 }
 
-pub(crate) fn welcome(emblem: &str, sender_num: &str, name: &str, leader: &str, total: usize) -> String {
+pub(crate) fn welcome(
+    emblem: &str,
+    sender_num: &str,
+    name: &str,
+    leader: &str,
+    total: usize,
+) -> String {
     format!(
         "{emblem} *WELCOME!*\n\n\
          @{sender_num} bergabung ke *{name}*\n\n\
@@ -63,7 +69,9 @@ pub fn clanjoin(ctx: Ctx) -> Reply {
 
     let mut list = members(&clan);
     if list.len() >= MAX_MEMBERS {
-        return Reply::text(format!("❌ *{name}* sudah penuh ({MAX_MEMBERS}/{MAX_MEMBERS})"));
+        return Reply::text(format!(
+            "❌ *{name}* sudah penuh ({MAX_MEMBERS}/{MAX_MEMBERS})"
+        ));
     }
 
     let emb = emblem(&clan);
@@ -98,7 +106,7 @@ pub fn clanjoin(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value, arg: &str, clans: Value) -> Reply {
         let ctx = Ctx {
@@ -137,8 +145,16 @@ mod tests {
     }
 
     fn written(r: &Reply) -> (Value, String, String) {
-        let cm = r.mutations().iter().find(|m| matches!(m, Mutation::SetSetting { .. })).unwrap();
-        let um = r.mutations().iter().find(|m| matches!(m, Mutation::SetUser { .. })).unwrap();
+        let cm = r
+            .mutations()
+            .iter()
+            .find(|m| matches!(m, Mutation::SetSetting { .. }))
+            .unwrap();
+        let um = r
+            .mutations()
+            .iter()
+            .find(|m| matches!(m, Mutation::SetUser { .. }))
+            .unwrap();
         match (cm, um) {
             (Mutation::SetSetting { value, .. }, Mutation::SetUser { jid, data }) => (
                 value["DRG"]["members"].clone(),
@@ -179,14 +195,25 @@ mod tests {
 
     #[test]
     fn a_user_who_already_has_a_clan_is_told_to_leave_first() {
-        let r = run(serde_json::json!({"clanId": "LAIN"}), "DRG", serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
-        assert_eq!(text_of(&r), "❌ Kamu sudah punya clan\nKeluar dulu: *.clanleave*");
+        let r = run(
+            serde_json::json!({"clanId": "LAIN"}),
+            "DRG",
+            serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
+        );
+        assert_eq!(
+            text_of(&r),
+            "❌ Kamu sudah punya clan\nKeluar dulu: *.clanleave*"
+        );
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn an_unknown_clan_is_reported() {
-        let r = run(serde_json::json!({}), "Zzz", serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
+        let r = run(
+            serde_json::json!({}),
+            "Zzz",
+            serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
+        );
         assert_eq!(text_of(&r), "❌ Clan tidak ditemukan");
         assert!(r.mutations().is_empty());
     }
@@ -204,19 +231,35 @@ mod tests {
 
     #[test]
     fn a_full_clan_refuses_the_join() {
-        let full: Vec<String> = (0..50).map(|i| format!("62800{i}@s.whatsapp.net")).collect();
-        let r = run(serde_json::json!({}), "DRG", serde_json::json!({ "DRG": clan(serde_json::json!({"members": full})) }));
+        let full: Vec<String> = (0..50)
+            .map(|i| format!("62800{i}@s.whatsapp.net"))
+            .collect();
+        let r = run(
+            serde_json::json!({}),
+            "DRG",
+            serde_json::json!({ "DRG": clan(serde_json::json!({"members": full})) }),
+        );
         assert_eq!(text_of(&r), "❌ *Dragon* sudah penuh (50/50)");
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn a_successful_join_appends_the_sender_and_links_the_clan_id() {
-        let r = run(serde_json::json!({}), "DRG", serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
+        let r = run(
+            serde_json::json!({}),
+            "DRG",
+            serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
+        );
         let (list, jid, id) = written(&r);
-        assert_eq!(list, serde_json::json!(["628999@s.whatsapp.net", "628111@s.whatsapp.net"]));
+        assert_eq!(
+            list,
+            serde_json::json!(["628999@s.whatsapp.net", "628111@s.whatsapp.net"])
+        );
         assert_eq!(jid, "628111@s.whatsapp.net");
-        assert_eq!(id, "DRG", "ID yang disimpan adalah KUNCI peta, bukan `clan.id`");
+        assert_eq!(
+            id, "DRG",
+            "ID yang disimpan adalah KUNCI peta, bukan `clan.id`"
+        );
         let t = text_of(&r);
         assert!(t.starts_with("🐉 *WELCOME!*"), "{t}");
         assert!(t.contains("Leader: @628999"), "{t}");
@@ -224,7 +267,10 @@ mod tests {
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(
                 mentions,
-                &["628111@s.whatsapp.net".to_string(), "628999@s.whatsapp.net".to_string()]
+                &[
+                    "628111@s.whatsapp.net".to_string(),
+                    "628999@s.whatsapp.net".to_string()
+                ]
             ),
             other => panic!("harus Text, dapat {other:?}"),
         }
@@ -233,7 +279,11 @@ mod tests {
     #[test]
     fn joining_by_name_or_lowercase_id_resolves_the_same_clan() {
         for arg in ["Dragon", "dragon", "DRG"] {
-            let r = run(serde_json::json!({}), arg, serde_json::json!({ "DRG": clan(serde_json::json!({})) }));
+            let r = run(
+                serde_json::json!({}),
+                arg,
+                serde_json::json!({ "DRG": clan(serde_json::json!({})) }),
+            );
             let (_, _, id) = written(&r);
             assert_eq!(id, "DRG", "arg {arg}");
         }

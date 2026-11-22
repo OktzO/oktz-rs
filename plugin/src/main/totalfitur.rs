@@ -119,8 +119,7 @@ fn rekap() -> Result<(Vec<Rekap>, usize, usize), GagalHitung> {
 
 /// `ICONS[cat] || '📦'` (`totalfitur.js:56`) — kategori tanpa ikon pakai 📦.
 fn ikon(kategori: &str) -> &'static str {
-    IKON
-        .iter()
+    IKON.iter()
         .find(|(nama, _)| *nama == kategori)
         .map_or("📦", |(_, emoji)| *emoji)
 }
@@ -156,8 +155,8 @@ fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
         })
         .collect();
 
-    let mut tabel = Reply::tabel_v2("Distribusi Fitur")
-        .with_table_header(["Kategori", "Jumlah", "Persen"]);
+    let mut tabel =
+        Reply::tabel_v2("Distribusi Fitur").with_table_header(["Kategori", "Jumlah", "Persen"]);
     for row in baris {
         tabel = tabel.with_table_row(row);
     }
@@ -239,8 +238,7 @@ mod tests {
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
 
-        let Reply::TabelV2(tabel) = balasan
-        else {
+        let Reply::TabelV2(tabel) = balasan else {
             panic!("harus Reply::TabelV2, dapat {balasan:?}");
         };
 
@@ -296,17 +294,18 @@ mod tests {
         let (daftar, total, aktif) = rekap().expect("registry tidak kosong");
         let r = totalfitur(Ctx::default());
         let balasan = r.without_mutations().tanpa_reaksi();
-        let Reply::TabelV2(tabel) = balasan
-        else {
+        let Reply::TabelV2(tabel) = balasan else {
             panic!("harus Reply::TabelV2");
         };
         let rows = &tabel.baris;
         let header_text = &tabel.heading;
 
-        assert!(header_text
-            .as_deref()
-            .unwrap_or_default()
-            .contains(&format!("Total: {total} | Aktif: {aktif} | Kategori: ")));
+        assert!(
+            header_text
+                .as_deref()
+                .unwrap_or_default()
+                .contains(&format!("Total: {total} | Aktif: {aktif} | Kategori: "))
+        );
         assert!(rows.iter().any(|b| b[0] == "🏠 MAIN"));
         assert!(daftar.iter().any(|r| r.kategori == "main"));
     }

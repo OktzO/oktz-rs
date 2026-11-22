@@ -127,7 +127,7 @@ mod tests {
         assert!(out.contains("> Custom: *0* link"));
     }
 
-#[test]
+    #[test]
     fn a_wrong_typed_antilink_list_falls_back_to_empty() {
         // `groupData.antilinkList || []`: string bukan array masih punya
         // `.length > 0`, jadi JS masuk cabang custom lalu `.forEach` meledak.
@@ -140,11 +140,16 @@ mod tests {
     #[test]
     fn custom_links_are_numbered_from_one_after_the_defaults() {
         let out = run(serde_json::json!({"antilinkList": ["spam.example", "iklan.example"]}));
-        assert!(out.contains("╭┈┈⬡「 ➕ *ᴄᴜsᴛᴏᴍ* 」\n┃ 1. `spam.example`\n┃ 2. `iklan.example`\n╰┈┈┈┈┈┈┈┈⬡"));
+        assert!(out.contains(
+            "╭┈┈⬡「 ➕ *ᴄᴜsᴛᴏᴍ* 」\n┃ 1. `spam.example`\n┃ 2. `iklan.example`\n╰┈┈┈┈┈┈┈┈⬡"
+        ));
         assert!(out.contains("> Default: *7* link\n> Custom: *2* link"));
         // Blok default tetap lengkap dan tidak ikut ter-nomor ulang.
         assert!(out.contains("┃ 1. `chat.whatsapp.com`"));
-        assert!(out.find("┃ 1. `chat.whatsapp.com`").unwrap() < out.find("┃ 1. `spam.example`").unwrap());
+        assert!(
+            out.find("┃ 1. `chat.whatsapp.com`").unwrap()
+                < out.find("┃ 1. `spam.example`").unwrap()
+        );
     }
 
     #[test]

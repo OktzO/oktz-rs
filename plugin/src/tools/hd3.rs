@@ -160,7 +160,10 @@ mod tests {
     #[test]
     fn output_sama_dengan_js_bukan_gambar() {
         let r = hd3(ctx_kosong());
-        assert_eq!(body(&r), "✨ *FITUR HD ENHANCE V3 (UNBLUR)*\n\nFitur canggih untuk memperbaiki gambar yang buram (blur) menjadi jelas dan tajam kembali menggunakan kecerdasan buatan!\n\n*Cara Penggunaan:*\n- Kirim gambar dan tambahkan pesan *.hd3*\n- Atau balas (reply) gambar yang sudah terkirim dengan perintah *.hd3*\n\n_Proses rendering mungkin memerlukan waktu beberapa saat._");
+        assert_eq!(
+            body(&r),
+            "✨ *FITUR HD ENHANCE V3 (UNBLUR)*\n\nFitur canggih untuk memperbaiki gambar yang buram (blur) menjadi jelas dan tajam kembali menggunakan kecerdasan buatan!\n\n*Cara Penggunaan:*\n- Kirim gambar dan tambahkan pesan *.hd3*\n- Atau balas (reply) gambar yang sudah terkirim dengan perintah *.hd3*\n\n_Proses rendering mungkin memerlukan waktu beberapa saat._"
+        );
     }
 
     #[test]

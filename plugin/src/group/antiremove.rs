@@ -1,9 +1,10 @@
 //! `plugins/group/antiremove.js` — sakelar anti hapus pesan.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
-pub(crate) const ON: &str = "✅ *AntiRemove diaktifkan*\n> Pesan yang dihapus akan di-forward ulang.";
+pub(crate) const ON: &str =
+    "✅ *AntiRemove diaktifkan*\n> Pesan yang dihapus akan di-forward ulang.";
 pub(crate) const OFF: &str = "❌ *AntiRemove dinonaktifkan*";
 pub(crate) const BAD_ACTION: &str = "❌ Gunakan `.antiremove on` atau `.antiremove off`";
 
@@ -34,7 +35,11 @@ pub fn antiremove(ctx: Ctx) -> Reply {
             .unwrap_or("off");
         return Reply::text(format!(
             "🗑️ *AntiRemove*\n\n> Status: *{}*\n\n> `.antiremove on/off`",
-            if status == "on" { "✅ Aktif" } else { "❌ Nonaktif" }
+            if status == "on" {
+                "✅ Aktif"
+            } else {
+                "❌ Nonaktif"
+            }
         ));
     }
 
@@ -104,10 +109,7 @@ mod tests {
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(p.meta.is_admin);
-        assert!(
-            !p.meta.is_bot_admin,
-            "pluginConfig hanya isBotAdmin: false"
-        );
+        assert!(!p.meta.is_bot_admin, "pluginConfig hanya isBotAdmin: false");
     }
 
     #[test]
@@ -137,7 +139,10 @@ mod tests {
             "{}",
             text_of(&run(serde_json::json!({"antiremove": "on"}), ""))
         );
-        for group in [serde_json::json!({"antiremove": true}), serde_json::json!({"antiremove": "ON"})] {
+        for group in [
+            serde_json::json!({"antiremove": true}),
+            serde_json::json!({"antiremove": "ON"}),
+        ] {
             let r = run(group.clone(), "");
             assert!(
                 text_of(&r).contains("❌ Nonaktif"),
@@ -177,7 +182,10 @@ mod tests {
 
     #[test]
     fn other_group_fields_are_left_alone_by_the_patch() {
-        let r = run(serde_json::json!({"antiremove": "off", "welcome": true}), "on");
+        let r = run(
+            serde_json::json!({"antiremove": "off", "welcome": true}),
+            "on",
+        );
         assert_eq!(written(&r), &serde_json::json!({ "antiremove": "on" }));
     }
 }

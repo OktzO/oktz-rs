@@ -107,12 +107,27 @@ pub fn addexp(ctx: Ctx) -> Reply {
     let new_level = calculate_level(new_exp);
     if new_level > calculate_level(old) {
         rpg.insert("level".into(), serde_json::json!(new_level));
-        rpg.insert("maxHealth".into(), serde_json::json!(100 + (new_level - 1) * 10));
-        rpg.insert("maxMana".into(), serde_json::json!(100 + (new_level - 1) * 5));
-        rpg.insert("maxStamina".into(), serde_json::json!(100 + (new_level - 1) * 5));
-        rpg.insert("health".into(), serde_json::json!(100 + (new_level - 1) * 10));
+        rpg.insert(
+            "maxHealth".into(),
+            serde_json::json!(100 + (new_level - 1) * 10),
+        );
+        rpg.insert(
+            "maxMana".into(),
+            serde_json::json!(100 + (new_level - 1) * 5),
+        );
+        rpg.insert(
+            "maxStamina".into(),
+            serde_json::json!(100 + (new_level - 1) * 5),
+        );
+        rpg.insert(
+            "health".into(),
+            serde_json::json!(100 + (new_level - 1) * 10),
+        );
         rpg.insert("mana".into(), serde_json::json!(100 + (new_level - 1) * 5));
-        rpg.insert("stamina".into(), serde_json::json!(100 + (new_level - 1) * 5));
+        rpg.insert(
+            "stamina".into(),
+            serde_json::json!(100 + (new_level - 1) * 5),
+        );
     }
 
     Reply::text(format!(
@@ -231,8 +246,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             text: "250".into(),
             args: vec!["250".into()],
             sender: SENDER.into(),
@@ -297,8 +312,16 @@ mod tests {
 
     #[test]
     fn existing_rpg_fields_survive_the_write() {
-        let r = run("1", serde_json::json!({ "exp": 0, "rpg": { "gold": 12 } }), None);
+        let r = run(
+            "1",
+            serde_json::json!({ "exp": 0, "rpg": { "gold": 12 } }),
+            None,
+        );
         let rpg = written_rpg(&r);
-        assert_eq!(rpg["gold"], serde_json::json!(12), "field lain tidak boleh hilang");
+        assert_eq!(
+            rpg["gold"],
+            serde_json::json!(12),
+            "field lain tidak boleh hilang"
+        );
     }
 }

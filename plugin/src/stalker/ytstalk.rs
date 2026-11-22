@@ -52,7 +52,10 @@ pub(crate) fn caption(c: &Value, username: &str) -> String {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
         _ => "-".to_string(),
     };
-    let verified = if c.get("verified").is_some_and(crate::common::js_truthy_value) {
+    let verified = if c
+        .get("verified")
+        .is_some_and(crate::common::js_truthy_value)
+    {
         "Ya"
     } else {
         "Tidak"
@@ -102,13 +105,11 @@ pub fn ytstalk(ctx: Ctx) -> Reply {
     let body = res.json().unwrap_or(Value::Null);
     // `!res.data?.status || !res.data?.data` — dua-duanya menghasilkan teks
     // yang sama, jadi satu syarat cukup: `status` truthy DAN `data` ada.
-    let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
-    let Some(c) = body
-        .get("data")
-        .filter(|v| status_ok && !v.is_null())
-    else {
-        return Reply::text(format!("❌ Channel *{username}* tidak ditemukan"))
-            .with_reaction("❌");
+    let status_ok = body
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value);
+    let Some(c) = body.get("data").filter(|v| status_ok && !v.is_null()) else {
+        return Reply::text(format!("❌ Channel *{username}* tidak ditemukan")).with_reaction("❌");
     };
 
     Reply::image(
@@ -343,7 +344,11 @@ mod tests {
             Value::Null,
         ] {
             let r = run_dengan_kunci(Stub::body(body.clone()), "mrbeast");
-            assert_eq!(text_of(&r), "❌ Channel *mrbeast* tidak ditemukan", "body {body}");
+            assert_eq!(
+                text_of(&r),
+                "❌ Channel *mrbeast* tidak ditemukan",
+                "body {body}"
+            );
             assert_eq!(reaction_of(&r), Some("❌"), "body {body}");
         }
     }

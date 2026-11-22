@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use oktz_plugin_api::berkas::BerkasNyata;
 use oktz_plugin_api::UreqHttp;
+use oktz_plugin_api::berkas::BerkasNyata;
 use oktz_router::ParseOptions;
 use oktz_store::json_store::JsonStore;
 use whatsapp_rust::prelude::*;
 
 use crate::creds;
-use crate::pairing_run::{self, FalseLogoutGuard};
+use crate::pairing_run::{self, FalseLogoutGuard, PurgePlan};
 use crate::pipeline::{ClientSender, Identity, Pipeline, StoreContext};
 use crate::ui;
 
@@ -108,22 +108,34 @@ pub fn load_identity<I: IntoIterator<Item = String>>(
     let mut owners_set: HashSet<String> = owners.into_iter().collect();
     let mut premium_set: HashSet<String> = HashSet::new();
     let mut partner_set: HashSet<String> = HashSet::new();
-    let dir = settings.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let dir = settings
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
 
     // owner.json
     if let Ok(store) = JsonStore::open(dir.join("owner.json"))
-        && let Some(arr) = store.all().as_array() {
-            for v in arr {
-                if let Some(s) = v.as_str() { owners_set.insert(s.to_string()); }
+        && let Some(arr) = store.all().as_array()
+    {
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                owners_set.insert(s.to_string());
             }
         }
+    }
 
     // premium.json / partner.json — bentuk objek {premium:[...]} atau array langsung.
-    for (file, set) in [("premium.json", &mut premium_set), ("partner.json", &mut partner_set)] {
+    for (file, set) in [
+        ("premium.json", &mut premium_set),
+        ("partner.json", &mut partner_set),
+    ] {
         if let Ok(store) = JsonStore::open(dir.join(file)) {
             let root = store.all();
-            let arr = root.as_array()
-                .or_else(|| root.get(file.trim_end_matches(".json")).and_then(serde_json::Value::as_array))
+            let arr = root
+                .as_array()
+                .or_else(|| {
+                    root.get(file.trim_end_matches(".json"))
+                        .and_then(serde_json::Value::as_array)
+                })
                 .or_else(|| root.get("premium").and_then(serde_json::Value::as_array))
                 .or_else(|| root.get("partner").and_then(serde_json::Value::as_array))
                 .or_else(|| root.get("partners").and_then(serde_json::Value::as_array));
@@ -132,9 +144,14 @@ pub fn load_identity<I: IntoIterator<Item = String>>(
                     if let Some(s) = v.as_str() {
                         set.insert(s.to_string());
                     } else if let Some(obj) = v.as_object()
-                        && let Some(s) = obj.get("jid").or_else(|| obj.get("number")).or_else(|| obj.get("id")).and_then(serde_json::Value::as_str) {
-                            set.insert(s.to_string());
-                        }
+                        && let Some(s) = obj
+                            .get("jid")
+                            .or_else(|| obj.get("number"))
+                            .or_else(|| obj.get("id"))
+                            .and_then(serde_json::Value::as_str)
+                    {
+                        set.insert(s.to_string());
+                    }
                 }
             }
         }
@@ -143,20 +160,45 @@ pub fn load_identity<I: IntoIterator<Item = String>>(
     // settings.json
     if let Ok(store) = JsonStore::open(settings) {
         let root = store.all();
-        if let Some(arr) = root.get("ownerNumbers").and_then(serde_json::Value::as_array) {
-            for v in arr { if let Some(s)=v.as_str() { owners_set.insert(s.to_string()); } }
+        if let Some(arr) = root
+            .get("ownerNumbers")
+            .and_then(serde_json::Value::as_array)
+        {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    owners_set.insert(s.to_string());
+                }
+            }
         }
-        if let Some(arr) = root.get("premiumUsers").and_then(serde_json::Value::as_array) {
-            for v in arr { if let Some(s)=v.as_str() { premium_set.insert(s.to_string()); } }
+        if let Some(arr) = root
+            .get("premiumUsers")
+            .and_then(serde_json::Value::as_array)
+        {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    premium_set.insert(s.to_string());
+                }
+            }
         }
-        if let Some(arr) = root.get("partnerUsers").and_then(serde_json::Value::as_array) {
-            for v in arr { if let Some(s)=v.as_str() { partner_set.insert(s.to_string()); } }
+        if let Some(arr) = root
+            .get("partnerUsers")
+            .and_then(serde_json::Value::as_array)
+        {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    partner_set.insert(s.to_string());
+                }
+            }
         }
     }
 
     // owner & partner ikut premium (sama seperti config.js)
-    for o in owners_set.clone() { premium_set.insert(o); }
-    for p in partner_set.clone() { premium_set.insert(p); }
+    for o in owners_set.clone() {
+        premium_set.insert(o);
+    }
+    for p in partner_set.clone() {
+        premium_set.insert(p);
+    }
 
     Identity {
         owners: owners_set,
@@ -239,7 +281,13 @@ pub fn wiring_from_with_config(
         identity: load_identity(settings, owners),
         bot_id: bot_id.into(),
         config,
-        db_owners: owner_entries(settings.parent().map(|p| p.join("owner.json")).as_deref().unwrap_or(Path::new("owner.json"))),
+        db_owners: owner_entries(
+            settings
+                .parent()
+                .map(|p| p.join("owner.json"))
+                .as_deref()
+                .unwrap_or(Path::new("owner.json")),
+        ),
         live: Mutex::new(None),
         turso: Mutex::new(None),
         turso_task: Mutex::new(None),
@@ -283,7 +331,9 @@ impl PipelineWiring {
                         match mirror_sqlite_table(&store, &conn, &db_path, table).await {
                             Ok(0) => {}
                             Ok(n) => tracing::info!(table, n, "[turso] tabel session termirror"),
-                            Err(e) => tracing::warn!(error = %e, table, "[turso] mirror tabel gagal"),
+                            Err(e) => {
+                                tracing::warn!(error = %e, table, "[turso] mirror tabel gagal")
+                            }
                         }
                     }
                 }
@@ -299,7 +349,13 @@ impl PipelineWiring {
         // settings.json bisa di root `database/` (sibling `wa/`) atau di
         // `database/main/` (parent berisi `wa/`).
         let dir = self.ctx.path.parent()?;
-        let kandidat = [dir.join("wa").join("oktz-run.db"), dir.parent().map(|p| p.join("wa")).unwrap_or_default().join("oktz-run.db")];
+        let kandidat = [
+            dir.join("wa").join("oktz-run.db"),
+            dir.parent()
+                .map(|p| p.join("wa"))
+                .unwrap_or_default()
+                .join("oktz-run.db"),
+        ];
         kandidat.into_iter().find(|p| p.exists())
     }
 
@@ -365,7 +421,9 @@ impl PipelineWiring {
     pub fn spawn_flush_task(self: &Arc<Self>) {
         {
             let mut slot = self.turso_task.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(h) = slot.take() { h.abort(); }
+            if let Some(h) = slot.take() {
+                h.abort();
+            }
         }
         let this = Arc::clone(self);
         let h = tokio::spawn(async move {
@@ -386,12 +444,7 @@ impl PipelineWiring {
 
     /// Satu siklus flush. `pub(crate)` supaya test bisa memanggil langsung.
     pub async fn flush_once_turso(&self) {
-        let Some((store, _)) = self
-            .turso
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-        else {
+        let Some((store, _)) = self.turso.lock().unwrap_or_else(|e| e.into_inner()).clone() else {
             return;
         };
         if !self.ctx.take_dirty_turso() {
@@ -519,7 +572,9 @@ pub async fn build_device(c: &creds::Creds) -> Result<whatsapp_rust::wacore::sto
     // karena node `<device-identity>` tetap dikirim tapi tak bisa divalidasi peer.
     let account_utuh = |a: &crate::creds::AccountJson| {
         a.details.as_deref().is_some_and(|s| !s.is_empty())
-            && a.account_signature_key.as_deref().is_some_and(|s| !s.is_empty())
+            && a.account_signature_key
+                .as_deref()
+                .is_some_and(|s| !s.is_empty())
     };
     match c.account.as_ref() {
         Some(a) if account_utuh(a) => {
@@ -724,6 +779,22 @@ where
     pairing_run::connect_device_guarded_with_purge(store, creds, plan, on_ready).await
 }
 
+/// [`connect_device_guarded_with_purge`] + store Turso: purge `session_state`
+/// di Turso saat logout dipercaya (backup `purged-<ts>` dulu).
+pub async fn connect_device_guarded_with_turso<F, Fut>(
+    store: SqliteStore,
+    creds: serde_json::Value,
+    plan: pairing_run::PurgePlan,
+    turso: Option<oktz_store::turso::TursoStore>,
+    on_ready: F,
+) -> Result<(BotHandle, Arc<FalseLogoutGuard>)>
+where
+    F: Fn(Arc<Client>) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = ()> + Send + 'static,
+{
+    pairing_run::connect_device_guarded_with_turso(store, creds, plan, turso, on_ready).await
+}
+
 /// Boot bot dan pump handle; `on_ready` dipanggil setelah connect.
 ///
 /// Guard 401 sudah terpasang di setiap jalur ini — termasuk jalur produksi.
@@ -834,14 +905,12 @@ pub async fn mirror_sqlite_table(
 
     // ponytail: baca kolom dinamis via pragma + JSON1 (bawaan sqlite), row
     // diserialisasi `json_object`. Upgrade path: skema kolom asli per tabel.
-    let cols: Vec<String> = sql_query(format!(
-        "SELECT name FROM pragma_table_info('{table}')"
-    ))
-    .load::<Kolom>(&mut conn_sqlite)
-    .map_err(|e| anyhow::anyhow!("pragma {table}: {e}"))?
-    .into_iter()
-    .map(|k| k.name)
-    .collect();
+    let cols: Vec<String> = sql_query(format!("SELECT name FROM pragma_table_info('{table}')"))
+        .load::<Kolom>(&mut conn_sqlite)
+        .map_err(|e| anyhow::anyhow!("pragma {table}: {e}"))?
+        .into_iter()
+        .map(|k| k.name)
+        .collect();
 
     if cols.is_empty() {
         return Ok(0);
@@ -874,7 +943,15 @@ pub async fn mirror_sqlite_table(
         mirror_rows.push((b.rowid, v));
     }
     store
-        .upsert_mirror_rows(conn, table, mirror_rows.iter().map(|(k, v)| (*k, v)).collect::<Vec<_>>().as_slice())
+        .upsert_mirror_rows(
+            conn,
+            table,
+            mirror_rows
+                .iter()
+                .map(|(k, v)| (*k, v))
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
         .await?;
     Ok(rows.len())
 }
@@ -941,9 +1018,9 @@ where
             // Mirror Turso (Task 2/4 plan): boot sync sekali, lalu flush
             // write-behind tiap interval. Turso mati = warning, bukan gagal
             // boot.
-            if let Some(t) = turso_conn {
+            if let Some(t) = turso_conn.as_ref() {
                 let wiring = Arc::new(w);
-                wiring.boot_and_spawn_turso(t, interval);
+                wiring.boot_and_spawn_turso(t.clone(), interval);
                 Some(wiring)
             } else {
                 Some(Arc::new(w))
@@ -962,12 +1039,18 @@ where
         tracing::info!(settings = %settings.display(), "pipeline pesan siap");
     }
 
-    let (handle, _guard) = connect_device_guarded(store, creds, move |client: Arc<Client>| {
-        if let Some(w) = &wiring {
-            w.attach(&client);
-        }
-        on_ready(client)
-    })
+    let (handle, _guard) = connect_device_guarded_with_turso(
+        store,
+        creds,
+        PurgePlan::resolve(),
+        turso_conn,
+        move |client: Arc<Client>| {
+            if let Some(w) = &wiring {
+                w.attach(&client);
+            }
+            on_ready(client)
+        },
+    )
     .await?;
     Ok(handle)
 }
@@ -999,15 +1082,19 @@ mod tests {
     #[tokio::test]
     async fn mirror_sqlite_table_copies_rows_and_upserts() {
         use oktz_store::turso::TursoStore;
-        let dir = std::env::temp_dir().join(format!("oktz-mirror-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let dir = std::env::temp_dir().join(format!(
+            "oktz-mirror-{}",
+            SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let db_path = dir.join("lokal.db");
         let _ = std::fs::remove_file(&db_path);
         // SQLite lokal dengan diesel (jalur yang sama dengan produksi).
-        use diesel::prelude::*;
         use diesel::connection::SimpleConnection;
+        use diesel::prelude::*;
         {
-            let mut c = diesel::sqlite::SqliteConnection::establish(db_path.to_str().unwrap()).unwrap();
+            let mut c =
+                diesel::sqlite::SqliteConnection::establish(db_path.to_str().unwrap()).unwrap();
             c.batch_execute(
                 "CREATE TABLE identities (nama TEXT, kunci BLOB);
                  INSERT INTO identities VALUES ('satu', x'0102');
@@ -1015,21 +1102,41 @@ mod tests {
             )
             .unwrap();
         }
-        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
         let conn = db.connect().unwrap();
         let t = TursoStore::with_conn(conn.clone());
-        let n = mirror_sqlite_table(&t, &conn, &db_path, "identities").await.unwrap();
+        let n = mirror_sqlite_table(&t, &conn, &db_path, "identities")
+            .await
+            .unwrap();
         assert_eq!(n, 2);
-        let mut rows = conn.query("SELECT v FROM identities ORDER BY k", ()).await.unwrap();
+        let mut rows = conn
+            .query("SELECT v FROM identities ORDER BY k", ())
+            .await
+            .unwrap();
         let v1: serde_json::Value = serde_json::from_str(
-            &rows.next().await.unwrap().unwrap().get::<String>(0).unwrap(),
-        ).unwrap();
+            &rows
+                .next()
+                .await
+                .unwrap()
+                .unwrap()
+                .get::<String>(0)
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(v1["nama"], "satu");
         assert_eq!(v1["kunci"], "0102", "BLOB harus jadi hex di JSON");
         // Mirror ulang = upsert, bukan duplikasi.
-        let n2 = mirror_sqlite_table(&t, &conn, &db_path, "identities").await.unwrap();
+        let n2 = mirror_sqlite_table(&t, &conn, &db_path, "identities")
+            .await
+            .unwrap();
         assert_eq!(n2, 2);
-        let mut cnt = conn.query("SELECT COUNT(*) FROM identities", ()).await.unwrap();
+        let mut cnt = conn
+            .query("SELECT COUNT(*) FROM identities", ())
+            .await
+            .unwrap();
         let c: i64 = cnt.next().await.unwrap().unwrap().get(0).unwrap();
         assert_eq!(c, 2);
     }
@@ -1037,12 +1144,18 @@ mod tests {
     #[tokio::test]
     async fn flush_once_turso_writes_only_when_dirty() {
         use oktz_store::turso::TursoStore;
-        let dir = std::env::temp_dir().join(format!("oktz-flushonce-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let dir = std::env::temp_dir().join(format!(
+            "oktz-flushonce-{}",
+            SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("settings.json");
         std::fs::write(&path, r#"{"users":{"628111":{"koin":3}}}"#).unwrap();
         let wiring = Arc::new(wiring_from(&path, Vec::<String>::new(), "bot").unwrap());
-        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
         let conn = db.connect().unwrap();
         let t = TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
@@ -1071,7 +1184,10 @@ mod tests {
 
     #[test]
     fn session_db_path_sits_next_to_settings() {
-        let dir = std::env::temp_dir().join(format!("oktz-sessdb-{}", SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let dir = std::env::temp_dir().join(format!(
+            "oktz-sessdb-{}",
+            SEQ_TEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(dir.join("wa")).unwrap();
         std::fs::write(dir.join("settings.json"), "{}").unwrap();
         std::fs::write(dir.join("wa").join("oktz-run.db"), "").unwrap();
@@ -1204,7 +1320,8 @@ mod tests {
             vec!["6281".to_string(), "6282".to_string()]
         );
 
-        let missing = std::env::temp_dir().join(format!("oktz-bot-missing-owner-{}", std::process::id()));
+        let missing =
+            std::env::temp_dir().join(format!("oktz-bot-missing-owner-{}", std::process::id()));
         assert!(owner_entries(&missing).is_empty());
     }
 
@@ -1226,7 +1343,10 @@ mod tests {
         // ini tidak boleh menggagalkan boot hanya karena itu.
         assert_eq!(bot_id_from(&serde_json::Value::Null), DEFAULT_BOT_ID);
         assert_eq!(bot_id_from(&serde_json::json!({})), DEFAULT_BOT_ID);
-        assert_eq!(bot_id_from(&serde_json::json!({"me": {"id": "  "}})), DEFAULT_BOT_ID);
+        assert_eq!(
+            bot_id_from(&serde_json::json!({"me": {"id": "  "}})),
+            DEFAULT_BOT_ID
+        );
         assert_eq!(
             bot_id_from(&serde_json::json!({"me": {"id": "6281@s.whatsapp.net"}})),
             "6281@s.whatsapp.net"

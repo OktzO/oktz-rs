@@ -10,7 +10,7 @@
 //! seperti `src/lib/axios`/`UreqHttp` sudah dipakai plugin lain di folder ini.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::js_truthy;
 

@@ -47,7 +47,11 @@ pub(crate) fn is_global_action(action: &str) -> bool {
     is_bot_admin = false
 )]
 pub fn welcomeall(ctx: Ctx) -> Reply {
-    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let action = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
     if !is_global_action(&action) {
         return Reply::text(usage(&ctx.prefix));
     }
@@ -84,7 +88,10 @@ mod tests {
         assert_eq!(p.meta.name, "welcomeall");
         assert_eq!(p.meta.alias, ["wcall", "globalwelcome"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Aktifkan/nonaktifkan welcome di semua grup");
+        assert_eq!(
+            p.meta.description,
+            "Aktifkan/nonaktifkan welcome di semua grup"
+        );
         assert_eq!(p.meta.usage, ".welcomeall <on/off>");
         assert_eq!(p.meta.example, ".welcomeall on");
         assert_eq!(p.meta.cooldown, 10);

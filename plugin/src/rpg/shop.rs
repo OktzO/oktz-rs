@@ -1,7 +1,7 @@
 //! `plugins/rpg/shop.js` — beli dan jual item RPG.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::inventory_map;
@@ -236,7 +236,11 @@ mod tests {
         // (`plugins.js:539`), jadi alias `beli` bukan milik shop.
         assert_eq!(oktz_plugin_api::find("beli").unwrap().meta.name, "beli");
         for a in ["jual", "toko", "store", "sell"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "shop", "alias {a}");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "shop",
+                "alias {a}"
+            );
         }
     }
 
@@ -300,7 +304,10 @@ mod tests {
     #[test]
     fn selling_the_whole_stack_writes_zero_instead_of_deleting_the_key() {
         // Tidak seperti `merchant.js`, `shop.js` tidak pernah `delete`.
-        let r = run(&["sell", "trash", "3"], serde_json::json!({"inventory": {"trash": 3}}));
+        let r = run(
+            &["sell", "trash", "3"],
+            serde_json::json!({"inventory": {"trash": 3}}),
+        );
         let d = written(&r);
         assert_eq!(d["inventory"]["trash"], serde_json::json!(0));
         assert_eq!(d["koin"], serde_json::json!(30), "3 * 10");
@@ -308,7 +315,10 @@ mod tests {
 
     #[test]
     fn selling_more_than_the_stock_is_refused_with_both_numbers() {
-        let r = run(&["sell", "gold", "2"], serde_json::json!({"inventory": {"gold": 1}}));
+        let r = run(
+            &["sell", "gold", "2"],
+            serde_json::json!({"inventory": {"gold": 1}}),
+        );
         let t = text_of(&r);
         assert!(t.contains("Kamu cuma punya *1x 🥇 Emas*"), "{t}");
         assert!(t.contains("masa mau jual *2*?"), "{t}");
@@ -318,10 +328,16 @@ mod tests {
     #[test]
     fn an_unknown_or_missing_item_name_says_itu() {
         let t = text(run(&["buy", "nasi"], serde_json::json!({})));
-        assert!(t.starts_with("Aduh kak, barang *nasi* nggak ada di daftar!"), "{t}");
+        assert!(
+            t.starts_with("Aduh kak, barang *nasi* nggak ada di daftar!"),
+            "{t}"
+        );
 
         let t = text(run(&["buy"], serde_json::json!({})));
-        assert!(t.starts_with("Aduh kak, barang *itu* nggak ada di daftar!"), "{t}");
+        assert!(
+            t.starts_with("Aduh kak, barang *itu* nggak ada di daftar!"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -340,7 +356,11 @@ mod tests {
             vec!["buy", "egg", "abc"],
         ] {
             let r = run(&args, serde_json::json!({"koin": 10_000}));
-            assert_eq!(written(&r)["inventory"]["egg"], serde_json::json!(1), "{args:?}");
+            assert_eq!(
+                written(&r)["inventory"]["egg"],
+                serde_json::json!(1),
+                "{args:?}"
+            );
             assert_eq!(written(&r)["koin"], serde_json::json!(9900), "{args:?}");
         }
     }

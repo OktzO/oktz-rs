@@ -39,8 +39,7 @@ pub(crate) fn help(prefix: &str) -> String {
 pub(crate) const BAD_URL: &str = "❌ *URL tidak valid. Gunakan link MediaFire.*";
 
 /// `mediafiredl.js:52` — respons tanpa `download.link_download`.
-pub(crate) const NO_LINK: &str =
-    "❌ Gagal mendapatkan link download. File mungkin tidak tersedia.";
+pub(crate) const NO_LINK: &str = "❌ Gagal mendapatkan link download. File mungkin tidak tersedia.";
 
 /// Bagian hasil `mediafire` (`src/scraper/mediafire.js:72-82`) yang dibaca
 /// plugin: `meta.title`, `download.link_download`, dan `download.mimetype`.
@@ -327,7 +326,10 @@ mod tests {
     #[test]
     fn the_file_name_prefers_the_page_title_plus_the_extension() {
         assert_eq!(
-            get_file_name(&file("Contoh Video", "https://d.example/a%20video.mp4?k=1"), 0),
+            get_file_name(
+                &file("Contoh Video", "https://d.example/a%20video.mp4?k=1"),
+                0
+            ),
             "Contoh Video.mp4"
         );
         // `directName` yang sudah punya titik: pakai apa adanya, ekstensi URL diabaikan.
@@ -363,7 +365,10 @@ mod tests {
             "https://www.mediafire.com/file/xxx",
             "<html><body>kosong</body></html>",
         ));
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "mfdl"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "mfdl")
+        );
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "🕕"),
             "reaksi jam harus tetap ada di cabang catch"
@@ -373,7 +378,10 @@ mod tests {
     #[test]
     fn a_parsed_page_is_sent_as_a_document_named_by_get_file_name() {
         let http = stub(HALAMAN);
-        let r = (oktz_plugin_api::find("mediafiredl").unwrap().handler)(ctx_http(http.clone(), "https://www.mediafire.com/file/xxx"));
+        let r = (oktz_plugin_api::find("mediafiredl").unwrap().handler)(ctx_http(
+            http.clone(),
+            "https://www.mediafire.com/file/xxx",
+        ));
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "🕕"),
             "reaksi jam tetap jadi reaksi terakhir di jalur sukses"

@@ -149,13 +149,12 @@ fn find_ci(hay: &[char], needle: &str) -> Option<usize> {
     if n.is_empty() || n.len() > hay.len() {
         return None;
     }
-    (0..=hay.len() - n.len())
-        .find(|&i| {
-            hay[i..i + n.len()]
-                .iter()
-                .zip(&n)
-                .all(|(a, b)| a.to_lowercase().eq(b.to_lowercase()))
-        })
+    (0..=hay.len() - n.len()).find(|&i| {
+        hay[i..i + n.len()]
+            .iter()
+            .zip(&n)
+            .all(|(a, b)| a.to_lowercase().eq(b.to_lowercase()))
+    })
 }
 
 /// `--name=(\w+)` lalu `toLowerCase()`.
@@ -217,7 +216,13 @@ fn flag_logic(full: &str) -> Option<String> {
     for end in (start + 1)..=hay.len() {
         let stop = end == hay.len() || (hay[end].is_whitespace() && starts_flag_at(&hay, end));
         if stop {
-            return Some(hay[start..end].iter().collect::<String>().trim().to_string());
+            return Some(
+                hay[start..end]
+                    .iter()
+                    .collect::<String>()
+                    .trim()
+                    .to_string(),
+            );
         }
         if hay[end] == '\n' || hay[end] == '\r' {
             return None;
@@ -257,7 +262,10 @@ fn response_label(response_type: &str) -> &'static str {
 
 /// `[...Object.keys(characters), ...Object.keys(personas), "custom"].join(", ")`
 fn key_list(personas: &Map<String, Value>) -> String {
-    let mut parts: Vec<String> = CHARACTERS.iter().map(|(key, ..)| (*key).to_string()).collect();
+    let mut parts: Vec<String> = CHARACTERS
+        .iter()
+        .map(|(key, ..)| (*key).to_string())
+        .collect();
     parts.extend(personas.keys().cloned());
     parts.push("custom".to_string());
     parts.join(", ")
@@ -293,7 +301,10 @@ fn active_text(
     if let Some(line) = logic_line {
         txt.push_str(&line);
     }
-    txt.push_str(&format!("┃ 📢 Response: *{}*\n", response_label(response_type)));
+    txt.push_str(&format!(
+        "┃ 📢 Response: *{}*\n",
+        response_label(response_type)
+    ));
     txt.push_str(&format!("┃ 👤 Diaktifkan: @{sender_number}\n"));
     txt.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
     txt.push_str("> ℹ️ Semua command (kecuali owner) dinonaktifkan\n");
@@ -305,7 +316,13 @@ fn active_text(
     txt
 }
 
-fn config_value(character: &str, character_name: &str, instruction: &str, flags: &Flags, sender: &str) -> Value {
+fn config_value(
+    character: &str,
+    character_name: &str,
+    instruction: &str,
+    flags: &Flags,
+    sender: &str,
+) -> Value {
     serde_json::json!({
         "enabled": true,
         "character": character,
@@ -823,7 +840,13 @@ mod tests {
         }
     }
 
-    fn run_with(args: &[&str], settings: Value, is_group: bool, is_admin: bool, is_owner: bool) -> Reply {
+    fn run_with(
+        args: &[&str],
+        settings: Value,
+        is_group: bool,
+        is_admin: bool,
+        is_owner: bool,
+    ) -> Reply {
         let roster = GroupRoster {
             participants: vec![p(ME, is_admin)],
             is_bot_admin: true,
@@ -852,7 +875,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn setting_written(r: &Reply, key: &str) -> Value {
@@ -879,7 +905,10 @@ mod tests {
             p.meta.usage,
             ".autoai on/off --persona=<character|custom> --logic=<custom instruction> --type=<text|voice> --mode=<onlychat|assistant>"
         );
-        assert_eq!(p.meta.example, ".autoai on --persona=furina --type=voice --mode=onlychat");
+        assert_eq!(
+            p.meta.example,
+            ".autoai on --persona=furina --type=voice --mode=onlychat"
+        );
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
@@ -901,15 +930,24 @@ mod tests {
     #[test]
     fn a_plain_member_cannot_use_it() {
         let r = run_with(&["listpersona"], Value::Null, true, false, false);
-        assert_eq!(text_of(&r), "❌ Hanya admin yang bisa menggunakan fitur ini!");
+        assert_eq!(
+            text_of(&r),
+            "❌ Hanya admin yang bisa menggunakan fitur ini!"
+        );
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn no_argument_prints_the_usage_board() {
         let t = text_of(&run(&[]));
-        assert!(t.starts_with("🤖 *ᴀᴜᴛᴏ ᴀɪ*\n\n> Mengaktifkan/menonaktifkan auto AI response"), "{t}");
-        assert!(t.contains("*Karakter bawaan:*\n> furina - Furina\n> zeta - Zeta"), "{t}");
+        assert!(
+            t.starts_with("🤖 *ᴀᴜᴛᴏ ᴀɪ*\n\n> Mengaktifkan/menonaktifkan auto AI response"),
+            "{t}"
+        );
+        assert!(
+            t.contains("*Karakter bawaan:*\n> furina - Furina\n> zeta - Zeta"),
+            "{t}"
+        );
         assert!(t.contains("> waguri - Waguri\n"), "{t}");
         assert!(t.contains("> bell409 - Bell409\n"), "{t}");
         assert!(t.contains("\n*Global:* ❌ Nonaktif\n"), "{t}");
@@ -921,7 +959,10 @@ mod tests {
     fn the_board_shows_custom_personas_only_when_there_are_some() {
         let s = serde_json::json!({ "autoai_personas": { "nexa": { "name": "Nexa", "instruction": "kamu nexa" } } });
         let t = text_of(&run_with(&[], s.clone(), true, true, false));
-        assert!(t.contains("*Karakter custom:*\n> nexa - Nexa (custom)"), "{t}");
+        assert!(
+            t.contains("*Karakter custom:*\n> nexa - Nexa (custom)"),
+            "{t}"
+        );
 
         let t = text_of(&run_with(&[], Value::Null, true, true, false));
         assert!(!t.contains("Karakter custom"), "{t}");
@@ -942,7 +983,10 @@ mod tests {
         assert!(t.contains("┃ 📢 Response: *🎤 Voice Note*\n"), "{t}");
         assert!(t.contains("┃ 👤 Diaktifkan: @628111\n"), "{t}");
         assert!(t.contains("> ℹ️ Response dalam bentuk voice note\n"), "{t}");
-        assert!(t.ends_with("> ℹ️ Ketik *.autoai off* untuk menonaktifkan"), "{t}");
+        assert!(
+            t.ends_with("> ℹ️ Ketik *.autoai off* untuk menonaktifkan"),
+            "{t}"
+        );
 
         let stored = setting_written(&r, AUTOAI_KEY);
         let cfg = &stored[CHAT];
@@ -976,7 +1020,10 @@ mod tests {
         let s = serde_json::json!({ "autoai": { "other@g.us": { "enabled": true, "character": "furina" } } });
         let r = run_with(&["on", "--persona=furina"], s, true, true, false);
         let stored = setting_written(&r, AUTOAI_KEY);
-        assert_eq!(stored["other@g.us"]["character"], serde_json::json!("furina"));
+        assert_eq!(
+            stored["other@g.us"]["character"],
+            serde_json::json!("furina")
+        );
         assert_eq!(stored[CHAT]["enabled"], serde_json::json!(true));
     }
 
@@ -1010,7 +1057,10 @@ mod tests {
         let stored = setting_written(&r, AUTOAI_KEY);
         assert_eq!(stored[CHAT]["character"], serde_json::json!("custom"));
         assert_eq!(stored[CHAT]["characterName"], serde_json::json!("Custom"));
-        assert_eq!(stored[CHAT]["instruction"], serde_json::json!("kamu adalah nexa ai"));
+        assert_eq!(
+            stored[CHAT]["instruction"],
+            serde_json::json!("kamu adalah nexa ai")
+        );
     }
 
     #[test]
@@ -1018,7 +1068,9 @@ mod tests {
         let s = serde_json::json!({ "autoai_personas": { "nexa": { "name": "Nexa", "instruction": "x" } } });
         let t = text_of(&run_with(&["on"], s, true, true, false));
         assert!(
-            t.contains("> Karakter tersedia: furina, zeta, kobo, elaina, waguri, bell409, nexa, custom\n"),
+            t.contains(
+                "> Karakter tersedia: furina, zeta, kobo, elaina, waguri, bell409, nexa, custom\n"
+            ),
             "{t}"
         );
     }
@@ -1028,10 +1080,18 @@ mod tests {
         let r = run(&["on", "--persona=animegirl"]);
         let t = text_of(&r);
         assert!(t.starts_with("❌ Karakter tidak valid!"), "{t}");
-        assert!(t.contains("> Karakter tersedia: furina, zeta, kobo, elaina, waguri, bell409, custom\n"), "{t}");
+        assert!(
+            t.contains(
+                "> Karakter tersedia: furina, zeta, kobo, elaina, waguri, bell409, custom\n"
+            ),
+            "{t}"
+        );
         // `--persona` ada tapi tidak dikenal -> varian JS `autoai.js:433`, yang
         // TIDAK punya baris `> Custom:` (itu hanya untuk `!charKey`, `:359`).
-        assert!(t.ends_with("> Contoh: .autoai on --persona=furina --type=voice"), "{t}");
+        assert!(
+            t.ends_with("> Contoh: .autoai on --persona=furina --type=voice"),
+            "{t}"
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -1070,17 +1130,34 @@ mod tests {
         // `ctx.text` = teks SETELAH kata command (serialize.js:407), jadi
         // "tambahpersona" bukan bagian dari args.
         let r = run_owner(
-            &["tambahpersona", "Nexa", "AI", "|", "kamu", "adalah", "nexa", "|", "ai", "secepatnya"],
+            &[
+                "tambahpersona",
+                "Nexa",
+                "AI",
+                "|",
+                "kamu",
+                "adalah",
+                "nexa",
+                "|",
+                "ai",
+                "secepatnya",
+            ],
             Value::Null,
         );
         let personas = setting_written(&r, PERSONAS_KEY);
         assert_eq!(personas["nexa_ai"]["name"], serde_json::json!("Nexa AI"));
-        assert_eq!(personas["nexa_ai"]["instruction"], serde_json::json!("kamu adalah nexa|ai secepatnya"));
+        assert_eq!(
+            personas["nexa_ai"]["instruction"],
+            serde_json::json!("kamu adalah nexa|ai secepatnya")
+        );
         assert_eq!(personas["nexa_ai"]["createdBy"], serde_json::json!(ME));
         let t = text_of(&r);
         assert!(t.starts_with("✅ *Persona ditambahkan*"), "{t}");
         assert!(t.contains("> Nama: Nexa AI\n> Key: nexa_ai\n"), "{t}");
-        assert!(t.ends_with("> Gunakan: .autoai on --persona=nexa_ai"), "{t}");
+        assert!(
+            t.ends_with("> Gunakan: .autoai on --persona=nexa_ai"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -1146,7 +1223,10 @@ mod tests {
             "autoai_global": { "enabled": true },
         });
         let t = text_of(&run_with(&["listpersona"], s, true, true, false));
-        assert!(t.starts_with("🤖 *ᴅᴀғᴛᴀʀ ᴘᴇʀsᴏɴᴀ*\n\n*Bawaan:*\n  ▸ furina - Furina\n"), "{t}");
+        assert!(
+            t.starts_with("🤖 *ᴅᴀғᴛᴀʀ ᴘᴇʀsᴏɴᴀ*\n\n*Bawaan:*\n  ▸ furina - Furina\n"),
+            "{t}"
+        );
         assert!(t.contains("  ▸ bell409 - Bell409\n\n*Custom:*\n"), "{t}");
         assert!(
             t.contains("  ▸ nexa - Nexa (0123456789012345678901234567890123456789...)\n"),
@@ -1154,13 +1234,20 @@ mod tests {
         );
         assert!(t.contains("*Global:* ✅ Aktif\n"), "{t}");
         assert!(t.ends_with("> .autoai global on/off"), "{t}");
-        assert!(run_with(&["listpersona"], Value::Null, true, true, false).mutations().is_empty());
+        assert!(
+            run_with(&["listpersona"], Value::Null, true, true, false)
+                .mutations()
+                .is_empty()
+        );
     }
 
     #[test]
     fn listpersona_says_so_when_there_is_no_custom_persona() {
         let t = text_of(&run(&["listpersona"]));
-        assert!(t.contains("*Custom:*\n  ▸ (belum ada custom persona)\n"), "{t}");
+        assert!(
+            t.contains("*Custom:*\n  ▸ (belum ada custom persona)\n"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -1178,12 +1265,18 @@ mod tests {
 
     #[test]
     fn global_on_stores_the_resolved_persona() {
-        let r = run_owner(&["global", "on", "--persona=furina", "--type=voice"], Value::Null);
+        let r = run_owner(
+            &["global", "on", "--persona=furina", "--type=voice"],
+            Value::Null,
+        );
         let t = text_of(&r);
         assert!(t.starts_with("🌐 *ᴀᴜᴛᴏ ᴀɪ ɢʟᴏʙᴀʟ ᴅɪᴀᴋᴛɪғᴋᴀɴ*"), "{t}");
         assert!(t.contains("┃ 🎭 Karakter: *Furina*\n"), "{t}");
         assert!(t.contains("┃ 📢 Response: *🎤 Voice Note*\n"), "{t}");
-        assert!(t.ends_with("> ℹ️ Ketik *.autoai global off* untuk menonaktifkan"), "{t}");
+        assert!(
+            t.ends_with("> ℹ️ Ketik *.autoai global off* untuk menonaktifkan"),
+            "{t}"
+        );
         let g = setting_written(&r, GLOBAL_KEY);
         assert_eq!(g["enabled"], serde_json::json!(true));
         assert_eq!(g["character"], serde_json::json!("furina"));
@@ -1238,7 +1331,11 @@ mod tests {
         );
         let g = setting_written(&r, GLOBAL_KEY);
         assert_eq!(g["enabled"], serde_json::json!(false));
-        assert_eq!(g["character"], serde_json::json!("furina"), "isi lain tidak boleh hilang");
+        assert_eq!(
+            g["character"],
+            serde_json::json!("furina"),
+            "isi lain tidak boleh hilang"
+        );
     }
 
     #[test]
@@ -1252,27 +1349,43 @@ mod tests {
 
     #[test]
     fn enable_and_disable_command_flip_the_flag() {
-        let active = serde_json::json!({ "autoai": { CHAT: { "enabled": true, "character": "furina" } } });
+        let active =
+            serde_json::json!({ "autoai": { CHAT: { "enabled": true, "character": "furina" } } });
 
         let r = run_with(&["enablecommand"], active.clone(), true, true, false);
         let t = text_of(&r);
         assert!(t.starts_with("✅ *ᴇɴᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅ*"), "{t}");
-        assert!(t.ends_with("_Gunakan .autoai disablecommand untuk menonaktifkan_"), "{t}");
+        assert!(
+            t.ends_with("_Gunakan .autoai disablecommand untuk menonaktifkan_"),
+            "{t}"
+        );
         let stored = setting_written(&r, AUTOAI_KEY);
         assert_eq!(stored[CHAT]["enableCommands"], serde_json::json!(true));
-        assert_eq!(stored[CHAT]["character"], serde_json::json!("furina"), "field lain tetap utuh");
+        assert_eq!(
+            stored[CHAT]["character"],
+            serde_json::json!("furina"),
+            "field lain tetap utuh"
+        );
 
-        let s = serde_json::json!({ "autoai": { CHAT: { "enabled": true, "enableCommands": true } } });
+        let s =
+            serde_json::json!({ "autoai": { CHAT: { "enabled": true, "enableCommands": true } } });
         let r = run_with(&["disablecommand"], s, true, true, false);
         let t = text_of(&r);
         assert!(t.starts_with("🔒 *ᴅɪsᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅ*"), "{t}");
-        assert!(t.ends_with("_Gunakan .autoai enablecommand untuk mengaktifkan kembali_"), "{t}");
-        assert_eq!(setting_written(&r, AUTOAI_KEY)[CHAT]["enableCommands"], serde_json::json!(false));
+        assert!(
+            t.ends_with("_Gunakan .autoai enablecommand untuk mengaktifkan kembali_"),
+            "{t}"
+        );
+        assert_eq!(
+            setting_written(&r, AUTOAI_KEY)[CHAT]["enableCommands"],
+            serde_json::json!(false)
+        );
     }
 
     #[test]
     fn toggling_the_same_value_only_reports() {
-        let enabled = serde_json::json!({ "autoai": { CHAT: { "enabled": true, "enableCommands": true } } });
+        let enabled =
+            serde_json::json!({ "autoai": { CHAT: { "enabled": true, "enableCommands": true } } });
         let r = run_with(&["enablecommand"], enabled.clone(), true, true, false);
         assert_eq!(
             text_of(&r),
@@ -1292,8 +1405,14 @@ mod tests {
     #[test]
     fn flags_are_matched_case_insensitively() {
         let r = run(&["on", "--PERSONA=FURINA", "--TYPE=VOICE"]);
-        assert_eq!(setting_written(&r, AUTOAI_KEY)[CHAT]["character"], serde_json::json!("furina"));
-        assert_eq!(setting_written(&r, AUTOAI_KEY)[CHAT]["responseType"], serde_json::json!("voice"));
+        assert_eq!(
+            setting_written(&r, AUTOAI_KEY)[CHAT]["character"],
+            serde_json::json!("furina")
+        );
+        assert_eq!(
+            setting_written(&r, AUTOAI_KEY)[CHAT]["responseType"],
+            serde_json::json!("voice")
+        );
     }
 
     #[test]
@@ -1315,8 +1434,14 @@ mod tests {
     #[test]
     fn a_word_flag_needs_at_least_one_word_character() {
         assert_eq!(Flags::parse("on --persona=").char_key, None);
-        assert_eq!(Flags::parse("on --persona=fu rina").char_key.as_deref(), Some("fu"));
-        assert_eq!(Flags::parse("on --persona=furina-2").char_key.as_deref(), Some("furina"));
+        assert_eq!(
+            Flags::parse("on --persona=fu rina").char_key.as_deref(),
+            Some("fu")
+        );
+        assert_eq!(
+            Flags::parse("on --persona=furina-2").char_key.as_deref(),
+            Some("furina")
+        );
     }
 
     #[test]

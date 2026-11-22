@@ -8,8 +8,7 @@
 //! cuma menampung satu emoji; reaksi akhir (`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Value};
-
+use serde_json::Value;
 
 /// `muslimai.js:20`.
 const ENDPOINT: &str = "https://www.muslimai.io/api/chat";
@@ -25,7 +24,11 @@ fn js_string(v: Option<&Value>) -> String {
         Some(Value::String(s)) => s.clone(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => n.to_string(),
-        Some(Value::Array(a)) => a.iter().map(|v| js_string(Some(v))).collect::<Vec<_>>().join(","),
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|v| js_string(Some(v)))
+            .collect::<Vec<_>>()
+            .join(","),
         Some(Value::Object(_)) => "[object Object]".into(),
     }
 }
@@ -90,10 +93,10 @@ pub fn muslimai(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
-    use serde_json::Value;
     use super::*;
+    use oktz_plugin_api::HttpGet;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -137,7 +140,10 @@ mod tests {
             unimplemented!("plugin ini hanya POST JSON")
         }
         fn post_json(&self, url: &str, body: &Value) -> Result<HttpResponse, HttpError> {
-            self.seen.lock().unwrap().push((url.into(), body.to_string()));
+            self.seen
+                .lock()
+                .unwrap()
+                .push((url.into(), body.to_string()));
             self.respond()
         }
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
@@ -176,7 +182,10 @@ mod tests {
         assert_eq!(p.meta.name, "muslimai");
         assert_eq!(p.meta.alias, ["islamai", "quranai"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(p.meta.description, "AI untuk bertanya tentang Islam dan Al-Quran");
+        assert_eq!(
+            p.meta.description,
+            "AI untuk bertanya tentang Islam dan Al-Quran"
+        );
         assert_eq!(p.meta.usage, ".muslimai <pertanyaan>");
         assert_eq!(p.meta.example, ".muslimai Apa itu sholat?");
         assert_eq!(p.meta.cooldown, 5);
@@ -239,7 +248,10 @@ mod tests {
         let raw = "<html>gateway</html>";
         assert_eq!(parse(raw), raw, "body mentah jadi cadangan");
         assert_eq!(parse(""), "");
-        assert_eq!(parse(r#"{"type":"tool","data":"x"}"#), r#"{"type":"tool","data":"x"}"#);
+        assert_eq!(
+            parse(r#"{"type":"tool","data":"x"}"#),
+            r#"{"type":"tool","data":"x"}"#
+        );
     }
 
     #[test]
@@ -260,7 +272,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "Apa itu sholat?");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "muslimai"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "muslimai")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

@@ -269,18 +269,36 @@ fn nilai_placeholder(nama: &str, k: &KonteksPesan<'_>) -> Option<String> {
         "user" => format!("@{}", nama_tampilan(k.nomor)),
         "number" => nama_tampilan(k.nomor).to_string(),
         // `groupName || "Grup"` (welcome.js:23).
-        "group" => if k.nama_grup.is_empty() { "Grup".to_string() } else { k.nama_grup.to_string() },
+        "group" => {
+            if k.nama_grup.is_empty() {
+                "Grup".to_string()
+            } else {
+                k.nama_grup.to_string()
+            }
+        }
         // `groupDesc || ""` (welcome.js:24) — tanpa potong 120.
         "desc" => k.deskripsi.unwrap_or("").to_string(),
         // `memberCount?.toString() || "0"` (welcome.js:25).
         "count" => k.jumlah_member.to_string(),
         // `groupOwner || "Admin"` (welcome.js:26).
-        "owner" => if k.owner_grup.is_empty() { "Admin".to_string() } else { k.owner_grup.to_string() },
+        "owner" => {
+            if k.owner_grup.is_empty() {
+                "Admin".to_string()
+            } else {
+                k.owner_grup.to_string()
+            }
+        }
         "date" => k.tanggal.to_string(),
         "time" => k.jam.to_string(),
         "day" => k.hari.to_string(),
         // `config.bot?.name || "Bot"` (welcome.js:30).
-        "bot" => if k.bot_nama.is_empty() { "Bot".to_string() } else { k.bot_nama.to_string() },
+        "bot" => {
+            if k.bot_nama.is_empty() {
+                "Bot".to_string()
+            } else {
+                k.bot_nama.to_string()
+            }
+        }
         // Tanpa fallback di JS (welcome.js:31); pemanggil sudah memberi "." kalau
         // kosong (welcome.js:148 `config.command?.prefix || "."`).
         "prefix" => k.prefix.to_string(),
@@ -416,11 +434,23 @@ mod uji {
             ..K
         };
         assert_eq!(
-            susun_welcome(GREETING[3], QUOTE_WELCOME[2], EMOJI_WELCOME[0], pilih_h, &tanpa_desc),
+            susun_welcome(
+                GREETING[3],
+                QUOTE_WELCOME[2],
+                EMOJI_WELCOME[0],
+                pilih_h,
+                &tanpa_desc
+            ),
             "👋🏻 *WELCOME MEMBER BARU* 👋🏻\n\n🌸 Ohayou minna-san!\nSatu teman baru akhirnya join ✨\nSemoga betah dan langsung nimbrung ya~\n🎐 Halo, *@6281234567890* 💫\n\n📌 *INFO GROUP*\n> 🏠 *Nama* : Grup Uji\n> 👥 *Member* : 42\n> 📅 *Tanggal* : 19/10/2026\n\n✨ *Tips Hari Ini*\n> 「 Yuk langsung gas ngobrol! 」\n\n🌸 _Yoroshiku ne~ semoga betah ya!_ 🤍"
         );
         assert_eq!(
-            susun_goodbye(FAREWELL[3], QUOTE_GOODBYE[4], EMOJI_GOODBYE[4], HEADER_GOODBYE[2], &K),
+            susun_goodbye(
+                FAREWELL[3],
+                QUOTE_GOODBYE[4],
+                EMOJI_GOODBYE[4],
+                HEADER_GOODBYE[2],
+                &K
+            ),
             "👋🏻 *SAYONARA MEMBER* 👋🏻\n\n💫 Sayonara~\nBukan akhir, hanya sampai jumpa.\nSemoga hari-harimu selalu hangat.\n😢 Dadah, *@6281234567890* 🤍\n\n📌 *INFO GROUP*\n> 🏠 *Nama* : Grup Uji\n> 👥 *Sisa Member* : 42\n> 📅 *Tanggal* : 19/10/2026\n\n💌 *Pesan*\n> 「 Jaga diri baik-baik ya, tomodachi. 」\n\n🌸 _Sampai jumpa lagi, tomodachi._ 🤍"
         );
     }

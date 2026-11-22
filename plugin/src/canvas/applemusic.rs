@@ -37,11 +37,9 @@ fn termai_key() -> &'static str {
 fn upload_cover(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let url = format!("https://c.termai.cc/api/upload?key={}", termai_key());
     let res = http
-        .call(
-            &HttpCall::post(&url).multipart(vec![
-                MultipartPart::file("file", "image.jpg", buffer.to_vec()).with_mimetype("image/jpeg"),
-            ]),
-        )
+        .call(&HttpCall::post(&url).multipart(vec![
+            MultipartPart::file("file", "image.jpg", buffer.to_vec()).with_mimetype("image/jpeg"),
+        ]))
         .map_err(|e: HttpError| format!("upload gagal: {}", e.message))?;
     let data = res.json().unwrap_or(Value::Null);
     if let Some(Value::String(p)) = data.get("path") {
@@ -70,8 +68,7 @@ fn apple_music_url(title: &str, artist: &str, cover_url: &str) -> String {
 }
 
 /// Pesan gagal gabung (JS `catch` tangkap semua: upload, API).
-const GAGAL_CANVAS: &str =
-    "Maaf, gagal membuat canvas Apple Music. Coba lagi beberapa saat.";
+const GAGAL_CANVAS: &str = "Maaf, gagal membuat canvas Apple Music. Coba lagi beberapa saat.";
 
 #[plugin(
     name = "applemusic-canvas",
@@ -90,8 +87,8 @@ const GAGAL_CANVAS: &str =
     is_bot_admin = false
 )]
 pub fn applemusic(ctx: Ctx) -> Reply {
-    let is_image = ctx.is_media_kind(IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image());
+    let is_image =
+        ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image());
     let text = ctx.text.trim();
     if !is_image || text.is_empty() || !text.contains('|') {
         return Reply::text(help(&ctx.prefix));
@@ -230,18 +227,17 @@ mod tests {
             command: "applemusic-canvas".into(),
             http: http.clone(),
             media_fetch: http,
-            media: if is_image {
-                Some(media_image())
-            } else {
-                None
-            },
+            media: if is_image { Some(media_image()) } else { None },
             ..Ctx::default()
         };
         applemusic(ctx)
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaction_of(r: &Reply) -> Option<String> {
@@ -294,9 +290,13 @@ mod tests {
             lain => panic!("harus image, dapat {lain:?}"),
         }
         let seen = http.seen.lock().unwrap();
-        assert!(seen.iter().any(|u| u.contains("c.termai.cc/api/upload")), "{seen:?}");
         assert!(
-            seen.iter().any(|u| u.contains("my.izuka-api.xyz/api/canvas/apple-music")),
+            seen.iter().any(|u| u.contains("c.termai.cc/api/upload")),
+            "{seen:?}"
+        );
+        assert!(
+            seen.iter()
+                .any(|u| u.contains("my.izuka-api.xyz/api/canvas/apple-music")),
             "{seen:?}"
         );
     }
@@ -412,7 +412,13 @@ mod tests {
         assert_eq!(p.meta.energi, 2);
         // `applemusic` juga nama `plugins/search/applemusic.js`; nama
         // didahulukan (`plugins.js:539`).
-        assert_eq!(oktz_plugin_api::find("applemusic").unwrap().meta.name, "applemusic");
-        assert_eq!(oktz_plugin_api::find("applecanvas").unwrap().meta.name, "applemusic-canvas");
+        assert_eq!(
+            oktz_plugin_api::find("applemusic").unwrap().meta.name,
+            "applemusic"
+        );
+        assert_eq!(
+            oktz_plugin_api::find("applecanvas").unwrap().meta.name,
+            "applemusic-canvas"
+        );
     }
 }
