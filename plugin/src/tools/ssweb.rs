@@ -10,11 +10,7 @@ const THUM: &str = "https://image.thum.io/get";
 
 /// `width` dari mode (`ssweb.js:20-22`).
 pub(crate) fn lebar(mode: &str) -> u32 {
-    if mode == "mobile" {
-        720
-    } else {
-        1920
-    }
+    if mode == "mobile" { 720 } else { 1920 }
 }
 
 /// `apiUrl` (`ssweb.js:22`).
@@ -36,7 +32,11 @@ pub(crate) fn pakai(prefix: &str) -> String {
 /// Pisahkan opsi `--mobile`/`--hp` dari URL (`ssweb.js:44-47`).
 pub(crate) fn pisah_mode_opsi(text: &str) -> (&str, String) {
     if text.contains("--mobile") || text.contains("--hp") {
-        let bersih = text.replace("--mobile", "").replace("--hp", "").trim().to_string();
+        let bersih = text
+            .replace("--mobile", "")
+            .replace("--hp", "")
+            .trim()
+            .to_string();
         ("mobile", bersih)
     } else {
         ("desktop", text.to_string())
@@ -73,12 +73,23 @@ pub fn ssweb(ctx: Ctx) -> Reply {
     };
 
     let Ok(res) = ctx.http.get(&api_url(&url, mode)) else {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let bytes = res.body.bytes().to_vec();
 
+    // thum.io bisa balas 403/500 dengan body HTML — bukan gambar.
+    if res.status >= 400 || !adalah_gambar(&bytes) {
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
+    }
+
     Reply::image(MediaSource::bytes(bytes), String::new()).with_reaction("✅")
+}
+
+/// Magic bytes PNG/JPEG/WEBP — body HTML error page ditolak di sini.
+fn adalah_gambar(b: &[u8]) -> bool {
+    b.starts_with(b"\x89PNG")
+        || b.starts_with(b"\xFF\xD8\xFF")
+        || (b.len() > 12 && &b[..4] == b"RIFF" && &b[8..12] == b"WEBP")
 }
 
 #[cfg(test)]
@@ -89,6 +100,7 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct Stub {
+        status: Option<u16>,
         bytes: Option<Vec<u8>>,
         seen: Mutex<Vec<String>>,
     }
@@ -96,6 +108,7 @@ mod tests {
     impl Stub {
         fn body(b: Vec<u8>) -> Arc<Stub> {
             Arc::new(Stub {
+                status: Some(200),
                 bytes: Some(b),
                 seen: Mutex::new(Vec::new()),
             })
@@ -110,7 +123,7 @@ mod tests {
             self.seen.lock().unwrap().push(url.to_string());
             match &self.bytes {
                 Some(b) => Ok(HttpResponse {
-                    status: 200,
+                    status: self.status.unwrap_or(200),
                     body: HttpBody::Bytes {
                         data: Arc::from(b.clone()),
                         mimetype: None,
@@ -225,13 +238,17 @@ mod tests {
         let _ = pisah_mode_opsi("google.com");
         // menangani manual karena pisah_mode_opsi mengembalikan tuple
         let (_, url) = pisah_mode_opsi("google.com");
-        let url = if url.starts_with("http") { url } else { format!("https://{url}") };
+        let url = if url.starts_with("http") {
+            url
+        } else {
+            format!("https://{url}")
+        };
         assert_eq!(url, "https://google.com");
     }
 
     #[test]
     fn sukses_mengembalikan_gambar_dengan_reaksi_centang() {
-        let http = Stub::body(b"PNG".to_vec());
+        let http = Stub::body(b"\x89PNG\r\n\x1a\nfakepngdata".to_vec());
         let r = run(http.clone(), "google.com");
         assert_eq!(reaksi(&r), Some("✅"));
         let isi = match r.without_mutations() {
@@ -243,7 +260,7 @@ mod tests {
                 assert_eq!(
                     media,
                     Some(MediaSource::Bytes {
-                        data: Arc::from(b"PNG".to_vec()),
+                        data: Arc::from(b"\x89PNG\r\n\x1a\nfakepngdata".to_vec()),
                         mimetype: None,
                     })
                 );
@@ -252,12 +269,14 @@ mod tests {
         }
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1);
-        assert!(seen[0].starts_with("https://image.thum.io/get/width/1920/crop/1080/noanimate/https://google.com"));
+        assert!(seen[0].starts_with(
+            "https://image.thum.io/get/width/1920/crop/1080/noanimate/https://google.com"
+        ));
     }
 
     #[test]
     fn mobile_menggunakan_lebar_720() {
-        let http = Stub::body(b"PNG".to_vec());
+        let http = Stub::body(b"\x89PNG\r\n\x1a\nfakepngdata".to_vec());
         let _ = run(http.clone(), "google.com --mobile");
         let seen = http.seen.lock().unwrap().clone();
         assert!(seen[0].contains("/width/720/"));
@@ -267,10 +286,35 @@ mod tests {
     fn transport_gagal_error_template_dan_reaksi_sil() {
         let http = Stub::offline();
         let r = run(http, "google.com");
-        assert_eq!(
-            teks(&r),
-            crate::common::error_template_bawaan(".", "ssweb")
-        );
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "ssweb"));
         assert_eq!(reaksi(&r), Some("☢"));
+    }
+
+    /// Status 403 dari thum.io: body bukan gambar → error template, bukan
+    /// `Reply::image` yang mengirim HTML sebagai gambar.
+    #[test]
+    fn status_403_menghasilkan_error_template_bukan_image() {
+        let http = Stub::status(403, b"<html>Forbidden</html>".to_vec());
+        let r = run(http, "google.com");
+        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "ssweb"));
+        assert_eq!(reaksi(&r), Some("☢"));
+    }
+
+    /// Body HTML dengan status 200 (thum.io error page) juga ditolak.
+    #[test]
+    fn body_html_dengan_status_200_ditolak() {
+        let http = Stub::status(200, b"<html>bukan gambar</html>".to_vec());
+        let r = run(http, "google.com");
+        assert_eq!(reaksi(&r), Some("☢"));
+    }
+
+    impl Stub {
+        fn status(code: u16, b: Vec<u8>) -> Arc<Stub> {
+            Arc::new(Stub {
+                status: Some(code),
+                bytes: Some(b),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
     }
 }
