@@ -4158,14 +4158,14 @@ mod tests_roster_state {
     // berkas yang sama, mis. `sticker/attp2.js` yang memakai nama sekaligus
     // alias `attp2`, atau `main/leaderboard.js` yang mengulang
     // `leaderboard`). Tabrakan baru di luar daftar ini berarti port kita.
-    pub(crate) const JS_COLLISIONS: [&str; 48] = [
+    pub(crate) const JS_COLLISIONS: [&str; 49] = [
         "applemusic", "asmaulhusna", "attp2", "audioquran", "backupdb", "beli", "berburu", "block",
         "bratanime", "bucin",
         "cantik", "cc", "cekjodoh", "cupu", "daftar", "discordstalk", "exp", "fakedana",
         "fakegopay",
         "fakeovo", "film", "ganteng", "heapsnap", "inspect", "izen", "kaya", "kill", "leaderboard",
         "leave", "mimpi", "ngemis", "noob", "paptt", "pintar", "pro", "profileig", "qrcode",
-        "smeme-animated", "smemevid", "sroast", "stalkdc", "stats", "tofigure3", "top", "tts", "unblock", "waifu", "wibu",
+        "siapa", "smeme-animated", "smemevid", "sroast", "stalkdc", "stats", "tofigure3", "top", "tts", "unblock", "waifu", "wibu",
     ];
 
     /// Alias yang kalah oleh command plugin lain di JS. Lookup JS mengecek map
