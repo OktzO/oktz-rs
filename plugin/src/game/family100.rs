@@ -326,13 +326,13 @@ fn correct_card(soal: &str, jawaban: &[String], answered: &[String]) -> String {
 /// `family100AnswerHandler` (`family100.js:111-217`) — jawaban main, bukan
 /// command. `None` = `return false` (biarkan plugin lain menangani).
 #[answer_handler]
-pub fn family100_answer(ctx: Ctx) -> Option<Reply> {
+pub fn family100_answer(ctx: &Ctx) -> Option<Reply> {
     let user_answer = ctx.text.trim().to_lowercase();
     if user_answer.is_empty() {
         return None;
     }
 
-    let sesi = session_of(&ctx)?;
+    let sesi = session_of(ctx)?;
     if sesi.get("gameType").and_then(Value::as_str) != Some("family100") {
         return None;
     }
@@ -420,7 +420,7 @@ pub fn family100_answer(ctx: Ctx) -> Option<Reply> {
         }
     });
 
-    let sesi = session_of(&ctx)?;
+    let sesi = session_of(ctx)?;
     let answered = answered_of(&sesi);
     let soal = soal_of(&sesi);
     let total = jawaban.len();
@@ -780,7 +780,7 @@ mod tests {
     #[test]
     fn a_correct_answer_rewards_and_is_recorded() {
         let ctx = answer_ctx(active_sessions(), "sheraton");
-        let r = family100_answer(ctx.clone()).expect("jawaban benar ditangani");
+        let r = family100_answer(&ctx).expect("jawaban benar ditangani");
         let t = text_of(&r);
         assert!(t.contains("Benerrr banget!"), "{t}");
         assert!(t.contains("1. ✅ sheraton"), "{t}");
@@ -794,7 +794,7 @@ mod tests {
     #[test]
     fn a_wrong_answer_without_quoting_is_left_to_other_handlers() {
         let ctx = answer_ctx(active_sessions(), "kucing");
-        assert!(family100_answer(ctx.clone()).is_none());
+        assert!(family100_answer(&ctx).is_none());
         assert_eq!(
             ctx.session_get(SESSIONS_KEY).unwrap()[CHAT]["answered"],
             serde_json::json!([])
@@ -805,14 +805,14 @@ mod tests {
     fn a_wrong_answer_quoting_the_bot_replies_tett() {
         let mut ctx = answer_ctx(active_sessions(), "kucing");
         ctx.quoted = Some(quoted_from_bot());
-        let t = text_of(&family100_answer(ctx).expect("quoted salah ditangani"));
+        let t = text_of(&family100_answer(&ctx).expect("quoted salah ditangani"));
         assert!(t.contains("Tettt! ❌"), "{t}");
     }
 
     #[test]
     fn surrender_reveals_the_remaining_answers_and_ends_the_session() {
         let ctx = answer_ctx(active_sessions(), "nyerah");
-        let t = text_of(&family100_answer(ctx.clone()).expect("nyerah ditangani"));
+        let t = text_of(&family100_answer(&ctx).expect("nyerah ditangani"));
         assert!(t.contains("pada nyerah"), "{t}");
         assert!(t.contains("• sheraton"), "{t}");
         assert!(t.contains("• hilton"), "{t}");
@@ -835,7 +835,7 @@ mod tests {
                 sessions[&chat]["answeredBy"] = serde_json::json!({ "sheraton": SENDER });
             });
         }
-        let r = family100_answer(ctx.clone()).expect("jawaban terakhir ditangani");
+        let r = family100_answer(&ctx).expect("jawaban terakhir ditangani");
         let t = text_of(&r);
         assert!(t.contains("Semua jawaban ketebak"), "{t}");
         assert!(t.contains("@628111"), "{t}");
@@ -850,7 +850,7 @@ mod tests {
     fn a_correct_answer_is_matched_when_the_answer_contains_it() {
         let ctx = answer_ctx(active_sessions(), "hotel sheraton");
         assert!(
-            family100_answer(ctx).is_some(),
+            family100_answer(&ctx).is_some(),
             "`ans.includes(user)` harus cocok"
         );
     }

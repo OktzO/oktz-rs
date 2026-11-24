@@ -270,7 +270,7 @@ fn exp_after(ctx: &Ctx, gain: i64) -> i64 {
 /// `dungeonAnswerHandler` (`dungeon.js:209-402`) — balasan lokasi atau aksi
 /// tempur, bukan command.
 #[answer_handler]
-pub fn dungeon_answer(ctx: Ctx) -> Option<Reply> {
+pub fn dungeon_answer(ctx: &Ctx) -> Option<Reply> {
     let text = ctx.text.trim().to_lowercase();
     if text.is_empty() {
         return None;
@@ -289,17 +289,17 @@ pub fn dungeon_answer(ctx: Ctx) -> Option<Reply> {
                 "⏰ *SESI DUNGEON KEDALUWARSA*\n\n> Sesi dungeon kamu sudah hangus \
                  karena tidak aktif selama 5 menit.",
             )
-            .with_mutation(clear_session(&ctx)),
+            .with_mutation(clear_session(ctx)),
         );
     }
 
-    let raw_level = crate::common::int_field(&ctx, "level");
+    let raw_level = crate::common::int_field(ctx, "level");
     let level = if raw_level == 0 { 1 } else { raw_level };
 
     if matches!(text.as_str(), "batal" | "cancel" | "keluar") {
         return Some(
             Reply::text("🚪 Kamu berhasil keluar dari Lobi Dungeon dengan selamat.")
-                .with_mutation(clear_session(&ctx)),
+                .with_mutation(clear_session(ctx)),
         );
     }
 
@@ -427,7 +427,7 @@ pub fn dungeon_answer(ctx: Ctx) -> Option<Reply> {
                     }
 
                     let mut data = serde_json::Map::new();
-                    data.insert("exp".into(), json!(exp_after(&ctx, exp_reward)));
+                    data.insert("exp".into(), json!(exp_after(ctx, exp_reward)));
                     data.insert("koin".into(), json!(koin.saturating_add(gold).max(0)));
                     data.insert("rpg".into(), json!({ "dungeon_session": null }));
                     if !inventory.is_empty() {
@@ -475,7 +475,7 @@ pub fn dungeon_answer(ctx: Ctx) -> Option<Reply> {
                              Kamu selamat tanpa cedera, tapi petualangan ini sia-sia."
                         ))
                         .with_reaction("💨")
-                        .with_mutation(clear_session(&ctx)),
+                        .with_mutation(clear_session(ctx)),
                     );
                 }
                 let new_health = (health - 25).max(1);
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn picking_a_dungeon_spends_stamina_and_starts_the_encounter() {
-        let r = dungeon_answer(answer_ctx(lobi_user(1), "1")).expect("pilihan ditangani");
+        let r = dungeon_answer(&answer_ctx(lobi_user(1), "1")).expect("pilihan ditangani");
         assert!(text_of(&r).contains("MEMASUKI DUNGEON"));
         let data = answer_mutation(&r);
         assert_eq!(data["rpg"]["stamina"], serde_json::json!(70));
@@ -791,14 +791,14 @@ mod tests {
 
     #[test]
     fn a_locked_dungeon_is_rejected_without_mutation() {
-        let r = dungeon_answer(answer_ctx(lobi_user(1), "10")).expect("ditolak");
+        let r = dungeon_answer(&answer_ctx(lobi_user(1), "10")).expect("ditolak");
         assert!(text_of(&r).contains("DUNGEON TERKUNCI"));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn batal_clears_the_dungeon_session() {
-        let r = dungeon_answer(answer_ctx(lobi_user(1), "batal")).expect("dibatalkan");
+        let r = dungeon_answer(&answer_ctx(lobi_user(1), "batal")).expect("dibatalkan");
         assert!(text_of(&r).contains("keluar dari Lobi Dungeon"));
         assert_eq!(answer_mutation(&r)["rpg"]["dungeon_session"], Value::Null);
     }
@@ -809,7 +809,7 @@ mod tests {
         let user = serde_json::json!({
             "rpg": {"dungeon_session": {"stage": "lobi", "time": stale}},
         });
-        let r = dungeon_answer(answer_ctx(user, "1")).expect("kedaluwarsa");
+        let r = dungeon_answer(&answer_ctx(user, "1")).expect("kedaluwarsa");
         assert!(text_of(&r).contains("SESI DUNGEON KEDALUWARSA"));
         assert_eq!(answer_mutation(&r)["rpg"]["dungeon_session"], Value::Null);
     }
@@ -834,7 +834,7 @@ mod tests {
                 },
             },
         });
-        let r = dungeon_answer(answer_ctx(user, "serang")).expect("serang ditangani");
+        let r = dungeon_answer(&answer_ctx(user, "serang")).expect("serang ditangani");
         let data = answer_mutation(&r);
         assert_eq!(data["rpg"]["dungeon_session"], Value::Null);
         assert!(
@@ -848,7 +848,7 @@ mod tests {
         let user = serde_json::json!({
             "rpg": {"dungeon_session": {"stage": "encounter", "time": crate::common::now_ms()}},
         });
-        let r = dungeon_answer(answer_ctx(user, "halo")).expect("panduan");
+        let r = dungeon_answer(&answer_ctx(user, "halo")).expect("panduan");
         assert!(text_of(&r).contains("PILIHAN TIDAK DIKENAL"));
         assert!(r.mutations().is_empty());
     }

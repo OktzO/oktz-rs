@@ -122,7 +122,7 @@ fn data_peserta<'a>(ctx: &'a Ctx, jid: &str) -> Option<&'a Value> {
 /// ikut terhapus saat pengirim mengetik command. Pengirim tetap menang atas
 /// rantai answer lain: begitu ada balasan, pipeline berhenti.
 #[answer_handler]
-pub fn afk_answer(ctx: Ctx) -> Option<Reply> {
+pub fn afk_answer(ctx: &Ctx) -> Option<Reply> {
     let mut urutan: Vec<Reply> = Vec::new();
     let mut mutasi: Option<Mutation> = None;
 
@@ -152,7 +152,7 @@ pub fn afk_answer(ctx: Ctx) -> Option<Reply> {
             if jid == &ctx.sender {
                 continue;
             }
-            let Some(afk) = data_peserta(&ctx, jid).and_then(afk_aktif).cloned() else {
+            let Some(afk) = data_peserta(ctx, jid).and_then(afk_aktif).cloned() else {
                 continue;
             };
             let kunci = format!("afk_notify:{}|{}", ctx.sender, jid);
@@ -378,7 +378,7 @@ mod tests {
             &[],
             &[],
         );
-        let r = afk_answer(ctx).expect("harus menangani");
+        let r = afk_answer(&ctx).expect("harus menangani");
         let all = semua_teks(&r);
         assert!(all.contains("ᴀꜰᴋ ʙᴇʀᴀᴋʜɪʀ"), "{all}");
         assert!(all.contains("1 jam 5 menit"), "{all}");
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn tanpa_afk_tidak_menangani() {
         let ctx = grup(serde_json::json!({}), &[], &[]);
-        assert!(afk_answer(ctx).is_none());
+        assert!(afk_answer(&ctx).is_none());
     }
 
     #[test]
@@ -409,13 +409,13 @@ mod tests {
                 serde_json::json!({ "afk": { "reason": "tidur", "since": crate::common::now_ms() - 120_000 } }),
             )],
         );
-        let first = afk_answer(ctx.clone()).expect("harus notify");
+        let first = afk_answer(&ctx).expect("harus notify");
         let all = semua_teks(&first);
         assert!(all.contains("ᴜsᴇʀ ᴀꜰᴋ"), "{all}");
         assert!(all.contains("tidur"), "{all}");
         assert!(first.mutations().is_empty(), "notify tidak menulis store");
         // Panggilan kedua dalam window throttle: tidak ada balasan lagi.
-        assert!(afk_answer(ctx).is_none());
+        assert!(afk_answer(&ctx).is_none());
     }
 
     #[test]
@@ -430,7 +430,7 @@ mod tests {
             )],
         );
         ctx.is_group = false;
-        assert!(afk_answer(ctx).is_none());
+        assert!(afk_answer(&ctx).is_none());
     }
 
     #[test]
@@ -440,7 +440,7 @@ mod tests {
             &[],
             &[],
         );
-        let r = afk_answer(ctx).expect("harus menangani");
+        let r = afk_answer(&ctx).expect("harus menangani");
         match balasan_pertama(&r).without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(mentions.as_slice(), [SENDER]),
             other => panic!("harus Text, dapat {other:?}"),

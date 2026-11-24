@@ -320,7 +320,7 @@ fn koin_of(ctx: &Ctx, jid: &str) -> i64 {
 /// `answerHandler` (`tictactoe.js:233-334`) — balasan angka 1-9 atau
 /// `nyerah` untuk room yang sedang berjalan.
 #[answer_handler]
-pub fn tictactoe_answer(ctx: Ctx) -> Option<Reply> {
+pub fn tictactoe_answer(ctx: &Ctx) -> Option<Reply> {
     let text = ctx.text.trim().to_lowercase();
     if text.is_empty() {
         return None;
@@ -366,7 +366,7 @@ pub fn tictactoe_answer(ctx: Ctx) -> Option<Reply> {
             }
             .mutating(vec![Mutation::SetUser {
                 jid: winner.clone(),
-                data: json!({ "koin": koin_of(&ctx, &winner) + 500 }),
+                data: json!({ "koin": koin_of(ctx, &winner) + 500 }),
             }])
             .with_reaction("🏳️"),
         );
@@ -427,7 +427,7 @@ pub fn tictactoe_answer(ctx: Ctx) -> Option<Reply> {
             }
             .mutating(vec![Mutation::SetUser {
                 jid: winner_jid.clone(),
-                data: json!({ "koin": koin_of(&ctx, winner_jid) + 1000 }),
+                data: json!({ "koin": koin_of(ctx, winner_jid) + 1000 }),
             }])
             .with_reaction("🎉"),
         );
@@ -908,7 +908,7 @@ mod tests {
             serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(SENDER, "1", &s)).expect("langkah ditangani");
+        let r = tictactoe_answer(&answer_ctx(SENDER, "1", &s)).expect("langkah ditangani");
         let t = text_of(&r);
         assert!(t.contains("│ ❌ │ 2️⃣ │ 3️⃣ │"), "{t}");
         assert!(t.contains("> Giliran: @628999"), "{t}");
@@ -925,7 +925,7 @@ mod tests {
             serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(OTHER, "1", &s)).expect("ditolak");
+        let r = tictactoe_answer(&answer_ctx(OTHER, "1", &s)).expect("ditolak");
         assert!(text_of(&r).contains("Bukan giliranmu"));
     }
 
@@ -937,7 +937,7 @@ mod tests {
             serde_json::json!(["X", "2", "3", "4", "5", "6", "7", "8", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(SENDER, "1", &s)).expect("ditolak");
+        let r = tictactoe_answer(&answer_ctx(SENDER, "1", &s)).expect("ditolak");
         assert!(text_of(&r).contains("Posisi sudah terisi"));
     }
 
@@ -949,7 +949,7 @@ mod tests {
             serde_json::json!(["X", "X", "3", "O", "O", "6", "7", "8", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(SENDER, "3", &s)).expect("menang");
+        let r = tictactoe_answer(&answer_ctx(SENDER, "3", &s)).expect("menang");
         let t = text_of(&r);
         assert!(t.contains("GAME OVER!"), "{t}");
         assert!(t.contains("@628111 menang"), "{t}");
@@ -978,7 +978,7 @@ mod tests {
             serde_json::json!(["X", "O", "X", "X", "O", "O", "O", "X", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(SENDER, "9", &s)).expect("seri");
+        let r = tictactoe_answer(&answer_ctx(SENDER, "9", &s)).expect("seri");
         assert!(text_of(&r).contains("SERI!"), "{}", text_of(&r));
         assert!(rooms(&s).is_empty());
     }
@@ -991,7 +991,7 @@ mod tests {
             serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
             SENDER,
         );
-        let r = tictactoe_answer(answer_ctx(SENDER, "nyerah", &s)).expect("menyerah");
+        let r = tictactoe_answer(&answer_ctx(SENDER, "nyerah", &s)).expect("menyerah");
         let t = text_of(&r);
         assert!(t.contains("MENYERAH!"), "{t}");
         assert!(t.contains("@628999 menang!"), "{t}");
@@ -1013,6 +1013,6 @@ mod tests {
             serde_json::json!(["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
             SENDER,
         );
-        assert!(tictactoe_answer(answer_ctx(SENDER, "halo", &s)).is_none());
+        assert!(tictactoe_answer(&answer_ctx(SENDER, "halo", &s)).is_none());
     }
 }

@@ -226,7 +226,7 @@ pub fn tembak(ctx: Ctx) -> Reply {
 /// Padanan `answerHandler` (`tembak.js:142-218`): teks persis `terima`/`tolak`
 /// (tanpa prefix) dari target tembakan yang me-reply pesan apa pun.
 #[oktz_plugin_api::answer_handler]
-pub fn tembak_answer(ctx: Ctx) -> Option<Reply> {
+pub fn tembak_answer(ctx: &Ctx) -> Option<Reply> {
     let text = ctx.text.trim().to_lowercase();
     if text != "terima" && text != "tolak" {
         return None;
@@ -546,7 +546,7 @@ mod tests {
                 sessions: sessions.clone(),
                 ..Default::default()
             };
-            assert!(tembak_answer(c).is_none(), "teks {teks_masuk:?} harus ditolak");
+            assert!(tembak_answer(&c).is_none(), "teks {teks_masuk:?} harus ditolak");
         }
         // Teks valid tapi tanpa quoted → None.
         let c = Ctx {
@@ -554,7 +554,7 @@ mod tests {
             sessions: sessions.clone(),
             ..Default::default()
         };
-        assert!(tembak_answer(c).is_none());
+        assert!(tembak_answer(&c).is_none());
     }
 
     #[test]
@@ -585,7 +585,7 @@ mod tests {
             sessions: sessions.clone(),
             ..Default::default()
         };
-        let r = tembak_answer(c).expect("harus menangani");
+        let r = tembak_answer(&c).expect("harus menangani");
         assert!(sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none());
         let (emoji, isi) = match r.without_mutations() {
             Reply::Reaction { emoji, reply } => (emoji.clone(), reply.as_ref().clone()),
@@ -640,7 +640,7 @@ mod tests {
             sessions: sessions.clone(),
             ..Default::default()
         };
-        let r = tembak_answer(c).expect("harus menangani");
+        let r = tembak_answer(&c).expect("harus menangani");
         let (emoji, isi) = match r.without_mutations() {
             Reply::Reaction { emoji, reply } => (emoji.clone(), reply.as_ref().clone()),
             other => panic!("harus Reaction, dapat {other:?}"),
@@ -693,6 +693,6 @@ mod tests {
             sessions: sessions.clone(),
             ..Default::default()
         };
-        assert!(tembak_answer(c).is_none(), "sesi kedaluwarsa harus diabaikan");
+        assert!(tembak_answer(&c).is_none(), "sesi kedaluwarsa harus diabaikan");
     }
 }

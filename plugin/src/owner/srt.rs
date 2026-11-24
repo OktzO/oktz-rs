@@ -347,11 +347,11 @@ pub fn srt(ctx: Ctx) -> Reply {
 
 /// `srtAnswerHandler` (`srt.js:173-217`) — menangkap gambar selama sesi aktif.
 #[answer_handler]
-pub fn srt_answer(ctx: Ctx) -> Option<Reply> {
+pub fn srt_answer(ctx: &Ctx) -> Option<Reply> {
     if !ctx.command.is_empty() {
         return None;
     }
-    let s = sesi(&ctx)?;
+    let s = sesi(ctx)?;
     if s.get("sender").and_then(Value::as_str).unwrap_or("") != ctx.sender {
         return None;
     }
@@ -399,7 +399,7 @@ pub fn srt_answer(ctx: Ctx) -> Option<Reply> {
     }
 
     let count = s.get("count").and_then(Value::as_i64).unwrap_or(0) + 1;
-    simpan_sesi(&ctx, count);
+    simpan_sesi(ctx, count);
 
     Some(
         Reply::text(format!(

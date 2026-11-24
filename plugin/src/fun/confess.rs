@@ -196,7 +196,7 @@ pub fn confess(ctx: Ctx) -> Reply {
 /// yang tidak dapat direplikasi dengan `Reply` karena semua balasan
 /// mengikuti `ctx.chat`. Sini hanya mengonfirmasi di chat saat ini.
 #[oktz_plugin_api::answer_handler]
-pub fn confess_reply(ctx: Ctx) -> Option<Reply> {
+pub fn confess_reply(ctx: &Ctx) -> Option<Reply> {
     let quoted = ctx.quoted()?;
     let quoted_id = &quoted.id;
 

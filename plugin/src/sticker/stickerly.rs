@@ -282,7 +282,7 @@ pub fn stickerly(ctx: Ctx) -> Reply {
 /// (`oktz-wa/src/pipeline.rs:2881`). `session.results` yang hilang di JS
 /// melempar TypeError (di luar `try`), di sini menjadi `None`.
 #[oktz_plugin_api::answer_handler]
-pub fn stickerly_answer(ctx: Ctx) -> Option<Reply> {
+pub fn stickerly_answer(ctx: &Ctx) -> Option<Reply> {
     // `if (!m.body || m.isCommand) return false;` (`stickerly.js:75`).
     if ctx.text.trim().is_empty() {
         return None;
@@ -300,7 +300,7 @@ pub fn stickerly_answer(ctx: Ctx) -> Option<Reply> {
                 "⏰ *SESI KEDALUWARSA*\n\nSesi pencarian stickerly sudah berakhir karena \
                  lebih dari 5 menit. Silakan ulangi perintah.",
             )
-            .with_mutation(mutasi_sesi(&ctx, Value::Null)),
+            .with_mutation(mutasi_sesi(ctx, Value::Null)),
         );
     }
 
@@ -309,7 +309,7 @@ pub fn stickerly_answer(ctx: Ctx) -> Option<Reply> {
     if teks == "batal" || teks == "cancel" {
         return Some(
             Reply::text("🚪 Pencarian stickerly dibatalkan.")
-                .with_mutation(mutasi_sesi(&ctx, Value::Null)),
+                .with_mutation(mutasi_sesi(ctx, Value::Null)),
         );
     }
 
@@ -324,7 +324,7 @@ pub fn stickerly_answer(ctx: Ctx) -> Option<Reply> {
     // di JS, jadi API tetap dipanggil dan gagal di jalur normal.
     let url = teks_js(hasil[pilihan as usize - 1].get("url"));
 
-    Some(unduh_pack(&ctx, &url).with_mutation(mutasi_sesi(&ctx, Value::Null)))
+    Some(unduh_pack(ctx, &url).with_mutation(mutasi_sesi(ctx, Value::Null)))
 }
 
 #[cfg(test)]
@@ -744,9 +744,9 @@ mod tests {
 
     #[test]
     fn jawaban_tanpa_sesi_diabaikan() {
-        assert!(stickerly_answer(ctx_jawaban(Stub::offline(), "1", Value::Null)).is_none());
-        assert!(stickerly_answer(ctx_jawaban(Stub::offline(), "   ", Value::Null)).is_none());
-        assert!(stickerly_answer(ctx_jawaban(Stub::offline(), "", Value::Null)).is_none());
+        assert!(stickerly_answer(&ctx_jawaban(Stub::offline(), "1", Value::Null)).is_none());
+        assert!(stickerly_answer(&ctx_jawaban(Stub::offline(), "   ", Value::Null)).is_none());
+        assert!(stickerly_answer(&ctx_jawaban(Stub::offline(), "", Value::Null)).is_none());
         // `user_data` Null (user belum pernah ada di store) — `db.getUser` miss.
         let ctx = Ctx {
             text: "1".into(),
@@ -755,7 +755,7 @@ mod tests {
             http: Stub::offline(),
             ..Ctx::default()
         };
-        assert!(stickerly_answer(ctx).is_none());
+        assert!(stickerly_answer(&ctx).is_none());
     }
 
     #[test]
@@ -765,7 +765,7 @@ mod tests {
             "time": now_ms(),
         });
         for kata in ["batal", "CANCEL", "  Batal  "] {
-            let r = stickerly_answer(ctx_jawaban(Stub::offline(), kata, sesi.clone()))
+            let r = stickerly_answer(&ctx_jawaban(Stub::offline(), kata, sesi.clone()))
                 .expect("harus menjawab");
             assert_eq!(teks_dari(&r), "🚪 Pencarian stickerly dibatalkan.");
             assert_eq!(reaksi(&r), None);
@@ -781,18 +781,18 @@ mod tests {
         });
         for teks in ["0", "3", "abc", "-1"] {
             assert!(
-                stickerly_answer(ctx_jawaban(Stub::offline(), teks, sesi.clone())).is_none(),
+                stickerly_answer(&ctx_jawaban(Stub::offline(), teks, sesi.clone())).is_none(),
                 "{teks}"
             );
         }
         // `parseInt("2abc") = 2` (kuirk parseInt JS) — pack kedua tetap dipilih.
-        let r = stickerly_answer(ctx_jawaban(Stub::offline(), "2abc", sesi.clone()))
+        let r = stickerly_answer(&ctx_jawaban(Stub::offline(), "2abc", sesi.clone()))
             .expect("parseInt berhenti di non-digit");
         assert_eq!(reaksi(&r), None);
         assert!(teks_terakhir(&r).contains("lagi ada kendala"));
         // `session.results` hilang: JS melempar TypeError, di sini `None`.
         let tanpa_hasil = json!({ "time": now_ms() });
-        assert!(stickerly_answer(ctx_jawaban(Stub::offline(), "1", tanpa_hasil)).is_none());
+        assert!(stickerly_answer(&ctx_jawaban(Stub::offline(), "1", tanpa_hasil)).is_none());
     }
 
     #[test]
@@ -805,7 +805,7 @@ mod tests {
             ],
             "time": now_ms(),
         });
-        let r = stickerly_answer(ctx_jawaban(http.clone(), "2", sesi)).expect("harus menjawab");
+        let r = stickerly_answer(&ctx_jawaban(http.clone(), "2", sesi)).expect("harus menjawab");
 
         assert_eq!(reaksi(&r), None, "Sequence tidak bisa dibarengi reaksi");
         let Reply::Sequence(list) = r.without_mutations() else {
@@ -834,7 +834,7 @@ mod tests {
             "results": [{ "name": "Pack", "url": "https://sticker.ly/s/AAA", "author": "A" }],
             "time": now_ms() - SESSION_TIMEOUT_MS - 1,
         });
-        let r = stickerly_answer(ctx_jawaban(http.clone(), "1", sesi)).expect("harus menjawab");
+        let r = stickerly_answer(&ctx_jawaban(http.clone(), "1", sesi)).expect("harus menjawab");
 
         assert!(teks_dari(&r).contains("⏰ *SESI KEDALUWARSA*"), "{}", teks_dari(&r));
         assert_eq!(reaksi(&r), None);

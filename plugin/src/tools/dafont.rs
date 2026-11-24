@@ -151,8 +151,8 @@ pub fn dafont(ctx: Ctx) -> Reply {
 /// `None` = `return false` di JS: bukan balasan angka yang sah, jadi rantai
 /// answer handler lain lanjut.
 #[oktz_plugin_api::answer_handler]
-pub fn dafont_answer(ctx: Ctx) -> Option<Reply> {
-    let sesi = sesi_aktif(&ctx, &ctx.sender)?;
+pub fn dafont_answer(ctx: &Ctx) -> Option<Reply> {
+    let sesi = sesi_aktif(ctx, &ctx.sender)?;
     // `if (m.chat !== session.chat) return false;` (`dafont.js:108`).
     if sesi.get("chat").and_then(Value::as_str) != Some(ctx.chat.as_str()) {
         return None;
@@ -377,7 +377,7 @@ mod tests {
         assert_eq!(data.as_array().unwrap().len(), 10, "slice(0, 10)");
         assert_eq!(data[9]["name"], "Font 10");
         // Index 10 (nomor balasan "11") di luar daftar sesi.
-        assert!(dafont_answer(balasan_dari(&sesi, "11")).is_none());
+        assert!(dafont_answer(&balasan_dari(&sesi, "11")).is_none());
     }
 
     #[test]
@@ -424,7 +424,7 @@ mod tests {
         let sesi = oktz_plugin_api::new_session_store();
         dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
 
-        let r = dafont_answer(balasan_dari(&sesi, " 1 ")).expect("nomor 1 harus ditangani");
+        let r = dafont_answer(&balasan_dari(&sesi, " 1 ")).expect("nomor 1 harus ditangani");
         let isi = urutan(&r);
         assert_eq!(isi.len(), 2, "detail + dokumen");
 
@@ -471,7 +471,7 @@ mod tests {
 
         for body in ["0", "3", "9999", "abc", "", "-2"] {
             assert!(
-                dafont_answer(balasan_dari(&sesi, body)).is_none(),
+                dafont_answer(&balasan_dari(&sesi, body)).is_none(),
                 "body {body:?} tidak boleh ditangani"
             );
         }
@@ -486,7 +486,7 @@ mod tests {
             let sesi = oktz_plugin_api::new_session_store();
             dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
             assert!(
-                dafont_answer(balasan_dari(&sesi, body)).is_some(),
+                dafont_answer(&balasan_dari(&sesi, body)).is_some(),
                 "body {body:?} harus dianggap nomor 1"
             );
         }
@@ -499,14 +499,14 @@ mod tests {
 
         let mut ctx = balasan_dari(&sesi, "1");
         ctx.chat = "120363@g.us".into();
-        assert!(dafont_answer(ctx).is_none());
+        assert!(dafont_answer(&ctx).is_none());
         assert!(sesi_mentah(&sesi).is_some(), "chat lain tidak menghapus sesi");
     }
 
     #[test]
     fn tanpa_sesi_tidak_ditangani() {
         let sesi = oktz_plugin_api::new_session_store();
-        assert!(dafont_answer(balasan_dari(&sesi, "1")).is_none());
+        assert!(dafont_answer(&balasan_dari(&sesi, "1")).is_none());
     }
 
     #[test]
@@ -520,7 +520,7 @@ mod tests {
             s["startedAt"] = json!(crate::common::now_ms() - SESSION_TIMEOUT_MS);
         });
 
-        assert!(dafont_answer(balasan_dari(&sesi, "1")).is_none());
+        assert!(dafont_answer(&balasan_dari(&sesi, "1")).is_none());
         assert!(sesi_mentah(&sesi).is_none(), "sesi basi ikut dibuang");
     }
 
@@ -539,7 +539,7 @@ mod tests {
             crate::common::now_ms() - mulai < SESSION_TIMEOUT_MS,
             "startedAt harus di-reset, bukan melanjutkan yang lama"
         );
-        assert!(dafont_answer(balasan_dari(&sesi, "2")).is_some());
+        assert!(dafont_answer(&balasan_dari(&sesi, "2")).is_some());
     }
 
     #[test]
@@ -548,7 +548,7 @@ mod tests {
         let sesi = oktz_plugin_api::new_session_store();
         dafont(ctx_of(&sesi, "polos", StubHttp::baru(halaman)));
 
-        let r = dafont_answer(balasan_dari(&sesi, "1")).unwrap();
+        let r = dafont_answer(&balasan_dari(&sesi, "1")).unwrap();
         let isi = urutan(&r);
         assert_eq!(isi.len(), 1);
         assert_eq!(

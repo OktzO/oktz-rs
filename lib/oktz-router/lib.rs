@@ -210,7 +210,7 @@ impl<'a, C: RouterContext> Router<'a, C> {
         fill(&mut ctx);
         // JoinError = handler mati sebelum sempat panik-tertangkap → None,
         // paritas try/catch JS (`handler.js:440-473`) yang menelan galat.
-        tokio::task::spawn_blocking(move || oktz_plugin_api::run_answer_handlers(ctx))
+        tokio::task::spawn_blocking(move || oktz_plugin_api::run_answer_handlers(&ctx))
             .await
             .unwrap_or(None)
     }
@@ -328,7 +328,7 @@ mod tests {
     }
 
     #[oktz_plugin_api::answer_handler]
-    fn uji_jawab(ctx: oktz_plugin_api::Ctx) -> Option<oktz_plugin_api::Reply> {
+    fn uji_jawab(ctx: &oktz_plugin_api::Ctx) -> Option<oktz_plugin_api::Reply> {
         if ctx.text != "jawab" {
             return None;
         }
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[oktz_plugin_api::answer_handler]
-    fn uji_jawab_kedua(ctx: oktz_plugin_api::Ctx) -> Option<oktz_plugin_api::Reply> {
+    fn uji_jawab_kedua(ctx: &oktz_plugin_api::Ctx) -> Option<oktz_plugin_api::Reply> {
         if ctx.text != "jawab" {
             return None;
         }

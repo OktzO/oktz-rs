@@ -1509,7 +1509,10 @@ pub fn find(command: &str) -> Option<&'static PluginEntry> {
 // `return false` di JS.
 // ---------------------------------------------------------------------------
 
-pub type AnswerHandlerFn = Arc<dyn Fn(Ctx) -> Option<Reply> + Send + Sync>;
+/// Handler answer menerima `&Ctx`: rantai menelusuri puluhan handler dan
+/// tiap `Ctx` membawa roster + state store, jadi clone per handler (dulu)
+/// membuang MB per pesan non-command di grup besar.
+pub type AnswerHandlerFn = Arc<dyn Fn(&Ctx) -> Option<Reply> + Send + Sync>;
 
 #[doc(hidden)]
 pub type AnswerInit = fn() -> &'static [AnswerHandlerFn];
@@ -1524,12 +1527,12 @@ pub fn all_answer_handlers() -> &'static [&'static [AnswerHandlerFn]] {
     ANSWER_CACHE.get_or_init(|| ANSWER_HANDLERS.iter().map(|f| f()).collect())
 }
 
-pub fn run_answer_handlers(ctx: Ctx) -> Option<Reply> {
+pub fn run_answer_handlers(ctx: &Ctx) -> Option<Reply> {
     all_answer_handlers()
         .iter()
         .flat_map(|list| list.iter())
         .find_map(|f| {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(ctx.clone())))
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(ctx)))
                 .unwrap_or_else(|_| {
                     tracing::error!("answer handler panik, ditahan");
                     None

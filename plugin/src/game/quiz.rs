@@ -385,13 +385,13 @@ pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
 }
 
 /// `answerHandler` (`games.js:183-296`).
-pub(crate) fn answer(cfg: &QuizGame, ctx: Ctx) -> Option<Reply> {
+pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
     let user_answer = ctx.text.trim().to_string();
     if user_answer.is_empty() || user_answer.starts_with('.') {
         return None;
     }
 
-    let session = session_of(&ctx)?;
+    let session = session_of(ctx)?;
     if session.get("gameType").and_then(Value::as_str) != Some(cfg.name) {
         return None;
     }
@@ -465,7 +465,7 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: Ctx) -> Option<Reply> {
                 exp += 50;
             }
 
-            let mut rpg = rpg_map(&ctx);
+            let mut rpg = rpg_map(ctx);
             let old_exp = ctx.user_field("exp").and_then(Value::as_i64).unwrap_or(0);
             exp = apply_exp(&mut rpg, old_exp, exp);
 

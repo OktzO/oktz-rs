@@ -93,7 +93,7 @@ pub fn sulap(ctx: Ctx) -> Reply {
 /// Padanan `replyHandler` (`sulap.js:50-128`) — dijalankan untuk pesan
 /// non-command yang me-quote prompt sulap.
 #[oktz_plugin_api::answer_handler]
-pub fn sulap_reply(ctx: Ctx) -> Option<Reply> {
+pub fn sulap_reply(ctx: &Ctx) -> Option<Reply> {
     let quoted = ctx.quoted()?;
 
     let key = session_key(&ctx.chat, &ctx.sender);
@@ -368,21 +368,21 @@ mod tests {
     #[test]
     fn tanpa_sesi_atau_bukan_quoted_alur_reply_menolak() {
         // Tidak ada sesi → None.
-        let r = sulap_reply(reply_ctx(oktz_plugin_api::new_session_store(), "bot@x"));
+        let r = sulap_reply(&reply_ctx(oktz_plugin_api::new_session_store(), "bot@x"));
         assert!(r.is_none());
         // Tidak me-reply apa pun → None.
         let sessions = oktz_plugin_api::new_session_store();
         sulap(ctx_prompt(sessions.clone()));
         let mut c = reply_ctx(sessions, "bot@x");
         c.quoted = None;
-        assert!(sulap_reply(c).is_none());
+        assert!(sulap_reply(&c).is_none());
     }
 
     #[test]
     fn alur_lengkap_menghapus_sesi_lalu_kick_dengan_dua_pesan() {
         let sessions = oktz_plugin_api::new_session_store();
         sulap(ctx_prompt(sessions.clone()));
-        let r = sulap_reply(reply_ctx(sessions.clone(), "bot@x")).expect("harus menangani");
+        let r = sulap_reply(&reply_ctx(sessions.clone(), "bot@x")).expect("harus menangani");
         // Sesi habis setelah dipakai.
         assert!(sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none());
         let Reply::Sequence(list) = r else {
@@ -426,7 +426,7 @@ mod tests {
         let mut c = reply_ctx(sessions, "bot@x");
         c.mentioned = vec![ME.into()];
         assert_eq!(
-            sulap_reply(c).unwrap().text_body().unwrap(),
+            sulap_reply(&c).unwrap().text_body().unwrap(),
             "🎭 Tidak bisa menghilangkan diri sendiri!"
         );
 
@@ -438,7 +438,7 @@ mod tests {
         roster.participants[1].is_admin = true;
         c.roster = roster;
         assert_eq!(
-            sulap_reply(c).unwrap().text_body().unwrap(),
+            sulap_reply(&c).unwrap().text_body().unwrap(),
             "🛡️ Admin kebal terhadap sihir!"
         );
     }
@@ -450,7 +450,7 @@ mod tests {
         let mut c = reply_ctx(sessions, "bot@x");
         c.mentioned = vec!["628999@s.whatsapp.net".into()];
         assert_eq!(
-            sulap_reply(c).unwrap().text_body().unwrap(),
+            sulap_reply(&c).unwrap().text_body().unwrap(),
             "👻 Orang itu tidak ada di grup!"
         );
     }
@@ -461,7 +461,7 @@ mod tests {
         sulap(ctx_prompt(sessions.clone()));
         let mut c = reply_ctx(sessions, "bot@x");
         c.sock = Arc::new(SockSulap { gagal: true });
-        let text = sulap_reply(c).unwrap().text_body().unwrap().to_string();
+        let text = sulap_reply(&c).unwrap().text_body().unwrap().to_string();
         assert_eq!(text, "😅 Sulapnya gagal...\n\n> not admin");
     }
 
@@ -472,7 +472,7 @@ mod tests {
         let mut c = reply_ctx(sessions, "");
         c.mentioned = vec![];
         assert_eq!(
-            sulap_reply(c).unwrap().text_body().unwrap(),
+            sulap_reply(&c).unwrap().text_body().unwrap(),
             "❌ Mention orangnya dong!"
         );
 
@@ -481,7 +481,7 @@ mod tests {
         sulap(ctx_prompt(sessions.clone()));
         let mut c = reply_ctx(sessions, "628333@s.whatsapp.net");
         c.mentioned = vec![];
-        assert!(sulap_reply(c).is_none());
+        assert!(sulap_reply(&c).is_none());
     }
 
     #[test]
@@ -492,7 +492,7 @@ mod tests {
             session_key("120363@g.us", ME),
             json!({ "admin": ME, "chat": "120363@g.us", "timestamp": now_ms() - EXPIRED_MS }),
         );
-        let r = sulap_reply(reply_ctx(sessions.clone(), "bot@x"));
+        let r = sulap_reply(&reply_ctx(sessions.clone(), "bot@x"));
         assert!(r.is_none(), "sesi kadaluarsa harus ditolak");
         assert!(
             sessions.lock().unwrap().get(&session_key("120363@g.us", ME)).is_none(),
@@ -507,6 +507,6 @@ mod tests {
         ctx_prompt(sessions.clone());
         let mut c = reply_ctx(sessions, "bot@x");
         c.sender = "628444@s.whatsapp.net".into();
-        assert!(sulap_reply(c).is_none());
+        assert!(sulap_reply(&c).is_none());
     }
 }

@@ -36,7 +36,7 @@ pub fn riddle(ctx: Ctx) -> Reply {
 }
 
 #[answer_handler]
-pub fn riddle_answer(ctx: Ctx) -> Option<Reply> {
+pub fn riddle_answer(ctx: &Ctx) -> Option<Reply> {
     answer(&CFG, ctx)
 }
 
@@ -86,7 +86,7 @@ mod tests {
         };
         handler(&CFG, ctx.clone());
         assert!(ctx.session_get(crate::game::quiz::SESSIONS_KEY).is_some());
-        let r = riddle_answer(ctx).expect("nyerah dijawab");
+        let r = riddle_answer(&ctx).expect("nyerah dijawab");
         let teks = r
             .without_mutations()
             .text_body()
