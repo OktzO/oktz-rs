@@ -132,6 +132,9 @@ fn bangun_runtime(cores: usize) -> std::io::Result<tokio::runtime::Runtime> {
         b
     };
     b.enable_all();
+    // Default 512; tiap thread reserve stack 2 MB. Handler plugin + slot
+    // spawn_blocking jauh di bawah ini, dan 64 tetap longgar untuk 4 vCPU.
+    b.max_blocking_threads(64);
     b.build()
 }
 

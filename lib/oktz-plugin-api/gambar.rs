@@ -40,14 +40,17 @@ use std::io::Cursor;
 /// helper ini.
 pub(crate) const BATAS_PX: u64 = 268_402_689;
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn lewat_batas_px(lebar: u32, tinggi: u32) -> bool {
     (lebar as u64).saturating_mul(tinggi as u64) > BATAS_PX
 }
 
-/// Tolak gambar di atas batas piksel SEBELUM decode (baca header saja).
-/// Header yang tak terbaca diteruskan — biarkan decode menolaknya, supaya
-/// pesan error tetap milik titik pemanggil (tidak berubah).
-pub(crate) fn cek_batas(data: &[u8]) -> Result<(), String> {
+/// Batas decode jalur thumbnail (32×32 hasil akhir). 4096² RGBA = 64 MB
+/// sudah cukup untuk gambar apa pun yang pantas jadi thumbnail; 16383²
+/// (batas plugin) = 1 GB, tidak sepadan.
+pub(crate) const BATAS_THUMB_PX: u64 = 4096 * 4096;
+
+fn cek_batas_dgn(data: &[u8], batas: u64) -> Result<(), String> {
     let dim = ImageReader::new(Cursor::new(data))
         .with_guessed_format()
         .ok()
@@ -55,12 +58,24 @@ pub(crate) fn cek_batas(data: &[u8]) -> Result<(), String> {
     let Some((lebar, tinggi)) = dim else {
         return Ok(());
     };
-    if lewat_batas_px(lebar, tinggi) {
+    if (lebar as u64).saturating_mul(tinggi as u64) > batas {
         return Err(format!(
-            "dimensi {lebar}x{tinggi} melebihi batas {BATAS_PX} piksel"
+            "dimensi {lebar}x{tinggi} melebihi batas {batas} piksel"
         ));
     }
     Ok(())
+}
+
+/// Tolak gambar di atas batas piksel SEBELUM decode (baca header saja).
+/// Header yang tak terbaca diteruskan — biarkan decode menolaknya, supaya
+/// pesan error tetap milik titik pemanggil (tidak berubah).
+pub(crate) fn cek_batas(data: &[u8]) -> Result<(), String> {
+    cek_batas_dgn(data, BATAS_PX)
+}
+
+/// [`sharp`] dengan batas [`BATAS_THUMB_PX`] — hanya untuk jalur thumbnail.
+pub fn sharp_thumbnail(data: &[u8]) -> Result<Gambar, String> {
+    sharp_dgn(data, BATAS_THUMB_PX)
 }
 
 /// Padanan `sharp(data)`.
@@ -68,6 +83,10 @@ pub(crate) fn cek_batas(data: &[u8]) -> Result<(), String> {
 /// Mengembalikan `Err` bila `data` bukan berkas gambar yang dikenali
 /// (jpeg/png/webp/gif), bukan `panic`.
 pub fn sharp(data: &[u8]) -> Result<Gambar, String> {
+    sharp_dgn(data, BATAS_PX)
+}
+
+fn sharp_dgn(data: &[u8], batas: u64) -> Result<Gambar, String> {
     let cursor = Cursor::new(data);
     let reader = ImageReader::new(cursor)
         .with_guessed_format()
@@ -82,7 +101,7 @@ pub fn sharp(data: &[u8]) -> Result<Gambar, String> {
         _ => "unknown",
     }
     .to_string();
-    cek_batas(data).map_err(|e| format!("tidak bisa mendecode gambar: {e}"))?;
+    cek_batas_dgn(data, batas).map_err(|e| format!("tidak bisa mendecode gambar: {e}"))?;
     let gambar = reader
         .decode()
         .map_err(|e| format!("tidak bisa mendecode gambar: {e}"))?;
@@ -272,6 +291,21 @@ mod tests {
             panic!("harus ditolak");
         };
         assert!(e.contains("melebihi batas"), "pesan: {e}");
+    }
+
+    #[test]
+    fn thumbnail_menolak_di_atas_batas_thumb() {
+        // SOF0 8000x8000: header saja cukup — dimensi < 16384² lolos batas
+        // plugin, tapi thumbnail menolaknya lebih awal.
+        let d = vec![
+            0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x1F, 0x40, 0x1F, 0x40, 0x01, 0x01, 0x11,
+            0x00,
+        ];
+        let Err(e) = sharp_thumbnail(&d) else {
+            panic!("thumbnail harus menolak 8000²");
+        };
+        assert!(e.contains("melebihi batas"), "pesan: {e}");
+        assert!(e.contains("16777216"), "batas yang disebut batas thumb: {e}");
     }
 
     #[test]

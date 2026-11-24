@@ -1244,6 +1244,9 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
             }
         }
     }
+    // Buffer asli (≤25 MB) hanya dipakai fallback trim di atas; lepas
+    // sebelum rakit `RichAi` supaya puncak RSS tidak menumpuk dua-duanya.
+    drop(asli);
     if html.len() > MAX_HTML_PAYLOAD_BYTES {
         return Err("Kartu HTML terlalu besar untuk klien WhatsApp.".to_string());
     }

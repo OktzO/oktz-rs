@@ -1754,7 +1754,7 @@ impl MessageSender for ClientSender {
 /// cukup sering.
 fn http_client() -> &'static UreqHttpClient {
     static HTTP: OnceLock<UreqHttpClient> = OnceLock::new();
-    HTTP.get_or_init(UreqHttpClient::new)
+    HTTP.get_or_init(|| UreqHttpClient::new().with_max_body_bytes(BATAS_UNDUHAN_MEDIA as u64))
 }
 
 /// Resolve [`MediaSource`] jadi byte. Satu-satunya tempat di pipeline yang
@@ -1762,6 +1762,12 @@ fn http_client() -> &'static UreqHttpClient {
 ///
 /// Kegagalan selalu error bertipe, tidak pernah `Ok(vec![])` diam-diam: byte
 /// kosong akan terkirim ke CDN dan gagal jauh dari penyebabnya.
+/// Batas unduhan media pipeline. Client WhatsApp default 2 GiB
+/// (`DEFAULT_MAX_BODY_BYTES`) — satu video besar × semaphore pipeline
+/// (8–32) cukup untuk menghabiskan RAM panel; 100 MB jauh di atas media
+/// WA normal.
+const BATAS_UNDUHAN_MEDIA: usize = 100 * 1024 * 1024;
+
 async fn load_media(source: &MediaSource) -> Result<Vec<u8>, PipelineError> {
     match source {
         MediaSource::Bytes { data, .. } => {
@@ -1770,12 +1776,27 @@ async fn load_media(source: &MediaSource) -> Result<Vec<u8>, PipelineError> {
                     "sumber media bytes kosong".to_string(),
                 ));
             }
+            if data.len() > BATAS_UNDUHAN_MEDIA {
+                return Err(PipelineError::Media(format!(
+                    "sumber media terlalu besar: {} bytes",
+                    data.len()
+                )));
+            }
             Ok(data.to_vec())
         }
         // `tokio::fs`, bukan `std::fs` — `read` blocking di thread tokio
         // worker akan menahan seluruh dispatch event bot.
         MediaSource::Path { path, .. } => {
             let p = std::path::Path::new(path);
+            // Tolak SEBELUM baca: file di atas batas tidak pernah masuk RAM.
+            if let Ok(meta) = tokio::fs::metadata(p).await
+                && meta.len() > BATAS_UNDUHAN_MEDIA as u64
+            {
+                return Err(PipelineError::Media(format!(
+                    "file media terlalu besar: {} bytes",
+                    meta.len()
+                )));
+            }
             let data = tokio::fs::read(p).await.map_err(|e| {
                 PipelineError::Media(format!("gagal baca file media `{path}`: {e}"))
             })?;
@@ -1801,6 +1822,12 @@ async fn load_media(source: &MediaSource) -> Result<Vec<u8>, PipelineError> {
                 return Err(PipelineError::Media(
                     "server membalas body kosong".to_string(),
                 ));
+            }
+            if resp.body.len() > BATAS_UNDUHAN_MEDIA {
+                return Err(PipelineError::Media(format!(
+                    "unduhan media terlalu besar: {} bytes",
+                    resp.body.len()
+                )));
             }
             Ok(resp.body)
         }
@@ -2234,7 +2261,7 @@ fn patch_preview(
 /// dibuat dari luar crate `whatsapp-rust`.
 fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
     match kind {
-        MediaKind::Image | MediaKind::Document => match oktz_plugin_api::gambar::sharp(data) {
+        MediaKind::Image | MediaKind::Document => match oktz_plugin_api::gambar::sharp_thumbnail(data) {
             Ok(g) => {
                 let meta = g.metadata();
                 let w = 32u32;
@@ -2289,7 +2316,8 @@ fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
 }
 
 fn dimensi_asli(data: &[u8]) -> Option<(u32, u32)> {
-    let g = oktz_plugin_api::gambar::sharp(data).ok()?;
+    // Hanya dimensi — batas thumbnail cukup, decode besar tak pernah jalan.
+    let g = oktz_plugin_api::gambar::sharp_thumbnail(data).ok()?;
     let m = g.metadata();
     Some((m.lebar, m.tinggi))
 }
@@ -3816,6 +3844,9 @@ pub struct Pipeline {
     worker_tasks: Mutex<Vec<tokio::task::JoinHandle<()>>>,
     boot_ms: std::sync::atomic::AtomicI64,
     last_send: Mutex<Option<std::time::Instant>>,
+    /// Exp per-pesan tertunda: jid → (exp_baru, level_lama, level_baru).
+    /// Ditulis ke store oleh [`Pipeline::flush_exp`], bukan per pesan.
+    exp_pending: Mutex<HashMap<String, (i64, i64, i64)>>,
 }
 
 impl Pipeline {
@@ -3863,7 +3894,20 @@ impl Pipeline {
             worker_tasks: Mutex::new(Vec::new()),
             boot_ms: std::sync::atomic::AtomicI64::new(0),
             last_send: Mutex::new(None),
+            exp_pending: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub const SELF_FLUSH_IDLE_TICKS: u32 = 4;
+
+    /// Task berkala exp, dipakai jalur yang tidak lewat [`Pipeline::attach`]
+    /// (test/smoke).
+    pub fn spawn_exp_flush_task(self: &Arc<Self>) {
+        let h = tokio::spawn(self.clone().run_exp_flush(Self::SELF_FLUSH_IDLE_TICKS));
+        self.worker_tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(h);
     }
 
     pub fn set_boot_ms(&self, boot_ms: i64) {
@@ -5374,6 +5418,9 @@ impl Pipeline {
         let mut tasks = self.worker_tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.push(h1);
         tasks.push(h2);
+        tasks.push(tokio::spawn(
+            self.clone().run_exp_flush(Self::SELF_FLUSH_IDLE_TICKS),
+        ));
     }
 
     /// Drain antrean update peserta grup → [`Pipeline::tangani_update_grup`].
@@ -5407,9 +5454,21 @@ impl Pipeline {
         const EXP_PER_LEVEL: i64 = 10_000;
         const MAX_EXP: i64 = 9_000_000_000;
 
+        // Defer: exp per-pesan jangan tulis store langsung — `apply` full-clone
+        // + serialize seluruh JsonStore per batch, jadi tulis per-pesan berarti
+        // churn alokasi sebesar store untuk tiap pesan. Tunda di buffer,
+        // `flush_exp` menuliskannya sekali (paritas: `db.setUser` JS juga
+        // in-memory, tulisnya write-behind 15 dtk).
         let user = self.ctx.user_entry(&caller.sender);
-        let old_exp = user.get("exp").and_then(Value::as_i64).unwrap_or(0);
-        // `user.exp !== -1` (`level.js:226`) — `-1` = unlimited.
+        let old_exp = {
+            let g = self.exp_pending.lock().unwrap_or_else(|e| e.into_inner());
+            match g.get(&caller.sender) {
+                // Sudah tertunda: numpuk di atas nilai buffer, bukan nilai store
+                // yang basi (store belum ditulis sejak flush terakhir).
+                Some(&(exp, _, _)) => exp,
+                None => user.get("exp").and_then(Value::as_i64).unwrap_or(0),
+            }
+        };
         if old_exp == -1 {
             return;
         }
@@ -5419,27 +5478,101 @@ impl Pipeline {
         let old_level = calculate_level(old_exp);
         let new_level = calculate_level(new_exp);
 
-        // `db.setUser(sender, { exp, rpg: user.rpg })` — JS mengirim objek
-        // `rpg` hasil modifikasi utuh, bukan patch.
-        let mut data = serde_json::json!({ "exp": new_exp });
-        if new_level > old_level {
-            let mut rpg = user
-                .get("rpg")
-                .and_then(Value::as_object)
-                .cloned()
-                .unwrap_or_default();
-            let max_health = 100 + (new_level - 1) * 10;
-            let max_mana = 100 + (new_level - 1) * 5;
-            let max_stamina = 100 + (new_level - 1) * 5;
-            rpg.insert("level".into(), serde_json::json!(new_level));
-            rpg.insert("maxHealth".into(), serde_json::json!(max_health));
-            rpg.insert("maxMana".into(), serde_json::json!(max_mana));
-            rpg.insert("maxStamina".into(), serde_json::json!(max_stamina));
-            rpg.insert("health".into(), serde_json::json!(max_health));
-            rpg.insert("mana".into(), serde_json::json!(max_mana));
-            rpg.insert("stamina".into(), serde_json::json!(max_stamina));
-            data["rpg"] = Value::Object(rpg);
+        {
+            let mut g = self.exp_pending.lock().unwrap_or_else(|e| e.into_inner());
+            g.insert(caller.sender.clone(), (new_exp, old_level, new_level));
         }
+        if new_level > old_level {
+            self.kirim_notif_levelup(m, caller, &user, new_level).await;
+        }
+    }
+
+    /// Task berkala: tulis exp tertunda ke store. Idle-aware: berhenti setelah
+    /// `idle_ticks` berturut-turut tanpa exp tertunda (antrean kosong), tak
+    /// menyisakan timer jalan selamanya; tick berikutnya dengan pesan baru
+    /// memunculkannya lagi lewat `attach`.
+    async fn run_exp_flush(self: Arc<Self>, idle_ticks: u32) {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut idle = 0u32;
+        loop {
+            interval.tick().await;
+            if self
+                .exp_pending
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_empty()
+            {
+                idle += 1;
+                if idle >= idle_ticks {
+                    return;
+                }
+                continue;
+            }
+            idle = 0;
+            self.flush_exp(now_ms()).await;
+        }
+    }
+
+    /// Tulis semua exp tertunda ke store. Dipanggil dari task berkala.
+    pub async fn flush_exp(&self, now_ms: i64) {
+        let tertunda: Vec<(String, i64)> = {
+            let mut g = self.exp_pending.lock().unwrap_or_else(|e| e.into_inner());
+            if g.is_empty() {
+                return;
+            }
+            g.drain().map(|(jid, (exp, _, _))| (jid, exp)).collect()
+        };
+        let mutations: Vec<oktz_plugin_api::Mutation> = tertunda
+            .into_iter()
+            .map(|(jid, exp)| oktz_plugin_api::Mutation::SetUser {
+                jid,
+                data: serde_json::json!({ "exp": exp }),
+            })
+            .collect();
+        if let Err(e) = self.ctx.apply(&mutations, now_ms) {
+            tracing::warn!(error = %e, jumlah = mutations.len(), "gagal flush exp per-pesan");
+            for (jid, exp) in mutations.into_iter().map(|m| match m {
+                oktz_plugin_api::Mutation::SetUser { jid, data } => {
+                    (jid, data.get("exp").and_then(Value::as_i64).unwrap_or(0))
+                }
+                _ => unreachable!("semua mutasi berasal dari loop di atas"),
+            }) {
+                let mut g = self.exp_pending.lock().unwrap_or_else(|e| e.into_inner());
+                g.entry(jid).or_insert((exp, 0, 0));
+            }
+        }
+    }
+
+    /// Notifikasi level-up versi teks — dipisah dari tulis exp supaya bisa
+    /// dipanggil saat flush menemukan level-up tertunda.
+    async fn kirim_notif_levelup(
+        &self,
+        m: &InboundMessage,
+        caller: &Caller,
+        user: &Value,
+        new_level: i64,
+    ) {
+        // Stat rpg level-up ditulis di sini (patch, bukan menunggu flush —
+        // flush exp hanya menulis `exp` skalar) SEBELUM gate notifikasi:
+        // `levelupNotif === false` hanya mematikan pesan, bukan stat
+        // (`level.js:140-147`).
+        let mut rpg = user
+            .get("rpg")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let max_health = 100 + (new_level - 1) * 10;
+        let max_mana = 100 + (new_level - 1) * 5;
+        let max_stamina = 100 + (new_level - 1) * 5;
+        rpg.insert("level".into(), serde_json::json!(new_level));
+        rpg.insert("maxHealth".into(), serde_json::json!(max_health));
+        rpg.insert("maxMana".into(), serde_json::json!(max_mana));
+        rpg.insert("maxStamina".into(), serde_json::json!(max_stamina));
+        rpg.insert("health".into(), serde_json::json!(max_health));
+        rpg.insert("mana".into(), serde_json::json!(max_mana));
+        rpg.insert("stamina".into(), serde_json::json!(max_stamina));
+        let data = serde_json::json!({ "rpg": Value::Object(rpg) });
         if let Err(e) = self.ctx.apply(
             &[oktz_plugin_api::Mutation::SetUser {
                 jid: caller.sender.clone(),
@@ -5447,69 +5580,68 @@ impl Pipeline {
             }],
             m.info.timestamp.timestamp(),
         ) {
-            tracing::warn!(error = %e, "gagal menulis exp per-pesan");
+            tracing::warn!(error = %e, "gagal menulis stat level-up");
+        }
+
+        if user
+            .get("settings")
+            .and_then(|s| s.get("levelupNotif"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        {
             return;
         }
 
-        if new_level > old_level
-            && user
-                .get("settings")
-                .and_then(|s| s.get("levelupNotif"))
-                .and_then(Value::as_bool)
-                != Some(false)
-        {
-            // `getRole` (`level.js:19-27`).
-            let role = if new_level >= 100 {
-                "🐉 Mythic"
-            } else if new_level >= 80 {
-                "⚔️ Legend"
-            } else if new_level >= 60 {
-                "💜 Epic"
-            } else if new_level >= 40 {
-                "💪 Grandmaster"
-            } else if new_level >= 20 {
-                "🎖️ Master"
-            } else if new_level >= 10 {
-                "⭐ Elite"
-            } else {
-                "🛡️ Warrior"
-            };
-            let teks = format!(
-                "🎊 *SELAMAT @{}!*\n\nLevel kamu bertambah {}\n🥗 Level kamu sekarang *{}*\n\nSekarang kamu berada di rank *{}*\n\nMau cek detail level? ketik _{}level_\n\nSering seringlah berinteraksi dengan bot agar level kamu bertambah!",
-                ui::nomor(&caller.sender).trim_start_matches('+'),
-                new_level - old_level,
-                new_level,
-                role,
-                self.parse_opts
-                    .prefixes
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| ".".into()),
-            );
-            let target = ReplyTarget {
-                sender: caller.sender.clone(),
-                chat: caller.chat.clone(),
-                ..Default::default()
-            };
-            match render_reply(
-                &Reply::Text {
-                    text: teks,
-                    mentions: vec![caller.sender.clone()],
-                },
-                &target,
-            ) {
-                Ok(Some(rendered)) => {
-                    if let Err(e) = self
-                        .sender
-                        .send(&caller.chat, rendered.message, rendered.extra_nodes)
-                        .await
-                    {
-                        tracing::warn!(error = %e, "gagal kirim notifikasi level-up");
-                    }
+        // `getRole` (`level.js:19-27`).
+        let role = if new_level >= 100 {
+            "🐉 Mythic"
+        } else if new_level >= 80 {
+            "⚔️ Legend"
+        } else if new_level >= 60 {
+            "💜 Epic"
+        } else if new_level >= 40 {
+            "💪 Grandmaster"
+        } else if new_level >= 20 {
+            "🎖️ Master"
+        } else if new_level >= 10 {
+            "⭐ Elite"
+        } else {
+            "🛡️ Warrior"
+        };
+        let teks = format!(
+            "🎊 *SELAMAT @{}!*\n\nLevel kamu bertambah 1\n🥗 Level kamu sekarang *{}*\n\nSekarang kamu berada di rank *{}*\n\nMau cek detail level? ketik _{}level_\n\nSering seringlah berinteraksi dengan bot agar level kamu bertambah!",
+            ui::nomor(&caller.sender).trim_start_matches('+'),
+            new_level,
+            role,
+            self.parse_opts
+                .prefixes
+                .first()
+                .cloned()
+                .unwrap_or_else(|| ".".into()),
+        );
+        let target = ReplyTarget {
+            sender: caller.sender.clone(),
+            chat: caller.chat.clone(),
+            ..Default::default()
+        };
+        match render_reply(
+            &Reply::Text {
+                text: teks,
+                mentions: vec![caller.sender.clone()],
+            },
+            &target,
+        ) {
+            Ok(Some(rendered)) => {
+                if let Err(e) = self
+                    .sender
+                    .send(&caller.chat, rendered.message, rendered.extra_nodes)
+                    .await
+                {
+                    tracing::warn!(error = %e, "gagal kirim notifikasi level-up");
                 }
-                Ok(None) => {}
-                Err(e) => tracing::warn!(error = %e, "render notifikasi level-up gagal"),
             }
+            Ok(None) => {}
+            Err(e) => tracing::warn!(error = %e, "render notifikasi level-up gagal"),
         }
     }
 
@@ -7960,6 +8092,30 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(data, vec![9, 8, 7]);
+    }
+
+    /// Guard RSS: unduhan di atas batas ditolak SEBELUM memori penuh.
+    #[tokio::test]
+    async fn oversized_bytes_media_ditolak() {
+        let data = vec![0u8; BATAS_UNDUHAN_MEDIA + 1];
+        let e = load_media(&MediaSource::bytes(data)).await.unwrap_err();
+        assert!(e.to_string().contains("terlalu besar"), "{e}");
+    }
+
+    #[tokio::test]
+    async fn oversized_path_media_ditolak() {
+        let p = std::env::temp_dir().join(format!(
+            "oktz-media-besar-{}.png",
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let f = std::fs::File::create(&p).unwrap();
+        f.set_len(BATAS_UNDUHAN_MEDIA as u64 + 1).unwrap();
+        drop(f);
+        let e = load_media(&MediaSource::path(p.to_str().unwrap()))
+            .await
+            .unwrap_err();
+        assert!(e.to_string().contains("terlalu besar"), "{e}");
+        let _ = std::fs::remove_file(&p);
     }
 
     #[tokio::test]
@@ -11835,6 +11991,7 @@ mod tests {
         let (p, _s) = pipeline_exp("{}");
         let m = inbound_n("halo", MEMBER, MEMBER, false);
         p.process(&m, 1_000).await.unwrap();
+        p.flush_exp(1_100).await;
 
         let user = p.ctx.user_entry(MEMBER);
         assert_eq!(user.get("exp").and_then(Value::as_i64), Some(15));
@@ -11846,6 +12003,7 @@ mod tests {
         let (p, _s) = pipeline_exp(r#"{"users": {"628111": {"exp": 9990}}}"#);
         let m = inbound_n("halo", MEMBER, MEMBER, false);
         p.process(&m, 1_000).await.unwrap();
+        p.flush_exp(1_100).await;
 
         let user = p.ctx.user_entry(MEMBER);
         assert_eq!(user.get("exp").and_then(Value::as_i64), Some(10_005));
@@ -11877,6 +12035,7 @@ mod tests {
         );
         let m = inbound_n("halo", MEMBER, MEMBER, false);
         p.process(&m, 1_000).await.unwrap();
+        p.flush_exp(1_100).await;
 
         let user = p.ctx.user_entry(MEMBER);
         assert_eq!(
@@ -11891,6 +12050,94 @@ mod tests {
             "tanpa notif: {:?}",
             s.texts()
         );
+    }
+
+    /// Defer: pesan biasa TIDAK menulis store per-pesan; exp menunggu di
+    /// buffer sampai `flush_exp`.
+    #[tokio::test]
+    async fn exp_didefer_sampai_flush() {
+        let (p, _s) = pipeline_exp("{}");
+        let m = inbound_n("halo", MEMBER, MEMBER, false);
+        p.process(&m, 1_000).await.unwrap();
+
+        assert_eq!(
+            p.ctx
+                .user_entry(MEMBER)
+                .get("exp")
+                .and_then(Value::as_i64),
+            None,
+            "defer: store belum ditulis per-pesan"
+        );
+
+        p.flush_exp(1_100).await;
+        assert_eq!(
+            p.ctx
+                .user_entry(MEMBER)
+                .get("exp")
+                .and_then(Value::as_i64),
+            Some(15)
+        );
+    }
+
+    /// Dua pesan, satu flush = exp +30 (buffer menumpuk di atas nilai buffer,
+    /// bukan nilai store yang basi).
+    #[tokio::test]
+    async fn exp_dua_pesan_satu_flush() {
+        let (p, _s) = pipeline_exp("{}");
+        for (body, t) in [("halo", 1_000), ("lagi", 1_100)] {
+            let m = inbound_n(body, MEMBER, MEMBER, false);
+            p.process(&m, t).await.unwrap();
+        }
+        p.flush_exp(1_200).await;
+
+        assert_eq!(
+            p.ctx
+                .user_entry(MEMBER)
+                .get("exp")
+                .and_then(Value::as_i64),
+            Some(30)
+        );
+    }
+
+    /// Level-up tertunda tetap menaikkan stat rpg saat proses (bukan saat
+    /// flush), dan flush tidak menimpanya.
+    #[tokio::test]
+    async fn exp_defer_tetap_menaikkan_level() {
+        let (p, _s) = pipeline_exp(r#"{"users": {"628111": {"exp": 9990}}}"#);
+        let m = inbound_n("halo", MEMBER, MEMBER, false);
+        p.process(&m, 1_000).await.unwrap();
+        p.flush_exp(1_100).await;
+
+        let user = p.ctx.user_entry(MEMBER);
+        assert_eq!(user.get("exp").and_then(Value::as_i64), Some(10_005));
+        assert_eq!(
+            user.get("rpg")
+                .and_then(|r| r.get("level"))
+                .and_then(Value::as_i64),
+            Some(2)
+        );
+    }
+
+    /// Mutasi command lain tidak ditimpa flush exp.
+    #[tokio::test]
+    async fn exp_defer_tidak_menimpa_mutasi_command() {
+        let (p, _s) = pipeline_exp("{}");
+        let m = inbound_n("halo", MEMBER, MEMBER, false);
+        p.process(&m, 1_000).await.unwrap();
+        p.ctx
+            .apply(
+                &[oktz_plugin_api::Mutation::SetUser {
+                    jid: MEMBER.to_string(),
+                    data: serde_json::json!({"koin": 5}),
+                }],
+                1_050,
+            )
+            .unwrap();
+        p.flush_exp(1_100).await;
+
+        let user = p.ctx.user_entry(MEMBER);
+        assert_eq!(user.get("exp").and_then(Value::as_i64), Some(15));
+        assert_eq!(user.get("koin").and_then(Value::as_i64), Some(5));
     }
 
     /// exp `-1` = unlimited, tidak berubah.
@@ -11910,6 +12157,7 @@ mod tests {
         let (p, s) = pipeline_exp(r#"{"users": {"628111": {"exp": 9990}}}"#);
         let m = inbound_n("halo", MEMBER, MEMBER, false);
         p.process(&m, 1_000).await.unwrap();
+        p.flush_exp(1_100).await;
 
         let texts = s.texts();
         assert!(
