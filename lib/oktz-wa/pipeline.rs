@@ -3488,6 +3488,16 @@ impl RosterSource for ClientSender {
     }
 }
 
+/// Direktori store/cache: `DATABASE_PATH` atau `database` (sama dengan
+/// `src/lib/lid.js` versi JS yang menulis `database/lid-cache.json`).
+fn db_dir() -> String {
+    std::env::var("DATABASE_PATH")
+        .ok()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "database".to_string())
+}
+
 /// Identitas roster yang tidak ada di objek user store: PN asli + nama grup.
 ///
 /// Disimpan di `data` (bukan field `Participant` baru) supaya literal
@@ -3649,9 +3659,64 @@ struct PluginCtxSource {
     db_owners: Vec<String>,
     recent_media: Arc<Mutex<HashMap<String, VecDeque<AlbumMedia>>>>,
     recent_media_data: Arc<Mutex<HashMap<String, crate::media_fetch::MediaData>>>,
+    /// Peta LID-digit → PN-digit yang dipersist ke `database/lid-cache.json`.
+    /// `None` = belum dibaca dari disk. Leaderboard membacanya supaya user di
+    /// luar grup (bahkan di chat pribadi) tetap bisa di-tag nomornya.
+    lid_cache: Arc<Mutex<Option<HashMap<String, String>>>>,
+}
+
+/// Pasangan LID→PN dari roster (hanya yang benar-benar LID).
+fn c_roster_pairs(roster: &GroupRoster) -> Vec<(String, String)> {
+    roster
+        .participants
+        .iter()
+        .filter_map(|p| {
+            let pn = p.phone_number()?;
+            if !p.jid.ends_with("@lid") {
+                return None;
+            }
+            Some((jid_user_string(&p.jid), jid_user_string(pn)))
+        })
+        .collect()
+}
+
+fn jid_user_string(jid: &str) -> String {
+    oktz_plugin_api::registry::jid_user(jid).to_string()
 }
 
 impl PluginCtxSource {
+    /// Tambah pasangan LID→PN ke cache, tulis file hanya kalau ada yang baru.
+    fn simpan_peta_lid(&self, pasangan: Vec<(String, String)>) {
+        let mut guard = self.lid_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let map = guard.get_or_insert_with(|| {
+            let path = format!("{}/lid-cache.json", db_dir());
+            self.berkas
+                .baca_teks(&path)
+                .ok()
+                .and_then(|t| serde_json::from_str::<HashMap<String, String>>(&t).ok())
+                .unwrap_or_default()
+        });
+        let mut baru = false;
+        for (lid, pn) in pasangan {
+            if lid.is_empty() || pn.is_empty() || lid == pn {
+                continue;
+            }
+            if map.get(&lid) != Some(&pn) {
+                map.insert(lid, pn);
+                baru = true;
+            }
+        }
+        if !baru {
+            return;
+        }
+        if map.len() > 10_000 {
+            map.clear();
+        }
+        if let Ok(teks) = serde_json::to_string(&*map) {
+            let _ = self.berkas.tulis_teks(&format!("{}/lid-cache.json", db_dir()), &teks);
+        }
+    }
+
     /// Isi field `Ctx` yang tidak bisa dihitung router: roster grup + state
     /// store. Idempoten dan bebas I/O — semua sudah ada di memori.
     ///
@@ -3680,13 +3745,25 @@ impl PluginCtxSource {
             }
             p.data = gabung_identitas(identitas, entri);
         }
+        // Simpan PN yang sudah diketahui supaya leaderboard bisa men-tag user
+        // ini walau pesannya datang dari grup lain / chat pribadi.
+        let mut pasangan: Vec<(String, String)> = Vec::new();
+        for p in &c_roster_pairs(&roster) {
+            pasangan.push(p.clone());
+        }
+        let asal = c.sender.clone();
         c.roster = roster;
-        c.user_data = self.store.user_entry(&c.sender);
+        c.sender = c.roster.mention_jid(&c.sender);
+        if asal != c.sender {
+            pasangan.push((jid_user_string(&asal), jid_user_string(&c.sender)));
+        }
+        self.simpan_peta_lid(pasangan);
+        // Entri lama bisa tersimpan dengan kunci LID; coba kunci asli dulu.
+        c.user_data = self.store.user_entry(&asal);
         // `serialize.js` meng-resolve PN↔LID sebelum plugin melihat pesan, jadi
         // `m.sender`/`m.mentionedJid` di JS SELALU PN. LID mentah tidak boleh
         // bocor ke teks balasan; kalau mapping tidak diketahui, biarkan apa
         // adanya (tidak mengarang nomor).
-        c.sender = c.roster.mention_jid(&c.sender);
         for jid in &mut c.mentioned {
             *jid = c.roster.mention_jid(jid);
         }
@@ -3935,6 +4012,7 @@ impl Pipeline {
                 db_owners: Vec::new(),
                 recent_media: Arc::new(Mutex::new(HashMap::new())),
                 recent_media_data: Arc::new(Mutex::new(HashMap::new())),
+                lid_cache: Arc::new(Mutex::new(None)),
             },
             ctx,
             sender,
@@ -4142,13 +4220,21 @@ impl Pipeline {
     /// `src/types/message.rs:104`).
     pub fn caller_of(&self, m: &InboundMessage) -> Caller {
         let s = &m.info.source;
-        let sender = s.sender.to_string();
+        let sender_asli = s.sender.to_string();
         // Grup ber-addressing LID mengirim `sender` sebagai `NNNN@lid` dan
         // menaruh PN asli di `sender_alt` (wacore `messages.rs:1110-1123`).
         // Roster owner/premium menyimpan PN, jadi deteksi tier wajib mencoba
         // kedua identitas — tanpa itu owner terdeteksi Free di grup LID.
         let sender_alt = s.sender_alt.as_ref().map(|j| j.to_string());
         let alt = sender_alt.as_deref();
+        // `serialize.js` memakai `participantAlt` sebagai `sender` ketika yang
+        // datang LID, jadi plugin (dan kunci store) selalu melihat PN.
+        let sender = match alt {
+            Some(a) if sender_asli.ends_with("@lid") && !a.is_empty() && !a.ends_with("@lid") => {
+                a.to_string()
+            }
+            _ => sender_asli,
+        };
         let id = self.identity();
         // Media pesan + jalur unduhnya. Pengirim stub (test) tidak punya
         // `Client`, jadi `media_fetch` tetap `None` dan `Ctx` memakai
@@ -8487,6 +8573,38 @@ mod tests {
     }
 
     #[test]
+    fn caller_sender_lid_diganti_pn_dari_sender_alt() {
+        // `serialize.js` memakai `participantAlt`; grup/chat LID mengirim PN
+        // asli di `sender_alt`, jadi plugin tidak boleh melihat LID.
+        let p = Pipeline::new(
+            StoreContext::new(store_with("alt", "{}")),
+            Arc::new(RecordingSender::default()),
+            "bot",
+            ParseOptions::default(),
+        );
+        let m = InboundMessage::builder()
+            .message(Arc::new(wa::Message {
+                conversation: Some("halo".to_string()),
+                ..Default::default()
+            }))
+            .info(Arc::new(MessageInfo {
+                source: MessageSource {
+                    chat: "628222@s.whatsapp.net".parse().unwrap(),
+                    sender: "247957890850846@lid".parse().unwrap(),
+                    sender_alt: Some("628222@s.whatsapp.net".parse().unwrap()),
+                    is_from_me: false,
+                    is_group: false,
+                    ..Default::default()
+                },
+                id: "ALT1".to_string(),
+                ..Default::default()
+            }))
+            .build();
+        let caller = p.caller_of(&m);
+        assert_eq!(caller.sender, "628222@s.whatsapp.net");
+    }
+
+    #[test]
     fn owner_matched_via_sender_alt_in_lid_group() {
         // Grup LID: `sender` = LID, `sender_alt` = PN asli. Roster owner
         // menyimpan PN — deteksi wajib mencoba `sender_alt` juga.
@@ -8990,6 +9108,7 @@ mod tests {
             db_owners: Vec::new(),
             recent_media: Arc::new(Mutex::new(HashMap::new())),
             recent_media_data: Arc::new(Mutex::new(HashMap::new())),
+            lid_cache: Arc::new(Mutex::new(None)),
         }
     }
 

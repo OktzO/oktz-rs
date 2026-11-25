@@ -368,7 +368,9 @@ fn sebutan(
         .map(str::to_string)
         .or_else(|| nama_layak(&u.name, &kunci).map(str::to_string))
         .or_else(|| pn.as_deref().map(crate::common::jid_number).map(str::to_string))
-        .unwrap_or_else(|| "Pengguna".to_string());
+        // LID tanpa nama/PN: tetap cetak nomornya supaya baris bisa di-tag
+        // (klien LID bisa me-resolve-nya); jangan sembunyikan jadi "Pengguna".
+        .unwrap_or_else(|| kunci.clone());
 
     let mention = pn
         .map(|p| {
@@ -378,7 +380,8 @@ fn sebutan(
                 format!("{p}@s.whatsapp.net")
             }
         })
-        .or_else(|| (!is_lid).then(|| mention_jid(&u.jid)));
+        .or_else(|| (!is_lid).then(|| mention_jid(&u.jid)))
+        .or_else(|| Some(format!("{kunci}@lid")));
     (label, mention, is_me)
 }
 
@@ -485,13 +488,51 @@ mod tests {
     }
 
     #[test]
-    fn lid_tanpa_peta_tidak_mencetak_angka_acak_atau_unknown() {
+    fn lid_dipetakan_dari_file_lid_cache_milik_js() {
+        let b = oktz_plugin_api::berkas::BerkasPalsu::baru();
+        let dir = db_dir();
+        b.tulis_teks(
+            &format!("{dir}/settings.json"),
+            r#"{"users":{"lid:555666777":{"koin":4,"name":"Unknown"}}}"#,
+        )
+        .unwrap();
+        b.tulis_teks(
+            &format!("{dir}/lid-cache.json"),
+            r#"{"555666777@lid":"628555@s.whatsapp.net"}"#,
+        )
+        .unwrap();
+        let ctx = Ctx {
+            berkas: Arc::new(b),
+            prefix: ".".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            command: "topkoin".into(),
+            ..Default::default()
+        };
+        let r = leaderboard(ctx);
+        let t = r.text_body().unwrap();
+        assert!(t.contains("@628555"), "PN dari lid-cache dipakai: {t}");
+        match r {
+            Reply::Text { mentions, .. } => {
+                assert_eq!(mentions, &["628555@s.whatsapp.net".to_string()]);
+            }
+            lain => panic!("harus teks: {lain:?}"),
+        }
+    }
+
+    #[test]
+    fn lid_tanpa_peta_tetap_dicetak_sebagai_nomor_bisa_ditag() {
         let ctx = ctx_dari_store(r#"{"lid:999888777": {"koin": 3, "name": "Unknown"}}"#);
         let r = leaderboard(ctx);
         let t = r.text_body().unwrap();
         assert!(!t.contains("Unknown"), "{t}");
-        assert!(!t.contains("999888777"), "LID mentah tidak boleh tampil: {t}");
-        assert!(t.contains("Pengguna"), "{t}");
+        assert!(t.contains("@999888777"), "nomor LID dicetak untuk tag: {t}");
+        match r {
+            Reply::Text { mentions, .. } => {
+                assert_eq!(mentions, &["999888777@lid".to_string()]);
+            }
+            lain => panic!("harus teks: {lain:?}"),
+        }
     }
 
     #[test]
