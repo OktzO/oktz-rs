@@ -517,10 +517,18 @@ impl Reply {
         self.with_params(params)
     }
 
-    /// `contextInfo.mentionedJid` di dalam kartu.
+    /// `contextInfo.mentionedJid` — untuk kartu MAUPUN teks.
+    ///
+    /// Varian teks wajib ikut: sebelumnya fungsi ini hanya menyentuh
+    /// `Interactive`, sehingga `Reply::text(..).with_mentions(..)` diam-diam
+    /// mengirim tanpa `mentionedJid` dan mention tampil sebagai angka mentah.
     pub fn with_mentions(mut self, mentions: Vec<String>) -> Self {
-        if let Self::Interactive { kartu } = &mut self {
-            kartu.mentions = mentions;
+        match &mut self {
+            Self::Interactive { kartu } => kartu.mentions = mentions,
+            Self::Text { mentions: m, .. }
+            | Self::TextQuoted { mentions: m, .. }
+            | Self::NoQuote { mentions: m, .. } => *m = mentions,
+            _ => {}
         }
         self
     }
@@ -1054,6 +1062,9 @@ impl Participant {
             .or_else(|| self.data.get("name").and_then(Value::as_str))
             .map(str::trim)
             .filter(|s| !s.is_empty() && !s.contains('\u{2022}'))
+            .filter(|s| {
+                !s.eq_ignore_ascii_case("unknown") && !s.eq_ignore_ascii_case("unknown group")
+            })
     }
 
     /// JID untuk mention/teks: PN kalau diketahui, bukan LID.
@@ -2133,6 +2144,26 @@ mod tests {
         let r = Reply::text("halo");
         assert_eq!(r.text_body(), Some("halo"));
         assert!(!r.is_none());
+    }
+
+    #[test]
+    fn with_mentions_also_applies_to_text_variants() {
+        // Regresi: `with_mentions` dulu hanya menyentuh kartu, jadi mention
+        // pada `Reply::text(..)` hilang sebelum render.
+        let r = Reply::text("hai @628123").with_mentions(vec!["628123@s.whatsapp.net".into()]);
+        match &r {
+            Reply::Text { mentions, .. } => {
+                assert_eq!(mentions, &["628123@s.whatsapp.net".to_string()]);
+            }
+            lain => panic!("harus Reply::Text: {lain:?}"),
+        }
+        let r = Reply::text_quoted("hai").with_mentions(vec!["628999@s.whatsapp.net".into()]);
+        match &r {
+            Reply::NoQuote { mentions, .. } => {
+                assert_eq!(mentions, &["628999@s.whatsapp.net".to_string()]);
+            }
+            lain => panic!("harus Reply::NoQuote: {lain:?}"),
+        }
     }
 
     #[test]

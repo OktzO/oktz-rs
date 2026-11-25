@@ -20,6 +20,9 @@ struct UserRow {
     level: i64,
     #[allow(dead_code)] // data `name` JS masih disimpan; dipakai plugin lain di batch ini
     name: String,
+    /// `users[key].lid` — entri berkunci PN menyimpan LID-nya di sini, jadi
+    /// pasangan PN↔LID bisa dipulihkan tanpa roster grup (`database.js:565`).
+    lid: Option<String>,
 }
 
 fn format_number(num: i64) -> String {
@@ -134,6 +137,11 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
             .and_then(Value::as_str)
             .map(String::from)
             .unwrap_or_else(|| clean.to_string());
+        let lid = data
+            .get("lid")
+            .and_then(Value::as_str)
+            .filter(|l| !l.is_empty())
+            .map(String::from);
         out.push(UserRow {
             jid: jid.clone(),
             koin,
@@ -141,6 +149,7 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
             energi,
             level,
             name,
+            lid,
         });
     }
     out
@@ -190,13 +199,15 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         return Reply::text("📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database.".to_string());
     }
 
+    let peta = peta_lid(&ctx, &users);
+
     if typ == "overview" {
         let max_bal = users.iter().max_by_key(|u| u.koin).cloned().unwrap();
         let max_exp = users.iter().max_by_key(|u| u.exp).cloned().unwrap();
         let max_en = users.iter().max_by_key(|u| u.energi).cloned().unwrap();
         let mentions = [&max_bal, &max_exp, &max_en]
             .iter()
-            .filter_map(|u| sebutan(&ctx, u).1)
+            .filter_map(|u| sebutan(&ctx, u, &peta).1)
             .collect::<Vec<_>>();
         let text = "🏆 *LEADERBOARD OVERVIEW* 🏆\n\n_Pilih tombol di bawah untuk melihat ranking!_".to_string();
         // tombol quick_reply
@@ -243,9 +254,16 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         } else {
             "0".to_string()
         };
-        let (label, mention, is_me) = sebutan(&ctx, u);
+        let (label, mention, is_me) = sebutan(&ctx, u, &peta);
         let me = if is_me { " *(You)*" } else { "" };
-        text.push_str(&format!("┃ {} {}{}\n", medal, label, me));
+        // Nomor tetap ditulis `@nomor` seperti JS; nama tidak diberi `@`
+        // karena bukan token mention.
+        let tampil = if label.bytes().all(|b| b.is_ascii_digit()) {
+            format!("@{label}")
+        } else {
+            label
+        };
+        text.push_str(&format!("┃ {} {}{}\n", medal, tampil, me));
         text.push_str(&format!("┃    └ {} ({}%)\n", val, pct));
         if i + 1 < top10.len() {
             text.push_str("┃\n");
@@ -256,7 +274,7 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
     }
     text.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
 
-    let my_rank = sorted.iter().position(|u| sebutan(&ctx, u).2);
+    let my_rank = sorted.iter().position(|u| sebutan(&ctx, u, &peta).2);
     if let Some(idx) = my_rank {
         text.push_str(&format!(
             "> Posisi kamu: *#{}* dari *{}* user.",
@@ -270,18 +288,72 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
     Reply::text(text).with_mentions(mentions)
 }
 
+/// Peta LID-digit → PN-digit dari store dan `database/lid-cache.json`.
+///
+/// Dua sumber, karena user yang belum pernah muncul di grup mana pun setelah
+/// bot jalan tetap punya pasangan PN dari entri lamanya (`users[pn].lid`) atau
+/// dari cache milik versi JS (`src/lib/lid.js`).
+fn peta_lid(ctx: &Ctx, users: &[UserRow]) -> std::collections::HashMap<String, String> {
+    let mut peta = std::collections::HashMap::new();
+    for u in users {
+        let is_lid = u.jid.starts_with("lid:") || u.jid.ends_with("@lid");
+        if is_lid {
+            continue;
+        }
+        if let Some(lid) = &u.lid {
+            let l = crate::common::jid_number(lid);
+            if !l.is_empty() {
+                peta.insert(l.to_string(), key_number(&u.jid).to_string());
+            }
+        }
+    }
+    if let Some(cache) = read_json(ctx, &format!("{}/lid-cache.json", db_dir()))
+        .and_then(|v| v.as_object().cloned())
+    {
+        for (k, v) in cache {
+            let Some(pn) = v.as_str() else { continue };
+            let l = key_number(&k).to_string();
+            let p = crate::common::jid_number(pn).to_string();
+            if !l.is_empty() && !p.is_empty() && l != p {
+                peta.entry(l).or_insert(p);
+            }
+        }
+    }
+    peta
+}
+
+/// Nama yang layak tampil — `"Unknown"` adalah default `setUser`
+/// (`database.js:564`), bukan nama orang.
+fn nama_layak<'a>(nama: &'a str, kunci: &str) -> Option<&'a str> {
+    let nama = nama.trim();
+    if nama.is_empty()
+        || nama == kunci
+        || nama.eq_ignore_ascii_case("unknown")
+        || nama.eq_ignore_ascii_case("unknown group")
+    {
+        return None;
+    }
+    Some(nama)
+}
+
 /// `(label, mention, is_me)` untuk satu baris ranking.
 ///
-/// Kunci store boleh bentuk `lid:…`; LID mentah TIDAK pernah dicetak — kalau
-/// PN tidak bisa dipetakan, yang tampil nama store (atau "Pengguna"), dan
-/// mention-nya pun dilewati karena klien hanya akan merender angka acak.
-fn sebutan(ctx: &Ctx, u: &UserRow) -> (String, Option<String>, bool) {
+/// Kunci store boleh bentuk `lid:...`; LID mentah TIDAK pernah dicetak — yang
+/// tampil nama asli, lalu PN hasil peta LID, lalu "Pengguna". Mention hanya
+/// dikirim kalau PN-nya diketahui, karena mention LID dirender klien sebagai
+/// deretan angka acak.
+fn sebutan(
+    ctx: &Ctx,
+    u: &UserRow,
+    peta: &std::collections::HashMap<String, String>,
+) -> (String, Option<String>, bool) {
     let kunci = key_number(&u.jid).to_string();
     let is_lid = u.jid.starts_with("lid:") || u.jid.ends_with("@lid");
     let peserta = ctx.roster.find(&kunci);
     let pn = peserta
         .and_then(|p| p.phone_number())
         .map(str::to_string)
+        .or_else(|| peta.get(&kunci).cloned())
         .or_else(|| (!is_lid).then(|| kunci.clone()));
     let sender = ctx.sender.split('@').next().unwrap_or(&ctx.sender);
     let sender_pn = ctx.mention_of(&ctx.sender);
@@ -290,13 +362,11 @@ fn sebutan(ctx: &Ctx, u: &UserRow) -> (String, Option<String>, bool) {
             || oktz_plugin_api::registry::jid_user(p) == crate::common::jid_number(&sender_pn)
     });
 
-    let nama_store = u.name.trim();
     let label = peserta
         .and_then(|p| p.name())
+        .filter(|n| nama_layak(n, &kunci).is_some())
         .map(str::to_string)
-        .or_else(|| {
-            (!nama_store.is_empty() && nama_store != kunci).then(|| nama_store.to_string())
-        })
+        .or_else(|| nama_layak(&u.name, &kunci).map(str::to_string))
         .or_else(|| pn.as_deref().map(crate::common::jid_number).map(str::to_string))
         .unwrap_or_else(|| "Pengguna".to_string());
 
@@ -370,6 +440,58 @@ mod tests {
             users.iter().any(|u| u.jid == "lid:123456789012345"),
             "kunci lid dibuang"
         );
+    }
+
+    fn ctx_dari_store(users_json: &str) -> Ctx {
+        let b = oktz_plugin_api::berkas::BerkasPalsu::baru();
+        b.tulis_teks(
+            &format!("{}/settings.json", db_dir()),
+            &format!(r#"{{"users":{users_json}}}"#),
+        )
+        .unwrap();
+        Ctx {
+            berkas: Arc::new(b),
+            prefix: ".".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            command: "topkoin".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn unknown_diganti_nomor_dan_lid_dipetakan_dari_entri_pn() {
+        let ctx = ctx_dari_store(
+            r#"{
+                "lid:111222333": {"koin": 10, "name": "Unknown"},
+                "628222": {"koin": 5, "name": "Budi", "lid": "111222333"}
+            }"#,
+        );
+        let r = leaderboard(ctx);
+        let t = r.text_body().unwrap();
+        assert!(!t.contains("Unknown"), "placeholder tidak boleh tampil: {t}");
+        assert!(t.contains("@628222"), "LID harus dipetakan ke PN: {t}");
+        assert!(t.contains("Budi"), "nama asli dipakai: {t}");
+        match r {
+            Reply::Text { mentions, .. } => {
+                assert!(mentions.contains(&"628222@s.whatsapp.net".to_string()), "{mentions:?}");
+                assert!(
+                    !mentions.iter().any(|m| m.ends_with("@lid")),
+                    "mention LID tidak boleh dikirim: {mentions:?}"
+                );
+            }
+            lain => panic!("harus teks: {lain:?}"),
+        }
+    }
+
+    #[test]
+    fn lid_tanpa_peta_tidak_mencetak_angka_acak_atau_unknown() {
+        let ctx = ctx_dari_store(r#"{"lid:999888777": {"koin": 3, "name": "Unknown"}}"#);
+        let r = leaderboard(ctx);
+        let t = r.text_body().unwrap();
+        assert!(!t.contains("Unknown"), "{t}");
+        assert!(!t.contains("999888777"), "LID mentah tidak boleh tampil: {t}");
+        assert!(t.contains("Pengguna"), "{t}");
     }
 
     #[test]
