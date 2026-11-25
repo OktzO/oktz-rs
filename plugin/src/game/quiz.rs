@@ -25,6 +25,36 @@ fn website(ctx: &Ctx) -> String {
     ctx.config().info.website.clone()
 }
 
+/// `fetchBuffer(question[imageField])` (`games.js:132`) — byte gambar, `None`
+/// = gagal. Pipeline mengunduh `MediaSource::Url` dengan `ureq` TANPA
+/// `User-Agent` (banyak host balas 403 → `PipelineError::Media` → template
+/// error), sedangkan `ctx.http` memasang UA browser. Prefetch di sini supaya
+/// kegagalan jadi balasan "gagal memuat gambar" persis `catch` JS.
+fn gambar_byte(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
+    if url.trim().is_empty() {
+        return None;
+    }
+    let call = oktz_plugin_api::HttpCall::get(url).with_timeout(15_000);
+    let res = ctx.http.call(&call).ok()?;
+    if !(200..300).contains(&res.status) {
+        return None;
+    }
+    let data = res.body.bytes().to_vec();
+    (data.len() > 100).then_some(data)
+}
+
+/// `jpegThumbnail` `sendGamePreview` (`context.js:95`) — `config.assets.foto2`.
+/// `None` = aset tak terbaca; preview tetap dikirim tanpa gambar.
+fn thumb_foto(ctx: &Ctx) -> Option<MediaSource> {
+    let path = ctx
+        .config()
+        .assets
+        .get("foto2")
+        .unwrap_or("./assets/image/foto2.jpeg");
+    let data = ctx.berkas().baca(path).ok()?;
+    (!data.is_empty()).then(|| MediaSource::bytes(data))
+}
+
 pub(crate) struct QuizGame {
     pub name: &'static str,
     pub alias: &'static [&'static str],
@@ -321,11 +351,11 @@ pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
                 text += "_Jawab langsung atau ketik \"nyerah\"\nSetiap salah, hint akan bertambah_";
                 let web = website(&ctx);
                 return Reply::preview(
-                    format!("{web}\n\n{web}\n{text}"),
+                    format!("{web}\n\n{text}"),
                     web,
                     cfg.title,
                     cfg.description,
-                    None,
+                    thumb_foto(&ctx),
                 );
             }
             ctx.session_take(SESSIONS_KEY);
@@ -350,37 +380,41 @@ pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
     caption += "🎁 Hadiah: *Limit, Koin, EXP (random)*\n\n";
     caption += "_Jawab langsung atau ketik \"nyerah\"\nSetiap salah, hint akan bertambah_";
 
-    let session = json!({
-        "chatId": ctx.chat,
-        "gameType": cfg.name,
-        "question": question,
-        "startTime": now,
-        "timeout": cfg.timeout_ms,
-        "endTime": now + cfg.timeout_ms,
-        "attempts": 0,
-    });
-    let mut sessions = ctx.session_get(SESSIONS_KEY).unwrap_or(json!({}));
-    sessions[&ctx.chat] = session;
-    ctx.session_set(SESSIONS_KEY, sessions);
+    let simpan_sesi = || {
+        let session = json!({
+            "chatId": ctx.chat,
+            "gameType": cfg.name,
+            "question": question,
+            "startTime": now,
+            "timeout": cfg.timeout_ms,
+            "endTime": now + cfg.timeout_ms,
+            "attempts": 0,
+        });
+        let mut sessions = ctx.session_get(SESSIONS_KEY).unwrap_or(json!({}));
+        sessions[&ctx.chat] = session;
+        ctx.session_set(SESSIONS_KEY, sessions);
+    };
 
     if cfg.has_image {
         let img = question
             .get(cfg.image_field)
             .and_then(Value::as_str)
             .unwrap_or("");
-        if img.is_empty() {
+        // `games.js:129-136` — gagal fetch → balas error, JANGAN buat sesi.
+        let Some(bytes) = gambar_byte(&ctx, img) else {
             return Reply::text("❌ *ɢᴀɢᴀʟ ᴍᴇᴍᴜᴀᴛ ɢᴀᴍʙᴀʀ*\n\n> Coba lagi nanti!");
-        }
-        // `fetchBuffer(question[imageField])` JS — byte gambar di pipeline.
-        return Reply::image(MediaSource::url(img), caption).with_reaction("🎲");
+        };
+        simpan_sesi();
+        return Reply::image(MediaSource::bytes(bytes), caption).with_reaction("🎲");
     }
+    simpan_sesi();
     let web = website(&ctx);
     Reply::preview(
-        format!("{web}\n\n{caption}"),
+        format!("{web} {caption}"),
         web,
         format!("{} {}", cfg.emoji, cfg.title),
         "Jawab pertanyaan!",
-        None,
+        thumb_foto(&ctx),
     )
 }
 
@@ -398,17 +432,25 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
 
     let now = now_ms();
     let end_time = session.get("endTime").and_then(Value::as_i64).unwrap_or(0);
-    if remaining_time(end_time, now) <= 0 {
-        ctx.session_take(SESSIONS_KEY);
-        return None;
-    }
-
     let question = session.get("question").cloned().unwrap_or(Value::Null);
     let answer = question
         .get(cfg.answer_field)
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
+
+    // `setSessionTimer` (`games.js:178-183`) mengumumkan waktu habis lalu
+    // membuang sesi. Plugin tidak punya timer async, jadi pengumumannya malas:
+    // pada pesan berikutnya di chat yang sama, sesi kedaluwarsa dibuang
+    // SEKALI dengan teks waktu habis.
+    if remaining_time(end_time, now) <= 0 {
+        ctx.session_take(SESSIONS_KEY);
+        let text = format!(
+            "{}\n\nJawaban: *{answer}*\n\n_Gak ada yang bisa jawab nih~_",
+            pick_str(TIMEOUT_MESSAGES)
+        );
+        return Some(Reply::text(text));
+    }
 
     // `isSurrender` (`games.js:210-221`) — TIDAK butuh reply pesan game.
     if is_surrender(&user_answer) {
@@ -554,9 +596,249 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
 include!("quiz_banks.rs");
 
 #[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    pub struct GambarStub;
+
+    impl oktz_plugin_api::HttpGet for GambarStub {
+        fn get(
+            &self,
+            _url: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            Ok(oktz_plugin_api::HttpResponse {
+                status: 200,
+                body: oktz_plugin_api::HttpBody::Bytes {
+                    data: Arc::from(vec![7u8; 256]),
+                    mimetype: Some("image/png".into()),
+                },
+                headers: vec![],
+            })
+        }
+        fn post_json(
+            &self,
+            _: &str,
+            _: &serde_json::Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+        fn post_form(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, oktz_plugin_api::HttpBody)],
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+    }
+
+    pub fn http_gambar() -> Arc<dyn oktz_plugin_api::HttpGet> {
+        Arc::new(GambarStub)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use Status::{Close, Correct, Wrong};
+    use oktz_plugin_api::berkas::Berkas as _;
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    struct StubHttp(Option<Vec<u8>>);
+
+    impl oktz_plugin_api::HttpGet for StubHttp {
+        fn get(
+            &self,
+            _url: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            let Some(body) = &self.0 else {
+                return Err(oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                });
+            };
+            Ok(oktz_plugin_api::HttpResponse {
+                status: 200,
+                body: oktz_plugin_api::HttpBody::Bytes {
+                    data: Arc::from(body.clone()),
+                    mimetype: Some("image/png".into()),
+                },
+                headers: vec![],
+            })
+        }
+        fn post_json(
+            &self,
+            _: &str,
+            _: &Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+        fn post_form(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, oktz_plugin_api::HttpBody)],
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+            unimplemented!("cuma GET")
+        }
+    }
+
+    const CFG_GAMBAR: QuizGame = QuizGame {
+        name: "tebakbendera",
+        alias: &[],
+        emoji: "🏳️",
+        title: "TEBAK BENDERA",
+        description: "Tebak negara dari bendera",
+        timeout_ms: 60000,
+        data_file: "tebakbendera2.json",
+        question_field: Some("soal"),
+        answer_field: "name",
+        has_image: true,
+        image_field: "img",
+        hint_count: 2,
+    };
+
+    const CFG_TEKS: QuizGame = QuizGame {
+        name: "tebakkata",
+        alias: &[],
+        emoji: "📝",
+        title: "TEBAK KATA",
+        description: "Tebak kata",
+        timeout_ms: 60000,
+        data_file: "tebakkata.json",
+        question_field: Some("soal"),
+        answer_field: "jawaban",
+        has_image: false,
+        image_field: "img",
+        hint_count: 2,
+    };
+
+    fn ctx_gambar(http: Option<Vec<u8>>) -> Ctx {
+        Ctx {
+            prefix: ".".into(),
+            command: "tebakbendera".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            http: Arc::new(StubHttp(http)),
+            ..Default::default()
+        }
+    }
+
+    fn ctx_jawab(text: &str) -> Ctx {
+        Ctx {
+            prefix: ".".into(),
+            command: "tebakkata".into(),
+            sender: "628111@s.whatsapp.net".into(),
+            chat: "628111@s.whatsapp.net".into(),
+            text: text.into(),
+            ..Default::default()
+        }
+    }
+
+    fn set_sesi(ctx: &Ctx, end_time: i64) {
+        let mut m = Map::new();
+        m.insert(
+            ctx.chat.clone(),
+            json!({
+                "chatId": ctx.chat,
+                "gameType": CFG_TEKS.name,
+                "question": { "soal": "binatang", "jawaban": "kucing" },
+                "startTime": 0,
+                "timeout": 60000,
+                "endTime": end_time,
+                "attempts": 0,
+            }),
+        );
+        ctx.session_set(SESSIONS_KEY, Value::Object(m));
+    }
+
+    fn quote_bot(chat: &str) -> oktz_plugin_api::QuotedMessage {
+        oktz_plugin_api::QuotedMessage {
+            id: "abc".into(),
+            sender: "628999@s.whatsapp.net".into(),
+            chat: chat.to_string(),
+            text: String::new(),
+            kind: oktz_plugin_api::QuotedKind::Text,
+            mimetype: None,
+            file_name: None,
+            from_me: true,
+            timestamp: 0,
+        }
+    }
+
+    #[test]
+    fn gambar_game_gagal_fetch_balas_error_tanpa_sesi() {
+        let ctx = ctx_gambar(None);
+        let r = handler(&CFG_GAMBAR, ctx.clone());
+        let t = r
+            .without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string();
+        assert!(t.contains("ɢᴀɢᴀʟ ᴍᴇᴍᴜᴀᴛ ɢᴀᴍʙᴀʀ"), "{t}");
+        assert!(
+            ctx.session_get(SESSIONS_KEY).is_none(),
+            "gagal fetch tidak boleh membuat sesi"
+        );
+    }
+
+    #[test]
+    fn gambar_game_sukses_kirim_gambar_dan_sesi() {
+        let ctx = ctx_gambar(Some(vec![7u8; 500]));
+        let r = handler(&CFG_GAMBAR, ctx.clone());
+        assert!(format!("{r:?}").contains("Image {"), "{r:?}");
+        assert!(ctx.session_get(SESSIONS_KEY).is_some());
+    }
+
+    #[test]
+    fn preview_bawa_thumbnail_dari_aset() {
+        let b = oktz_plugin_api::berkas::BerkasPalsu::baru();
+        b.tulis("./assets/image/foto2.jpeg", &[1u8; 64]).unwrap();
+        let ctx = Ctx {
+            berkas: Arc::new(b),
+            ..Default::default()
+        };
+        assert!(thumb_foto(&ctx).is_some());
+        assert!(thumb_foto(&Ctx::default()).is_none(), "aset hilang → None");
+    }
+
+    #[test]
+    fn sesi_kedaluwarsa_diumumkan_dan_dibuang() {
+        let ctx = ctx_jawab("apa aja");
+        set_sesi(&ctx, 1);
+        let r = answer(&CFG_TEKS, &ctx).expect("waktu habis diumumkan");
+        let t = r
+            .without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string();
+        assert!(t.contains("Jawaban: *kucing*"), "{t}");
+        assert!(ctx.session_get(SESSIONS_KEY).is_none());
+    }
+
+    #[test]
+    fn jawaban_butuh_reply_ke_pesan_bot() {
+        let ctx = ctx_jawab("kucing");
+        set_sesi(&ctx, now_ms() + 60_000);
+        assert!(answer(&CFG_TEKS, &ctx).is_none(), "tanpa reply tidak dijawab");
+        let mut c2 = ctx.clone();
+        c2.quoted = Some(quote_bot(&c2.chat));
+        assert!(answer(&CFG_TEKS, &c2).is_some(), "reply ke bot dijawab");
+    }
+
 
     // ------------------------------------------------ unit engine (port game-data.js)
 

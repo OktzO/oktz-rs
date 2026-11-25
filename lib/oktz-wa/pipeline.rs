@@ -3177,16 +3177,18 @@ fn mentioned_jids(m: &InboundMessage) -> Vec<String> {
 }
 
 /// `m.quoted` — pesan yang di-reply pengirim.
-fn quoted_of(m: &InboundMessage) -> Option<QuotedMessage> {
+///
+/// `from_me` di sini artinya "yang DIKUTIP dikirim oleh bot sendiri"
+/// (`game-data.js:227` `isReplyToGame`), BUKAN `m.info.source.is_from_me`
+/// (itu from_me pesan PEMICU). `participant` pesan kutipan = penulis aslinya;
+/// bandingkan dengan JID bot (`pn`/`lid`) hasil [`Pipeline::bot_jids`].
+fn quoted_of(m: &InboundMessage, bot_jids: &[String]) -> Option<QuotedMessage> {
     let ci = context_info_of(&m.message)?;
     let quoted = ci.quoted_message.as_option()?;
+    let participant = ci.participant.clone();
     Some(QuotedMessage {
         id: ci.stanza_id.clone().unwrap_or_default(),
-        // `participant` = pengirim asli di grup. Kalau kosong, pesan itu
-        // dikirim di private chat oleh `sender` — bukan berarti pesannya dari
-        // bot, jadi `from_me` harus dibaca terpisah.
-        sender: ci
-            .participant
+        sender: participant
             .clone()
             .unwrap_or_else(|| m.info.source.sender.to_string()),
         chat: m.info.source.chat.to_string(),
@@ -3194,7 +3196,9 @@ fn quoted_of(m: &InboundMessage) -> Option<QuotedMessage> {
         kind: quoted_kind(quoted),
         mimetype: quoted_mimetype(quoted),
         file_name: quoted_file_name(quoted),
-        from_me: m.info.source.is_from_me,
+        from_me: participant
+            .as_deref()
+            .is_some_and(|p| bot_jids.iter().any(|b| b == p)),
         timestamp: 0,
     })
 }
@@ -4059,6 +4063,22 @@ impl Pipeline {
         })
     }
 
+    /// JID bot sendiri (PN + LID) — dipakai [`quoted_of`] untuk memutuskan
+    /// apakah pesan yang DIKUTIP dikirim bot. Kosong kalau pengirim tidak
+    /// memegang `Client` (stub test), dan itu membuat `from_me` selalu false.
+    fn bot_jids(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        if let Some(c) = self.sender.client() {
+            if let Some(pn) = c.pn() {
+                v.push(pn.to_string());
+            }
+            if let Some(lid) = c.lid() {
+                v.push(lid.to_string());
+            }
+        }
+        v
+    }
+
     /// Caller dari `MessageInfo.source` (`MessageSource`, wacore-0.7.0
     /// `src/types/message.rs:104`).
     pub fn caller_of(&self, m: &InboundMessage) -> Caller {
@@ -4092,7 +4112,7 @@ impl Pipeline {
             is_bot_admin: false,
             push_name: m.info.push_name.clone(),
             mentioned: mentioned_jids(m),
-            quoted: quoted_of(m),
+            quoted: quoted_of(m, &self.bot_jids()),
             media,
             media_fetch,
         }

@@ -50,22 +50,69 @@ fn format_number(num: i64) -> String {
     out
 }
 
+/// Direktori store: `DATABASE_PATH` (dibaca `Config::from_env`) atau default.
+/// Store Rust menaruh SELURUH data di `<dir>/settings.json` di bawah kunci
+/// `users`; DB hasil salinan JS memisahkannya di `<dir>/users.json`. Keduanya
+/// dibaca supaya leaderboard tidak lagi kosong di salah satu layout.
+fn db_dir() -> String {
+    std::env::var("DATABASE_PATH")
+        .ok()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "database/main".to_string())
+}
+
+fn read_json(ctx: &Ctx, path: &str) -> Option<Value> {
+    serde_json::from_str(&ctx.berkas().baca_teks(path).ok()?).ok()
+}
+
+/// Nomor bersih dari kunci store: `lid:` dibuang, `@domain` dibuang.
+fn key_number(jid: &str) -> &str {
+    let tanpa_lid = jid.strip_prefix("lid:").unwrap_or(jid);
+    tanpa_lid.split('@').next().unwrap_or(tanpa_lid)
+}
+
+/// JID mention dari kunci store: kunci `lid:` → `...@lid`, nomor → `...@s.whatsapp.net`.
+fn mention_jid(jid: &str) -> String {
+    if let Some(rest) = jid.strip_prefix("lid:") {
+        if rest.contains('@') {
+            rest.to_string()
+        } else {
+            format!("{rest}@lid")
+        }
+    } else if jid.contains('@') {
+        jid.to_string()
+    } else {
+        format!("{jid}@s.whatsapp.net")
+    }
+}
+
 fn load_users(ctx: &Ctx) -> Vec<UserRow> {
+    let dir = db_dir();
+    let mut users = serde_json::Map::new();
+    if let Some(m) = read_json(ctx, &format!("{dir}/settings.json"))
+        .and_then(|r| r.get("users").and_then(Value::as_object).cloned())
+    {
+        users.extend(m);
+    }
+    if let Some(m) = read_json(ctx, &format!("{dir}/users.json"))
+        .and_then(|r| r.as_object().cloned())
+    {
+        for (k, v) in m {
+            users.entry(k).or_insert(v);
+        }
+    }
+
     let mut out = Vec::new();
-    let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json") else {
-        return out;
-    };
-    let Ok(root): Result<Value, _> = serde_json::from_str(&teks) else {
-        return out;
-    };
-    let Some(users) = root.get("users").and_then(Value::as_object) else {
-        return out;
-    };
-    for (jid, data) in users {
-        if jid.is_empty() || jid == "undefined" {
+    for (jid, data) in &users {
+        let is_lid = jid.starts_with("lid:");
+        let clean = key_number(jid);
+        if clean.is_empty() || clean == "undefined" {
             continue;
         }
-        if jid.len() > 15 || jid.starts_with("120") {
+        // Kunci LID dilewatkan utuh (dulu dibuang karena `jid.len() > 15` saat
+        // Whatsapp memberi semua user kunci `lid:<nomor>` → leaderboard kosong).
+        if !is_lid && (clean.len() > 15 || clean.starts_with("120")) {
             continue;
         }
         let koin = data.get("koin").and_then(Value::as_i64).unwrap_or(0);
@@ -86,7 +133,7 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
             .get("name")
             .and_then(Value::as_str)
             .map(String::from)
-            .unwrap_or_else(|| jid.split('@').next().unwrap_or(jid).to_string());
+            .unwrap_or_else(|| clean.to_string());
         out.push(UserRow {
             jid: jid.clone(),
             koin,
@@ -150,9 +197,9 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         let max_exp = users.iter().max_by_key(|u| u.exp).cloned().unwrap();
         let max_en = users.iter().max_by_key(|u| u.energi).cloned().unwrap();
         let mentions = vec![
-            if max_bal.jid.contains('@') { max_bal.jid.clone() } else { format!("{}@s.whatsapp.net", max_bal.jid) },
-            if max_exp.jid.contains('@') { max_exp.jid.clone() } else { format!("{}@s.whatsapp.net", max_exp.jid) },
-            if max_en.jid.contains('@') { max_en.jid.clone() } else { format!("{}@s.whatsapp.net", max_en.jid) },
+            mention_jid(&max_bal.jid),
+            mention_jid(&max_exp.jid),
+            mention_jid(&max_en.jid),
         ];
         let text = "🏆 *LEADERBOARD OVERVIEW* 🏆\n\n_Pilih tombol di bawah untuk melihat ranking!_".to_string();
         // tombol quick_reply
@@ -199,25 +246,21 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         } else {
             "0".to_string()
         };
-        let is_me = if u.jid.split('@').next().unwrap_or(&u.jid) == sender_jid {
+        let is_me = if key_number(&u.jid) == sender_jid {
             " *(You)*"
         } else {
             ""
         };
-        text.push_str(&format!("┃ {} @{}{}\n", medal, u.jid.split('@').next().unwrap_or(&u.jid), is_me));
+        text.push_str(&format!("┃ {} @{}{}\n", medal, key_number(&u.jid), is_me));
         text.push_str(&format!("┃    └ {} ({}%)\n", val, pct));
         if i + 1 < top10.len() {
             text.push_str("┃\n");
         }
-        mentions.push(if u.jid.contains('@') {
-            u.jid.clone()
-        } else {
-            format!("{}@s.whatsapp.net", u.jid)
-        });
+        mentions.push(mention_jid(&u.jid));
     }
     text.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
 
-    let my_rank = sorted.iter().position(|u| u.jid.split('@').next().unwrap_or(&u.jid) == sender_jid);
+    let my_rank = sorted.iter().position(|u| key_number(&u.jid) == sender_jid);
     if let Some(idx) = my_rank {
         text.push_str(&format!(
             "> Posisi kamu: *#{}* dari *{}* user.",
@@ -234,6 +277,8 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oktz_plugin_api::berkas::Berkas as _;
+    use std::sync::Arc;
 
     fn ctx_of(cmd: &str) -> Ctx {
         Ctx {
@@ -258,5 +303,42 @@ mod tests {
     fn alias_topkoin_masih_pakai_handler_sama() {
         let r = leaderboard(ctx_of("topkoin"));
         assert!(r.text_body().is_some());
+    }
+
+    #[test]
+    fn load_users_gabung_settings_dan_users_json_termasuk_lid() {
+        let b = oktz_plugin_api::berkas::BerkasPalsu::baru();
+        let dir = db_dir();
+        b.tulis_teks(
+            &format!("{dir}/settings.json"),
+            r#"{"users":{"628111":{"koin":5}}}"#,
+        )
+        .unwrap();
+        b.tulis_teks(
+            &format!("{dir}/users.json"),
+            r#"{"lid:123456789012345":{"koin":9}}"#,
+        )
+        .unwrap();
+        let ctx = Ctx {
+            berkas: Arc::new(b),
+            ..Default::default()
+        };
+        let users = load_users(&ctx);
+        assert!(
+            users.iter().any(|u| u.jid == "628111"),
+            "settings.json user hilang"
+        );
+        assert!(
+            users.iter().any(|u| u.jid == "lid:123456789012345"),
+            "kunci lid dibuang"
+        );
+    }
+
+    #[test]
+    fn mention_lid_pakai_domain_lid() {
+        assert_eq!(mention_jid("lid:123"), "123@lid");
+        assert_eq!(mention_jid("628111"), "628111@s.whatsapp.net");
+        assert_eq!(mention_jid("628111@s.whatsapp.net"), "628111@s.whatsapp.net");
+        assert_eq!(key_number("lid:123456789012345"), "123456789012345");
     }
 }

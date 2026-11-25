@@ -61,6 +61,7 @@ mod tests {
             command: "tebakgambar".into(),
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
+            http: crate::game::quiz::test_support::http_gambar(),
             ..Default::default()
         };
         let r = handler(&CFG, ctx);
@@ -82,6 +83,7 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: "nyerah".into(),
+            http: crate::game::quiz::test_support::http_gambar(),
             ..Default::default()
         };
         handler(&CFG, ctx.clone());
