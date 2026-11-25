@@ -59,14 +59,14 @@ pub fn promote(ctx: Ctx) -> Reply {
         return Reply::text(ALREADY_ADMIN);
     }
 
-    let number = target.split('@').next().unwrap_or(&target);
+    let number = crate::common::tampil_jid(&ctx, &target);
     match ctx.sock().ubah_peserta(
         &ctx.chat,
         std::slice::from_ref(&p.jid),
         AksiPeserta::Naikkan,
     ) {
         Ok(()) => Reply::text(format!("✅ @{number} sekarang menjadi admin!"))
-            .with_mentions(vec![target]),
+            .with_mentions(crate::common::mention_jid(&ctx, &target).into_iter().collect()),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }

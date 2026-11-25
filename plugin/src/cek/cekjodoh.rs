@@ -48,7 +48,7 @@ pub fn cekjodoh(ctx: Ctx) -> Reply {
 
     let percent = percent_101();
     let mentioned = ctx.mention_or_sender().to_string();
-    let number = mentioned.split('@').next().unwrap_or(&mentioned);
+    let number = crate::common::tampil_jid(&ctx, &mentioned);
     let desc = jodoh_desc(percent);
 
     let txt = if mentioned == ctx.sender {
@@ -61,6 +61,6 @@ pub fn cekjodoh(ctx: Ctx) -> Reply {
 
     Reply::Text {
         text: txt,
-        mentions: vec![mentioned],
+        mentions: crate::common::mention_target(&ctx),
     }
 }

@@ -3,7 +3,7 @@
 use oktz_plugin_api::registry::Participant;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-use crate::common::jid_number;
+use crate::common::tampil_peserta;
 
 pub(crate) const NO_ADMIN: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada admin di grup ini.";
 const HEAD: &str = "👑 *ʟɪsᴛ ᴀᴅᴍɪɴ*\n\n";
@@ -34,14 +34,14 @@ pub(crate) fn render_admin_list(participants: &[Participant]) -> String {
     let mut txt = String::from(HEAD);
     if let Some(owner) = owner_of(&admins) {
         txt.push_str("```━━━ ᴏᴡɴᴇʀ ━━━```\n");
-        txt.push_str(&format!("```👑 @{}```\n\n", jid_number(&owner.jid)));
+        txt.push_str(&format!("```👑 @{}```\n\n", tampil_peserta(owner)));
     }
 
     let regular = regular_admins(&admins);
     if !regular.is_empty() {
         txt.push_str("```━━━ ᴀᴅᴍɪɴ ━━━```\n");
         for (i, admin) in regular.iter().enumerate() {
-            txt.push_str(&format!("```{}. @{}```\n", i + 1, jid_number(&admin.jid)));
+            txt.push_str(&format!("```{}. @{}```\n", i + 1, tampil_peserta(admin)));
         }
     }
     txt.push_str(&format!("\n`Total Admin: {}`", admins.len()));

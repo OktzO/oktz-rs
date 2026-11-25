@@ -38,7 +38,7 @@ pub fn cekabsen(ctx: Ctx) -> Reply {
     let list = if peserta.is_empty() {
         NO_PESERTA.to_string()
     } else {
-        presence_list(&peserta)
+        presence_list(&ctx, &peserta)
     };
 
     let mut mentions = peserta.clone();

@@ -7,7 +7,6 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::jid_number;
 
 /// `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*` — dua contoh perintah pakai prefix yang sedang hidup.
 pub(crate) fn no_target(prefix: &str) -> String {
@@ -60,12 +59,12 @@ pub fn resetwarn(ctx: Ctx) -> Reply {
         return Reply::text(no_target(&ctx.prefix));
     };
 
-    let name = jid_number(&target);
+    let name = crate::common::tampil_jid(&ctx, &target);
     let warns = warns_of(&ctx, &target);
     if warns.is_empty() {
         return Reply::Text {
             text: format!("✅ @{name} tidak memiliki warning."),
-            mentions: vec![target],
+            mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
         };
     }
 
@@ -86,7 +85,7 @@ pub fn resetwarn(ctx: Ctx) -> Reply {
              Sebelumnya: *{}/{max}*\nSekarang: *0/{max}*",
             warns.len()
         ),
-        mentions: vec![target],
+        mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
     }
     .with_mutation(Mutation::SetGroup {
         jid: ctx.chat.clone(),

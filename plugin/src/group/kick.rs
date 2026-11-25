@@ -12,18 +12,18 @@ use oktz_plugin_api::{AksiPeserta, Ctx, Participant, Reply, plugin};
 
 use crate::group::delete::{is_same_group_member, is_same_participant};
 
-/// `findParticipantByNumber` (`lid.js:484-508`) — dicocokkan pada bagian
-/// sebelum `@`; roster Rust hanya menyimpan satu JID per peserta, jadi hanya
-/// `p.jid` yang bisa dibandingkan (JS juga mencoba `p.id`/`p.lid`/
-/// `p.phoneNumber`).
+/// `findParticipantByNumber` (`lid.js:484-508`) — cocokkan nomor pada wire JID
+/// MAUPUN PN peserta, karena grup ber-addressing LID mengirim keduanya.
 pub(crate) fn find_participant<'a>(
     roster: &'a [Participant],
     target: &str,
 ) -> Option<&'a Participant> {
-    let want = target.split('@').next().unwrap_or(target);
-    roster
-        .iter()
-        .find(|p| p.jid.split('@').next().unwrap_or(&p.jid) == want)
+    let want = oktz_plugin_api::registry::jid_user(target);
+    roster.iter().find(|p| {
+        oktz_plugin_api::registry::jid_user(&p.jid) == want
+            || p.phone_number()
+                .is_some_and(|pn| oktz_plugin_api::registry::jid_user(pn) == want)
+    })
 }
 
 /// `m.quoted ? m.quoted.sender : m.mentionedJid[0]` (`kick.js:28-32`).
@@ -88,7 +88,7 @@ pub fn kick(ctx: Ctx) -> Reply {
     }
 
     // `kick.js:84-86` — keluarkan, lalu lapor dengan mention.
-    let target_number = target.split('@').next().unwrap_or(&target);
+    let target_number = crate::common::tampil_jid(&ctx, &target);
     match ctx
         .sock()
         .ubah_peserta(&ctx.chat, std::slice::from_ref(&p.jid), AksiPeserta::Keluar)
@@ -96,7 +96,7 @@ pub fn kick(ctx: Ctx) -> Reply {
         Ok(()) => Reply::text(format!(
             "✅ @{target_number} telah dikeluarkan dari grup ini."
         ))
-        .with_mentions(vec![target]),
+        .with_mentions(crate::common::mention_jid(&ctx, &target).into_iter().collect()),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }

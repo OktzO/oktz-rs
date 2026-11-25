@@ -67,7 +67,7 @@ pub(crate) const PERSONALITIES: [(&str, &str, &str); 16] = [
 )]
 pub fn cekkepribadian(ctx: Ctx) -> Reply {
     let mentioned = ctx.mention_or_sender().to_string();
-    let number = mentioned.split('@').next().unwrap_or(&mentioned);
+    let number = crate::common::tampil_jid(&ctx, &mentioned);
     let (p_type, p_title, p_desc) = PERSONALITIES[random_index(PERSONALITIES.len())];
 
     let txt = if mentioned == ctx.sender {
@@ -82,6 +82,6 @@ pub fn cekkepribadian(ctx: Ctx) -> Reply {
 
     Reply::Text {
         text: txt,
-        mentions: vec![mentioned],
+        mentions: crate::common::mention_target(&ctx),
     }
 }

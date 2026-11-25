@@ -59,10 +59,12 @@ pub(crate) fn is_same_participant(a: &str, b: &str) -> bool {
 /// `findParticipantByNumber` (`lid.js:484-506`) — dicocokkan pada bagian
 /// sebelum `@`; roster Rust hanya menyimpan satu JID per peserta.
 fn find_by_number<'a>(roster: &'a [Participant], target: &str) -> Option<&'a Participant> {
-    let want = target.split('@').next().unwrap_or(target);
-    roster
-        .iter()
-        .find(|p| p.jid.split('@').next().unwrap_or(&p.jid) == want)
+    let want = oktz_plugin_api::registry::jid_user(target);
+    roster.iter().find(|p| {
+        oktz_plugin_api::registry::jid_user(&p.jid) == want
+            || p.phone_number()
+                .is_some_and(|pn| oktz_plugin_api::registry::jid_user(pn) == want)
+    })
 }
 
 /// `isSameGroupMember` (`lid.js:477-482`).

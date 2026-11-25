@@ -17,9 +17,18 @@ use super::douyindl::query_encode;
 /// `nexray` di `src/lib/aggregator.js:22`.
 pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/downloader/spotify";
 
-/// `spotifydl.js:18` — `/open\.spotify\.com\/track/i`.
+/// Cadangan kedua: bentuk responsnya sama dengan nexray, dan tetap hidup ketika
+/// nexray membalas 403 dari upstream Spotify-nya.
+pub(crate) const ENDPOINT_IZUKA: &str = "https://my.izuka-api.xyz/api/downloader/spotify";
+
+/// Link track/album/playlist Spotify. Album dan playlist diterima karena
+/// backend mengambil track pertama dari keduanya (`src/capabilities/spotify.js`).
 pub(crate) fn is_track_url(text: &str) -> bool {
-    text.to_lowercase().contains("open.spotify.com/track")
+    let t = text.to_lowercase();
+    let Some(rest) = t.split("open.spotify.com").nth(1) else {
+        return false;
+    };
+    rest.contains("/track/") || rest.contains("/album/") || rest.contains("/playlist/")
 }
 
 /// `spotifydl.js:19` — link hilang atau bukan track.
@@ -147,18 +156,25 @@ pub fn spotifydl(ctx: Ctx) -> Reply {
         },
         Err(_) => None,
     };
-    let data = local.or_else(|| {
-        let url = format!("{ENDPOINT}?url={}", query_encode(text));
-        let body = ctx.http.get(&url).ok().and_then(|response| response.json());
-        match body.as_ref().map(normalize_aggregator) {
-            Some(Ok(track)) => Some(track),
-            Some(Err(AggregatorFailure::Normalization)) => {
-                normalisasi_gagal = true;
-                None
+    let data = {
+        let mut via_aggregator = |endpoint: &str| {
+            let url = format!("{endpoint}?url={}", query_encode(text));
+            match ctx.http.get(&url).ok().and_then(|response| response.json()) {
+                Some(body) => match normalize_aggregator(&body) {
+                    Ok(track) => Some(track),
+                    Err(AggregatorFailure::Normalization) => {
+                        normalisasi_gagal = true;
+                        None
+                    }
+                    Err(AggregatorFailure::Backend) => None,
+                },
+                None => None,
             }
-            Some(Err(AggregatorFailure::Backend)) | None => None,
-        }
-    });
+        };
+        local
+            .or_else(|| via_aggregator(ENDPOINT))
+            .or_else(|| via_aggregator(ENDPOINT_IZUKA))
+    };
 
     match data {
         // `spotifydl.js:33-40` — `{ audio: { url }, mimetype: "audio/mpeg" }`
@@ -181,6 +197,7 @@ mod tests {
     struct Stub {
         local: Result<String, HttpError>,
         aggregator: Result<String, HttpError>,
+        izuka: Result<String, HttpError>,
         seen: Mutex<Vec<oktz_plugin_api::HttpCall>>,
     }
 
@@ -191,6 +208,9 @@ mod tests {
                     message: "local offline".into(),
                 }),
                 aggregator: Ok(v.to_string()),
+                izuka: Err(HttpError {
+                    message: "izuka offline".into(),
+                }),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -201,6 +221,9 @@ mod tests {
                 aggregator: Err(HttpError {
                     message: "aggregator offline".into(),
                 }),
+                izuka: Err(HttpError {
+                    message: "izuka offline".into(),
+                }),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -209,6 +232,20 @@ mod tests {
             Arc::new(Stub {
                 local: Ok(local.to_string()),
                 aggregator: Ok(aggregator.to_string()),
+                izuka: Err(HttpError {
+                    message: "izuka offline".into(),
+                }),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn nexray_gagal_izuka_ok(izuka: Value) -> Arc<Stub> {
+            Arc::new(Stub {
+                local: Err(HttpError {
+                    message: "local offline".into(),
+                }),
+                aggregator: Ok(serde_json::json!({"status": false, "error": "403"}).to_string()),
+                izuka: Ok(izuka.to_string()),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -221,6 +258,9 @@ mod tests {
                 aggregator: Err(HttpError {
                     message: "aggregator offline".into(),
                 }),
+                izuka: Err(HttpError {
+                    message: "izuka offline".into(),
+                }),
                 seen: Mutex::new(Vec::new()),
             })
         }
@@ -232,7 +272,11 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push(oktz_plugin_api::HttpCall::get(url));
-            let text = self.aggregator.clone()?;
+            let text = if url.contains("izuka") {
+                self.izuka.clone()?
+            } else {
+                self.aggregator.clone()?
+            };
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -333,12 +377,10 @@ mod tests {
     fn only_track_urls_are_accepted() {
         assert!(is_track_url("https://open.spotify.com/track/abc"));
         assert!(is_track_url("HTTPS://OPEN.SPOTIFY.COM/TRACK/abc"));
-        for bad in [
-            "https://open.spotify.com/album/abc",
-            "https://open.spotify.com/playlist/abc",
-            "https://spotify.com/track/abc",
-            "",
-        ] {
+        assert!(is_track_url("https://open.spotify.com/album/abc"));
+        assert!(is_track_url("https://open.spotify.com/playlist/abc"));
+        assert!(is_track_url("https://open.spotify.com/intl-id/track/abc"));
+        for bad in ["https://spotify.com/track/abc", "https://open.spotify.com/", ""] {
             assert!(!is_track_url(bad), "harus ditolak: {bad}");
         }
     }
@@ -346,7 +388,7 @@ mod tests {
     #[test]
     fn a_missing_or_non_track_link_is_refused_without_a_request() {
         let http = Stub::body(ok_body());
-        for text in ["", "   ", "https://open.spotify.com/album/x"] {
+        for text in ["", "   ", "https://open.spotify.com/", "https://spotify.com/track/x"] {
             assert_eq!(text_of(&run(http.clone(), text)), BAD_URL, "input {text:?}");
         }
         assert!(http.seen.lock().unwrap().is_empty());
@@ -478,6 +520,24 @@ mod tests {
             "https://open.spotify.com/track/x",
         );
         assert_eq!(text_of(&r), SYS_ERROR);
+    }
+
+    #[test]
+    fn izuka_dipakai_ketika_nexray_menandai_gagal() {
+        let izuka = serde_json::json!({
+            "status": true,
+            "result": {
+                "title": "Lagu",
+                "artist": "Artis",
+                "download_url": "https://cdn.example/c.mp3"
+            }
+        });
+        let http = Stub::nexray_gagal_izuka_ok(izuka);
+        let r = run(http.clone(), "https://open.spotify.com/track/x");
+        assert!(audio_dari(isi(&r)).is_some(), "izuka harus menutup kegagalan nexray");
+        let seen = http.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 3, "POST lokal + nexray + izuka");
+        assert!(seen[2].url.contains("izuka"), "backend ketiga: {}", seen[2].url);
     }
 
     #[test]

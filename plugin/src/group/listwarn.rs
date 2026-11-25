@@ -85,11 +85,11 @@ pub fn listwarn(ctx: Ctx) -> Reply {
     for (i, (jid, data)) in entries.iter().enumerate() {
         let count = data.as_array().map_or(0, Vec::len);
         txt.push_str(&format!(
-            "*{}.* @{} - *{count}/{max}* warning\n",
+            "*{}.* {} - *{count}/{max}* warning\n",
             i + 1,
-            jid_number(jid)
+            crate::common::tag_dari(&ctx, jid)
         ));
-        mentions.push(jid.clone());
+        mentions.extend(crate::common::mentions_dari(&ctx, std::slice::from_ref(jid)));
     }
     txt.push_str(&format!(
         "\n> Ketik `{}listwarn @user` untuk detail",

@@ -173,9 +173,10 @@ mod tests {
     }
 
     #[test]
-    fn a_lid_target_is_numbered_without_the_server() {
+    fn a_lid_target_is_not_printed_as_raw_digits() {
         let out = run(serde_json::json!({"koin": 1}), vec!["628999@lid"], false);
-        assert!(out.contains("*〔 👤 User 〕* 628999\n"));
+        assert!(out.contains("*〔 👤 User 〕* pengguna\n"), "{out}");
+        assert!(!out.contains("628999"));
         assert!(!out.contains("SHOP"));
     }
 }

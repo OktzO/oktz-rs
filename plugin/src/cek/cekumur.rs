@@ -58,7 +58,7 @@ pub(crate) fn umur_text(ctx: &Ctx, percent: u32) -> String {
 pub fn cekumur(ctx: Ctx) -> Reply {
     Reply::Text {
         text: umur_text(&ctx, umur_percent()),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

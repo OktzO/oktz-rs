@@ -60,7 +60,7 @@ pub(crate) fn karma_text(ctx: &Ctx, percent: u32) -> String {
 pub fn cekkarma(ctx: Ctx) -> Reply {
     Reply::Text {
         text: karma_text(&ctx, karma_percent()),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

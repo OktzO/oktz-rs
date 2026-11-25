@@ -6,7 +6,7 @@
 use oktz_plugin_api::registry::Participant;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-use crate::common::jid_number;
+use crate::common::{mention_peserta, tag_peserta};
 
 /// `m.text || 'Tag All Members'` (`tagall.js:20`) — string kosong itu falsy.
 pub(crate) const DEFAULT_TEXT: &str = "Tag All Members";
@@ -20,14 +20,17 @@ pub(crate) fn tag_targets<'a>(
     participants: &'a [Participant],
     sender: &str,
 ) -> Vec<&'a Participant> {
-    participants.iter().filter(|p| p.jid != sender).collect()
+    participants
+        .iter()
+        .filter(|p| p.jid != sender && p.mention() != sender)
+        .collect()
 }
 
 /// `@<nomor>` per baris, dipisah newline — `map(p => '@' + jid.split('@')[0])`.
 pub(crate) fn member_list(targets: &[&Participant]) -> String {
     targets
         .iter()
-        .map(|p| format!("@{}", jid_number(&p.jid)))
+        .map(|p| tag_peserta(p))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -68,7 +71,7 @@ pub fn tagall(ctx: Ctx) -> Reply {
             targets.len(),
             member_list(&targets)
         ),
-        mentions: targets.iter().map(|p| p.jid.clone()).collect(),
+        mentions: targets.iter().filter_map(|p| mention_peserta(p)).collect(),
     }
 }
 
@@ -175,11 +178,13 @@ mod tests {
             p("628222@s.whatsapp.net", false, false),
             p("628333@lid", false, false),
         ]));
+        // LID tanpa PN/nama tidak boleh dicetak sebagai angka acak; dia juga
+        // tidak masuk `mentions` karena klien akan merendernya mentah.
         assert_eq!(
             text_of(&r),
-            "*Pesan:* Halo semua!\n\n```━━━ 2 MEMBER TOTAL ━━━```\n@628222\n@628333"
+            "*Pesan:* Halo semua!\n\n```━━━ 2 MEMBER TOTAL ━━━```\n@628222\n@pengguna"
         );
-        assert_eq!(mentions_of(&r), &["628222@s.whatsapp.net", "628333@lid"]);
+        assert_eq!(mentions_of(&r), &["628222@s.whatsapp.net"]);
     }
 
     #[test]

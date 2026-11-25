@@ -94,7 +94,12 @@ fn susun_info(
     let (total, admin) = jumlah_peserta(meta, roster);
     let owner_display = owner
         .filter(|o| !o.split('@').next().unwrap_or("").contains(':'))
-        .map(|o| format!("@{}", jid_number(o)))
+        .map(|o| {
+            roster
+                .find(o)
+                .map(|p| crate::common::tag_peserta(p))
+                .unwrap_or_else(|| format!("@{}", jid_number(o)))
+        })
         .unwrap_or_else(|| "Tidak diketahui".to_string());
 
     let created = match meta.get("creation") {

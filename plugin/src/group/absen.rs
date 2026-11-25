@@ -103,11 +103,11 @@ pub(crate) fn store_peserta(ctx: &Ctx, peserta: &[String]) {
 }
 
 /// `┃ ${i + 1}. @${jid.split('@')[0]}` digabung `\n`.
-pub(crate) fn presence_list(peserta: &[String]) -> String {
+pub(crate) fn presence_list(ctx: &Ctx, peserta: &[String]) -> String {
     peserta
         .iter()
         .enumerate()
-        .map(|(i, jid)| format!("┃ {}. @{}", i + 1, jid_number(jid)))
+        .map(|(i, jid)| format!("┃ {}. {}", i + 1, crate::common::tag_dari(ctx, jid)))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -153,11 +153,11 @@ pub fn absen(ctx: Ctx) -> Reply {
             keterangan,
             date_long(now_ms()),
             peserta.len(),
-            presence_list(&peserta),
+            presence_list(&ctx, &peserta),
             ctx.prefix,
             ctx.prefix,
         ),
-        mentions: peserta,
+        mentions: crate::common::mentions_dari(&ctx, &peserta),
     }
 }
 

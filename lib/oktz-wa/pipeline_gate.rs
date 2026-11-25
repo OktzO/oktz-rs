@@ -276,11 +276,9 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
 
 /// `GroupRoster` → `Vec<oktz_router::group::Participant>`.
 ///
-/// `Participant` di router punya tiga identitas (`id`/`lid`/`phone_number`)
-/// karena `adminFlagsFor` mencocokkan nomor dengan tiga bentuk itu. Yang kita
-/// punya dari wire cuma satu JID per peserta, jadi JID yang sama diisi ke
-/// `id` dan `phone_number`, dan `lid` dibiarkan kosong — `participant_nums`
-/// menyaring string kosong, jadi slot kosong tidak bothers untuk apa pun.
+/// Alias PN/LID ikut dibawa: `adminFlagsFor` mencocokkan nomor ke ketiga bentuk
+/// identitas, dan di grup ber-addressing LID `sender` bisa LID sementara roster
+/// menyimpan PN (atau sebaliknya).
 ///
 /// `is_admin` sudah digabung oleh upstream: `roster_from` memakai
 /// `is_admin()`, yang true untuk admin maupun superadmin
@@ -291,7 +289,11 @@ pub fn participants_from(roster: &oktz_plugin_api::registry::GroupRoster) -> Vec
         .iter()
         .map(|p| oktz_router::group::Participant {
             id: p.jid.clone(),
-            lid: String::new(),
+            lid: if p.jid.ends_with("@lid") {
+                p.jid.clone()
+            } else {
+                p.phone_number().map(String::from).unwrap_or_default()
+            },
             phone_number: p.jid.clone(),
             admin: p.is_admin,
         })

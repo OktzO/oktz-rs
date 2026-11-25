@@ -63,7 +63,7 @@ pub(crate) fn pintar_text(ctx: &Ctx, iq: u32) -> String {
 pub fn cekpintar(ctx: Ctx) -> Reply {
     Reply::Text {
         text: pintar_text(&ctx, pintar_iq()),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

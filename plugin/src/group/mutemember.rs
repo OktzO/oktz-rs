@@ -43,11 +43,14 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> String {
         return String::new();
     }
 
-    if is_lid(&raw) {
-        raw = lid_to_jid(&raw);
-    }
     if !raw.contains('@') {
         raw = format!("{}@s.whatsapp.net", digits_only(&raw));
+    }
+    if is_lid(&raw) {
+        raw = ctx.mention_of(&raw);
+    }
+    if is_lid(&raw) {
+        raw = lid_to_jid(&raw);
     }
     raw
 }
@@ -67,11 +70,7 @@ pub(crate) fn muted_members(ctx: &Ctx) -> Vec<String> {
 /// `findParticipantByNumber(...)` — versi roster: `Participant.jid` sudah
 /// nomor telepon, jadi cukup cocokkan bagian sebelum `@`.
 fn is_target_admin(ctx: &Ctx, target_number: &str) -> bool {
-    ctx.roster
-        .participants
-        .iter()
-        .find(|p| jid_number(&p.jid) == target_number)
-        .is_some_and(|p| p.is_admin)
+    ctx.roster.find(target_number).is_some_and(|p| p.is_admin)
 }
 
 pub(crate) fn usage(prefix: &str) -> String {

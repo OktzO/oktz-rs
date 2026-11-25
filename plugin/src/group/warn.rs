@@ -15,7 +15,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
 
-use crate::common::{jid_number, now_ms, parse_int};
+use crate::common::{now_ms, parse_int};
 use crate::group::kick::find_participant;
 use crate::group::listwarn::max_warnings;
 
@@ -202,7 +202,7 @@ pub fn warn(ctx: Ctx) -> Reply {
         return Reply::None.with_mutation(mutation);
     }
 
-    let num = jid_number(&target);
+    let num = crate::common::tampil_jid(&ctx, &target);
     Reply::Text {
         text: format!(
             "⚠️ *PERINGATAN DIBERIKAN*\n\n\
@@ -213,7 +213,7 @@ pub fn warn(ctx: Ctx) -> Reply {
              _{} warning lagi = KICK OTOMATIS_",
             max - count
         ),
-        mentions: vec![target],
+        mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
     }
     .with_mutation(mutation)
 }

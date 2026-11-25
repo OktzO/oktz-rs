@@ -1009,7 +1009,57 @@ pub struct Participant {
     pub is_owner: bool,
     /// `db.getUser(p.jid)` — di JS tiap iterasi roster memanggilnya sendiri.
     /// `Null` kalau peserta belum pernah ada di store.
+    ///
+    /// Metadata grup menitipkan identitas yang tidak ada di store di kunci
+    /// [`PN_KEY`]/[`NAME_KEY`]; pipeline yang menggabungkannya, jadi literal
+    /// `Participant` di plugin tidak perlu tahu bentuk tambahan itu.
     pub data: Value,
+}
+
+/// Kunci cadangan di [`Participant::data`] untuk identitas dari wire.
+/// Diawali `_` supaya tidak bentrok dengan field user store mana pun.
+pub const PN_KEY: &str = "_pn";
+pub const NAME_KEY: &str = "_name";
+
+/// `jid.replace(/@.+/g, "")` lalu buang suffix device `:N`.
+pub fn jid_user(jid: &str) -> &str {
+    let tanpa_server = jid.split('@').next().unwrap_or(jid);
+    tanpa_server.split(':').next().unwrap_or(tanpa_server)
+}
+
+fn is_same_user(a: &str, b: &str) -> bool {
+    let (a, b) = (jid_user(a), jid_user(b));
+    !a.is_empty() && a == b
+}
+
+/// `jid` menunjuk peserta ini, lewat wire JID maupun nomor teleponnya.
+fn participant_matches(p: &Participant, jid: &str) -> bool {
+    let want = jid_user(jid);
+    jid_user(&p.jid) == want || p.phone_number().is_some_and(|pn| jid_user(pn) == want)
+}
+
+impl Participant {
+    /// Nomor telepon asli peserta (`…@s.whatsapp.net`), kalau server
+    /// mengirimkannya — dipakai untuk mention/teks, karena mention LID
+    /// dirender klien sebagai deretan angka acak.
+    pub fn phone_number(&self) -> Option<&str> {
+        self.data.get(PN_KEY).and_then(Value::as_str)
+    }
+
+    /// Nama tampilan dari metadata grup atau store.
+    pub fn name(&self) -> Option<&str> {
+        self.data
+            .get(NAME_KEY)
+            .and_then(Value::as_str)
+            .or_else(|| self.data.get("name").and_then(Value::as_str))
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && !s.contains('\u{2022}'))
+    }
+
+    /// JID untuk mention/teks: PN kalau diketahui, bukan LID.
+    pub fn mention(&self) -> &str {
+        self.phone_number().unwrap_or(&self.jid)
+    }
 }
 
 /// Roster grup untuk satu pesan.
@@ -1037,14 +1087,9 @@ impl GroupRoster {
     }
 
     pub fn participant_is_admin(&self, jid: &str) -> bool {
-        let user = jid.split('@').next().unwrap_or(jid);
-        let num = user.split(':').next().unwrap_or(user);
-        self.participants.iter().any(|p| {
-            if !p.is_admin { return false; }
-            let pj = p.jid.split('@').next().unwrap_or(&p.jid);
-            let pn = pj.split(':').next().unwrap_or(pj);
-            pn == num
-        })
+        self.participants
+            .iter()
+            .any(|p| p.is_admin && participant_matches(p, jid))
     }
 
     /// JID semua anggota, urutan wire apa adanya. Bahan `tagall`
@@ -1065,7 +1110,28 @@ impl GroupRoster {
 
     /// `true` kalau JID itu admin (superadmin ikut dihitung).
     pub fn is_admin(&self, jid: &str) -> bool {
-        self.participants.iter().any(|p| p.is_admin && p.jid == jid)
+        self.participants
+            .iter()
+            .any(|p| p.is_admin && participant_matches(p, jid))
+    }
+
+    /// Peserta yang identitasnya (wire JID atau PN) cocok dengan `jid`.
+    pub fn find(&self, jid: &str) -> Option<&Participant> {
+        if jid_user(jid).is_empty() {
+            return None;
+        }
+        self.participants
+            .iter()
+            .find(|p| participant_matches(p, jid))
+    }
+
+    /// JID untuk mention: PN kalau metadata grup memberikannya, selain itu
+    /// wire JID apa adanya. Mention LID dirender klien sebagai angka acak.
+    pub fn mention_jid(&self, jid: &str) -> String {
+        match self.find(jid) {
+            Some(p) => p.mention().to_string(),
+            None => jid.to_string(),
+        }
     }
 }
 
@@ -1324,6 +1390,30 @@ impl Ctx {
     /// `m.quoted` — pesan yang di-reply, `None` kalau tidak reply.
     pub fn quoted(&self) -> Option<&QuotedMessage> {
         self.quoted.as_ref()
+    }
+
+    /// JID untuk mention di chat ini: PN kalau roster mengenal orangnya.
+    ///
+    /// Teks mention harus memakai bagian nomor dari NILAI INI, bukan dari JID
+    /// mentah — kalau tidak, klien merender deretan angka acak (LID).
+    pub fn mention_of(&self, jid: &str) -> String {
+        self.roster.mention_jid(jid)
+    }
+
+    /// Nama tampilan untuk `jid`: nama metadata grup / nama di store /
+    /// pushname (kalau itu pengirim). `None` kalau tak satu pun diketahui.
+    pub fn name_of(&self, jid: &str) -> Option<String> {
+        if let Some(nama) = self
+            .roster
+            .find(jid)
+            .and_then(|p| p.name().map(str::to_string))
+        {
+            return Some(nama);
+        }
+        if is_same_user(jid, &self.sender) && !self.push_name.trim().is_empty() {
+            return Some(self.push_name.trim().to_string());
+        }
+        None
     }
 
     /// `global.sessions.get(key)` — clone, bukan referensi, supaya plugin
@@ -2325,6 +2415,69 @@ mod tests {
         };
         assert_eq!(ctx.roster.member_jids(), vec!["1@s.whatsapp.net".to_string()]);
         assert_eq!(ctx.user_field("koin"), None);
+    }
+
+    #[test]
+    fn mention_prefers_the_phone_number_over_the_lid() {
+        let pid = Participant {
+            jid: "247957890850846@lid".into(),
+            is_admin: true,
+            is_owner: false,
+            data: serde_json::json!({"_pn": "628111@s.whatsapp.net", "_name": "Budi"}),
+        };
+        let r = GroupRoster {
+            participants: vec![pid, participant("628999@s.whatsapp.net", false, false)],
+            is_bot_admin: true,
+        };
+        assert_eq!(r.mention_jid("247957890850846@lid"), "628111@s.whatsapp.net");
+        assert_eq!(r.mention_jid("247957890850846:3@lid"), "628111@s.whatsapp.net");
+        assert_eq!(
+            r.mention_jid("628111@s.whatsapp.net"),
+            "628111@s.whatsapp.net",
+            "PN yang dikenal roster tetap PN"
+        );
+        assert_eq!(r.mention_jid("628777@s.whatsapp.net"), "628777@s.whatsapp.net");
+        assert!(r.is_admin("247957890850846@lid"));
+        assert!(r.is_admin("628111@s.whatsapp.net"));
+        assert_eq!(
+            r.find("628111@s.whatsapp.net").and_then(Participant::name),
+            Some("Budi")
+        );
+        assert_eq!(
+            r.find("628999@s.whatsapp.net").and_then(Participant::name),
+            None,
+            "tanpa nama di metadata/store"
+        );
+    }
+
+    #[test]
+    fn masked_display_name_is_not_shown() {
+        let p = Participant {
+            jid: "247957890850846@lid".into(),
+            data: serde_json::json!({ "_name": "+62\u{2022}\u{2022}\u{2022}79" }),
+            ..Default::default()
+        };
+        assert_eq!(p.name(), None);
+    }
+
+    #[test]
+    fn ctx_mention_and_name_follow_the_roster() {
+        let ctx = Ctx {
+            sender: "247957890850846@lid".into(),
+            push_name: "Budi".into(),
+            roster: GroupRoster {
+                participants: vec![Participant {
+                    jid: "247957890850846@lid".into(),
+                    data: serde_json::json!({ "_pn": "628111@s.whatsapp.net" }),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(ctx.mention_of(&ctx.sender), "628111@s.whatsapp.net");
+        assert_eq!(ctx.name_of(&ctx.sender), Some("Budi".to_string()));
+        assert_eq!(ctx.name_of("628999@s.whatsapp.net"), None);
     }
 
     #[test]

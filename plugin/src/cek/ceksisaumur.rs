@@ -80,7 +80,7 @@ pub fn ceksisaumur(ctx: Ctx) -> Reply {
             sisaumur_bulan(),
             sisaumur_hari(),
         ),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

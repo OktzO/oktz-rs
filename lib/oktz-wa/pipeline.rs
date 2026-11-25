@@ -3488,6 +3488,40 @@ impl RosterSource for ClientSender {
     }
 }
 
+/// Identitas roster yang tidak ada di objek user store: PN asli + nama grup.
+///
+/// Disimpan di `data` (bukan field `Participant` baru) supaya literal
+/// `Participant` di seluruh plugin — termasuk test — tidak berubah bentuk.
+pub(crate) fn roster_identitas(pn: Option<String>, nama: Option<String>) -> Value {
+    let mut obj = serde_json::Map::new();
+    if let Some(pn) = pn {
+        obj.insert(
+            oktz_plugin_api::registry::PN_KEY.to_string(),
+            Value::String(pn),
+        );
+    }
+    if let Some(nama) = nama.filter(|n| !n.trim().is_empty()) {
+        obj.insert(
+            oktz_plugin_api::registry::NAME_KEY.to_string(),
+            Value::String(nama),
+        );
+    }
+    Value::Object(obj)
+}
+
+fn gabung_identitas(identitas: Value, entri: Value) -> Value {
+    match (identitas, entri) {
+        (Value::Object(mut a), Value::Object(b)) => {
+            for (k, v) in b {
+                a.insert(k, v);
+            }
+            Value::Object(a)
+        }
+        (Value::Object(a), _) => Value::Object(a),
+        (_, b) => b,
+    }
+}
+
 /// `GroupMetadata` → `Ctx::roster`.
 ///
 /// Dipisah dari I/O supaya pemetaannya bisa diuji terhadap tipe asli
@@ -3547,7 +3581,12 @@ pub fn roster_from(meta: &GroupMetadata, bot_jids: &[String]) -> GroupRoster {
                 jid: p.jid.to_string(),
                 is_admin: p.is_admin(),
                 is_owner: p.is_super_admin(),
-                data: Value::Null,
+                data: crate::pipeline::roster_identitas(
+                    p.phone_number.as_ref().map(|pn| pn.to_string()),
+                    p.details
+                        .as_ref()
+                        .and_then(|d| d.display_name.as_ref().map(|s| s.to_string())),
+                ),
             })
             .collect(),
     }
@@ -3630,10 +3669,30 @@ impl PluginCtxSource {
         // `db.getUser(p.jid)` per peserta — di JS tiap plugin yang mengiterasi
         // roster memanggilnya sendiri, jadi ini satu baca per peserta per pesan.
         for p in &mut roster.participants {
-            p.data = self.store.user_entry(&p.jid);
+            let identitas = std::mem::take(&mut p.data);
+            // Grup LID menyimpan user dengan kunci PN, jadi PN peserta dicoba
+            // kalau kunci LID tidak punya entri.
+            let mut entri = self.store.user_entry(&p.jid);
+            if entri.is_null()
+                && let Some(pn) = p.phone_number()
+            {
+                entri = self.store.user_entry(pn);
+            }
+            p.data = gabung_identitas(identitas, entri);
         }
         c.roster = roster;
         c.user_data = self.store.user_entry(&c.sender);
+        // `serialize.js` meng-resolve PN↔LID sebelum plugin melihat pesan, jadi
+        // `m.sender`/`m.mentionedJid` di JS SELALU PN. LID mentah tidak boleh
+        // bocor ke teks balasan; kalau mapping tidak diketahui, biarkan apa
+        // adanya (tidak mengarang nomor).
+        c.sender = c.roster.mention_jid(&c.sender);
+        for jid in &mut c.mentioned {
+            *jid = c.roster.mention_jid(jid);
+        }
+        if c.user_data.is_null() {
+            c.user_data = self.store.user_entry(&c.sender);
+        }
         c.group_data = self.store.group_entry(&c.chat);
         c.settings = self.store.settings_entry();
         c.sessions = self.sessions.clone();
@@ -8943,6 +9002,62 @@ mod tests {
         let mut c = Ctx::default();
         src.fill(&mut c);
         assert_eq!(c.db_owners(), ["628111".to_string()]);
+    }
+
+    #[test]
+    fn lid_sender_and_mentions_are_resolved_to_the_phone_number() {
+        use oktz_plugin_api::registry::{NAME_KEY, PN_KEY};
+        assert_eq!((PN_KEY, NAME_KEY), ("_pn", "_name"));
+        let seen = Arc::new(Mutex::new(None));
+        let real = enriched_entry(seen.clone());
+        let roster = GroupRoster {
+            participants: vec![
+                Participant {
+                    jid: "247957890850846@lid".into(),
+                    is_admin: true,
+                    is_owner: true,
+                    data: serde_json::json!({"_pn": "628222@s.whatsapp.net", "_name": "Budi"}),
+                },
+                Participant {
+                    jid: "628333@s.whatsapp.net".into(),
+                    is_admin: false,
+                    is_owner: false,
+                    data: Value::Null,
+                },
+            ],
+            is_bot_admin: true,
+        };
+        let mut cache = WrappedHandlers::default();
+        let src = plugin_src_with(r#"{"users":{"628222":{"koin":7}},"groups":{},"settings":{}}"#);
+        src.rosters.lock().unwrap().put("120363@g.us", roster);
+        let wrapped = cache.get_or_insert(real, &src);
+
+        (wrapped.handler)(Ctx {
+            sender: "247957890850846@lid".into(),
+            chat: "120363@g.us".into(),
+            mentioned: vec!["247957890850846@lid".into(), "628333@s.whatsapp.net".into()],
+            is_group: true,
+            ..Default::default()
+        });
+
+        let c = seen.lock().unwrap().clone().expect("handler harus jalan");
+        assert_eq!(c.sender, "628222@s.whatsapp.net", "sender LID jadi PN");
+        assert_eq!(
+            c.mentioned,
+            vec![
+                "628222@s.whatsapp.net".to_string(),
+                "628333@s.whatsapp.net".to_string()
+            ]
+        );
+        assert_eq!(
+            c.user_field("koin").and_then(|v| v.as_i64()),
+            Some(7),
+            "user store dikunci PN, walau sender datang sebagai LID"
+        );
+        assert_eq!(
+            c.roster.find("247957890850846@lid").and_then(|p| p.name()),
+            Some("Budi")
+        );
     }
 
     #[test]

@@ -190,17 +190,14 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         return Reply::text("📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database.".to_string());
     }
 
-    let sender_jid = ctx.sender.split('@').next().unwrap_or(&ctx.sender).to_string();
-
     if typ == "overview" {
         let max_bal = users.iter().max_by_key(|u| u.koin).cloned().unwrap();
         let max_exp = users.iter().max_by_key(|u| u.exp).cloned().unwrap();
         let max_en = users.iter().max_by_key(|u| u.energi).cloned().unwrap();
-        let mentions = vec![
-            mention_jid(&max_bal.jid),
-            mention_jid(&max_exp.jid),
-            mention_jid(&max_en.jid),
-        ];
+        let mentions = [&max_bal, &max_exp, &max_en]
+            .iter()
+            .filter_map(|u| sebutan(&ctx, u).1)
+            .collect::<Vec<_>>();
         let text = "🏆 *LEADERBOARD OVERVIEW* 🏆\n\n_Pilih tombol di bawah untuk melihat ranking!_".to_string();
         // tombol quick_reply
         let buttons = vec![
@@ -246,21 +243,20 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         } else {
             "0".to_string()
         };
-        let is_me = if key_number(&u.jid) == sender_jid {
-            " *(You)*"
-        } else {
-            ""
-        };
-        text.push_str(&format!("┃ {} @{}{}\n", medal, key_number(&u.jid), is_me));
+        let (label, mention, is_me) = sebutan(&ctx, u);
+        let me = if is_me { " *(You)*" } else { "" };
+        text.push_str(&format!("┃ {} {}{}\n", medal, label, me));
         text.push_str(&format!("┃    └ {} ({}%)\n", val, pct));
         if i + 1 < top10.len() {
             text.push_str("┃\n");
         }
-        mentions.push(mention_jid(&u.jid));
+        if let Some(m) = mention {
+            mentions.push(m);
+        }
     }
     text.push_str("╰┈┈┈┈┈┈┈┈⬡\n\n");
 
-    let my_rank = sorted.iter().position(|u| key_number(&u.jid) == sender_jid);
+    let my_rank = sorted.iter().position(|u| sebutan(&ctx, u).2);
     if let Some(idx) = my_rank {
         text.push_str(&format!(
             "> Posisi kamu: *#{}* dari *{}* user.",
@@ -272,6 +268,48 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
     }
 
     Reply::text(text).with_mentions(mentions)
+}
+
+/// `(label, mention, is_me)` untuk satu baris ranking.
+///
+/// Kunci store boleh bentuk `lid:…`; LID mentah TIDAK pernah dicetak — kalau
+/// PN tidak bisa dipetakan, yang tampil nama store (atau "Pengguna"), dan
+/// mention-nya pun dilewati karena klien hanya akan merender angka acak.
+fn sebutan(ctx: &Ctx, u: &UserRow) -> (String, Option<String>, bool) {
+    let kunci = key_number(&u.jid).to_string();
+    let is_lid = u.jid.starts_with("lid:") || u.jid.ends_with("@lid");
+    let peserta = ctx.roster.find(&kunci);
+    let pn = peserta
+        .and_then(|p| p.phone_number())
+        .map(str::to_string)
+        .or_else(|| (!is_lid).then(|| kunci.clone()));
+    let sender = ctx.sender.split('@').next().unwrap_or(&ctx.sender);
+    let sender_pn = ctx.mention_of(&ctx.sender);
+    let is_me = pn.as_deref().is_some_and(|p| {
+        oktz_plugin_api::registry::jid_user(p) == sender
+            || oktz_plugin_api::registry::jid_user(p) == crate::common::jid_number(&sender_pn)
+    });
+
+    let nama_store = u.name.trim();
+    let label = peserta
+        .and_then(|p| p.name())
+        .map(str::to_string)
+        .or_else(|| {
+            (!nama_store.is_empty() && nama_store != kunci).then(|| nama_store.to_string())
+        })
+        .or_else(|| pn.as_deref().map(crate::common::jid_number).map(str::to_string))
+        .unwrap_or_else(|| "Pengguna".to_string());
+
+    let mention = pn
+        .map(|p| {
+            if p.contains('@') {
+                p
+            } else {
+                format!("{p}@s.whatsapp.net")
+            }
+        })
+        .or_else(|| (!is_lid).then(|| mention_jid(&u.jid)));
+    (label, mention, is_me)
 }
 
 #[cfg(test)]

@@ -61,7 +61,7 @@ pub(crate) fn berat_text(ctx: &Ctx, kg: u32) -> String {
 pub fn cekberat(ctx: Ctx) -> Reply {
     Reply::Text {
         text: berat_text(&ctx, berat_kg()),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

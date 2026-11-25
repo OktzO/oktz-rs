@@ -67,14 +67,14 @@ pub fn demote(ctx: Ctx) -> Reply {
         return Reply::text(IS_OWNER);
     }
 
-    let number = target.split('@').next().unwrap_or(&target);
+    let number = crate::common::tampil_jid(&ctx, &target);
     match ctx.sock().ubah_peserta(
         &ctx.chat,
         std::slice::from_ref(&p.jid),
         AksiPeserta::Turunkan,
     ) {
         Ok(()) => Reply::text(format!("@{number} sekarang bukan admin lagi."))
-            .with_mentions(vec![target]),
+            .with_mentions(crate::common::mention_jid(&ctx, &target).into_iter().collect()),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }

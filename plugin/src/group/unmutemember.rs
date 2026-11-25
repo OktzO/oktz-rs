@@ -68,7 +68,7 @@ pub fn unmutemember(ctx: Ctx) -> Reply {
         }
         let mut txt = String::from("🔇 *LIST MUTED MEMBERS*\n\n╭┈┈⬡「 📋 *ᴅᴀꜰᴛᴀʀ* 」\n");
         for (i, jid) in list.iter().enumerate() {
-            txt.push_str(&format!("┃ {}. @{}\n", i + 1, jid_number(jid)));
+            txt.push_str(&format!("┃ {}. {}\n", i + 1, crate::common::tag_dari(&ctx, jid)));
         }
         txt.push_str(&format!(
             "╰┈┈⬡\n\n> Total: `{}` member dimute",
@@ -76,7 +76,7 @@ pub fn unmutemember(ctx: Ctx) -> Reply {
         ));
         return Reply::Text {
             text: txt,
-            mentions: list,
+            mentions: crate::common::mentions_dari(&ctx, &list),
         };
     }
 

@@ -66,8 +66,8 @@ pub(crate) fn percent_101() -> u32 {
 /// ("kecreativean"), `tiers` = 5 deskripsi berurutan dari ambang tertinggi.
 pub(crate) fn cek_reply(ctx: &Ctx, percent: u32, label: &str, tiers: [&str; 5]) -> Reply {
     let target = ctx.mention_or_sender().to_string();
-    let number = target.split('@').next().unwrap_or(&target);
-    let is_self = target == ctx.sender;
+    let number = tampil_jid(ctx, &target);
+    let is_self = target == ctx.sender || ctx.mention_of(&target) == ctx.mention_of(&ctx.sender);
 
     let desc = if percent >= 90 {
         tiers[0]
@@ -91,7 +91,7 @@ pub(crate) fn cek_reply(ctx: &Ctx, percent: u32, label: &str, tiers: [&str; 5]) 
 
     Reply::Text {
         text: txt,
-        mentions: vec![target],
+        mentions: mention_jid(ctx, &target).into_iter().collect(),
     }
 }
 
@@ -105,12 +105,10 @@ pub(crate) fn roll(n: u32) -> u32 {
 ///
 /// Dua kalimat tiap plugin (self "kamu" vs orang lain "dia") ditentukan oleh
 /// `is_self`; nomor yang ditampilkan sudah dibuang `@server` dan `:device`.
-pub(crate) fn num_and_self(ctx: &Ctx) -> (&str, bool) {
+pub(crate) fn num_and_self(ctx: &Ctx) -> (String, bool) {
     let target = ctx.mention_or_sender();
-    (
-        target.split('@').next().unwrap_or(target),
-        target == ctx.sender,
-    )
+    let is_self = target == ctx.sender || ctx.mention_of(target) == ctx.mention_of(&ctx.sender);
+    (tampil_jid(ctx, target), is_self)
 }
 
 /// Indeks acak seragam di `[0, len)` — padanan
@@ -228,6 +226,88 @@ pub(crate) fn jid_number(jid: &str) -> &str {
     jid.split('@').next().unwrap_or(jid)
 }
 
+/// Nomor/nama yang aman ditampilkan untuk `jid`, tanpa kode acak.
+///
+/// Prioritas: PN (dari JID sendiri atau metadata grup) → nama yang diketahui.
+/// LID mentah TIDAK pernah dipakai: itulah deretan angka acak yang muncul
+/// ketika klien tidak bisa me-resolve mention.
+pub(crate) fn tampil_jid(ctx: &Ctx, jid: &str) -> String {
+    let m = ctx.mention_of(jid);
+    if m.ends_with("@s.whatsapp.net") || m.ends_with("@c.us") || !m.contains('@') {
+        return jid_number(&m).to_string();
+    }
+    ctx.name_of(jid).unwrap_or_else(|| "pengguna".to_string())
+}
+
+/// JID untuk array `mentions` — `None` kalau hanya LID yang diketahui, supaya
+/// tidak mengirim mention yang pasti dirender sebagai angka acak.
+pub(crate) fn mention_jid(ctx: &Ctx, jid: &str) -> Option<String> {
+    let m = ctx.mention_of(jid);
+    if m.ends_with("@s.whatsapp.net") || m.ends_with("@c.us") {
+        return Some(m);
+    }
+    if ctx.roster.find(jid).is_some() && !m.contains('@') {
+        return Some(format!("{m}@s.whatsapp.net"));
+    }
+    None
+}
+
+/// `[m.mentionedJid[0] || m.sender]` dalam bentuk yang aman di-mention.
+pub(crate) fn mention_target(ctx: &Ctx) -> Vec<String> {
+    mention_jid(ctx, ctx.mention_or_sender()).into_iter().collect()
+}
+
+/// Nama/nomor untuk mencetak satu anggota roster.
+pub(crate) fn tampil_peserta(p: &oktz_plugin_api::Participant) -> String {
+    if !p.jid.ends_with("@lid") {
+        return jid_number(&p.jid).to_string();
+    }
+    if let Some(pn) = p.phone_number() {
+        return jid_number(pn).to_string();
+    }
+    if let Some(nama) = p.name() {
+        return nama.to_string();
+    }
+    let nomor = jid_number(&p.jid);
+    if !nomor.is_empty() && !nomor.bytes().all(|b| b.is_ascii_digit()) {
+        return nomor.to_string();
+    }
+    "pengguna".to_string()
+}
+
+/// `@<nama>` untuk satu anggota roster.
+pub(crate) fn tag_peserta(p: &oktz_plugin_api::Participant) -> String {
+    format!("@{}", tampil_peserta(p))
+}
+
+/// JID yang masuk array `mentions` untuk satu anggota roster.
+pub(crate) fn mention_peserta(p: &oktz_plugin_api::Participant) -> Option<String> {
+    if p.jid.ends_with("@lid") {
+        return p.phone_number().map(str::to_string);
+    }
+    Some(p.jid.clone())
+}
+
+/// `@<nama>` untuk JID/angka yang mungkin cuma nomor mentah.
+pub(crate) fn tag_dari(ctx: &Ctx, jid: &str) -> String {
+    if let Some(p) = ctx.roster.find(jid) {
+        return tag_peserta(p);
+    }
+    format!("@{}", jid_number(jid))
+}
+
+/// Array `mentions` dari daftar JID/nomor, melewati yang tak bisa dipetakan.
+pub(crate) fn mentions_dari(ctx: &Ctx, jids: &[String]) -> Vec<String> {
+    jids.iter()
+        .filter_map(|jid| {
+            ctx.roster
+                .find(jid)
+                .and_then(mention_peserta)
+                .or_else(|| mention_jid(ctx, jid))
+        })
+        .collect()
+}
+
 /// Target plugin "cek user": `m.mentionedJid[0]` kalau ada, selain itu sender.
 ///
 /// `ponytail:` JS pakai `m.quoted` lebih dulu dan `m.pushName` untuk nama.
@@ -242,12 +322,12 @@ pub(crate) struct UserTarget {
 pub(crate) fn user_target(ctx: &Ctx) -> UserTarget {
     match ctx.mentioned.first() {
         Some(jid) => UserTarget {
-            name: jid_number(jid).to_string(),
-            jid: jid.clone(),
+            name: tampil_jid(ctx, jid),
+            jid: mention_jid(ctx, jid).unwrap_or_else(|| jid.clone()),
         },
         None => UserTarget {
             name: "Kamu".to_string(),
-            jid: ctx.sender.clone(),
+            jid: mention_jid(ctx, &ctx.sender).unwrap_or_else(|| ctx.sender.clone()),
         },
     }
 }

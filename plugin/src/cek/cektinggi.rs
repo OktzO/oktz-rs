@@ -63,7 +63,7 @@ pub(crate) fn tinggi_text(ctx: &Ctx, cm: u32) -> String {
 pub fn cektinggi(ctx: Ctx) -> Reply {
     Reply::Text {
         text: tinggi_text(&ctx, tinggi_cm()),
-        mentions: vec![ctx.mention_or_sender().to_string()],
+        mentions: crate::common::mention_target(&ctx),
     }
 }
 

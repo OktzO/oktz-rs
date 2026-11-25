@@ -89,8 +89,8 @@ fn video_dari_gif(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
 )]
 pub fn cekfemboy(ctx: Ctx) -> Reply {
     let target = ctx.mention_or_sender().to_string();
-    let nomor = crate::common::jid_number(&target).to_string();
-    let is_self = target == ctx.sender;
+    let nomor = crate::common::tampil_jid(&ctx, &target);
+    let is_self = target == ctx.sender || ctx.mention_of(&target) == ctx.mention_of(&ctx.sender);
 
     let nama = if is_self {
         let input = ctx.text.trim();
@@ -126,12 +126,12 @@ pub fn cekfemboy(ctx: Ctx) -> Reply {
         Some(mp4) => Reply::Video {
             media: Some(MediaSource::bytes(mp4).with_mimetype("video/mp4")),
             caption: txt,
-            mentions: vec![target],
+            mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
             gif_playback: true,
         },
         None => Reply::Text {
             text: txt,
-            mentions: vec![target],
+            mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
         },
     }
 }
