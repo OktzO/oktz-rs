@@ -1036,6 +1036,7 @@ where
         PurgePlan::resolve(),
         turso_conn,
         move |client: Arc<Client>| {
+            crate::retry_quarantine::pasang(&client);
             if let Some(w) = &wiring {
                 w.attach(&client);
             }

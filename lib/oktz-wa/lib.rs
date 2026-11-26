@@ -19,6 +19,7 @@ pub mod pesan_grup;
 pub mod pipeline;
 pub mod pipeline_gate;
 pub mod reply_variant;
+pub(crate) mod retry_quarantine;
 // Builder wire balasan rich (V2, list, AIRich, prepared rich).
 pub mod rich;
 pub mod rss;
