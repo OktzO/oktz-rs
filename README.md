@@ -34,8 +34,8 @@ bukan API karena IP panel sering kena rate limit 403). Penanda versi disimpan di
 `bin/.oktz-versi`; kalau tag berbeda, binary diunduh ulang. Kalau GitHub tidak
 bisa dihubungi, binary yang sudah ada tetap dipakai.
 
-Unduh manual (misal mesin tanpa internet): ambil `oktz-linux-x64` dari halaman
-release, simpan sebagai `bin/oktz`, `chmod +x bin/oktz`.
+Unduh manual (misal mesin tanpa internet): ambil `oktz-linux-x64-static` dari
+halaman release, simpan sebagai `bin/oktz`, `chmod +x bin/oktz`.
 
 Setelah pairing, creds tersimpan di `storage/session/creds.json` dan sesi
 ratchet di `database/wa/oktz-run.db`. Dua direktori itu harus persisten.
@@ -64,8 +64,9 @@ launcher. Kunci utama: `OWNER_NUMBERS`, `BOT_*`, `PAIRING_NUMBER`,
 ## Build ulang
 
 ```bash
-cargo build --release
-cp target/release/oktz bin/oktz
+RUSTFLAGS="-C target-feature=+crt-static" \
+  cargo build --release --target x86_64-unknown-linux-gnu
+cp target/x86_64-unknown-linux-gnu/release/oktz bin/oktz
 ```
 
 ## Verifikasi
