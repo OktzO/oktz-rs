@@ -4,8 +4,8 @@
 //! ikut dikirim sebagai `StickerMessage.audioMessage` oleh pipeline.
 
 use oktz_plugin_api::{
-    Ctx, EXIF_EMOJIS, HttpCall, MediaSource, QuotedKind, Reply, StickerOpsi, gambar_ke_stiker_webp,
-    plugin, tempel_metadata_stiker, video_ke_stiker_webp,
+    Ctx, EXIF_EMOJIS, HttpCall, IncomingKind, MediaSource, QuotedKind, Reply, StickerOpsi,
+    gambar_ke_stiker_webp, plugin, tempel_metadata_stiker, video_ke_stiker_webp,
 };
 
 use crate::sticker::sticker::metadata;
@@ -17,13 +17,24 @@ fn kartu_bantuan(prefix: &str) -> String {
     format!(
         "🔊 *sᴏᴜɴᴅ sᴛɪᴄᴋᴇʀ ᴍᴀᴋᴇʀ* 🎵\n\n\
          ✦ *Cara Penggunaan:*\n\
-         • Reply *video* lalu ketik `{prefix}sd` → audio diambil dari videonya.\n\
-         • Reply stiker / foto / video lalu ketik:\n\
-         \x20 `{prefix}saudio <URL Audio MP3>`\n\
-         \x20 `{prefix}sd <URL Audio MP3>`\n\n\
+         • Kirim *foto / stiker / video* dengan caption `{prefix}sd <URL audio>`.\n\
+         • Reply foto / stiker / video lalu ketik `{prefix}sd <URL audio>`.\n\
+         • Kirim/reply *video* dengan caption `{prefix}sd` → audio dari videonya.\n\n\
          📌 *Contoh:*\n\
          `{prefix}sd https://cdn.example.com/sound.mp3`"
     )
+}
+
+/// Foto/video/stiker yang dikirim BERSAMA caption sama-sama jadi target,
+/// seperti `const target = m.quoted || m` di JS.
+fn kind_dari_media(kind: IncomingKind) -> QuotedKind {
+    match kind {
+        IncomingKind::Image => QuotedKind::Image,
+        IncomingKind::Video => QuotedKind::Video,
+        IncomingKind::Sticker => QuotedKind::Sticker,
+        IncomingKind::Audio => QuotedKind::Audio,
+        IncomingKind::Document => QuotedKind::Document,
+    }
 }
 
 fn url_audio(teks: &str) -> Option<&str> {
@@ -158,7 +169,7 @@ fn gagal(pesan: &str) -> Reply {
     alias = ["soundsticker", "stikersuara", "sd"],
     category = "sticker",
     description = "Membuat sticker dengan audio (sound sticker)",
-    usage = ".sd (reply video) atau .saudio <url audio> (reply stiker/foto/video)",
+    usage = ".sd <url audio> atau .saudio <url audio> (kirim/reply foto, video, stiker)",
     example = ".sd https://cdn.example.com/sound.mp3",
     cooldown = 10,
     energi = 1,
@@ -166,40 +177,50 @@ fn gagal(pesan: &str) -> Reply {
     is_private = false
 )]
 pub fn saudio(ctx: Ctx) -> Reply {
-    let Some(quoted) = ctx.quoted() else {
+    let (kind, teks_target, dari_kutipan) = if let Some(q) = ctx.quoted() {
+        (q.kind.clone(), q.text.clone(), true)
+    } else if let Some(media) = ctx.media.as_ref() {
+        (kind_dari_media(media.kind), media.caption.clone(), false)
+    } else {
         return Reply::text(kartu_bantuan(&ctx.prefix));
     };
+
     if !matches!(
-        quoted.kind,
+        kind,
         QuotedKind::Sticker | QuotedKind::Image | QuotedKind::Video
     ) {
         return Reply::text(
-            "❌ Harap *reply (balas)* stiker (statis/bergerak), video, atau foto \
-             yang ingin dipasangkan suara!",
+            "❌ Harap *kirim/reply* stiker (statis/bergerak), video, atau foto \
+             yang ingin dipasangkan suara — dengan caption `.sd <URL audio>`!",
         );
     }
 
-    let dari_video = matches!(quoted.kind, QuotedKind::Video);
-    let url = match url_audio(&ctx.text).or_else(|| url_audio(&quoted.text)) {
+    let dari_video = matches!(kind, QuotedKind::Video);
+    let url = match url_audio(&ctx.text).or_else(|| url_audio(&teks_target)) {
         Some(url) => Some(url.to_string()),
         None if dari_video => None,
         None => {
             return Reply::text(
                 "❌ *URL audio belum ada*\n\n\
-                 > Reply video dengan `.sd` untuk memakai audio dari videonya.\n\
-                 > Atau reply stiker/foto/video dengan `.sd <URL audio>`.",
+                 > Video: kirim/reply dengan caption `.sd` untuk memakai audio videonya.\n\
+                 > Foto/stiker: kirim/reply dengan caption `.sd <URL audio>`.",
             );
         }
     };
 
-    let Ok(raw) = ctx.download_quoted_media() else {
+    let unduh = if dari_kutipan {
+        ctx.download_quoted_media()
+    } else {
+        ctx.download_media()
+    };
+    let Ok(raw) = unduh else {
         return gagal("Gagal mengunduh stiker/media target!");
     };
     if raw.is_empty() {
         return gagal("Gagal mengunduh stiker/media target!");
     }
 
-    let (webp, animasi) = match siapkan_stiker(&ctx, &raw, &quoted.kind) {
+    let (webp, animasi) = match siapkan_stiker(&ctx, &raw, &kind) {
         Ok(hasil) => hasil,
         Err(_) => return gagal("Gagal memproses format WebP stiker!"),
     };
@@ -248,6 +269,13 @@ mod tests {
             Some("https://cdn.example.com/s.mp3")
         );
         assert_eq!(url_audio("bukan-url"), None);
+    }
+
+    #[test]
+    fn media_pemicu_dipetakan_ke_kind_yang_benar() {
+        assert_eq!(kind_dari_media(IncomingKind::Image), QuotedKind::Image);
+        assert_eq!(kind_dari_media(IncomingKind::Video), QuotedKind::Video);
+        assert_eq!(kind_dari_media(IncomingKind::Sticker), QuotedKind::Sticker);
     }
 
     #[test]

@@ -8483,6 +8483,22 @@ mod tests {
     }
 
     #[test]
+    fn caption_foto_menjadi_body_dan_command() {
+        let m = wa::Message {
+            image_message: MessageField::some(wa::message::ImageMessage {
+                caption: Some(".sd https://cdn.example.com/s.mp3".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let body = extract_body(&m).expect("caption harus jadi body");
+        let parsed = parse_command(&body, &ParseOptions::default());
+        assert!(parsed.is_command);
+        assert_eq!(parsed.command, "sd");
+        assert_eq!(parsed.text, "https://cdn.example.com/s.mp3");
+    }
+
+    #[test]
     fn message_without_text_has_no_body() {
         assert_eq!(extract_body(&wa::Message::default()), None);
     }
