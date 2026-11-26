@@ -101,8 +101,13 @@ fn kompres_webp(data: &[u8]) -> Result<Vec<u8>, String> {
     Ok(hasil)
 }
 
-fn ke_opus(data: &[u8]) -> Result<Vec<u8>, String> {
-    let args = [
+/// Pass-1 dan pass-2 encode Opus.
+///
+/// WA menolak sound sticker dari encode Opus mono single-pass dengan
+/// "Tidak bisa memutar suara sticker". Resep yang terbukti (whatsapp-sound-sticker):
+/// encode stereo 64k dulu, baru turunkan ke mono 32k.
+fn argumen_opus_pass1() -> Vec<&'static str> {
+    vec![
         "-hide_banner",
         "-loglevel",
         "error",
@@ -113,19 +118,35 @@ fn ke_opus(data: &[u8]) -> Result<Vec<u8>, String> {
         "libopus",
         "-b:a",
         "64k",
-        "-vbr",
-        "on",
-        "-compression_level",
-        "10",
-        "-ar",
-        "48000",
+        "-f",
+        "ogg",
+        "pipe:1",
+    ]
+}
+
+fn argumen_opus_pass2() -> Vec<&'static str> {
+    vec![
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        "pipe:0",
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "32k",
         "-ac",
         "1",
         "-f",
         "ogg",
         "pipe:1",
-    ];
-    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&args, data)
+    ]
+}
+
+fn ke_opus(data: &[u8]) -> Result<Vec<u8>, String> {
+    let stereo = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&argumen_opus_pass1(), data)
+        .map_err(|e| format!("gagal konversi audio ke Opus: {e}"))?;
+    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&argumen_opus_pass2(), &stereo)
         .map_err(|e| format!("gagal konversi audio ke Opus: {e}"))
 }
 
@@ -311,5 +332,23 @@ mod tests {
         assert!(!webp_beranimasi(&vp8x[..20]));
         vp8x[20] = 0;
         assert!(!webp_beranimasi(&vp8x));
+    }
+
+    /// WA menolak sound sticker dari Opus mono single-pass ("Tidak bisa memutar
+    /// suara sticker"). Encode wajib dua pass: stereo 64k lalu mono 32k.
+    #[test]
+    fn opus_encode_dua_pass_stereo_lalu_mono() {
+        let pass1 = argumen_opus_pass1();
+        assert!(pass1.contains(&"-vn"), "pass-1 buang video track");
+        assert!(pass1.contains(&"64k"), "pass-1 stereo 64k");
+        assert!(!pass1.contains(&"-ac"), "pass-1 JANGAN paksa mono");
+
+        let pass2 = argumen_opus_pass2();
+        let idx = pass2
+            .iter()
+            .position(|a| *a == "-ac")
+            .expect("pass-2 harus set -ac");
+        assert_eq!(pass2[idx + 1], "1", "pass-2 mono");
+        assert!(pass2.contains(&"32k"), "pass-2 32k");
     }
 }

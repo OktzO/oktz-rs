@@ -1496,7 +1496,9 @@ impl MessageSender for ClientSender {
                                     .to_string(),
                             ),
                             duration_seconds: None,
-                            ptt: Some(true),
+                            // Sound sticker bukan voice note: `ptt=true` membuat
+                            // klien memperlakukannya sebagai VN dan gagal memutar.
+                            ptt: None,
                             waveform: None,
                             context_info: None,
                         },
