@@ -10,7 +10,7 @@ use oktz_plugin_api::{
 
 use crate::sticker::sticker::metadata;
 
-const MAKS_ANIMASI: usize = 900 * 1024;
+const MAKS_ANIMASI: usize = 1_000_000;
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
 fn kartu_bantuan(prefix: &str) -> String {
@@ -63,42 +63,75 @@ fn webp_beranimasi(data: &[u8]) -> bool {
     false
 }
 
+/// Tangga `(kanvas, quality, fps, detik)` kompres sound sticker. Rung pertama
+/// WAJIB 512 (kanvas penuh, sama seperti `.s`) supaya sticker tidak mengecil
+/// tanpa perlu; rung berikutnya hanya dipakai kalau byte masih di atas
+/// [`MAKS_ANIMASI`].
+const TANGGA_WEBP: [(u32, u32, u32, u32); 6] = [
+    (512, 60, 12, 6),
+    (512, 45, 12, 6),
+    (448, 45, 10, 5),
+    (384, 45, 10, 5),
+    (320, 40, 10, 4),
+    (256, 35, 8, 4),
+];
+
+/// Turunkan ukuran WebP animasi sampai di bawah [`MAKS_ANIMASI`]. Tangga mulai
+/// dari kanvas penuh 512 (bukan langsung 384) supaya sticker sound tidak
+/// mengecil tanpa perlu; rung pertama yang muat dipakai.
 fn kompres_webp(data: &[u8]) -> Result<Vec<u8>, String> {
-    let keluar = oktz_plugin_api::nama_unik("oktz-saudio", "webp");
-    let path = keluar.to_str().ok_or("path sementara tidak valid")?;
-    let filter = "scale=384:384:force_original_aspect_ratio=decrease,fps=10,pad=384:384:-1:-1:color=white@0.0";
-    let args = [
-        "-hide_banner",
-        "-y",
-        "-loglevel",
-        "error",
-        "-i",
-        "pipe:0",
-        "-vf",
-        filter,
-        "-vcodec",
-        "libwebp",
-        "-loop",
-        "0",
-        "-t",
-        "3",
-        "-preset",
-        "default",
-        "-quality",
-        "40",
-        "-an",
-        "-vsync",
-        "0",
-        path,
-    ];
-    let hasil = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&args, data)
-        .and_then(|_| std::fs::read(path).map_err(|e| e.to_string()));
-    let _ = std::fs::remove_file(&keluar);
-    let hasil = hasil?;
-    if hasil.is_empty() {
-        return Err("hasil kompres kosong".to_string());
+    let mut terakhir: Option<Vec<u8>> = None;
+    let mut galat = String::from("tidak ada rung yang dicoba");
+    for (size, quality, fps, detik) in TANGGA_WEBP {
+        let keluar = oktz_plugin_api::nama_unik("oktz-saudio", "webp");
+        let Some(path) = keluar.to_str() else {
+            continue;
+        };
+        let filter = format!(
+            "fps={fps},scale={size}:{size}:force_original_aspect_ratio=decrease,\
+             pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:color=white@0.0,setsar=1"
+        );
+        let q = quality.to_string();
+        let t = detik.to_string();
+        let args = vec![
+            "-hide_banner",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "pipe:0",
+            "-vf",
+            filter.as_str(),
+            "-vcodec",
+            "libwebp",
+            "-loop",
+            "0",
+            "-t",
+            t.as_str(),
+            "-preset",
+            "default",
+            "-quality",
+            q.as_str(),
+            "-an",
+            "-vsync",
+            "0",
+            path,
+        ];
+        let hasil = oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&args, data)
+            .and_then(|_| std::fs::read(&keluar).map_err(|e| e.to_string()));
+        let _ = std::fs::remove_file(&keluar);
+        match hasil {
+            Ok(bytes) if bytes.is_empty() => galat = "hasil kompres kosong".to_string(),
+            Ok(bytes) => {
+                if bytes.len() <= MAKS_ANIMASI {
+                    return Ok(bytes);
+                }
+                terakhir = Some(bytes);
+            }
+            Err(e) => galat = e,
+        }
     }
-    Ok(hasil)
+    terakhir.ok_or_else(|| format!("kompres webp gagal: {galat}"))
 }
 
 /// Pass-1 dan pass-2 encode Opus.
@@ -350,5 +383,16 @@ mod tests {
             .expect("pass-2 harus set -ac");
         assert_eq!(pass2[idx + 1], "1", "pass-2 mono");
         assert!(pass2.contains(&"32k"), "pass-2 32k");
+    }
+
+    /// Regresi: dulu kompres langsung ke kanvas 384 sehingga sticker `.sd`
+    /// tampak lebih kecil dari `.s`. Rung pertama harus 512.
+    #[test]
+    fn kompres_mulai_dari_kanvas_512() {
+        assert_eq!(TANGGA_WEBP[0].0, 512, "rung pertama wajib 512");
+        for (size, quality, fps, _) in TANGGA_WEBP {
+            assert!(size <= 512, "rung tidak boleh > 512: {size}");
+            assert!(quality > 0 && fps > 0);
+        }
     }
 }
