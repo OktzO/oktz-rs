@@ -3349,6 +3349,22 @@ fn interactive_params_json(m: &wa::Message) -> Option<String> {
     }
 }
 
+/// Label chat untuk log/rail UI. Grup punya nama subjek; saluran (`@newsletter`)
+/// dan status (`@broadcast`) bukan "pribadi" — keduanya chat tersendiri, dan
+/// sebelumnya ikut dilabeli "pribadi" sehingga saluran tampak seperti chat PC.
+fn label_chat_untuk(is_group: bool, chat: &str, subjek_grup: impl FnOnce() -> String) -> String {
+    if is_group {
+        return subjek_grup();
+    }
+    if chat.ends_with("@newsletter") {
+        "saluran".to_string()
+    } else if chat.ends_with("@broadcast") {
+        "status".to_string()
+    } else {
+        "pribadi".to_string()
+    }
+}
+
 /// Body pesan masuk, sesuai `getMessageBody` (`src/lib/serialize.js:327-372`).
 pub fn extract_body(m: &wa::Message) -> Option<String> {
     let wire = wire_type_of(m);
@@ -5010,16 +5026,14 @@ impl Pipeline {
         // dicetak di sini (setelah dedup/replay) supaya pesan lama & duplikat
         // tidak dobel. Status ✓/✕ menyusul di titik kirim.
         let ui_t0 = Instant::now();
-        let label_chat = if caller.is_group {
+        let label_chat = label_chat_untuk(caller.is_group, &caller.chat, || {
             self.ctx
                 .group_entry(&caller.chat)
                 .get("subject")
                 .and_then(Value::as_str)
                 .unwrap_or("(grup)")
                 .to_string()
-        } else {
-            "pribadi".to_string()
-        };
+        });
         let nama_tampil = if caller.push_name.is_empty() {
             ui::nomor(&caller.sender)
         } else {
@@ -6465,6 +6479,27 @@ mod tests {
     fn paralel_maks_terikat_8_sampai_32() {
         let p = paralel_maks();
         assert!((8..=32).contains(&p), "batas paralel di luar rentang: {p}");
+    }
+
+    #[test]
+    fn label_chat_bedakan_grup_saluran_status_dan_pribadi() {
+        assert_eq!(
+            label_chat_untuk(true, "120363@g.us", || "Grup Uji".into()),
+            "Grup Uji"
+        );
+        assert_eq!(
+            label_chat_untuk(false, "120363411617217441@newsletter", || unreachable!()),
+            "saluran",
+            "saluran tidak boleh dilabeli pribadi"
+        );
+        assert_eq!(
+            label_chat_untuk(false, "status@broadcast", || unreachable!()),
+            "status"
+        );
+        assert_eq!(
+            label_chat_untuk(false, "628111@s.whatsapp.net", || unreachable!()),
+            "pribadi"
+        );
     }
 
     // `cargo test` menjalankan test dalam thread paralel; nama file tetap

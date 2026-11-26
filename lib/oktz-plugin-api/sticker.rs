@@ -241,23 +241,69 @@ pub fn video_ke_stiker_webp(data: &[u8], opsi: &[OpsiS]) -> Result<Vec<u8>, Stri
         }
     }
     let vf = format!("{prefix}{STICKER_WEBP_VF}");
-    // Sebagian video (HDR/kamera HP) membawa metadata color range yang tidak
-    // dikenali ffmpeg 7, dan filter graph gagal di `Invalid color range`.
-    // Coba beberapa varian berurutan; varian pertama yang jadi dipakai.
-    let ranged = vf.replace(
-        "force_original_aspect_ratio=decrease",
-        "force_original_aspect_ratio=decrease:in_range=full:out_range=full",
-    );
-    let setparams = format!("setparams=range=pc,{ranged}");
-    let varian = [ranged.as_str(), vf.as_str(), setparams.as_str()];
 
+    match webp_dari_video(data, &vf) {
+        Ok(webp) => Ok(webp),
+        // Video WhatsApp sering membawa `color_space`/`color_primaries` =
+        // `reserved`; ffmpeg 7 menolaknya di negosiasi filter graph dan TIDAK
+        // ada `-vf` yang bisa memperbaikinya (ffmpeg trac #11020). Satu-satunya
+        // jalan: tulis ulang metadata warna di bitstream tanpa re-encode, lalu
+        // konversi ulang.
+        Err(e) if e.contains("Invalid color range") || e.contains("Invalid color space") => {
+            let diperbaiki = perbaiki_metadata_warna(data)?;
+            webp_dari_video(&diperbaiki, &vf)
+                .map_err(|e2| format!("konversi video ke WebP gagal: {e2}"))
+        }
+        Err(e) => Err(format!("konversi video ke WebP gagal: {e}")),
+    }
+}
+
+fn webp_dari_video(data: &[u8], vf: &str) -> Result<Vec<u8>, String> {
     // Output HARUS ke berkas, bukan `pipe:1`: muxer webp ffmpeg menulis
     // RIFF size = 0 dan VP8X tanpa bit ANIM kalau output non-seekable —
     // WA menolak hasilnya. Bot JS menulis ke file temp juga
     // (`videoToWebp`, `socket.js:226`).
-    let mut terakhir = String::from("tidak ada varian ffmpeg yang dicoba");
-    for vf in varian {
-        let keluar = nama_unik("oktz-stiker", "webp");
+    let keluar = nama_unik("oktz-stiker", "webp");
+    let args = vec![
+        "-hide_banner",
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        "pipe:0",
+        "-t",
+        "6",
+        "-vf",
+        vf,
+        "-c:v",
+        "libwebp",
+        "-q:v",
+        "50",
+        "-an",
+        "-f",
+        "webp",
+        keluar.to_str().unwrap_or("out.webp"),
+    ];
+    let hasil = crate::ffmpeg::jalankan_dengan_masukan(&args, data).and_then(|_| {
+        std::fs::read(&keluar).map_err(|e| format!("gagal baca webp sementara: {e}"))
+    });
+    let _ = std::fs::remove_file(&keluar);
+    match hasil {
+        Ok(bytes) if !bytes.is_empty() => Ok(bytes),
+        Ok(_) => Err("ffmpeg menghasilkan berkas kosong".to_string()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Tulis ulang metadata warna yang salah (`reserved`) langsung di bitstream,
+/// tanpa re-encode. Container Matroska supaya bisa lewat `pipe:1` (MP4 butuh
+/// `seek`). H264 lalu HEVC; codec lain dibiarkan gagal seperti sebelumnya.
+fn perbaiki_metadata_warna(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut terakhir = String::from("codec video tidak didukung");
+    for bsf in [
+        "h264_metadata=matrix_coefficients=1:transfer_characteristics=1:colour_primaries=1",
+        "hevc_metadata=matrix_coefficients=1:transfer_characteristics=1:colour_primaries=1",
+    ] {
         let args = vec![
             "-hide_banner",
             "-y",
@@ -265,33 +311,23 @@ pub fn video_ke_stiker_webp(data: &[u8], opsi: &[OpsiS]) -> Result<Vec<u8>, Stri
             "error",
             "-i",
             "pipe:0",
-            "-t",
-            "6",
-            "-vf",
-            vf,
-            "-c:v",
-            "libwebp",
-            "-q:v",
-            "50",
-            "-an",
+            "-map",
+            "0:v:0",
+            "-c",
+            "copy",
+            "-bsf:v",
+            bsf,
             "-f",
-            "webp",
-            keluar.to_str().unwrap_or("out.webp"),
+            "matroska",
+            "pipe:1",
         ];
         match crate::ffmpeg::jalankan_dengan_masukan(&args, data) {
-            Ok(_) => match std::fs::read(&keluar) {
-                Ok(bytes) if !bytes.is_empty() => {
-                    let _ = std::fs::remove_file(&keluar);
-                    return Ok(bytes);
-                }
-                Ok(_) => terakhir = "ffmpeg menghasilkan berkas kosong".to_string(),
-                Err(e) => terakhir = format!("gagal baca webp sementara: {e}"),
-            },
+            Ok(bytes) if !bytes.is_empty() => return Ok(bytes),
+            Ok(_) => terakhir = "remux metadata warna menghasilkan keluaran kosong".to_string(),
             Err(e) => terakhir = e,
         }
-        let _ = std::fs::remove_file(&keluar);
     }
-    Err(format!("konversi video ke WebP gagal: {terakhir}"))
+    Err(format!("gagal memperbaiki metadata warna video: {terakhir}"))
 }
 
 pub fn sticker_metadata_json(packname: &str, author: &str, emojis: &[&str]) -> Vec<u8> {
@@ -548,6 +584,34 @@ mod tests {
             .map(|(_, payload)| payload.clone())
             .unwrap();
         assert_eq!(vp8l, [0x2f, 0x01, 0x02, 0x03, 0x04]);
+    }
+
+    /// `perbaiki_metadata_warna` harus mencoba h264 lalu hevc dan memakai yang
+    /// pertama menghasilkan byte. ffmpeg palsu: keluaran kosong untuk
+    /// `h264_metadata` (codec bukan H264), lalu byte nyata untuk `hevc_metadata`.
+    #[test]
+    fn perbaiki_metadata_warna_pakai_bsf_yang_berhasil() {
+        use std::os::unix::fs::PermissionsExt;
+        static KUNCI: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = KUNCI.lock().unwrap_or_else(|e| e.into_inner());
+
+        let path = std::env::temp_dir().join(format!("oktz-fake-ffmpeg-{}.sh", std::process::id()));
+        let skrip = "#!/bin/sh\ncat >/dev/null\ncase \"$*\" in\n  *hevc_metadata*) printf 'MKVDATA';;\n  *) : ;;\nesac\nexit 0\n";
+        std::fs::write(&path, skrip).unwrap();
+        let mut izin = std::fs::metadata(&path).unwrap().permissions();
+        izin.set_mode(0o755);
+        std::fs::set_permissions(&path, izin).unwrap();
+
+        let lama = std::env::var_os("OTKZ_FFMPEG_PATH");
+        unsafe { std::env::set_var("OTKZ_FFMPEG_PATH", &path) };
+        let hasil = perbaiki_metadata_warna(&[1, 2, 3]);
+        match lama {
+            Some(v) => unsafe { std::env::set_var("OTKZ_FFMPEG_PATH", v) },
+            None => unsafe { std::env::remove_var("OTKZ_FFMPEG_PATH") },
+        }
+        let _ = std::fs::remove_file(&path);
+
+        assert_eq!(hasil.unwrap(), b"MKVDATA".to_vec());
     }
 
     #[test]
