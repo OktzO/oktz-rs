@@ -1476,7 +1476,35 @@ impl MessageSender for ClientSender {
                     .upload(data, media.kind.upload_type(), UploadOptions::default())
                     .await
                     .map_err(|e| format!("upload media gagal: {e}"))?;
-                let pesan = build_media_message(media.kind, upload, &media);
+                let mut pesan = build_media_message(media.kind, upload, &media);
+                if media.kind == MediaKind::Sticker
+                    && let Some(audio_src) =
+                        media.sticker.as_ref().and_then(|o| o.audio.clone())
+                {
+                    let audio_data = load_media(&audio_src).await.map_err(|e| e.to_string())?;
+                    let audio_up = client
+                        .upload(audio_data, MediaType::Audio, UploadOptions::default())
+                        .await
+                        .map_err(|e| format!("upload audio stiker gagal: {e}"))?;
+                    let audio = audio_message(
+                        audio_up,
+                        AudioOptions {
+                            mimetype: Some(
+                                audio_src
+                                    .mimetype()
+                                    .unwrap_or("audio/ogg; codecs=opus")
+                                    .to_string(),
+                            ),
+                            duration_seconds: None,
+                            ptt: Some(true),
+                            waveform: None,
+                            context_info: None,
+                        },
+                    );
+                    if let Some(stiker) = pesan.sticker_message.as_option_mut() {
+                        stiker.audio_message = audio.audio_message;
+                    }
+                }
                 if let Some(len) = dbg_len {
                     let b = whatsapp_rust::waproto::codec::message_to_vec(&pesan);
                     let mut hex = String::with_capacity(b.len() * 2);
@@ -7945,6 +7973,39 @@ mod tests {
         assert_eq!(p.kind, MediaKind::Sticker);
         assert_eq!(p.source, src);
         assert_eq!(p.caption, "", "sticker tidak punya caption");
+    }
+
+    #[test]
+    fn sticker_audio_tetap_menempel_setelah_encode_decode() {
+        let audio = MediaSource::bytes(vec![1, 2, 3]).with_mimetype("audio/ogg; codecs=opus");
+        let opsi = oktz_plugin_api::StickerOpsi::gambar().with_audio(audio.clone());
+        let r = render_reply(
+            &Reply::sticker_opsi(MediaSource::path("/tmp/a.webp"), opsi),
+            &ReplyTarget::default(),
+        )
+        .unwrap()
+        .unwrap();
+        let p = r.media.expect("pending media");
+        assert_eq!(p.kind, MediaKind::Sticker);
+        assert_eq!(p.sticker.and_then(|s| s.audio), Some(audio));
+
+        let msg = wa::Message {
+            sticker_message: MessageField::some(wa::message::StickerMessage {
+                audio_message: MessageField::some(wa::message::AudioMessage {
+                    mimetype: Some("audio/ogg; codecs=opus".into()),
+                    ptt: Some(true),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let wire = whatsapp_rust::waproto::codec::message_to_vec(&msg);
+        let balik = whatsapp_rust::waproto::codec::message_decode(&wire).unwrap();
+        let audio = balik.sticker_message.as_option()
+            .and_then(|s| s.audio_message.as_option())
+            .expect("audioMessage field 26 harus ikut wire");
+        assert_eq!(audio.ptt, Some(true));
     }
 
     #[test]

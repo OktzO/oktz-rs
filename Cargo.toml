@@ -65,6 +65,9 @@ panic = "unwind"
 # custom `OKTZZLAH` dari bot JS diterima. Detail di vendor/wacore/src/pair_code.rs.
 [patch.crates-io]
 wacore = { path = "vendor/wacore" }
+# Vendor hanya untuk field `StickerMessage.audioMessage` (sound sticker) yang
+# belum ada di descriptor upstream 0.7.0; lihat LOCAL_FIELDS di build.rs-nya.
+waproto = { path = "vendor/waproto" }
 # `bundled-sqlite` default-nya compile sqlite3.c kedua kali → duplicate symbol
 # dengan `libsql-ffi` (mirror Turso). Diesel resolve simbol sqlite3 dari
 # libsql-ffi; lihat komentar `lib/oktz-wa/Cargo.toml`.

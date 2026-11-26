@@ -19,6 +19,7 @@ pub mod emojimix;
 pub mod linesticker;
 pub mod pinpack;
 pub mod qc;
+pub mod saudio;
 pub mod smeme;
 pub mod smemevid;
 // Folder `sticker/` meniru layout `plugins/sticker/` di JS, jadi modul

@@ -27,6 +27,8 @@ pub struct StickerOpsi {
     pub forwarding_score: Option<u32>,
     pub premium: bool,
     pub animated: bool,
+    /// Audio yang dikirim bersama sticker (`StickerMessage.audioMessage`).
+    pub audio: Option<crate::registry::MediaSource>,
 }
 
 impl StickerOpsi {
@@ -57,6 +59,16 @@ impl StickerOpsi {
         if !value.is_empty() {
             self.author = Some(value);
         }
+        self
+    }
+
+    pub fn with_audio(mut self, audio: crate::registry::MediaSource) -> Self {
+        self.audio = Some(audio);
+        self
+    }
+
+    pub fn with_animated(mut self, animated: bool) -> Self {
+        self.animated = animated;
         self
     }
 }
