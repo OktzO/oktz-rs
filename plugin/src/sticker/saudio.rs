@@ -17,17 +17,23 @@ fn kartu_bantuan(prefix: &str) -> String {
     format!(
         "🔊 *sᴏᴜɴᴅ sᴛɪᴄᴋᴇʀ ᴍᴀᴋᴇʀ* 🎵\n\n\
          ✦ *Cara Penggunaan:*\n\
-         • Reply stiker (foto / bergerak / video) dengan perintah:\n\
+         • Reply *video* lalu ketik `{prefix}sd` → audio diambil dari videonya.\n\
+         • Reply stiker / foto / video lalu ketik:\n\
          \x20 `{prefix}saudio <URL Audio MP3>`\n\
          \x20 `{prefix}sd <URL Audio MP3>`\n\n\
          📌 *Contoh:*\n\
-         `{prefix}saudio https://cdn.example.com/sound.mp3`"
+         `{prefix}sd https://cdn.example.com/sound.mp3`"
     )
 }
 
 fn url_audio(teks: &str) -> Option<&str> {
-    teks.split_whitespace()
-        .find(|k| k.starts_with("http://") || k.starts_with("https://"))
+    teks.split_whitespace().find_map(|k| {
+        let mulai = k.find("https://").or_else(|| k.find("http://"))?;
+        let url = k[mulai..].trim_matches(|c: char| {
+            matches!(c, '`' | '"' | '\'' | '<' | '>' | '(' | ')' | '[' | ']')
+        });
+        (!url.is_empty()).then_some(url)
+    })
 }
 
 /// `checkIsAnimatedWebp` (`saudio.js`): flag animasi VP8X atau chunk `ANIM`.
@@ -84,7 +90,7 @@ fn kompres_webp(data: &[u8]) -> Result<Vec<u8>, String> {
     Ok(hasil)
 }
 
-fn ke_opus(data: &[u8]) -> Vec<u8> {
+fn ke_opus(data: &[u8]) -> Result<Vec<u8>, String> {
     let args = [
         "-hide_banner",
         "-loglevel",
@@ -108,7 +114,8 @@ fn ke_opus(data: &[u8]) -> Vec<u8> {
         "ogg",
         "pipe:1",
     ];
-    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&args, data).unwrap_or_else(|_| data.to_vec())
+    oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(&args, data)
+        .map_err(|e| format!("gagal konversi audio ke Opus: {e}"))
 }
 
 fn unduh_audio(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
@@ -151,23 +158,16 @@ fn gagal(pesan: &str) -> Reply {
     alias = ["soundsticker", "stikersuara", "sd"],
     category = "sticker",
     description = "Membuat sticker dengan audio (sound sticker)",
-    usage = ".saudio <url audio> atau .sd <url audio> (reply stiker/foto/video)",
-    example = ".saudio https://cdn.example.com/sound.mp3",
+    usage = ".sd (reply video) atau .saudio <url audio> (reply stiker/foto/video)",
+    example = ".sd https://cdn.example.com/sound.mp3",
     cooldown = 10,
     energi = 1,
     is_group = false,
     is_private = false
 )]
 pub fn saudio(ctx: Ctx) -> Reply {
-    let Some(url) = url_audio(&ctx.text) else {
-        return Reply::text(kartu_bantuan(&ctx.prefix));
-    };
-
     let Some(quoted) = ctx.quoted() else {
-        return Reply::text(
-            "❌ Harap *reply (balas)* stiker (statis/bergerak), video, atau foto \
-             yang ingin dipasangkan suara!",
-        );
+        return Reply::text(kartu_bantuan(&ctx.prefix));
     };
     if !matches!(
         quoted.kind,
@@ -178,6 +178,19 @@ pub fn saudio(ctx: Ctx) -> Reply {
              yang ingin dipasangkan suara!",
         );
     }
+
+    let dari_video = matches!(quoted.kind, QuotedKind::Video);
+    let url = match url_audio(&ctx.text).or_else(|| url_audio(&quoted.text)) {
+        Some(url) => Some(url.to_string()),
+        None if dari_video => None,
+        None => {
+            return Reply::text(
+                "❌ *URL audio belum ada*\n\n\
+                 > Reply video dengan `.sd` untuk memakai audio dari videonya.\n\
+                 > Atau reply stiker/foto/video dengan `.sd <URL audio>`.",
+            );
+        }
+    };
 
     let Ok(raw) = ctx.download_quoted_media() else {
         return gagal("Gagal mengunduh stiker/media target!");
@@ -191,11 +204,20 @@ pub fn saudio(ctx: Ctx) -> Reply {
         Err(_) => return gagal("Gagal memproses format WebP stiker!"),
     };
 
-    let Some(audio) = unduh_audio(&ctx, url) else {
-        return gagal("Gagal mengunduh file audio dari URL!");
+    let (audio, dari_url) = match url {
+        Some(url) => match unduh_audio(&ctx, &url) {
+            Some(audio) => (audio, true),
+            None => return gagal("Gagal mengunduh file audio dari URL!"),
+        },
+        None => (raw, false),
+    };
+    let opus = match ke_opus(&audio) {
+        Ok(opus) => opus,
+        Err(e) if !dari_url => return gagal(&e),
+        Err(_) => audio,
     };
 
-    let opus = MediaSource::bytes(ke_opus(&audio)).with_mimetype("audio/ogg; codecs=opus");
+    let opus = MediaSource::bytes(opus).with_mimetype("audio/ogg; codecs=opus");
     let opsi = StickerOpsi::gambar()
         .with_audio(opus)
         .with_animated(animasi);
@@ -215,6 +237,14 @@ mod tests {
         );
         assert_eq!(
             url_audio("sd https://cdn.example.com/s.mp3 extra"),
+            Some("https://cdn.example.com/s.mp3")
+        );
+        assert_eq!(
+            url_audio("pakai `https://cdn.example.com/s.mp3` ya"),
+            Some("https://cdn.example.com/s.mp3")
+        );
+        assert_eq!(
+            url_audio("(https://cdn.example.com/s.mp3)"),
             Some("https://cdn.example.com/s.mp3")
         );
         assert_eq!(url_audio("bukan-url"), None);
