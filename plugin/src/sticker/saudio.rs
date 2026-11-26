@@ -143,8 +143,20 @@ fn unduh_audio(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
 
 fn siapkan_stiker(ctx: &Ctx, data: &[u8], kind: &QuotedKind) -> Result<(Vec<u8>, bool), String> {
     let (webp, animasi) = match kind {
-        QuotedKind::Video => (video_ke_stiker_webp(data, &[])?, true),
-        QuotedKind::Image => (gambar_ke_stiker_webp(data, &[])?, false),
+        QuotedKind::Video => (
+            video_ke_stiker_webp(data, &[]).or_else(|video| {
+                gambar_ke_stiker_webp(data, &[])
+                    .map_err(|gambar| format!("video: {video}; gambar: {gambar}"))
+            })?,
+            true,
+        ),
+        QuotedKind::Image => (
+            gambar_ke_stiker_webp(data, &[]).or_else(|gambar| {
+                video_ke_stiker_webp(data, &[])
+                    .map_err(|video| format!("gambar: {gambar}; video: {video}"))
+            })?,
+            false,
+        ),
         QuotedKind::Sticker => (data.to_vec(), false),
         _ => return Err("bukan stiker/foto/video".to_string()),
     };
@@ -222,7 +234,10 @@ pub fn saudio(ctx: Ctx) -> Reply {
 
     let (webp, animasi) = match siapkan_stiker(&ctx, &raw, &kind) {
         Ok(hasil) => hasil,
-        Err(_) => return gagal("Gagal memproses format WebP stiker!"),
+        Err(e) => {
+            tracing::warn!(error = %e, kind = ?kind, "saudio: gagal menyiapkan WebP stiker");
+            return gagal(&format!("Gagal memproses format WebP stiker: {e}"));
+        }
     };
 
     let (audio, dari_url) = match url {
