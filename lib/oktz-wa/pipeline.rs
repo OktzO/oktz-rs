@@ -1478,8 +1478,7 @@ impl MessageSender for ClientSender {
                     .map_err(|e| format!("upload media gagal: {e}"))?;
                 let mut pesan = build_media_message(media.kind, upload, &media);
                 if media.kind == MediaKind::Sticker
-                    && let Some(audio_src) =
-                        media.sticker.as_ref().and_then(|o| o.audio.clone())
+                    && let Some(audio_src) = media.sticker.as_ref().and_then(|o| o.audio.clone())
                 {
                     let audio_data = load_media(&audio_src).await.map_err(|e| e.to_string())?;
                     let audio_up = client
@@ -2291,19 +2290,21 @@ fn patch_preview(
 /// dibuat dari luar crate `whatsapp-rust`.
 fn buat_thumbnail(data: &[u8], kind: MediaKind) -> Option<Vec<u8>> {
     match kind {
-        MediaKind::Image | MediaKind::Document => match oktz_plugin_api::gambar::sharp_thumbnail(data) {
-            Ok(g) => {
-                let meta = g.metadata();
-                let w = 32u32;
-                let h = (32u32 * meta.tinggi / meta.lebar.max(1)).clamp(1, 32);
-                g.ubah_ukuran(w, h).ke_jpeg(50).ok()
+        MediaKind::Image | MediaKind::Document => {
+            match oktz_plugin_api::gambar::sharp_thumbnail(data) {
+                Ok(g) => {
+                    let meta = g.metadata();
+                    let w = 32u32;
+                    let h = (32u32 * meta.tinggi / meta.lebar.max(1)).clamp(1, 32);
+                    g.ubah_ukuran(w, h).ke_jpeg(50).ok()
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "thumbnail gambar gagal, pakai fallback 1px");
+                    use base64::Engine;
+                    base64::engine::general_purpose::STANDARD.decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEDASIAAhEBAxEb/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AvwH/2Q==").ok()
+                }
             }
-            Err(e) => {
-                tracing::warn!(error = %e, "thumbnail gambar gagal, pakai fallback 1px");
-                use base64::Engine;
-                base64::engine::general_purpose::STANDARD.decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEDASIAAhEBAxEb/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AvwH/2Q==").ok()
-            }
-        },
+        }
         MediaKind::Video => {
             static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
             let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -3759,7 +3760,9 @@ impl PluginCtxSource {
             map.clear();
         }
         if let Ok(teks) = serde_json::to_string(&*map) {
-            let _ = self.berkas.tulis_teks(&format!("{}/lid-cache.json", db_dir()), &teks);
+            let _ = self
+                .berkas
+                .tulis_teks(&format!("{}/lid-cache.json", db_dir()), &teks);
         }
     }
 
@@ -4770,6 +4773,7 @@ impl Pipeline {
         decision: group::Decision,
         m: &InboundMessage,
         caller: &Caller,
+        roster: &GroupRoster,
     ) -> Result<Outcome, PipelineError> {
         let deletes = matches!(
             decision,
@@ -4834,7 +4838,10 @@ impl Pipeline {
         };
         match text {
             Some(text) => {
-                let reply = Reply::text(text);
+                // Mention lewat PN dari roster — mention LID dirender klien
+                // sebagai angka acak (registry.rs:1139-1145).
+                let reply =
+                    Reply::text(text).with_mentions(vec![roster.mention_jid(&caller.sender)]);
                 let target = reply_target(m, &caller.sender);
                 if let Some(rendered) = render_reply(&reply, &target)? {
                     self.deliver(&caller.chat, rendered).await?;
@@ -5109,7 +5116,9 @@ impl Pipeline {
                 self.gates.record_message(&slow_key, now_ms);
             }
             if !matches!(decision, group::Decision::Allow) {
-                return self.execute_group_decision(decision, m, &caller).await;
+                return self
+                    .execute_group_decision(decision, m, &caller, &roster)
+                    .await;
             }
             // Diagnostik lapangan: gate anti grup menyala tapi pesan lolos tanpa
             // aksi. Membedakan setting mati / metadata gagal / bot bukan admin.
@@ -8039,7 +8048,9 @@ mod tests {
         };
         let wire = whatsapp_rust::waproto::codec::message_to_vec(&msg);
         let balik = whatsapp_rust::waproto::codec::message_decode(&wire).unwrap();
-        let audio = balik.sticker_message.as_option()
+        let audio = balik
+            .sticker_message
+            .as_option()
             .and_then(|s| s.audio_message.as_option())
             .expect("audioMessage field 26 harus ikut wire");
         assert_eq!(audio.ptt, Some(true));
@@ -11463,9 +11474,14 @@ mod tests {
 
         let m = inbound("https://contoh.invalid", MEMBER, GROUP, true, "K1");
         let caller = p.caller_of(&m);
-        p.execute_group_decision(group::Decision::KickAndReply("dikick".into()), &m, &caller)
-            .await
-            .expect("keputusan kick harus jalan tanpa menggagalkan pipeline");
+        p.execute_group_decision(
+            group::Decision::KickAndReply("dikick".into()),
+            &m,
+            &caller,
+            &GroupRoster::default(),
+        )
+        .await
+        .expect("keputusan kick harus jalan tanpa menggagalkan pipeline");
 
         assert_eq!(
             sender.deleted(),
@@ -11516,6 +11532,7 @@ mod tests {
             },
             &m,
             &caller,
+            &GroupRoster::default(),
         )
         .await
         .expect("keputusan fallback kick harus jalan");
@@ -11562,6 +11579,7 @@ mod tests {
             },
             &m,
             &caller,
+            &GroupRoster::default(),
         )
         .await
         .expect("gagal kick tidak boleh menggagalkan pipeline");
@@ -12429,20 +12447,14 @@ mod tests {
         p.process(&m, 1_000).await.unwrap();
 
         assert_eq!(
-            p.ctx
-                .user_entry(MEMBER)
-                .get("exp")
-                .and_then(Value::as_i64),
+            p.ctx.user_entry(MEMBER).get("exp").and_then(Value::as_i64),
             None,
             "defer: store belum ditulis per-pesan"
         );
 
         p.flush_exp(1_100).await;
         assert_eq!(
-            p.ctx
-                .user_entry(MEMBER)
-                .get("exp")
-                .and_then(Value::as_i64),
+            p.ctx.user_entry(MEMBER).get("exp").and_then(Value::as_i64),
             Some(15)
         );
     }
@@ -12459,10 +12471,7 @@ mod tests {
         p.flush_exp(1_200).await;
 
         assert_eq!(
-            p.ctx
-                .user_entry(MEMBER)
-                .get("exp")
-                .and_then(Value::as_i64),
+            p.ctx.user_entry(MEMBER).get("exp").and_then(Value::as_i64),
             Some(30)
         );
     }

@@ -320,13 +320,13 @@ pub fn default_gate_chain() -> GroupGuard {
         Gate::new("antitagsw", gate_antitagsw),      // connection.js:1479 (sebelum antiswgc)
         Gate::new("antiswgc", gate_anti_swgc),       // handler.js:794
         Gate::new("antidocument", gate_antidocument), // handler.js:797
-        Gate::new("antibot", gate_antibot),           // handler.js:802
-        Gate::new("mute", gate_mute),                 // handler.js:809
-        Gate::new("mutedmember", gate_muted_member),  // handler.js:818
-        Gate::new("mutegc", gate_mutegc),             // handler.js:827
-        Gate::new("slowmode", gate_slowmode),         // handler.js:844
-        Gate::new("antisticker", gate_antisticker),   // handler.js:1458 (later)
-        Gate::new("antimedia", gate_antimedia),       // handler.js:1463 (later)
+        Gate::new("antibot", gate_antibot),          // handler.js:802
+        Gate::new("mute", gate_mute),                // handler.js:809
+        Gate::new("mutedmember", gate_muted_member), // handler.js:818
+        Gate::new("mutegc", gate_mutegc),            // handler.js:827
+        Gate::new("slowmode", gate_slowmode),        // handler.js:844
+        Gate::new("antisticker", gate_antisticker),  // handler.js:1458 (later)
+        Gate::new("antimedia", gate_antimedia),      // handler.js:1463 (later)
                                                      // Dilewati: checkSpam (butuh `spamTracker`
                                                      // lintas pesan + `handleSpamAction` yang
                                                      // TIDAK return di JS → butuh Decision
@@ -342,11 +342,42 @@ pub fn default_gate_chain() -> GroupGuard {
 // Gate
 // ---------------------------------------------------------------------------
 
+/// `ponytail:` tiga skip di bawah TIDAK ada di JS (group-protection.js:1311/1888/1943
+/// hanya `isSameParticipant` + `isAdminCheck`) — penyimpangan sadar:
+///
+/// 1. `is_owner`/`from_me` — owner bot global lapor kena delete/kick.
+/// 2. `bot_lid` — JS `isSameParticipant` (lid.js:454) punya cache LID→PN; Rust
+///    tanpa cache, jadi pesan bot sendiri di grup LID tidak cocok via
+///    `bot_number` (PN) dan ikut kehapus. Pola sama dengan gate_antitagsw :671.
+///
+/// Upgrade: izinkan owner mengatur pengecualian per grup.
+fn gate_self_skip(input: &GateInput<'_>, cek_self_mode: bool) -> bool {
+    let c = input.caller;
+    if c.is_owner || c.from_me {
+        return true;
+    }
+    if cek_self_mode && input.env.self_mode {
+        return true;
+    }
+    if is_same_participant(
+        c.participant.as_deref().unwrap_or(&c.sender),
+        &input.env.bot_number,
+    ) {
+        return true;
+    }
+    if let Some(lid) = &input.env.bot_lid
+        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid)
+    {
+        return true;
+    }
+    false
+}
+
 /// `group-protection.js:1311` `handleAntilink`.
 ///
-/// PENTING: gate ini TIDAK mengecek `selfMode` sebelum skip pesan bot sendiri
-/// (bandingkan `handleAntilinkGc` :1899-1900). Dan `botNumber` di sini bentuk
-/// buggy `id.split(":")[0] + "@s.whatsapp.net"` — sama seperti JS.
+/// `botNumber` di sini bentuk buggy `id.split(":")[0] + "@s.whatsapp.net"` —
+/// sama seperti JS. Skip bot sendiri memakai [`gate_self_skip`] (lihat
+/// catatannya).
 fn gate_antilink(input: &GateInput<'_>) -> GateOutcome {
     let c = input.caller;
     if input.settings.antilink.as_deref() != Some("on") {
@@ -355,14 +386,10 @@ fn gate_antilink(input: &GateInput<'_>) -> GateOutcome {
     if !contains_link(&c.body) {
         return GateOutcome::Pass;
     }
-
-    let sender_tag = sender_tag(&c.sender);
-    if is_same_participant(
-        c.participant.as_deref().unwrap_or(&c.sender),
-        &input.env.bot_number,
-    ) {
+    if gate_self_skip(input, false) {
         return GateOutcome::Pass;
     }
+    let sender_tag = sender_tag(&c.sender);
     if !input.env.metadata_available {
         // JS: `await sock.groupMetadata(m.chat)` gagal → `catch` (:1363) →
         // `return false` → gate dilewati SENYAP. Bukan balas "bukan admin".
@@ -392,9 +419,8 @@ fn gate_antilink(input: &GateInput<'_>) -> GateOutcome {
 
 /// `group-protection.js:1888` `handleAntilinkGc` — hanya link WA spesifik.
 ///
-/// Berbeda dari `handleAntilink` di dua hal yang mengubah perilaku:
-/// - self-sender hanya di-skip kalau `selfMode` MATI (:1900);
-/// - bot bukan admin → `return false`, SENYAP (:1909), bukan reply.
+/// Bot bukan admin → `return false`, SENYAP (:1909), bukan reply.
+/// Skip bot sendiri memakai [`gate_self_skip`] (lihat catatannya).
 fn gate_antilink_gc(input: &GateInput<'_>) -> GateOutcome {
     let c = input.caller;
     if input.settings.antilinkgc.as_deref() != Some("on") {
@@ -405,12 +431,7 @@ fn gate_antilink_gc(input: &GateInput<'_>) -> GateOutcome {
     }
 
     let sender_tag = sender_tag(&c.sender);
-    if !input.env.self_mode
-        && is_same_participant(
-            c.participant.as_deref().unwrap_or(&c.sender),
-            &input.env.bot_number,
-        )
-    {
+    if gate_self_skip(input, true) {
         return GateOutcome::Pass;
     }
 
@@ -449,6 +470,7 @@ fn gate_antilink_gc(input: &GateInput<'_>) -> GateOutcome {
 ///
 /// Strukturnya identik dengan `handleAntilinkGc` (termasuk senyap saat bot
 /// bukan admin, :1964) — hanya deteksi link dan teks pesannya yang beda.
+/// Skip bot sendiri memakai [`gate_self_skip`] (lihat catatannya).
 fn gate_antilink_all(input: &GateInput<'_>) -> GateOutcome {
     let c = input.caller;
     if input.settings.antilinkall.as_deref() != Some("on") {
@@ -459,12 +481,7 @@ fn gate_antilink_all(input: &GateInput<'_>) -> GateOutcome {
     }
 
     let sender_tag = sender_tag(&c.sender);
-    if !input.env.self_mode
-        && is_same_participant(
-            c.participant.as_deref().unwrap_or(&c.sender),
-            &input.env.bot_number,
-        )
-    {
+    if gate_self_skip(input, true) {
         return GateOutcome::Pass;
     }
 
@@ -501,9 +518,9 @@ fn gate_antilink_all(input: &GateInput<'_>) -> GateOutcome {
 
 /// `group-protection.js:1253-1309` `handleTextProtection` — kerangka bersama
 /// `handleAntiJudol` (:1998) dan `handleAntiPhising` (:2011) SETELAH detektor
-/// cocok: skip bot sendiri (hanya saat selfMode mati, :1276) → admin → bot
-/// bukan admin membalas `notAdmin` (:1286-1292, beda dari antilinkGc/All yang
-/// senyap) → mode `normalizeProtectionMode` (:1294) → delete/kick + reply.
+/// cocok: skip bot/owner ([`gate_self_skip`]) → admin → bot bukan admin
+/// membalas `notAdmin` (:1286-1292, beda dari antilinkGc/All yang senyap) →
+/// mode `normalizeProtectionMode` (:1294) → delete/kick + reply.
 fn text_protection_action(
     input: &GateInput<'_>,
     mode_raw: Option<&str>,
@@ -511,12 +528,7 @@ fn text_protection_action(
     kick_text: String,
 ) -> GateOutcome {
     let c = input.caller;
-    if !input.env.self_mode
-        && is_same_participant(
-            c.participant.as_deref().unwrap_or(&c.sender),
-            &input.env.bot_number,
-        )
-    {
+    if gate_self_skip(input, true) {
         return GateOutcome::Pass;
     }
     if !input.env.metadata_available {
@@ -692,9 +704,10 @@ fn gate_antitagsw(input: &GateInput<'_>) -> GateOutcome {
     } else {
         sender
     };
-    GateOutcome::Decide(Decision::DeleteAndReply(
-        msg(ANTITAGSW, &sender_tag(&tag_source)),
-    ))
+    GateOutcome::Decide(Decision::DeleteAndReply(msg(
+        ANTITAGSW,
+        &sender_tag(&tag_source),
+    )))
 }
 
 fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
@@ -722,9 +735,10 @@ fn gate_anti_swgc(input: &GateInput<'_>) -> GateOutcome {
         return GateOutcome::Pass;
     }
     if let Some(lid) = &input.env.bot_lid
-        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid) {
-            return GateOutcome::Pass;
-        }
+        && is_same_participant(c.participant.as_deref().unwrap_or(""), lid)
+    {
+        return GateOutcome::Pass;
+    }
     if !input.env.metadata_available {
         // JS: `await sock.groupMetadata(chatId)` gagal → `catch` (:2140) →
         // `return false` → gate dilewati SENYAP.
@@ -894,7 +908,11 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     }
     let mut score: u32 = 0;
     let upper = id.to_ascii_uppercase();
-    if upper.starts_with("BAE5") || upper.starts_with("B24E") || upper.starts_with("94DD") || upper.starts_with("B1E") {
+    if upper.starts_with("BAE5")
+        || upper.starts_with("B24E")
+        || upper.starts_with("94DD")
+        || upper.starts_with("B1E")
+    {
         score += 5;
     } else if upper.starts_with("3EB0") && upper.len() == 22 {
         score += 4;
@@ -905,7 +923,8 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     } else if id.len() < 20 && !id.contains('-') {
         score += 2;
     }
-    if id.chars().any(|ch| ch.is_ascii_lowercase()) && !id.starts_with("3EB0") && !id.contains('-') {
+    if id.chars().any(|ch| ch.is_ascii_lowercase()) && !id.starts_with("3EB0") && !id.contains('-')
+    {
         score += 4;
     }
     if ![16, 20, 22, 32].contains(&id.len()) && !id.contains('-') {
@@ -915,7 +934,10 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     if let Some(part) = c.participant.as_deref()
         && let Some(at) = part.find(':')
         && part[at + 1..].starts_with(|ch: char| ch.is_ascii_digit())
-        && let Some(device) = part[at + 1..].split('@').next().and_then(|d| d.parse::<u32>().ok())
+        && let Some(device) = part[at + 1..]
+            .split('@')
+            .next()
+            .and_then(|d| d.parse::<u32>().ok())
         && device > 20
     {
         score += 2;
@@ -923,7 +945,10 @@ fn analyze_bot_message(c: &GroupCaller) -> BotAnalysis {
     let push = c.push_name.trim().to_lowercase();
     if push.is_empty() || push == "unknown" || push == "undefined" || push == "null" {
         score += 1;
-    } else if ["bot", "system", "admin", "owner", "host", "panel"].iter().any(|w| push.contains(w)) {
+    } else if ["bot", "system", "admin", "owner", "host", "panel"]
+        .iter()
+        .any(|w| push.contains(w))
+    {
         score += 2;
     }
     BotAnalysis { is_bot: score >= 5 }
@@ -2387,13 +2412,16 @@ fn is_punycode(text: &str) -> bool {
     let chars: Vec<char> = lower.chars().collect();
     let n = chars.len();
     for i in 0..n.saturating_sub(4) {
-        if chars[i] == 'x' && chars[i + 1] == 'n' && chars[i + 2] == '-' && chars[i + 3] == '-'
+        if chars[i] == 'x'
+            && chars[i + 1] == 'n'
+            && chars[i + 2] == '-'
+            && chars[i + 3] == '-'
             && chars[i + 4..]
                 .iter()
                 .any(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
-            {
-                return true;
-            }
+        {
+            return true;
+        }
     }
     false
 }
@@ -3099,10 +3127,9 @@ fn class_matches(spec: &ClassSpec, c: char, fold: bool) -> bool {
         if let Some(lo) = c.to_lowercase().next() {
             hit = raw_hit(lo);
         }
-        if !hit
-            && let Some(up) = c.to_uppercase().next() {
-                hit = raw_hit(up);
-            }
+        if !hit && let Some(up) = c.to_uppercase().next() {
+            hit = raw_hit(up);
+        }
     }
     hit != spec.negated
 }
@@ -4076,16 +4103,17 @@ fn analyze_branch(src: &[char], state: &mut AnalysisState) -> BranchRead {
             next
         };
         if let Some(previous) = items.last()
-            && previous.expansive && sets_overlap(&previous.set, &item.set) {
-                if item.quantified {
-                    if reason.is_none() {
-                        reason = Some(reject_overlap_stacked());
-                    }
-                } else if (item.expansive || item.single_char)
-                    && reason.is_none() {
-                        reason = Some(reject_overlap_swallow());
-                    }
+            && previous.expansive
+            && sets_overlap(&previous.set, &item.set)
+        {
+            if item.quantified {
+                if reason.is_none() {
+                    reason = Some(reject_overlap_stacked());
+                }
+            } else if (item.expansive || item.single_char) && reason.is_none() {
+                reason = Some(reject_overlap_swallow());
             }
+        }
         if unbounded {
             state.unbounded += 1;
         }
@@ -4196,9 +4224,10 @@ fn analyze_alternation(src: &[char]) -> Analysis {
             can_match_empty = true;
         }
         if let Some(pf) = &previous_first
-            && sets_overlap(pf, &head.set) {
-                overlapping_branches = true;
-            }
+            && sets_overlap(pf, &head.set)
+        {
+            overlapping_branches = true;
+        }
         set_union(&mut first, &head.set);
         previous_first = Some(head.set.clone());
     }
@@ -4803,9 +4832,10 @@ mod tests {
     }
 
     #[test]
-    fn antilink_owner_without_admin_record_is_not_exempt() {
-        // Gate ini cek admin dari participants, BUKAN m.isOwner. Owner yang
-        // tidak tercatat admin tetap kena.
+    fn antilink_owner_without_admin_record_is_exempt() {
+        // PENYIMPANGAN dari JS (group-protection.js:1311-1345 tidak membaca
+        // m.isOwner): owner bot global lapor kena delete/kick — exempt di sini.
+        // Lihat komentar `gate_self_skip`.
         let mut c = caller();
         c.body = "https://spam.com".into();
         c.is_owner = true;
@@ -4813,10 +4843,29 @@ mod tests {
             antilink: Some("on".into()),
             ..Default::default()
         };
-        assert!(matches!(
-            run_one(gate_antilink, &c, &s, &env()),
-            GateOutcome::Decide(Decision::DeleteAndReply(_))
-        ));
+        assert_eq!(run_one(gate_antilink, &c, &s, &env()), GateOutcome::Pass);
+    }
+
+    #[test]
+    fn antilink_owners_own_message_never_deleted_via_lid() {
+        // Grup LID: from_me + participant LID yang tidak cocok dengan
+        // bot_number (PN) tetap harus Pass — dulu pesan bot sendiri kehapus.
+        let mut c = caller();
+        c.body = "https://chat.whatsapp.com/AbCd1234".into();
+        c.from_me = true;
+        c.sender = "258394745221199@lid".into();
+        c.participant = Some("258394745221199@lid".into());
+        let s = GroupSettings {
+            antilink: Some("on".into()),
+            antilinkgc: Some("on".into()),
+            antilinkall: Some("on".into()),
+            ..Default::default()
+        };
+        let mut e = env();
+        e.bot_lid = Some("258394745221199@lid".into());
+        for gate in [gate_antilink, gate_antilink_gc, gate_antilink_all] {
+            assert_eq!(run_one(gate, &c, &s, &e), GateOutcome::Pass);
+        }
     }
 
     #[test]
@@ -6515,7 +6564,9 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(match_custom_rule("halo bro ini GOBLOK banget", std::slice::from_ref(&rule)).is_some());
+        assert!(
+            match_custom_rule("halo bro ini GOBLOK banget", std::slice::from_ref(&rule)).is_some()
+        );
         assert!(match_custom_rule("halo bro ini bersih", std::slice::from_ref(&rule)).is_none());
 
         // "regex aman tetap jalan".
@@ -6584,7 +6635,11 @@ mod tests {
             },
         );
         assert!(
-            match_custom_rule(&format!("{}zztoken", "x".repeat(600)), std::slice::from_ref(&far)).is_none()
+            match_custom_rule(
+                &format!("{}zztoken", "x".repeat(600)),
+                std::slice::from_ref(&far)
+            )
+            .is_none()
         );
         assert!(match_custom_rule(&format!("{}zztoken", "x".repeat(500)), &[far]).is_some());
 
@@ -6784,6 +6839,9 @@ mod tests {
         // handleTextProtection (:1276): skip bot sendiri HANYA saat selfMode
         // mati. Saat selfMode nyala, pesan bot diproses → di env tanpa
         // tercatat admin, bot membalas notAdmin ke dirinya (persis JS).
+        //
+        // PENYIMPANGAN dari JS (lihat `gate_self_skip`): `from_me` kini
+        // exempt di semua mode — pesan bot sendiri tidak boleh kena delete.
         let s = GroupSettings {
             antijudol: Some("on".into()),
             ..Default::default()
@@ -6799,10 +6857,7 @@ mod tests {
         let mut e = env();
         e.participants.retain(|p| !p.id.starts_with("628999"));
         e.self_mode = true;
-        assert_eq!(
-            run_one(gate_anti_judol, &c, &s, &e),
-            GateOutcome::Decide(Decision::Reply(NOT_ADMIN.into()))
-        );
+        assert_eq!(run_one(gate_anti_judol, &c, &s, &e), GateOutcome::Pass);
     }
 
     // ==================================================================
@@ -7349,7 +7404,10 @@ mod tests {
 
     #[test]
     fn antimedia_deletes_media_types() {
-        let s = GroupSettings { antimedia: true, ..Default::default() };
+        let s = GroupSettings {
+            antimedia: true,
+            ..Default::default()
+        };
         for set in ["image", "video", "gif", "audio", "document"] {
             let mut c = caller();
             match set {
@@ -7377,13 +7435,22 @@ mod tests {
             run_one(gate_antimedia, &c, &GroupSettings::default(), &env()),
             GateOutcome::Pass
         );
-        let s = GroupSettings { antimedia: true, ..Default::default() };
-        assert_eq!(run_one(gate_antimedia, &caller(), &s, &env()), GateOutcome::Pass);
+        let s = GroupSettings {
+            antimedia: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            run_one(gate_antimedia, &caller(), &s, &env()),
+            GateOutcome::Pass
+        );
     }
 
     #[test]
     fn antisticker_deletes_sticker() {
-        let s = GroupSettings { antisticker: true, ..Default::default() };
+        let s = GroupSettings {
+            antisticker: true,
+            ..Default::default()
+        };
         let mut c = caller();
         c.is_sticker = true;
         assert_eq!(
@@ -7402,29 +7469,39 @@ mod tests {
 
     #[test]
     fn antibot_bae5_id_is_kicked() {
-        let s = GroupSettings { antibot: true, ..Default::default() };
+        let s = GroupSettings {
+            antibot: true,
+            ..Default::default()
+        };
         let mut c = caller();
         c.message_id = "BAE5abc123def456ghi".into();
         assert_eq!(
             run_one(gate_antibot, &c, &s, &env()),
-            GateOutcome::Decide(Decision::KickAndReply(
-                ANTIBOT.replace("%user%", "628111")
-            ))
+            GateOutcome::Decide(Decision::KickAndReply(ANTIBOT.replace("%user%", "628111")))
         );
     }
 
     #[test]
     fn antibot_normal_id_passes() {
-        let s = GroupSettings { antibot: true, ..Default::default() };
+        let s = GroupSettings {
+            antibot: true,
+            ..Default::default()
+        };
         let mut c = caller();
         c.message_id = "3EB0ABCD1234567890AB".into();
         assert_eq!(run_one(gate_antibot, &c, &s, &env()), GateOutcome::Pass);
-        assert_eq!(run_one(gate_antibot, &caller(), &s, &env()), GateOutcome::Pass);
+        assert_eq!(
+            run_one(gate_antibot, &caller(), &s, &env()),
+            GateOutcome::Pass
+        );
     }
 
     #[test]
     fn antibot_admin_exempt_and_off_passes() {
-        let s = GroupSettings { antibot: true, ..Default::default() };
+        let s = GroupSettings {
+            antibot: true,
+            ..Default::default()
+        };
         let mut c = caller();
         c.message_id = "BAE5abc123def456ghi".into();
         c.is_admin = true;
