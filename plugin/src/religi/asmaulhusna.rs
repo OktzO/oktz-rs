@@ -713,7 +713,7 @@ pub(crate) fn asmaul_by_index(index: u32) -> Option<AsmaulHusna> {
 }
 
 /// `searchItem(..., 'latin')` — `item[field].toLowerCase().includes(query)`.
-/// `query` harus sudah lowercase (JS: `query.toLowerCase()`).
+/// `query` harus sudah lowercase (versi awal: `query.toLowerCase()`).
 pub(crate) fn asmaul_by_latin(query: &str) -> Option<AsmaulHusna> {
     ASMAUL_HUSNA
         .iter()
@@ -767,10 +767,10 @@ pub fn asmaulhusna(ctx: Ctx) -> Reply {
     let query = ctx.args.join(" ").trim().to_string();
 
     let name = if query.is_empty() {
-        // JS: `getRandomItem('asmaulhusna.json')`.
+        // versi awal: `getRandomItem('asmaulhusna.json')`.
         ASMAUL_HUSNA.get(random_index(ASMAUL_HUSNA.len())).copied()
     } else if is_all_digits(&query) {
-        // JS `parseInt` di string yang sudah lolos `/^\d+$/`, jadi tidak pernah
+        // versi awal `parseInt` di string yang sudah lolos `/^\d+$/`, jadi tidak pernah
         // gagal parse. `.parse()` diasumsikan berhasil setelah dicek digits.
         let index: u32 = query.parse().unwrap_or(0);
         if !(1..=99).contains(&index) {

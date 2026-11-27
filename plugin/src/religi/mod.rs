@@ -1,10 +1,10 @@
 pub mod asmaulhusna;
 pub mod islami;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod audioquran;
 pub mod jadwalsholat;

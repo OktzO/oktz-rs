@@ -1,9 +1,5 @@
-//! `plugins/religi/audioquran.js` — cari dan putar audio Al-Quran dari mp3quran.
-//!
-//! `NOTE (mod.rs):` `religi/mod.rs` sudah memuat `asmaulhusna` dan `islami`
-//! (bukan milik tugas ini), jadi berkas ini sengaja tidak menambahkan
-//! `pub mod`. Tambahkan baris berikut secara manual ke `src/religi/mod.rs`:
-//!   pub mod audioquran;
+//! Cari dan putar audio Al-Quran dari mp3quran.
+
 //
 //! Semua pemanggilan API lewat `ctx.http.get` dengan `terima_semua_status()`
 //! (mirip `validateStatus: () => true` di axios). Header `Origin`/`Referer`
@@ -47,7 +43,7 @@ const ALIASES: &[(&str, &[&str])] = &[
     ("thubaity", &["althubaity", "ibrahim althubaity"]),
 ];
 
-/// Jarak Levenshtein antara dua string (mirip fungsi `lev` di JS).
+/// Jarak Levenshtein antara dua string (mirip fungsi `lev` di versi awal).
 fn levenshtein(a: &str, b: &str) -> usize {
     let m = a.len();
     let n = b.len();
@@ -379,7 +375,7 @@ mod tests {
         assert_eq!(levenshtein("kitten", "sitting"), 3);
         assert_eq!(levenshtein("", ""), 0);
         assert_eq!(levenshtein("abc", "abc"), 0);
-        // `plugins/religi/audioquran.js:167-184`: cuma i→e di posisi kelima → 1.
+        // : cuma i→e di posisi kelima → 1.
         assert_eq!(levenshtein("sudais", "sudaes"), 1);
     }
 

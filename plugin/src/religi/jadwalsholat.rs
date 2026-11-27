@@ -1,9 +1,9 @@
-//! `plugins/religi/jadwalsholat.js` — jadwal sholat real-time dari myquran.com.
+//! Jadwal sholat real-time dari myquran.com.
 //!
-//! `ponytail:` `saluranCtx()` dari `src/lib/context.js` tidak tersedia di API
-//! plugin, jadi `contextInfo` (newsletter) diabaikan. Audio adzan dan teks
-//! dikirim berurutan lewat `Reply::sequence` (audio dulu, teks sesudahnya,
-//! mirip `await` berurutan di JS). Satu reaksi akhir (`✅`/`❌`/`☢`).
+//! `Keterbatasan:` `saluranCtx()` tidak tersedia di API plugin, jadi `contextInfo`
+//! (newsletter) diabaikan. Audio adzan dan teks dikirim berurutan lewat `Reply::sequence`
+//! (audio dulu, teks sesudahnya, mirip `await` berurutan di versi awal). Satu reaksi akhir
+//! (`✅`/`❌`/`☢`).
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, HttpError, MediaSource, Reply, plugin};
@@ -162,7 +162,7 @@ pub fn jadwalsholat(ctx: Ctx) -> Reply {
     }
 }
 
-/// `searchKota` (`sholat-api.js:6-18`): `Ok(None)` kalau `status` falsy atau
+/// `searchKota`: `Ok(None)` kalau `status` falsy
 // `data` kosong; `Err` kalau request gagal.
 fn cari_kota(ctx: &Ctx, query: &str) -> Result<Option<serde_json::Value>, HttpError> {
     let res = ctx.http.get(&kota_url(query))?;
@@ -179,9 +179,9 @@ fn cari_kota(ctx: &Ctx, query: &str) -> Result<Option<serde_json::Value>, HttpEr
         .cloned())
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// `jakarta_parts` ke milidetik (untuk test hari).
 #[cfg(test)]
@@ -323,8 +323,8 @@ mod tests {
         let r = run(http, "Jakarta");
         let t = text_of(&r);
         assert!(t.starts_with("🕌 *ᴊᴀᴅᴡᴀʟ sʜᴏʟᴀᴛ*\n╭┈┈⬡「 📍 *KOTA JAKARTA* 」\n┃ 📅 "), "{t}");
-        // Nama bulan tidak boleh di-hardcode ke awal tahun: `formatNow` JS
-        // (`plugins/religi/jadwalsholat.js:40`) memakai bulan tanggal berjalan,
+        // Nama bulan tidak boleh di-hardcode ke awal tahun: `formatNow` versi awal
+        // memakai bulan tanggal berjalan,
         // jadi test ini bisa dijalankan kapan saja.
         assert!(
             HARI_ID.iter().any(|h| t.contains(*h))
@@ -336,9 +336,9 @@ mod tests {
     #[test]
     fn status_falsy_menggunakan_error_template() {
         // `{"status":false}` di respons *kota* berarti `searchKota` → null
-        // (pesan tidak ditemukan, `sholat-api.js:12-17`). Yang masuk `catch`
-        // (`jadwalsholat.js:90-92`) adalah status falsy dari `getTodaySchedule`
-        // (`sholat-api.js:43-47`), jadi stub kedua harus respons jadwal.
+        // . Yang masuk `catch`
+        // adalah status falsy dari `getTodaySchedule`
+        // , jadi stub kedua harus respons jadwal.
         let http = Stub::with_balasan(vec![kota_json(), r#"{"status":false}"#.to_string()]);
         let r = run(http, "Jakarta");
         assert_eq!(
@@ -365,7 +365,7 @@ mod tests {
     #[test]
     fn waktu_kosong_dijadikan_tanda_hubung() {
         // Stub lama bukan JSON valid (ada `\"` di dalam raw string), jadi kena
-        // cabang error sebelum sempat memeriksa `|| "-"` (`sholat-api.js:53`).
+        // cabang error sebelum sempat memeriksa `|| "-"`.
         let http = Stub::with_balasan(vec![
             kota_json(),
             r#"{"status":true,"data":{"jadwal":{"imsak":"","subuh":"04:20"},"lokasi":"X"}}"#.to_string(),

@@ -1,16 +1,4 @@
-//! `plugins/religi/islami.js` — satu handler untuk 5 fitur: Asmaul Husna,
-//! Niat Sholat, Surah, Doa, dan Artikel.
-//!
-//! Percabangan JS ada di `m.command`, bukan di plugin terpisah — jadi alias
-//! `niatsholat`/`surah`/`doa` dan seterusnya semuanya masuk ke sini.
-//!
-//! Yang tidak ikut ke port: pesan sementara `🕕 Sedang memuat surah...`,
-//! karena `Reply` hanya bisa satu pesan.
-//!
-//! Catatan: `plugins/religi/asmaulhusna.js` juga mendaftarkan command
-//! `asmaulhusna` sebagai Namanya. Konflik itu sudah ada di JS dan tidak
-//! disentuh di sini — `find("asmaulhusna")` mengembalikan siapa pun yang
-//! terdaftar lebih dulu.
+//! Satu handler untuk 5 fitur: Asmaul Husna,
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -104,7 +92,7 @@ fn doa(list: &[Value], text: &str, prefix: &str) -> String {
     )
 }
 
-/// `String.length` di JS = unit kode UTF-16, bukan byte.
+/// `String.length` di versi awal = unit kode UTF-16, bukan byte.
 fn utf16_len(s: &str) -> usize {
     s.encode_utf16().count()
 }
@@ -179,7 +167,7 @@ pub fn islami(ctx: Ctx) -> Reply {
     let text = ctx.text.clone();
     let prefix = ctx.prefix.clone();
 
-    // Dua guard JS (`!text`) yang tidak butuh jaringan, jadi dicek lebih dulu.
+    // Dua guard versi awal (`!text`) yang tidak butuh jaringan, jadi dicek lebih dulu.
     match command.as_str() {
         "surah" if text.is_empty() => {
             return Reply::text(format!(
@@ -191,12 +179,12 @@ pub fn islami(ctx: Ctx) -> Reply {
                 "❓ Mau cari artikel tentang apa?\nContoh: `{prefix}gislam puasa`"
             ));
         }
-        // Tanpa `default` di switch JS: command lain tidak membalas apa pun.
+        // Tanpa `default` di switch versi awal: command lain tidak membalas apa pun.
         "asmaulhusna" | "niatsholat" | "niatshalat" | "surah" | "doa" | "berdoa" | "gislam" => {}
         _ => return Reply::None,
     }
 
-    // `fetchJson` + `catch` luar islami.js.
+    // `fetchJson` + `catch` luar.
     let fetch = |url: String| ctx.http.get(&url).ok().and_then(|r| r.json());
     let Some(body) = fetch(match command.as_str() {
         "asmaulhusna" => ASMA_ENDPOINT.to_string(),
@@ -273,14 +261,14 @@ mod tests {
         );
         assert_eq!(p.meta.category, "religi");
         assert_eq!(p.meta.usage, ".islami <fitur>");
-        // `example` tidak ada di pluginConfig JS.
+        // `example` tidak ada di pluginConfig versi awal.
         assert_eq!(p.meta.example, "");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
         assert!(!p.meta.is_group && !p.meta.is_private);
     }
 
-    /// `asmaulhusna` tidak ikut di sini: `plugins/religi/asmaulhusna.js`
+    /// `asmaulhusna` tidak ikut di sini:
     /// mendaftarkannya sebagai Nama, jadi siapa yang menang tergantung
     /// urutan registrasi.
     #[test]
@@ -290,7 +278,7 @@ mod tests {
         }
     }
 
-    /// Switch JS tidak punya `default`, jadi command di luar 5 fiturnya diam.
+    /// Switch versi awal tidak punya `default`, jadi command di luar 5 fiturnya diam.
     #[test]
     fn an_unmatched_command_replies_nothing() {
         for cmd in ["islami", "lain"] {
@@ -393,7 +381,7 @@ mod tests {
         // `surahText.length > 60000` — batasnya inklusif: tepat 60000 lolos.
         assert_eq!(utf16_len(&"a".repeat(60_000)), 60_000);
         assert!(utf16_len(&"a".repeat(60_001)) > 60_000);
-        // Emoji di luar BMP = 2 unit di JS, bukan 4 byte seperti `str::len()`.
+        // Emoji di luar BMP = 2 unit di versi awal, bukan 4 byte seperti `str::len()`.
         assert_eq!(utf16_len("😀"), 2);
         assert_eq!("😀".len(), 4);
     }
@@ -444,7 +432,7 @@ mod tests {
         }
     }
 
-    /// Command ditulis kapital di chat — switch JS sudah `toLowerCase()`.
+    /// Command ditulis kapital di chat — switch versi awal sudah `toLowerCase()`.
     #[test]
     fn the_command_is_lowercased_before_the_switch() {
         let r = run_with(Arc::new(NoHttp), "SURAH", "");
