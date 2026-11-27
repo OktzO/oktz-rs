@@ -1,5 +1,9 @@
 # Isolasi Worker Blocking + Alokator Jemalloc — Implementation Plan
 
+> **Catatan (2026-11-27):** tujuan paritas byte-per-byte terhadap bot JS sudah
+> tidak berlaku. Rust adalah acuan perilaku. Kalimat paritas di bawah hanya
+> konteks sejarah.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Handler plugin berat (HTTP/ffmpeg/image) jalan di thread pool blocking tokio, dan alokator bin diganti jemalloc dengan decay, supaya bot tidak macet saat multi command paralel dan RSS turun kembali ke OS.

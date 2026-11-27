@@ -85,9 +85,9 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //
 // v0.1.5 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
 // v0.1.6 — binary baca fixture sesi dari env (perbaiki "Bad Mac"/decrypt gagal).
-// v0.1.7 — paritas plugin (749/793) + seluruh test hijau.
-// v0.1.8 — paritas JS penuh: proteksi grup, downloader, command lookup.
-// v0.1.9 — plugin stalkdc parity JS + kartu menu native-flow.
+// v0.1.7 — seluruh plugin terdaftar (749/793) + seluruh test hijau.
+// v0.1.8 — cakupan penuh: proteksi grup, downloader, command lookup.
+// v0.1.9 — plugin stalkdc + kartu menu native-flow.
 // v0.2.14 — kartu native-flow (menu/tabel/tombol) + 11 replyVariant.
 // v0.2.16 — config penuh lewat .env (config.json dihapus); owner/premium dan
 //           admin grup benar di grup ber-addressing LID (sender_alt);
@@ -99,13 +99,13 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 //           .setpp/.delpp/.block/.unblock fungsional penuh.
 // v0.2.20 — .bratvid/.bratvid2 animasi + teks rata kiri; perbaiki flag VP8X sticker/brat (alpha/animasi/EXIF) yang membuat
 //           WebP ditolak WA saat diunduh.
-// v0.2.38 — paritas sticker (.bratimg/.bratvid/.s) + kartu thumbnail .play;
+// v0.2.38 — sticker (.bratimg/.bratvid/.s) + kartu thumbnail .play;
 //           ffmpeg+ffprobe statis otomatis dari aset rilis ke bin/ (tanpa npm).
 // v0.2.45 — .promote/.demote benar-benar jalan; .smeme PNG→WebP+EXIF (stiker
 //           tidak kosong lagi); gate antitagsw; welcome/goodbye tipe-2 kirim
 //           foto PP peserta, gagal → asset lokal pp-kosong.
 // v0.2.46 — welcome/goodbye tipe 7 = kartu interaktif berfoto PP seperti
-//           ourin (body teks sapaan penuh + quick_reply + badge saluran).
+//           (body teks sapaan penuh + quick_reply + badge saluran).
 // v0.2.47 — handler plugin jalan di thread blocking (bukan worker tokio);
 //           alokator jemalloc: RSS kembali ke OS, multi-command tidak antre.
 // v0.2.48 — store: serialisasi sekali per batch mutasi (clone-on-write);
@@ -246,7 +246,7 @@ const KANDIDAT_CREDS = [
 function pathCreds() {
   const ada = KANDIDAT_CREDS.find((p) => existsSync(p));
   if (ada) return ada;
-  // Panel: storage/ di samping launcher. Dev (ourin-md): launcher di rust/,
+  // Panel: storage/ di samping launcher. Dev: launcher di rust/,
   // storage/ di akar repo.
   return existsSync(path.join(AKAR, "../storage"))
     ? KANDIDAT_CREDS[1]

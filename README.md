@@ -1,6 +1,7 @@
 # oktz-rs
 
-Bot WhatsApp versi Rust dari `ourin-md`. Perilaku mengikuti bot JS produksi.
+Bot WhatsApp berbasis Rust. Implementasi Rust adalah acuan perilaku; tidak ada
+lagi kewajiban meniru bot JS lama.
 
 Repo ini TIDAK menyimpan binary. Binary Linux x64 diunduh otomatis dari
 GitHub Release saat `launcher.js` pertama kali dijalankan (disimpan ke

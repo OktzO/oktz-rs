@@ -1,5 +1,9 @@
 # Ronde 2 Implementation Plan: churn store + guard decode media
 
+> **Catatan (2026-11-27):** tujuan paritas byte-per-byte terhadap bot JS sudah
+> tidak berlaku. Rust adalah acuan perilaku. Kalimat paritas di bawah hanya
+> konteks sejarah.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (metode native, dipilih owner di ronde 1) untuk implementasi task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Kurangi churn alokasi per-pesan (serialisasi store 2×→1× per batch) dan tolak decode gambar raksasa sebelum alokasi RGBA, tanpa menyentuh render.

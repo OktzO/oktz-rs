@@ -1,5 +1,9 @@
 # Desain ronde 2: churn store per-pesan + guard decode media
 
+> **Catatan (2026-11-27):** tujuan paritas byte-per-byte terhadap bot JS sudah
+> tidak berlaku. Rust adalah acuan perilaku. Kalimat paritas di bawah hanya
+> konteks sejarah.
+
 Tanggal: 2026-11-15 · Status: lanjutan disetujui (ronde 1 A+B terbukti: RSS turun lagi
 setelah burst, v0.2.47 rilis). Ronde 2 menyasar dua sisa akar dari analisis ronde 1.
 

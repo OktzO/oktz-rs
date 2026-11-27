@@ -1,5 +1,9 @@
 # Desain: Isolasi worker blocking + alokator jemalloc
 
+> **Catatan (2026-11-27):** tujuan paritas byte-per-byte terhadap bot JS sudah
+> tidak berlaku. Rust adalah acuan perilaku. Kalimat paritas di bawah hanya
+> konteks sejarah.
+
 Tanggal: 2026-11-14 · Status: disetujui (ronde 1 dari A+B) · Ronde 2 (C+D) menunggu hasil ukur
 
 ## Intent
