@@ -1,15 +1,12 @@
-//! Port `src/lib/games.js` — sistem foto game (tebak gambar / kuis).
-//!
-//! Ekspor JS: `FotoGames` class, `games` instance, dan fungsi `pick`.
-//! Semua fungsi pub di bawah menamai asal JS-nya di komentar.
+//! Port — sistem foto game (tebak gambar / kuis).
 
 use rand::Rng as _;
 use std::collections::HashMap;
 
-/// `pick(arr)` (`games.js:53-55`) — ambil satu item acak dari array.
+/// `pick(arr)` — ambil satu item acak dari array.
 ///
 /// `Math.floor(Math.random() * arr.length)`. Mengembalikan `None` kalau
-/// array kosong (JS mengembalikan `undefined`).
+/// array kosong (versi awal mengembalikan `undefined`).
 pub fn pick<'a>(arr: &'a [&'a str]) -> Option<&'a str> {
     if arr.is_empty() {
         return None;
@@ -18,7 +15,7 @@ pub fn pick<'a>(arr: &'a [&'a str]) -> Option<&'a str> {
     Some(arr[idx])
 }
 
-/// `WIN_MESSAGES` (`games.js:32-39`).
+/// `WIN_MESSAGES`.
 pub const WIN_MESSAGES: [&str; 6] = [
     "🌟 *GG WP! Otakmu encer!*",
     "✨ *KEREN ABIS! Lu emang pinter!*",
@@ -28,14 +25,14 @@ pub const WIN_MESSAGES: [&str; 6] = [
     "🔥 *LEGEND! Jawab kek gak ada beban!*",
 ];
 
-/// `TIMEOUT_MESSAGES` (`games.js:41-45`).
+/// `TIMEOUT_MESSAGES`.
 pub const TIMEOUT_MESSAGES: [&str; 3] = [
     "⏱️ *Yah telat, waktu habis!*",
     "⏱️ *WAKTU HABIS!*",
     "⏱️ *Telat bro, waktu dah abis!*",
 ];
 
-/// `SURRENDER_MESSAGES` (`games.js:47-51`).
+/// `SURRENDER_MESSAGES`.
 pub const SURRENDER_MESSAGES: [&str; 3] = [
     "🏳️ *Yahhh nyerah deh...*",
     "🏳️ *MENYERAH!*",
@@ -43,10 +40,10 @@ pub const SURRENDER_MESSAGES: [&str; 3] = [
 ];
 
 // ============================================================================
-// Konfigurasi game — padanan `defaults` di `register` (`games.js:63-76`)
+// Konfigurasi game — padanan `defaults` di `register`
 // ============================================================================
 
-/// Konfigurasi satu jenis game. Semua field sesuai kunci di JS.
+/// Konfigurasi satu jenis game. Semua field sesuai kunci di versi awal.
 pub struct GameConfig {
     pub data_file: String,
     pub question_field: String,
@@ -54,9 +51,9 @@ pub struct GameConfig {
     pub emoji: String,
     pub title: String,
     pub description: String,
-    /// Timeout dalam milidetik (JS: `timeout: 60000`).
+    /// Timeout dalam milidetik (versi awal: `timeout: 60000`).
     pub timeout: i64,
-    /// Cooldown dalam detik (JS: `cooldown: 5`).
+    /// Cooldown dalam detik (versi awal: `cooldown: 5`).
     pub cooldown: i64,
     pub has_image: bool,
     pub image_field: String,
@@ -66,7 +63,7 @@ pub struct GameConfig {
 }
 
 impl GameConfig {
-    /// Default untuk `game_type`, padanan objek `defaults` di JS.
+    /// Default untuk `game_type`, padanan objek `defaults` di versi awal.
     pub fn default_for(game_type: &str) -> Self {
         Self {
             data_file: format!("{game_type}.json"),
@@ -86,7 +83,7 @@ impl GameConfig {
     }
 }
 
-/// `register(gameType, cfg)` (`games.js:62-78`) — daftarkan game; `cfg`
+/// `register(gameType, cfg)` — daftarkan game; `cfg`
 /// menimpa default, lalu `gameType` ditetapkan.
 #[must_use]
 pub fn register_config(game_type: &str, cfg: GameConfig) -> GameConfig {
@@ -130,10 +127,10 @@ pub fn register_config(game_type: &str, cfg: GameConfig) -> GameConfig {
 }
 
 // ============================================================================
-// FotoGames — padanan class di `games.js:57-328`
+// FotoGames — padanan class
 // ============================================================================
 
-/// `FotoGames` (`games.js:57-60`) — registry game dengan `HashMap`.
+/// `FotoGames` — registry game dengan `HashMap`.
 pub struct FotoGames {
     pub registry: HashMap<String, GameConfig>,
 }
@@ -145,28 +142,28 @@ impl Default for FotoGames {
 }
 
 impl FotoGames {
-    /// `constructor()` (`games.js:58-60`) — inisialisasi registry kosong.
+    /// `constructor()` — inisialisasi registry kosong.
     pub fn new() -> Self {
         Self {
             registry: HashMap::new(),
         }
     }
 
-    /// `register(gameType, cfg)` (`games.js:62-78`).
+    /// `register(gameType, cfg)`.
     pub fn register(&mut self, game_type: &str, cfg: GameConfig) {
         let full = register_config(game_type, cfg);
         self.registry.insert(game_type.to_string(), full);
     }
 
-    /// `get(gameType)` (`games.js:80-82`).
+    /// `get(gameType)`.
     pub fn get(&self, game_type: &str) -> Option<&GameConfig> {
         self.registry.get(game_type)
     }
 }
 
-/// `games` instance (`games.js:330`) — padanan singleton JS.
+/// `games` instance — padanan singleton versi awal.
 ///
-/// `ponytail:` JS memiliki satu instance module-level `games`. Di Rust
+/// `Keterbatasan:` versi awal memiliki satu instance module-level `games`. Di Rust
 /// ini adalah konstruktor; pemanggil yang ingin singleton sama harus
 /// membagikan `FotoGames` melalui `Arc<Mutex<_>>` atau state router.
 pub fn games() -> FotoGames {
@@ -174,7 +171,7 @@ pub fn games() -> FotoGames {
 }
 
 // ============================================================================
-// Helper murni dari createHandler / answerHandler (`games.js:186-296`)
+// Helper murni dari createHandler / answerHandler
 // ============================================================================
 
 /// Hasil perhitungan hadiah kemenangan.
@@ -187,8 +184,8 @@ pub struct RewardResult {
 
 /// Hitung total hadiah dari config + fast answer bonus.
 ///
-/// Padanan cabang `cfg.rewards` + `checkFastAnswer` di
-/// `games.js:222-247`. `rewards` = `None` berarti `false`/`null` (tidak ada
+/// Padanan cabang `cfg.rewards` + `checkFastAnswer`
+/// . `rewards` = `None` berarti `false`/`null` (tidak ada
 /// hadiah), `Some` berarti objek rewards dari config.
 pub fn calculate_rewards(
     rewards: Option<&RewardConfig>,
@@ -226,7 +223,7 @@ pub fn calculate_rewards(
     }
 }
 
-/// Konfigurasi rewards dari `cfg.rewards` (`games.js:222-233`).
+/// Konfigurasi rewards dari `cfg.rewards`.
 pub struct RewardConfig {
     pub limit: i64,
     pub energi: i64,
@@ -235,7 +232,7 @@ pub struct RewardConfig {
     pub exp: i64,
 }
 
-/// Hasil `checkFastAnswer` + bonus (`games.js:237-247`).
+/// Hasil `checkFastAnswer` + bonus.
 pub struct FastBonus {
     pub praise: String,
     pub bonus: RewardConfig,
@@ -243,7 +240,7 @@ pub struct FastBonus {
     pub elapsed_ms: i64,
 }
 
-/// Bangun teks kemenangan, padanan `games.js:258-270`.
+/// Bangun teks kemenangan, padanan.
 pub fn build_win_text(
     winner_number: &str,
     answer: &str,
@@ -277,7 +274,7 @@ pub fn build_win_text(
     text
 }
 
-/// Bangun teks waktu habis, padanan `games.js:179-182`.
+/// Bangun teks waktu habis, padanan.
 pub fn build_timeout_text(answer: &str) -> String {
     let mut text = pick(&TIMEOUT_MESSAGES)
         .unwrap_or("⏱️ Waktu habis!")
@@ -287,7 +284,7 @@ pub fn build_timeout_text(answer: &str) -> String {
     text
 }
 
-/// Bangun teks menyerah, padanan `games.js:198-200`.
+/// Bangun teks menyerah, padanan.
 pub fn build_surrender_text(winner_number: &str, answer: &str) -> String {
     let mut text = pick(&SURRENDER_MESSAGES)
         .unwrap_or("🏳️ Nyerah!")
@@ -297,7 +294,7 @@ pub fn build_surrender_text(winner_number: &str, answer: &str) -> String {
     text
 }
 
-/// Bangun teks "hampir" (close), padanan `games.js:276-283`.
+/// Bangun teks "hampir" (close), padanan.
 pub fn build_close_text(percent: u32, remaining_secs: i64) -> String {
     format!(
         "🔥 *Hampir!* Jawabanmu *{percent}%* mirip!\n_Sisa waktu: *{}*_",
@@ -305,7 +302,7 @@ pub fn build_close_text(percent: u32, remaining_secs: i64) -> String {
     )
 }
 
-/// Bangun teks salah, padanan `games.js:289-292`.
+/// Bangun teks salah, padanan.
 pub fn build_wrong_text(hint: &str, remaining_secs: i64) -> String {
     format!(
         "❌ Belum bener! Hint: *{hint}*\n_Sisa: *{}*_",
@@ -314,8 +311,8 @@ pub fn build_wrong_text(hint: &str, remaining_secs: i64) -> String {
 }
 
 /// `formatRemainingTime` — sisa waktu dalam detik ditampilkan sebagai
-/// `X detik`. Padanan JS yang memakai `formatRemainingTime` dari
-/// `./game-data.js`.
+/// `X detik`. Padanan versi awal yang memakai `formatRemainingTime`
+///
 pub fn format_remaining(secs: i64) -> String {
     if secs <= 0 {
         "0 detik".to_string()
@@ -328,7 +325,7 @@ pub fn format_remaining(secs: i64) -> String {
 mod tests {
     use super::*;
 
-    // ------------------------------------------------- pick
+    // ------------------------------------------------ pick
 
     #[test]
     fn pick_mengembalikan_satu_item_dari_array() {
@@ -342,7 +339,7 @@ mod tests {
         assert_eq!(pick(&[] as &[&str]), None);
     }
 
-    // ------------------------------------------------- GameConfig defaults
+    // ------------------------------------------------ GameConfig defaults
 
     #[test]
     fn default_config_sama_dengan_js() {
@@ -362,7 +359,7 @@ mod tests {
         assert_eq!(cfg.game_type, "tebakan");
     }
 
-    // ------------------------------------------------- register_config / FotoGames
+    // ------------------------------------------------ register_config / FotoGames
 
     #[test]
     fn register_config_menimpa_default() {
@@ -388,7 +385,7 @@ mod tests {
         assert!(fg.get("tidakAda").is_none());
     }
 
-    // ------------------------------------------------- calculate_rewards
+    // ------------------------------------------------ calculate_rewards
 
     #[test]
     fn calculate_rewards_tanpa_rewards_adalah_nol() {
@@ -445,7 +442,7 @@ mod tests {
         assert!(r.bonus_text.contains("2.5s"));
     }
 
-    // ------------------------------------------------- build_win_text
+    // ------------------------------------------------ build_win_text
 
     #[test]
     fn build_win_text_mengandung_jawaban_dan_pemenang() {
@@ -464,7 +461,7 @@ mod tests {
         assert!(text.contains("BONUS KILAT"));
     }
 
-    // ------------------------------------------------- build_timeout_text
+    // ------------------------------------------------ build_timeout_text
 
     #[test]
     fn build_timeout_text_mengandung_jawaban() {
@@ -473,7 +470,7 @@ mod tests {
         assert!(text.contains("Gak ada yang bisa jawab nih~"));
     }
 
-    // ------------------------------------------------- build_surrender_text
+    // ------------------------------------------------ build_surrender_text
 
     #[test]
     fn build_surrender_text_mengandung_pemenang_dan_jawaban() {
@@ -482,7 +479,7 @@ mod tests {
         assert!(text.contains("@628111 menyerah"));
     }
 
-    // ------------------------------------------------- build_close_text
+    // ------------------------------------------------ build_close_text
 
     #[test]
     fn build_close_text_mengandung_persentase_dan_waktu() {
@@ -492,7 +489,7 @@ mod tests {
         assert!(text.contains("30 detik"));
     }
 
-    // ------------------------------------------------- build_wrong_text
+    // ------------------------------------------------ build_wrong_text
 
     #[test]
     fn build_wrong_text_mengandung_hint_dan_waktu() {
@@ -502,7 +499,7 @@ mod tests {
         assert!(text.contains("15 detik"));
     }
 
-    // ------------------------------------------------- format_remaining
+    // ------------------------------------------------ format_remaining
 
     #[test]
     fn format_remaining_nol_dan_negatif() {
