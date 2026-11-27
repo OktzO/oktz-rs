@@ -5,8 +5,7 @@ use oktz_core::error::{Error, Result};
 /// Produksi: `Builder::new_remote(url, token)` — pure HTTP (Hrana), tanpa
 /// proses C. Test: `with_conn` supaya `:memory:` bisa dipakai tanpa jaringan.
 ///
-/// Skema mengikuti bot JS (`oktz-md/src/lib/turso.js`) supaya database Turso
-/// yang sama bisa dibaca kedua bot:
+/// Skema tabel Turso yang dipakai bot:
 /// - `stores(key TEXT PRIMARY KEY, data TEXT, updated_at INTEGER)` — blob JSON
 ///   per store (`users`, `groups`, `settings`, ...).
 /// - `session_creds(scope TEXT PRIMARY KEY, creds TEXT, updated_at INTEGER)`.
@@ -84,7 +83,7 @@ impl TursoStore {
         }
     }
 
-    /// `initTursoTables` (`oktz-md/src/lib/turso.js:20-37`) — idempoten.
+    /// Membuat tabel bila belum ada — idempoten.
     pub async fn ensure_tables(&self, conn: &libsql::Connection) -> Result<()> {
         for sql in [
             "CREATE TABLE IF NOT EXISTS stores (key TEXT PRIMARY KEY, data TEXT, updated_at INTEGER)",
@@ -116,8 +115,7 @@ impl TursoStore {
         serde_json::from_str(&data).map(Some).map_err(Error::from)
     }
 
-    /// UPSERT satu row `stores` — `INSERT ... ON CONFLICT DO UPDATE`, sama
-    /// dengan `writeToTurso` (`oktz-md/src/lib/database.js:401-411`).
+    /// UPSERT satu row `stores` — `INSERT ... ON CONFLICT DO UPDATE`.
     pub async fn put_store(
         &self,
         conn: &libsql::Connection,
@@ -139,8 +137,7 @@ impl TursoStore {
         Ok(())
     }
 
-    /// `flushAllToTurso` seed guard (`oktz-md/src/lib/database.js:164-166`):
-    /// apakah tabel `stores` sudah berisi sesuatu.
+    /// Seed guard: apakah tabel `stores` sudah berisi sesuatu.
     pub async fn has_any_store(&self, conn: &libsql::Connection) -> Result<bool> {
         let mut rows = conn
             .query("SELECT 1 FROM stores LIMIT 1", ())

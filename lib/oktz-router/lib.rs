@@ -208,8 +208,8 @@ impl<'a, C: RouterContext> Router<'a, C> {
         };
         let mut ctx = self.build_ctx(caller, &parsed);
         fill(&mut ctx);
-        // JoinError = handler mati sebelum sempat panik-tertangkap → None,
-        // paritas try/catch JS (`handler.js:440-473`) yang menelan galat.
+        // JoinError = handler mati sebelum sempat panik-tertangkap → None;
+        // galat handler tidak boleh mematikan router.
         tokio::task::spawn_blocking(move || oktz_plugin_api::run_answer_handlers(&ctx))
             .await
             .unwrap_or(None)

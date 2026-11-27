@@ -13,8 +13,7 @@
 //!   mengembalikan `{ status: false, error }`, port-nya melakukan hal yang
 //!   sama; kalau JS melempar, port-nya `Err`.
 //!
-//! Daftar modul di bawah ini dikelola orkestrator (lihat
-//! `docs/rust-rewrite/SCRAPER-PORTING.md`), bukan agent porting.
+//! Daftar modul di bawah ini dikelola orkestrator.
 
 pub mod aio;
 pub mod btch;

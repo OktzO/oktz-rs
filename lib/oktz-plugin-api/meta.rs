@@ -1,8 +1,8 @@
 //! Kontrak plugin — cerminan `pluginConfig` JS.
 //!
-//! Field di sini persis yang BENAR-BENAR muncul di 797 file plugin
-//! (lihat `docs/rust-rewrite/AUDIT.md` §1). Field `limit` ada di default JS
-//! tapi 0 plugin override — sengaja tidak diclear karena tidak ada yang memakainya.
+//! Field di sini persis yang benar-benar muncul di 797 file plugin. Field
+//! `limit` ada di default lama tapi 0 plugin override — sengaja tidak
+//! diclear karena tidak ada yang memakainya.
 use serde::{Deserialize, Serialize};
 
 // camelCase wajib: nama field di JS pluginConfig (isOwner, isEnabled, ...).

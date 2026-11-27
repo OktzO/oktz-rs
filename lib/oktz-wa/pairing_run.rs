@@ -732,8 +732,7 @@ where
 
 const SOCKET_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// Kode pairing bawaan — paritas JS (`oktz-md/src/connection.js:785`,
-/// `requestPairingCode(phoneNumber, "OKTZZLAH")`).
+/// Kode pairing bawaan.
 const PAIRING_CODE: &str = "OKTZZLAH";
 
 /// Tulis `creds.json` + marker `.ident` setelah pairing sukses.
@@ -949,14 +948,13 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
 
     let opts = whatsapp_rust::pair_code::PairCodeOptions {
         phone_number: phone.clone(),
-        // Paritas JS (`oktz-md/src/connection.js:612`): browser
-        // `["Ubuntu", "Chrome", "22.0.0"]` → `companion_platform_id` = CHROME
-        // dan `companion_platform_display` = "Chrome (Ubuntu)". Default lib
+        // Browser `["Ubuntu", "Chrome", "22.0.0"]` → `companion_platform_id`
+        // = CHROME dan `companion_platform_display` = "Chrome (Ubuntu)". Default lib
         // (device props os "rust") dikonversi paksa ke "Linux".
         platform_id: Some(wacore::companion_reg::CompanionWebClientType::Chrome),
         display_os: Some("Ubuntu".to_string()),
-        // Paritas JS (`oktz-md/src/connection.js:785`): kode pairing selalu
-        // `OKTZZLAH`, bukan acak. Butuh patch `vendor/wacore` — validasi
+        // Kode pairing selalu `OKTZZLAH`, bukan acak. Butuh patch
+        // `vendor/wacore` — validasi
         // upstream menolak huruf `O` (alfabet Crockford), padahal server
         // menerimanya. Bisa ditimpa lewat env `OKTZ_PAIRING_CODE`.
         custom_code: Some(match std::env::var("OKTZ_PAIRING_CODE") {
@@ -971,8 +969,8 @@ pub async fn pair_code_flow(db_path: &str, phone: &str, hold_secs: u64) -> anyho
         Ok(c) => c,
         Err(e) => {
             handle.abort();
-            // Paritas JS (`oktz-md/src/connection.js:812`): WhatsApp
-            // membatasi permintaan kode pairing per nomor. Pesannya dibikin
+            // WhatsApp membatasi permintaan kode pairing per nomor. Pesannya
+            // dibikin
             // eksplisit supaya panel tidak terlihat seperti bug.
             let teks = e.to_string();
             if teks.contains("rate-overlimit") || teks.contains("429") {

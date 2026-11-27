@@ -332,7 +332,7 @@ impl Sock for SockKlien {
         // `sock.getName` di Baileys membaca toko kontak lokal. Klien Rust tidak
         // menyimpannya, jadi lebih jujur error daripada mengarang nama.
         Err(SockError::baru(
-            "getName: klien Rust tidak menyimpan toko kontak (lihat BLOCKED.md)",
+            "getName: klien Rust tidak menyimpan toko kontak",
         ))
     }
 

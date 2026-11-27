@@ -19,7 +19,7 @@
 //! - JS mengulang unduhan lewat `sock.updateMediaMessage` kalau CDN menjawab
 //!   400/404/410/428/429/500/870 (`serialize.js:1684-1707`). Itu butuh
 //!   re-enkripsi sisi klien yang belum ada di Rust: kegagalan CDN langsung
-//!   jadi `Err`, dan bedanya dicatat di `docs/rust-rewrite/BLOCKED.md`.
+//!   jadi `Err`.
 //! - `m.download(filename)` yang menulis ke `storage/temp` TIDAK di-port
 //!   (butuh `fs`); pemanggil menerima byte-nya dan yang berurusan dengan
 //!   berkas lokal tetap terblokir seperti sebelumnya.

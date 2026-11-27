@@ -32,9 +32,8 @@ pub struct StickerOpsi {
 }
 
 impl StickerOpsi {
-    // ponytail: `forwarded` dimatikan — pembanding hidup Rubby-MD kirim
-    // sticker TANPA contextInfo dan tampil normal; ourin-md (forwarded+skor)
-    // justru blank. Naikkan lagi kalau paritas ourin-md dibutuhkan.
+    // `forwarded` dimatikan: sticker tanpa contextInfo tampil normal, sedangkan
+    // forwarded+skor membuatnya blank.
     pub fn gambar() -> Self {
         Self::default()
     }

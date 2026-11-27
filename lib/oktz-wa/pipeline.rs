@@ -456,8 +456,7 @@ impl StoreContext {
         Ok(n)
     }
 
-    /// Kirim snapshot store ke Turso — blob JSON per store, sama seperti
-    /// `writeToTurso` (`oktz-md/src/lib/database.js:401-411`).
+    /// Kirim snapshot store ke Turso — blob JSON per store.
     ///
     /// Kegagalan dibiarkan ke pemanggil: flush task mem-bypass-nya dengan
     /// memasang kembali flag kotor (coba lagi siklus berikutnya), boot sync
@@ -5679,8 +5678,7 @@ impl Pipeline {
         // Defer: exp per-pesan jangan tulis store langsung — `apply` full-clone
         // + serialize seluruh JsonStore per batch, jadi tulis per-pesan berarti
         // churn alokasi sebesar store untuk tiap pesan. Tunda di buffer,
-        // `flush_exp` menuliskannya sekali (paritas: `db.setUser` JS juga
-        // in-memory, tulisnya write-behind 15 dtk).
+        // `flush_exp` menuliskannya sekali; tulisnya write-behind 15 dtk.
         let user = self.ctx.user_entry(&caller.sender);
         let old_exp = {
             let g = self.exp_pending.lock().unwrap_or_else(|e| e.into_inner());
@@ -5939,7 +5937,7 @@ impl Pipeline {
     ///
     /// `true` = bot ditambahkan orang asing dan sudah dijadwalkan keluar.
     /// Badge newsletter (`saluranCtx()`) tidak ikut — jalur context itu belum
-    /// ada, sama seperti catatan di `docs/rust-rewrite/BLOCKED.md` §15.
+    /// ada.
     async fn anticulik_menolak(&self, u: &UpdateGrup) -> Result<bool, PipelineError> {
         let grup = self.ctx.group_entry(&u.id);
         let setting = self.ctx.settings_entry();
@@ -6239,8 +6237,8 @@ impl Pipeline {
 
             // FOTO PROFIL peserta (`welcome.js:136-140`, `goodbye.js:157-161`):
             // PP kosong/gagal → asset LOKAL `pp-kosong` (`config.assets`)
-            // supaya kartu tetap bergambar — konsep ourin yang menaruh gambar
-            // pp-kosong sebagai ppUrl default. Tanpa asset → kartu/teks tanpa
+            // supaya kartu tetap bergambar — gambar pp-kosong dipakai sebagai
+            // ppUrl default. Tanpa asset → kartu/teks tanpa
             // gambar.
             let id = jid.clone();
             let sumber = match self
@@ -11254,8 +11252,8 @@ mod tests {
         );
 
         // Tipe 2: PP gagal (`SockUji.foto_profil` error) → gambar LOKAL
-        // `pp-kosong` dari `config.assets` — kartu tetap bergambar, konsep
-        // ourin (`welcome.js:136-140`). Tanpa asset → teks fallback.
+        // `pp-kosong` dari `config.assets` — kartu tetap bergambar. Tanpa
+        // asset → teks fallback.
         let (p, sender, _sock) = pipa_grup_aset(
             "grup-tipe",
             r#"{"groups": {"120363@g.us": {"welcome": true}}, "settings": {"welcomeType": 2}}"#,

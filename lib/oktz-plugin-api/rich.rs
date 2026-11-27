@@ -134,12 +134,10 @@ pub enum AiSubMessage {
     Kode { bahasa: String, blok: Vec<KodeToken> },
 }
 
-/// AI rich — kontrak ruby-baileys `AIRich` (`MessageBuilder/index.js:2174-2380`),
-/// bukan `AIRich` ourin-md. Alasan: kontrak ruby-baileys/rich-webui/play2
-/// yang terbukti render (botResponseId SELALU ada, botJid
-/// `867051314767696@bot`, TANPA `richResponseSourcesMetadata`). Satu stanza
-/// saja — `sendEdit` ruby-baileys adalah edit streaming (`MESSAGE_EDIT`),
-/// bukan syarat render (ourin-md tidak mengirimnya).
+/// AI rich memakai kontrak ruby-baileys/rich-webui/play2 yang terbukti render:
+/// `botResponseId` selalu ada, `botJid` `867051314767696@bot`, tanpa
+/// `richResponseSourcesMetadata`. Satu stanza saja; edit streaming tidak
+/// diperlukan untuk render.
 ///
 /// `ponytail:` `RichAi.bot_response_id`/`bot_jid` dihapus — bukan lagi opsi,
 /// melainkan bagian kontrak tetap (`ai_outer`). Kalau butuh variasi, tambah
