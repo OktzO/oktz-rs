@@ -1,6 +1,6 @@
 #![allow(special_module_name)]
 
-// `plugins/main/` adalah kategori plugin JS, bukan binary crate kita —
+// `plugins/main/` adalah kategori plugin versi awal, bukan binary crate kita —
 // makanya `pub mod main;` di bawah bukan salah. Lint `special_module_name`
 // hanya bisa ditekan di level crate: `#[allow]` pada item-nya sendiri
 // diabaikan rustc.

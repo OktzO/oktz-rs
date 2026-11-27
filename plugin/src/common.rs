@@ -1,10 +1,4 @@
 //! Helper bersama + definisi makro untuk semua plugin.
-//!
-//! Satu plugin satu file: `cek/`, `fun/`, `tools/`, `info/`, `main/`,
-//! `owner/`, `religi/` — mencerminkan `plugins/<category>/<name>.js`.
-//!
-//! Item di sini dipakai >1 plugin atau oleh modul test, makanya
-//! `pub(crate)`.
 
 use oktz_plugin_api::{Ctx, PluginMeta, Reply, all_plugins};
 
@@ -117,13 +111,13 @@ pub(crate) fn random_index(len: usize) -> usize {
     rand::rng().random_range(0..len)
 }
 
-/// `config.command?.prefix || '.'` — `config.command` tidak ada di `config.js`
+/// `config.command?.prefix || '.'` — `config.command` tidak ada
 /// untuk field prefix, jadi yang tampil selalu `.`.
 pub(crate) const CONFIG_PREFIX: &str = ".";
 
 /// Ubah nama-nama command jadi baris `• *.<name>*`, buang duplikat, sort.
 ///
-/// JS: `seen` Set + `commandList.sort()` (default sort = lexicographic).
+/// versi awal: `seen` Set + `commandList.sort()` (default sort = lexicographic).
 /// Rust `String` sort = byte order; sama untuk nama command ASCII.
 pub(crate) fn command_lines(names: impl Iterator<Item = String>) -> Vec<String> {
     let mut seen: Vec<String> = Vec::new();
@@ -140,7 +134,7 @@ pub(crate) fn command_lines(names: impl Iterator<Item = String>) -> Vec<String> 
 }
 
 /// Baris daftar command dari registry yang lolos `pred` — padanan
-/// `getAllPlugins().filter(pred)` di JS.
+/// `getAllPlugins().filter(pred)` di versi awal.
 pub(crate) fn registry_command_lines(pred: impl Fn(&PluginMeta) -> bool) -> Vec<String> {
     command_lines(
         all_plugins()
@@ -150,14 +144,14 @@ pub(crate) fn registry_command_lines(pred: impl Fn(&PluginMeta) -> bool) -> Vec<
     )
 }
 
-/// Balasan saat data bundled kosong — cabang `if (!item)` di JS.
+/// Balasan saat data bundled kosong — cabang `if (!item)` di versi awal.
 ///
-/// Dengan const 63/61 baris di atas, cabang ini tidak mungkin terjadi di
+/// Dengan const 63/61 baris di atas, cabang ini tidak mungkin terjadi
 /// produksi; tetap dibawa supaya logika `getRandomItem` (yang mengembalikan
 /// `null` untuk array kosong) tidak hilang, dan supaya bisa diuji.
 pub(crate) const DATA_UNAVAILABLE: &str = "❌ Data tidak tersedia!";
 
-/// `getRandomItem(file)` dari `src/lib/game-data.js`:
+/// `getRandomItem(file)`:
 ///
 /// ```js
 /// if (!data || data.length === 0) return null
@@ -175,7 +169,7 @@ pub(crate) fn random_item(data: &[&'static str]) -> Option<&'static str> {
 }
 
 /// Satu-satunya output kedua plugin: `` ```<item>``` `` atau pesan
-/// data-tidak-tersedia. Tanpa mention — JS `m.reply` polos.
+/// data-tidak-tersedia. Tanpa mention — versi awal `m.reply` polos.
 pub(crate) fn data_reply(data: &[&'static str]) -> Reply {
     match random_item(data) {
         Some(item) => Reply::text(format!("```{}```", item)),
@@ -184,9 +178,9 @@ pub(crate) fn data_reply(data: &[&'static str]) -> Reply {
 }
 
 /// Rekonstruksi `m.body` lalu buang **satu** karakter pertama (`m.body.slice(1)`
-/// di JS — char itu adalah prefix).
+/// di versi awal — char itu adalah prefix).
 ///
-/// `ponytail:` `Ctx` tidak membawa `body` mentah, jadi spasi ganda di tengah
+/// `Keterbatasan:` `Ctx` tidak membawa `body` mentah, jadi spasi ganda di tengah
 /// pesan akan dinormalkan jadi satu spasi. Tambahkan `body: String` ke `Ctx`
 /// kalau router nanti mau kesetiaan byte-per-byte.
 pub(crate) fn body_stripped(ctx: &Ctx) -> String {
@@ -219,7 +213,7 @@ pub(crate) fn tanya_reply(ctx: &Ctx, answers: &[&str], help: &str) -> Reply {
 // State tersimpan + roster — helper untuk batch plugin roster/state
 // =============================================================================
 
-/// `jid.split('@')[0]` — sama seperti JS. Device `:9` sengaja TIDAK dibuang:
+/// `jid.split('@')[0]` — sama seperti versi awal. Device `:9` sengaja TIDAK dibuang:
 /// itu bentuk JID yang dipakai `m.sender`/mention, dan membuangnya membuat
 /// teks yang tampil tidak sama dengan yang di-mention.
 pub(crate) fn jid_number(jid: &str) -> &str {
@@ -310,9 +304,9 @@ pub(crate) fn mentions_dari(ctx: &Ctx, jids: &[String]) -> Vec<String> {
 
 /// Target plugin "cek user": `m.mentionedJid[0]` kalau ada, selain itu sender.
 ///
-/// `ponytail:` JS pakai `m.quoted` lebih dulu dan `m.pushName` untuk nama.
+/// `Keterbatasan:` versi awal pakai `m.quoted` lebih dulu dan `m.pushName` untuk nama.
 /// `Ctx` tidak membawa keduanya, jadi reply-mode dan nama push tidak bisa
-/// dicerminkan. Tambahkan `quoted: Option<...>` + `push_name: String` ke
+/// dicerminkan. Tambahkan `quoted: Option<...>` + `push_name: String`
 /// `Ctx` kalau router mau keduanya.
 pub(crate) struct UserTarget {
     pub jid: String,
@@ -333,13 +327,13 @@ pub(crate) fn user_target(ctx: &Ctx) -> UserTarget {
 }
 
 /// `Number.isFinite(user[k] ?? default)` → i64. Field yang bukan angka dibaca
-/// sebagai `0` kalau ada, sama seperti `|| 0` di JS untuk `NaN`/`undefined`.
+/// sebagai `0` kalau ada, sama seperti `|| 0` di versi awal untuk `NaN`/`undefined`.
 pub(crate) fn int_field(user: &Ctx, key: &str) -> i64 {
     user.user_field(key).and_then(serde_json::Value::as_i64).unwrap_or(0)
 }
 
 /// `arr || []` lalu dirender `${el}` per baris. String apa adanya; nilai lain
-/// sebagai JSON kompak — persis apa yang `${el}` lakukan di JS untuk objek.
+/// sebagai JSON kompak — persis apa yang `${el}` lakukan di versi awal untuk objek.
 pub(crate) fn joined_strings(list: &[serde_json::Value]) -> Vec<String> {
     list.iter()
         .map(|v| match v.as_str() {
@@ -350,7 +344,7 @@ pub(crate) fn joined_strings(list: &[serde_json::Value]) -> Vec<String> {
 }
 
 /// `Object.entries(map).filter(([, v]) => v.length > 0)` untuk peta roster-ish
-/// milik grup (`warnings`, `chatStats`). Urutan = urutan dokumen, sama seperti
+/// milik grup (`warnings`, `chatStats`). Urutan = urutan dokumen, sama
 /// `Object.entries` untuk key string.
 pub(crate) fn non_empty_map_entries(value: Option<&serde_json::Value>) -> Vec<(String, serde_json::Value)> {
     value
@@ -365,10 +359,10 @@ pub(crate) fn non_empty_map_entries(value: Option<&serde_json::Value>) -> Vec<(S
 }
 
 // =============================================================================
-// Album gacha — `albumStats` (src/lib/husbu.js:147 dan src/lib/waifu.js:184)
+// Album gacha — `albumStats`
 // =============================================================================
 
-/// `TIER_VALUE` (src/lib/romance.js:6).
+/// `TIER_VALUE`.
 pub(crate) const TIER_VALUE: [(&str, i64); 5] = [
     ("Common", 1),
     ("Rare", 2),
@@ -377,15 +371,15 @@ pub(crate) const TIER_VALUE: [(&str, i64); 5] = [
     ("Mythic", 16),
 ];
 
-/// `TIER_EXPECTED` (src/lib/romance.js:7) =
+/// `TIER_EXPECTED` =
 /// `0.55*1 + 0.25*2 + 0.13*4 + 0.055*8 + 0.015*16` = 1.255.
 ///
-/// Angka ditulis hasil hitung JS, bukan diturunkan ulang dari bobot, supaya
-/// ini persis pembanding yang dipakai JS dan tidak mengambang.
+/// Angka ditulis hasil hitung versi awal, bukan diturunkan ulang dari bobot, supaya
+/// ini persis pembanding yang dipakai versi awal dan tidak mengambang.
 pub(crate) const TIER_EXPECTED: f64 = 1.255;
 
-/// `tierEmoji` yang di-hardcode dua-duanya (`husbualbum.js:31`,
-/// `waifualbum.js:31`) — tier yang tidak dikenal dapat `""`, bukan fallback.
+/// `tierEmoji` yang di-hardcode dua-duanya (,
+/// ) — tier yang tidak dikenal dapat `""`, bukan fallback.
 pub(crate) fn tier_emoji(tier: &str) -> &'static str {
     match tier {
         "Common" => "🟢",
@@ -397,7 +391,7 @@ pub(crate) fn tier_emoji(tier: &str) -> &'static str {
     }
 }
 
-/// Hasil [`album_stats`]. Field-nya mengikuti bentuk yang dikembalikan JS
+/// Hasil [`album_stats`]. Field-nya mengikuti bentuk yang dikembalikan versi awal
 /// persis, termasuk `rarest` yang boleh `null`.
 pub(crate) struct AlbumStats {
     pub total: i64,
@@ -409,7 +403,7 @@ pub(crate) struct AlbumStats {
     pub last10: Vec<serde_json::Value>,
 }
 
-/// `Number(byTier[t] || 0)` — `||` JS membuat `0`, `""`, `false`, dan `null`
+/// `Number(byTier[t] || 0)` — `||` versi awal membuat `0`, `""`, `false`, dan `null`
 /// semua jadi 0, jadi `as_i64` yang gagal harus ikut jadi 0.
 fn tier_count(by_tier: &serde_json::Map<String, serde_json::Value>, tier: &str) -> f64 {
     by_tier
@@ -418,7 +412,7 @@ fn tier_count(by_tier: &serde_json::Map<String, serde_json::Value>, tier: &str) 
         .unwrap_or(0.0)
 }
 
-/// Port `albumStats`. Fungsi ini ada DUA KALI di JS (husbu + waifu) dengan
+/// Port `albumStats`. Fungsi ini ada DUA KALI di versi awal (husbu + waifu)
 /// tubuh yang persis sama dan konstanta yang sama, jadi satu implementasi
 /// melayani keduanya — bukan dua salinan yang bisa menyimpang diam-diam.
 pub(crate) fn album_stats(history: &[serde_json::Value], stats: &serde_json::Value) -> AlbumStats {
@@ -465,7 +459,7 @@ pub(crate) fn pad_start3(n: i64) -> String {
 }
 
 /// `bar(count)` dari album husbu/waifu: 20 sel, `Math.round(count/total*20)`
-/// terisi. `total == 0` → semua kosong (JS short-circuit, tidak NaN).
+/// terisi. `total == 0` → semua kosong (versi awal short-circuit, tidak NaN).
 pub(crate) fn album_bar(count: f64, total: f64) -> String {
     let pct = if total > 0.0 {
         (count / total * 20.0).round().clamp(0.0, 20.0) as usize
@@ -475,8 +469,8 @@ pub(crate) fn album_bar(count: f64, total: f64) -> String {
     format!("{}{}", "█".repeat(pct), "░".repeat(20 - pct))
 }
 
-/// Baris tier yang identik di dua album (`husbualbum.js:41-45`,
-/// `waifualbum.js:41-45`) — label, padding, bar, semuanya sama.
+/// Baris tier yang identik di dua album (,
+/// ) — label, padding, bar, semuanya sama.
 pub(crate) const TIER_ROWS: [(&str, &str, &str); 5] = [
     ("Common", "🟢", "🟢 Common     "),
     ("Rare", "🔵", "🔵 Rare       "),
@@ -540,7 +534,7 @@ pub(crate) fn render_album(stats: &AlbumStats, title: &str) -> String {
 
 /// Member grup sebagai JID, apa adanya urutannya.
 ///
-/// `ponytail:` beberapa plugin JS memfilter JID bot sendiri
+/// `Keterbatasan:` beberapa plugin versi awal memfilter JID bot sendiri
 /// (`id !== sock.user?.id`), dan `GroupRoster` tidak punya JID bot — hanya
 /// flag `is_bot_admin`. Pemanggil yang butuh filter itu harus menambahkan
 /// `bot_jid` ke `GroupRoster` lebih dulu.
@@ -549,7 +543,7 @@ pub(crate) fn roster_jids(ctx: &Ctx) -> Vec<String> {
 }
 
 // =============================================================================
-// Waktu — Asia/Jakarta (`src/lib/time.js:9`, `TIMEZONE`)
+// Waktu — Asia/Jakarta
 // =============================================================================
 
 /// `Asia/Jakarta` = UTC+7 sepanjang tahun, tanpa DST. Angka tetap, jadi
@@ -608,13 +602,13 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-/// `String(n).padStart(2, '0')` (`time.js:44`).
+/// `String(n).padStart(2, '0')`.
 pub(crate) fn pad2(n: u32) -> String {
     format!("{n:02}")
 }
 
 /// `MMMM` versi `Intl.DateTimeFormat('id-ID')` — sama dengan array bulan
-/// panjang yang dip-hardcode `plugins/user/birthday.js:26`.
+/// panjang yang dip-hardcode.
 pub(crate) const MONTHS_ID: [&str; 12] = [
     "Januari",
     "Februari",
@@ -649,12 +643,12 @@ pub(crate) fn time_hm(ms: i64) -> String {
 }
 
 // =============================================================================
-// Probe registry — `plugins/info/{howmuchenergy,whatrolethis}.js`
+// Probe registry —
 // =============================================================================
 
 /// Loop atas `m.args` yang dipakai kedua plugin probe: header, lalu
 /// `getPlugin(cmd)` + satu blok per argumen. Argumen tak dikenal dapet baris
-/// "Tidak ditemukan!", dan seluruh hasil di-`trim()` seperti
+/// "Tidak ditemukan!", dan seluruh hasil di-`trim()`
 /// `m.reply(responseText.trim())`.
 pub(crate) fn render_probe(header: &str, args: &[String], render: impl Fn(&str) -> String) -> String {
     let mut out = String::from(header);
@@ -677,7 +671,7 @@ pub(crate) fn render_probe(header: &str, args: &[String], render: impl Fn(&str) 
 ///
 /// Bedanya dari `Option::is_some` dan dari `as_bool`: `null`, `false`, `0`,
 /// `""` semuanya falsy, sementara `{}` dan `[]` truthy. Plugin yang menulis
-/// `if (!user.x)` di JS tidak boleh memperlakukan objek kosong sebagai "tidak
+/// `if (!user.x)` di versi awal tidak boleh memperlakukan objek kosong sebagai "tidak
 /// ada".
 pub(crate) fn js_truthy(v: Option<&serde_json::Value>) -> bool {
     match v {
@@ -689,7 +683,7 @@ pub(crate) fn js_truthy(v: Option<&serde_json::Value>) -> bool {
     }
 }
 
-/// Bentuk single-argument untuk pemanggilan method-chain di
+/// Bentuk single-argument untuk pemanggilan method-chain
 /// `Option<&Value>::is_some_and`, yang meneruskan
 /// `&Value` (bukan `Option<&Value>`).
 pub(crate) fn js_truthy_value(v: &serde_json::Value) -> bool {
@@ -719,7 +713,7 @@ pub(crate) fn text_keyword(ctx: &Ctx) -> String {
 /// `arr || []` dari store, dipakai saat menulis balik daftar.
 ///
 /// Membaca JSON array; bentuk lain (termasuk `null` dari grup yang belum pernah
-/// ada) menjadi vektor kosong — persis `|| []` di JS, bukan `as_array` yang
+/// ada) menjadi vektor kosong — persis `|| []` di versi awal, bukan `as_array`
 /// diam-diam homeowner data lain.
 pub(crate) fn string_list(value: Option<&serde_json::Value>) -> Vec<String> {
     value
@@ -728,7 +722,7 @@ pub(crate) fn string_list(value: Option<&serde_json::Value>) -> Vec<String> {
             a.iter()
                 .map(|v| match v.as_str() {
                     Some(s) => s.to_string(),
-                    // `${el}` di JS: objek jadi JSON kompak, bukan error.
+                    // `${el}` di versi awal: objek jadi JSON kompak, bukan error.
                     None => v.to_string(),
                 })
                 .collect()
@@ -752,9 +746,9 @@ pub(crate) fn parse_int(raw: &str) -> Option<i64> {
     t[..end].parse::<i64>().ok()
 }
 
-/// `Number.isInteger(parseInt(args[i]) || 0)` untuk indeks berbasis-1 dari
+/// `Number.isInteger(parseInt(args[i]) || 0)` untuk indeks berbasis-1
 /// argumen: `hapusstok 1 3` → produk 0, item 2. Argumen yang bukan angka
-/// menjadi `0`, sama seperti `|| 0` di JS.
+/// menjadi `0`, sama seperti `|| 0` di versi awal.
 pub(crate) fn arg_index(ctx: &Ctx, pos: usize) -> i64 {
     ctx.args
         .get(pos)
@@ -765,7 +759,7 @@ pub(crate) fn arg_index(ctx: &Ctx, pos: usize) -> i64 {
 
 /// `new URL(...)` yang dipakai plugin hanya untuk `protocol` + `hostname`.
 /// `https://user@SFILE.MOBI:8443/x?y#z` -> `Some("sfile.mobi")`; skema selain
-/// http/https, host kosong, dan URL tanpa `://` -> `None` (padanan `URL` yang
+/// http/https, host kosong, dan URL tanpa `://` -> `None` (padanan `URL`
 /// melempar).
 pub(crate) fn host_dari(url: &str) -> Option<String> {
     let (scheme, rest) = url.trim().split_once("://")?;
@@ -793,13 +787,13 @@ pub(crate) fn scrub_nama_berkas(nama: &str) -> String {
         .collect()
 }
 
-/// `te(m.prefix, m.command, m.pushName)` (`src/lib/error.js:3-9`).
+/// `te(m.prefix, m.command, m.pushName)`.
 ///
-/// `config.errorTemplate` (`config.js:153`) selalu terisi di produksi, jadi
-/// teks fallback `☢ *ᴇʀʀᴏʀ*` di `error.js` adalah kode mati. Template
+/// `config.errorTemplate` selalu terisi di produksi, jadi
+/// teks fallback `☢ *ᴇʀʀᴏʀ*` adalah kode mati. Template
 /// runtime dibaca dari [`oktz_core::config::Runtime::error_template`];
 /// kosong berarti template bawaan di bawah.
-/// ponytail: fallback ini tsundere, beda dari template JS (lihat catatan di
+/// Keterbatasan: fallback ini tsundere, beda dari template versi awal (lihat catatan
 /// `oktz_core::config::Messages`).
 pub(crate) fn error_template(ctx: &oktz_plugin_api::Ctx) -> String {
     let tpl = ctx.config().error_template.as_str();
@@ -830,7 +824,7 @@ pub(crate) fn error_template(ctx: &oktz_plugin_api::Ctx) -> String {
         )
 }
 
-/// Template bawaan `error.js` dengan `{pushName}` sudah jadi `User`.
+/// Template bawaan dengan `{pushName}` sudah jadi `User`.
 ///
 /// Dipakai test dan helper yang belum punya `Ctx`; jalur produksi memakai
 /// [`error_template`] supaya `config.errorTemplate` + `m.pushName` ikut.
@@ -842,7 +836,7 @@ pub(crate) fn error_template_bawaan(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `formatDuration(botafk.js:78-90)` — jam/hari ke-atas diturunkan dari
+/// `formatDuration` — jam/hari ke-atas diturunkan
 /// Menit ke-atas, bukan dari detik ke-atas, jadi `1 jam 0 menit` bukan
 /// `60 menit 0 detik`.
 pub(crate) fn format_duration(ms: i64) -> String {
@@ -907,7 +901,7 @@ mod tests_cek {
 
     #[test]
     fn tier_thresholds_match_js_bands_exactly() {
-        // Batas inklusif, persis seperti `percent >= N` di JS.
+        // Batas inklusif, persis seperti `percent >= N` di versi awal.
         for (percent, expected) in [
             (100, "tier-a"),
             (90, "tier-a"),
@@ -1136,7 +1130,7 @@ mod tests_cek2 {
         (lo, hi)
     }
 
-    // ------------------------------------------------------------- RNG range
+    // ------------------------------------------------------------ RNG range
 
     #[test]
     fn roll_is_zero_inclusive_and_n_exclusive() {
@@ -1212,7 +1206,7 @@ mod tests_cek2 {
 
     #[test]
     fn every_tier_of_every_plugin_is_reachable() {
-        // Guard utama: kalau offset atau ambang ada yang salah, ada tier yang
+        // Guard utama: kalau offset atau ambang ada yang salah, ada tier
         // jadi dead branch dan test ini gagal.
         assert!(
             (0..=100).any(|p| karma_desc(p) == "Karma baik! Surga menantimu~ ✨"),
@@ -1240,7 +1234,7 @@ mod tests_cek2 {
         );
     }
 
-    // ------------------------------------------------- batas tiap threshold
+    // ------------------------------------------------ batas tiap threshold
 
     #[test]
     fn cekkarma_thresholds_are_80_60_40_20() {
@@ -1355,7 +1349,7 @@ mod tests_cek2 {
         }
     }
 
-    // --------------------------------------- scan penuh: satu tier per nilai
+    // -------------------------------------- scan penuh: satu tier per nilai
 
     /// Untuk tiap nilai dalam domainnya, balasan harus memuat PERSIS satu teks
     /// tier. Menutup semua nilai (bukan sampel), jadi ambang yang salah ketik
@@ -1465,7 +1459,7 @@ mod tests_cek2 {
         );
     }
 
-    // ----------------------------------------- kalimat self vs orang lain
+    // ---------------------------------------- kalimat self vs orang lain
 
     #[test]
     fn self_reply_says_kamu_for_all_six() {
@@ -1536,7 +1530,7 @@ mod tests_cek2 {
 
     #[test]
     fn cektinggi_other_variant_keeps_the_js_inconsistent_wording() {
-        // JS: kalimat self = "Tinggi badan", kalimat other = "tingkat ketinggian".
+        // versi awal: kalimat self = "Tinggi badan", kalimat other = "tingkat ketinggian".
         // Bukan typo yang perlu dirapikan — itu isi file aslinya.
         assert!(tinggi_text(&ctx_self(), 180).contains("Tinggi badan kamu"));
         assert!(tinggi_text(&ctx_other(false), 180).contains("tingkat ketinggian"));
@@ -1545,8 +1539,8 @@ mod tests_cek2 {
     /// `mentioned.split('@')[0]` membuang `@server`, TAPI tidak membuang `:3`.
     ///
     /// Jadi `628999:3@s.whatsapp.net` ditampilkan sebagai `@628999:3` — persis
-    /// seperti JS. Tes ini menjaga itu; kalau suatu saat `:3` ikut dibuang,
-    /// berarti port sudah menyimpang dari JS.
+    /// seperti versi awal. Tes ini menjaga itu; kalau suatu saat `:3` ikut dibuang,
+    /// berarti port sudah menyimpang dari versi awal.
     #[test]
     fn mention_drops_server_but_keeps_device_in_both_display_and_mentions() {
         let ctx = ctx_other(true);
@@ -1589,9 +1583,9 @@ mod tests_cek2 {
         assert_eq!(pintar_text(&ctx_self(), 42), pintar_text(&ctx_self(), 42));
     }
 
-    // ------------------------------------------------------------- registry
+    // ------------------------------------------------------------ registry
 
-    /// Tiap plugin didaftarkan dengan meta yang benar-benar tertulis di
+    /// Tiap plugin didaftarkan dengan meta yang benar-benar tertulis
     /// `pluginConfig` masing-masing — bukan nilai default macro.
     #[test]
     fn all_six_register_with_their_real_meta() {
@@ -1615,7 +1609,7 @@ mod tests_cek2 {
             assert_eq!(p.meta.category, "cek", "{name} category");
             assert_eq!(p.meta.alias, alias, "{name} alias");
             assert_eq!(p.meta.description, description, "{name} description");
-            // Semua enam menulis `cooldown: 5, energi: 0` eksplisit di JS.
+            // Semua enam menulis `cooldown: 5, energi: 0` eksplisit di versi awal.
             assert_eq!(p.meta.cooldown, 5, "{name} cooldown");
             assert_eq!(p.meta.energi, 0, "{name} energi");
             assert!(!p.meta.is_private, "{name} isPrivate=false");
@@ -1647,8 +1641,8 @@ mod tests_cek2 {
         for (alias, name) in ALIAS_OWNERS {
             let found = oktz_plugin_api::find(alias)
                 .unwrap_or_else(|| panic!("alias {alias} tidak resolve"));
-            // Alias yang namanya sama dengan command plugin lain kalah di JS
-            // (`plugins.js:539-544`) — `pintar` milik `siapa` (`bego`).
+            // Alias yang namanya sama dengan command plugin lain kalah di versi awal
+            // `pintar` milik `siapa` (`bego`).
             let owner = super::tests_roster_state::js_owner_of_alias(alias, name);
             assert_eq!(found.meta.name, owner, "alias {alias} salah resolve");
         }
@@ -1657,8 +1651,8 @@ mod tests_cek2 {
     /// Kalau plugin dari batch lain memakai alias yang sama, `find()` mengembalikan
     /// yang menang duluan —alias hilang tanpa error. Test ini yang menangkapnya.
     ///
-    /// Pengecualian: key yang memang bentrok di JS (lihat `JS_COLLISIONS`). Di
-    /// sana duplikasi memang terjadi juga di JS, jadi yang diuji hanya
+    /// Pengecualian: key yang memang bentrok di versi awal (lihat `JS_COLLISIONS`). Di
+    /// sana duplikasi memang terjadi juga di versi awal, jadi yang diuji hanya
     /// "plugin pemilik batch ini masih ikut tercantum", bukan keunikannya.
     #[test]
     fn every_alias_of_this_batch_is_claimed_by_exactly_one_plugin() {
@@ -1765,8 +1759,8 @@ mod tests_batch_g {
         render_asmaul_page1,
     };
 
-    // TABEL META — dari rest.json (manifest plugin yang belum di-port). Field yang
-    // tidak di-set plugin memakai defaultConfig JS: cooldown 3, energi 0, example "".
+    // TABEL META — dari rest.json (manifest plugin yang belum diimplementasikan). Field
+    // tidak di-set plugin memakai defaultConfig versi awal: cooldown 3, energi 0, example "".
     type MetaRow = (
         &'static str,
         &'static [&'static str],
@@ -2082,7 +2076,7 @@ mod tests_batch_g {
     ];
 
     /// (nama, label, tier teratas, tier terbawah) — kata & deskripsi diambil
-    /// dari file JS aslinya.
+    /// dari file versi awal aslinya.
     type FourTierRow = (&'static str, &'static str, &'static str, &'static str);
 
     const FOUR_TIER_CASES: [FourTierRow; 23] = [
@@ -2252,7 +2246,7 @@ mod tests_batch_g {
             .to_string()
     }
 
-    // -- registrasi: satu test per plugin -----------------------------------
+    // - registrasi: satu test per plugin -----------------------------------
 
     macro_rules! meta_test {
         ($fn_name:ident, $name:literal) => {
@@ -2327,8 +2321,8 @@ mod tests_batch_g {
 
     #[test]
     fn every_is_owner_plugin_is_known() {
-        // Dibuat dari `docs/rust-rewrite/plugin-manifest.json`
-        // (`isOwner === true` di pluginConfig JS), difilter ke plugin yang
+        // Dibuat dari catatan internal
+        // (`isOwner === true` di pluginConfig versi awal), difilter ke plugin
         // sudah ter-port. Tujuannya menangkap plugin baru yang diam-diam
         // menyalakan `is_owner` tanpa dihitung — bukan daftar plugin owner.
         const KNOWN: &[&str] = &[
@@ -2365,10 +2359,10 @@ mod tests_batch_g {
             "searchplugin", "sessionstats", "sistemdaftar", "sprem", "srt", "startschedule",
             "swgc", "swgcv2", "swgcv2all", "upch",
 
-            // `plugins/anime/autoanimewinbu.js` (isOwner: true).
+            // (isOwner: true).
             "autoanimewinbu",
 
-            // Diagnostik sementara, BUKAN plugin JS: uji 30 variasi payload/
+            // Diagnostik sementara, BUKAN plugin versi awal: uji 30 variasi payload/
             // amplop/ukuran/audio kartu HTML AIRich (lihat `tools/cekkartu.rs`).
             "cekkartu",
         ];
@@ -2383,7 +2377,7 @@ mod tests_batch_g {
         }
     }
 
-    // -- alias & tabrakan ---------------------------------------------------
+    // - alias & tabrakan ---------------------------------------------------
 
     #[test]
     fn every_alias_resolves_to_its_own_plugin() {
@@ -2391,19 +2385,19 @@ mod tests_batch_g {
             for alias in aliases.iter() {
                 let found = oktz_plugin_api::find(alias)
                     .unwrap_or_else(|| panic!("alias {alias} tidak resolve"));
-                // Alias yang namanya sama dengan command plugin lain kalah di
-                // JS (`plugins.js:539-544`) — `kaya` milik `siapa` (`bego`).
+                // Alias yang namanya sama dengan command plugin lain kalah
+                // versi awal — `kaya` milik `siapa` (`bego`).
                 let owner = super::tests_roster_state::js_owner_of_alias(alias, name);
                 assert_eq!(&found.meta.name, owner, "alias {alias} salah resolve");
             }
         }
     }
 
-    /// `find()` mengembalikan entri pertama yang cocok, jadi satu alias yang
-    /// diklaim dua plugin akan membuat `find(alias)` mengembalikan plugin yang
+    /// `find()` mengembalikan entri pertama yang cocok, jadi satu alias
+    /// diklaim dua plugin akan membuat `find(alias)` mengembalikan plugin
     /// salah. Semua key (nama + alias) batch ini harus eksklusif — kecuali key
-    /// yang memang bentrok di JS, yang tidak bisa dipisah tanpa mengubah
-    /// perilaku yang sudah berjalan di produksi JS.
+    /// yang memang bentrok di versi awal, yang tidak bisa dipisah tanpa mengubah
+    /// perilaku yang sudah berjalan di produksi versi awal.
     #[test]
     fn no_key_collides_with_another_registered_plugin() {
         let collisions = super::tests_roster_state::JS_COLLISIONS;
@@ -2536,7 +2530,7 @@ mod tests_batch_g {
         }
     }
 
-    // -- cek_reply: ambang & cabang -----------------------------------------
+    // - cek_reply: ambang & cabang -----------------------------------------
 
     const T: [&str; 5] = ["tier-a", "tier-b", "tier-c", "tier-d", "tier-e"];
 
@@ -2617,7 +2611,7 @@ mod tests_batch_g {
         }
     }
 
-    /// JS `mentioned.split('@')[0]` hanya membuang bagian `@server`; device
+    /// versi awal `mentioned.split('@')[0]` hanya membuang bagian `@server`; device
     /// `:3` ikut tertinggal karena itu bagian hasil split pertama.
     #[test]
     fn display_number_keeps_the_device_suffix_like_js_split() {
@@ -2681,7 +2675,7 @@ mod tests_batch_g {
         }
     }
 
-    // -- cekjodoh -----------------------------------------------------------
+    // - cekjodoh -----------------------------------------------------------
 
     #[test]
     fn jodoh_rejects_fewer_than_two_names() {
@@ -2771,7 +2765,7 @@ mod tests_batch_g {
         }
     }
 
-    // -- cekkepribadian -----------------------------------------------------
+    // - cekkepribadian -----------------------------------------------------
 
     #[test]
     fn personalities_table_matches_the_javascript_order() {
@@ -2821,11 +2815,11 @@ mod tests_batch_g {
         assert!(other.contains("\n    \nKepribadian dia adalah *"));
     }
 
-    // -- benefitpartner -----------------------------------------------------
+    // - benefitpartner -----------------------------------------------------
 
     #[test]
     fn benefitpartner_is_byte_exact_and_interpolates_the_prefix() {
-        // Output diambil dari menjalankan handler JS asli.
+        // Output diambil dari menjalankan handler versi awal asli.
         let expected = concat!(
             "🤝 *BENEFIT PARTNER*\n\n",
             "Keuntungan menjadi partner Oktz Bot:\n\n",
@@ -2864,7 +2858,7 @@ mod tests_batch_g {
         assert!(!bang.contains("`.cekpartner"));
     }
 
-    // -- benefitowner / benefitpremium --------------------------------------
+    // - benefitowner / benefitpremium --------------------------------------
 
     #[test]
     fn command_lines_dedupes_skips_empty_and_sorts() {
@@ -2946,7 +2940,7 @@ mod tests_batch_g {
         assert_eq!(text_of(&benefitpremium(ctx_with(None))), premium_message(&listed));
     }
 
-    // -- templateplugin -----------------------------------------------------
+    // - templateplugin -----------------------------------------------------
 
     #[test]
     fn templateplugin_is_the_js_template_wrapped_in_a_fence() {
@@ -2955,12 +2949,12 @@ mod tests_batch_g {
         assert!(out.ends_with("export { pluginConfig as config, handler }\n```"));
         assert!(out.contains("name: 'example'"));
         assert!(out.contains("await m.reply('This is an example plugin!')"));
-        // `\n\n` di dalam literal JS harus tetap dua karakter, bukan newline.
+        // `\n\n` di dalam literal versi awal harus tetap dua karakter, bukan newline.
         assert!(out.contains("await m.reply('❌ *GAGAL*\\n\\n> ' + error.message)"));
         assert!(!out.contains("*GAGAL*\n\n>"));
     }
 
-    // -- asmaulhusna --------------------------------------------------------
+    // - asmaulhusna --------------------------------------------------------
 
     #[test]
     fn asmaulhusna_table_is_complete_and_consistent() {
@@ -2984,7 +2978,7 @@ mod tests_batch_g {
         for no in ["", " ", "1a", "a1", "-1", "1.0", "+1", "0x10"] {
             assert!(!is_all_digits(no), "{no}");
         }
-        // Non-ASCII digit tidak lolos `/\d/` di JS maupun `is_ascii_digit`.
+        // Non-ASCII digit tidak lolos `/\d/` di versi awal maupun `is_ascii_digit`.
         assert!(!is_all_digits("\u{661}\u{662}"));
     }
 
@@ -3016,7 +3010,7 @@ mod tests_batch_g {
 
     #[test]
     fn asmaulhusna_numeric_branch_survives_overflowing_numbers() {
-        // `parseInt` JS menghasilkan angka presisi ganda yang tetap > 99;
+        // `parseInt` versi awal menghasilkan angka presisi ganda yang tetap > 99;
         // `u32::from_str` gagal lalu jatuh ke 0 - kedua-duanya ditolak.
         assert_eq!(
             text_of(&asmaulhusna(ctx_text("99999999999999999999"))),
@@ -3054,7 +3048,7 @@ mod tests_batch_g {
 
     #[test]
     fn asmaulhusna_search_returns_the_first_matching_entry() {
-        // "al" cocok dengan banyak entri; JS `find` ambil yang pertama.
+        // "al" cocok dengan banyak entri; versi awal `find` ambil yang pertama.
         assert_eq!(asmaul_by_latin("al").unwrap().index, 3);
         assert_eq!(asmaul_by_latin("as").unwrap().index, 5);
     }
@@ -3144,7 +3138,7 @@ mod tests_batch_s {
         r.without_mutations().text_body().expect("harus ada teks")
     }
 
-    /// Nama + alias dari modul yang SUDAH ada sebelum batch_s, diambil dari
+    /// Nama + alias dari modul yang SUDAH ada sebelum batch_s, diambil
     /// registry sungguhan (bukan daftar tebakan).
     fn keys_of(name: &str) -> Vec<String> {
         let p = find(name).expect("plugin terdaftar");
@@ -3153,7 +3147,7 @@ mod tests_batch_s {
         k
     }
 
-    // ---------------------------------------------------------------- registry
+    // --------------------------------------------------------------- registry
 
     #[test]
     fn both_plugins_are_registered() {
@@ -3177,7 +3171,7 @@ mod tests_batch_s {
         assert_eq!(m.example, ".dare");
         assert_eq!(m.cooldown, 3);
         assert_eq!(m.energi, 0);
-        // Default PluginMeta, sama seperti config JS yang tidak mengaturnya.
+        // Default PluginMeta, sama seperti config versi awal yang tidak mengaturnya.
         assert!(m.is_enabled);
         assert!(!m.is_private && !m.is_group && !m.is_owner && !m.is_premium);
         assert!(!m.is_admin && !m.is_bot_admin && !m.skip_registration);
@@ -3209,7 +3203,7 @@ mod tests_batch_s {
         assert!(!find("truth").unwrap().meta.matches("dareq"));
     }
 
-    // ------------------------------------------------------- no key collision
+    // ------------------------------------------------------ no key collision
 
     /// ALREADY_PORTED harus PERSIS sama dengan key yang benar-benar didaftarkan
     /// `cek`/`cek2`/`umum`/`batch_g`. Kalau daftar ini kurang satu, test
@@ -3251,7 +3245,7 @@ mod tests_batch_s {
         assert_eq!(b.len(), a.len(), "kunci dare dan truth tumpang tindih");
     }
 
-    // ------------------------------------------------------------- logic both
+    // ------------------------------------------------------------ logic both
 
     #[test]
     fn reply_is_the_item_wrapped_in_a_code_fence() {
@@ -3266,7 +3260,7 @@ mod tests_batch_s {
 
     #[test]
     fn reply_carries_no_mentions() {
-        // JS `m.reply(str)` tanpa opsi mentions.
+        // versi awal `m.reply(str)` tanpa opsi mentions.
         match data_reply(&DARE) {
             Reply::Text { mentions, .. } => assert!(mentions.is_empty()),
             other => panic!("harus Text, dapat {other:?}"),
@@ -3275,7 +3269,7 @@ mod tests_batch_s {
 
     #[test]
     fn empty_table_takes_the_data_unavailable_branch() {
-        // Cabang `if (!item)` di JS. Tidak bisa terjadi dengan DARE/TRUTH yang
+        // Cabang `if (!item)` di versi awal. Tidak bisa terjadi dengan DARE/TRUTH
         // non-kosong, jadi diuji lewat tabel kosong.
         assert_eq!(text_of(&data_reply(&[])), DATA_UNAVAILABLE);
         assert_eq!(random_item(&[]), None);
@@ -3294,7 +3288,7 @@ mod tests_batch_s {
         assert!(!TRUTH.iter().any(|s| s.contains('"') || s.contains('\\')));
     }
 
-    // ------------------------------------------------- RNG range (JS-implied)
+    // ------------------------------------------------ RNG range (versi awal-implied)
 
     #[test]
     fn every_index_of_both_tables_is_reachable() {
@@ -3348,7 +3342,7 @@ mod tests_batch_s {
 
     #[test]
     fn handlers_are_deterministic_in_shape_regardless_of_arguments() {
-        // JS-nya `async function handler(m)` tanpa argumen sama sekali —
+        // versi awal-nya `async function handler(m)` tanpa argumen sama sekali —
         // `m` diabaikan. Semua input harus menghasilkan bentuk yang sama.
         for name in ["dare", "truth"] {
             let p = find(name).unwrap();
@@ -3449,7 +3443,7 @@ mod tests_umum {
             .expect("jawaban dibuka *")
     }
 
-    // -- registrasi & meta --------------------------------------------------
+    // - registrasi & meta --------------------------------------------------
 
     #[test]
     fn tanya_family_registers_with_correct_meta() {
@@ -3596,7 +3590,7 @@ mod tests_umum {
         }
     }
 
-    // -- keluarga tanya bot -------------------------------------------------
+    // - keluarga tanya bot -------------------------------------------------
 
     #[test]
     fn empty_text_returns_each_plugins_own_help_verbatim() {
@@ -3614,8 +3608,8 @@ mod tests_umum {
 
     #[test]
     fn answer_branch_echoes_command_plus_question_with_a_question_mark() {
-        // Referensi dari menjalankan handler JS dengan body ".apakah aku bisa kaya?"
-        // -> "apakah aku bisa kaya??\n*<jawaban>*" (dua tanda tanya, JS tidak
+        // Referensi dari menjalankan handler versi awal dengan body ".apakah aku bisa kaya?"
+        // > "apakah aku bisa kaya??\n*<jawaban>*" (dua tanda tanya, versi awal tidak
         // mengecek apakah input sudah berakhir dengan `?`).
         let expected = format!("apakah aku bisa kaya??\n*{}*", APAKAH[5]);
         let ctx = ctx_of("apakah", "aku bisa kaya?");
@@ -3693,7 +3687,7 @@ mod tests_umum {
         assert_eq!(body_stripped(&ctx), "apakah");
     }
 
-    // -- rate ---------------------------------------------------------------
+    // - rate ---------------------------------------------------------------
 
     #[test]
     fn rate_empty_text_shows_help() {
@@ -3727,7 +3721,7 @@ mod tests_umum {
         assert_eq!(RATE[19], ("???/10", "Error 404: Rating not found."));
     }
 
-    // -- readmore -----------------------------------------------------------
+    // - readmore -----------------------------------------------------------
 
     #[test]
     fn readmore_empty_text_shows_usage_with_prefix_and_command() {
@@ -3779,7 +3773,7 @@ mod tests_umum {
         assert!(out.ends_with("\u{200e}Ini adalah pesan rahasia"));
     }
 
-    // -- soulmatch ----------------------------------------------------------
+    // - soulmatch ----------------------------------------------------------
 
     #[test]
     fn soulmatch_without_pipe_returns_help() {
@@ -3839,7 +3833,7 @@ mod tests_umum {
 
     #[test]
     fn compatibility_is_deterministic_and_inside_50_to_100() {
-        // Reference dari JS: "Raiden|Mei" -> 74.
+        // Reference dari versi awal: "Raiden|Mei" -> 74.
         assert_eq!(compatibility("Raiden", "Mei"), 74);
         for _ in 0..50 {
             assert_eq!(compatibility("Raiden", "Mei"), 74, "harus deterministik");
@@ -3914,7 +3908,7 @@ mod tests_umum {
         }
     }
 
-    // -- kalkulatormbg ------------------------------------------------------
+    // - kalkulatormbg ------------------------------------------------------
 
     #[test]
     fn parse_uang_strips_every_non_digit_and_defaults_to_zero() {
@@ -3977,7 +3971,7 @@ mod tests_umum {
 
     #[test]
     fn kalkulatormbg_accepts_the_javascript_reference_inputs() {
-        // Output diambil persis dari menjalankan handler JS.
+        // Output diambil persis dari menjalankan handler versi awal.
         assert_eq!(
             handler_text(&kalkulatormbg(ctx_of("kalkulatormbg", "1000000000"))),
             concat!(
@@ -4171,7 +4165,7 @@ mod tests_roster_state {
         k
     }
 
-    // -- registrasi ---------------------------------------------------------
+    // - registrasi ---------------------------------------------------------
 
     #[test]
     fn every_new_plugin_of_this_batch_is_registered() {
@@ -4215,28 +4209,28 @@ mod tests_roster_state {
         }
     }
 
-    /// Key yang DIWUJUDKAN dua plugin di JS juga. Bukan bug port: baris di
-    /// bawah disalin apa adanya dari `plugins/**.js`, dan map plugin JS
+    /// Key yang DIWUJUDKAN dua plugin di versi awal juga. Bukan bug port: baris
+    /// bawah disalin apa adanya, dan map plugin versi awal
     /// menimpa diam-diam saat dua file punya alias yang sama.
     ///
-    /// Sembilan dari dua puluh dua muncul karena `plugins/fun/siapa.js`
+    /// Sembilan dari dua puluh dua muncul karena
     /// mendeklarasikan `name` sebagai array 48 kata; kata-kata itu diklaim
-    /// plugin `cek*` juga sebagai alias. `beli`, `block`, `unblock`, dan
-    /// `heapsnap` sudah bentrok di JS tanpa lewat `siapa`.
+    /// plugin `cek*` juga sebagai alias. `beli`, `block`, `unblock`,
+    /// `heapsnap` sudah bentrok di versi awal tanpa lewat `siapa`.
     ///
-    /// Enam sisanya pola lain, semuanya salah satu file JS yang menabrak
-    /// dirinya sendiri: `religi/islami.js` punya alias `asmaulhusna`
-    /// milik `religi/asmaulhusna.js`; `primbon/tafsirmimpi.js` alias `mimpi`
-    /// milik `fun/mimpi.js`; `primbon/ramalanjodoh.js` alias `cekjodoh`
-    /// milik `cek/cekjodoh.js`; `download/capcutdl.js` alias `cc` milik
-    /// array `name` di `group/clearchat.js`; dan `canvas/fakedana.js`,
-    /// `fakegopay.js`, `fakeovo.js`, `nsfw/paptt.js` menaruh nama sendiri di
-    /// dalam daftar alias-nya. `search/movieku.js` memasang `film` sebagai
-    /// alias, padahal itu nama `search/film.js`.
-    // Dihitung dari `plugins/**/*.js`: setiap kunci yang muncul lebih dari
-    // sekali di seluruh daftar `name` + `alias` (termasuk sekali di dalam
-    // berkas yang sama, mis. `sticker/attp2.js` yang memakai nama sekaligus
-    // alias `attp2`, atau `main/leaderboard.js` yang mengulang
+    /// Enam sisanya pola lain, semuanya salah satu file versi awal yang menabrak
+    /// dirinya sendiri: punya alias `asmaulhusna`
+    /// milik; alias `mimpi`
+    /// milik; alias `cekjodoh`
+    /// milik; alias `cc` milik
+    /// array `name`; dan,
+    /// , menaruh nama sendiri
+    /// dalam daftar alias-nya. memasang `film` sebagai
+    /// alias, padahal itu nama.
+    // Dihitung: setiap kunci yang muncul lebih
+    // sekali di seluruh daftar `name` + `alias` (termasuk sekali di
+    // berkas yang sama, mis. yang memakai nama sekaligus
+    // alias `attp2`, atau yang mengulang
     // `leaderboard`). Tabrakan baru di luar daftar ini berarti port kita.
     pub(crate) const JS_COLLISIONS: [&str; 49] = [
         "applemusic", "asmaulhusna", "attp2", "audioquran", "backupdb", "beli", "berburu", "block",
@@ -4248,13 +4242,13 @@ mod tests_roster_state {
         "siapa", "smeme-animated", "smemevid", "sroast", "stalkdc", "stats", "tofigure3", "top", "tts", "unblock", "waifu", "wibu",
     ];
 
-    /// Alias yang kalah oleh command plugin lain di JS. Lookup JS mengecek map
-    /// `commands` dulu, baru `aliases` (`plugins.js:539-544`), jadi alias yang
+    /// Alias yang kalah oleh command plugin lain di versi awal. Lookup versi awal mengecek map
+    /// `commands` dulu, baru `aliases`, jadi alias
     /// namanya sama dengan nama plugin lain sebagai command tidak pernah
     /// dipakai. Contoh: `cekcantik` punya alias `cantik`, tapi `siapa`
     /// (`bego`) punya command `cantik` — `.cantik` membuka `siapa`.
     ///
-    /// Rust meniru ini lewat `PluginMeta::commands` (sisa array `name` JS),
+    /// Rust meniru ini lewat `PluginMeta::commands` (sisa array `name` versi awal),
     /// yang dicek sebelum alias di `oktz_plugin_api::find`.
     pub(crate) const JS_SHADOWED_ALIASES: [(&str, &str); 39] = [
         ("admin", "admin"),
@@ -4298,8 +4292,8 @@ mod tests_roster_state {
         ("wibu", "bego"),
     ];
 
-    /// Owner yang benar untuk `alias` menurut JS: command menang atas alias.
-    /// Kalau plugin owners-nya belum di-port ke Rust, alias jatuh ke
+    /// Owner yang benar untuk `alias` menurut versi awal: command menang atas alias.
+    /// Kalau plugin owners-nya belum diimplementasikan ke Rust, alias jatuh
     /// pemiliknya (fallback).
     pub(crate) fn js_owner_of_alias<'a>(alias: &str, fallback: &'a str) -> &'a str {
         match JS_SHADOWED_ALIASES
@@ -4308,7 +4302,7 @@ mod tests_roster_state {
             .map(|(_, owner)| *owner)
         {
             // Owner harus plugin yang NAMANYA `owner`. `find(owner)` tidak
-            // bisa dipakai: owner yang belum di-port (`admin`) masih resolve
+            // bisa dipakai: owner yang belum diimplementasikan (`admin`) masih resolve
             // lewat alias plugin lain.
             Some(owner)
                 if oktz_plugin_api::all_plugins()
@@ -4338,7 +4332,7 @@ mod tests_roster_state {
                 );
                 continue;
             }
-            // Plugin owners JS belum di-port (`admin`, `pastebin`, `qrcustom`),
+            // Plugin owners versi awal belum diimplementasikan (`admin`, `pastebin`, `qrcustom`),
             // jadi alias jatuh ke plugin yang mendeklarasikannya.
             let pemilik = oktz_plugin_api::all_plugins()
                 .iter()
@@ -4382,7 +4376,7 @@ mod tests_roster_state {
         );
     }
 
-    // -- meta_guard ---------------------------------------------------------
+    // - meta_guard ---------------------------------------------------------
 
     #[test]
     fn usage_and_example_are_never_silently_empty_for_the_new_plugins() {
@@ -4413,7 +4407,7 @@ mod tests_roster_state {
     fn every_new_plugin_lands_in_the_mirrored_category() {
         for name in NEW_PLUGINS {
             // Cocokkan by NAMA, bukan `find`: `find` ikut memperhitungkan
-            // alias, dan `exp` jadi alias `expedition` di JS.
+            // alias, dan `exp` jadi alias `expedition` di versi awal.
             let p = oktz_plugin_api::all_plugins()
                 .iter()
                 .find(|p| p.meta.name == name)
@@ -4430,7 +4424,7 @@ mod tests_roster_state {
         }
     }
 
-    // -- helper bersama -----------------------------------------------------
+    // - helper bersama -----------------------------------------------------
 
     fn roster(participants: Vec<Participant>) -> GroupRoster {
         GroupRoster {
@@ -4515,7 +4509,7 @@ mod tests_roster_state {
         );
     }
 
-    // -- kalender ----------------------------------------------------------
+    // - kalender ----------------------------------------------------------
 
     #[test]
     fn jakarta_parts_is_utc_plus_seven_with_no_dst() {
@@ -4563,7 +4557,7 @@ mod tests_roster_state {
         assert!(now_ms() > 1_767_225_600_000, "jam sistem harus masuk akal");
     }
 
-    // -- smoke: setiap plugin baru membalas tanpa panic --------------------
+    // - smoke: setiap plugin baru membalas tanpa panic --------------------
 
     #[test]
     fn every_new_plugin_answers_through_the_registry_for_its_own_context() {
@@ -4614,11 +4608,11 @@ mod tests_roster_state {
 /// Batch port plugin class-A yang tersisa: `fun/gay.rs`, `fun/husbualbum.rs`,
 /// `fun/mimpi.rs`, `fun/top.rs`, `fun/waifualbum.rs`.
 ///
-/// ## Kenapa `fun/siapa.js` TIDAK ikut
+/// ## Kenapa TIDAK ikut
 ///
-/// `siapa.js` mendaftarkan 52 command lewat `name` berupa ARRAY, dan 8 di
+/// mendaftarkan 52 command lewat `name` berupa ARRAY, dan 8
 /// antaranya sudah dimiliki plugin `cek/*` yang sudah terport: `pintar`,
-/// `wibu`, `ganteng`, `cantik`, `cupu`, `noob`, `pro`, `kaya`. Di JS
+/// `wibu`, `ganteng`, `cantik`, `cupu`, `noob`, `pro`, `kaya`. Di versi awal
 /// kedua plugin itu sama-sama terdaftar dan yang menang bergantung pada urutan
 /// load file — tidak ada jawaban yang benar. Di Rust `find()` mengembalikan
 /// entri PERTAMA, jadi satu plugin diam-diam mati. Menambahnya
@@ -4630,7 +4624,7 @@ mod tests_batch_fun {
     use oktz_plugin_api::all_plugins;
     use oktz_plugin_api::registry::{GroupRoster, Participant};
 
-    /// Satu nama = satu file, jadi daftar ini sekaligus penanda apa yang
+    /// Satu nama = satu file, jadi daftar ini sekaligus penanda apa
     /// harus ada di disk.
     pub(crate) const NEW_PLUGINS: [&str; 5] = [
         "gaycheck",
@@ -4671,13 +4665,13 @@ mod tests_batch_fun {
         }
     }
 
-    /// Kunci yang JS-nya memang tabrakan harus dicatat, bukan hanya lolos
+    /// Kunci yang versi awal-nya memang tabrakan harus dicatat, bukan hanya lolos
     /// karena plugin pasangannya kebetulan belum diport. Kalau suatu saat
-    /// `cek/cekkaya.js` ikut diport, test ini yang akan menjatuhkan.
+    /// ikut diport, test ini yang akan menjatuhkan.
     #[test]
     fn every_key_of_this_batch_has_exactly_one_owner_in_the_rust_registry() {
-        // `mimpi` sudah bentrok di JS: `primbon/tafsirmimpi.js` mendaftarkan
-        // `mimpi` sebagai alias padahal `fun/mimpi.js` sudah memakai nama itu.
+        // `mimpi` sudah bentrok di versi awal: mendaftarkan
+        // `mimpi` sebagai alias padahal sudah memakai nama itu.
         let collisions = super::tests_roster_state::JS_COLLISIONS;
         for name in NEW_PLUGINS {
             let entry = oktz_plugin_api::find(name).unwrap();
@@ -4746,7 +4740,7 @@ mod tests_error_template {
 
     #[test]
     fn tanpa_config_memakai_template_bawaan_dan_pushname_pengirim() {
-        // `te()` JS mengganti `{pushName}` dengan nama pengirim; `User`
+        // `te()` versi awal mengganti `{pushName}` dengan nama pengirim; `User`
         // hanya saat nama kosong (`pushName || 'User'`).
         assert_eq!(
             error_template(&ctx(".", "ping", "Zann")),
@@ -4770,7 +4764,7 @@ mod tests_error_template {
 
     #[test]
     fn prefix_dan_command_kosong_jadi_titik_dan_tanya() {
-        // `te()` JS: `prefix || '.'`, `command || '?'`.
+        // `te()` versi awal: `prefix || '.'`, `command || '?'`.
         assert!(error_template(&ctx("", "", "")).starts_with("☢ Ehhh~ command `.?` lagi"));
     }
 }
