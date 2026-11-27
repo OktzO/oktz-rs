@@ -7,8 +7,8 @@
 //! pushName)`.
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpMethod, Reply, plugin};
-use serde_json::Value;
 use rand::Rng;
+use serde_json::Value;
 
 use crate::common::error_template;
 
@@ -21,10 +21,30 @@ struct Spec {
 }
 
 const LINODE_TYPES: [Spec; 4] = [
-    Spec { command: "linode2gb", jenis: "g6-standard-1", ram: "2GB", label: "2GB" },
-    Spec { command: "linode4gb", jenis: "g6-standard-2", ram: "4GB", label: "4GB" },
-    Spec { command: "linode8gb", jenis: "g6-standard-4", ram: "8GB", label: "8GB" },
-    Spec { command: "linode16gb", jenis: "g6-standard-8", ram: "16GB", label: "16GB" },
+    Spec {
+        command: "linode2gb",
+        jenis: "g6-standard-1",
+        ram: "2GB",
+        label: "2GB",
+    },
+    Spec {
+        command: "linode4gb",
+        jenis: "g6-standard-2",
+        ram: "4GB",
+        label: "4GB",
+    },
+    Spec {
+        command: "linode8gb",
+        jenis: "g6-standard-4",
+        ram: "8GB",
+        label: "8GB",
+    },
+    Spec {
+        command: "linode16gb",
+        jenis: "g6-standard-8",
+        ram: "16GB",
+        label: "16GB",
+    },
 ];
 
 /// Tanpa `I`, `O`, `l` (huruf yang membingungkan).
@@ -57,7 +77,7 @@ fn token_kosong() -> String {
      linode: 'YOUR_LINODE_TOKEN'\n\
      }\n\
      ```"
-        .to_string()
+    .to_string()
 }
 
 /// Menu bantuan — tidak pernah tercapai lewat registry
@@ -89,7 +109,7 @@ fn minta_id(prefix: &str, cmd: &str, contoh_id: &str) -> String {
 /// angka dan bool diratakan, array digabung koma (dipakai `ipv4`).
 fn js_str(v: Option<&Value>) -> String {
     match v {
-        None | Some(Value::Null) => String::from("undefined"),
+        None | Some(Value::Null) => String::from("-"),
         Some(Value::String(s)) => s.clone(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => n.to_string(),
@@ -113,7 +133,11 @@ fn ipv4_pertama(info: &Value) -> String {
         .and_then(|a| a.first())
         .and_then(Value::as_str)
         .unwrap_or("");
-    if s.is_empty() { "-".to_string() } else { s.to_string() }
+    if s.is_empty() {
+        "-".to_string()
+    } else {
+        s.to_string()
+    }
 }
 
 /// Header standar semua permintaan Linode.
@@ -227,22 +251,28 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     }
     let linode_id = js_str(data.get("id"));
 
-    // `await m.reply('🕕 Linode sedang dibuat... Tunggu 60 detik.')`
-    // , lalu `setTimeout` 60000 ms.
-    let tunggu = Reply::text("🕕 Linode sedang dibuat... Tunggu 60 detik.");
-    std::thread::sleep(std::time::Duration::from_secs(60));
-
-    let req = headers(
-        HttpCall::get(format!("https://api.linode.com/v4/linode/instances/{linode_id}")),
-        token,
-    );
-    let res = ctx.http.call(&req).map_err(|_| ())?;
-    let info = res.json().ok_or(())?;
-    // `linodeInfo.ipv4?.[0] || 'Pending'`.
-    let ip = {
-        let s = js_str(info.get("ipv4").and_then(Value::as_array).and_then(|a| a.first()));
-        if s.is_empty() { "Pending".to_string() } else { s }
-    };
+    let tunggu = Reply::text("🕕 Linode sedang dibuat...");
+    let mut ip = "Pending".to_string();
+    for _ in 0..30 {
+        let req = headers(
+            HttpCall::get(format!(
+                "https://api.linode.com/v4/linode/instances/{linode_id}"
+            )),
+            token,
+        );
+        let res = ctx.http.call(&req).map_err(|_| ())?;
+        let info = res.json().ok_or(())?;
+        let kandidat = js_str(
+            info.get("ipv4")
+                .and_then(Value::as_array)
+                .and_then(|a| a.first()),
+        );
+        if !kandidat.is_empty() && kandidat != "null" && kandidat != "-" {
+            ip = kandidat;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
 
     let msg = format!(
         "✅ *ʟɪɴᴏᴅᴇ {} ʙᴇʀʜᴀsɪʟ ᴅɪʙᴜᴀᴛ*\n\n\
@@ -252,8 +282,7 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
          > 🔑 Password: `{root_pass}`\n\
          > 💾 RAM: {}\n\
          > 📍 Region: ap-south",
-        spec.label,
-        spec.ram,
+        spec.label, spec.ram,
     );
 
     // Urutan versi awal: react 🚀 → reply 🕕 → (tunggu) → reply final → react ✅.
@@ -401,10 +430,7 @@ fn delinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
 /// `saldolinode` — `data.koin`
 /// `data.credit_remaining` dibagi 100, `toFixed(2)`.
 fn saldo(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
-    let req = headers(
-        HttpCall::get("https://api.linode.com/v4/account"),
-        token,
-    );
+    let req = headers(HttpCall::get("https://api.linode.com/v4/account"), token);
     let res = ctx.http.call(&req).map_err(|_| ())?;
     let data = res.json().ok_or(())?;
     if !res_ok(res.status) {
@@ -530,12 +556,25 @@ mod tests {
     #[test]
     fn semua_13_kunci_js_terdaftar() {
         for kunci in [
-            "linode2gb", "linode4gb", "linode8gb", "linode16gb", "listlinode",
-            "onlinode", "offlinode", "rebootlinode", "rebuildlinode", "delinode",
-            "saldolinode", "sisalinode", "cekvpslinode",
+            "linode2gb",
+            "linode4gb",
+            "linode8gb",
+            "linode16gb",
+            "listlinode",
+            "onlinode",
+            "offlinode",
+            "rebootlinode",
+            "rebuildlinode",
+            "delinode",
+            "saldolinode",
+            "sisalinode",
+            "cekvpslinode",
         ] {
             assert_eq!(
-                find(kunci).unwrap_or_else(|| panic!("{kunci} tidak terdaftar")).meta.name,
+                find(kunci)
+                    .unwrap_or_else(|| panic!("{kunci} tidak terdaftar"))
+                    .meta
+                    .name,
                 "linode2gb",
                 "kunci {kunci} harus resolve ke plugin linode"
             );
@@ -556,8 +595,9 @@ mod tests {
             let pass = format!("{}{}", random_karakter(5), random_nomor(3));
             assert_eq!(pass.len(), 8, "{pass}");
             assert!(
-                pass.chars().all(|c| KARAKTER.contains(&(c as u32 as u8))
-                    || NOMOR.contains(&(c as u32 as u8))),
+                pass.chars()
+                    .all(|c| KARAKTER.contains(&(c as u32 as u8))
+                        || NOMOR.contains(&(c as u32 as u8))),
                 "{pass} memuat karakter di luar alphabet JS"
             );
         }
@@ -572,7 +612,10 @@ mod tests {
     fn token_kosong_mengembalikan_pesan_konfigurasi() {
         let r = linode(ctx("listlinode", &[], ""));
         let t = teks(&r);
-        assert!(t.starts_with("❌ Linode API Token tidak dikonfigurasi!"), "{t}");
+        assert!(
+            t.starts_with("❌ Linode API Token tidak dikonfigurasi!"),
+            "{t}"
+        );
         assert!(t.contains("linode: 'YOUR_LINODE_TOKEN'"), "{t}");
         assert!(r.mutations().is_empty());
     }
@@ -611,10 +654,7 @@ mod tests {
             ("rebootlinode", ".rebootlinode 12345"),
             ("delinode", ".delinode 12345"),
             ("cekvpslinode", ".cekvpslinode 12345"),
-            (
-                "rebuildlinode",
-                ".rebuildlinode 12345 linode/ubuntu20.04",
-            ),
+            ("rebuildlinode", ".rebuildlinode 12345 linode/ubuntu20.04"),
         ] {
             let c = ctx(cmd, &[], "token-test");
             let r = linode(c);
@@ -638,8 +678,8 @@ mod tests {
 
     #[test]
     fn js_str_mengikuti_semantik_template_literal() {
-        assert_eq!(js_str(None), "undefined");
-        assert_eq!(js_str(Some(&Value::Null)), "undefined");
+        assert_eq!(js_str(None), "-");
+        assert_eq!(js_str(Some(&Value::Null)), "-");
         assert_eq!(js_str(Some(&serde_json::json!(12345))), "12345");
         assert_eq!(js_str(Some(&serde_json::json!(["a", "b"]))), "a,b");
         assert_eq!(js_str(Some(&serde_json::json!({}))), "[object Object]");

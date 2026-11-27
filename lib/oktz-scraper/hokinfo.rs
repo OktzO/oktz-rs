@@ -71,12 +71,16 @@ pub fn scrape_hok_character(http: &dyn HttpGet, name: &str) -> Result<Value, Htt
             .filter(|s| !s.is_empty());
     }
     if let Some(gambar) = &image
-        && gambar.starts_with("//") {
-            image = Some(format!("https:{gambar}"));
-        }
+        && gambar.starts_with("//")
+    {
+        image = Some(format!("https:{gambar}"));
+    }
 
     let mut profil: Vec<(String, String)> = Vec::new();
-    for e in els.iter().filter(|e| e.kelas("pi-item") && e.kelas("pi-data")) {
+    for e in els
+        .iter()
+        .filter(|e| e.kelas("pi-item") && e.kelas("pi-data"))
+    {
         let label = els
             .iter()
             .find(|x| dalam_isi(x, e) && x.kelas("pi-data-label"))
@@ -211,7 +215,9 @@ impl Elemen<'_> {
 /// `<script>`/`<style>` ikut dipindai, tag yang tidak ditutup menelan sisa
 /// dokumen. Cukup untuk halaman target (tag seimbang).
 fn pindai(html: &str) -> Vec<Elemen<'_>> {
-    let re = Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap();
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap());
+    let re = &*RE;
     let mut hasil: Vec<Elemen> = Vec::new();
     let mut buka: Vec<usize> = Vec::new();
     for cap in re.captures_iter(html) {
@@ -273,14 +279,16 @@ fn punya_kelas(tag: &str, kelas: &str) -> bool {
 
 /// `$(...).text()` — tag dibuang, entitas HTML didekode.
 fn teks(isi: &str) -> String {
-    let re = Regex::new(r"(?is)<[^>]*>").unwrap();
-    decode_entitas(&re.replace_all(isi, ""))
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]*>").unwrap());
+    decode_entitas(&RE.replace_all(isi, ""))
 }
 
 /// `clean` hokinfo: `str?.replace(/\s+/g, " ").trim()`.
 fn bersih(s: &str) -> String {
-    let re = Regex::new(r"\s+").unwrap();
-    re.replace_all(s, " ").trim().to_string()
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"\s+").unwrap());
+    RE.replace_all(s, " ").trim().to_string()
 }
 
 /// Indeks elemen pertama yang cocok.
@@ -402,7 +410,10 @@ mod tests {
             p[0].url,
             "https://honor-of-kings.fandom.com/wiki/Angela%20Sun"
         );
-        assert!(p[0].terima_semua_status, "res.ok dicek manual seperti fetch");
+        assert!(
+            p[0].terima_semua_status,
+            "res.ok dicek manual seperti fetch"
+        );
         let cari = |nama: &str| {
             p[0].headers
                 .iter()

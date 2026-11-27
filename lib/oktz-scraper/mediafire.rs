@@ -64,8 +64,9 @@ pub fn mediafire(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         .find(|e| e.attr("id").as_deref() == Some("downloadButton"))
         .map(|e| teks(e.isi()).trim().to_string())
         .unwrap_or_default();
-    let size = Regex::new(r"\(([^)]+)\)")
-        .unwrap()
+    static RE_SIZE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"\(([^)]+)\)").unwrap());
+    let size = RE_SIZE
         .captures(&sizes)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().trim().to_string())
@@ -96,8 +97,7 @@ pub fn mediafire(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 fn meta_konten(els: &[Elemen], properti: &str) -> Option<String> {
     els.iter()
         .find(|e| {
-            e.nama.eq_ignore_ascii_case("meta")
-                && e.attr("property").as_deref() == Some(properti)
+            e.nama.eq_ignore_ascii_case("meta") && e.attr("property").as_deref() == Some(properti)
         })
         .and_then(|e| e.attr("content"))
 }
@@ -115,11 +115,7 @@ fn mime_dari_url(url: &str) -> &'static str {
         .next()
         .unwrap_or("");
     let ekstensi = if nama_berkas.contains('.') {
-        nama_berkas
-            .rsplit('.')
-            .next()
-            .unwrap_or("")
-            .to_lowercase()
+        nama_berkas.rsplit('.').next().unwrap_or("").to_lowercase()
     } else {
         String::new()
     };
@@ -187,7 +183,9 @@ const TAG_VOID: &[&str] = &[
 /// `<script>`/`<style>` ikut dipindai, tag yang tidak ditutup menelan sisa
 /// dokumen. Cukup untuk halaman target (tag seimbang).
 fn pindai(html: &str) -> Vec<Elemen<'_>> {
-    let re = Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap();
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap());
+    let re = &*RE;
     let mut hasil: Vec<Elemen> = Vec::new();
     let mut buka: Vec<usize> = Vec::new();
     for cap in re.captures_iter(html) {
@@ -240,8 +238,9 @@ fn attr(tag: &str, nama: &str) -> Option<String> {
 
 /// `$(...).text()` — tag dibuang, entitas HTML didekode.
 fn teks(isi: &str) -> String {
-    let re = Regex::new(r"(?is)<[^>]*>").unwrap();
-    decode_entitas(&re.replace_all(isi, ""))
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]*>").unwrap());
+    decode_entitas(&RE.replace_all(isi, ""))
 }
 
 #[cfg(test)]
@@ -388,7 +387,10 @@ mod tests {
     fn mime_dari_url_mengikuti_pemetaan_js() {
         assert_eq!(mime_dari_url(""), "application/octet-stream");
         assert_eq!(mime_dari_url("https://a/b"), "application/octet-stream");
-        assert_eq!(mime_dari_url("https://a/b.7z"), "application/x-7z-compressed");
+        assert_eq!(
+            mime_dari_url("https://a/b.7z"),
+            "application/x-7z-compressed"
+        );
         assert_eq!(mime_dari_url("https://a/b.MP3?x=1"), "audio/mpeg");
         assert_eq!(
             mime_dari_url("https://a/nama.dengan.titik.png"),

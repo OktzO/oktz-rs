@@ -195,7 +195,9 @@ impl Elemen<'_> {
 /// `<script>`/`<style>` ikut dipindai, tag yang tidak ditutup menelan sisa
 /// dokumen. Cukup untuk halaman target (tag seimbang).
 fn pindai(html: &str) -> Vec<Elemen<'_>> {
-    let re = Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap();
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)</?([a-z][a-z0-9-]*)\b[^>]*>").unwrap());
+    let re = &*RE;
     let mut hasil: Vec<Elemen> = Vec::new();
     let mut buka: Vec<usize> = Vec::new();
     for cap in re.captures_iter(html) {
@@ -263,8 +265,9 @@ fn punya_kelas(tag: &str, kelas: &str) -> bool {
 
 /// `$(...).text()` — tag dibuang, entitas HTML didekode.
 fn teks(isi: &str) -> String {
-    let re = Regex::new(r"(?is)<[^>]*>").unwrap();
-    decode_entitas(&re.replace_all(isi, ""))
+    static RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]*>").unwrap());
+    decode_entitas(&RE.replace_all(isi, ""))
 }
 
 /// Apakah elemen `i` punya leluhur dengan kelas `kelas`.
@@ -396,7 +399,10 @@ mod tests {
             .split('&')
             .map(|bagian| bagian.split_once('=').unwrap())
             .collect();
-        assert_eq!(bagian["id"], "https%3A%2F%2Fwww.instagram.com%2Freel%2Fx%3Fa%3Db");
+        assert_eq!(
+            bagian["id"],
+            "https%3A%2F%2Fwww.instagram.com%2Freel%2Fx%3Fa%3Db"
+        );
         assert_eq!(bagian["locale"], "en");
         assert_eq!(bagian["cf-turnstile-response"], "");
         let ts: u64 = bagian["ts"].parse().unwrap();
