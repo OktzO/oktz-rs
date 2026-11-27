@@ -1,9 +1,9 @@
-//! `plugins/stalker/ffstalk.js` — stalk profil Free Fire via `api.nexray.eu.cc`.
+//! Stalk profil Free Fire via `api.nexray.eu.cc`.
 //!
-//! `ponytail:` JS bereaksi `🕕` sebelum request, lalu `✅`/`❌` di akhir.
-//! `Reply::Reaction` hanya membawa satu emoji, jadi reaksi akhir (yang
-//! masih terlihat setelah request selesai) yang dipasang. Gambar banner
-//! dikirim tanpa `quoted` karena `Reply::Image` tidak punya bidang quoted.
+//! `Keterbatasan:` versi awal bereaksi `🕕` sebelum request, lalu `✅`/`❌` di akhir.
+//! `Reply::Reaction` hanya membawa satu emoji, jadi reaksi akhir (yang masih terlihat
+//! setelah request selesai) yang dipasang. Gambar banner dikirim tanpa `quoted` karena
+//! `Reply::Image` tidak punya bidang quoted.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 #[cfg(test)]
@@ -14,7 +14,7 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 const API: &str = "https://api.nexray.eu.cc/stalker/freefire";
 
-/// `❌ *Waduh, ID Free Fire-nya belum dimasukkan!* ...`.
+/// `❌ *Waduh, ID Free Fire-nya belum dimasukkan!*...`.
 fn help() -> String {
     "❌ *Waduh, ID Free Fire-nya belum dimasukkan!*\n\n\
      Kamu harus mengetikkan UID pemain Free Fire yang ingin di-stalk. \n\n\
@@ -30,7 +30,7 @@ fn gagal(uid: &str) -> String {
     )
 }
 
-/// `😔 *Terjadi masalah di sistem kami.* ...`.
+/// `😔 *Terjadi masalah di sistem kami.*...`.
 fn sistem_error() -> String {
     "😔 *Terjadi masalah di sistem kami.* \n\n\
      Sistem gagal menarik data dari server Free Fire. Silakan coba beberapa saat lagi ya."
@@ -48,7 +48,7 @@ fn js_str(v: &Value) -> String {
     }
 }
 
-/// `${v || "-"}` — nilai falsy JS (`null`, `0`, `""`, `false`) jadi `-`.
+/// `${v || "-"}` — nilai falsy versi awal (`null`, `0`, `""`, `false`) jadi `-`.
 fn dash(v: &Value) -> String {
     if crate::common::js_truthy_value(v) {
         js_str(v)
@@ -57,7 +57,7 @@ fn dash(v: &Value) -> String {
     }
 }
 
-/// `r.language ? r.language.replace("Language_", "") : "-"`.
+/// `r.language ? r.language.replace("Language_", ""): "-"`.
 fn lang(v: Option<&Value>) -> String {
     match v {
         Some(Value::String(s)) if !s.is_empty() => s.replace("Language_", ""),
@@ -65,7 +65,7 @@ fn lang(v: Option<&Value>) -> String {
     }
 }
 
-/// `r.mode_prefer ? r.mode_prefer.replace("ModePrefer_", "") : "-"`.
+/// `r.mode_prefer ? r.mode_prefer.replace("ModePrefer_", ""): "-"`.
 fn mode_prefer(v: Option<&Value>) -> String {
     match v {
         Some(Value::String(s)) if !s.is_empty() => s.replace("ModePrefer_", ""),
@@ -73,7 +73,7 @@ fn mode_prefer(v: Option<&Value>) -> String {
     }
 }
 
-/// `r.guild_name && r.guild_name !== "None" ? r.guild_name : "Tidak ada guild"`.
+/// `r.guild_name && r.guild_name !== "None" ? r.guild_name: "Tidak ada guild"`.
 fn guild_name(v: Option<&Value>) -> String {
     match v {
         Some(Value::String(s)) if s != "None" => s.clone(),
@@ -189,9 +189,9 @@ pub fn ffstalk(ctx: Ctx) -> Reply {
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

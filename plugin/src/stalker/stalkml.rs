@@ -1,6 +1,4 @@
-//! `plugins/stalker/stalkml.js` — stalk nickname Mobile Legends.
-//! Ponytail: `m.pushName` tidak ada di `Ctx`, tidak pakai; JS bereaksi 🕕 lalu
-//! ✅/❌, Rust hanya satu reaksi (akhir).
+//! Stalk nickname Mobile Legends.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -14,7 +12,7 @@ const REGION: &[(&str, &str)] = &[
     ("21", "Europe"), ("22", "South America"),
 ];
 
-/// `getRegion(sid)` (`stalkml.js:28-31`):
+/// `getRegion(sid)`:
 /// `REGION_MAP[s.slice(0,2)] ?? REGION_MAP[s.slice(0,1)] ?? "Unknown"`.
 /// Dua digit DULU — `starts_with("1")` akan salah untuk "15139" (Myanmar).
 fn get_region(sid: &str) -> &'static str {
@@ -73,9 +71,9 @@ fn parse_input(text: &str) -> (String, String) {
     (user_id, server_id)
 }
 
-/// Padanan `text.match(/(\d+)\s*\(\s*(\d+)\s*\)/)` (`stalkml.js:56`) tanpa
+/// Padanan `text.match(/(\d+)\s*\(\s*(\d+)\s*\)/)` tanpa
 /// dependensi `regex`: `(` paling kiri yang didahului digit (boleh dipisah
-/// spasi) dan diikuti digit lalu `)` menang — sama dengan pencarian regex JS
+/// spasi) dan diikuti digit lalu `)` menang — sama dengan pencarian regex versi awal
 /// dari kiri, karena digit selalu runtut dan tak bisa menyeberangi `(`.
 fn regex_capture(text: &str) -> Option<(String, String)> {
     let b = text.as_bytes();
@@ -142,7 +140,7 @@ pub fn stalkml(ctx: Ctx) -> Reply {
     }
     let (user_id, server_id) = parse_input(text);
     if user_id.is_empty() || server_id.is_empty() {
-        // `${m.prefix}stalkml ...` (`stalkml.js:85`) — jangan hardcode `.`.
+        // `${m.prefix}stalkml...` — jangan hardcode `.`.
         return Reply::text(format!(
             "❌ *FORMAT SALAH*\n\nPastikan kamu memasukkan ID dan Server yang lengkap.\nContoh: `{}stalkml 1264042367 | 15139`",
             ctx.prefix
@@ -159,7 +157,7 @@ pub fn stalkml(ctx: Ctx) -> Reply {
         }
     };
 
-    // `if (json.success)` (`stalkml.js:95`) — truthy, bukan cuma `true`.
+    // `if (json.success)` — truthy, bukan cuma `true`.
     if json.get("success").is_some_and(crate::common::js_truthy_value) {
         let region = get_region(&server_id);
         let nama = json.get("name").and_then(Value::as_str).unwrap_or("-");
@@ -200,7 +198,7 @@ mod tests {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
             // `offline()` = body `None`: fetch gagal melempar → catch →
-            // "GAGAL MELACAK AKUN" (`stalkml.js:111-114`). Harus `Err`, bukan
+            // "GAGAL MELACAK AKUN". Harus `Err`, bukan
             // 200 berbadan kosong.
             let Some(teks) = self.body.lock().unwrap().clone() else {
                 return Err(HttpError { message: "offline".into() });
@@ -250,7 +248,7 @@ mod tests {
     fn format_salah_dengan_angka_gabung() {
         let http = Stub::json(serde_json::json!({ "success": false }));
         let r = run(http.clone(), "126404236715139");
-        // `pureNumbers.slice(-4)` → server, sisanya → user (`stalkml.js:74-76`):
+        // `pureNumbers.slice(-4)` → server, sisanya → user:
         // "126404236715139" jadi user "12640423671" + server "5139".
         assert_eq!(text_of(&r), "❌ *AKUN TIDAK DITEMUKAN*\n\nMaaf, sistem tidak dapat menemukan akun dengan ID *12640423671* dan Server *5139*. Pastikan ID dan Server sudah diketik dengan benar.");
         assert_eq!(reaction_of(&r), Some("❌".to_string()));

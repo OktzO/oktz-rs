@@ -1,30 +1,15 @@
-//! `plugins/stalker/wastalk.js` — stalk profil WhatsApp.
-//!
-//! ## Penyimpangan
-//!
-//! - **`awesome-phonenumber`.** Tidak ada padanannya di dependency workspace;
-//!   port ini memakai pemetaan kode negara → nama Inggris (pengganti
-//!   `Intl.DisplayNames`) yang terbatas pada kode panggil umum, dan
-//!   `getNumber('international')` diganti pengelompokan sederhana mengikuti
-//!   pola `tools/qwa.rs` (3-4-4 untuk 62, 3-4-3 lainnya). Kode tak dikenal
-//!   jatuh ke `"Unknown"` — persis cabang `catch` JS yang men-set
-//!   `country = 'Unknown'`.
-//! - **`format.isValid()`** hanya dipakai untuk `console.log` di JS — tidak
-//!   berpengaruh ke output, jadi tidak di-port.
-//! - Sisanya full-port: `onWhatsApp`, `profilePictureUrl` (+URL cadangan),
-//!   `fetchStatus`, `getName`, `getBusinessProfile`, dan `LLLL` dari
-//!   `timeHelper.fromTimestamp` (Asia/Jakarta, id-ID).
+//! Stalk profil WhatsApp.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::{Value, Value as Json};
 
 use crate::common::{days_from_civil, jakarta_parts};
 
-/// URL cadangan saat profil tidak punya foto (`wastalk.js:38`).
+/// URL cadangan saat profil tidak punya foto.
 const FOTO_CADANGAN: &str = "https://telegra.ph/file/70e8de9b1879568954f09.jpg";
 
 /// Pemetaan kode panggil → (kode wilayah, nama Inggris) — pengganti
-/// `awesome-phonenumber` + `Intl.DisplayNames(['en'])`. Dicocokkan dengan
+/// `awesome-phonenumber` + `Intl.DisplayNames(['en'])`. Dicocokkan
 /// prefix terpanjang; kode di luar daftar jatuh ke "Unknown" (cabang catch).
 const KODE_NEGARA: [(&str, &str, &str); 64] = [
     ("62", "ID", "Indonesia"),
@@ -102,7 +87,7 @@ const KODE_NEGARA_1: [(&str, &str); 4] = [
 ];
 
 /// `PhoneNum('+' + num).getRegionCode('mobile')` + `regionNames.of(...)`.
-/// `None` = kode tak dikenal (JS: catch → `country = 'Unknown'`).
+/// `None` = kode tak dikenal (versi awal: catch → `country = 'Unknown'`).
 pub(crate) fn negara_dari_digits(digits: &str) -> Option<(&'static str, &'static str)> {
     // Prefix 4 digit dulu (kasus `1xxx` Karibia), lalu 3/2/1.
     for len in [4, 3, 2, 1] {
@@ -143,7 +128,7 @@ pub(crate) fn format_international(digits: &str, prefix_len: usize) -> String {
 }
 
 /// `timeHelper.fromTimestamp(setAt, 'LLLL')` — `Senin, 5 Januari 2026 pukul
-/// HH.mm` di Asia/Jakarta (`time.js:45`).
+/// HH.mm` di Asia/Jakarta.
 pub(crate) fn format_llll(ms: i64) -> String {
     const HARI: [&str; 7] = [
         "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu",
@@ -161,7 +146,7 @@ pub(crate) fn format_llll(ms: i64) -> String {
     )
 }
 
-/// Baris atas caption (`wastalk.js:72-79`).
+/// Baris atas caption.
 fn caption_utama(
     country_upper: &str,
     name: &str,
@@ -182,7 +167,7 @@ fn caption_utama(
     )
 }
 
-/// Blok business (`wastalk.js:82-89`).
+/// Blok business.
 fn caption_bisnis(business: &Json) -> String {
     let teks = |k: &str| -> String {
         match business.get(k) {
@@ -191,7 +176,7 @@ fn caption_bisnis(business: &Json) -> String {
             None => "undefined".to_string(),
         }
     };
-    // `${business.x ? business.x : '-'}` — hanya website/email/address/
+    // `${business.x ? business.x: '-'}` — hanya website/email/address/
     // timezone/description yang punya fallback; category tidak.
     let pilih = |k: &str| -> String {
         match business.get(k).and_then(Value::as_str) {
@@ -238,7 +223,7 @@ fn caption_bisnis(business: &Json) -> String {
     is_admin = false
 )]
 pub fn wastalk(ctx: Ctx) -> Reply {
-    // `m.quoted?.sender || m.mentionedJid?.[0] || text` (`wastalk.js:24`).
+    // `m.quoted?.sender || m.mentionedJid?.[0] || text`.
     let sumber = if let Some(q) = ctx.quoted() {
         (!q.sender.is_empty()).then(|| q.sender.clone())
     } else if let Some(m) = ctx.mentioned.first() {
@@ -260,7 +245,7 @@ pub fn wastalk(ctx: Ctx) -> Reply {
     let jid = format!("{digits}@s.whatsapp.net");
     let number = digits.clone();
 
-    // `sock.onWhatsApp(num)` — entri pertama saja (`wastalk.js:33-36`).
+    // `sock.onWhatsApp(num)` — entri pertama saja.
     match ctx.sock().ada_whatsapp(std::slice::from_ref(&digits)) {
         Ok(list) => {
             let ada = list.first().is_some_and(|a| a.ada);
@@ -271,23 +256,23 @@ pub fn wastalk(ctx: Ctx) -> Reply {
         Err(_) => return Reply::text("❌ Failed to stalk user."),
     }
 
-    // Foto profil — gagal/None → URL cadangan (`wastalk.js:38-41`).
+    // Foto profil — gagal/None → URL cadangan.
     let img = match ctx.sock().foto_profil(&jid, "image") {
         Ok(Some(url)) if !url.is_empty() => url,
         _ => FOTO_CADANGAN.to_string(),
     };
 
-    // Bio — gagal → `{}` (`wastalk.js:44-46`).
+    // Bio — gagal → `{}`.
     let bio = ctx.sock().status_teks(&jid).unwrap_or(Value::Null);
 
-    // Nama — gagal → 'Unknown' (`wastalk.js:48-51`).
+    // Nama — gagal → 'Unknown'.
     let name = match ctx.sock().nama_kontak(&jid) {
         Ok(n) if !n.is_empty() => n,
         Ok(_) => number.clone(),
         Err(_) => "Unknown".to_string(),
     };
 
-    // Business — gagal → null (`wastalk.js:53-56`).
+    // Business — gagal → null.
     let business = ctx.sock().profil_bisnis(&jid).unwrap_or(None);
 
     // Negara + format nomor.

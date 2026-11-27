@@ -5,22 +5,22 @@ pub mod pintereststalk;
 pub mod tiktokstalk;
 pub mod ytstalk;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod genshinstalk;
 pub mod robloxplayer;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod igstalk;
 pub mod stalkml;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod discordstalk;
 pub mod ffstalk;
 pub mod robloxstalk;
 
-// `plugins/stalker/stalkdc.js` — port dari ourin-md/rust (JS `stalkdc.js`,
+// Port dari versi awal/rust (versi awal,
 // profil Discord via dclookup.id). Alias `discordstalk`-nya kalah oleh plugin
 // bernama `discordstalk` (lihat `JS_SHADOWED_ALIASES`).
 pub mod stalkdc;

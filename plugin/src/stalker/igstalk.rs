@@ -1,25 +1,19 @@
-//! `plugins/stalker/igstalk.js` — stalk akun Instagram lewat API Firefly.
-//! Nexray tidak punya `/stalker/instagram` (dicek live: 500), jadi tidak ada
-//! fallback. Kunci `config.APIkey.firefly` dibaca dari `ctx.config()`.
-//!
-//! `m.react('🔍')` terjadi sebelum guard kunci, jadi pada cabang "kunci kosong"
-//! reaksi terakhir yang ikut adalah `❌`. `Reply::with_reaction` hanya boleh
-//! satu emoji, jadi hanya yang terakhir.
+//! Stalk akun Instagram lewat API Firefly.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `plugins/stalker/igstalk.js` — kartu pakai saat `m.args[0]` kosong.
+/// Kartu pakai saat `m.args[0]` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📸 *ɪɴsᴛᴀɢʀᴀᴍ sᴛᴀʟᴋ*\n\n> Masukkan username Instagram\n\n`Contoh: {prefix}igstalk cristiano`"
     )
 }
 
-/// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY'), ..)`
-/// (`stalker-fallback.js:30-36`).
+/// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY')..)`
+///
 pub(crate) const MISSING_KEY: &str =
     "❌ *API Key belum diset!*\n\n\
      > Command `.igstalk` butuh `APIKEY_FIREFLY` di `.env`\n\
@@ -33,7 +27,7 @@ pub(crate) fn api_url(username: &str, api_key: &str) -> String {
     )
 }
 
-/// `shortNum(num)` (`igstalk.js:22-29`) — `parseInt`, lalu ambang miliar/jt/rb
+/// `shortNum(num)` — `parseInt`, lalu ambang miliar/jt/rb
 // dengan `toFixed(1)` kemudian hapus `.0`.
 fn short_num(v: Option<&Value>) -> String {
     let n = v
@@ -57,7 +51,7 @@ fn short_num(v: Option<&Value>) -> String {
     n.to_string()
 }
 
-/// `igstalk.js:63-72` — caption hasil stalk.
+/// Caption hasil stalk.
 fn caption(d: &Value, username: &str) -> String {
     let username_d = d
         .get("username")
@@ -66,7 +60,7 @@ fn caption(d: &Value, username: &str) -> String {
     let full_name = d
         .get("full_name")
         .and_then(Value::as_str)
-        .filter(|s| !s.is_empty()) // `d.full_name || '-'` (`igstalk.js:65`)
+        .filter(|s| !s.is_empty()) // `d.full_name || '-'`
         .unwrap_or("-");
     let verified = if d
         .get("is_verified")
@@ -91,7 +85,7 @@ fn caption(d: &Value, username: &str) -> String {
     let bio = d
         .get("bio")
         .and_then(Value::as_str)
-        .filter(|s| !s.is_empty()) // `d.bio || '-'` (`igstalk.js:71`)
+        .filter(|s| !s.is_empty()) // `d.bio || '-'`
         .unwrap_or("-");
 
     format!(
@@ -128,7 +122,7 @@ pub fn igstalk(ctx: Ctx) -> Reply {
     let username = ctx
         .args
         .first()
-        // `m.args[0]?.replace('@', '')` (`igstalk.js:32`) — buang '@' PERTAMA,
+        // `m.args[0]?.replace('@', '')` — buang '@' PERTAMA,
         // bukan semua '@' di depan.
         .map(|s| s.replacen('@', "", 1))
         .unwrap_or_default();
@@ -313,7 +307,7 @@ mod tests {
         assert_eq!(short_num(Some(&serde_json::json!(1000))), "1 rb");
         assert_eq!(short_num(Some(&serde_json::json!(1500))), "1.5 rb");
         // `(999_999 / 1000).toFixed(1)` = "1000.0" → buang ".0" = "1000"
-        // (`igstalk.js:27`), bukan naik ke ambang juta.
+        // , bukan naik ke ambang juta.
         assert_eq!(short_num(Some(&serde_json::json!(999999))), "1000 rb");
         assert_eq!(short_num(Some(&serde_json::json!(1500000))), "1.5 jt");
         assert_eq!(short_num(Some(&serde_json::json!(1000000000))), "1 miliar");
@@ -352,7 +346,7 @@ mod tests {
                 );
                 assert!(caption.contains("👤 *Username:* cristiano"));
                 // 600_000_000 < 1_000_000_000, jadi ambang "jt" yang dipakai
-                // (`igstalk.js:26`), bukan "miliar".
+                // , bukan "miliar".
                 assert!(caption.contains("👥 *Pengikut:* 600 jt"));
                 assert!(caption.contains("📷 *Postingan:* 3.5 rb"));
             }

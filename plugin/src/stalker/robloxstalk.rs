@@ -1,9 +1,9 @@
-//! `plugins/stalker/robloxstalk.js` — stalk akun Roblox lewat beberapa endpoint
-//! Roblox API secara berurutan.
-//! Ponytail: `toLocaleString` angka tidak direplikasi (angka ditulis polos),
-//! `description.substring(0, 300)` dipotong per `char` (JS per unit UTF-16),
-//! dan `created` ditulis mentah karena `Ctx` tidak punya parser tanggal ISO
-//! bawaan (ponytail: tambahkan field tanggal ke `Ctx` kalau diperlukan).
+//! Stalk akun Roblox lewat beberapa endpoint
+//!
+//! Roblox API secara berurutan. Ponytail: `toLocaleString` angka tidak direplikasi (angka
+//! ditulis polos), `description.substring(0, 300)` dipotong per `char` (versi awal per unit
+//! UTF-16), dan `created` ditulis mentah karena `Ctx` tidak punya parser tanggal ISO bawaan
+//! (Keterbatasan: tambahkan field tanggal ke `Ctx` kalau diperlukan).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -90,7 +90,7 @@ fn top_inventory(inventory: &Value) -> String {
 }
 
 /// `presenceType[res.presence.userPresenceType] || res.presence.userPresenceType`
-/// — tipe yang tidak dikenal ditulis sebagai angkanya.
+/// Tipe yang tidak dikenal ditulis sebagai angkanya.
 fn presence_text(presence: &Value) -> String {
     let tipe = num(presence.get("userPresenceType"));
     let label = match tipe {
@@ -103,7 +103,7 @@ fn presence_text(presence: &Value) -> String {
     let loc = presence.get("lastLocation").and_then(Value::as_str).unwrap_or("-");
     let place = presence.get("placeId").and_then(Value::as_str).unwrap_or("-");
     let game = presence.get("gameId").and_then(Value::as_str).unwrap_or("-");
-    // Baris baru penutup: JS menulis `${presInfo}\n` + `\n\n` sebelum Bio.
+    // Baris baru penutup: versi awal menulis `${presInfo}\n` + `\n\n` sebelum Bio.
     format!("Status: {label}\n  Last Location: {loc}\n  PlaceId: {place}\n  GameId: {game}\n")
 }
 
@@ -169,7 +169,7 @@ pub fn robloxstalk(ctx: Ctx) -> Reply {
         .and_then(|x| x.get("imageUrl"))
         .and_then(Value::as_str)
         .unwrap_or("");
-    // `res.username` di JS = `detail.name`, bukan `name` hasil search.
+    // `res.username` di versi awal = `detail.name`, bukan `name` hasil search.
     let nama = detail.get("name").and_then(Value::as_str).unwrap_or(username);
 
     let caption = format!(
@@ -254,7 +254,7 @@ mod tests {
             r#"{"data":[{"id":12345,"name":"Linkmon99","hasVerifiedBadge":true}]}"#,
             // detail
             r#"{"id":12345,"name":"Linkmon99","displayName":"Linkmon","description":"Halo saya","created":"2026-01-01T00:00:00Z"}"#,
-            // avatar — `avatar.data[0]?.imageUrl` (`robloxstalk.js:90`); JSON
+            // avatar — `avatar.data[0]?.imageUrl`; JSON
             // harus valid, kurung kurawal penutup cuma satu.
             r#"{"data":[{"imageUrl":"https://cdn/avatar.png"}]}"#,
             // followers/following/friends
@@ -302,7 +302,7 @@ mod tests {
         assert!(t.contains("👥 *Groups* (1):"), "{t}");
         assert!(t.contains("🎒 *Inventory*:"), "{t}");
         assert_eq!(reaction_of(&r), Some("✅".to_string()));
-        // Balasan dibungkus reaksi ✅ (`robloxstalk.js:197-210`), jadi isi pesan
+        // Balasan dibungkus reaksi ✅, jadi isi pesan
         // diambil dari dalam `Reply::Reaction`.
         let Reply::Reaction { reply: isi, .. } = r.without_mutations() else {
             panic!("harus dibungkus reaksi");

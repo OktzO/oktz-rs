@@ -1,14 +1,8 @@
-//! `plugins/stalker/countrystalk.js` — informasi negara lewat API Neoxr.
+//! Informasi negara lewat API Neoxr.
 //!
-//! `category` di `pluginConfig` adalah `"stalker  "` dengan DUA spasi di
-//! belakang (`countrystalk.js:7`). Itu disalin apa adanya karena plugin JS
-//! produksi memakai nilai itu, dan membulatkan whitespace di sini akan
-//! membuat daftar kategori tidak cocok.
-//!
-//! `ponytail:` `c.population.toLocaleString('id-ID')` memakai pemisah ribuan
-//! titik dan pemisah desimal koma (dikonfirmasi dengan
-//! `(1234567).toLocaleString('id-ID')` di Node). `toLocaleString` juga
-//! membulatkan ke tiga angka desimal untuk angka pecahan; itu ikut.
+//! `Keterbatasan:` `c.population.toLocaleString('id-ID')` memakai pemisah ribuan titik dan
+//! pemisah desimal koma (dikonfirmasi dengan `(1234567).toLocaleString('id-ID')` di Node).
+//! `toLocaleString` juga membulatkan ke tiga angka desimal untuk angka pecahan; itu ikut.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -16,17 +10,17 @@ use serde_json::Value;
 use super::npmstalk::{js_str, or_dash};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `countrystalk.js:20` — pesan tanpa negara.
+/// Pesan tanpa negara.
 pub(crate) fn help(prefix: &str, command: &str) -> String {
     format!("🌍 Harap masukkan nama negara!\nContoh: `{prefix}{command} indonesia`")
 }
 
-/// `countrystalk.js:33` — data tidak ditemukan.
+/// Data tidak ditemukan.
 pub(crate) fn not_found(text: &str) -> String {
     format!("Maaf, data negara untuk \"{text}\" tidak ditemukan.")
 }
 
-/// `countrystalk.js:30` — endpoint + query `q`.
+/// Endpoint + query `q`.
 pub(crate) fn api_url(query: &str, api_key: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/country?q={query}&apikey={api_key}"
@@ -59,7 +53,7 @@ pub(crate) fn locale_id(v: &Value) -> String {
     let bulat_str = groups.join(".");
     let bulat_str = if n < 0.0 { format!("-{bulat_str}") } else { bulat_str };
 
-    // maximumFractionDigits default 3: pecahan dibulatkan ke tiga digit dan
+    // maximumFractionDigits default 3: pecahan dibulatkan ke tiga digit
     // nol diakhiri dibuang. Pecahan nol tidak dicetak sama sekali.
     let pecahan = ((n.abs() - bulat) * 1000.0).round() / 1000.0;
     if pecahan == 0.0 {
@@ -73,7 +67,7 @@ pub(crate) fn locale_id(v: &Value) -> String {
     format!("{bulat_str}{}", desimal.replacen('.', ",", 1))
 }
 
-/// `list.length > 0 ? list.map(f).join(", ") : "-"` untuk array objek.
+/// `list.length > 0 ? list.map(f).join(", "): "-"` untuk array objek.
 fn gabung_objek(v: &Value, ambil: impl Fn(&Value) -> String) -> String {
     let Some(arr) = v.as_array() else {
         return "-".to_string();
@@ -84,7 +78,7 @@ fn gabung_objek(v: &Value, ambil: impl Fn(&Value) -> String) -> String {
     arr.iter().map(ambil).collect::<Vec<_>>().join(", ")
 }
 
-/// `list.length > 0 ? list.join(", ") : "-"` untuk array apa adanya.
+/// `list.length > 0 ? list.join(", "): "-"` untuk array apa adanya.
 fn gabung(v: &Value) -> String {
     let Some(arr) = v.as_array() else {
         return "-".to_string();
@@ -95,7 +89,7 @@ fn gabung(v: &Value) -> String {
     arr.iter().map(js_str).collect::<Vec<_>>().join(", ")
 }
 
-/// `countrystalk.js:46-61` — caption.
+/// Caption.
 pub(crate) fn caption(c: &Value, nama_mentah: &str) -> String {
     let name = {
         let n = js_str(&c["names"]["common"]);
@@ -146,7 +140,7 @@ pub(crate) fn caption(c: &Value, nama_mentah: &str) -> String {
 #[plugin(
     name = "countrystalk",
     alias = ["stalknegara", "infonegara"],
-    // Dua spasi di belakang, sama seperti `countrystalk.js:7`.
+    // Dua spasi di belakang, sama seperti.
     category = "stalker  ",
     description = "Mencari informasi detail tentang suatu negara",
     usage = ".country <nama negara>",
@@ -280,7 +274,7 @@ mod tests {
 
     #[test]
     fn category_dua_spasi_konus_javascript() {
-        // `countrystalk.js:7` menulis "stalker  ". Dibulatkan jadi satu
+        // menulis "stalker ". Dibulatkan jadi satu
         // spasi akaningen tidak cocok dengan produksi.
         let teks = std::fs::read_to_string(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../test/fixtures/countrystalk.js"),

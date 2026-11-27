@@ -1,25 +1,16 @@
-//! `plugins/stalker/stalkdc.js` — profil Discord via dclookup.id.
+//! Profil Discord via dclookup.id.
 //!
-//! Alur JS dipertahankan: ambil versi collector dari `api.js`
-//! (`stalkdc.js:51-60`), minta token reCAPTCHA v3 (`anchor` lalu `reload`,
-//! `stalkdc.js:72-133`), baru `POST /api/user/lookup`
-//! (`stalkdc.js:135-158`). Status HTTP 4xx/5xx dianggap jawaban biasa
-//! (`validateStatus: () => true`), jadi semua request memakai
-//! `terima_semua_status()`.
+//! `Keterbatasan:` `randomCb()` memakai `rand` (versi awal `Math.random`) dan versi
+//! collector TIDAK di-cache antar panggilan seperti `_cachedV` — antrean plugin Rust tidak
+//! punya state modul. Biaya satu request kecil per panggilan.
 //!
-//! `ponytail:` `randomCb()` memakai `rand` (JS `Math.random`) dan versi
-//! collector TIDAK di-cache antar panggilan seperti `_cachedV` — antrean
-//! plugin Rust tidak punya state modul. Biaya satu request kecil per panggilan.
-//!
-//! `ponytail:` JS bereaksi `🕕` sebelum permintaan lalu `✅`/`❌` sesudahnya
-//! (`stalkdc.js:179,185,215,218`), sedangkan `Reply::with_reaction` hanya
-//! bisa membawa satu reaksi — jadi `🕕` hilang dan yang ikut ke balasan
-//! hanya reaksi penutup. Reaksi `✅` juga dikirim sebelum media avatar
+//! `Keterbatasan:` versi awal bereaksi `🕕` sebelum permintaan lalu `✅`/`❌` sesudahnya,
+//! sedangkan `Reply::with_reaction` hanya bisa membawa satu reaksi — jadi `🕕` hilang dan
+//! yang ikut ke balasan hanya reaksi penutup. Reaksi `✅` juga dikirim sebelum media avatar
 //! diunggah, jadi kegagalan upload tidak menambah balasan error.
 //!
-//! `ponytail:` JS mengirim avatar dengan `{ quoted: m }`
-//! (`stalkdc.js:210`); `Reply::image` tidak bisa mengutip pesan pemicu,
-//! jadi avatar dikirim tanpa quote.
+//! `Keterbatasan:` versi awal mengirim avatar dengan `{ quoted: m }`; `Reply::image` tidak
+//! bisa mengutip pesan pemicu, jadi avatar dikirim tanpa quote.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -29,10 +20,10 @@ const SITEKEY: &str = "6Lc0ZystAAAAAKESQ1HMsCQujyLgDvSu6FW1CHfP";
 const ACTION: &str = "lookup";
 const RECAPTCHA_BASE: &str = "https://www.google.com/recaptcha/";
 const UA: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
-/// `sec-ch-ua` instance `gc` (`stalkdc.js:30`).
+/// `sec-ch-ua` instance `gc`.
 const SEC_CH_UA: &str = "\"Chromium\";v=\"127\", \"Not)A;Brand\";v=\"99\", \"Microsoft Edge Simulate\";v=\"127\", \"Lemur\";v=\"127\"";
 
-/// Header bawaan instance `gc` axios (`stalkdc.js:25-35`) — dipakai untuk
+/// Header bawaan instance `gc` axios — dipakai
 /// ketiga permintaan reCAPTCHA (versi collector, anchor, reload).
 fn dengan_header_gc(call: HttpCall) -> HttpCall {
     call.header("user-agent", UA)
@@ -42,7 +33,7 @@ fn dengan_header_gc(call: HttpCall) -> HttpCall {
         .header("sec-ch-ua-platform", "\"Android\"")
 }
 
-/// `String(x)` versi JS untuk field profil.
+/// `String(x)` versi versi awal untuk field profil.
 fn teks_js(v: Option<&Value>) -> String {
     match v {
         None => "undefined".to_string(),
@@ -128,7 +119,7 @@ fn pasangan(daftar: &[(&str, &str)]) -> String {
         .join("&")
 }
 
-/// `fetchLatestVersion()` — `releases/<v>/` di `api.js` (`stalkdc.js:51-60`).
+/// `fetchLatestVersion()` — `releases/<v>/`.
 fn versi_collector(ctx: &Ctx) -> Result<String, String> {
     let call = dengan_header_gc(HttpCall::get(format!("{RECAPTCHA_BASE}api.js")))
         .header("referer", "https://www.google.com/")
@@ -157,7 +148,7 @@ fn extract_rresp(body: &str) -> Option<String> {
 }
 
 /// Satu percobaan reCAPTCHA: anchor → reload → token
-/// (`stalkdc.js:88-124`).
+///
 fn percobaan_recaptcha(ctx: &Ctx, v: &str, anchor_qs: &str) -> Result<String, String> {
     let base = format!("{RECAPTCHA_BASE}api2/");
     let co = build_co(BASE);
@@ -202,9 +193,9 @@ fn percobaan_recaptcha(ctx: &Ctx, v: &str, anchor_qs: &str) -> Result<String, St
 }
 
 /// `solveRecaptchaV3(...)` — `(token, versi)`. `retries = 2` → tiga percobaan,
-/// error terakhir diteruskan (`stalkdc.js:87-132`).
+/// error terakhir diteruskan.
 fn solve_recaptcha(ctx: &Ctx) -> Result<(String, String), String> {
-    // `v` diambil SEKALI di luar loop retry (`stalkdc.js:75-85`), jadi
+    // `v` diambil SEKALI di luar loop retry, jadi
     // kegagalan grab versi collector tidak diulang.
     let v = versi_collector(ctx)?;
     let co = build_co(BASE);
@@ -236,7 +227,7 @@ fn solve_recaptcha(ctx: &Ctx) -> Result<(String, String), String> {
     Err(galat)
 }
 
-/// `lookupUser(discordId, token)` (`stalkdc.js:135-158`).
+/// `lookupUser(discordId, token)`.
 fn lookup_user(ctx: &Ctx, id: &str, token: &str) -> Result<Value, String> {
     let call = HttpCall::post(format!("{BASE}/api/user/lookup"))
         .header(
@@ -252,14 +243,14 @@ fn lookup_user(ctx: &Ctx, id: &str, token: &str) -> Result<Value, String> {
         .form(pasangan(&[("id", id)]))
         .terima_semua_status();
     let r = ctx.http.call(&call).map_err(|e| e.message)?;
-    // `typeof res.data !== 'object'` → lempar (`stalkdc.js:154-156`).
+    // `typeof res.data !== 'object'` → lempar.
     match r.json() {
         Some(v) if v.is_object() => Ok(v),
         _ => Err(format!("Response bukan JSON (HTTP {})", r.status)),
     }
 }
 
-/// `v || '-'` — nilai falsy JS (`null`, `false`, `0`, `""`, hilang) jadi `-`.
+/// `v || '-'` — nilai falsy versi awal (`null`, `false`, `0`, `""`, hilang) jadi `-`.
 fn atau_minus(v: Option<&Value>) -> String {
     match v {
         Some(x) if crate::common::js_truthy(Some(x)) => teks_js(Some(x)),
@@ -373,8 +364,8 @@ pub fn stalkdc(ctx: Ctx) -> Reply {
 
     let d = resp.get("data").cloned().unwrap_or(Value::Null);
     let caption = caption_sukses(&d);
-    // `d.avatar_url || d.default_avatar_url || d.avatar` (`stalkdc.js:208-209`)
-    // — string kosong di field pertama LALU ke field berikutnya.
+    // `d.avatar_url || d.default_avatar_url || d.avatar`
+    // String kosong di field pertama LALU ke field berikutnya.
     let avatar = ["avatar_url", "default_avatar_url", "avatar"]
         .iter()
         .find_map(|k| d.get(*k).and_then(Value::as_str).filter(|s| !s.is_empty()))
@@ -386,7 +377,7 @@ pub fn stalkdc(ctx: Ctx) -> Reply {
     }
 }
 
-/// `catch` JS (`stalkdc.js:216-220`) — reaksi `❌` + pesan error.
+/// `catch` versi awal — reaksi `❌` + pesan error.
 fn gagal(pesan: &str) -> Reply {
     Reply::text(format!(
         "❌ *GAGAL MELACAK AKUN*\n\nMaaf, sistem sedang mengalami gangguan saat melakukan *bypass reCAPTCHA* atau memanggil API. Silakan coba beberapa saat lagi.\n\n_Error: {pesan}_"
@@ -603,7 +594,7 @@ mod tests {
         let _ = stalkdc(ctx_of(http.clone(), "1280009524941426700"));
         assert_eq!(http.jumlah(), 4);
 
-        // 1. versi collector (`stalkdc.js:53-55`).
+        // 1. versi collector.
         let api = http.request(0);
         assert_eq!(api.method, HttpMethod::Get);
         assert_eq!(api.url, "https://www.google.com/recaptcha/api.js");
@@ -614,7 +605,7 @@ mod tests {
         assert_eq!(header(&api, "sec-ch-ua-platform"), Some("\"Android\""));
         assert_eq!(header(&api, "referer"), Some("https://www.google.com/"));
 
-        // 2. anchor (`stalkdc.js:91-93`).
+        // 2. anchor.
         let anchor = http.request(1);
         assert_eq!(anchor.method, HttpMethod::Get);
         assert!(
@@ -631,7 +622,7 @@ mod tests {
         assert!(anchor.url.contains("hl=id"));
         assert!(anchor.url.contains("size=invisible"));
 
-        // 3. reload (`stalkdc.js:108-118`).
+        // 3. reload.
         let reload = http.request(2);
         assert_eq!(reload.method, HttpMethod::Post);
         assert!(reload.url.starts_with("https://www.google.com/recaptcha/api2/reload?k="));
@@ -652,7 +643,7 @@ mod tests {
         assert!(body.contains("co=aHR0cHM6Ly93d3cuZGNsb29rdXAuaWQ6NDQz"), "{body}");
         assert!(body.contains("sa=lookup"), "{body}");
 
-        // 4. lookup (`stalkdc.js:136-149`).
+        // 4. lookup.
         let lookup = http.request(3);
         assert_eq!(lookup.method, HttpMethod::Post);
         assert_eq!(lookup.url, "https://www.dclookup.id/api/user/lookup");

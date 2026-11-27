@@ -1,30 +1,26 @@
-//! `plugins/stalker/ytstalk.js` — stalk channel YouTube lewat API Firefly.
+//! Stalk channel YouTube lewat API Firefly.
 //!
-//! Kunci `config.APIkey.firefly` dibaca dari `ctx.config()`. Nexray tidak
-//! punya endpoint `/stalker/youtube` (dicek live: 500), jadi tidak ada
-//! fallback di JS dan tidak ada di sini.
-//!
-//! `ponytail:` `m.react('🔍')` terjadi sebelum guard kunci, jadi pada cabang
-//! "kunci kosong" reaksi terakhir yang ikut adalah `❌`. `Reply::Reaction`
-//! hanya bisa membawa satu emoji, jadi hanya yang terakhir.
+//! `Keterbatasan:` `m.react('🔍')` terjadi sebelum guard kunci, jadi pada cabang "kunci
+//! kosong" reaksi terakhir yang ikut adalah `❌`. `Reply::Reaction` hanya bisa membawa satu
+//! emoji, jadi hanya yang terakhir.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `ytstalk.js:25-27` — kartu pakai saat `m.args[0]` kosong.
+/// Kartu pakai saat `m.args[0]` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📺 *ʏᴏᴜᴛᴜʙᴇ sᴛᴀʟᴋ*\n\n> Masukkan username YouTube\n\n`Contoh: {prefix}ytstalk mrbeast`"
     )
 }
 
-/// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY'), ..)`
-/// (`stalker-fallback.js:30-36`).
+/// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY')..)`
+///
 pub(crate) const MISSING_KEY: &str = "❌ *API Key belum diset!*\n\n> Command `.ytstalk` butuh `APIKEY_FIREFLY` di `.env`\n> Saat ini belum ada, jadi tidak bisa dipanggil.";
 
-/// `ytstalk.js:33` — endpoint + query `username`.
+/// Endpoint + query `username`.
 pub(crate) fn api_url(username: &str, api_key: &str) -> String {
     format!(
         "https://firefly.maiku.my.id/api/stalk-youtube?apikey={api_key}&username={}",
@@ -32,8 +28,8 @@ pub(crate) fn api_url(username: &str, api_key: &str) -> String {
     )
 }
 
-/// `String(v)` untuk nilai JSON yang masuk ke template literal. Objek dan
-/// array tidak punya `toString` yang berguna di sini, jadi `String({})` JS
+/// `String(v)` untuk nilai JSON yang masuk ke template literal. Objek
+/// array tidak punya `toString` yang berguna di sini, jadi `String({})` versi awal
 /// juga menghasilkan `[object Object]`; kedua bentuk disalin apa adanya.
 fn js_str(v: &Value) -> String {
     match v {
@@ -45,7 +41,7 @@ fn js_str(v: &Value) -> String {
     }
 }
 
-/// `ytstalk.js:46-56` — caption hasil. `about` kosong jatuh ke `-`, dan
+/// Caption hasil. `about` kosong jatuh ke `-`,
 /// `verified` truthy jadi "Ya".
 pub(crate) fn caption(c: &Value, username: &str) -> String {
     let about = match c.get("about") {

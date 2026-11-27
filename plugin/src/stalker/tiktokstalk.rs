@@ -1,15 +1,7 @@
-//! `plugins/stalker/tiktokstalk.js` — stalk akun TikTok lewat Firefly atau
-//! Nexray.
+//! Stalk akun TikTok lewat Firefly
 //!
-//! `fetchTiktokProfile` (`stalker-fallback.js:335-397`) mencoba Firefly dulu
-//! (butuh `APIKEY_FIREFLY`), lalu Nexray tanpa key.
-//!
-//! Bedanya penting: Firefly mengirim boolean untuk `verified` dan `private`,
-//! sedangkan Nexray mengirim string `"Verified"` / `"No"` dan `"Yes"`. Keduanya
-//! dinormalisasi di dalam masing-masing pemetaan, bukan setelahnya.
-//!
-//! `ponytail:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang
-//! gagal reaksi terakhir yang ikut adalah `☢`.
+//! `Keterbatasan:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang gagal reaksi
+//! terakhir yang ikut adalah `☢`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::{Value};
@@ -17,7 +9,7 @@ use serde_json::{Value};
 use super::npmstalk::{FIREFLY, NEXRAY, js_str, or_dash, short_num};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `tiktokstalk.js:38-41` — kartu pakai; username sudah dibuang `@` pertama.
+/// Kartu pakai; username sudah dibuang `@` pertama.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎵 *ᴛɪᴋᴛᴏᴋ sᴛᴀʟᴋ*\n\n> Masukkan username TikTok\n\n`Contoh: {prefix}tiktokstalk mrbeast`"
@@ -45,13 +37,13 @@ pub(crate) struct Profil {
     pub link: Value,
 }
 
-/// `raw_followers ?? followers` dan tiga pasangan lainnya — hanya `null` dan
+/// `raw_followers ?? followers` dan tiga pasangan lainnya — hanya `null`
 /// `undefined` yang jatuh ke nilai kedua.
 fn nullish<'a>(v: &'a Value, kedua: &'a Value) -> &'a Value {
     if v.is_null() { kedua } else { v }
 }
 
-/// Firefly (`stalker-fallback.js:337-361`) — `!!d.verified` dan `!!d.private`,
+/// Firefly — `!!d.verified` dan `!!d.private`,
 /// sedangkan Nexray dibaca dari stringnya.
 pub(crate) fn dari_firefly(d: &Value) -> Profil {
     let s = d.get("stats").cloned().unwrap_or_else(json_kosong);
@@ -71,7 +63,7 @@ pub(crate) fn dari_firefly(d: &Value) -> Profil {
     }
 }
 
-/// Nexray (`stalker-fallback.js:362-395`) — boolean bisa berupa string
+/// Nexray — boolean bisa berupa string
 /// `"Verified"` / `"Yes"`, dan angka punya pasangan `raw_*`.
 pub(crate) fn dari_nexray(r: &Value) -> Profil {
     let s = r.get("stats").cloned().unwrap_or_else(json_kosong);
@@ -97,7 +89,7 @@ fn json_kosong() -> Value {
     Value::Object(serde_json::Map::new())
 }
 
-/// `tiktokstalk.js:41-50` — caption. Empat angka melewati `shortNum`; dua
+/// Caption. Empat angka melewati `shortNum`; dua
 /// flag terner jadi `Ya` atau `Tidak`.
 pub(crate) fn caption(p: &Profil) -> String {
     format!(

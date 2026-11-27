@@ -1,12 +1,8 @@
-//! `plugins/stalker/robloxplayer.js` — cari pemain Roblox lewat API Neoxr.
+//! Cari pemain Roblox lewat API Neoxr.
 //!
-//! Kunci `config.APIkey.neoxr` dibaca dari `ctx.config()`.
-//! Endpoint tunggal: `GET https://api.neoxr.eu/api/roblox-search?q=…&apikey=…`
-//! (docs/rust-rewrite/ENDPOINTS.md §2).
-//!
-//! `ponytail:` JS bereaksi dua kali (`🔍` di awal, `✅`/`❌` di akhir).
-//! `Reply::with_reaction` hanya boleh satu emoji, jadi hanya reaksi akhir yang
-//! dibawa — pola yang sama sudah dicatat di `ytstalk.rs`.
+//! `Keterbatasan:` versi awal bereaksi dua kali (`🔍` di awal, `✅`/`❌` di akhir).
+//! `Reply::with_reaction` hanya boleh satu emoji, jadi hanya reaksi akhir yang dibawa —
+//! pola yang sama sudah dicatat di `ytstalk.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;

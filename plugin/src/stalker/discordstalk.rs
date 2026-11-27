@@ -1,19 +1,14 @@
-//! `plugins/stalker/discordstalk.js` — stalk akun Discord berdasarkan User ID.
+//! Stalk akun Discord berdasarkan User ID.
 //!
-//! `ponytail:` `m.react("🔍")` terjadi sebelum pemanggilan API, sementara
-//! `Reply::with_reaction` hanya mampu membawa satu reaksi — yang ikut ke
-//! balasan hanyalah reaksi penutup (`✅`/`❌`/`☢`), `🔍` hilang. Begitu pula
-//! `sock.sendMessage(..., { quoted: m })` untuk avatar tidak tersedia di
-//! `Ctx`; kirim avatar jadi `Reply::image` tanpa quoted.
-//!
-//! `d.created_at` di JS di-parse `new Date(...)` (terima string ISO). Di sini
-//! hanya angka epoch ms (atau string numerik) yang diformat; nilai lain jadi
-//! `-`. Tambahkan pemroses ISO ke `crate::common` kalau butuh ketepatan penuh.
+//! `Keterbatasan:` `m.react("🔍")` terjadi sebelum pemanggilan API, sementara
+//! `Reply::with_reaction` hanya mampu membawa satu reaksi — yang ikut ke balasan hanyalah
+//! reaksi penutup (`✅`/`❌`/`☢`), `🔍` hilang. Begitu pula `sock.sendMessage(..., { quoted: m
+//! })` untuk avatar tidak tersedia di `Ctx`; kirim avatar jadi `Reply::image` tanpa quoted.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `discordstalk.js:28-31` — kartu pakai saat `userId` kosong.
+/// Kartu pakai saat `userId` kosong.
 fn help(prefix: &str) -> String {
     format!(
         "🎮 *ᴅɪsᴄᴏʀᴅ sᴛᴀʟᴋ*\n\n\
@@ -22,7 +17,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `discordstalk.js:42` — endpoint + query `id` dan `apikey` (key boleh kosong).
+/// Endpoint + query `id` dan `apikey` (key boleh kosong).
 /// `userId` sudah divalidasi hanya angka, jadi tidak perlu di-encode.
 fn api_url(user_id: &str, api_key: &str) -> String {
     format!(
@@ -42,8 +37,8 @@ fn js_str(v: &Value) -> String {
     }
 }
 
-/// `discordstalk.js:55-57` — `fromTimestamp(created_at, "D MMMM YYYY")`.
-/// Hanya epoch ms (detik sebagai string numerik juga diterima) yang
+/// `fromTimestamp(created_at, "D MMMM YYYY")`.
+/// Hanya epoch ms (detik sebagai string numerik juga diterima)
 /// diformat ke zona Asia/Jakarta; yang tak tertolak jadi `-`.
 fn created_at_text(value: Option<&Value>) -> String {
     let ms = match value {
@@ -65,7 +60,7 @@ fn created_at_text(value: Option<&Value>) -> String {
     }
 }
 
-/// `${d.key || "-"}` — nilai falsy JS (`null`, `0`, `""`, `false`, hilang)
+/// `${d.key || "-"}` — nilai falsy versi awal (`null`, `0`, `""`, `false`, hilang)
 /// jadi `-`.
 fn field_str(d: &Value, key: &str) -> String {
     match d.get(key) {
@@ -74,7 +69,7 @@ fn field_str(d: &Value, key: &str) -> String {
     }
 }
 
-/// `discordstalk.js:59-66` — caption hasil stalk.
+/// Caption hasil stalk.
 fn caption(d: &Value) -> String {
     let discriminator = match d.get("discriminator") {
         Some(v) if crate::common::js_truthy_value(v) => js_str(v),
@@ -137,7 +132,7 @@ pub fn discordstalk(ctx: Ctx) -> Reply {
     };
 
     let caption_text = caption(d);
-    // `if (d.avatar_url)` — nilai falsy JS tidak dikirim sebagai gambar.
+    // `if (d.avatar_url)` — nilai falsy versi awal tidak dikirim sebagai gambar.
     let avatar = d
         .get("avatar_url")
         .filter(|v| crate::common::js_truthy_value(v))
@@ -263,7 +258,7 @@ mod tests {
                 "alias {a}"
             );
         }
-        // JS `plugins.js:539-544` cek map `commands` dulu, baru `aliases`:
+        // versi awal cek map `commands` dulu, baru `aliases`:
         // command `stalkdc` (plugin `stalkdc`) menang atas alias plugin ini.
         assert_eq!(
             oktz_plugin_api::find("stalkdc").unwrap().meta.name,
@@ -327,7 +322,7 @@ mod tests {
     #[test]
     fn berhasil_dengan_avatar_mengirim_gambar_dengan_caption() {
         // 1768564200000 = 2026-01-16T11:50:00Z, WIB 18:50 → 16 Januari 2026
-        // (`discordstalk.js:55-57`).
+        //
         let created_at = 1_768_564_200_000i64;
         let body = serde_json::json!({
             "status": true,
@@ -343,7 +338,7 @@ mod tests {
         let http = Stub::body(body.clone());
         let r = run(http.clone(), "297574907510784000");
         assert_eq!(reaction_of(&r), Some("✅"));
-        // Balasan dibungkus reaksi ✅ (`discordstalk.js:68-78`), jadi isi pesan
+        // Balasan dibungkus reaksi ✅, jadi isi pesan
         // diambil dari dalam `Reply::Reaction`.
         let Reply::Reaction { reply: isi, .. } = r.without_mutations() else {
             panic!("harus dibungkus reaksi");

@@ -1,13 +1,9 @@
-//! `plugins/stalker/genshinstalk.js` — stalk akun Genshin Impact berdasarkan UID.
+//! Stalk akun Genshin Impact berdasarkan UID.
 //!
-//! `ponytail:` JS bereaksi dua kali (`🕕` lalu `✅`/`❌`), sementara
-//! `Reply::with_reaction` hanya satu emoji — hanya reaksi akhir (`✅` /
-//! `❌`/`☢`) yang dibawa. Header `User-Agent` dikirim lewat `HttpCall::call`.
-//! `sock.sendMessage` dengan `quoted: m` tidak tersedia; image dikirim tanpa
-//! quote.
-//!
-//! Catatan: baris `pub mod genshinstalk;` perlu ditambah ke `stalker/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` versi awal bereaksi dua kali (`🕕` lalu `✅`/`❌`), sementara
+//! `Reply::with_reaction` hanya satu emoji — hanya reaksi akhir (`✅` / `❌`/`☢`) yang
+//! dibawa. Header `User-Agent` dikirim lewat `HttpCall::call`. `sock.sendMessage` dengan
+//! `quoted: m` tidak tersedia; image dikirim tanpa quote.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;

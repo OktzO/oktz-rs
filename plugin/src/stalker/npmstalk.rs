@@ -1,13 +1,7 @@
-//! `plugins/stalker/npmstalk.js` — stalk akun NPM lewat Firefly atau Nexray.
+//! Stalk akun NPM lewat Firefly atau Nexray.
 //!
-//! Data diambil dengan `fetchNpmProfile` (`stalker-fallback.js:211-262`) yang
-//! mencoba Firefly dulu (butuh `APIKEY_FIREFLY`), lalu Nexray sebagai cadangan
-//! (tanpa key). Dua bentuk respons dinormalisasi ke shape yang sama sebelum
-//! caption dirakit.
-//!
-//! `ponytail:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang
-//! gagal reaksi terakhir yang ikut adalah `☢`. `Reply::Reaction` hanya bisa
-//! membawa satu emoji.
+//! `Keterbatasan:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang gagal reaksi
+//! terakhir yang ikut adalah `☢`. `Reply::Reaction` hanya bisa membawa satu emoji.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -18,14 +12,14 @@ use crate::tools::phisingataubukan::encode_uri_component;
 pub(crate) const NEXRAY: &str = "https://api.nexray.eu.cc";
 pub(crate) const FIREFLY: &str = "https://firefly.maiku.my.id";
 
-/// `npmstalk.js:26-29` — kartu pakai saat `m.args[0]` kosong.
+/// Kartu pakai saat `m.args[0]` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📦 *ɴᴘᴍ sᴛᴀʟᴋ*\n\n> Masukkan username NPM\n\n`Contoh: {prefix}npmstalk hanya_zann`"
     )
 }
 
-/// `shortNum(num)` (`npmstalk.js:17-24`).
+/// `shortNum(num)`.
 ///
 /// `parseInt` tanpa radix memotong di karakter non-digit; `toFixed(1)` lalu
 /// `.replace('.0', '')` menghapus hanya kemunculan PERTAMA, jadi `10.05` tetap
@@ -99,7 +93,7 @@ pub(crate) fn js_str(v: &Value) -> String {
     }
 }
 
-/// Bentuk ternormalisasi dari `fetchNpmProfile` (`stalker-fallback.js:224-233`).
+/// Bentuk ternormalisasi dari `fetchNpmProfile`.
 #[derive(Debug, Clone)]
 pub(crate) struct Profil {
     pub username: String,
@@ -111,8 +105,8 @@ pub(crate) struct Profil {
     pub packages: Vec<Value>,
 }
 
-/// Firefly (`stalker-fallback.js:213-234`). `description` menyalin `d.name`,
-/// bukan `d.description` — itu yang ditulis JS dan tidak dibetulkan di sini.
+/// Firefly. `description` menyalin `d.name`,
+/// bukan `d.description` — itu yang ditulis versi awal dan tidak dibetulkan di sini.
 pub(crate) fn dari_firefly(d: &Value) -> Profil {
     Profil {
         username: js_str(&d["username"]),
@@ -130,7 +124,7 @@ pub(crate) fn dari_firefly(d: &Value) -> Profil {
     }
 }
 
-/// Nexray (`stalker-fallback.js:237-258`). `avatar` selalu kosong di sini,
+/// Nexray. `avatar` selalu kosong di sini,
 /// jadi caption dikirim tanpa gambar.
 pub(crate) fn dari_nexray(r: &Value) -> Profil {
     let nama = js_str(&r["name"]);
@@ -149,7 +143,7 @@ pub(crate) fn dari_nexray(r: &Value) -> Profil {
     }
 }
 
-/// `npmstalk.js:41-55` — caption. Maksimal lima package, masing-masing tiga
+/// Caption. Maksimal lima package, masing-masing tiga
 /// baris dan satu baris kosong.
 pub(crate) fn caption(p: &Profil) -> String {
     let mut txt = format!(
@@ -490,7 +484,7 @@ mod tests {
 
     #[test]
     fn profil_firefly_menyalin_description_dari_name() {
-        // `stalker-fallback.js:229` menulis `description: d.name`. Itu yang
+        // menulis `description: d.name`. Itu
         // di-copy, bukan `d.description`.
         let d = serde_json::json!({"username":"u","name":"Nama","email":"e","description":"BIO","profile":"p"});
         let p = dari_firefly(&d);

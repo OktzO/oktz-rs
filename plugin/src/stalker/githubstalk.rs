@@ -1,13 +1,7 @@
-//! `plugins/stalker/githubstalk.js` — stalk akun GitHub lewat Firefly atau
-//! Nexray.
+//! Stalk akun GitHub lewat Firefly
 //!
-//! `fetchGithubProfile` (`stalker-fallback.js:87-137`) mencoba Firefly dulu
-//! (butuh `APIKEY_FIREFLY`), lalu Nexray tanpa key. Nexray memakai nama field
-//! berbeda (`nickname`, `profile_pic`, `public_repo`), jadi bentuk responsnya
-//! dipetakan terpisah lalu disamakan di dalam `Profil`.
-//!
-//! `ponytail:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang
-//! gagal reaksi terakhir yang ikut adalah `☢`.
+//! `Keterbatasan:` `m.react('🔍')` terjadi sebelum permintaan, jadi pada cabang gagal reaksi
+//! terakhir yang ikut adalah `☢`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -15,7 +9,7 @@ use serde_json::Value;
 use super::npmstalk::{FIREFLY, NEXRAY, js_str, or_dash};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `githubstalk.js:26-29` — kartu pakai saat `m.args[0]` kosong.
+/// Kartu pakai saat `m.args[0]` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🐙 *ɢɪᴛʜᴜʙ sᴛᴀʟᴋ*\n\n> Masukkan username GitHub\n\n`Contoh: {prefix}githubstalk torvalds`"
@@ -37,7 +31,7 @@ pub(crate) struct Profil {
     pub following: Value,
 }
 
-/// Firefly (`stalker-fallback.js:95-109`).
+/// Firefly.
 pub(crate) fn dari_firefly(d: &Value) -> Profil {
     Profil {
         username: js_str(&d["username"]),
@@ -53,7 +47,7 @@ pub(crate) fn dari_firefly(d: &Value) -> Profil {
     }
 }
 
-/// Nexray (`stalker-fallback.js:110-132`) — nama fieldnya berbeda.
+/// Nexray — nama fieldnya berbeda.
 pub(crate) fn dari_nexray(r: &Value) -> Profil {
     Profil {
         username: js_str(&r["username"]),
@@ -78,7 +72,7 @@ fn nullish(v: &Value) -> String {
     }
 }
 
-/// `githubstalk.js:38-49` — caption. `name`/`company`/`location`/`bio`
+/// Caption. `name`/`company`/`location`/`bio`
 /// memakai `|| '-'`, tiga angka Repo/Followers/Following memakai `?? 0`.
 pub(crate) fn caption(p: &Profil) -> String {
     format!(
@@ -153,7 +147,7 @@ pub fn githubstalk(ctx: Ctx) -> Reply {
     };
 
     let teks = caption(&profil);
-    // `if (d.avatar)` di JS: `undefined` itu falsy. `js_str` akan
+    // `if (d.avatar)` di versi awal: `undefined` itu falsy. `js_str` akan
     // menulis `"null"` untuk JSON null, jadi yang dicek truthiness-nya, bukan
     // string kosongnya.
     let ada_avatar = crate::common::js_truthy_value(&profil.avatar);

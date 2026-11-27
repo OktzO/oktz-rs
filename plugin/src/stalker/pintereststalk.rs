@@ -1,12 +1,8 @@
-//! `plugins/stalker/pintereststalk.js` — informasi akun Pinterest lewat Nexray.
+//! Informasi akun Pinterest lewat Nexray.
 //!
-//! Plugin ini satu-satunya di folder stalker yang TIDAK memakai rantai
-//! `withFallback`: satu GET langsung ke `api.nexray.eu.cc` dengan header
-//! `User-Agent` khusus, tanpa kunci API.
-//!
-//! `ponytail:` reaksi `🕕` terjadi sebelum permintaan. Karena `Reply::Reaction`
-//! hanya bisa membawa satu emoji, yang ikut adalah reaksi terakhir: `❌` saat
-//! profil tidak ditemukan, `✅` setelah caption terkirim, `☢` saat gagal.
+//! `Keterbatasan:` reaksi `🕕` terjadi sebelum permintaan. Karena `Reply::Reaction` hanya
+//! bisa membawa satu emoji, yang ikut adalah reaksi terakhir: `❌` saat profil tidak
+//! ditemukan, `✅` setelah caption terkirim, `☢` saat gagal.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::{Value};
@@ -14,21 +10,21 @@ use serde_json::{Value};
 use super::npmstalk::{NEXRAY, js_str, or_dash};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `pintereststalk.js:31` — header khusus plugin ini.
+/// Header khusus plugin ini.
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
 
-/// `pintereststalk.js:23-25` — pesan tanpa username.
+/// Pesan tanpa username.
 pub(crate) const MISSING_USERNAME: &str = "❌ *Waduh, username Pinterest-nya belum dimasukkan!*\n\nKamu harus mengetikkan username Pinterest yang ingin di-stalk. \n\nContoh: `.pintereststalk dims`";
 
-/// `pintereststalk.js:40` — profil tidak ditemukan.
+/// Profil tidak ditemukan.
 pub(crate) fn not_found(username: &str) -> String {
     format!("⚠️ *Pencarian Gagal!*\n\nUsername *{username}* tidak ditemukan di Pinterest. Pastikan penulisannya sudah benar ya.")
 }
 
-/// `pintereststalk.js:78` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const FAILED: &str = "😔 *Terjadi masalah di sistem kami.* \n\nSistem gagal menarik data dari server Pinterest. Silakan coba beberapa saat lagi ya.";
 
-/// `pintereststalk.js:34` — endpoint + query `username`.
+/// Endpoint + query `username`.
 pub(crate) fn api_url(username: &str) -> String {
     format!(
         "{NEXRAY}/stalker/pinterest?username={}",
@@ -57,7 +53,7 @@ pub(crate) fn pilih_gambar(image: &Value) -> String {
     String::new()
 }
 
-/// `pintereststalk.js:48-63` — caption.
+/// Caption.
 pub(crate) fn caption(r: &Value, username: &str) -> String {
     let s = r.get("stats").cloned().unwrap_or_else(|| serde_json::json!({}));
     let txt = format!(
