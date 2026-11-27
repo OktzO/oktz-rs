@@ -1,9 +1,4 @@
-//! `plugins/utility/notiftidur.js` — pengingat tidur di
-//! `settings.notifTidur[sender_chat]`.
-//!
-//! Bentuk entry-nya lebih tipis dari makan (`notif-scheduler.js:168-181` tidak
-//! menulis `menu`), dan tampilannya tidak memakai label jam. Pembagian helper
-//! ada di [`crate::utility::notifmakan`].
+//! Pengingat tidur
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};

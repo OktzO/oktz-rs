@@ -1,12 +1,11 @@
-//! `plugins/utility/notifmakan.js` — pengaturan pengingat makan di
-//! `settings.notifMakan[sender_chat]`.
+//! Pengaturan pengingat makan
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
 
 pub(crate) const SETTING_KEY: &str = "notifMakan";
 
-/// `parseJadwal` (`notif-scheduler.js:205-217`) — `^(\d{1,2})[.:](\d{2})$`,
+/// `parseJadwal` — `^(\d{1,2})[.:](\d{2})$`,
 /// hasil dinormalkan ke `HH:MM`, didedupe, lalu diurutkan.
 pub(crate) fn parse_jadwal(input: &str) -> Vec<String> {
     let mut out: Vec<String> = input
@@ -82,7 +81,7 @@ pub(crate) fn put_notif(ctx: &Ctx, key: &str, mut store: serde_json::Map<String,
     }
 }
 
-/// `setNotifMakan` (`notif-scheduler.js:150-166`) — `lastSent`/`createdAt`
+/// `setNotifMakan` — `lastSent`/`createdAt`
 /// lama dipertahankan.
 pub(crate) fn set_notif_makan(
     ctx: &Ctx,
@@ -120,7 +119,7 @@ pub(crate) fn set_notif_makan(
     )
 }
 
-/// `existing ? (existing.enabled ? '✅ Aktif' : '❌ Nonaktif') : '⚪ Belum diatur'`
+/// `existing ? (existing.enabled ? '✅ Aktif': '❌ Nonaktif'): '⚪ Belum diatur'`
 pub(crate) fn status_of(existing: Option<&Value>) -> &'static str {
     match existing {
         None => "⚪ Belum diatur",

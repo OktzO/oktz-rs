@@ -1,17 +1,17 @@
-//! `plugins/utility/inspect.js` — info grup atau saluran WhatsApp via link.
+//! Info grup atau saluran WhatsApp via link.
 //!
-//! `ponytail:` `sock.groupGetInviteInfo` dan `sock.newsletterMsg` butuh I/O
-//! Baileys yang tidak ada di `Ctx`; handler untuk teks tidak kosong diakhiri
-//! dengan `error_template` + `☢`, pola `swm.rs`. Fungsi pemola pola (regex)
-//! dan teks pakai di-port agar bisa diuji. Saat `sock` tersedia, tambahkan
-//! `pub mod inspect;` di `src/utility/mod.rs` secara manual (mod.rs milik
-//! plugin lain — dilarang menyentuh per brief).
+//! `Keterbatasan:` `sock.groupGetInviteInfo` dan `sock.newsletterMsg` butuh I/O Baileys
+//! yang tidak ada di `Ctx`; handler untuk teks tidak kosong diakhiri dengan
+//! `error_template` + `☢`, pola `swm.rs`. Fungsi pemola pola (regex) dan teks pakai
+//! diimplementasikan agar bisa diuji. Saat `sock` tersedia, tambahkan `pub mod inspect;` di
+//! `src/utility/mod.rs` secara manual (mod.rs milik plugin lain — dilarang menyentuh per
+//! brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `m.react('🔍')` tidak tersedia sebagai reaksi tunggal terpisah dari balasan;
-// dicatat di `ponytail:` di atas.
-/// Kartu pakai (`inspect.js:22-28`).
+// dicatat di `Keterbatasan:` di atas.
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🔍 *ɪɴsᴘᴇᴄᴛ*\n\n\
@@ -66,8 +66,8 @@ pub(crate) fn id_saluran(text: &str) -> Option<String> {
     }
 }
 
-/// `!isNaN(text)` (`inspect.js:88`) — `Number(text)` bukan `NaN`. String kosong
-/// dan spasi jadi 0 di JS, jadi ikut `true`.
+/// `!isNaN(text)` — `Number(text)` bukan `NaN`. String kosong
+/// dan spasi jadi 0 di versi awal, jadi ikut `true`.
 #[cfg(test)]
 pub(crate) fn adalah_angka_js(text: &str) -> bool {
     let bersih = text.trim();
@@ -77,7 +77,7 @@ pub(crate) fn adalah_angka_js(text: &str) -> bool {
     bersih.parse::<f64>().is_ok()
 }
 
-/// Saluran valid: cocok pola, atau berakhir `@newsletter`, atau angka (`inspect.js:88`).
+/// Saluran valid: cocok pola, atau berakhir `@newsletter`, atau angka.
 #[cfg(test)]
 pub(crate) fn saluran_valid(text: &str) -> bool {
     id_saluran(text).is_some()
@@ -117,10 +117,10 @@ mod tests {
 
     #[test]
     fn meta_dan_alias() {
-        // JS `getPlugin` mengecek map `commands` (nama) SEBELUM `aliases`
-        // (`src/lib/plugins.js:334-341`), jadi `.inspect` menunjuk plugin
+        // versi awal `getPlugin` mengecek map `commands` (nama) SEBELUM `aliases`
+        // , jadi `.inspect` menunjuk plugin
         // ini walau `q` juga memakai `inspect` sebagai alias
-        // (`plugins/owner/q.js:4`). `find()` Rust mencocokkan nama+alias urut
+        // . `find()` Rust mencocokkan nama+alias urut
         // registrasi, jadi lookup di sini harus lewat nama.
         let p = oktz_plugin_api::all_plugins()
             .iter()
