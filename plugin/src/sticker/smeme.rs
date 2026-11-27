@@ -1,22 +1,8 @@
-//! `plugins/sticker/smeme.js` — sticker meme dari gambar (memegen.link).
+//! Sticker meme dari gambar (memegen.link).
 //!
-//! Alur yang diport apa adanya (`smeme.js:25-127`):
-//! - Guard: pesan pemicu atau pesan yang di-reply harus gambar/sticker.
-//! - Format `top|bottom` — teks dipecah pada `|` lalu di-`trim()`.
-//! - Unduh media: pesan yang di-reply dulu kalau memang media, baru pesan
-//!   pemicu (`smeme.js:48-52`).
-//! - Unggah gambar ke Telegraph (`https://telegra.ph/upload`, multipart dengan
-//!   field `file`), lalu `src` digabung dengan `https://telegra.ph`
-//!   (`smeme.js:79-89`).
-//! - URL meme `api.memegen.link/images/custom/<top>/<bottom>.png?background=<url>`
-//!   (`smeme.js:107`), hasilnya dikirim sebagai sticker.
-//! - Semua teks balasan (kartu pakai, format, gagal unduh, gagal upload)
-//!   persis seperti JS.
-//!
-//! `ponytail:` JS mengunggah gambar 512x512 `contain` transparan ke Telegraph
-//! (`smeme.js:58-67`); `gambar` Rust tidak punya mode itu, jadi gambar
-//! diunggah apa adanya (dikonversi PNG kalau bisa) — memegen menyesuaikan
-//! ukuran latar sendiri.
+//! `Keterbatasan:` versi awal mengunggah gambar 512x512 `contain` transparan ke Telegraph;
+//! `gambar` Rust tidak punya mode itu, jadi gambar diunggah apa adanya (dikonversi PNG
+//! kalau bisa) — memegen menyesuaikan ukuran latar sendiri.
 
 use oktz_plugin_api::registry::{IncomingKind, MultipartPart};
 use oktz_plugin_api::{Ctx, EXIF_EMOJIS, HttpCall, MediaSource, Reply, StickerOpsi, plugin};
@@ -24,27 +10,27 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `smeme.js:32` — kartu pakai saat tidak ada gambar.
+/// Kartu pakai saat tidak ada gambar.
 pub(crate) fn pakai(prefix: &str, command: &str) -> String {
     format!(
         "😂 *ᴍᴇᴍᴇ sᴛɪᴄᴋᴇʀ*\n\n> Reply atau kirim gambar/sticker dengan caption\n\n`Contoh: {prefix}{command} Top|Bottom`"
     )
 }
 
-/// `smeme.js:38` — format `top|bottom` salah.
+/// Format `top|bottom` salah.
 pub(crate) fn format_salah(prefix: &str, command: &str) -> String {
     format!(
         "😂 *ᴍᴇᴍᴇ sᴛɪᴄᴋᴇʀ*\n\n> Format: top|bottom\n\n`Contoh: {prefix}{command} Ketika|Kamu Lupa`"
     )
 }
 
-/// `smeme.js:55` — media gagal diunduh.
+/// Media gagal diunduh.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh media";
 
-/// `smeme.js:95` — unggah gambar gagal.
+/// Unggah gambar gagal.
 pub(crate) const GAGAL_UPLOAD: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal upload gambar, coba lagi nanti";
 
-/// `smeme.js:98-104` — `encodeText` untuk memegen: teks kosong jadi `_`, lalu
+/// `encodeText` untuk memegen: teks kosong jadi `_`, lalu
 /// `encodeURIComponent` dengan `-` → `--`, `_` → `__`, `%20` → `_`.
 pub(crate) fn encode_text(teks: &str) -> String {
     if teks.is_empty() {
@@ -56,7 +42,7 @@ pub(crate) fn encode_text(teks: &str) -> String {
         .replace("%20", "_")
 }
 
-/// `smeme.js:107` — URL meme.
+/// URL meme.
 pub(crate) fn url_meme(top: &str, bottom: &str, background: &str) -> String {
     format!(
         "https://api.memegen.link/images/custom/{}/{}.png?background={}",
@@ -66,7 +52,7 @@ pub(crate) fn url_meme(top: &str, bottom: &str, background: &str) -> String {
     )
 }
 
-/// `smeme.js:79-89` — unggah ke Telegraph; balikannya `src` absolut.
+/// Unggah ke Telegraph; balikannya `src` absolut.
 pub(crate) fn url_telegraph(body: &Value) -> Option<String> {
     let src = body
         .get(0)
@@ -77,7 +63,7 @@ pub(crate) fn url_telegraph(body: &Value) -> Option<String> {
 }
 
 /// Konversi gambar ke PNG — padanan `.png()` sharp. Kalau gagal, byte asli
-/// dipakai apa adanya (cabang `catch` di `smeme.js:68-71`).
+/// dipakai apa adanya.
 fn ke_png(media: &[u8]) -> Vec<u8> {
     match oktz_plugin_api::gambar::sharp(media) {
         Ok(gambar) => gambar.ke_png().unwrap_or_else(|_| media.to_vec()),
@@ -102,7 +88,7 @@ fn ke_png(media: &[u8]) -> Vec<u8> {
     is_bot_admin = false
 )]
 pub fn smeme(ctx: Ctx) -> Reply {
-    // `smeme.js:26-30` — guard gambar/sticker.
+    // Guard gambar/sticker.
     let ada_gambar = ctx.is_media_kind(IncomingKind::Image)
         || ctx.is_media_kind(IncomingKind::Sticker)
         || ctx
@@ -112,19 +98,19 @@ pub fn smeme(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix, &ctx.command));
     }
 
-    // `m.args.join(" ")` (`smeme.js:35`).
+    // `m.args.join(" ")`.
     let input = ctx.args.join(" ");
     if input.is_empty() || !input.contains('|') {
         return Reply::text(format_salah(&ctx.prefix, &ctx.command));
     }
 
-    // `input.split("|").map(s => s.trim())` — hanya dua bagian pertama yang
-    // dipakai (`smeme.js:41`).
+    // `input.split("|").map(s => s.trim())` — hanya dua bagian pertama
+    // dipakai.
     let mut bagian = input.split('|');
     let top = bagian.next().unwrap_or("").trim().to_string();
     let bottom = bagian.next().unwrap_or("").trim().to_string();
 
-    // `smeme.js:48-52` — media yang di-reply dulu kalau memang media, lalu
+    // Media yang di-reply dulu kalau memang media, lalu
     // pesan pemicu.
     let media = if ctx.quoted().is_some_and(|q| q.is_media()) {
         ctx.download_quoted_media().ok()
@@ -137,7 +123,7 @@ pub fn smeme(ctx: Ctx) -> Reply {
         return Reply::text(GAGAL_UNDUH).with_reaction("❌");
     };
 
-    // `smeme.js:72-77` — unggah ke Telegraph.
+    // Unggah ke Telegraph.
     let png = ke_png(&media);
     let Ok(res) = ctx.http.call(
         &HttpCall::post("https://telegra.ph/upload").multipart(vec![MultipartPart::file(
@@ -154,7 +140,7 @@ pub fn smeme(ctx: Ctx) -> Reply {
         return Reply::text(GAGAL_UPLOAD).with_reaction("❌");
     };
 
-    // `smeme.js:108-116` — unduh meme jadi sticker.
+    // Unduh meme jadi sticker.
     let Ok(res) = ctx.http.call(
         &HttpCall::get(url_meme(&top, &bottom, &background)).header(
             "User-Agent",
@@ -168,7 +154,7 @@ pub fn smeme(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
 
-    // `smeme.js:108-116` → `sendImageAsSticker` (`socket.js:523-560`): hasil
+    // → `sendImageAsSticker`: hasil
     // memegen adalah PNG — WA menolak sticker yang byte-nya bukan WebP
     // (mimetype wire selalu `image/webp`), jadi wajib konversi + EXIF dulu.
     let (packname, author) = crate::sticker::sticker::metadata(&ctx, None, None);
@@ -392,7 +378,7 @@ mod tests {
 
     #[test]
     fn hasil_memegen_png_dikonversi_webp_dengan_exif() {
-        // sendImageAsSticker (smeme.js:58): PNG dari memegen wajib jadi WebP,
+        // sendImageAsSticker: PNG dari memegen wajib jadi WebP,
         // bukan dikirim mentah — WA menolak sticker ber-byte PNG.
         let png = std::fs::read("../assets/image/foto.jpeg").expect("baca foto.jpeg");
         #[derive(Debug)]

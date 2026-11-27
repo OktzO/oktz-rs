@@ -1,36 +1,25 @@
-//! `plugins/sticker/ttp.js` — teks ke gambar/stiker (kanvas 512x512).
+//! Teks ke gambar/stiker (kanvas 512x512).
 //!
-//! Yang diport: kartu pakai saat teks kosong dan teks gagal dari JS.
-//!
-//! `ponytail:` render teks (`ttp.js:30-70`: `createCanvas`, `measureText`,
-//! `fillText`, `canvas.encode("png")`) butuh rasterizer teks + font;
-//! `oktz_plugin_api::gambar` hanya bisa resize/grayscale/encode. Jadi jalur
-//! teks berakhir di teks error JS (`ttp.js:82`) + `☢`, sama seperti
-//! `sticker/attp2.rs`. Reaksi `🕕` (`ttp.js:27`) tidak dikirim:
-//! `with_reaction` hanya membawa satu reaksi dan JS menimpanya dengan `☢`
-//! (`ttp.js:81`). `console.error("[TTP Maker]", err.message)` (`ttp.js:80`)
-//! tidak punya padanan log di kontrak plugin. Saat rasterizer teks ada:
-//! kanvas 512x512 → `Reply::sticker(...)` + `✅`. `packname`/`author`
-//! (`config.sticker`) tidak ada di `Reply::Sticker`.
-//!
-//! Kategori plugin ini `maker` (`ttp.js:7`), tapi berkasnya ada di
-//! `plugin/src/sticker/` mengikuti `plugins/sticker/ttp.js`.
-//!
-//! `NOTE (mod.rs):` tambahkan `pub mod ttp;` ke `sticker/mod.rs` secara
-//! manual kalau berkas ini didaftarkan (mod.rs bukan milik tugas ini).
+//! `Keterbatasan:` render teks`) butuh rasterizer teks + font; `oktz_plugin_api::gambar`
+//! hanya bisa resize/grayscale/encode. Jadi jalur teks berakhir di teks error versi awal +
+//! `☢`, sama seperti `sticker/attp2.rs`. Reaksi `🕕` tidak dikirim: `with_reaction` hanya
+//! membawa satu reaksi dan versi awal menimpanya dengan `☢`. `console.error("[TTP Maker]",
+//! err.message)` tidak punya padanan log di kontrak plugin. Saat rasterizer teks ada:
+//! kanvas 512x512 → `Reply::sticker(...)` + `✅`. `packname`/`author` (`config.sticker`)
+//! tidak ada di `Reply::Sticker`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Kartu pakai saat teks kosong (`ttp.js:24`).
+/// Kartu pakai saat teks kosong.
 ///
-/// Prefix di JS TIDAK diinterpolasi — teksnya literal `.ttp`, bukan
+/// Prefix di versi awal TIDAK diinterpolasi — teksnya literal `.ttp`, bukan
 /// `${m.prefix}ttp`, jadi biarkan apa adanya.
 pub(crate) const PAKAI: &str = "❌ *Waduh, teksnya mana nih?*\n\n\
 Kamu harus memasukkan teks yang ingin dijadikan stiker.\n\n\
 Contoh: `.ttp Hai Cantik`";
 
-/// Teks gagal render (`ttp.js:82`) — perhatikan spasi sebelum `\n` pertama,
-/// JS menulis `* \n\n`.
+/// Teks gagal render — perhatikan spasi sebelum `\n` pertama,
+/// versi awal menulis `* \n\n`.
 pub(crate) const GAGAL: &str = "😔 *Terjadi masalah di sistem kami.* \n\n\
 Sistem gagal menghubungi server pembuat stiker. Silakan coba beberapa saat lagi ya.";
 
@@ -51,7 +40,7 @@ Sistem gagal menghubungi server pembuat stiker. Silakan coba beberapa saat lagi 
     is_bot_admin = false
 )]
 pub fn ttp(ctx: Ctx) -> Reply {
-    // `m.args.join(" ") || m.text?.trim()` (`ttp.js:21`).
+    // `m.args.join(" ") || m.text?.trim()`.
     let dari_args = ctx.args.join(" ");
     let text = if dari_args.is_empty() {
         ctx.text.trim().to_string()
@@ -63,7 +52,7 @@ pub fn ttp(ctx: Ctx) -> Reply {
         return Reply::text(PAKAI);
     }
 
-    // Rasterizer teks belum ada di Rust — lihat `ponytail:` di atas.
+    // Rasterizer teks belum ada di Rust — lihat `Keterbatasan:` di atas.
     Reply::text(GAGAL).with_reaction("☢")
 }
 

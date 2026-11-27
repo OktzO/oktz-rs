@@ -1,11 +1,11 @@
-// Modul plugin kategori `sticker` — cerminan `oktz-md/plugins/sticker/*.js`.
+// Modul plugin kategori `sticker` — cerminan.
 //
-// `ttp.rs` ikut di sini: berkasnya ada di `plugins/sticker/ttp.js` dan
+// `ttp.rs` ikut di sini: berkasnya ada
 // kategori `maker` tidak punya folder modul sendiri, jadi paling aman
 // mendeklarasikan modulnya di sini sementara `PluginMeta::category`
-// tetap `"maker"` mengikuti JS (`ttp.js:8`).
+// tetap `"maker"` mengikuti versi awal.
 //
-// `bratgreen`/`bratanime`/`bratcewek` hidup di `bratstatic.rs` dan
+// `bratgreen`/`bratanime`/`bratcewek` hidup di `bratstatic.rs`
 // `bratvid2`/`bratlocal` di `bratvid.rs` — jangan daftarkan berkas lama
 // versi HTTP (bratgreen.rs, animebrat.rs, bratcewek.rs, bratvid2.rs);
 // mendeklarasikan keduanya membuat key registry dobel.
@@ -22,7 +22,7 @@ pub mod qc;
 pub mod saudio;
 pub mod smeme;
 pub mod smemevid;
-// Folder `sticker/` meniru layout `plugins/sticker/` di JS, jadi modul
+// Folder `sticker/` meniru layout `plugins/sticker/` di versi awal, jadi modul
 // `sticker` di dalamnya memang sengaja bernama sama dengan folder induknya.
 #[allow(clippy::module_inception)]
 pub mod sticker;
@@ -31,7 +31,7 @@ pub mod stickerpack;
 pub mod swm;
 pub mod ttp;
 
-// Nama berkasnya memakai tanda hubung (`smeme-animated.js` → `smeme-animated.rs`),
+// Nama berkasnya memakai tanda hubung,
 // jadi modul perlu `#[path]` agar Rust mencarinya dengan nama itu.
 #[path = "smeme-animated.rs"]
 pub mod smeme_animated;

@@ -1,30 +1,29 @@
-//! `plugins/sticker/attp2.js` — sticker animasi teks lewat canvas.
+//! Sticker animasi teks lewat canvas.
 //!
-//! `ponytail:` `@napi-rs/canvas`, `addExifToWebp` (encoder WebP + EXIF), dan
-//! `sock.sendMessage({sticker})` tidak tersedia di `Ctx`/`Reply`; sticker
-//! animasi tidak dapat dihasilkan. Teks pakai dan jumlah frame di-port agar
-//! bisa diuji. Handler untuk teks diakhiri `error_template` + `☢` (pola
-//! `swm.rs`). Saat canvas + encoder WebP tersedia, tambahkan
-//! `pub mod attp2;` di `src/sticker/mod.rs` secara manual (mod.rs milik plugin
-//! lain — dilarang menyentuh per brief).
+//! `Keterbatasan:` `@napi-rs/canvas`, `addExifToWebp` (encoder WebP + EXIF), dan
+//! `sock.sendMessage({sticker})` tidak tersedia di `Ctx`/`Reply`; sticker animasi tidak
+//! dapat dihasilkan. Teks pakai dan jumlah frame diimplementasikan agar bisa diuji. Handler
+//! untuk teks diakhiri `error_template` + `☢` (pola `swm.rs`). Saat canvas + encoder WebP
+//! tersedia, tambahkan `pub mod attp2;` di `src/sticker/mod.rs` secara manual (mod.rs milik
+//! plugin lain — dilarang menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Jumlah frame animasi (`attp2.js:18`).
+/// Jumlah frame animasi.
 #[cfg(test)]
 pub(crate) const FRAMES: usize = 8;
 
-/// Ukuran canvas (`attp2.js:20`).
+/// Ukuran canvas.
 #[cfg(test)]
 pub(crate) const CANVAS_SIZE: u32 = 512;
 
-/// Warna tiap frame (`attp2.js:19`).
+/// Warna tiap frame.
 #[cfg(test)]
 pub(crate) const WARNA: [&str; 6] = [
     "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF",
 ];
 
-/// Kartu pakai / teks kosong (`attp2.js:70-72`).
+/// Kartu pakai / teks kosong.
 pub(crate) fn pakai(prefix: &str, command: &str) -> String {
     format!(
         "⚠️ Harap masukkan teks!\nContoh: `{prefix}{command} Halo semua`"
@@ -48,7 +47,7 @@ pub(crate) fn pakai(prefix: &str, command: &str) -> String {
     is_bot_admin = false
 )]
 pub fn attp2(ctx: Ctx) -> Reply {
-    // `attp2.js:68` — `m.text?.trim() || m.quoted?.text?.trim()`.
+    // `m.text?.trim() || m.quoted?.text?.trim()`.
     let mut text = ctx.text.trim().to_string();
     if text.is_empty()
         && let Some(q) = ctx.quoted()
@@ -60,7 +59,7 @@ pub fn attp2(ctx: Ctx) -> Reply {
     }
 
     // `@napi-rs/canvas`, `addExifToWebp`, dan `sendMessage({sticker})`
-    // tidak tersedia di `Ctx`/`Reply` — diakhiri error_template seperti
+    // tidak tersedia di `Ctx`/`Reply` — diakhiri error_template
     // swm.rs.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }
@@ -137,7 +136,7 @@ mod tests {
 
     #[test]
     fn teks_dari_pesan_yang_direply_dipakai_saat_tidak_ada_teks() {
-        // `attp2.js:68` — `m.quoted?.text?.trim()` jadi sumber teks.
+        // `m.quoted?.text?.trim()` jadi sumber teks.
         let ctx = Ctx {
             prefix: ".".into(),
             command: "attp2".into(),

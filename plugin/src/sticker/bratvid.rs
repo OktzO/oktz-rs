@@ -1,4 +1,4 @@
-//! `plugins/sticker/bratvid.js` — animated brat (simplified native port).
+//! Animated brat (simplified native port).
 
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -17,8 +17,8 @@ fn encode_mp4(raw: &[u8], width: u32, height: u32, fps: u32) -> Result<Vec<u8>, 
 /// Alirkan frame ke ffmpeg lalu baca hasilnya dari file temp.
 ///
 /// Output `pipe:1` tidak bisa dipakai: muxer MP4 butuh seekable
-/// (`muxer does not support non seekable output`) — JS juga menulis ke
-/// berkas temp (`bratvid2.js`). Frame dialirkan, bukan ditampung, supaya
+/// (`muxer does not support non seekable output`) — versi awal juga menulis
+/// berkas temp. Frame dialirkan, bukan ditampung, supaya
 /// animasi 1000×1000 tidak menelan ratusan MB RAM.
 fn encode_mp4_dengan<F>(
     width: u32,
@@ -116,13 +116,13 @@ fn kartu_pakai(ctx: &Ctx, cmd: &str) -> Reply {
 }
 
 fn gagal(ctx: &Ctx) -> Reply {
-    // `bratvid.js:67-69` — ☢ dulu, lalu `te()` (react-reply order JS).
+    // ☢ dulu, lalu `te()` (react-reply order versi awal).
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
-/// MP4 → WebP animasi ber-EXIF sebagai sticker. JS:
+/// MP4 → WebP animasi ber-EXIF sebagai sticker. versi awal:
 /// `sock.sendVideoAsSticker(...)`, bukan video biasa. Urutan
-/// `bratvid.js:50-66`: 🕐 → sticker → ✅.
+/// : 🕐 → sticker → ✅.
 fn jadi_stiker_video(ctx: &Ctx, mp4: Vec<u8>) -> Reply {
     let cfg = ctx.config();
     let (packname, author) = (
@@ -146,7 +146,7 @@ fn jadi_stiker_video(ctx: &Ctx, mp4: Vec<u8>) -> Reply {
 fn run(ctx: Ctx, width: u32, height: u32, fps: u32) -> Reply {
     let text = ctx.text.trim().to_string();
     if text.is_empty() {
-        // `bratlocal.js:398` — kartu pakai pakai command yang dipanggil
+        // Kartu pakai pakai command yang dipanggil
         // (bisa alias `bratgojo` dll.).
         return Reply::text(format!(
             "⚠️ Harap masukkan teksnya!\nContoh: `{prefix}{command} Halo semuanya`",
@@ -160,11 +160,11 @@ fn run(ctx: Ctx, width: u32, height: u32, fps: u32) -> Reply {
     jadi_stiker_video(&ctx, mp4)
 }
 
-/// `.bratvid2` — kata muncul satu per satu (port `bratvid2.js`).
+/// `.bratvid2` — kata muncul satu per satu.
 fn run_animasi(ctx: Ctx) -> Reply {
     let text = ctx.text.trim();
     if text.is_empty() {
-        // `bratvid2.js:570-571` — contoh `hello world`, bukan `Hai semua`.
+        // Contoh `hello world`, bukan `Hai semua`.
         return Reply::text(format!(
             "🎬 *ʙʀᴀᴛ ᴠɪᴅᴇᴏ ᴠ2*\n\n> Masukkan teks\n\n`Contoh: {prefix}bratvid2 hello world`",
             prefix = ctx.prefix
@@ -276,25 +276,25 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `bratvid.js:42` — kartu pakai, literal JS.
+        // Kartu pakai, literal versi awal.
         assert_eq!(
             kartu_pakai(&ctx(), "bratvid").text_body().unwrap(),
             "🎬 *ʙʀᴀᴛ ᴀɴɪᴍᴀᴛᴇᴅ*\n\n> Masukkan teks\n\n`Contoh: .bratvid Hai semua`"
         );
-        // `bratvid2.js:570-571` — contoh `hello world`.
+        // Contoh `hello world`.
         let v2 = run_animasi(ctx());
         assert_eq!(
             v2.text_body().unwrap(),
             "🎬 *ʙʀᴀᴛ ᴠɪᴅᴇᴏ ᴠ2*\n\n> Masukkan teks\n\n`Contoh: .bratvid2 hello world`"
         );
-        // `bratlocal.js:398` — kartu beda + pakai command aktif (`ctx()`
+        // Kartu beda + pakai command aktif (`ctx()`
         // dipanggil `.bratvid`).
         let local = run(ctx(), 512, 512, 15);
         assert_eq!(
             local.text_body().unwrap(),
             "⚠️ Harap masukkan teksnya!\nContoh: `.bratvid Halo semuanya`"
         );
-        // Alias tetap memakai command yang dipanggil (`m.command` JS).
+        // Alias tetap memakai command yang dipanggil (`m.command` versi awal).
         let alias = Ctx {
             prefix: ".".into(),
             command: "bratgojo".into(),
@@ -306,7 +306,7 @@ mod tests {
 
     #[test]
     fn gagal_reaksi_dulu_lalu_te_dan_sukses_sticker_lalu_ceklis() {
-        // `bratvid.js:67-69` — ☢ dulu lalu `te()`.
+        // ☢ dulu lalu `te()`.
         let g = gagal(&ctx());
         let Reply::Mutate { reply: mutasi, .. } = g else {
             panic!("gagal harus Mutate, dapat {g:?}")

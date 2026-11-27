@@ -1,33 +1,22 @@
-//! `plugins/sticker/stickerpack.js` — cari dan kirim sticker pack dari
-//! getstickerpack.com.
+//! Cari dan kirim sticker pack
 //!
-//! Yang diport apa adanya:
-//! - Kartu pakai (`stickerpack.js:95-105`).
-//! - Pencarian pack: POST `https://getstickerpack.com/api/v1/stickerdb/search`
-//!   dengan `{ query, page }` (`stickerpack.js:29-49`), lalu detail pack dari
-//!   `https://getstickerpack.com/api/v1/stickerdb/stickers/<id>`
-//!   (`stickerpack.js:51-67`).
-//! - Semua pesan: pack tidak ditemukan, detail gagal, jumlah sticker, gagal
-//!   unduh, pack gagal → kirim satu per satu, berhasil kirim, gagal kirim
-//!   (`stickerpack.js:114-206`).
-//!
-//! `ponytail:`
+//! `Keterbatasan:`
 //! - `sock.sendStickerPack` tidak ada di `Reply`, jadi sticker dikirim satu per
-//!   satu lewat `Reply::sequence`. Konsekuensinya pesan "Pack gagal, mengirim
-//!   satu per satu..." (percabangan `catch` JS) tidak pernah muncul — paket
-//!   selalu dikirim per satu.
+//! satu lewat `Reply::sequence`. Konsekuensinya pesan "Pack gagal, mengirim
+//! satu per satu..." (percabangan `catch` versi awal) tidak pernah muncul — paket
+//! selalu dikirim per satu.
 //! - `sharp(...).resize(512, 512, { fit: "contain", background: transparent })`
-//!   tidak punya padanan persis di `oktz_plugin_api::gambar` (hanya `cover`
-//!   dan `inside`); gambar dikonversi ke WebP apa adanya.
+//! tidak punya padanan persis di `oktz_plugin_api::gambar` (hanya `cover`
+//! dan `inside`); gambar dikonversi ke WebP apa adanya.
 //! - `addExifToWebp` tidak ada, jadi metadata packname/author tidak ikut.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `stickerpack.js:70` — batas sticker per pack.
+/// Batas sticker per pack.
 pub(crate) const MAX_STICKERS: usize = 20;
 
-/// `stickerpack.js:95-105` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "── .✦ 𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗣𝗔𝗖𝗞 ✦. ── 𝜗ৎ\n\n\
@@ -41,40 +30,40 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `stickerpack.js:117` — pack tidak ditemukan.
+/// Pack tidak ditemukan.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("── .✦ ──\n\n> Tidak ada sticker pack untuk: *{query}* .☘︎ ݁˖")
 }
 
-/// `stickerpack.js:127` — detail pack gagal diambil.
+/// Detail pack gagal diambil.
 pub(crate) const DETAIL_GAGAL: &str = "── .✦ ──\n\n> Gagal mengambil detail sticker pack .☘︎ ݁˖";
 
-/// `stickerpack.js:131` — sedang mengunduh pack.
+/// Sedang mengunduh pack.
 pub(crate) fn mengunduh(nama: &str, jumlah: usize) -> String {
     format!(
         "── .✦ ──\n\n> Mengunduh *{nama}*\n> {jumlah} sticker .☘︎ ݁˖"
     )
 }
 
-/// `stickerpack.js:150` — gagal mengunduh sticker.
+/// Gagal mengunduh sticker.
 pub(crate) const UNDUH_GAGAL: &str = "── .✦ ──\n\n> Gagal mendownload sticker .☘︎ ݁˖";
 
-/// `stickerpack.js:169` — pack gagal, kirim satu per satu.
+/// Pack gagal, kirim satu per satu.
 #[cfg(test)]
 pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖";
 
-/// `stickerpack.js:201` — berhasil mengirim sebagian sticker.
+/// Berhasil mengirim sebagian sticker.
 pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
     format!(
         "── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖"
     )
 }
 
-/// `stickerpack.js:205` — gagal mengirim sticker.
+/// Gagal mengirim sticker.
 #[cfg(test)]
 pub(crate) const KIRIM_GAGAL: &str = "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖";
 
-/// `stickerpack.js:29-49` — daftar hasil pencarian.
+/// Daftar hasil pencarian.
 pub(crate) fn cari_pack(body: &Value) -> Vec<(String, String)> {
     let Some(data) = body.get("data").and_then(Value::as_array) else {
         return Vec::new();
@@ -96,7 +85,7 @@ pub(crate) fn cari_pack(body: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
-/// `stickerpack.js:56` — ID pack diambil dari URL `.../stickers/<id>`.
+/// ID pack diambil dari URL `.../stickers/<id>`.
 pub(crate) fn id_dari_url(url: &str) -> String {
     match url.rfind("/stickers/") {
         Some(pos) => url[pos + "/stickers/".len()..].to_string(),
@@ -104,7 +93,7 @@ pub(crate) fn id_dari_url(url: &str) -> String {
     }
 }
 
-/// `stickerpack.js:58-62` — daftar sticker (URL gambar) dari detail pack.
+/// Daftar sticker (URL gambar) dari detail pack.
 pub(crate) fn sticker_dari_detail(body: &Value) -> Vec<String> {
     let Some(images) = body
         .get("data")
@@ -151,7 +140,7 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `stickerpack.js:32-37` — pencarian.
+    // Pencarian.
     let Ok(res) = ctx.http.call(
         &HttpCall::post("https://getstickerpack.com/api/v1/stickerdb/search")
             .json(&serde_json::json!({ "query": query, "page": 1 })),
@@ -164,11 +153,11 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
         return Reply::text(tidak_ditemukan(&query)).with_reaction("✘");
     }
 
-    // `stickerpack.js:121-123` — pilih satu pack secara acak.
+    // Pilih satu pack secara acak.
     let indeks = crate::common::random_index(packs.len());
     let (nama, slug) = packs[indeks].clone();
 
-    // `stickerpack.js:51-67` — detail pack.
+    // Detail pack.
     let Ok(res) = ctx.http.get(&format!(
         "https://getstickerpack.com/api/v1/stickerdb/stickers/{}",
         id_dari_url(&format!("https://getstickerpack.com/stickers/{slug}"))
@@ -181,11 +170,11 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
         return Reply::text(DETAIL_GAGAL).with_reaction("✘");
     }
 
-    // `stickerpack.js:130-132` — laporan sedang mengunduh.
+    // Laporan sedang mengunduh.
     let jumlah = urls.len().min(MAX_STICKERS);
     let laporan = Reply::text(mengunduh(&nama, jumlah));
 
-    // `stickerpack.js:137-146` — unduh sticker (maksimal 20).
+    // Unduh sticker (maksimal 20).
     let mut sticker_bytes: Vec<Vec<u8>> = Vec::new();
     for url in urls.iter().take(MAX_STICKERS) {
         let Ok(res) = ctx.http.get(url) else {
@@ -197,14 +186,14 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
     }
 
     if sticker_bytes.is_empty() {
-        // `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
+        // `Keterbatasan:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
         // (pipeline merender `Sequence` lewat loop, bukan `render_reply`), jadi
         // reaksi ✘ tidak ikut — sama seperti `download/tiktokdl2.rs`.
         return Reply::sequence(vec![laporan, Reply::text(UNDUH_GAGAL)]);
     }
 
-    // `stickerpack.js:156-160` — JS mengirim paket; di sini satu per satu.
-    // `stickerpack.js:157` — `randPick.name || config.sticker?.packname || "Bot"`.
+    // Versi awal mengirim paket; di sini satu per satu.
+    // `randPick.name || config.sticker?.packname || "Bot"`.
     let cfg = ctx.config();
     let packname = if nama.is_empty() {
         if cfg.sticker.packname.is_empty() { "Bot".to_string() } else { cfg.sticker.packname.clone() }
@@ -217,7 +206,7 @@ pub fn stickerpack(ctx: Ctx) -> Reply {
         balasan.push(Reply::sticker(MediaSource::bytes(bytes)));
     }
     balasan.push(Reply::text(berhasil_kirim(terkirim, &packname)));
-    // `ponytail:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` — lihat
+    // `Keterbatasan:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` —
     // catatan di atas.
     Reply::sequence(balasan)
 }

@@ -1,25 +1,13 @@
-//! `plugins/sticker/smeme-animated.js` — stiker meme animasi (Neoxr memegenvid).
+//! Stiker meme animasi (Neoxr memegenvid).
 //!
-//! Alur yang diport apa adanya (`smeme-animated.js:18-78`):
-//! - Guard teks (`smeme-animated.js:21-23`) dan guard gambar
-//!   (`smeme-animated.js:33-35`).
-//! - Pecah `atas|bawah` lalu `trim()` (`smeme-animated.js:25-27`).
-//! - Unduh media: pesan yang di-reply kalau itu gambar, kalau tidak pesan
-//!   pemicu (`smeme-animated.js:40-46`).
-//! - Unggah gambar, lalu panggil `api.neoxr.eu/api/memegenvid` dengan
-//!   `image`, `top`, `bottom`, `apikey` (`smeme-animated.js:48-50`).
-//! - Kalau API gagal, gambar ASLI dikirim sebagai sticker
-//!   (`smeme-animated.js:66-71`).
-//! - Reaksi penutup `✅` / `☢`.
-//!
-//! `ponytail:`
-//! - `uploadImage` (`src/lib/uploader.js:14-40`) mencoba 9 host keyless
-//!   berurutan. Di sini hanya host pertama yang dipakai — Litterbox
-//!   (`src/lib/upload-providers.js:21-37`) — karena bentuk multipart-nya
-//!   persis sama dan host lain butuh parsing HTML/cookie khusus.
+//! `Keterbatasan:`
+//! - `uploadImage` mencoba 9 host keyless
+//! berurutan. Di sini hanya host pertama yang dipakai — Litterbox
+//! Karena bentuk multipart-nya
+//! persis sama dan host lain butuh parsing HTML/cookie khusus.
 //! - `sock.sendImageAsSticker` tidak ada; yang dipakai `Reply::Sticker`.
-//!   Metadata `packname`/`author` (`config.sticker`) tidak punya kanal di
-//!   `Reply::Sticker`, sama seperti plugin sticker lain di repo ini.
+//! Metadata `packname`/`author` (`config.sticker`) tidak punya kanal
+//! `Reply::Sticker`, sama seperti plugin sticker lain di repo ini.
 
 use oktz_plugin_api::registry::{IncomingKind, MultipartPart};
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
@@ -27,19 +15,19 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `smeme-animated.js:22` — teks atas/bawah belum diisi.
+/// Teks atas/bawah belum diisi.
 pub(crate) fn teks_kosong(prefix: &str, command: &str) -> String {
     format!("⚠️ Harap masukkan teks atas dan bawah!\nContoh: `{prefix}{command} atas|bawah`")
 }
 
-/// `smeme-animated.js:34` — harus kirim atau balas gambar.
+/// Harus kirim atau balas gambar.
 pub(crate) fn tanpa_gambar(prefix: &str, command: &str) -> String {
     format!(
         "⚠️ Harap kirim atau balas gambar dengan caption `{prefix}{command} teks_atas|teks_bawah`"
     )
 }
 
-/// `smeme-animated.js:50` — endpoint Neoxr memegenvid.
+/// Endpoint Neoxr memegenvid.
 pub(crate) fn url_memegenvid(image: &str, top: &str, bottom: &str, apikey: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/memegenvid?image={}&top={}&bottom={}&apikey={apikey}",
@@ -49,7 +37,7 @@ pub(crate) fn url_memegenvid(image: &str, top: &str, bottom: &str, apikey: &str)
     )
 }
 
-/// `src/lib/upload-providers.js:21-37` — unggah ke Litterbox (host pertama
+/// Unggah ke Litterbox (host pertama
 /// di daftar `PROVIDERS`).
 pub(crate) fn unggah_litterbox(
     http: &dyn oktz_plugin_api::HttpGet,
@@ -98,7 +86,7 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
     let top = bagian.next().unwrap_or("").trim().to_string();
     let bottom = bagian.next().unwrap_or("").trim().to_string();
 
-    // `smeme-animated.js:30-32` — gambar di pesan pemicu atau di pesan yang
+    // Gambar di pesan pemicu atau di pesan
     // di-reply.
     let quoted_image = ctx.quoted().is_some_and(|q| q.kind.is_image());
     let trigger_image = ctx.is_media_kind(IncomingKind::Image);
@@ -106,7 +94,7 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
         return Reply::text(tanpa_gambar(&ctx.prefix, &ctx.command));
     }
 
-    // `smeme-animated.js:40-46` — media yang di-reply didahulukan kalau ia
+    // Media yang di-reply didahulukan kalau ia
     // gambar; selain itu pesan pemicu.
     let media = if quoted_image {
         ctx.download_quoted_media().ok()
@@ -117,12 +105,12 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
-    // `smeme-animated.js:48` — unggah dulu, Neoxr butuh URL publik.
+    // Unggah dulu, Neoxr butuh URL publik.
     let Ok(image_url) = unggah_litterbox(ctx.http.as_ref(), &media) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
-    // `smeme-animated.js:50-65` — panggil API meme animasi.
+    // Panggil API meme animasi.
     let apikey = ctx.config().api_keys.neoxr.clone();
     let url = url_memegenvid(&image_url, &top, &bottom, &apikey);
     if let Ok(res) = ctx.http.get(&url) {
@@ -144,7 +132,7 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
                 }
     }
 
-    // `smeme-animated.js:66-71` — API gagal: kirim gambar aslinya sebagai
+    // API gagal: kirim gambar aslinya sebagai
     // sticker.
     Reply::sticker(MediaSource::bytes(media)).with_reaction("✅")
 }

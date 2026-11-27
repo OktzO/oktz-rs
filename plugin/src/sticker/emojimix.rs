@@ -1,10 +1,10 @@
-//! `plugins/sticker/emojimix.js` — gabungkan 2 emoji menjadi 1 sticker via API Neoxr.
+//! Gabungkan 2 emoji menjadi 1 sticker via API Neoxr.
 //!
-//! `ponytail:` JS memiliki fallback canvas (`@napi-rs/canvas`) saat API gagal,
-//! tetapi tidak ada API canvas yang diekspos ke plugin di registry Rust, dan
-//! crate `regex` tidak tersedia (tidak boleh mengubah Cargo.toml). Deteksi
-//! emoji menggunakan pendekatan non-ASCII sederhana; fallback canvas tidak
-//! dapat dicerminkan dan jatuh ke balasan error (mirip cabang `catch` JS).
+//! `Keterbatasan:` versi awal memiliki fallback canvas (`@napi-rs/canvas`) saat API gagal,
+//! tetapi tidak ada API canvas yang diekspos ke plugin di registry Rust, dan crate `regex`
+//! tidak tersedia (tidak boleh mengubah Cargo.toml). Deteksi emoji menggunakan pendekatan
+//! non-ASCII sederhana; fallback canvas tidak dapat dicerminkan dan jatuh ke balasan error
+//! (mirip cabang `catch` versi awal).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -25,9 +25,9 @@ pub(crate) fn api_url(emoji1: &str, emoji2: &str, api_key: &str) -> String {
     )
 }
 
-/// Deteksi dua emoji pertama mirip `/\p{Extended_Pictographic}/gu` di JS.
+/// Deteksi dua emoji pertama mirip `/\p{Extended_Pictographic}/gu` di versi awal.
 /// Hasil `text.match(regex)` hanya dipakai di indeks `0` dan `1`
-/// (`emojimix.js:33-34,40-41`), jadi kelebihannya dibuang.
+/// , jadi kelebihannya dibuang.
 ///
 /// Tanpa crate `regex`, pendekatan ini menganggap setiap karakter non-ASCII
 /// (`> '\u{7F}'`) sebagai emoji. Ini menangkap kebanyakan emoji tetapi juga
@@ -83,7 +83,7 @@ pub fn emojimix(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let body = res.json().unwrap_or(Value::Null);
-    // JS `emojimix.js:50` — `data?.status && data?.data?.url` (data = body).
+    // versi awal — `data?.status && data?.data?.url` (data = body).
     let data = body.get("data").filter(|_| {
         body.get("status").is_some_and(|s| s.as_bool() == Some(true) || s.as_i64().unwrap_or(0) != 0)
     });

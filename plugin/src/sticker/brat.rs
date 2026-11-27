@@ -1,4 +1,4 @@
-//! `plugins/sticker/brat.js` — menu variant brat dan generator sticker brat.
+//! Menu variant brat dan generator sticker brat.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, Tombol, plugin};
 
@@ -120,8 +120,8 @@ pub fn brat(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `brat.js:139-151` — packname/author dari config; kosong = DEFAULT
-    // `Sticker`/`Bot` (`exif.js:33-38` via `??`).
+    // Packname/author dari config; kosong = DEFAULT
+    // `Sticker`/`Bot`.
     let (parsed, blur) = parse_brat_args(&ctx.text);
     let cfg = ctx.config();
     let (pn, au) = (
@@ -129,12 +129,12 @@ pub fn brat(ctx: Ctx) -> Reply {
         if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
     );
 
-    /// `brat.js:145` — fallback render lokal putih.
+    /// Fallback render lokal putih.
     fn render_fallback(parsed: &str, blur: u8, pn: &str, au: &str) -> Result<Vec<u8>, ()> {
         let png = oktz_plugin_api::render_brat(parsed, oktz_plugin_api::BratTema::Putih, blur)
             .map_err(|_| ())?;
         let webp = oktz_plugin_api::gambar_ke_stiker_webp(&png, &[]).map_err(|_| ())?;
-        // `addExifToWebp` gagal di JS hanya di-log (`socket.js:549-551`) —
+        // `addExifToWebp` gagal di versi awal hanya di-log —
         // webp polos tetap terkirim.
         match oktz_plugin_api::tempel_metadata_stiker(&webp, pn, au, &oktz_plugin_api::EXIF_EMOJIS) {
             Ok(b) => Ok(b),
@@ -142,9 +142,9 @@ pub fn brat(ctx: Ctx) -> Reply {
         }
     }
 
-    // `brat.js:141-146` — API (timeout 15s) gagal ATAU blank → fallback
+    // API (timeout 15s) gagal ATAU blank → fallback
     // render. Konversi webp dari byte API gagal = `sendImageAsSticker`
-    // melempar → catch LUAR (`brat.js:154-157`), bukan fallback.
+    // melempar → catch LUAR, bukan fallback.
     let hasil = match ctx.http.call(&HttpCall::get(api_url(&parsed)).with_timeout(15000)) {
         Ok(res) if (200..300).contains(&res.status) && !oktz_plugin_api::is_blank(res.body.bytes()) => {
             match oktz_plugin_api::gambar_ke_stiker_webp(res.body.bytes(), &[]) {
@@ -152,7 +152,7 @@ pub fn brat(ctx: Ctx) -> Reply {
                     &webp, &pn, &au, &oktz_plugin_api::EXIF_EMOJIS,
                 ) {
                     Ok(b) => Ok(b),
-                    // `addExifToWebp` gagal hanya di-log (`socket.js:549-551`).
+                    // `addExifToWebp` gagal hanya di-log.
                     Err(_) => Ok(webp),
                 },
                 Err(_) => Err(()),
@@ -161,7 +161,7 @@ pub fn brat(ctx: Ctx) -> Reply {
         _ => render_fallback(&parsed, blur, &pn, &au),
     };
 
-    // `brat.js:136-157` — 🕐 → sticker → ✅; gagal total → ☢ lalu te.
+    // 🕐 → sticker → ✅; gagal total → ☢ lalu te.
     match hasil {
         Ok(bytes) => Reply::sequence(vec![
             Reply::reaction("🕐"),
@@ -190,17 +190,17 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `brat.js:130-134` — kartu pakai, literal JS.
+        // Kartu pakai, literal versi awal.
         assert_eq!(
             pakai("."),
             "🖼️ *ʙʀᴀᴛ ɪᴍᴀɢᴇ*\n\n> Masukkan teks\n\n`Contoh: .bratimg Hai semua`"
         );
-        // `brat.js:67` — caption menu, literal JS.
+        // Caption menu, literal versi awal.
         assert_eq!(
             CAPTION_MENU,
             "🌿 *kamu mau buat brat yak, silahkan pilih variant brat tombol dibawah*"
         );
-        // `brat.js:57-63` — baris varian + ID `{prefix}{command} <text>`.
+        // Baris varian + ID `{prefix}{command} <text>`.
         let baris = baris_varian(".", "hai");
         assert_eq!(baris.len(), 6);
         assert_eq!(
@@ -211,7 +211,7 @@ mod tests {
                 ".bratimg hai".to_string()
             )
         );
-        // `brat.js:110-113` — ID baris terakhir tanpa spasi saat teks kosong.
+        // ID baris terakhir tanpa spasi saat teks kosong.
         assert_eq!(baris_varian(".", "").last().unwrap().2, ".bratvid2");
     }
 }

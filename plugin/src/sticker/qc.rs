@@ -1,24 +1,14 @@
-//! `plugins/sticker/qc.js` — sticker quote chat dengan warna custom.
+//! Sticker quote chat dengan warna custom.
 //!
-//! Yang diport apa adanya:
-//! - Tabel warna `COLORS` (`qc.js:21-68`) — dipakai untuk daftar warna di
-//!   kartu pakai dan untuk validasi nama warna. Urutannya penting: JS
-//!   menampilkan `Object.keys(COLORS).join(', ')` (`qc.js:74`), jadi urutan
-//!   penyisipan objek itu yang tampil.
-//! - Semua cabang teks: kartu pakai, warna tidak dikenal, teks kosong,
-//!   teks kepanjangan (`qc.js:73-107`).
-//! - Reaksi penutup `✅` / `☢`.
-//!
-//! `ponytail:` render quote-nya (`qc.js:114-155`) memakai `@napi-rs/canvas`:
-//! kanvas 512x512 diisi warna latar, teks putih dibungkus baris (lebar maksimal
-//! 460px, font 36px), lalu `~ <nama>` di pojok kanan bawah. Tidak ada
-//! renderer teks di Rust dan dependensi repo tidak boleh diubah, jadi jalur
-//! setelah guard berakhir di cabang `catch` JS: `error_template` + `☢`
-//! (`qc.js:165-167`).
+//! `Keterbatasan:` render quote-nya memakai `@napi-rs/canvas`: kanvas 512x512 diisi warna
+//! latar, teks putih dibungkus baris (lebar maksimal 460px, font 36px), lalu `~ <nama>` di
+//! pojok kanan bawah. Tidak ada renderer teks di Rust dan dependensi repo tidak boleh
+//! diubah, jadi jalur setelah guard berakhir di cabang `catch` versi awal: `error_template`
+//! + `☢`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `qc.js:21-68` — nama warna → hex. Urutan = urutan penyisipan di JS.
+/// Nama warna → hex. Urutan = urutan penyisipan di versi awal.
 pub(crate) const WARNA: [(&str, &str); 46] = [
     ("pink", "#f68ac9"),
     ("blue", "#6cace4"),
@@ -68,7 +58,7 @@ pub(crate) const WARNA: [(&str, &str); 46] = [
     ("silver", "#C0C0C0"),
 ];
 
-/// `qc.js:74` — `Object.keys(COLORS).join(', ')`.
+/// `Object.keys(COLORS).join(', ')`.
 pub(crate) fn daftar_warna() -> String {
     WARNA
         .iter()
@@ -77,7 +67,7 @@ pub(crate) fn daftar_warna() -> String {
         .join(", ")
 }
 
-/// `qc.js:74-85` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "💬 *ǫᴜᴏᴛᴇ sᴛɪᴄᴋᴇʀ*\n\n\
@@ -93,22 +83,22 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `qc.js:92` — warna tidak ada di tabel.
+/// Warna tidak ada di tabel.
 pub(crate) fn warna_tidak_dikenal(warna: &str) -> String {
     format!(
         "❌ *ᴇʀʀᴏʀ*\n\n> Warna `{warna}` tidak ditemukan!\n> Gunakan salah satu warna yang tersedia."
     )
 }
 
-/// `qc.js:102` — teks quote kosong.
+/// Teks quote kosong.
 pub(crate) const TEKS_KOSONG: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Masukkan text untuk quote!";
 
-/// `qc.js:106` — teks lebih dari 80 karakter.
+/// Teks lebih dari 80 karakter.
 pub(crate) fn terlalu_panjang(panjang: usize) -> String {
     format!("❌ *ᴇʀʀᴏʀ*\n\n> Maksimal 80 karakter! (Saat ini: {panjang})")
 }
 
-/// `qc.js:88-89` — cari hex warna; `None` kalau nama warnanya tidak dikenal.
+/// Cari hex warna; `None` kalau nama warnanya tidak dikenal.
 pub(crate) fn hex_warna(nama: &str) -> Option<&'static str> {
     WARNA
         .iter()
@@ -133,22 +123,22 @@ pub(crate) fn hex_warna(nama: &str) -> Option<&'static str> {
     is_bot_admin = false
 )]
 pub fn qc(ctx: Ctx) -> Reply {
-    // `m.args.length < 2` (`qc.js:73`).
+    // `m.args.length < 2`.
     if ctx.args.len() < 2 {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `args[0].toLowerCase()` (`qc.js:88`).
+    // `args[0].toLowerCase()`.
     let warna = ctx.args[0].to_lowercase();
     if hex_warna(&warna).is_none() {
         return Reply::text(warna_tidak_dikenal(&warna));
     }
 
-    // `args.slice(1).join(' ')` (`qc.js:95`).
+    // `args.slice(1).join(' ')`.
     let mut pesan = ctx.args[1..].join(" ");
 
     // `if (m.quoted && !message) message = m.quoted.text || m.quoted.body || ''`
-    // (`qc.js:97-99`).
+    //
     if pesan.is_empty()
         && let Some(q) = ctx.quoted() {
             pesan = if q.text.is_empty() {
@@ -166,7 +156,7 @@ pub fn qc(ctx: Ctx) -> Reply {
         return Reply::text(terlalu_panjang(pesan.chars().count()));
     }
 
-    // Render quote butuh canvas — lihat `ponytail:` modul.
+    // Render quote butuh canvas — lihat `Keterbatasan:` modul.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }
 
@@ -211,14 +201,14 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `qc.js:92` — warna tidak dikenal.
+        // Warna tidak dikenal.
         assert_eq!(
             warna_tidak_dikenal("pinkk"),
             "❌ *ᴇʀʀᴏʀ*\n\n> Warna `pinkk` tidak ditemukan!\n> Gunakan salah satu warna yang tersedia."
         );
-        // `qc.js:102` — teks kosong.
+        // Teks kosong.
         assert_eq!(TEKS_KOSONG, "❌ *ᴇʀʀᴏʀ*\n\n> Masukkan text untuk quote!");
-        // `qc.js:106` — terlalu panjang.
+        // Terlalu panjang.
         assert_eq!(
             terlalu_panjang(81),
             "❌ *ᴇʀʀᴏʀ*\n\n> Maksimal 80 karakter! (Saat ini: 81)"

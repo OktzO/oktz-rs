@@ -1,48 +1,36 @@
-//! `plugins/sticker/smemevid.js` — sticker meme dari video.
+//! Sticker meme dari video.
 //!
-//! Yang diport apa adanya:
-//! - Guard video (`smemevid.js:28-31`) dan guard format `top|bottom`
-//!   (`smemevid.js:33-36`).
-//! - Teks atas/bawah di-`trim()` lalu di-`toUpperCase()`
-//!   (`smemevid.js:38`).
-//! - Unduh video: pesan yang di-reply dulu kalau media, lalu pesan pemicu
-//!   (`smemevid.js:54-58`).
-//! - Semua teks balasan, termasuk pesan error khusus plugin ini
-//!   (`❌ *ɢᴀɢᴀʟ*\n\n> Terjadi kesalahan saat memproses video`) yang BUKAN
-//!   `te(...)` seperti plugin lain.
-//!
-//! `ponytail:` render meme-nya butuh dua hal yang tidak ada di Rust:
-//! (1) teks digambar di kanvas 512x512 (`smemevid.js:87-117`) — tidak ada
-//! renderer teks, dan (2) video di-overlay dengan ffmpeg lalu dikirim sebagai
-//! video-sticker (`smemevid.js:119-144`) — `Reply` tidak punya varian
-//! "video sticker", jadi yang dikirim `Reply::video`. Kalau ffmpeg tidak ada
-//! atau gagal, video asli dikirim apa adanya.
+//! `Keterbatasan:` render meme-nya butuh dua hal yang tidak ada di Rust: (1) teks digambar
+//! di kanvas 512x512 — tidak ada renderer teks, dan (2) video di-overlay dengan ffmpeg lalu
+//! dikirim sebagai video-sticker — `Reply` tidak punya varian "video sticker", jadi yang
+//! dikirim `Reply::video`. Kalau ffmpeg tidak ada atau gagal, video asli dikirim apa
+//! adanya.
 
 use oktz_plugin_api::registry::IncomingKind;
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-/// `smemevid.js:30` — harus video.
+/// Harus video.
 pub(crate) fn tanpa_video(prefix: &str, command: &str) -> String {
     format!(
         "🎬 *ᴍᴇᴍᴇ ᴠɪᴅᴇᴏ*\n\n> Reply atau kirim video dengan caption\n\n`Contoh: {prefix}{command} Top|Bottom`"
     )
 }
 
-/// `smemevid.js:35` — format `top|bottom` salah.
+/// Format `top|bottom` salah.
 pub(crate) fn format_salah(prefix: &str, command: &str) -> String {
     format!(
         "🎬 *ᴍᴇᴮᴇ ᴠɪᴅᴇᴏ*\n\n> Format: top|bottom\n\n`Contoh: {prefix}{command} WIDTH OR HEIGHT|WHY NOT BOTH?`"
     )
 }
 
-/// `smemevid.js:62` — video gagal diunduh.
+/// Video gagal diunduh.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mengunduh video";
 
-/// `smemevid.js:153` — gagal memproses video.
+/// Gagal memproses video.
 #[cfg(test)]
 pub(crate) const GAGAL_PROSES: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Terjadi kesalahan saat memproses video";
 
-/// `smemevid.js:123-134` — rantai filter ffmpeg TANPA bagian overlay teks
+/// Rantai filter ffmpeg TANPA bagian overlay teks
 /// (overlay butuh gambar PNG hasil canvas, yang tidak bisa dibuat di sini).
 const FILTER: &str = "crop='min(iw,ih)':'min(iw,ih)',scale=512:512,fps=8";
 
@@ -95,7 +83,7 @@ fn proses_video(video: &[u8]) -> Option<Vec<u8>> {
     is_bot_admin = false
 )]
 pub fn smemevid(ctx: Ctx) -> Reply {
-    // `smemevid.js:28` — video di pesan pemicu atau di pesan yang di-reply.
+    // Video di pesan pemicu atau di pesan yang di-reply.
     let ada_video = ctx.is_media_kind(IncomingKind::Video)
         || ctx
             .quoted()
@@ -104,13 +92,13 @@ pub fn smemevid(ctx: Ctx) -> Reply {
         return Reply::text(tanpa_video(&ctx.prefix, &ctx.command));
     }
 
-    // `m.args.join(' ')` (`smemevid.js:33`).
+    // `m.args.join(' ')`.
     let input = ctx.args.join(" ");
     if input.is_empty() || !input.contains('|') {
         return Reply::text(format_salah(&ctx.prefix, &ctx.command));
     }
 
-    // `smemevid.js:54-58` — media yang di-reply didahulukan kalau memang media.
+    // Media yang di-reply didahulukan kalau memang media.
     let media = if ctx.quoted().is_some_and(|q| q.is_media()) {
         ctx.download_quoted_media().ok()
     } else if ctx.is_media() {
@@ -122,7 +110,7 @@ pub fn smemevid(ctx: Ctx) -> Reply {
         return Reply::text(GAGAL_UNDUH).with_reaction("❌");
     };
 
-    // `smemevid.js:119-144` — potong + skala; overlay teks dilewati.
+    // Potong + skala; overlay teks dilewati.
     let hasil = proses_video(&media).unwrap_or(media);
 
     Reply::video(MediaSource::bytes(hasil).with_mimetype("video/mp4"), "").with_reaction("✅")

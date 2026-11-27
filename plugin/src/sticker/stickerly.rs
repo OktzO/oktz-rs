@@ -1,33 +1,24 @@
-//! `plugins/sticker/stickerly.js` — cari dan unduh sticker pack Sticker.ly.
+//! Cari dan unduh sticker pack Sticker.ly.
 //!
-//! Catatan pendaftaran: `pub mod stickerly;` perlu ditambah manual ke
-//! `rust/plugin/src/sticker/mod.rs` lewat `scripts/pasang-modul.mjs` (mod.rs
-//! milik orchestrator — jangan disentuh).
-//!
-//! `ponytail:` empat hal JS yang tidak bisa dicerminkan apa adanya:
-//! - `sock.sendStickerPack(m.chat, urls, m, {...})` (`stickerly.js:147-154`)
-//!   dipetakan ke `Reply::sticker_pack`: pipeline mengunduh tiap URL, membuat
-//!   ZIP pack + thumbnail, lalu mengirim `stickerPackMessage` dengan metadata
-//!   pack (`name`/`authorName`/deskripsi/emoji). Maks 20 sticker, sama seperti
-//!   `slice(0, 20)` di `stickerly.js:144`.
-//! - Reaksi berurutan (`🕕` di `stickerly.js:22,115` lalu `❌`/`✅`/`☢`) tidak
-//!   mungkin: satu `Reply` membawa satu reaksi. Jalur teks mengirim reaksi
-//!   TERAKHIR (konvensi repo, mis. `rpg/jualan.rs`); jalur sticker bahkan itu
-//!   tidak bisa — butir berikut.
+//! `Keterbatasan:` empat hal versi awal yang tidak bisa dicerminkan apa adanya:
+//! - `sock.sendStickerPack(m.chat, urls, m, {...})`
+//! dipetakan ke `Reply::sticker_pack`: pipeline mengunduh tiap URL, membuat
+//! ZIP pack + thumbnail, lalu mengirim `stickerPackMessage` dengan metadata
+//! pack (`name`/`authorName`/deskripsi/emoji). Maks 20 sticker, sama
+//! `slice(0, 20)`.
+//! - Reaksi berurutan tidak
+//! mungkin: satu `Reply` membawa satu reaksi. Jalur teks mengirim reaksi
+//! TERAKHIR (konvensi repo, mis. `rpg/jualan.rs`); jalur sticker bahkan itu
+//! tidak bisa — butir berikut.
 //! - Reaksi tidak bisa dibarengkan dengan `Reply::Sequence`: jalur reaksi
-//!   pipeline merender isinya lewat `render_reply`, dan `Sequence` ditolak di
-//!   sana (`oktz-wa/src/pipeline.rs:2999-3008`, penolakan di `:1647-1649`) —
-//!   seluruh balasan jadi error. Sticker pack dikirim sebagai `Sequence`
-//!   TANPA reaksi `✅`; mengirim sticker lebih penting daripada reaksi.
-//! - `stickerlyAnswerHandler` (`stickerly.js:74-112`) diport sebagai
-//!   `answer_handler`. Pipeline `oktz-wa` mengisi `Ctx` (store, sessions,
-//!   http) untuk jalur answer lewat `PluginCtxSource::fill`, dan mutasi
-//!   balasan ikut ditulis, jadi balasan angka/batal sudah terbaca.
-//!
-//! `delete user.stickerly_session` (`stickerly.js:86,95,107`) ditulis sebagai
-//! `null` karena `Mutation::SetUser` menggabung, bukan menghapus key. Untuk
-//! pembacaan JS semantiknya sama: `!user.stickerly_session` juga falsy untuk
-//! `null`.
+//! pipeline merender isinya lewat `render_reply`, dan `Sequence` ditolak
+//! sana (`oktz-wa/src/pipeline.rs:2999-3008`, penolakan di `:1647-1649`) —
+//! seluruh balasan jadi error. Sticker pack dikirim sebagai `Sequence`
+//! TANPA reaksi `✅`; mengirim sticker lebih penting daripada reaksi.
+//! - `stickerlyAnswerHandler` diport sebagai
+//! `answer_handler`. Pipeline `oktz-wa` mengisi `Ctx` (store, sessions,
+//! http) untuk jalur answer lewat `PluginCtxSource::fill`, dan mutasi
+//! balasan ikut ditulis, jadi balasan angka/batal sudah terbaca.
 
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 use serde_json::{Value, json};
@@ -35,14 +26,14 @@ use serde_json::{Value, json};
 use crate::common::{error_template, js_truthy, now_ms, parse_int};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `SESSION_TIMEOUT` (`stickerly.js:83`) — 5 menit.
+/// `SESSION_TIMEOUT` — 5 menit.
 const SESSION_TIMEOUT_MS: i64 = 5 * 60 * 1000;
-/// `Math.min(data.result.length, 10)` (`stickerly.js:38`).
+/// `Math.min(data.result.length, 10)`.
 const MAX_PENCARIAN: usize = 10;
-/// `stickerUrls.slice(0, 20)` (`stickerly.js:144`).
+/// `stickerUrls.slice(0, 20)`.
 const MAX_STIKER: usize = 20;
 
-/// Endpoint pencarian (`stickerly.js:29`).
+/// Endpoint pencarian.
 fn url_pencarian(query: &str) -> String {
     format!(
         "https://my.izuka-api.xyz/api/search/stickerly-search?query={}",
@@ -50,7 +41,7 @@ fn url_pencarian(query: &str) -> String {
     )
 }
 
-/// Endpoint detail pack (`stickerly.js:119`).
+/// Endpoint detail pack.
 fn url_pack(pack: &str) -> String {
     format!(
         "https://my.izuka-api.xyz/api/search/stickerly-pack?url={}",
@@ -58,10 +49,10 @@ fn url_pack(pack: &str) -> String {
     )
 }
 
-/// `${nilai}` di template literal JS: key yang tidak ada jadi `undefined`,
+/// `${nilai}` di template literal versi awal: key yang tidak ada jadi `undefined`,
 /// JSON `null` jadi `null`.
 ///
-/// `ponytail:` objek/array dicetak sebagai JSON, sedangkan JS mencetak
+/// `Keterbatasan:` objek/array dicetak sebagai JSON, sedangkan versi awal mencetak
 /// `[object Object]` — bentuk yang tidak muncul di data API ini.
 fn teks_js(nilai: Option<&Value>) -> String {
     match nilai {
@@ -73,7 +64,7 @@ fn teks_js(nilai: Option<&Value>) -> String {
 }
 
 /// `trayResourceUrl.split('/').slice(0, -1).join('/') + '/'`
-/// (`stickerly.js:130`).
+///
 fn prefix_stiker(tray: &str) -> String {
     match tray.rfind('/') {
         Some(i) => format!("{}/", &tray[..i]),
@@ -81,8 +72,8 @@ fn prefix_stiker(tray: &str) -> String {
     }
 }
 
-/// `user.stickerly_session = ...; db.save()` (`stickerly.js:59-63`) dan
-/// `delete ...; db.save()` (`stickerly.js:86,95,107`) dengan `Value::Null`.
+/// `user.stickerly_session =...; db.save()`
+/// `delete...; db.save()` dengan `Value::Null`.
 fn mutasi_sesi(ctx: &Ctx, sesi: Value) -> Mutation {
     Mutation::SetUser {
         jid: ctx.sender.clone(),
@@ -90,8 +81,8 @@ fn mutasi_sesi(ctx: &Ctx, sesi: Value) -> Mutation {
     }
 }
 
-/// `Date.now() - session.time > SESSION_TIMEOUT` (`stickerly.js:85`).
-/// `time` yang bukan angka membuat JS menghitung `NaN`, dan `NaN > X` false.
+/// `Date.now() - session.time > SESSION_TIMEOUT`.
+/// `time` yang bukan angka membuat versi awal menghitung `NaN`, dan `NaN > X` false.
 fn kedaluwarsa(sesi: &Value, sekarang: i64) -> bool {
     sesi
         .get("time")
@@ -99,9 +90,9 @@ fn kedaluwarsa(sesi: &Value, sekarang: i64) -> bool {
         .is_some_and(|t| sekarang - t > SESSION_TIMEOUT_MS)
 }
 
-/// `downloadStickerlyPack` (`stickerly.js:114-186`).
+/// `downloadStickerlyPack`.
 fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
-    // `stickerly.js:116` — laporan proses mengunduh.
+    // Laporan proses mengunduh.
     let mengunduh = Reply::text("> Sedang mendownload sticker pack... ⏳");
     let gagal_ambil = || {
         Reply::sequence(vec![
@@ -109,8 +100,8 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
             Reply::text("❌ Gagal mengambil detail pack."),
         ])
     };
-    // `packInfo.trayResourceUrl.split(...)` di JS melempar kalau fieldnya tidak
-    // ada; lemparan itu ditangkap `catch` luar (`stickerly.js:181-185`).
+    // `packInfo.trayResourceUrl.split(...)` di versi awal melempar kalau fieldnya tidak
+    // ada; lemparan itu ditangkap `catch` luar.
     let rusak = || {
         Reply::sequence(vec![
             mengunduh.clone(),
@@ -143,7 +134,7 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
     let prefix = prefix_stiker(tray);
 
     // `packInfo.name || "Sticker.ly Pack"` dan `packInfo.authorName ||
-    // config.sticker.author || "Bot"` (`stickerly.js:142-143`) tidak dipakai:
+    // config.sticker.author || "Bot"` tidak dipakai:
     // metadata pack tidak punya kanal di `Reply` (lihat catatan modul).
     let urls: Vec<String> = stiker
         .iter()
@@ -151,7 +142,7 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
         .map(|s| format!("{prefix}{}", teks_js(s.get("fileName"))))
         .collect();
 
-    // `stickerly.js:137-140` — pack tanpa sticker.
+    // Pack tanpa sticker.
     if urls.is_empty() {
         return Reply::sequence(vec![
             mengunduh,
@@ -159,7 +150,7 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
         ]);
     }
 
-    // `stickerly.js:147-154` — `sock.sendStickerPack` dipetakan ke
+    // `sock.sendStickerPack` dipetakan
     // `Reply::sticker_pack`: pipeline mengunduh semua URL, membuat ZIP pack +
     // thumbnail, lalu mengirim `stickerPackMessage`. Metadata pack ikut
     // supaya klien menampilkan nama/author (bukan "Tidak bisa melihat
@@ -211,8 +202,8 @@ fn unduh_pack(ctx: &Ctx, pack: &str) -> Reply {
 pub fn stickerly(ctx: Ctx) -> Reply {
     let teks = ctx.text.as_str();
 
-    // `if (!text)` (`stickerly.js:18`) — `m.text` sudah ter-trim di
-    // `serialize.js:400-407`, sama seperti `Ctx.text` router.
+    // `if (!text)` — `m.text` sudah ter-trim
+    // , sama seperti `Ctx.text` router.
     if teks.is_empty() {
         return Reply::text(format!(
             "⚠️ Harap masukkan kata kunci pencarian atau URL Sticker.ly!\nContoh: `{}{} anime`",
@@ -275,20 +266,20 @@ pub fn stickerly(ctx: Ctx) -> Reply {
     ))
 }
 
-/// `stickerlyAnswerHandler` (`stickerly.js:74-112`) — jawaban angka/batal.
+/// `stickerlyAnswerHandler` — jawaban angka/batal.
 ///
-/// `None` = `return false` di JS. `m.isCommand` tidak diperiksa karena
+/// `None` = `return false` di versi awal. `m.isCommand` tidak diperiksa karena
 /// pipeline hanya memanggil rantai answer untuk pesan non-command
-/// (`oktz-wa/src/pipeline.rs:2881`). `session.results` yang hilang di JS
+/// (`oktz-wa/src/pipeline.rs:2881`). `session.results` yang hilang di versi awal
 /// melempar TypeError (di luar `try`), di sini menjadi `None`.
 #[oktz_plugin_api::answer_handler]
 pub fn stickerly_answer(ctx: &Ctx) -> Option<Reply> {
-    // `if (!m.body || m.isCommand) return false;` (`stickerly.js:75`).
+    // `if (!m.body || m.isCommand) return false;`.
     if ctx.text.trim().is_empty() {
         return None;
     }
 
-    // `db.getUser(m.sender).stickerly_session` (`stickerly.js:77-82`).
+    // `db.getUser(m.sender).stickerly_session`.
     let sesi = ctx.user_field("stickerly_session").cloned()?;
     if !js_truthy(Some(&sesi)) {
         return None;
@@ -319,9 +310,9 @@ pub fn stickerly_answer(ctx: &Ctx) -> Option<Reply> {
         return None;
     }
 
-    // `selectedPack.url` (`stickerly.js:106,110`) — key yang tidak ada
+    // `selectedPack.url` — key yang tidak ada
     // diteruskan sebagai `"undefined"` seperti `encodeURIComponent(undefined)`
-    // di JS, jadi API tetap dipanggil dan gagal di jalur normal.
+    // di versi awal, jadi API tetap dipanggil dan gagal di jalur normal.
     let url = teks_js(hasil[pilihan as usize - 1].get("url"));
 
     Some(unduh_pack(ctx, &url).with_mutation(mutasi_sesi(ctx, Value::Null)))
@@ -535,7 +526,7 @@ mod tests {
         assert_eq!(p.meta.example, ".stickerly anime");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 2);
-        // JS tidak menulis isGroup/isPrivate -> default `plugins.js:70-71` false.
+        // versi awal tidak menulis isGroup/isPrivate -> default false.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
     }
@@ -737,7 +728,7 @@ mod tests {
         let t = 1_000_000;
         assert!(!kedaluwarsa(&json!({ "time": t }), t + SESSION_TIMEOUT_MS));
         assert!(kedaluwarsa(&json!({ "time": t }), t + SESSION_TIMEOUT_MS + 1));
-        // Tanpa `time` JS menghitung NaN, dan `NaN > X` false.
+        // Tanpa `time` versi awal menghitung NaN, dan `NaN > X` false.
         assert!(!kedaluwarsa(&json!({ "results": [] }), t + SESSION_TIMEOUT_MS + 1));
         assert!(!kedaluwarsa(&json!({ "time": "x" }), t + SESSION_TIMEOUT_MS + 1));
     }
@@ -785,12 +776,12 @@ mod tests {
                 "{teks}"
             );
         }
-        // `parseInt("2abc") = 2` (kuirk parseInt JS) — pack kedua tetap dipilih.
+        // `parseInt("2abc") = 2` (kuirk parseInt versi awal) — pack kedua tetap dipilih.
         let r = stickerly_answer(&ctx_jawaban(Stub::offline(), "2abc", sesi.clone()))
             .expect("parseInt berhenti di non-digit");
         assert_eq!(reaksi(&r), None);
         assert!(teks_terakhir(&r).contains("lagi ada kendala"));
-        // `session.results` hilang: JS melempar TypeError, di sini `None`.
+        // `session.results` hilang: versi awal melempar TypeError, di sini `None`.
         let tanpa_hasil = json!({ "time": now_ms() });
         assert!(stickerly_answer(&ctx_jawaban(Stub::offline(), "1", tanpa_hasil)).is_none());
     }

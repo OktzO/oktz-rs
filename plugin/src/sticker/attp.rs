@@ -1,11 +1,9 @@
-//! `plugins/sticker/attp.js` — sticker teks animasi lewat API Neoxr attp3,
-//! dengan fallback canvas lokal.
+//! Sticker teks animasi lewat API Neoxr attp3,
 //!
-//! `ponytail:` JS memiliki dua fallback yang tidak tersedia di registry Rust:
-//! (1) canvas `@napi-rs/canvas` untuk teks animasi lokal, dan (2) `addExifToWebp`
-//! dari `src/lib/exif.js`. Keduanya tidak dapat dicerminkan, sehingga saat API
-//! gagal plugin jatuh ke balasan error (mirip cabang `catch` JS) dan frame
-//! animasi lokal tidak dikirim.
+//! `Keterbatasan:` versi awal memiliki dua fallback yang tidak tersedia di registry Rust:
+//! (1) canvas `@napi-rs/canvas` untuk teks animasi lokal, dan (2) `addExifToWebp`. Keduanya
+//! tidak dapat dicerminkan, sehingga saat API gagal plugin jatuh ke balasan error (mirip
+//! cabang `catch` versi awal) dan frame animasi lokal tidak dikirim.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -17,7 +15,7 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// Endpoint attp3 Neoxr (warna tetap `FF5733` seperti JS).
+/// Endpoint attp3 Neoxr (warna tetap `FF5733` seperti versi awal).
 pub(crate) fn api_url(text: &str, api_key: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/attp3?text={}&color=FF5733&apikey={api_key}",
@@ -42,7 +40,7 @@ pub(crate) fn api_url(text: &str, api_key: &str) -> String {
     is_bot_admin = false
 )]
 pub fn attp(ctx: Ctx) -> Reply {
-    // `attp.js:74-77` — `text || m.quoted?.text`.
+    // `text || m.quoted?.text`.
     let mut text = ctx.text.trim().to_string();
     if text.is_empty()
         && let Some(q) = ctx.quoted()
@@ -54,7 +52,7 @@ pub fn attp(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // JS `text.length` menghitung unit UTF-16; `chars().count()` yang terdekat.
+    // versi awal `text.length` menghitung unit UTF-16; `chars().count()` yang terdekat.
     if text.chars().count() > 100 {
         return Reply::text("❌ Teks terlalu panjang! Maksimal 100 karakter.");
     }
@@ -210,7 +208,7 @@ mod tests {
         let r = run_dengan_kunci(Stub::offline(), &teks);
         // Kunci kosong karena offline tapi config tidak terisi → Ctx::default()
         // punya api_keys kosong, tapi attp tidak memeriksa kunci sebelum GET,
-        // jadi hanya akan gagal jaringan. Yang penting: tidak ada reaksi ☢ dari
+        // jadi hanya akan gagal jaringan. Yang penting: tidak ada reaksi ☢
         // guard panjang.
         assert_eq!(reaction_of(&r), Some("☢"));
     }

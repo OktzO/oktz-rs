@@ -1,16 +1,7 @@
-//! `plugins/sticker/swm.js` — ganti packname/author sticker.
+//! Ganti packname/author sticker.
 //!
-//! Guard (reply, sticker, packname) dan pemecahan `packname|author` di-port
-//! apa adanya. `quoted.download()` → `Ctx::download_quoted_media()`;
-//! `addExifToWebp` → `oktz_plugin_api::tempel_metadata_stiker` dengan
-//! `EXIF_EMOJIS`, dan gambar/video non-WebP dikonversi lewat
-//! `gambar_ke_stiker_webp` / `video_ke_stiker_webp` sebelum ditempel —
-//! pola yang sama dengan `sticker::siapkan`. Kirim lewat
-//! `Reply::sticker_opsi` + `StickerOpsi::gambar()` (tanpa contextInfo —
-//! Rubby-MD tampil, ourin-md blank).
-//!
-//! `ponytail:` `forwarded`/`premium` mati; kutipan `quoted: m` mengikuti
-//! default pipeline. Tag `☢` hanya di cabang `catch` JS (konversi gagal).
+//! `Keterbatasan:` `forwarded`/`premium` mati; kutipan `quoted: m` mengikuti default
+//! pipeline. Tag `☢` hanya di cabang `catch` versi awal (konversi gagal).
 
 use oktz_plugin_api::{
     Ctx, EXIF_EMOJIS, MediaSource, Reply, StickerOpsi, plugin,
@@ -18,7 +9,7 @@ use oktz_plugin_api::{
 
 use crate::search::applemusic::error_reply;
 
-/// `swm.js:22-30` — kartu cara pakai saat tidak ada pesan yang di-reply.
+/// Kartu cara pakai saat tidak ada pesan yang di-reply.
 pub(crate) fn usage_card(prefix: &str) -> String {
     format!(
         "🖼️ *sᴛɪᴄᴋᴇʀ ᴡᴀᴛᴇʀᴍᴀʀᴋ*\n\n\
@@ -30,7 +21,7 @@ pub(crate) fn usage_card(prefix: &str) -> String {
     )
 }
 
-/// `swm.js:39-47` — `input.includes('|') ? [parts[0], parts[1]] : [input, '']`,
+/// `input.includes('|') ? [parts[0], parts[1]]: [input, '']`,
 /// tiap bagian `.trim()` dan yang kosong jadi `""`.
 pub(crate) fn split_input(input: &str) -> (String, String) {
     let mut parts = input.split('|');
@@ -45,23 +36,23 @@ pub(crate) fn split_input(input: &str) -> (String, String) {
     }
 }
 
-/// `swm.js:66-69` — buffer kosong atau unduhan gagal.
+/// Buffer kosong atau unduhan gagal.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Gagal mendownload sticker";
 
-/// `swm.js:72-74` — cek signature WebP (`RIFF....WEBP`).
+/// Cek signature WebP (`RIFF....WEBP`).
 pub(crate) fn is_webp(bytes: &[u8]) -> bool {
     bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP"
 }
 
-/// `swm.js:83-84` — cek signature video: byte 0..3 `000000` (hex) atau
+/// Cek signature video: byte 0..3 `000000` (hex)
 /// `ftyp` di byte 4..8.
 pub(crate) fn is_video(bytes: &[u8]) -> bool {
     bytes.len() >= 8
         && (&bytes[0..3] == [0u8; 3] || &bytes[4..8] == b"ftyp")
 }
 
-/// `swm.js:71-91` — tempel EXIF ke WebP, konversi gambar/video non-WebP
-/// dulu (pola `sticker::siapkan`). `Err` = cabang `catch` JS.
+/// Tempel EXIF ke WebP, konversi gambar/video non-WebP
+/// dulu (pola `sticker::siapkan`). `Err` = cabang `catch` versi awal.
 fn siapkan(bytes: &[u8], packname: &str, author: &str) -> Result<Vec<u8>, String> {
     let webp = if is_webp(bytes) {
         bytes.to_vec()
@@ -90,7 +81,7 @@ pub fn swm(ctx: Ctx) -> Reply {
         return Reply::text(usage_card(&ctx.prefix));
     };
 
-    // `swm.js:33` — `quoted.type === 'stickerMessage' || quoted.isSticker`.
+    // `quoted.type === 'stickerMessage' || quoted.isSticker`.
     if !quoted.kind.is_sticker() {
         // `.replace('Message', '')` lalu `|| 'media lain'` — jadi hanya string
         // kosong (atau `Other("")`) yang jatuh ke fallback.
@@ -117,7 +108,7 @@ pub fn swm(ctx: Ctx) -> Reply {
 
     let (packname, author) = split_input(input);
 
-    // `swm.js:61-93` — `m.react('🕕')`, unduh, tempel EXIF, kirim sticker.
+    // `m.react('🕕')`, unduh, tempel EXIF, kirim sticker.
     let Ok(bytes) = ctx.download_quoted_media() else {
         return Reply::text(GAGAL_UNDUH).with_reaction("❌");
     };
@@ -133,7 +124,7 @@ pub fn swm(ctx: Ctx) -> Reply {
             Reply::sticker_opsi(MediaSource::bytes(webp).with_mimetype("image/webp"), opsi)
                 .with_reaction("✅")
         }
-        // `swm.js:95-99` — `catch` → template error + ☢.
+        // `catch` → template error + ☢.
         Err(_) => Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢"),
     }
 }

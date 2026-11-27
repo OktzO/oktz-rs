@@ -1,25 +1,19 @@
-//! `plugins/sticker/linesticker.js` — unduh sticker pack LINE lewat Neoxr.
+//! Unduh sticker pack LINE lewat Neoxr.
 //!
-//! Yang diport apa adanya: validasi URL, pembuatan endpoint, kartu info pack,
-//! daftar URL sticker (versi animasi kalau ada), dan semua pesan balasan
-//! (`linesticker.js:23-119`).
+//! `Keterbatasan:` `sock.sendImageAsSticker` / `sendVideoAsSticker` dengan
+//! `packname`/`author` tidak tersedia di `Reply::Sticker`; metadata itu tidak punya kanal
+//! sama sekali di registry Rust. Sticker dikirim apa adanya lewat `Reply::Sticker`, dan
+//! video animasi juga dikirim sebagai sticker (tidak ada varian "video sticker").
 //!
-//! `ponytail:` `sock.sendImageAsSticker` / `sendVideoAsSticker` dengan
-//! `packname`/`author` tidak tersedia di `Reply::Sticker`; metadata itu tidak
-//! punya kanal sama sekali di registry Rust. Sticker dikirim apa adanya lewat
-//! `Reply::Sticker`, dan video animasi juga dikirim sebagai sticker (tidak
-//! ada varian "video sticker").
-//!
-//! `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction` — pipeline
-//! merender `Sequence` lewat loop, bukan `render_reply`, jadi reaksi ✅/☢ pada
-//! jalur multi-pesan tidak ikut (pola yang sama dipakai
-//! `download/tiktokdl2.rs`).
+//! `Keterbatasan:` `Reply::Sequence` tidak boleh dibungkus `Reaction` — pipeline merender
+//! `Sequence` lewat loop, bukan `render_reply`, jadi reaksi ✅/☢ pada jalur multi-pesan
+//! tidak ikut (pola yang sama dipakai `download/tiktokdl2.rs`).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const API: &str = "https://api.neoxr.eu/api/linesticker";
 
-/// Kartu pakai (`linesticker.js:24-36`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎨 *ʟɪɴᴇ sᴛɪᴄᴋᴇʀ ᴘᴀᴄᴋ*\n\n\
@@ -36,12 +30,12 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `/^(https?:\/\/store\.line\.me\/)/` (`linesticker.js:23`).
+/// `/^(https?:\/\/store\.line\.me\/)/`.
 pub(crate) fn is_url_line(url: &str) -> bool {
     url.starts_with("https://store.line.me/") || url.starts_with("http://store.line.me/")
 }
 
-/// `apiUrl` (`linesticker.js:48`).
+/// `apiUrl`.
 pub(crate) fn api_url(url: &str, apikey: &str) -> String {
     format!(
         "{API}?url={}&apikey={}",
@@ -50,24 +44,24 @@ pub(crate) fn api_url(url: &str, apikey: &str) -> String {
     )
 }
 
-/// `!res.data?.status || !res.data?.data` (`linesticker.js:51`).
+/// `!res.data?.status || !res.data?.data`.
 pub(crate) fn respons_valid(data: &serde_json::Value) -> bool {
     crate::common::js_truthy(data.get("status")) && data.get("data").is_some()
 }
 
-/// `❌ Gagal mengambil sticker dari URL tersebut!` (`linesticker.js:53`).
+/// `❌ Gagal mengambil sticker dari URL tersebut!`.
 pub(crate) const GAGAL_AMBIL: &str = "❌ Gagal mengambil sticker dari URL tersebut!";
 
-/// `❌ API Key Neoxr tidak ditemukan di config!` (`linesticker.js:45`).
+/// `❌ API Key Neoxr tidak ditemukan di config!`.
 pub(crate) const KUNCI_TIDAK_ADA: &str = "❌ API Key Neoxr tidak ditemukan di config!";
 
-/// `❌ Tidak ada sticker ditemukan!` (`linesticker.js:67`).
+/// `❌ Tidak ada sticker ditemukan!`.
 pub(crate) const TIDAK_ADA_STICKER: &str = "❌ Tidak ada sticker ditemukan!";
 
-/// `❌ Gagal mengirim sticker` (`linesticker.js:112`).
+/// `❌ Gagal mengirim sticker`.
 pub(crate) const GAGAL_KIRIM: &str = "❌ Gagal mengirim sticker";
 
-/// Info pack (`linesticker.js:70-79`).
+/// Info pack.
 pub(crate) fn render_info(title: &str, author: &str, animated: bool, total: usize) -> String {
     format!(
         "🎨 *ʟɪɴᴇ sᴛɪᴄᴋᴇʀ ᴘᴀᴄᴋ*\n\n\
@@ -82,12 +76,12 @@ pub(crate) fn render_info(title: &str, author: &str, animated: bool, total: usiz
     )
 }
 
-/// Sukses kirim (`linesticker.js:108-109`).
+/// Sukses kirim.
 pub(crate) fn berhasil_kirim(terkirim: usize, total: usize) -> String {
     format!("✅ Berhasil kirim {terkirim}/{total} sticker")
 }
 
-/// `linesticker.js:61-63` — daftar URL sticker: yang animasi kalau ada,
+/// Daftar URL sticker: yang animasi kalau ada,
 /// kalau tidak `sticker_url`.
 pub(crate) fn url_sticker(data: &serde_json::Value, animated: bool) -> Vec<String> {
     let animated_urls = data
@@ -158,15 +152,15 @@ pub fn linesticker(ctx: Ctx) -> Reply {
     let animated = pack.get("animated").is_some_and(|v| crate::common::js_truthy(Some(v)));
     let sticker_urls = url_sticker(pack, animated);
 
-    // `linesticker.js:65-68` — pack tanpa sticker.
+    // Pack tanpa sticker.
     if sticker_urls.is_empty() {
         return Reply::text(TIDAK_ADA_STICKER).with_reaction("❌");
     }
 
-    // `linesticker.js:70-79` — kartu info pack.
+    // Kartu info pack.
     let info = Reply::text(render_info(title, author, animated, sticker_urls.len()));
 
-    // `linesticker.js:81-104` — unduh dan kirim maksimal 10 sticker.
+    // Unduh dan kirim maksimal 10 sticker.
     let mut terkirim = 0usize;
     let mut balasan: Vec<Reply> = vec![info];
     for url in sticker_urls.iter().take(10) {
@@ -181,9 +175,9 @@ pub fn linesticker(ctx: Ctx) -> Reply {
         balasan.push(Reply::sticker(oktz_plugin_api::MediaSource::bytes(buf)));
     }
 
-    // `linesticker.js:107-113` — hasil pengiriman.
+    // Hasil pengiriman.
     //
-    // `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction` (pipeline
+    // `Keterbatasan:` `Reply::Sequence` tidak boleh dibungkus `Reaction` (pipeline
     // merender `Sequence` lewat loop, bukan `render_reply`), jadi reaksi ✅/☢
     // tidak ikut di jalur ini — sama seperti `download/tiktokdl2.rs`.
     if terkirim > 0 {

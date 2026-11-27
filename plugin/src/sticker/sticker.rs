@@ -1,4 +1,4 @@
-//! `plugins/sticker/sticker.js` — command `.s`.
+//! Command `.s`.
 
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, OpsiS, Reply, StickerOpsi, plugin};
@@ -379,7 +379,7 @@ mod tests {
             panic!("harus sticker: {list:?}")
         };
         assert!(media.is_some());
-        // Ponytail: tanpa contextInfo (Rubby-MD `.s` tampil, ourin-md blank).
+        // Ponytail: tanpa contextInfo (Rubby-MD `.s` tampil, versi awal blank).
         assert!(!opsi.forwarded);
         assert_eq!(opsi.packname.as_deref(), Some("Foto-AI"));
     }
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `sticker.js:174-189` — kartu pakai, literal JS baris-per-baris.
+        // Kartu pakai, literal versi awal baris-per-baris.
         assert_eq!(
             pakai("."),
             "🖼️ *sᴛɪᴄᴋᴇʀ ᴍᴀᴋᴇʀ*\n\n\
@@ -490,9 +490,9 @@ Kirim/reply gambar atau video dengan caption:\n\
 *ᴀʟʙᴜᴍ:*\n\
 > Reply pesan foto/video yang banyak → semua jadi sticker dalam 1 pesan"
         );
-        // `sticker.js:228` — gagal download, literal JS.
+        // Gagal download, literal versi awal.
         assert_eq!(gagal_kirim(), "❌ Gagal mendownload media!");
-        // `sticker.js:247` — video kepanjangan, `toFixed(1)` JS.
+        // Video kepanjangan, `toFixed(1)` versi awal.
         assert_eq!(
             terlalu_panjang(10.5),
             "❌ Video terlalu panjang!\n\n> Durasi: 10.5 detik\n> Maksimal: 10 detik"

@@ -1,29 +1,21 @@
-//! `plugins/sticker/pinpack.js` — cari gambar Pinterest lalu jadikan sticker pack.
+//! Cari gambar Pinterest lalu jadikan sticker pack.
 //!
-//! Yang diport apa adanya:
-//! - Kartu pakai (`pinpack.js:54-63`).
-//! - Pencarian gambar: GET `https://api.siputzx.my.id/api/s/pinterest?query=<query>`
-//!   (`pinpack.js:69`) — query-nya TIDAK di-encode di JS, jadi ditiru apa
-//!   adanya.
-//! - Semua pesan: hasil kosong, laporan mengunduh, gagal unduh, pack gagal →
-//!   kirim satu per satu, berhasil kirim, gagal kirim (`pinpack.js:72-155`).
-//!
-//! `ponytail:`
+//! `Keterbatasan:`
 //! - `sock.sendStickerPack` tidak ada di `Reply`, jadi sticker dikirim satu per
-//!   satu lewat `Reply::sequence`; percabangan "Pack gagal, mengirim satu per
-//!   satu..." (`:115-119`) tidak pernah tersentuh.
+//! satu lewat `Reply::sequence`; percabangan "Pack gagal, mengirim satu per
+//! satu..." (`:115-119`) tidak pernah tersentuh.
 //! - `sharp(...).resize(512, 512, { fit: "contain", background: transparent })`
-//!   tidak punya padanan persis di `oktz_plugin_api::gambar`; gambar
-//!   dikonversi ke WebP apa adanya.
+//! tidak punya padanan persis di `oktz_plugin_api::gambar`; gambar
+//! dikonversi ke WebP apa adanya.
 //! - `addExifToWebp` tidak ada, jadi metadata packname/author tidak ikut.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `pinpack.js:13` — batas gambar per pack.
+/// Batas gambar per pack.
 pub(crate) const MAX_STICKERS: usize = 20;
 
-/// `pinpack.js:54-63` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "── .✦ 𝗣𝗜𝗇 𝗣𝗔𝗖𝗞 ✦. ── 𝜗ৎ\n\n\
@@ -37,42 +29,42 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `pinpack.js:74` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("── .✦ ──\n\n> Tidak ditemukan hasil untuk: *{query}* .☘︎ ݁˖")
 }
 
-/// `pinpack.js:78` — laporan mengunduh.
+/// Laporan mengunduh.
 pub(crate) fn mengunduh(jumlah: usize) -> String {
     format!(
         "── .✦ ──\n\n> Mengunduh *{jumlah}* gambar dari Pinterest\n> Lalu dikonversi ke sticker pack... .☘︎ ݁˖"
     )
 }
 
-/// `pinpack.js:100` — gagal mengunduh gambar.
+/// Gagal mengunduh gambar.
 pub(crate) const UNDUH_GAGAL: &str = "── .✦ ──\n\n> Gagal mendownload gambar .☘︎ ݁˖";
 
-/// `pinpack.js:118` — pack gagal, kirim satu per satu.
+/// Pack gagal, kirim satu per satu.
 #[cfg(test)]
 pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖";
 
-/// `pinpack.js:150` — berhasil mengirim sebagian sticker.
+/// Berhasil mengirim sebagian sticker.
 pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
     format!(
         "── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖"
     )
 }
 
-/// `pinpack.js:154` — gagal mengirim sticker.
+/// Gagal mengirim sticker.
 #[cfg(test)]
 pub(crate) const KIRIM_GAGAL: &str = "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖";
 
-/// `pinpack.js:69` — endpoint pencarian.
+/// Endpoint pencarian.
 pub(crate) fn url_pinterest(query: &str) -> String {
     format!("https://api.siputzx.my.id/api/s/pinterest?query={query}")
 }
 
-/// `pinpack.js:70` — daftar URL gambar dari hasil pencarian.
+/// Daftar URL gambar dari hasil pencarian.
 pub(crate) fn url_gambar(body: &Value) -> Vec<String> {
     let Some(data) = body.get("data").and_then(Value::as_array) else {
         return Vec::new();
@@ -114,7 +106,7 @@ pub fn pinpack(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `pinpack.js:69` — query tidak di-encode di JS.
+    // Query tidak di-encode di versi awal.
     let Ok(res) = ctx.http.get(&url_pinterest(&query)) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("✘");
     };
@@ -125,10 +117,10 @@ pub fn pinpack(ctx: Ctx) -> Reply {
         return Reply::text(tidak_ditemukan(&query)).with_reaction("✘");
     }
 
-    // `pinpack.js:77-79` — laporan mengunduh.
+    // Laporan mengunduh.
     let laporan = Reply::text(mengunduh(hasil.len()));
 
-    // `pinpack.js:83-95` — unduh gambar lalu konversi ke WebP.
+    // Unduh gambar lalu konversi ke WebP.
     let mut sticker_bytes: Vec<Vec<u8>> = Vec::new();
     for url in &hasil {
         let Ok(res) = ctx.http.get(url) else {
@@ -140,13 +132,13 @@ pub fn pinpack(ctx: Ctx) -> Reply {
     }
 
     if sticker_bytes.is_empty() {
-        // `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
+        // `Keterbatasan:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
         // (pipeline merender `Sequence` lewat loop, bukan `render_reply`), jadi
         // reaksi ✘ tidak ikut — sama seperti `download/tiktokdl2.rs`.
         return Reply::sequence(vec![laporan, Reply::text(UNDUH_GAGAL)]);
     }
 
-    // `pinpack.js:102-114` — JS mengirim paket; di sini satu per satu.
+    // Versi awal mengirim paket; di sini satu per satu.
     let packname = format!("Pinterest: {query}");
     let mut balasan: Vec<Reply> = vec![laporan];
     let terkirim = sticker_bytes.len();
@@ -154,7 +146,7 @@ pub fn pinpack(ctx: Ctx) -> Reply {
         balasan.push(Reply::sticker(MediaSource::bytes(bytes)));
     }
     balasan.push(Reply::text(berhasil_kirim(terkirim, &packname)));
-    // `ponytail:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` — lihat
+    // `Keterbatasan:` reaksi ✓ tidak bisa menempel pada `Reply::Sequence` —
     // catatan di atas.
     Reply::sequence(balasan)
 }

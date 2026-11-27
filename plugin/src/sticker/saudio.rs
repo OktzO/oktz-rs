@@ -1,7 +1,4 @@
-//! Sound sticker (sticker + audio), port `plugins/sticker/saudio.js`.
-//!
-//! Audio diunduh dari URL di teks, dikonversi ke Opus/Ogg lewat ffmpeg, lalu
-//! ikut dikirim sebagai `StickerMessage.audioMessage` oleh pipeline.
+//! Sound sticker (sticker + audio), port.
 
 use oktz_plugin_api::{
     Ctx, EXIF_EMOJIS, HttpCall, IncomingKind, MediaSource, QuotedKind, Reply, StickerOpsi,
@@ -26,7 +23,7 @@ fn kartu_bantuan(prefix: &str) -> String {
 }
 
 /// Foto/video/stiker yang dikirim BERSAMA caption sama-sama jadi target,
-/// seperti `const target = m.quoted || m` di JS.
+/// seperti `const target = m.quoted || m` di versi awal.
 fn kind_dari_media(kind: IncomingKind) -> QuotedKind {
     match kind {
         IncomingKind::Image => QuotedKind::Image,
@@ -47,7 +44,7 @@ fn url_audio(teks: &str) -> Option<&str> {
     })
 }
 
-/// `checkIsAnimatedWebp` (`saudio.js`): flag animasi VP8X atau chunk `ANIM`.
+/// `checkIsAnimatedWebp`: flag animasi VP8X atau chunk `ANIM`.
 fn webp_beranimasi(data: &[u8]) -> bool {
     if data.len() < 30 {
         return false;
@@ -136,7 +133,7 @@ fn kompres_webp(data: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Pass-1 dan pass-2 encode Opus.
 ///
-/// WA menolak sound sticker dari encode Opus mono single-pass dengan
+/// WA menolak sound sticker dari encode Opus mono single-pass
 /// "Tidak bisa memutar suara sticker". Resep yang terbukti (whatsapp-sound-sticker):
 /// encode stereo 64k dulu, baru turunkan ke mono 32k.
 fn argumen_opus_pass1() -> Vec<&'static str> {
