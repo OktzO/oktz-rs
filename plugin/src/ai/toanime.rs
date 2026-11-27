@@ -1,8 +1,4 @@
-//! `plugins/ai/toanime.js` — ubah foto menjadi gaya anime/Ghibli Studio lewat
-//! scraper `seaart::live3d` (`oktz_scraper::seaart::live3d`).
-//!
-//! Beda urutan dengan `toisland`/`tocermin`: JS mengunduh gambar DULU, baru
-//! `m.react('🕕')` — jadi jalur gagal-unduh hanya punya reaksi `❌`.
+//! Ubah foto menjadi gaya anime/Ghibli Studio lewat
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -12,12 +8,12 @@ detailed backgrounds, expressive eyes, and that signature warm, magical atmosphe
 Keep the original composition but apply the distinct Ghibli artistic style with \n\
 watercolor-like textures and dreamy lighting.";
 
-/// Kartu pakai saat tidak ada gambar (`toanime.js:26-34`).
+/// Kartu pakai saat tidak ada gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!("🎨 *ᴛᴏ ᴀɴɪᴍᴇ*\n\n> Kirim/reply gambar untuk diubah ke gaya anime\n\n`{prefix}toanime`")
 }
 
-/// `m.quoted.download()` didahulukan, lalu `m.download()` — urutan JS.
+/// `m.quoted.download()` didahulukan, lalu `m.download()` — urutan versi awal.
 fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return ctx.download_quoted_media().ok();
@@ -140,7 +136,7 @@ mod tests {
 
     #[test]
     fn gagal_unduh_tanpa_reaksi_jam_karena_react_nya_belakangan() {
-        // toanime.js:39-49 — unduh gagal → `m.react('❌')`; `🕕` baru setelahnya.
+        // Unduh gagal → `m.react('❌')`; `🕕` baru setelahnya.
         let r = toanime(ctx_of(
             HttpRangkaian::offline(),
             Some(IncomingKind::Image),

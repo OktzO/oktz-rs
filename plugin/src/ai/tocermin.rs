@@ -1,8 +1,4 @@
-//! `plugins/ai/tocermin.js` — efek cermin lewat scraper
-//! `seaart::live3d` (`oktz_scraper::seaart::live3d`).
-//!
-//! `m.react('🕕')` jalan SEBELUM unduh (`tocermin.js:37`), jadi jalur
-//! gagal-unduh membawa reaksi `🕕` lalu `❌`.
+//! Efek cermin lewat scraper
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -11,14 +7,14 @@ Add a realistic reflection as if the subject is in front of a mirror or reflecti
 Ensure symmetry, smooth reflection blending, realistic lighting and shadows. \n\
 Keep the original identity and details, high quality, photorealistic.";
 
-/// Kartu pakai saat tidak ada gambar (`tocermin.js:26-33`).
+/// Kartu pakai saat tidak ada gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🪞 *ᴛᴏ ᴄᴇʀᴍɪɴ*\n\n> Kirim/reply gambar untuk efek cermin\n\n`{prefix}tocermin`"
     )
 }
 
-/// `m.quoted.download()` didahulukan, lalu `m.download()` — urutan JS.
+/// `m.quoted.download()` didahulukan, lalu `m.download()` — urutan versi awal.
 fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return ctx.download_quoted_media().ok();

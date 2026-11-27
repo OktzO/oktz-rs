@@ -1,9 +1,8 @@
-//! `plugins/ai/simi.js` — ngobrol santai bareng SimiSimi.
+//! Ngobrol santai bareng SimiSimi.
 //!
-//! `ponytail:` header `User-Agent` per-request (`simi.js:33`) tidak bisa
-//! dikirim — `HttpGet` tidak punya setter header. reacted `🕕` (`simi.js:26`)
-//! dilewati karena `Reply::Reaction` hanya menampung satu emoji; reaksi
-//! terakhir (`❌`/`✅`/`☢`) yang ikut.
+//! `Keterbatasan:` header `User-Agent` per-request tidak bisa dikirim — `HttpGet` tidak
+//! punya setter header. reacted `🕕` dilewati karena `Reply::Reaction` hanya menampung satu
+//! emoji; reaksi terakhir (`❌`/`✅`/`☢`) yang ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -31,7 +30,7 @@ const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/simisimi";
     is_bot_admin = false
 )]
 pub fn simi(ctx: Ctx) -> Reply {
-    // `simi.js:20` — `m.args.join(" ")` dulu, `m.text` cuma fallback.
+    // `m.args.join(" ")` dulu, `m.text` cuma fallback.
     let text = if ctx.args.is_empty() {
         ctx.text.trim().to_string()
     } else {
@@ -51,7 +50,7 @@ pub fn simi(ctx: Ctx) -> Reply {
     // tetap `undefined` dan jatuh ke cabang "ngambek" di bawah.
     let data = res.json().unwrap_or(Value::Null);
 
-    // `simi.js:38` — `!data.status || !data.result`.
+    // `!data.status || !data.result`.
     if !js_truthy(data.get("status")) || !js_truthy(data.get("result")) {
         return Reply::text("⚠️ Simi lagi ngambek, nggak mau balas.").with_reaction("❌");
     }

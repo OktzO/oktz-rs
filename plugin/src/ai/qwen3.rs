@@ -1,18 +1,13 @@
-//! `plugins/ai/qwen3.js` — chat dengan Qwen3 80B via OverChat.
+//! Chat dengan Qwen3 80B via OverChat.
 //!
-//! Scraper `Qwen3` (`src/scraper/qwen3.js`) memakai endpoint, model,
-//! `personaId`, dan bentuk body yang sama persis dengan
-//! `src/scraper/claudehaiku.js`, jadi parser SSE-nya dipinjam dari
-//! [`super::claudehaiku`] lewat `overchat_chat`.
-//!
-//! `ponytail:` tidak ditulis:
+//! `Keterbatasan:` tidak ditulis:
 //! 1. Header per-request (`x-device-uuid`, `sec-ch-ua*`, `origin`, `referer`)
-//!    — `HttpGet` tidak punya setter header.
-//! 2. `saluranCtx()` (`qwen3.js:52`) yang ditempel sebagai `contextInfo`
-//!    forwarded-newsletter — `Reply` tidak punya field context.
-//! 3. Cabang `status:false` (`qwen3.js:41-46`) praktis tidak terjangkau:
-//!    `UreqHttp` sudah mengubah status >= 400 jadi `Err`, jadi yang tampil
-//!    template error `catch`, bukan `❌ *Qwen3 Gagal*`.
+//! `HttpGet` tidak punya setter header.
+//! 2. `saluranCtx()` yang ditempel sebagai `contextInfo`
+//! forwarded-newsletter — `Reply` tidak punya field context.
+//! 3. Cabang `status:false` praktis tidak terjangkau:
+//! `UreqHttp` sudah mengubah status >= 400 jadi `Err`, jadi yang tampil
+//! template error `catch`, bukan `❌ *Qwen3 Gagal*`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -23,10 +18,10 @@ use super::claudehaiku::overchat_chat;
 const MODEL: &str = "alibaba/qwen3-next-80b-a3b-instruct";
 const PERSONA: &str = "qwen-3-landing";
 
-/// Pesan sistem yang dipisah sendiri di `qwen3.js:27-31`.
+/// Pesan sistem yang dipisah sendiri.
 const SYSTEM: &str = "Ikuti bahasa user dan jawab dengan gaya natural, singkat, dan jelas.";
 
-/// `qwen3.js:24-33`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🔵 *Qwen3 80B*\n\n\

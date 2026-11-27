@@ -1,15 +1,4 @@
-//! `plugins/ai/tofigurev2.js` — ubah gambar ke style Figure v2.
-//!
-//! Alur JS: unduh media (quoted dulu, baru trigger) → `uploadImage` →
-//! `applyImageEffect('tofigurav3')` → kirim gambar. Nama efeknya `'tofigurav3'`,
-//! beda dari nama plugin — kuirk JS yang ditiru apa adanya
-//! (`tofigurev2.js:44`).
-//!
-//! `uploadImage` (`src/lib/uploader.js` + `src/lib/upload-providers.js`)
-//! disalin ke berkas ini; lihat blok SALINAN.
-//!
-//! Catatan: baris `pub mod tofigurev2;` perlu ditambah ke `ai/mod.rs` secara
-//! manual (mod.rs sudah memuat plugin lain, dilarang disentuh).
+//! Ubah gambar ke style Figure v2.
 
 use oktz_plugin_api::{
     Ctx, HttpCall, HttpGet, HttpResponse, IncomingKind, MediaSource, MultipartPart, Reply, plugin,
@@ -19,7 +8,7 @@ use serde_json::Value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 // ===========================================================================
-// SALINAN `src/lib/uploader.js` + `src/lib/upload-providers.js`
+// SALINAN +
 //
 // Aturan port-brief: helper bersama belum ada di crate, jadi blok ini disalin
 // identik ke empat berkas ai (toemotebatu, tofigurev2, toghibli, tomekah).
@@ -27,15 +16,15 @@ use crate::tools::phisingataubukan::encode_uri_component;
 //
 // Tidak bisa disalin: `withTimeout(..., 20000)` per provider — mesin sinkron
 // ini tidak punya timer. `UreqHttp` sudah memasang timeout global 20 detik
-// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` JS.
+// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` versi awal.
 // ===========================================================================
 
-/// `upload-providers.js:16-17` — UA browser untuk host yang menolaknya.
+/// UA browser untuk host yang menolaknya.
 const UA_UPLOAD: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Nama berkas + content-type: JS selalu memanggil
+/// Nama berkas + content-type: versi awal selalu memanggil
 /// `uploadImage(buffer, 'image.jpg')`, dan `mime.lookup('image.jpg')` =
-/// `image/jpeg` (`upload-providers.js:19`).
+/// `image/jpeg`.
 const NAMA_BERKAS: &str = "image.jpg";
 const MIME_BERKAS: &str = "image/jpeg";
 
@@ -44,7 +33,7 @@ fn respons_ok(res: &HttpResponse) -> bool {
     (200..300).contains(&res.status)
 }
 
-/// `typeof url !== 'string' || !url` (`uploader.js:30`).
+/// `typeof url !== 'string' || !url`.
 fn url_dari(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
@@ -52,7 +41,7 @@ fn url_dari(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// `litterbox` (`upload-providers.js:21-37`).
+/// `litterbox`.
 fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -76,7 +65,7 @@ fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `kappa` (`upload-providers.js:39-59`).
+/// `kappa`.
 fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -98,7 +87,7 @@ fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(data.get("link")).ok_or_else(|| "Invalid response".into())
 }
 
-/// `uguu` (`upload-providers.js:61-82`).
+/// `uguu`.
 fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -128,7 +117,7 @@ fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(url).ok_or_else(|| "Invalid response".into())
 }
 
-/// `nekohime` (`upload-providers.js:84-101`).
+/// `nekohime`.
 fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -142,7 +131,7 @@ fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         return Err("Nekohime gagal".into());
     }
     let data = res.json().unwrap_or(Value::Null);
-    // `Array.isArray(f) ? f[0]?.url : f?.url` (`upload-providers.js:97-98`).
+    // `Array.isArray(f) ? f[0]?.url: f?.url`.
     let url = match data.get("files") {
         Some(Value::Array(list)) => list.first().and_then(|f| f.get("url")),
         Some(f) => f.get("url"),
@@ -157,7 +146,7 @@ fn lewati_spasi(t: &str) -> usize {
 }
 
 /// Regex `Download link:\s*<a href=([^>\s]+)>` (case-insensitive,
-/// `upload-providers.js:124`).
+///
 fn tautan_leopard(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -177,12 +166,12 @@ fn tautan_leopard(html: &str) -> Option<String> {
     None
 }
 
-/// `leopard` (`upload-providers.js:103-127`).
+/// `leopard`.
 fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     const HALAMAN: &str = "https://leopard.hosting.pecon.us/upload.php";
     // Pemanasan: status tidak diperiksa, tapi kegagalan jaringan tetap
-    // menggagalkan provider ini (`await fetch(...)` tanpa catch di JS).
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // menggagalkan provider ini (`await fetch(...)` tanpa catch di versi awal).
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get(HALAMAN)
             .header("User-Agent", UA_UPLOAD)
@@ -208,7 +197,7 @@ fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     tautan_leopard(&html).ok_or_else(|| "Leopard gagal".into())
 }
 
-/// `/startUpload\("([^"]+)"/` (`upload-providers.js:142`).
+/// `/startUpload\("([^"]+)"/`.
 fn start_upload(body: &str) -> Option<String> {
     let mut dari = 0;
     while let Some(rel) = body[dari..].find("startUpload(\"") {
@@ -223,7 +212,7 @@ fn start_upload(body: &str) -> Option<String> {
 }
 
 /// Regex `id=["']file_src["'][^>]*value=["']([^"']+)["']` (case-insensitive,
-/// `upload-providers.js:172`) versi scanner.
+/// ) versi scanner.
 fn file_src_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -266,7 +255,7 @@ fn file_src_upload_ee(html: &str) -> Option<String> {
 }
 
 /// Regex `View file:\s*<br\s*\/?>\s*<a href=["']?([^"'>\s]+)["']?`
-/// (case-insensitive, `upload-providers.js:173`) versi scanner.
+/// versi scanner.
 fn view_file_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -305,9 +294,9 @@ fn view_file_upload_ee(html: &str) -> Option<String> {
     None
 }
 
-/// `uploadEe` (`upload-providers.js:129-179`).
+/// `uploadEe`.
 fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // `ext` (`upload-providers.js:130-133`) ditulis apa adanya, walau dengan
+    // `ext` ditulis apa adanya, walau
     // nama berkas tetap "image.jpg" cabang `cat_file` tidak pernah tercapai.
     let ext = NAMA_BERKAS
         .rsplit_once('.')
@@ -315,8 +304,8 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .unwrap_or_default();
     let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
-    // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get("https://www.upload.ee/?")
             .header("User-Agent", UA_UPLOAD)
@@ -379,7 +368,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     // `replaceAll("&amp;", "&")` lalu `replaceAll("&quot;", "\"")`.
     let mut url = raw.replace("&amp;", "&").replace("&quot;", "\"");
     if is_image {
-        // `String.replace("/files/", …)` JS mengganti kemunculan PERTAMA.
+        // `String.replace("/files/", …)` versi awal mengganti kemunculan PERTAMA.
         url = url.replacen("/files/", "/image/", 1);
         if let Some(tanpa_html) = url.strip_suffix(".html") {
             url = tanpa_html.to_string();
@@ -388,10 +377,10 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `uploadImage(buffer, 'image.jpg')` (`uploader.js:14-40`) — provider
+/// `uploadImage(buffer, 'image.jpg')` — provider
 /// dicoba berurutan sampai ada yang mengembalikan URL.
 fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
+    // Urutan `PROVIDERS`.
     // Alias lokal: pecah tipe kompleks pasangan nama + fn provider.
     type ProviderUnggah = (&'static str, fn(&dyn HttpGet, &[u8]) -> Result<String, String>);
     let providers: [ProviderUnggah; 6] = [
@@ -415,10 +404,10 @@ fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     ))
 }
 
-/// UA request efek (`effect-api.js:20`).
+/// UA request efek.
 const UA_EFEK: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Signature PNG/JPEG/GIF/WEBP/RIFF/BMP (`effect-api.js:57-67`).
+/// Signature PNG/JPEG/GIF/WEBP/RIFF/BMP.
 fn looks_like_image(buf: &[u8]) -> bool {
     if buf.len() < 12 {
         return false;
@@ -430,12 +419,12 @@ fn looks_like_image(buf: &[u8]) -> bool {
         || buf.starts_with(b"BM")
 }
 
-/// `applyImageEffect(effect, imageUrl)` — daftar provider dari
+/// `applyImageEffect(effect, imageUrl)` — daftar provider
 /// `config.effectApi.providers` tidak ada di `oktz_core::config::Runtime`, jadi
-/// hanya host fallback `faa` (`effect-api.js:26-28`) yang dipakai.
+/// hanya host fallback `faa` yang dipakai.
 ///
-/// `ponytail:` `withTimeout(..., 45000)` dan loop provider
-/// (`effect-api.js:106-120`) tidak bisa disalin tanpa timer + config; ekspos
+/// `Keterbatasan:` `withTimeout(..., 45000)` dan loop provider
+/// tidak bisa disalin tanpa timer + config; ekspos
 /// `effectApi` di `Runtime` kalau host cadangan mau dipakai.
 fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &str) -> Result<Vec<u8>, String> {
     let url = format!(
@@ -461,7 +450,7 @@ fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &str) -> Resu
 }
 
 /// Efek di `applyImageEffect` — `'tofigurav3'`, bukan nama plugin
-/// (`tofigurev2.js:44`).
+///
 const EFEK: &str = "tofigurav3";
 
 #[plugin(
@@ -485,17 +474,17 @@ pub fn tofigurev2(ctx: Ctx) -> Reply {
         || ctx.quoted().is_some_and(|q| q.kind.is_image());
 
     if !is_image {
-        // `tofigurev2.js:23-25` — kartu pakai memakai `${m.prefix}`.
+        // Kartu pakai memakai `${m.prefix}`.
         return Reply::text(format!(
             "🎭 *ꜰɪɢᴜʀᴇ sᴛʏʟᴇ ᴠ2*\n\n> Kirim/reply gambar untuk diubah ke style Figure\n\n`{prefix}tofigurev2`",
             prefix = ctx.prefix
         ));
     }
 
-    // ponytail: reaksi 🕕 hilang (`tofigurev2.js:27`) — `Reply` hanya membawa
+    // Keterbatasan: reaksi 🕕 hilang — `Reply` hanya membawa
     // satu reaksi, jadi hanya reaksi penutup ❌/✅/☢ yang dikirim.
 
-    // `tofigurev2.js:30-35` — quoted lebih dulu (`m.quoted.isMedia`), baru
+    // Quoted lebih dulu (`m.quoted.isMedia`), baru
     // pesan pemicu (`m.isMedia`).
     let unduhan = if ctx.quoted().is_some_and(|q| q.is_media()) {
         Some(ctx.download_quoted_media())
@@ -504,14 +493,14 @@ pub fn tofigurev2(ctx: Ctx) -> Reply {
     } else {
         None
     };
-    // `tofigurev2.js:37-40` — `!buffer` → ❌. `Err` dari MediaFetch adalah
-    // padanan `download()` melempar di JS (jalur catch ☢); preseden port repo
+    // `!buffer` → ❌. `Err` dari MediaFetch adalah
+    // padanan `download()` melempar di versi awal (jalur catch ☢); preseden port repo
     // (toblack/tochibi/toisland) memetakannya ke cabang ❌ ini.
     let Some(Ok(buffer)) = unduhan else {
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // JS `catch` (`tofigurev2.js:52-55`) menangkap upload, efek, dan kirim:
+    // versi awal `catch` menangkap upload, efek, dan kirim:
     // semuanya jadi template error + reaksi ☢.
     let Ok(image_url) = upload_image(&*ctx.http, &buffer) else {
         return Reply::text(crate::common::error_template(&ctx))
@@ -685,8 +674,8 @@ mod tests {
 
     #[test]
     fn kartu_pakai_pakai_prefix_ctx_bukan_titik_hardcode() {
-        // JS `${m.prefix}` (`tofigurev2.js:24`); stub lama menambah baris
-        // "Prefix saat ini" yang tidak ada di JS dan memakai "." hardcode.
+        // versi awal `${m.prefix}`; stub lama menambah baris
+        // "Prefix saat ini" yang tidak ada di versi awal dan memakai "." hardcode.
         let http = Stub::baru(vec![], Ok(Vec::new()));
         let r = tofigurev2(ctx_stub(http.clone(), None, None, "!"));
         assert_eq!(
@@ -809,7 +798,7 @@ mod tests {
 
     #[test]
     fn respons_efek_bukan_gambar_membalas_template_error() {
-        // `looksLikeImage` (`effect-api.js:57-67`) menolak HTML.
+        // `looksLikeImage` menolak HTML.
         let http = Stub::baru(
             vec![
                 resp(200, b"https://litterbox.example/img.jpg"),

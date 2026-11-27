@@ -1,16 +1,12 @@
-//! `plugins/ai/claudehaiku.js` — Claude Haiku 4.5 via OverChat.
+//! Claude Haiku 4.5 via OverChat.
 //!
-//! File ini juga menjadi rumah helper OverChat untuk `gpt5.rs` — keduanya POST
-//! ke `api.overchat.ai/v1/chat/completions` dengan bentuk body dan parser SSE
-//! yang identik, hanya `model`/`personaId`/pesan sistem yang beda.
-//!
-//! `ponytail:` tiga hal tidak bisa di-port dan tidak ada padanannya di `Ctx`/
+//! `Keterbatasan:` tiga hal tidak bisa diimplementasikan dan tidak ada padanannya di `Ctx`/
 //! `Reply`, jadi tidak ditulis (bukan di shortcut):
 //! 1. Header per-request (`x-device-uuid`, `sec-ch-ua*`, `origin`, `referer`).
-//! 2. `saluranCtx()` (`src/lib/context.js:151`) yang ditempel sebagai
-//!    `contextInfo` forwarded-newsletter — `Reply` tidak punya field context.
+//! 2. `saluranCtx()` yang ditempel sebagai
+//! `contextInfo` forwarded-newsletter — `Reply` tidak punya field context.
 //! 3. `crypto.randomUUID()` diganti generator UUID v4 di [`super::aiassist`]
-//!    (pola hex yang sama, sumber acaknya `crate::common::roll`).
+//! (pola hex yang sama, sumber acaknya `crate::common::roll`).
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
 use serde_json::{Value};
@@ -18,13 +14,13 @@ use serde_json::{Value};
 
 use super::aiassist::{AiFailure, clip, failed, uuid_v4};
 
-/// `API` (`src/scraper/claudehaiku.js:3`).
+/// `API`.
 const ENDPOINT: &str = "https://api.overchat.ai/v1/chat/completions";
 
 const MODEL: &str = "claude-haiku-4-5-20251001";
 const PERSONA: &str = "claude-haiku-4-5-landing";
 
-/// Parser SSE OpenAI-compatible (`claudehaiku.js:84-101`).
+/// Parser SSE OpenAI-compatible.
 ///
 /// `buffer.split("\n")` + `lines.pop()`: potongan terakhir dibuang kalau body
 /// tidak diakhiri newline. Ditiru di sini.
@@ -84,7 +80,7 @@ pub(crate) fn overchat_chat(
     Ok(sse_answer(&res.text()))
 }
 
-/// `claudehaiku.js:25-32`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🤍 *Claude Haiku 4.5*\n\n\

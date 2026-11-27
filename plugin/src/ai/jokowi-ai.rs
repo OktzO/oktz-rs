@@ -1,20 +1,16 @@
-//! `plugins/ai/jokowi-ai.js` — chat dengan Pak Jokowi (backend UnlimitedAI).
+//! Chat dengan Pak Jokowi (backend UnlimitedAI).
 //!
-//! Pemanggilan `UnlimitedAI` dan seluruh parsing-nya ada di
-//! [`super::aiassist`] — helper dipakai bersama `aiassist`, `kobo-ai`, dan
-//! `prabowo-ai` di direktori ini.
-//!
-//! `ponytail:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa
-//! dikirim (`HttpGet` tidak punya setter header), dan `UreqHttp` mengubah
-//! status >= 400 jadi `Err` — jadi cabang `❌ *Jokowi AI Error*` hanya
-//! terjangkau lewat implementasi `HttpGet` lain, bukan lewat `UreqHttp`.
+//! `Keterbatasan:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa dikirim
+//! (`HttpGet` tidak punya setter header), dan `UreqHttp` mengubah status >= 400 jadi `Err`
+//! — jadi cabang `❌ *Jokowi AI Error*` hanya terjangkau lewat implementasi `HttpGet` lain,
+//! bukan lewat `UreqHttp`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
-/// `jokowi-ai.js:22-30`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🏛️ *Pak Jokowi*\n\n\

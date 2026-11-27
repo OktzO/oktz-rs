@@ -1,24 +1,16 @@
-//! `plugins/ai/tohijab.js` — tambahkan hijab ke gambar.
+//! Tambahkan hijab ke gambar.
 //!
-//! Alur JS (`tohijab.js:19-45`): cek gambar → unduh (quoted dulu kalau
-//! `m.quoted.isMedia`, lalu `m.isMedia`) → `uploadImage(buffer, 'image.jpg')`
-//! → `applyImageEffect('tohijab', imageUrl)` → kirim gambar.
-//!
-//! Helper `uploadImage` + `applyImageEffect` ada di
-//! [`super::efek`](crate::ai::efek) — salinan `src/lib/uploader.js`,
-//! `src/lib/upload-providers.js`, dan `src/lib/effect-api.js`.
-//!
-//! `ponytail:` reaksi `🕕` (`tohijab.js:26`) tidak ikut — `Reply` hanya
-//! membawa satu reaksi, jadi yang dikirim reaksi penutup.
+//! `Keterbatasan:` reaksi `🕕` tidak ikut — `Reply` hanya membawa satu reaksi, jadi yang
+//! dikirim reaksi penutup.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, QuotedKind, Reply, plugin};
 
 use super::efek::{apply_image_effect, upload_image};
 
-/// Efek di `applyImageEffect` (`tohijab.js:38`).
+/// Efek di `applyImageEffect`.
 const EFEK: &str = "tohijab";
 
-/// Kartu pakai — `tohijab.js:21-23` memakai `${m.prefix}`.
+/// Kartu pakai — memakai `${m.prefix}`.
 fn help(prefix: &str) -> String {
     format!(
         "🧕 *ʜɪᴊᴀʙ sᴛʏʟᴇ*\n\n\
@@ -28,7 +20,7 @@ fn help(prefix: &str) -> String {
 }
 
 /// `m.isImage || (m.quoted && m.quoted.type === 'imageMessage')`
-/// (`tohijab.js:19`).
+///
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -38,7 +30,7 @@ fn is_image(ctx: &Ctx) -> bool {
 }
 
 /// `m.quoted && m.quoted.isMedia` → quoted; `m.isMedia` → pemicu
-/// (`tohijab.js:28-32`).
+///
 fn unduh_media(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return Some(ctx.download_quoted_media());
@@ -77,7 +69,7 @@ pub fn tohijab(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // `tohijab.js:37-39` — upload + efek; kegagalan keduanya masuk `catch`.
+    // Upload + efek; kegagalan keduanya masuk `catch`.
     let Ok(image_url) = upload_image(&*ctx.http, &buffer) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -253,7 +245,7 @@ mod tests {
 
     #[test]
     fn kartu_pakai_pakai_prefix_ctx() {
-        // `tohijab.js:23` memakai `${m.prefix}`.
+        // memakai `${m.prefix}`.
         let http = Stub::baru(vec![], Ok(Vec::new()));
         let r = tohijab(ctx_stub(http.clone(), None, None, "!"));
         assert_eq!(

@@ -1,15 +1,14 @@
-//! `plugins/ai/deepseek.js` — DeepSeek V4 thinking/reasoning (notegpt.io).
+//! DeepSeek V4 thinking/reasoning (notegpt.io).
 //!
-//! `ponytail:` header `Cookie` (analytics `_ga`/`_gid`/`sbox-guid` +
-//! `anonymous_user_id`) tidak bisa dikirim, jadi `makeCookieHeader`,
-//! `makeSboxGuid`, dan `randomNumber` (`src/scraper/deepseek.js:13-37`)
-//! sengaja tidak ditulis — kodenya hanya dipakai untuk header itu. `history`
+//! `Keterbatasan:` header `Cookie` (analytics `_ga`/`_gid`/`sbox-guid` +
+//! `anonymous_user_id`) tidak bisa dikirim, jadi `makeCookieHeader`, `makeSboxGuid`, dan
+//! `randomNumber` sengaja tidak ditulis — kodenya hanya dipakai untuk header itu. `history`
 //! juga selalu kosong: satu-satunya pemanggil tidak pernah mengirimnya.
 //!
-//! `ponytail:` JS memakai `validateStatus: () => true`, jadi respons 4xx/5xx
-//! tetap dibaca dan biasanya berakhir sebagai `success:false`. `UreqHttp`
-//! membalik itu jadi `Err`, sehingga jalur 403 yang paling mungkin terjadi
-//! jatuh ke template error `catch` — bukan `❌ *DeepSeek Gagal*`.
+//! `Keterbatasan:` versi awal memakai `validateStatus: () => true`, jadi respons 4xx/5xx
+//! tetap dibaca dan biasanya berakhir sebagai `success:false`. `UreqHttp` membalik itu jadi
+//! `Err`, sehingga jalur 403 yang paling mungkin terjadi jatuh ke template error `catch` —
+//! bukan `❌ *DeepSeek Gagal*`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};
@@ -17,18 +16,18 @@ use serde_json::{Value};
 
 use super::aiassist::uuid_v4;
 
-/// `BASE` + path (`src/scraper/deepseek.js:4,95`).
+/// `BASE` + path.
 const ENDPOINT: &str = "https://notegpt.io/api/v2/chat/stream";
 
-/// `reasoningPreview` — `deepseek.js:50-54`.
+/// `reasoningPreview` —.
 const REASONING_PREVIEW: usize = 800;
 
-/// `reply.slice(0, 4096) + "\n\n... (dipotong)"` (`deepseek.js:61-63`).
+/// `reply.slice(0, 4096) + "\n\n... (dipotong)"`.
 const MAX_LEN: usize = 4096;
 
-/// `parseSSE` (`src/scraper/deepseek.js:52-74`).
+/// `parseSSE`.
 ///
-/// Bedanya dari parser OverChat: `history_messages` selalu kosong dan
+/// Bedanya dari parser OverChat: `history_messages` selalu kosong
 /// `rawBody.split(/\r?\n/)` memecah SELURUH body — tidak ada `lines.pop()`,
 /// jadi potongan terakhir yang tidak diakhiri newline tetap ikut dibaca.
 fn parse_sse(raw: &str) -> (String, String) {
@@ -51,7 +50,7 @@ fn parse_sse(raw: &str) -> (String, String) {
         if let Some(t) = v.get("text").and_then(Value::as_str) {
             answer.push_str(t);
         }
-        // `if (json.done) break` — JS truthy, jadi `false`/null/0 tidak break.
+        // `if (json.done) break` — versi awal truthy, jadi `false`/null/0 tidak break.
         match v.get("done") {
             None | Some(Value::Null) | Some(Value::Bool(false)) => {}
             _ => break,
@@ -61,7 +60,7 @@ fn parse_sse(raw: &str) -> (String, String) {
 }
 
 /// `reply += "💭 *Proses Berpikir:*\n" + preview.replace(/\n/g, "\n> ") + "\n\n"`
-/// (`deepseek.js:49-55`).
+///
 fn reasoning_block(reasoning: &str) -> String {
     let preview: String = if reasoning.chars().count() > REASONING_PREVIEW {
         let head: String = reasoning.chars().take(REASONING_PREVIEW).collect();
@@ -75,7 +74,7 @@ fn reasoning_block(reasoning: &str) -> String {
     )
 }
 
-/// `deepseek.js:24-32`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🧠 *DeepSeek V4*\n\n\

@@ -1,9 +1,8 @@
-//! `plugins/ai/feelbetter.js` — chat dengan FeelBetterBot.
+//! Chat dengan FeelBetterBot.
 //!
-//! `ponytail:` header `cookie: feelbet-memory=…` tidak bisa dikirim
-//! (`HttpGet` tidak punya setter header per-request), jadi `makeMemoryId()`
-//! (`src/scraper/feeb.js:11-18`) sengaja tidak ditulis — id-nya cuma dipakai
-//! untuk header itu. `saluranCtx()` juga tidak ada padanannya di `Reply`.
+//! `Keterbatasan:` header `cookie: feelbet-memory=…` tidak bisa dikirim (`HttpGet` tidak
+//! punya setter header per-request), jadi `makeMemoryId()` sengaja tidak ditulis — id-nya
+//! cuma dipakai untuk header itu. `saluranCtx()` juga tidak ada padanannya di `Reply`.
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
 use serde_json::{Value};
@@ -11,14 +10,14 @@ use serde_json::{Value};
 
 use super::aiassist::{AiFailure, clip, failed};
 
-/// `API` (`src/scraper/feeb.js:3`).
+/// `API`.
 const ENDPOINT: &str = "https://feelbetterbot.com/";
 
 const SYSTEM: &str = "Kamu adalah asisten AI yang dibuat oleh Ditzzx. Ikuti bahasa yang digunakan user dalam percakapan. Jika user memakai bahasa Indonesia, jawab dalam bahasa Indonesia yang natural, santai, jelas, dan mudah dipahami. Jangan tiba-tiba pindah bahasa kecuali user memintanya. Jika user bertanya siapa pembuatmu, penciptamu, developermu, atau siapa yang membuatmu, jawab bahwa pembuatmu adalah Ditzzx.";
 
 const GREETING: &str = "Hi, I'm FeelBetterBot — I'm here to listen and help you carry whatever feels heavy, without judgment. I draw on gentle, proven ways of work through hard things, but mostly I just want to understand what you're going through. So, how are you doing right now?";
 
-/// `parseChunk` (`feeb.js:20-41`).
+/// `parseChunk`.
 ///
 /// `JSON.parse` gagal → `catch` mengembalikan `data` mentah, bukan string kosong.
 fn parse_chunk(line: &str) -> String {
@@ -51,7 +50,7 @@ fn parse_chunk(line: &str) -> String {
     }
 }
 
-/// `FeelBetter(prompt)` (`src/scraper/feeb.js:43-108`).
+/// `FeelBetter(prompt)`.
 fn feel_better(http: &dyn HttpGet, prompt: &str) -> Result<String, AiFailure> {
     let body = serde_json::json!({
         "messages": [
@@ -62,8 +61,8 @@ fn feel_better(http: &dyn HttpGet, prompt: &str) -> Result<String, AiFailure> {
     });
     let res = http.post_json(ENDPOINT, &body).map_err(|_| AiFailure::Transport)?;
     let raw = res.text();
-    // `feeb.js:90-93` — `lines.pop()` menyisakan potongan terakhir di buffer,
-    // dan `feeb.js:103-106` memproses sisa itu kalau tidak kosong.
+    // `lines.pop()` menyisakan potongan terakhir di buffer,
+    // dan memproses sisa itu kalau tidak kosong.
     let mut parts: Vec<&str> = raw.split('\n').collect();
     let buffer = parts.pop().unwrap_or("");
     let mut answer: String = parts.iter().map(|l| parse_chunk(l)).collect();
@@ -73,7 +72,7 @@ fn feel_better(http: &dyn HttpGet, prompt: &str) -> Result<String, AiFailure> {
     Ok(answer)
 }
 
-/// `feelbetter.js:24-33`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "💚 *FeelBetterBot*\n\n\

@@ -1,24 +1,20 @@
-//! `plugins/ai/bananagen2.js` — buat gambar dari prompt lewat YuuLabs Flux.
+//! Buat gambar dari prompt lewat YuuLabs Flux.
 //!
-//! Scraper `fluxImage` (`src/scraper/seaart.js:72-91`) adalah satu POST JSON
-//! biasa, jadi ditulis inline di sini; `live3d` (dipakai `to3d`,
-//! `toanime`, `toblack`) tidak — lihat laporan batch.
-//!
-//! `ponytail:` rantai `error.response.data.message || error.response.data.error`
-//! di `bananagen2.js:44-45` tidak bisa terjadi: `UreqHttp` mengubah status
-//! `>= 400` jadi `Err` tanpa body. Yang tersisa `error.message`, persis
-//! seperti `src/lib/axios`/`UreqHttp` sudah dipakai plugin lain di folder ini.
+//! `Keterbatasan:` rantai `error.response.data.message || error.response.data.error` tidak
+//! bisa terjadi: `UreqHttp` mengubah status `>= 400` jadi `Err` tanpa body. Yang tersisa
+//! `error.message`, persis seperti `src/lib/axios`/`UreqHttp` sudah dipakai plugin lain di
+//! folder ini.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::{Value};
 
 use crate::common::js_truthy;
 
-/// `fluxImage` (`src/scraper/seaart.js:77`).
+/// `fluxImage`.
 const ENDPOINT: &str = "https://api.yuulabs.web.id/api/ai/flux-img";
 
 /// `Err` membawa pesan yang akan tampil: `data.message || data.error ||
-/// "Gagal membuat gambar"` (`seaart.js:86`), atau pesan `HttpGet` kalau
+/// "Gagal membuat gambar"`, atau pesan `HttpGet` kalau
 /// kegagalannya di transport.
 fn flux_image(http: &dyn HttpGet, prompt: &str) -> Result<String, String> {
     let body = serde_json::json!({ "message": prompt, "ratio": "1:1" });
@@ -64,7 +60,7 @@ fn flux_image(http: &dyn HttpGet, prompt: &str) -> Result<String, String> {
     is_bot_admin = false
 )]
 pub fn bananagen2(ctx: Ctx) -> Reply {
-    // `bananagen2.js:20` memakai `m.text` apa adanya.
+    // memakai `m.text` apa adanya.
     let prompt = ctx.text.clone();
     if prompt.is_empty() {
         return Reply::text(format!(

@@ -1,43 +1,38 @@
-//! `plugins/ai/aiassist.js` — chat dengan AI Assistant (backend UnlimitedAI).
+//! Chat dengan AI Assistant (backend UnlimitedAI).
 //!
-//! File ini juga menjadi rumah helper `UnlimitedAI` untuk plugin sekelas di
-//! direktori ini (`jokowi-ai`, `kobo-ai`, `prabowo-ai` memanggil fungsi yang
-//! sama dengan karakter berbeda). Helper-nya belum ada di `common.rs` —
-//! laporan batch menyebut pemindahannya ke sana.
-//!
-//! `ponytail:` `HttpGet` tidak punya setter header per-request, jadi header
-//! `cookie`, `sec-ch-ua*`, `origin`, dan `referer` yang dikirim JS tidak ikut.
-//! akibatnya `!response.ok` (403/500) tidak pernah terlihat sebagai `status:false`
-//! seperti di JS — `UreqHttp` mengubahnya jadi `Err` lebih dulu, jadi yang tampil
-//! template error `catch`, bukan `❌ *AI Assistant Error*`. Isi `chatId`,
-//! `deviceId`, `selectedChatModel`, dan `locale` tetap sama.
+//! `Keterbatasan:` `HttpGet` tidak punya setter header per-request, jadi header `cookie`,
+//! `sec-ch-ua*`, `origin`, dan `referer` yang dikirim versi awal tidak ikut. akibatnya
+//! `!response.ok` (403/500) tidak pernah terlihat sebagai `status:false` seperti di versi
+//! awal — `UreqHttp` mengubahnya jadi `Err` lebih dulu, jadi yang tampil template error
+//! `catch`, bukan `❌ *AI Assistant Error*`. Isi `chatId`, `deviceId`, `selectedChatModel`,
+//! dan `locale` tetap sama.
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
 use serde_json::{Value};
 
 use crate::common::{JAKARTA_OFFSET_SECS, jakarta_parts, now_ms, roll};
 
-/// `API` (`src/scraper/unlimitedai.js:3`).
+/// `API`.
 const ENDPOINT: &str = "https://app.unlimitedai.chat/api/chat";
 
-/// Batas potong `reply.slice(0, 4096)` (`aiassist.js:45`).
+/// Batas potong `reply.slice(0, 4096)`.
 const MAX_LEN: usize = 4096;
 
-/// Kegagalan `UnlimitedAI` — dua cabang yang di JS terpisah.
+/// Kegagalan `UnlimitedAI` — dua cabang yang di versi awal terpisah.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum AiFailure {
-    /// `fetch` melempar (JS: masuk `catch`) — di sini juga `post_json` `Err`,
+    /// `fetch` melempar (versi awal: masuk `catch`) — di sini juga `post_json` `Err`,
     /// karena `UreqHttp` tidak mengembalikan body untuk status >= 400.
     Transport,
-    /// `!response.ok` — JS dapat `status:false` plus teks body sebagai `error`.
+    /// `!response.ok` — versi awal dapat `status:false` plus teks body sebagai `error`.
     Rejected(String),
 }
 
 pub(crate) type AiAnswer = Result<String, AiFailure>;
 
-/// `reply.length > 4096 ? reply.slice(0, 4096) + "..." : reply`.
+/// `reply.length > 4096 ? reply.slice(0, 4096) + "...": reply`.
 ///
-/// `ponytail:` `slice` JS menghitung UTF-16 code unit, `chars()` menghitung
+/// `Keterbatasan:` `slice` versi awal menghitung UTF-16 code unit, `chars()` menghitung
 /// code point. Bedanya cuma terlihat kalau 4096 batasnya jatuh di tengah emoji.
 pub(crate) fn clip(s: &str) -> String {
     if s.chars().count() > MAX_LEN {
@@ -78,11 +73,11 @@ fn iso_utc_now() -> String {
 
 /// `CHARACTERS["ai-assistant"].prompt` — nilai yang dipakai
 /// `CHARACTERS[character] || CHARACTERS["ai-assistant"]`
-/// (`src/scraper/unlimitedai.js:37-63`) saat kunci tidak dikenal.
+/// saat kunci tidak dikenal.
 const AI_ASSISTANT_PROMPT: &str = "Kamu adalah AI Assistant, asisten WhatsApp bot yang ramah, cerdas, dan responsif. Kamu menjawab dalam bahasa Indonesia dengan gaya santai tapi tetap informatif. Kamu ahli dalam teknologi, programming, dan hal-hal umum. Jawab dengan singkat, jelas, dan natural. Gunakan emoji secukupnya untuk membuat percakapan lebih hidup.";
 
 
-/// (`src/scraper/unlimitedai.js:37-63`) — hanya `prompt` yang dipakai; `name`
+/// Hanya `prompt` yang dipakai; `name`
 /// hanya diisi ke objek hasil yang tidak pernah dibaca plugin mana pun.
 pub(crate) fn character_prompt(key: &str) -> &'static str {
     match key {
@@ -95,7 +90,7 @@ pub(crate) fn character_prompt(key: &str) -> &'static str {
     }
 }
 
-/// Parser NDJSON UnlimitedAI (`unlimitedai.js:141-151`).
+/// Parser NDJSON UnlimitedAI.
 ///
 /// `buffer.split("\n")` lalu `lines.pop()`: potongan terakhir TIDAK pernah
 /// diproses kalau body tidak diakhiri newline. Ditiru di sini.
@@ -119,7 +114,7 @@ pub(crate) fn ndjson_answer(raw: &str) -> String {
     answer
 }
 
-/// `UnlimitedAI(prompt, character)` (`src/scraper/unlimitedai.js:60-161`).
+/// `UnlimitedAI(prompt, character)`.
 pub(crate) fn unlimited_ai(http: &dyn HttpGet, character: &str, prompt: &str) -> AiAnswer {
     let chat_id = uuid_v4();
     let device_id = uuid_v4();
@@ -154,8 +149,8 @@ pub(crate) fn unlimited_ai(http: &dyn HttpGet, character: &str, prompt: &str) ->
     });
 
     let res = http.post_json(ENDPOINT, &body).map_err(|_| AiFailure::Transport)?;
-    // `!response.ok` (`unlimitedai.js:150`). Cabang ini praktis tidak terjangkau
-    // karena `UreqHttp` sudah `Err` untuk status >= 400 — lihat `ponytail:`.
+    // `!response.ok`. Cabang ini praktis tidak terjangkau
+    // karena `UreqHttp` sudah `Err` untuk status >= 400 — lihat `Keterbatasan:`.
     if !(200..300).contains(&res.status) {
         return Err(AiFailure::Rejected(res.text()));
     }
@@ -172,7 +167,7 @@ pub(crate) fn failed(title: &str, err: &str) -> String {
     format!("❌ *{title}*\n\n> {detail}")
 }
 
-/// `aiassist.js:24-30`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🤖 *AI Assistant*\n\n\
@@ -361,7 +356,7 @@ mod tests {
 
     #[test]
     fn the_trailing_partial_line_is_dropped_like_the_js_buffer() {
-        // `lines.pop()` di JS membuang potongan terakhir; tanpa newline terakhir
+        // `lines.pop()` di versi awal membuang potongan terakhir; tanpa newline terakhir
         // delta terakhir hilang.
         assert_eq!(
             ndjson_answer("{\"type\":\"delta\",\"delta\":\"a\"}\n{\"type\":\"delta\",\"delta\":\"b\"}"),

@@ -1,20 +1,20 @@
-//! `plugins/ai/tocartoon.js` — ubah foto menjadi gaya kartun lewat nanobanana.
+//! Ubah foto menjadi gaya kartun lewat nanobanana.
 //!
-//! `ponytail:` reaksi ganda JS (`🕕` lalu `✅`) disatukan jadi satu reaksi
-//! akhir (`✅`) karena `Reply::with_reaction` hanya satu emoji. `live3d`
-//! berasal dari `oktz_scraper::seaart` (bukan disalin ke sini).
+//! `Keterbatasan:` reaksi ganda versi awal (`🕕` lalu `✅`) disatukan jadi satu reaksi akhir
+//! (`✅`) karena `Reply::with_reaction` hanya satu emoji. `live3d` berasal dari
+//! `oktz_scraper::seaart` (bukan disalin ke sini).
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, Reply, plugin};
 
 use oktz_scraper::seaart::live3d;
 
-/// Prompt kartun (`tocartoon.js:19-22`).
+/// Prompt kartun.
 const PROMPT: &str = "Transform this image into a vibrant cartoon style like Disney or Pixar animation. \
 Apply bold colors, smooth shading, exaggerated features, and that playful cartoon aesthetic. \
 Keep the original composition but make it look like a frame from an animated movie with \
 clean lines, expressive faces, and bright cheerful colors.";
 
-/// Kartu pakai (`tocartoon.js:28-32`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎬 *ᴛᴏ ᴄᴀʀᴛᴏᴏɴ*\n\n\
@@ -23,7 +23,7 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `isImage` (`tocartoon.js:25`) — trigger atau quoted adalah gambar.
+/// `isImage` — trigger atau quoted adalah gambar.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -31,7 +31,7 @@ pub(crate) fn is_image(ctx: &Ctx) -> bool {
             .is_some_and(|q| q.kind.is_image())
 }
 
-/// Unduh buffer media: quoted dulu, baru trigger (`tocartoon.js:39-43`).
+/// Unduh buffer media: quoted dulu, baru trigger.
 pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         ctx.download_quoted_media().ok()

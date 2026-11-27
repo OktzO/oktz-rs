@@ -1,27 +1,20 @@
 //! Helper bersama untuk plugin `to*` yang memakai API efek gambar:
-//! `uploadImage` (`src/lib/uploader.js` + `src/lib/upload-providers.js`)
-//! lalu `applyImageEffect` (`src/lib/effect-api.js`).
 //!
-//! Dipakai `tofigure`, `tohijab`, dan `tojapanese`. Berkas `tomekah.rs`,
-//! `toghibli.rs`, `tofigurev2.rs`, dan `toemotebatu.rs` masih punya salinan
-//! sendiri (port sebelumnya) — keduanya menghasilkan output yang sama.
-//!
-//! `ponytail:` `withTimeout(..., 20000)` per provider tidak bisa disalin ke
-//! mesin sinkron ini (tidak ada timer). `UreqHttp` sudah memasang timeout
-//! global 20 detik (`ureq_http.rs:24`), kebetulan sama dengan
-//! `PROVIDER_TIMEOUT_MS` di JS.
+//! `Keterbatasan:` `withTimeout(..., 20000)` per provider tidak bisa disalin ke mesin
+//! sinkron ini (tidak ada timer). `UreqHttp` sudah memasang timeout global 20 detik
+//! (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` di versi awal.
 
 use oktz_plugin_api::{HttpCall, HttpGet, HttpResponse, MultipartPart};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `upload-providers.js:16-17` — UA browser untuk host yang menolaknya.
+/// UA browser untuk host yang menolaknya.
 const UA_UPLOAD: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Nama berkas + content-type: JS selalu memanggil
+/// Nama berkas + content-type: versi awal selalu memanggil
 /// `uploadImage(buffer, 'image.jpg')`, dan `mime.lookup('image.jpg')` =
-/// `image/jpeg` (`upload-providers.js:19`).
+/// `image/jpeg`.
 const NAMA_BERKAS: &str = "image.jpg";
 const MIME_BERKAS: &str = "image/jpeg";
 
@@ -30,7 +23,7 @@ pub(crate) fn respons_ok(res: &HttpResponse) -> bool {
     (200..300).contains(&res.status)
 }
 
-/// `typeof url !== 'string' || !url` (`uploader.js:30`).
+/// `typeof url !== 'string' || !url`.
 pub(crate) fn url_dari(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
@@ -38,7 +31,7 @@ pub(crate) fn url_dari(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// `litterbox` (`upload-providers.js:21-37`).
+/// `litterbox`.
 pub(crate) fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -62,7 +55,7 @@ pub(crate) fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
     Ok(url)
 }
 
-/// `kappa` (`upload-providers.js:39-59`).
+/// `kappa`.
 pub(crate) fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -84,7 +77,7 @@ pub(crate) fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String>
     url_dari(data.get("link")).ok_or_else(|| "Invalid response".into())
 }
 
-/// `uguu` (`upload-providers.js:61-82`).
+/// `uguu`.
 pub(crate) fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -114,7 +107,7 @@ pub(crate) fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> 
     url_dari(url).ok_or_else(|| "Invalid response".into())
 }
 
-/// `nekohime` (`upload-providers.js:84-101`).
+/// `nekohime`.
 pub(crate) fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -128,7 +121,7 @@ pub(crate) fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Stri
         return Err("Nekohime gagal".into());
     }
     let data = res.json().unwrap_or(Value::Null);
-    // `Array.isArray(f) ? f[0]?.url : f?.url` (`upload-providers.js:97-98`).
+    // `Array.isArray(f) ? f[0]?.url: f?.url`.
     let url = match data.get("files") {
         Some(Value::Array(list)) => list.first().and_then(|f| f.get("url")),
         Some(f) => f.get("url"),
@@ -143,7 +136,7 @@ pub(crate) fn lewati_spasi(t: &str) -> usize {
 }
 
 /// Regex `Download link:\s*<a href=([^>\s]+)>` (case-insensitive,
-/// `upload-providers.js:124`).
+///
 pub(crate) fn tautan_leopard(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -163,12 +156,12 @@ pub(crate) fn tautan_leopard(html: &str) -> Option<String> {
     None
 }
 
-/// `leopard` (`upload-providers.js:103-127`).
+/// `leopard`.
 pub(crate) fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     const HALAMAN: &str = "https://leopard.hosting.pecon.us/upload.php";
     // Pemanasan: status tidak diperiksa, tapi kegagalan jaringan tetap
-    // menggagalkan provider ini (`await fetch(...)` tanpa catch di JS).
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // menggagalkan provider ini (`await fetch(...)` tanpa catch di versi awal).
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get(HALAMAN)
             .header("User-Agent", UA_UPLOAD)
@@ -194,7 +187,7 @@ pub(crate) fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Strin
     tautan_leopard(&html).ok_or_else(|| "Leopard gagal".into())
 }
 
-/// `/startUpload\("([^"]+)"/` (`upload-providers.js:142`).
+/// `/startUpload\("([^"]+)"/`.
 pub(crate) fn start_upload(body: &str) -> Option<String> {
     let mut dari = 0;
     while let Some(rel) = body[dari..].find("startUpload(\"") {
@@ -209,7 +202,7 @@ pub(crate) fn start_upload(body: &str) -> Option<String> {
 }
 
 /// Regex `id=["']file_src["'][^>]*value=["']([^"']+)["']` (case-insensitive,
-/// `upload-providers.js:172`) versi scanner.
+/// ) versi scanner.
 pub(crate) fn file_src_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -252,7 +245,7 @@ pub(crate) fn file_src_upload_ee(html: &str) -> Option<String> {
 }
 
 /// Regex `View file:\s*<br\s*\/?>\s*<a href=["']?([^"'>\s]+)["']?`
-/// (case-insensitive, `upload-providers.js:173`) versi scanner.
+/// versi scanner.
 pub(crate) fn view_file_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -291,9 +284,9 @@ pub(crate) fn view_file_upload_ee(html: &str) -> Option<String> {
     None
 }
 
-/// `uploadEe` (`upload-providers.js:129-179`).
+/// `uploadEe`.
 pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // `ext` (`upload-providers.js:130-133`) ditulis apa adanya, walau dengan
+    // `ext` ditulis apa adanya, walau
     // nama berkas tetap "image.jpg" cabang `cat_file` tidak pernah tercapai.
     let ext = NAMA_BERKAS
         .rsplit_once('.')
@@ -301,8 +294,8 @@ pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
         .unwrap_or_default();
     let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
-    // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get("https://www.upload.ee/?")
             .header("User-Agent", UA_UPLOAD)
@@ -365,7 +358,7 @@ pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
     // `replaceAll("&amp;", "&")` lalu `replaceAll("&quot;", "\"")`.
     let mut url = raw.replace("&amp;", "&").replace("&quot;", "\"");
     if is_image {
-        // `String.replace("/files/", …)` JS mengganti kemunculan PERTAMA.
+        // `String.replace("/files/", …)` versi awal mengganti kemunculan PERTAMA.
         url = url.replacen("/files/", "/image/", 1);
         if let Some(tanpa_html) = url.strip_suffix(".html") {
             url = tanpa_html.to_string();
@@ -374,10 +367,10 @@ pub(crate) fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, Str
     Ok(url)
 }
 
-/// `uploadImage(buffer, 'image.jpg')` (`uploader.js:14-40`) — provider
+/// `uploadImage(buffer, 'image.jpg')` — provider
 /// dicoba berurutan sampai ada yang mengembalikan URL.
 pub(crate) fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
+    // Urutan `PROVIDERS`.
     // Alias lokal: pecah tipe kompleks pasangan nama + fn provider.
     type ProviderUnggah = (&'static str, fn(&dyn HttpGet, &[u8]) -> Result<String, String>);
     let providers: [ProviderUnggah; 6] = [
@@ -401,10 +394,10 @@ pub(crate) fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, 
     ))
 }
 
-/// UA request efek (`effect-api.js:20`).
+/// UA request efek.
 const UA_EFEK: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Signature PNG/JPEG/GIF/WEBP/RIFF/BMP (`effect-api.js:57-67`).
+/// Signature PNG/JPEG/GIF/WEBP/RIFF/BMP.
 pub(crate) fn looks_like_image(buf: &[u8]) -> bool {
     if buf.len() < 12 {
         return false;
@@ -416,12 +409,12 @@ pub(crate) fn looks_like_image(buf: &[u8]) -> bool {
         || buf.starts_with(b"BM")
 }
 
-/// `applyImageEffect(effect, imageUrl)` — daftar provider dari
+/// `applyImageEffect(effect, imageUrl)` — daftar provider
 /// `config.effectApi.providers` tidak ada di `oktz_core::config::Runtime`, jadi
-/// hanya host fallback `faa` (`effect-api.js:26-28`) yang dipakai.
+/// hanya host fallback `faa` yang dipakai.
 ///
-/// `ponytail:` `withTimeout(..., 45000)` dan loop provider
-/// (`effect-api.js:106-120`) tidak bisa disalin tanpa timer + config; ekspos
+/// `Keterbatasan:` `withTimeout(..., 45000)` dan loop provider
+/// tidak bisa disalin tanpa timer + config; ekspos
 /// `effectApi` di `Runtime` kalau host cadangan mau dipakai.
 pub(crate) fn apply_image_effect(http: &dyn HttpGet, effect: &str, image_url: &str) -> Result<Vec<u8>, String> {
     let url = format!(

@@ -1,18 +1,10 @@
-//! `plugins/ai/to3d.js` — ubah foto menjadi gaya 3D render.
+//! Ubah foto menjadi gaya 3D render.
 //!
-//! Alur JS (`to3d.js:24-58`): cek gambar → unduh (quoted dulu kalau
-//! `m.quoted.isMedia`, lalu `m.isMedia`) → `live3d(buffer, PROMPT)` →
-//! kirim gambar. Kegagalan apa pun masuk `catch` → template error `te(...)`.
+//! `Keterbatasan:` reaksi `🕕` tidak ikut — `Reply::with_reaction` hanya bisa membawa satu
+//! emoji, jadi yang dikirim reaksi penutup.
 //!
-//! `live3d` dari `oktz_scraper::seaart` menerima `&dyn HttpGet`, buffer
-//! gambar, dan prompt; mengembalikan `Result<Vec<u8>, HttpError>`.
-//!
-//! `ponytail:` reaksi `🕕` (`to3d.js:40`) tidak ikut — `Reply::with_reaction`
-//! hanya bisa membawa satu emoji, jadi yang dikirim reaksi penutup.
-//!
-//! `ponytail:` `m.quoted.isMedia` (bukan `isImage`) yang dipakai untuk
-//! menentukan sumber unduhan; `Ctx::quoted().is_some_and(|q| q.is_media())`
-//! adalah padanannya.
+//! `Keterbatasan:` `m.quoted.isMedia` (bukan `isImage`) yang dipakai untuk menentukan
+//! sumber unduhan; `Ctx::quoted().is_some_and(|q| q.is_media())` adalah padanannya.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, QuotedKind, Reply, plugin};
 
@@ -55,7 +47,7 @@ fn unduh_media(ctx: &Ctx) -> Option<Result<Vec<u8>, oktz_plugin_api::MediaError>
 )]
 pub fn to3d(ctx: Ctx) -> Reply {
     if !is_image_input(&ctx) {
-        // `to3d.js:26-32` — contoh memakai `${m.prefix}`.
+        // Contoh memakai `${m.prefix}`.
         return Reply::text(format!(
             "🎮 *ᴛᴏ 3ᴅ*\n\n\
              > Kirim/reply gambar untuk diubah ke gaya 3D\n\n\
@@ -71,7 +63,7 @@ pub fn to3d(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // `to3d.js:42-49` — hasil kosong = exception → cabang `catch`.
+    // Hasil kosong = exception → cabang `catch`.
     match oktz_scraper::seaart::live3d(ctx.http.as_ref(), &buffer, PROMPT) {
         Ok(image_bytes) => Reply::image(MediaSource::bytes(image_bytes), "").with_reaction("✅"),
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),

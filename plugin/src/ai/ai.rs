@@ -1,26 +1,14 @@
-//! `plugins/ai/ai.js` — chat cerdas dengan AI (Gemini) + renderer `AIRich`.
+//! Chat cerdas dengan AI (Gemini) + renderer `AIRich`.
 //!
-//! Alur JS (`ai.js:39-145`): panggil scraper `gemini` (dengan `instruction`
-//! dan `sessionId` per-user) → pecah jawaban markdown jadi blok teks / tabel
-//! / kode → kirim lewat `AIRich` (`src/lib/builder.js`).
-//!
-//! `AIRich` mengirim SATU pesan `botForwardedMessage >
-//! richResponseMessage` yang berisi beberapa submessage + `unifiedResponse`.
-//! Blok markdown dipecah jadi `RichAi` (`Reply::TabelAi`) lewat builder
-//! `RichAi::{teks,kode,tabel}`: teks → section `GenAIMarkdownTextUXPrimitive`
-//! (+ `inline_entities` dari `extractIE`), tabel → `GenATableUXPrimitive`
-//! (`markdown_cells` bila ada entity), fence kode → submessage kode +
-//! `GenAICodeUXPrimitive` dengan highlight per-token.
-//!
-//! `ponytail:` `sessions` di JS adalah `Map` modul-local yang di-evict kalau
-//! lewat 500 entri. `Ctx::sessions` adalah `HashMap` global tanpa urutan,
-//! jadi eviction tidak bisa disalin; kunci dipakai berawalan `ai:gemini:`
-//! supaya tidak bentrok dengan plugin lain.
+//! `Keterbatasan:` `sessions` di versi awal adalah `Map` modul-local yang di-evict kalau
+//! lewat 500 entri. `Ctx::sessions` adalah `HashMap` global tanpa urutan, jadi eviction
+//! tidak bisa disalin; kunci dipakai berawalan `ai:gemini:` supaya tidak bentrok dengan
+//! plugin lain.
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, RichAi, plugin};
 use serde_json::{Value, json};
 
-/// `systemPrompt` (`ai.js:32-37`).
+/// `systemPrompt`.
 const SYSTEM_PROMPT: &str = "Kamu adalah asisten AI yang cerdas dan canggih.\n\
 Gunakan format markdown secara ketat:\n\
 1. Jika membuat daftar perbandingan atau sekumpulan data, SELALU gunakan format tabel markdown (diawali dan diakhiri dengan '|').\n\
@@ -28,11 +16,11 @@ Gunakan format markdown secara ketat:\n\
 3. Gunakan formatting teks tebal (*teks*) untuk menekankan sesuatu, atau hashtag (#) untuk judul / penjelas besar.\n\
 Pastikan semua respon terstruktur dengan baik agar sistem AIRich dapat merendernya dengan cantik.";
 
-/// Prefix kunci sesi — map `sessions` di JS per-modul, di Rust `Ctx::sessions`
+/// Prefix kunci sesi — map `sessions` di versi awal per-modul, di Rust `Ctx::sessions`
 /// global sehingga butuh prefix supaya tidak menabrak plugin lain.
 const KUNCI_SESI: &str = "ai:gemini:";
 
-/// Kartu pakai — `ai.js:42-51`.
+/// Kartu pakai —.
 fn help(prefix: &str) -> String {
     format!(
         "🤖 *AI*\n\n\
@@ -56,7 +44,7 @@ enum Blok {
 }
 
 /// `line.split('|').map(trim).filter((_, i, arr) => i !== 0 && i !== arr.length - 1)`
-/// (`ai.js:90`).
+///
 fn sel_baris_tabel(line: &str) -> Vec<String> {
     let semua: Vec<&str> = line.split('|').collect();
     let n = semua.len();
@@ -68,16 +56,16 @@ fn sel_baris_tabel(line: &str) -> Vec<String> {
         .collect()
 }
 
-/// Baris separator tabel (`|---|---|`) dibuang — `ai.js:92`.
+/// Baris separator tabel (`|---|---|`) dibuang —.
 fn bukan_baris_pemisah(row: &[String]) -> bool {
     !row.iter()
         .all(|c| !c.is_empty() && c.chars().all(|ch| ch == '-' || ch == ':'))
 }
 
-/// Pecah jawaban markdown seperti loop di `ai.js:103-136`.
+/// Pecah jawaban markdown seperti loop.
 fn pecah(teks: &str) -> Vec<Blok> {
     let lines: Vec<&str> = teks.split('\n').collect();
-    // JS `currentTable` berisi baris mentah (string), bukan sel.
+    // versi awal `currentTable` berisi baris mentah (string), bukan sel.
     let mut current_table: Vec<String> = Vec::new();
     let mut current_code: Vec<String> = Vec::new();
     let mut in_code = false;
@@ -85,7 +73,7 @@ fn pecah(teks: &str) -> Vec<Blok> {
     let mut text_buffer: Vec<String> = Vec::new();
     let mut blocks: Vec<Blok> = Vec::new();
 
-    // `flushText` (`ai.js:80-85`).
+    // `flushText`.
     fn flush_text(buffer: &mut Vec<String>, blocks: &mut Vec<Blok>) {
         if !buffer.is_empty() {
             blocks.push(Blok::Teks(buffer.join("\n").trim().to_string()));
@@ -103,7 +91,7 @@ fn pecah(teks: &str) -> Vec<Blok> {
                     blocks.push(t);
                 }
                 in_code = true;
-                // `line.trim().substring(3).trim() || 'text'` (`ai.js:111`).
+                // `line.trim().substring(3).trim() || 'text'`.
                 let lang = trimmed
                     .strip_prefix("```")
                     .unwrap_or(trimmed)
@@ -151,7 +139,7 @@ fn pecah(teks: &str) -> Vec<Blok> {
     blocks
 }
 
-/// `flushTable` (`ai.js:87-101`) — baris mentah disimpan untuk cabang
+/// `flushTable` — baris mentah disimpan untuk cabang
 /// fallback `addText(currentTable.join('\n'))`.
 fn flush_tabel_teks(current_table: &mut Vec<String>) -> Option<Blok> {
     if current_table.is_empty() {
@@ -159,7 +147,7 @@ fn flush_tabel_teks(current_table: &mut Vec<String>) -> Option<Blok> {
     }
     let mentah: Vec<String> = current_table.clone();
     let data: Vec<Vec<String>> = mentah.iter().map(|l| sel_baris_tabel(l)).collect();
-    // JS `filter(row => !row.every(c => /^[-:]+$/.test(c)))` — buang baris
+    // versi awal `filter(row => !row.every(c => /^[-:]+$/.test(c)))` — buang baris
     // separator (`|---|---|`), sisakan baris isi.
     let disaring: Vec<Vec<String>> = data
         .iter()
@@ -175,7 +163,7 @@ fn flush_tabel_teks(current_table: &mut Vec<String>) -> Option<Blok> {
     }
 }
 
-/// Blocks → satu `Reply::TabelAi` (`AIRich.send`, `ai.js:137`).
+/// Blocks → satu `Reply::TabelAi`.
 fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
     let mut rich = RichAi::default();
     for b in blocks {
@@ -196,13 +184,13 @@ fn blocks_ke_reply(blocks: Vec<Blok>) -> Reply {
             }
         }
     }
-    // Balasan kosong: JS tetap `aiRich.send` dengan kosong; di Rust pesan
-    // rich kosong bukan pesan valid, jadi tidak balas (paritas lama).
+    // Balasan kosong: versi awal tetap `aiRich.send` dengan kosong; di Rust pesan
+    // rich kosong bukan pesan valid, jadi tidak balas (perilaku lama).
     if rich.submessages.is_empty() {
         return Reply::None;
     }
-    // `aiRich.send(m.chat, { quoted: m })` (`ai.js:137`) — kartu mengutip
-    // pesan pemicu, sama seperti pesan balasan biasa di JS.
+    // `aiRich.send(m.chat, { quoted: m })` — kartu mengutip
+    // pesan pemicu, sama seperti pesan balasan biasa di versi awal.
     rich.quoted = true;
     Reply::TabelAi(Box::new(rich))
 }
@@ -290,7 +278,7 @@ pub fn ai(ctx: Ctx) -> Reply {
         }
     };
 
-    // `ai.js:65-67` — simpan session id baru kalau ada.
+    // Simpan session id baru kalau ada.
     if let Some(sid) = hasil.get("sessionId").and_then(Value::as_str)
         && !sid.is_empty()
     {
@@ -321,7 +309,7 @@ mod tests {
 
     impl Stub {
         /// Satu balasan (200, `body`) dipakai berulang untuk semua permintaan —
-        /// scraper hanya membaca status + header `batchexecute`, dan body yang
+        /// scraper hanya membaca status + header `batchexecute`, dan body
         /// sama tetap valid untuk pemanggilan berikutnya.
         fn ok(body: &str) -> Arc<Stub> {
             Arc::new(Stub {
@@ -532,7 +520,7 @@ mod tests {
             "sessionId scraper berupa base64 non-kosong"
         );
 
-        // Sesi tersimpan dipakai ulang: resumeArray dari sessionId muncul di
+        // Sesi tersimpan dipakai ulang: resumeArray dari sessionId muncul
         // permintaan berikutnya.
         let http2 = Stub::ok(&blok_stream("ok2"));
         let _ = run(http2.clone(), store.clone(), "lagi");
@@ -695,7 +683,7 @@ app.mount("#app"); // hi
 ```
 Penutup."##;
         let rich = rich_of(&blocks_ke_reply(pecah(jawaban)));
-        // Kontrak Lampiran A: keluaran oracle JS, satu baris, byte-per-byte.
+        // Kontrak Lampiran A: keluaran oracle versi awal, satu baris, byte-per-byte.
         let oracle = r##"[{"view_model":{"primitive":{"text":"Halo! Ini **contoh** dari {{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}}.","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}],"__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["Nama","Link"]},{"is_header":false,"cells":["Vue","[Vue](https://vuejs.org)"],"markdown_cells":[{"text":"Vue"},{"text":"{{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}}","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}]}]},{"is_header":false,"cells":["React","https://react.dev"]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"language":"js","code_blocks":[{"content":"const app = ","type":"DEFAULT"},{"content":"createApp","type":"METHOD"},{"content":"({});\napp.","type":"DEFAULT"},{"content":"mount","type":"METHOD"},{"content":"(","type":"DEFAULT"},{"content":"\"#app\"","type":"STR"},{"content":"); ","type":"DEFAULT"},{"content":"// hi","type":"COMMENT"}],"__typename":"GenAICodeUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}},{"view_model":{"primitive":{"text":"Penutup.","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}]"##;
         assert_eq!(serde_json::to_string(&rich.sections).unwrap(), oracle);
 
@@ -733,7 +721,7 @@ Penutup."##;
 
     #[test]
     fn tabel_berisi_sel_kosong_tetap_jadi_tabel_sesuai_js() {
-        // `| |` → satu sel kosong. JS `every(row => row.length > 0)` tetap
+        // `| |` → satu sel kosong. versi awal `every(row => row.length > 0)` tetap
         // true (array berisi satu string kosong panjangnya 1), jadi tabel.
         let blok = pecah("| |");
         match &blok[0] {
@@ -745,7 +733,7 @@ Penutup."##;
     #[test]
     fn baris_pemisah_saja_jadi_teks_mentah() {
         // Semua baris adalah separator → hasil filter kosong → fallback
-        // `aiRich.addText(currentTable.join('\n'))` di JS.
+        // `aiRich.addText(currentTable.join('\n'))` di versi awal.
         let blok = pecah("|---|---|");
         match &blok[0] {
             Blok::Teks(t) => assert_eq!(t, "|---|---|"),

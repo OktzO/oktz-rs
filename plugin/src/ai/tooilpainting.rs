@@ -1,20 +1,13 @@
-//! `plugins/ai/tooilpainting.js` — ubah foto menjadi gaya lukisan minyak.
+//! Ubah foto menjadi gaya lukisan minyak.
 //!
-//! Alur JS (`tooilpainting.js:27-57`): cek gambar → unduh (quoted dulu kalau
-//! `m.quoted.isMedia`, lalu `m.isMedia`) → `live3d(buffer, PROMPT)` →
-//! kirim gambar. Kegagalan apa pun masuk `catch` → template error `te(...)`.
-//!
-//! `live3d` dari `oktz_scraper::seaart` menerima `&dyn HttpGet`, buffer
-//! gambar, dan prompt; mengembalikan `Result<Vec<u8>, HttpError>`.
-//!
-//! `ponytail:` reaksi `🕕` (`tooilpainting.js:35`) tidak ikut — `Reply` hanya
-//! bisa membawa satu emoji, jadi yang dikirim reaksi penutup.
+//! `Keterbatasan:` reaksi `🕕` tidak ikut — `Reply` hanya bisa membawa satu emoji, jadi yang
+//! dikirim reaksi penutup.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, QuotedKind, Reply, plugin};
 
 const PROMPT: &str = "Transform this image into a classical oil painting style. \nApply thick brushstrokes, rich colors, and the texture of traditional oil paint on canvas. \nKeep the original composition but make it look like a masterpiece painting \nwith visible brushwork, artistic color blending, and that timeless gallery-quality aesthetic.";
 
-/// Kartu pakai — `tooilpainting.js:29-35` memakai `${m.prefix}`.
+/// Kartu pakai — memakai `${m.prefix}`.
 fn help(prefix: &str) -> String {
     format!(
         "🖼️ *ᴛᴏ ᴏɪʟ ᴘᴀɪɴᴛɪɴɢ*\n\n\
@@ -24,7 +17,7 @@ fn help(prefix: &str) -> String {
 }
 
 /// `m.isImage || (m.quoted && (m.quoted.isImage || m.quoted.type === 'imageMessage'))`
-/// (`tooilpainting.js:27`).
+///
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -34,7 +27,7 @@ fn is_image(ctx: &Ctx) -> bool {
 }
 
 /// `m.quoted && m.quoted.isMedia` → quoted; `m.isMedia` → pemicu
-/// (`tooilpainting.js:38-42`).
+///
 fn unduh_media(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return Some(ctx.download_quoted_media());
@@ -73,7 +66,7 @@ pub fn tooilpainting(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // `tooilpainting.js:45-52` — hasil kosong = exception → cabang `catch`.
+    // Hasil kosong = exception → cabang `catch`.
     match oktz_scraper::seaart::live3d(ctx.http.as_ref(), &buffer, PROMPT) {
         Ok(gambar) => Reply::image(MediaSource::bytes(gambar), String::new()).with_reaction("✅"),
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),

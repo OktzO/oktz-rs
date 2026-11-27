@@ -1,23 +1,17 @@
-//! `plugins/ai/gita.js` — chat dengan Gita GPT (Bhagavad Gita AI).
+//! Chat dengan Gita GPT (Bhagavad Gita AI).
 //!
-//! `gita.js:28` memanggil `fetchAiText('gita', …)`
-//! (`src/lib/stalker-fallback.js:265`), yang mencoba cuki lalu nexray.
-//! Cabang cuki butuh `config.APIkey.cuki`, yang tidak dibawa `Ctx`; di JS tanpa
-//! key isian cuki selalu melempar `MissingApiKeyError`, jadi nexray adalah
-//! jalur yang benar-benar tembus. Hanya nexray yang ditulis di sini.
-//!
-//! `ponytail:` reacted `🕕` (`gita.js:25`) dilewati karena `Reply::Reaction`
-//! cuma menampung satu emoji; reaksi akhir (`✅`/`☢`) yang dikirim.
+//! `Keterbatasan:` reacted `🕕` dilewati karena `Reply::Reaction` cuma menampung satu emoji;
+//! reaksi akhir (`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `NEXRAY_BASES[0]` + `nexrayPaths.gita` (`stalker-fallback.js:4,267,298`).
+/// `NEXRAY_BASES[0]` + `nexrayPaths.gita`.
 const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/gitagpt";
 
-/// Nilai falsy JS (`!v`) — `stalker-fallback.js:299`.
+/// Nilai falsy versi awal (`!v`) —.
 fn falsy(v: Option<&Value>) -> bool {
     match v {
         None | Some(Value::Null) => true,
@@ -28,7 +22,7 @@ fn falsy(v: Option<&Value>) -> bool {
     }
 }
 
-/// `gita.js:22`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "📿 *ɢɪᴛᴀ ɢᴘᴛ*\n\n\
@@ -61,7 +55,7 @@ pub fn gita(ctx: Ctx) -> Reply {
     }
 
     let url = format!("{ENDPOINT}?text={}", encode_uri_component(&text));
-    // `gita.js:33-36` — semua kegagalan provider (termasuk cuki yang key-nya
+    // Semua kegagalan provider (termasuk cuki yang key-nya
     // kosong) berakhir di satu `catch` yang sama, jadi pesannya sama.
     let Some(body) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
@@ -215,7 +209,7 @@ mod tests {
 
     #[test]
     fn an_empty_provider_answer_is_still_sent_as_the_nexray_result() {
-        // `stalker-fallback.js:300-301` menolak `result` kosong sebelum trim,
+        // menolak `result` kosong sebelum trim,
         // jadi string spasi ikut lolos sebagai-isinya.
         let r = run(Stub::ok(r#"{"status":true,"result":"   "}"#), "dharma");
         assert_eq!(body(&r), "");

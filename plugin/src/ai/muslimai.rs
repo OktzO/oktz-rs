@@ -1,23 +1,19 @@
-//! `plugins/ai/muslimai.js` — tanya-jawab soal Islam dan Al-Quran.
+//! Tanya-jawab soal Islam dan Al-Quran.
 //!
-//! `_parse` (`muslimai.js:43-52`) memecah body NDJSON per baris dan menyambung
-//! `p.data` hanya untuk `type === "text"`; kalau tidak ada satu pun potongan,
-//! body mentah dikembalikan apa adanya.
-//!
-//! `ponytail:` reacted `🕕` (`muslimai.js:67`) dilewati karena `Reply::Reaction`
-//! cuma menampung satu emoji; reaksi akhir (`✅`/`☢`) yang dikirim.
+//! `Keterbatasan:` reacted `🕕` dilewati karena `Reply::Reaction` cuma menampung satu emoji;
+//! reaksi akhir (`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};
 
 
-/// `muslimai.js:20`.
+///
 const ENDPOINT: &str = "https://www.muslimai.io/api/chat";
 
-/// `muslimai.js:24-26` — id statis, bukan `distinctId` per pengguna.
+/// Id statis, bukan `distinctId` per pengguna.
 const DISTINCT_ID: &str = "019e7d1d-e8a4-702d-96b8-defd87522114";
 
-/// `String(v)` JS untuk nilai yang ditempel dengan `+=` (`muslimai.js:48`).
+/// `String(v)` versi awal untuk nilai yang ditempel dengan `+=`.
 fn js_string(v: Option<&Value>) -> String {
     match v {
         None => "undefined".into(),
@@ -30,11 +26,11 @@ fn js_string(v: Option<&Value>) -> String {
     }
 }
 
-/// `_parse` (`muslimai.js:43-52`).
+/// `_parse`.
 fn parse(res: &str) -> String {
     let mut txt = String::new();
     for line in res.split('\n') {
-        // `catch {}` di JS: baris yang bukan JSON (termasuk baris kosong) dilewati.
+        // `catch {}` di versi awal: baris yang bukan JSON (termasuk baris kosong) dilewati.
         let Ok(p) = serde_json::from_str::<Value>(line) else {
             continue;
         };
@@ -45,7 +41,7 @@ fn parse(res: &str) -> String {
     if txt.is_empty() { res.to_string() } else { txt }
 }
 
-/// `muslimai.js:64`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "☪️ *ᴍᴜsʟɪᴍ ᴀɪ*\n\n\
@@ -77,8 +73,8 @@ pub fn muslimai(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `_body` (`muslimai.js:28-33`) — `fetch`, bukan axios, jadi status HTTP
-    // tidak diperiksa; `HttpGet` justru mengembalikan `Err` untuk >=400 dan
+    // `_body` — `fetch`, bukan axios, jadi status HTTP
+    // tidak diperiksa; `HttpGet` justru mengembalikan `Err` untuk >=400
     // itu masuk `catch`, sama seperti `fetch` yang melempar untuk status itu.
     let body = serde_json::json!({ "query": text, "distinctId": DISTINCT_ID });
     let Ok(res) = ctx.http.post_json(ENDPOINT, &body) else {
@@ -208,7 +204,7 @@ mod tests {
 
     #[test]
     fn text_chunks_are_concatenated_in_order() {
-        // `res.split("\n")` (`muslimai.js:45`) — tiap baris harus JSON utuh,
+        // `res.split("\n")` — tiap baris harus JSON utuh,
         // jadi antar chunk wajib ada newline.
         let raw = concat!(
             r#"{"type":"text","data":"Sholat adalah "}"#,

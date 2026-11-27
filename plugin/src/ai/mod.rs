@@ -1,8 +1,4 @@
 //! Plugin `plugins/ai/`.
-//!
-//! `ai.rs` kini aktif (padanan `ai.js`). `characterai.js` sengaja tidak ada
-//! di sini: dia butuh kemampuan yang tidak ada di registry plugin (lihat
-//! laporan batch E1).
 
 #[allow(clippy::module_inception)] // struktur folder mengikuti plugin JS
 pub mod ai;
@@ -37,9 +33,9 @@ pub mod txt2img2;
 pub mod waguri_ai;
 pub mod wormgpt;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod toanime;
 pub mod tofigure;
 pub mod tohijab;
@@ -47,12 +43,12 @@ pub mod tojapanese;
 pub mod tooilpainting;
 pub mod efek;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod toblack;
 pub mod toisland;
 pub mod txt2img;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod bananagen;
 pub mod musicmaker;
 pub mod to3d;
@@ -61,14 +57,14 @@ pub mod tochibi;
 pub mod tofigurine;
 pub mod tomanga;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod toemotebatu;
 pub mod tofigurev2;
 pub mod toghibli;
 pub mod tomekah;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod tocermin;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod dpsteai;

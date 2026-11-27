@@ -1,7 +1,4 @@
-//! `plugins/ai/dpsteai.js` — chat AI dipastebin dengan sesi per pengguna.
-//!
-//! Sesi disimpan di `database/ai_chat/dpsteaai.json` (sama seperti JS) lewat
-//! `ctx.berkas`, jadi plugin ini tidak menyentuh disk sendiri.
+//! Chat AI dipastebin dengan sesi per pengguna.
 
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
 use rand::Rng as _;
@@ -13,7 +10,7 @@ const HOST: &str = "dipastebin.web.id";
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-/// Kartu pakai (`dpsteai.js:95-103`).
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🤖 *DPSTE AI*\n\n\
@@ -34,9 +31,9 @@ fn sesi_baru() -> String {
     format!("dpste_ai_{acak}")
 }
 
-/// `httpsPost(pathname, body)` (`dpsteai.js:59-83`).
+/// `httpsPost(pathname, body)`.
 ///
-/// Balikan JSON; body non-JSON dibungkus `{"raw": teks}` persis JS.
+/// Balikan JSON; body non-JSON dibungkus `{"raw": teks}` persis versi awal.
 fn https_post(ctx: &Ctx, path: &str, body: &Value) -> Result<Value, String> {
     let res = ctx
         .http
@@ -72,7 +69,7 @@ fn simpan_sesi(ctx: &Ctx, sesi: &Value) {
     let _ = ctx.berkas().tulis_teks(FILE_SESI, &teks);
 }
 
-/// Nilai sesi yang "truthy" versi JS (`sessions[userJid]`).
+/// Nilai sesi yang "truthy" versi versi awal (`sessions[userJid]`).
 fn teks_dari(v: &Value) -> Option<String> {
     crate::common::js_truthy(Some(v)).then(|| v.as_str().unwrap_or_default().to_string())
 }
@@ -175,7 +172,7 @@ pub fn dpsteai(ctx: Ctx) -> Reply {
 
     let centang = Reply::None.with_reaction("✅");
     match balasan {
-        // `m.reply(undefined)` di JS tidak mengirim apa pun, hanya reaksi.
+        // `m.reply(undefined)` di versi awal tidak mengirim apa pun, hanya reaksi.
         None => Reply::sequence(vec![jam, centang]),
         Some(isi) => Reply::sequence(vec![jam, centang, Reply::text(isi)]),
     }
@@ -241,7 +238,7 @@ mod tests {
         // Permintaan membawa pesan + sessionId 22 karakter.
         assert_eq!(http.terlihat().len(), 1);
         assert_eq!(http.terlihat()[0], "https://dipastebin.web.id/api/ai/chat");
-        // Sesi tersimpan ke berkas yang sama dengan JS, pretty-print 2 spasi.
+        // Sesi tersimpan ke berkas yang sama dengan versi awal, pretty-print 2 spasi.
         let isi = b.baca_teks(FILE_SESI).expect("sesi harus tersimpan");
         assert!(isi.contains("\"628111@s.whatsapp.net\": \"dpste_ai_baru\""), "{isi}");
         assert!(isi.contains("\n  \""), "harus indentasi 2 spasi: {isi}");

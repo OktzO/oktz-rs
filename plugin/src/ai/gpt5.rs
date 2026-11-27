@@ -1,10 +1,6 @@
-//! `plugins/ai/gpt5.js` — GPT-4.1 Nano via OverChat.
+//! GPT-4.1 Nano via OverChat.
 //!
-//! POST + parser SSE-nya dipinjam dari [`super::claudehaiku`] (endpoint,
-//! bentuk body, dan parsing identik); yang berbeda hanya `model`, `personaId`,
-//! dan tidak adanya pesan sistem.
-//!
-//! `ponytail:` header per-request dan `salunanCtx()` tidak punya padanan di
+//! `Keterbatasan:` header per-request dan `salunanCtx()` tidak punya padanan di
 //! `Ctx`/`Reply` — lihat catatan di `claudehaiku.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -13,11 +9,11 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 use super::aiassist::{AiFailure, clip, failed};
 use super::claudehaiku::overchat_chat;
 
-/// `src/scraper/gpt5.js:11,30`.
+/// `,30`.
 const MODEL: &str = "openai/gpt-4.1-nano-2025-04-14";
 const PERSONA: &str = "gpt-4o-landing";
 
-/// `gpt5.js:25-33`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🤖 *GPT-4.1 Nano*\n\n\

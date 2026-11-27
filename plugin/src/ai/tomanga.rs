@@ -1,5 +1,4 @@
-//! `plugins/ai/tomanga.js` — ubah foto ke gaya manga Jepang lewat `oktz_scraper::seaart::live3d`.
-//! Ponytail: `m.react('🕕')` hilang karena `Reply` hanya satu reaksi; hanya `✅`/`❌`/`☢` akhir.
+//! Ubah foto ke gaya manga Jepang lewat `oktz_scraper::seaart::live3d`.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin};
 
@@ -8,12 +7,12 @@ const PROMPT: &str = "Transform this image into Japanese manga style illustratio
 const HELP: &str = "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`{prefix}tomanga`";
 const GAGAL_DOWNLOAD: &str = "❌ Gagal mendownload gambar";
 
-/// Kartu pakai — `tomanga.js:27-33` memakai `${m.prefix}`.
+/// Kartu pakai — memakai `${m.prefix}`.
 fn help(prefix: &str) -> String {
     HELP.replace("{prefix}", prefix)
 }
 
-/// `tomanga.js:36-43`: sumber unduhan `m.quoted.isMedia` kalau ada, lalu
+/// : sumber unduhan `m.quoted.isMedia` kalau ada, lalu
 /// `m.isMedia`; syarat "ada gambar" memakai `m.isImage`/quoted `imageMessage`.
 fn ambil_gambar(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if let Some(q) = ctx.quoted()
@@ -53,7 +52,7 @@ pub fn tomanga(ctx: Ctx) -> Reply {
     let gambar = oktz_scraper::seaart::live3d(&*ctx.http, &buffer, PROMPT);
     match gambar {
         Ok(bytes) => Reply::image(MediaSource::bytes(bytes), String::new()).with_reaction("✅"),
-        // `tomanga.js:55-58` — `catch` memakai template error `te(...)`.
+        // `catch` memakai template error `te(...)`.
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }
@@ -132,7 +131,7 @@ mod tests {
     }
 
     fn image_bytes(r: &Reply) -> Vec<u8> {
-        // JS `m.react('✅')` (`tomanga.js:55`) membungkus balasan jadi
+        // versi awal `m.react('✅')` membungkus balasan jadi
         // `Reaction`; lepas dulu supaya isi gambarnya bisa diperiksa.
         match r.without_mutations().tanpa_reaksi() {
             Reply::Image { media, .. } => match media {
@@ -153,7 +152,7 @@ mod tests {
 
     #[test]
     fn kartu_pakai_memakai_prefix_ctx() {
-        // `tomanga.js:31` memakai `${m.prefix}`, bukan titik hardcode.
+        // memakai `${m.prefix}`, bukan titik hardcode.
         let http = HttpStub::urutan(vec![]);
         let ctx = Ctx { text: ".tomanga".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: "!".into(), command: "tomanga".into(), http, ..Ctx::default() };
         let r = tomanga(ctx);
@@ -200,7 +199,7 @@ mod tests {
             (200, r#"{"status":false}"#),
         ]);
         let r = run(http, Ok(b"IMG".to_vec()));
-        // `tomanga.js:57` — `te(prefix, command, pushName)`.
+        // `te(prefix, command, pushName)`.
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "tomanga")

@@ -1,12 +1,12 @@
-//! `plugins/ai/anime-gen.js` — generate gambar anime AI lewat `api.neoxr.eu`.
+//! Generate gambar anime AI lewat `api.neoxr.eu`.
 //!
-//! `ponytail:` dua hal tidak ditulis di sini:
-//! 1. Header `User-Agent` per-request (`http.js:30`) — `HttpGet` tidak punya
-//!    setter header. `UreqHttp` sudah mengirim UA sendiri.
-//! 2. Cabang `catch` (`anime-gen.js:57-64`). `f()` (`http.js`) menelan semua
-//!    error dan mengembalikan `null`, jadi `data` selalu `null` saat gagal dan
-//!    plugin masuk cabang "ɢᴀɢᴀʟ" di `:47`, bukan `catch`. Menulis `catch`
-//!    berarti menambah jalur yang tidak pernah tercapai di JS.
+//! `Keterbatasan:` dua hal tidak ditulis di sini:
+//! 1. Header `User-Agent` per-request — `HttpGet` tidak punya
+//! setter header. `UreqHttp` sudah mengirim UA sendiri.
+//! 2. Cabang `catch`. `f()` menelan semua
+//! error dan mengembalikan `null`, jadi `data` selalu `null` saat gagal
+//! plugin masuk cabang "ɢᴀɢᴀʟ" di `:47`, bukan `catch`. Menulis `catch`
+//! berarti menambah jalur yang tidak pernah tercapai di versi awal.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -14,8 +14,8 @@ use serde_json::Value;
 use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey.neoxr` dibaca dari `ctx.config()`; nilai kosong di
-/// produksi sama dengan `process.env.APIKEY_NEOXR || ""` di `config.js:327`.
+/// `config.APIkey.neoxr` dibaca dari `ctx.config()`; nilai kosong
+/// produksi sama dengan `process.env.APIKEY_NEOXR || ""`.
 fn url(prompt: &str, api_key: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/ai-anime?q={}&apikey={api_key}",
@@ -57,7 +57,7 @@ fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn anime_gen(ctx: Ctx) -> Reply {
-    // `anime-gen.js:21` memakai `m.text` apa adanya, bukan `.trim()`.
+    // memakai `m.text` apa adanya, bukan `.trim()`.
     let prompt = ctx.text.clone();
     if prompt.is_empty() {
         return Reply::text(help(&ctx.prefix));
@@ -73,7 +73,7 @@ pub fn anime_gen(ctx: Ctx) -> Reply {
         return fail();
     };
 
-    // `anime-gen.js:47` — `!data?.status || !data?.data?.url`.
+    // `!data?.status || !data?.data?.url`.
     if !js_truthy(data.get("status")) || !js_truthy(data.pointer("/data/url")) {
         return fail();
     }

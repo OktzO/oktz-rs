@@ -1,9 +1,8 @@
-//! `plugins/ai/tofigurine.js` — ubah foto menjadi figurine/action figure via
-//! scraper `seaart` (`live3d`) (nama command JS: `tofigure3`).
+//! Ubah foto menjadi figurine/action figure via
 //!
-//! `ponytail:` `live3d` di Rust mengembalikan `Vec<u8>` (byte gambar mentah),
-//! bukan `{ image }`, karena `serde_json::Value` tidak bisa membawa buffer.
-//! Satu reaksi akhir (`✅`/`❌`/`☢`) dipasang.
+//! `Keterbatasan:` `live3d` di Rust mengembalikan `Vec<u8>` (byte gambar mentah), bukan `{
+//! image }`, karena `serde_json::Value` tidak bisa membawa buffer. Satu reaksi akhir
+//! (`✅`/`❌`/`☢`) dipasang.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -76,9 +75,9 @@ pub fn tofigurine(ctx: Ctx) -> Reply {
     Reply::image(MediaSource::bytes(result), "").with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

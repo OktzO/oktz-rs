@@ -1,18 +1,4 @@
-//! `plugins/ai/text2img.js` — buat gambar dari teks lewat Firefly.
-//!
-//! Alur JS (`text2img.js:24-51`): cek teks → `m.react('🕕')` → cek
-//! `config.APIkey.firefly` → GET
-//! `https://firefly.maiku.my.id/api/deepai?apikey=…&prompt=…` →
-//! `data.data.data.output_url` → kirim gambar dengan caption = prompt.
-//!
-//! `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY'), cmd)`
-//! (`src/lib/stalker-fallback.js:29-34`) menghasilkan kartu "API Key belum
-//! diset" — teksnya dipakai apa adanya di sini.
-//!
-//! Catatan klasifikasi: `firefly.maiku.my.id` sudah mati (Cloudflare HTTP 530,
-//! Argo Tunnel origin down) — lihat `docs/rust-rewrite/PLUGIN-CLASSIFICATION.md`
-//! kelas E. Jalur HTTP tetap ditulis supaya perilakunya sama persis dengan JS
-//! ketika key tersedia.
+//! Buat gambar dari teks lewat Firefly.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -20,7 +6,7 @@ use serde_json::Value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `explainFailure(new MissingApiKeyError('firefly', 'APIKEY_FIREFLY'), cmd)`
-/// (`src/lib/stalker-fallback.js:29-34`).
+///
 fn missing_key(command: &str) -> String {
     format!(
         "❌ *API Key belum diset!*\n\n\
@@ -30,7 +16,7 @@ fn missing_key(command: &str) -> String {
 }
 
 /// `https://firefly.maiku.my.id/api/deepai?apikey=…&prompt=…`
-/// (`text2img.js:37`).
+///
 fn api_url(api_key: &str, prompt: &str) -> String {
     format!(
         "https://firefly.maiku.my.id/api/deepai?apikey={api_key}&prompt={}",
@@ -64,7 +50,7 @@ pub fn text2img(ctx: Ctx) -> Reply {
         ));
     }
 
-    // `text2img.js:29-33` — reaksi `🕕` terjadi sebelum cek key, jadi ikut.
+    // Reaksi `🕕` terjadi sebelum cek key, jadi ikut.
     let api_key = ctx.config().api_keys.firefly.clone();
     if api_key.is_empty() {
         return Reply::text(missing_key(&format!("{}text2img", ctx.prefix))).with_reaction("🕕");
@@ -79,7 +65,7 @@ pub fn text2img(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
-    // `data?.data?.data?.output_url` (`text2img.js:39`).
+    // `data?.data?.data?.output_url`.
     let Some(output) = body
         .pointer("/data/data/output_url")
         .and_then(Value::as_str)

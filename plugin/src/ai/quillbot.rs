@@ -1,12 +1,7 @@
-//! `plugins/ai/quillbot.js` — parafrasa teks dengan Quillbot.
+//! Parafrasa teks dengan Quillbot.
 //!
-//! Nama plugin di JS memang `quilbot` (typo) dengan alias `quillbot`
-//! (`quillbot.js:4-5`), jadi keduanya dipakai apa adanya supaya alias itu
-//! tetap resolve.
-//!
-//! `ponytail:` header `User-Agent` per-request (`quillbot.js:32`) tidak bisa
-//! dikirim — `HttpGet` tidak punya setter header. reacted `🕕`
-//! (`quillbot.js:26`) dilewati karena `Reply::Reaction` cuma menampung satu
+//! `Keterbatasan:` header `User-Agent` per-request tidak bisa dikirim — `HttpGet` tidak
+//! punya setter header. reacted `🕕` dilewati karena `Reply::Reaction` cuma menampung satu
 //! emoji; reaksi akhir (`❌`/`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -14,10 +9,10 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `quillbot.js:29`.
+///
 const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/quillbot";
 
-/// Nilai falsy JS (`!v`) — `quillbot.js:38`.
+/// Nilai falsy versi awal (`!v`) —.
 fn falsy(v: Option<&Value>) -> bool {
     match v {
         None | Some(Value::Null) => true,
@@ -46,7 +41,7 @@ fn falsy(v: Option<&Value>) -> bool {
     is_bot_admin = false
 )]
 pub fn quilbot(ctx: Ctx) -> Reply {
-    // `quillbot.js:20` — `m.args.join(' ')` jatuh ke `m.text` kalau kosong.
+    // `m.args.join(' ')` jatuh ke `m.text` kalau kosong.
     let text = if ctx.args.is_empty() {
         ctx.text.trim().to_string()
     } else {
@@ -61,7 +56,7 @@ pub fn quilbot(ctx: Ctx) -> Reply {
     }
 
     let url = format!("{ENDPOINT}?text={}", encode_uri_component(&text));
-    // `quillbot.js:46-50` memakai pesan sendiri, bukan template error global.
+    // memakai pesan sendiri, bukan template error global.
     let Some(body) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
         return Reply::text("😔 Terjadi kesalahan saat memproses teks ke Quillbot.").with_reaction("☢");
     };
@@ -142,7 +137,7 @@ mod tests {
         }
     }
 
-    /// `text` dan `args` bisa diisi terpisah untuk menguji fallback `quillbot.js:20`.
+    /// `text` dan `args` bisa diisi terpisah untuk menguji fallback.
     fn run(http: Arc<Stub>, text: &str, args: &str) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),

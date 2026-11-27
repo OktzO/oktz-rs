@@ -1,17 +1,14 @@
-//! `plugins/ai/kobo-ai.js` — chat dengan Kobo Kanaeru (backend UnlimitedAI).
+//! Chat dengan Kobo Kanaeru (backend UnlimitedAI).
 //!
-//! `UnlimitedAI` + parser-nya dipinjam dari [`super::aiassist`]; yang berbeda
-//! hanya kartu penggunaan dan nama karakter.
-//!
-//! `ponytail:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa
-//! dikirim, dan status >= 400 jadi `Err` di `UreqHttp` — lihat `aiassist.rs`.
+//! `Keterbatasan:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa dikirim, dan
+//! status >= 400 jadi `Err` di `UreqHttp` — lihat `aiassist.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
-/// `kobo-ai.js:22-30`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🌬️ *Kobo Kanaeru*\n\n\

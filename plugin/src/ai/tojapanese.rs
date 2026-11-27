@@ -1,23 +1,21 @@
-//! `plugins/ai/tojapanese.js` — ubah gambar ke style Japanese.
+//! Ubah gambar ke style Japanese.
 //!
-//! `ponytail:` `uploadImage` (`src/lib/uploader.js`) dan
-//! `applyImageEffect` (`src/lib/effect-api.js`) tidak tersedia di
-//! `Ctx`/`Reply`; handler untuk gambar diakhiri `error_template` + `☢`
-//! (pola `swm.rs`). Pemeriksaan gambar dan teks pakai di-port agar bisa diuji.
-//! Saat unggah + efek tersedia, tambahkan `pub mod tojapanese;` di
-//! `src/ai/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! `Keterbatasan:` `uploadImage` dan `applyImageEffect` tidak tersedia di `Ctx`/`Reply`;
+//! handler untuk gambar diakhiri `error_template` + `☢` (pola `swm.rs`). Pemeriksaan gambar
+//! dan teks pakai diimplementasikan agar bisa diuji. Saat unggah + efek tersedia, tambahkan
+//! `pub mod tojapanese;` di `src/ai/mod.rs` secara manual (mod.rs milik plugin lain —
+//! dilarang menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// Kartu pakai / penolakan bukan gambar (`tojapanese.js:24`).
+/// Kartu pakai / penolakan bukan gambar.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎌 *ᴊᴀᴘᴀɴᴇsᴇ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Japanese\n\n`{prefix}tojapanese`"
     )
 }
 
-/// `isImage` (`tojapanese.js:21`).
+/// `isImage`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -25,7 +23,7 @@ pub(crate) fn is_image(ctx: &Ctx) -> bool {
             .is_some_and(|q| q.kind.is_image())
 }
 
-/// Unduh gambar: quoted dulu, baru trigger (`tojapanese.js:31-35`).
+/// Unduh gambar: quoted dulu, baru trigger.
 pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some() {
         ctx.download_quoted_media().ok()
@@ -61,7 +59,7 @@ pub fn tojapanese(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal mendownload gambar");
     };
 
-    // `uploadImage` + `applyImageEffect('tojapanese', ...)` tidak tersedia —
+    // `uploadImage` + `applyImageEffect('tojapanese'...)` tidak tersedia —
     // diakhiri error_template seperti swm.rs.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }

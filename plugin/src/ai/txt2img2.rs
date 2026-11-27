@@ -1,17 +1,13 @@
-//! `plugins/ai/txt2img2.js` — text to image lewat Flux Klein 4B (Gradio).
+//! Text to image lewat Flux Klein 4B (Gradio).
 //!
-//! Scraper `Txt2Img2` (`src/scraper/txt2img2.js`) ikut diport di sini karena
-//! belum ada di crate ini. Tiga langkahnya: cek prompt ke server action
-//! upsampler, join antrean Gradio, lalu baca stream SSE antrean.
+//! `Keterbatasan:` `HttpGet` tidak punya POST dengan `Content-Type: text/plain`, jadi
+//! `checkPrompt` memakai `post_json` — body `["<prompt>"]` sama persis, hanya header isian
+//! yang beda.
 //!
-//! `ponytail:` `HttpGet` tidak punya POST dengan `Content-Type: text/plain`,
-//! jadi `checkPrompt` memakai `post_json` — body `["<prompt>"]` sama persis,
-//! hanya header isian yang beda.
-//!
-//! `ponytail:` `getResult` di JS membaca stream sambil jalan (bisa 180 detik)
-//! dan berhenti begitu `process_completed` muncul. `HttpGet` cuma bisa GET
-//! penuh, jadi blok SSE yang belum lengkap ikut ikut terbaca — hasil yang
-//! dipakai tetap sama, hanya waktunya tidak bisa dipotong.
+//! `Keterbatasan:` `getResult` di versi awal membaca stream sambil jalan (bisa 180 detik)
+//! dan berhenti begitu `process_completed` muncul. `HttpGet` cuma bisa GET penuh, jadi blok
+//! SSE yang belum lengkap ikut ikut terbaca — hasil yang dipakai tetap sama, hanya waktunya
+//! tidak bisa dipotong.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::{Value};
@@ -26,7 +22,7 @@ const FULL_URL_PREFIX: &str = "https://black-forest-labs-flux-2-klein-4b.hf.spac
 /// Awalan path temporer Gradio, dari regex kedua `extractUrl`.
 const TMP_PREFIX: &str = "/tmp/gradio/";
 
-/// Hasil `Txt2Img2`. Kalau `Err`, stringnya = `result.error` di JS.
+/// Hasil `Txt2Img2`. Kalau `Err`, stringnya = `result.error` di versi awal.
 type Generate = Result<String, String>;
 
 /// `crypto.randomBytes(8).toString("hex")` — 16 digit heksadesimal acak.
@@ -66,7 +62,7 @@ fn tmp_gradio_url(run: &str) -> Option<String> {
     ))
 }
 
-/// `extractUrl(output)` (`src/scraper/txt2img2.js:125-143`).
+/// `extractUrl(output)`.
 ///
 /// `JSON.stringify(output || "")` diganti `serde_json::to_string`; keduanya
 /// serialisasi rapat tanpa spasi, dan itu yang dibaca kedua regex.
@@ -102,7 +98,7 @@ fn extract_url(output: &Value) -> String {
     String::new()
 }
 
-/// Pembaca SSE `getResult` (`src/scraper/txt2img2.js:41-123`).
+/// Pembaca SSE `getResult`.
 ///
 /// `buffer.split("\n\n")` lalu `blocks.pop()`: blok terakhir yang tidak
 /// diakhiri baris kosong kosong TIDAK diproses. Ditiru di sini.
@@ -112,7 +108,7 @@ fn read_queue_sse(raw: &str, event_id: &str) -> Generate {
         let Some(line) = block.split('\n').find(|l| l.starts_with("data: ")) else {
             continue;
         };
-        // `replace("data: ", "")` di JS hanya melepas satu kemunculan pertama.
+        // `replace("data: ", "")` di versi awal hanya melepas satu kemunculan pertama.
         let payload = line.strip_prefix("data: ").unwrap_or(line).trim();
         if payload.is_empty() || payload == "[DONE]" {
             continue;
@@ -139,13 +135,13 @@ fn read_queue_sse(raw: &str, event_id: &str) -> Generate {
             _ => {}
         }
     }
-    // `res.data.on("end")` di JS menolak kalau tidak ada hasil.
+    // `res.data.on("end")` di versi awal menolak kalau tidak ada hasil.
     Err("Stream selesai tanpa hasil".to_string())
 }
 
-/// `Txt2Img2(prompt)` (`src/scraper/txt2img2.js:145-195`).
+/// `Txt2Img2(prompt)`.
 fn txt2img2(http: &dyn HttpGet, prompt: &str) -> Generate {
-    // `checkPrompt` (`txt2img2.js:16-39`): kegagalan apa pun di dalamnya
+    // `checkPrompt`: kegagalan apa pun di dalamnya
     // ditelan `catch` dan dianggap "tidak flagged, tidak rate limited".
     if let Ok(res) = http.post_json(UPSAMPLER_URL, &serde_json::json!([prompt])) {
         let body = res.text();
@@ -183,7 +179,7 @@ fn txt2img2(http: &dyn HttpGet, prompt: &str) -> Generate {
     read_queue_sse(&stream.text(), &event_id)
 }
 
-/// `txt2img2.js:21-33`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🎨 *Text to Image (Flux)*\n\n\
@@ -226,7 +222,7 @@ pub fn text2img2(ctx: Ctx) -> Reply {
             format!("🎨 *Flux Klein 4B*\n\n> Prompt: *{text}*"),
         )
         .with_reaction("✅"),
-        // `catch` di `txt2img2.js:50-54` (kalimat tetap "Gagal generate gambar,
+        // `catch` (kalimat tetap "Gagal generate gambar,
         // coba lagi nanti") hanya menutup `sock.sendMedia`. Media di sini cuma
         // URL dan diunggah pipeline, jadi cabang itu tidak ditulis.
         Err(error) => Reply::text(format!("❌ *Generate Gagal*\n\n> {error}")).with_reaction("☢"),

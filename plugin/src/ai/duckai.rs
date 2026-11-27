@@ -1,13 +1,8 @@
 //! `.duck` — chat duck.ai (GPT-6 Luna / GPT-5.4 mini / Claude Haiku 5.5).
 //!
-//! duck.ai tidak punya API resmi: chat dijaga header `x-vqd-hash-1` yang isinya
-//! hasil *challenge* JS dari `GET /duckchat/v1/status`. Challenge itu dijalankan
-//! di QuickJS yang di-embed (`rquickjs`), bukan browser/proses luar.
-//!
-//! `ponytail:` tabel `__tpl` di shim memuat hasil serialisasi `innerHTML` versi
-//! Chrome untuk 4 template yang pernah muncul. Template baru dari DDG bikin
-//! angka challenge salah (server balas 418, bukan crash); tambahkan satu baris
-//! di `__tpl` saat itu terjadi.
+//! `Keterbatasan:` tabel `__tpl` di shim memuat hasil serialisasi `innerHTML` versi Chrome
+//! untuk 4 template yang pernah muncul. Template baru dari DDG bikin angka challenge salah
+//! (server balas 418, bukan crash); tambahkan satu baris di `__tpl` saat itu terjadi.
 
 use oktz_plugin_api::{plugin, Ctx, HttpCall, HttpGet, Reply};
 use serde_json::{json, Value};

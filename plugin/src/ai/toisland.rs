@@ -1,6 +1,4 @@
-//! `plugins/ai/toisland.js` — ubah foto menjadi suasana pulau tropis lewat
-//! scraper `seaart::live3d` (`oktz_scraper::seaart::live3d`).
-//! PROMPT ditulis apa adanya dari JS.
+//! Ubah foto menjadi suasana pulau tropis lewat
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -17,7 +15,7 @@ pub(crate) fn help(prefix: &str) -> String {
 }
 
 /// Ambil byte media dari pesan pemicu atau pesan yang di-reply, sama urutan
-// pengecekannya dengan JS.
+// pengecekannya dengan versi awal.
 fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return ctx.download_quoted_media().ok();
@@ -54,12 +52,12 @@ pub fn toisland(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // toisland.js:36 — `m.react('🕕')` sebelum unduh, jadi reaksi itu ikut di
+    // `m.react('🕕')` sebelum unduh, jadi reaksi itu ikut
     // semua cabang setelah cek gambar.
     let jam = || Reply::None.with_reaction("🕕");
 
     let Some(buffer) = ambil_buffer(&ctx) else {
-        // toisland.js:46-49 — `m.react('❌')` lalu `m.reply` pesan gagal unduh.
+        // `m.react('❌')` lalu `m.reply` pesan gagal unduh.
         return Reply::sequence(vec![
             jam(),
             Reply::None.with_reaction("❌"),
@@ -222,7 +220,7 @@ mod tests {
 
     #[test]
     fn bukan_gambar_menghasilkan_kartu_pakai_tanpa_reaksi() {
-        // toisland.js:26-34 — media video bukan `imageMessage` → kartu pakai.
+        // Media video bukan `imageMessage` → kartu pakai.
         let r = toisland(ctx_media(
             Stub::offline(),
             Some(IncomingKind::Video),
@@ -235,7 +233,7 @@ mod tests {
 
     #[test]
     fn download_gagal_mengembalikan_pesan_dan_reaksi_silang() {
-        // toisland.js:46-49 — `m.react('❌')` lalu `m.reply` pesan gagal unduh.
+        // `m.react('❌')` lalu `m.reply` pesan gagal unduh.
         let r = toisland(ctx_media(
             Stub::offline(),
             Some(IncomingKind::Image),
@@ -250,7 +248,7 @@ mod tests {
 
     #[test]
     fn quoted_image_dilayani_sama_dengan_trigger_image() {
-        // toisland.js:40-49 — `m.quoted` dicek duluan; unduh gagal → pesan
+        // `m.quoted` dicek duluan; unduh gagal → pesan
         // gagal unduh yang sama seperti jalur trigger.
         let r = toisland(ctx_media(
             Stub::offline(),

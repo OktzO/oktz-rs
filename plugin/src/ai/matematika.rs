@@ -1,19 +1,18 @@
-//! `plugins/ai/matematika.js` — AI pemecah soal matematika.
+//! AI pemecah soal matematika.
 //!
-//! `ponytail:` header `User-Agent` per-request (`matematika.js:35`) tidak bisa
-//! dikirim — `HttpGet` tidak punya setter header. reacted `🕕` (`matematika.js:27`)
-//! dilewati karena `Reply::Reaction` cuma menampung satu emoji; reaksi akhir
-//! (`❌`/`✅`/`☢`) yang dikirim.
+//! `Keterbatasan:` header `User-Agent` per-request tidak bisa dikirim — `HttpGet` tidak
+//! punya setter header. reacted `🕕` dilewati karena `Reply::Reaction` cuma menampung satu
+//! emoji; reaksi akhir (`❌`/`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `matematika.js:30`.
+///
 const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/mathgpt";
 
-/// Nilai falsy JS (`!v`) — `matematika.js:39`.
+/// Nilai falsy versi awal (`!v`) —.
 fn falsy(v: Option<&Value>) -> bool {
     match v {
         None | Some(Value::Null) => true,
@@ -24,7 +23,7 @@ fn falsy(v: Option<&Value>) -> bool {
     }
 }
 
-/// `matematika.js:24`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "📐 *ᴍᴀᴛʜ ɢᴘᴛ*\n\n\
@@ -57,7 +56,7 @@ pub fn matematika(ctx: Ctx) -> Reply {
     }
 
     let url = format!("{ENDPOINT}?text={}", encode_uri_component(&text));
-    // `matematika.js:31` — kegagalan jaringan dan HTTP alike berakhir di
+    // Kegagalan jaringan dan HTTP alike berakhir
     // `catch`, jadi keduanya dibedakan dari respons `status: false`.
     let Some(body) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
@@ -69,7 +68,7 @@ pub fn matematika(ctx: Ctx) -> Reply {
 
     let answer = match body.get("result") {
         Some(Value::String(s)) => s.clone(),
-        // `matematika.js:47` menempelkan nilai apa adanya lewat template literal.
+        // menempelkan nilai apa adanya lewat template literal.
         Some(other) => other.to_string(),
         None => String::new(),
     };

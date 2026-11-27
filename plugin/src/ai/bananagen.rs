@@ -1,12 +1,11 @@
-//! `plugins/ai/bananagen.js` — edit gambar dengan AI menggunakan prompt.
+//! Edit gambar dengan AI menggunakan prompt.
 //!
-//! `ponytail:` JS bereaksi `🕕` lalu `✅`; `Reply::with_reaction` hanya satu
-//! emoji, jadi hanya `✅` dibawa pada sukses. `m.download()` /
-//! `m.quoted.download()` dipindah ke `ctx.download_media()` /
-//! `download_quoted_media()`. Buffer diunggah lewat `unggah::gambar` (API
-//! rinn hanya menerima link), lalu diedit lewat `rinn::nanobanana`. Hasil
-//! dikirim sebagai `Reply::image` byte (MediaSource::bytes) + MIME hasil
-//! sniff (`unggah::mime_gambar`), tanpa quote.
+//! `Keterbatasan:` versi awal bereaksi `🕕` lalu `✅`; `Reply::with_reaction` hanya satu
+//! emoji, jadi hanya `✅` dibawa pada sukses. `m.download()` / `m.quoted.download()`
+//! dipindah ke `ctx.download_media()` / `download_quoted_media()`. Buffer diunggah lewat
+//! `unggah::gambar` (API rinn hanya menerima link), lalu diedit lewat `rinn::nanobanana`.
+//! Hasil dikirim sebagai `Reply::image` byte (MediaSource::bytes) + MIME hasil sniff
+//! (`unggah::mime_gambar`), tanpa quote.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use oktz_scraper::unggah::{gambar, mime_gambar};

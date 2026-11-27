@@ -1,11 +1,7 @@
-//! Plugin baru (tidak ada padanannya di `ourin-md/plugins/`) — menggantikan
-//! `kyzznekoo.zone.id/api/img/v2/nanobanana` yang balas 404 sejak 2026-11-15.
+//! Plugin baru (tidak ada padanannya di `versi awal/plugins/`) — menggantikan
 //!
-//! Alur: unduh gambar (trigger/quoted) → `unggah::gambar` (API hanya menerima
-//! link) → `rinn::nanobanana` → kirim byte hasil + MIME hasil sniff.
-//!
-//! `ponytail:` JS bereaksi `🕕` lalu `✅`/`❌`; `Reply::with_reaction` hanya
-//! satu emoji, jadi hanya reaksi penutup yang dibawa.
+//! `Keterbatasan:` versi awal bereaksi `🕕` lalu `✅`/`❌`; `Reply::with_reaction` hanya satu
+//! emoji, jadi hanya reaksi penutup yang dibawa.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, Reply, plugin};
 use oktz_scraper::unggah::{gambar, mime_gambar};

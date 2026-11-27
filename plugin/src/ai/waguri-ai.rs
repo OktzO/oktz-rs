@@ -1,17 +1,14 @@
-//! `plugins/ai/waguri-ai.js` — chat dengan Waguri-san (backend UnlimitedAI).
+//! Chat dengan Waguri-san (backend UnlimitedAI).
 //!
-//! `UnlimitedAI` + parser-nya dipinjam dari [`super::aiassist`]; yang berbeda
-//! hanya kartu penggunaan, nama karakter, dan judul pesan error.
-//!
-//! `ponytail:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa
-//! dikirim, dan status >= 400 jadi `Err` di `UreqHttp` — lihat `aiassist.rs`.
+//! `Keterbatasan:` header `cookie`/`sec-ch-ua*`/`origin`/`referer` tidak bisa dikirim, dan
+//! status >= 400 jadi `Err` di `UreqHttp` — lihat `aiassist.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 
 use super::aiassist::{AiFailure, clip, failed, unlimited_ai};
 
-/// `waguri-ai.js:23-30`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "👓 *Waguri-san*\n\n\
@@ -85,7 +82,7 @@ mod tests {
                 seen: Mutex::new(Vec::new()),
             })
         }
-        /// Status di luar 2xx supaya cabang `!response.ok` di JS terjangkau.
+        /// Status di luar 2xx supaya cabang `!response.ok` di versi awal terjangkau.
         fn refused(body: &str) -> Arc<Stub> {
             Arc::new(Stub {
                 resp: Some(body.to_string()),

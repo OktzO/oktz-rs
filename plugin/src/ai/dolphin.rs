@@ -1,10 +1,7 @@
-//! `plugins/ai/dolphin.js` — Dolphin AI 24B (chat.dphn.ai).
+//! Dolphin AI 24B (chat.dphn.ai).
 //!
-//! Scraper `dolphinAI` ada di dalam file plugin sendiri, jadi tidak ada
-//! helper bersama yang perlu dipinjam.
-//!
-//! `ponytail:` header `origin`, `referer`, dan `user-agent` khusus tidak bisa
-//! dikirim (`HttpGet` tidak punya setter header per-request).
+//! `Keterbatasan:` header `origin`, `referer`, dan `user-agent` khusus tidak bisa dikirim
+//! (`HttpGet` tidak punya setter header per-request).
 
 use oktz_plugin_api::{Ctx, HttpGet, Reply, plugin};
 use serde_json::{Value};
@@ -12,7 +9,7 @@ use serde_json::{Value};
 
 const ENDPOINT: &str = "https://chat.dphn.ai/api/chat";
 
-/// `TEMPLATES` (`dolphin.js:19`).
+/// `TEMPLATES`.
 const TEMPLATES: [&str; 5] = [
     "logical",
     "creative",
@@ -22,7 +19,7 @@ const TEMPLATES: [&str; 5] = [
 ];
 
 /// `text.match(/^--(\S+)\s+/)` lalu `text.replace(match[0], '').trim()`
-/// (`dolphin.js:70-77`).
+///
 ///
 /// Mengembalikan `(template, sisaPertanyaan)`. `\s+` serakah jadi seluruh
 /// spasi setelah nama ikut terpotong; `\S+` terlalu sedikit (huruf/karakter
@@ -41,11 +38,11 @@ fn split_template(text: &str) -> (Option<&'static str>, &str) {
     (Some(*known), rest[end..].trim())
 }
 
-/// `dolphinAI` (`dolphin.js:21-46`).
+/// `dolphinAI`.
 ///
 /// `data.split('\n\n').filter(l => l.startsWith('data: {'))` lalu
-/// `JSON.parse(l.substring(6))`. Parse yang gagal melempar keluar dari
-/// `.map` di JS — jadi di sini juga jadi `Err`, bukan dilewati diam-diam.
+/// `JSON.parse(l.substring(6))`. Parse yang gagal melempar keluar
+/// `.map` di versi awal — jadi di sini juga jadi `Err`, bukan dilewati diam-diam.
 fn dolphin_ai(http: &dyn HttpGet, question: &str, template: &str) -> Result<String, String> {
     let body = serde_json::json!({
         "messages": [{ "role": "user", "content": question }],
@@ -70,7 +67,7 @@ fn dolphin_ai(http: &dyn HttpGet, question: &str, template: &str) -> Result<Stri
     Ok(result)
 }
 
-/// `dolphin.js:53-65`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🐬 *ᴅᴏʟᴘʜɪɴ ᴀɪ*\n\n\
@@ -247,7 +244,7 @@ mod tests {
         for name in TEMPLATES {
             assert!(t.contains(&format!("`{name}`")), "{name} hilang: {t}");
         }
-        // `dolphin.js:63-64` tidak memakai `*` di sekitar contoh perintah.
+        // tidak memakai `*` di sekitar contoh perintah.
         assert!(t.contains("> .dolphin --creative buat puisi"), "{t}");
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -275,10 +272,10 @@ mod tests {
 
     #[test]
     fn a_bare_template_never_matches_because_serialize_trims_first() {
-        // `serialize.js:407` sudah `.trim()` sebelum handler jalan, dan
+        // sudah `.trim()` sebelum handler jalan,
         // `/^--(\S+)\s+/` butuh spasi setelah nama. Jadi `.dolphin --creative`
-        // tidak pernah kena cabang `❌ Masukkan pertanyaan!` (`dolphin.js:79-81`)
-        // — teks utuh justru dikirim ke API.
+        // tidak pernah kena cabang `❌ Masukkan pertanyaan!`
+        // Teks utuh justru dikirim ke API.
         let http = Stub::ok(&format!("{}\n\n", chunk("Tekscreative")));
         let r = run(http.clone(), "--creative   ");
         assert_eq!(body(&r), "Tekscreative");

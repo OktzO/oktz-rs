@@ -1,10 +1,8 @@
-//! `plugins/ai/txt2img.js` — generate gambar dari teks via `api.neoxr.eu` (nama
-//! command JS: `text2img3`).
+//! Generate gambar dari teks via `api.neoxr.eu` (nama
 //!
-//! `ponytail:` JS memakai `f()` dari `src/lib/http.js` yang tidak pernah
-//! melempar (status >= 400 kembali `null`); di sini `ctx.http.get` mengembalikan
-//! `Err` untuk status >= 400, jadi cabang gagal ditangani lewat `Err`/null.
-//! Satu reaksi akhir (`❌`/`✅`/`☢`) dipasang.
+//! `Keterbatasan:` versi awal memakai `f()` yang tidak pernah melempar (status >= 400
+//! kembali `null`); di sini `ctx.http.get` mengembalikan `Err` untuk status >= 400, jadi
+//! cabang gagal ditangani lewat `Err`/null. Satu reaksi akhir (`❌`/`✅`/`☢`) dipasang.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -34,7 +32,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `❌ *API Key belum diset!* ...` (mirip `explainFailure(MissingApiKeyError)`).
+/// `❌ *API Key belum diset!*...` (mirip `explainFailure(MissingApiKeyError)`).
 fn missing_key(prefix: &str) -> String {
     format!(
         "❌ *API Key belum diset!*\n\n\
@@ -91,9 +89,9 @@ pub fn txt2img(ctx: Ctx) -> Reply {
     Reply::image(MediaSource::url(url_hasil.to_string()), "").with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -223,7 +221,7 @@ mod tests {
 
     #[test]
     fn kunci_kosong_menghasilkan_missing_key_dan_reaksi_silang() {
-        // txt2img.js:41-44 — cek `config.APIkey.neoxr` sebelum request apa pun.
+        // Cek `config.APIkey.neoxr` sebelum request apa pun.
         let http = Stub::offline();
         let r = run_tanpa_kunci(http.clone(), "sunset");
         assert_eq!(text_of(&r), missing_key("."));

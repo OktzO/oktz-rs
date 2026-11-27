@@ -1,23 +1,17 @@
-//! `plugins/ai/wormgpt.js` — chat dengan WormGPT (uncensored AI).
+//! Chat dengan WormGPT (uncensored AI).
 //!
-//! `wormgpt.js:32` memanggil `fetchAiText('wormgpt', …)`
-//! (`src/lib/stalker-fallback.js:265`), yang mencoba cuki lalu nexray.
-//! Cabang cuki butuh `config.APIkey.cuki`, yang tidak dibawa `Ctx`; di JS tanpa
-//! key isian cuki selalu melempar `MissingApiKeyError`, jadi nexray adalah
-//! jalur yang benar-benar tembus. Hanya nexray yang ditulis di sini.
-//!
-//! `ponytail:` reacted `🕕` (`wormgpt.js:29`) dilewati karena `Reply::Reaction`
-//! cuma menampung satu emoji; reaksi akhir (`✅`/`☢`) yang dikirim.
+//! `Keterbatasan:` reacted `🕕` dilewati karena `Reply::Reaction` cuma menampung satu emoji;
+//! reaksi akhir (`✅`/`☢`) yang dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `NEXRAY_BASES[0]` + `nexrayPaths.wormgpt` (`stalker-fallback.js:4,268,298`).
+/// `NEXRAY_BASES[0]` + `nexrayPaths.wormgpt`.
 const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/chatgpt";
 
-/// `wormgpt.js:24-26`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🐛 *ᴡᴏʀᴍ ɢᴘᴛ*\n\n\
@@ -50,8 +44,8 @@ pub fn wormgpt(ctx: Ctx) -> Reply {
     }
 
     let url = format!("{ENDPOINT}?text={}", encode_uri_component(&text));
-    // Semua kegagalan provider (termasuk cuki yang key-nya kosong) berakhir di
-    // satu `catch` yang sama di `wormgpt.js:36-40`, jadi pesannya sama.
+    // Semua kegagalan provider (termasuk cuki yang key-nya kosong) berakhir
+    // satu `catch` yang sama, jadi pesannya sama.
     let Some(body) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -202,7 +196,7 @@ mod tests {
         assert_eq!(seen.len(), 1, "cuki tidak boleh dipanggil");
         assert_eq!(
             seen[0],
-            // `encodeURIComponent` mengubah tiap spasi jadi `%20` (`stalker-fallback.js:298`).
+            // `encodeURIComponent` mengubah tiap spasi jadi `%20`.
         format!("{ENDPOINT}?text=perkenalkan%20dirimu")
         );
         assert!(!seen[0].starts_with("https://api.cuki.biz.id"));

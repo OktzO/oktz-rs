@@ -1,14 +1,8 @@
-//! `plugins/ai/text2img2.js` — generate image from text, balikin byte mentah.
+//! Generate image from text, balikin byte mentah.
 //!
-//! `ponytail:` header `User-Agent` per-request (`text2img2.js:30`) tidak bisa
-//! dikirim — `HttpGet` tidak punya setter header. reacted `🕕` (`text2img2.js:23`)
-//! dilewati karena `Reply::Reaction` hanya menampung satu emoji; reaksi
-//! terakhir (`❌`/`✅`) yang ikut.
-//!
-//! `m.fullArgs` dipakai sebagai sumber prompt. `serialize.js:408` mengisinya
-//! dengan `result.text`, jadi sama dengan `ctx.text`. Jalur noprefix
-//! (`serialize.js:430`) menghitung ulang dari `body`, tapi hasilnya juga
-//! `trim()` dari sisa command — tidak ada selisih yang terlihat di user.
+//! `Keterbatasan:` header `User-Agent` per-request tidak bisa dikirim — `HttpGet` tidak
+//! punya setter header. reacted `🕕` dilewati karena `Reply::Reaction` hanya menampung satu
+//! emoji; reaksi terakhir (`❌`/`✅`) yang ikut.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -16,7 +10,7 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 const ENDPOINT: &str = "https://api-abztech.zone.id/ai/genimg";
 
-/// `response.data.length < 100` (`text2img2.js:34`).
+/// `response.data.length < 100`.
 const MIN_BYTES: usize = 100;
 
 #[plugin(
@@ -52,7 +46,7 @@ pub fn text2img2(ctx: Ctx) -> Reply {
         .map(|r| r.body.bytes().to_vec())
         .unwrap_or_default();
 
-    // `text2img2.js:34-36` — byte terlalu pendek dianggap body bukan gambar
+    // Byte terlalu pendek dianggap body bukan gambar
     // lalu dilempar, jadi masuk `catch`.
     if data.len() < MIN_BYTES {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
@@ -214,7 +208,7 @@ mod tests {
 
     #[test]
     fn a_body_shorter_than_one_hundred_bytes_falls_into_the_catch_branch() {
-        // `text2img2.js:34` — 99 byte sudah ditolak, 100 byte lolos.
+        // 99 byte sudah ditolak, 100 byte lolos.
         let r = run(Stub::ok(vec![7u8; 99]), "kucing");
         assert_eq!(body(&r), crate::common::error_template_bawaan(".", "text2img2"));
         assert!(matches!(

@@ -1,6 +1,4 @@
-//! `plugins/ai/toblack.js` — ubah gambar ke skin tone lebih gelap lewat scraper
-//! `seaart::live3d` (`oktz_scraper::seaart::live3d`).
-//! PROMPT ditulis apa adanya dari JS.
+//! Ubah gambar ke skin tone lebih gelap lewat scraper
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -14,7 +12,7 @@ pub(crate) fn help(prefix: &str) -> String {
 }
 
 /// Ambil byte media dari pesan pemicu atau pesan yang di-reply, sama urutan
-// pengecekannya dengan JS (`m.quoted` dulu, baru trigger).
+// pengecekannya dengan versi awal (`m.quoted` dulu, baru trigger).
 fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return ctx.download_quoted_media().ok();
@@ -52,7 +50,7 @@ pub fn toblack(ctx: Ctx) -> Reply {
     }
 
     let Some(buffer) = ambil_buffer(&ctx) else {
-        // toblack.js:38-41 — `m.react("❌")` lalu `m.reply` pesan gagal unduh.
+        // `m.react("❌")` lalu `m.reply` pesan gagal unduh.
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
@@ -178,7 +176,7 @@ mod tests {
 
     #[test]
     fn bukan_gambar_menghasilkan_kartu_pakai_tanpa_reaksi() {
-        // toblack.js:20-26 — media video bukan `imageMessage` → kartu pakai.
+        // Media video bukan `imageMessage` → kartu pakai.
         let r = toblack(ctx_media(
             Stub::offline(),
             IncomingKind::Video,
@@ -190,7 +188,7 @@ mod tests {
 
     #[test]
     fn download_gagal_mengembalikan_pesan_dan_reaksi_silang() {
-        // toblack.js:38-41 — `m.react("❌")` lalu `m.reply` pesan gagal unduh.
+        // `m.react("❌")` lalu `m.reply` pesan gagal unduh.
         let r = toblack(ctx_media(
             Stub::offline(),
             IncomingKind::Image,

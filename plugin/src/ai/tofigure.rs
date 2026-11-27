@@ -1,24 +1,16 @@
-//! `plugins/ai/tofigure.js` — ubah gambar ke style Figure/Action.
+//! Ubah gambar ke style Figure/Action.
 //!
-//! Alur JS (`tofigure.js:20-46`): cek gambar → unduh (quoted dulu kalau
-//! `m.quoted.isMedia`, lalu `m.isMedia`) → `uploadImage(buffer, 'image.jpg')`
-//! → `applyImageEffect('tofigura', imageUrl)` → kirim gambar.
-//!
-//! Helper `uploadImage` + `applyImageEffect` ada di
-//! [`super::efek`](crate::ai::efek) — salinan `src/lib/uploader.js`,
-//! `src/lib/upload-providers.js`, dan `src/lib/effect-api.js`.
-//!
-//! `ponytail:` reaksi `🕕` (`tofigure.js:26`) tidak ikut — `Reply` hanya
-//! membawa satu reaksi, jadi yang dikirim reaksi penutup.
+//! `Keterbatasan:` reaksi `🕕` tidak ikut — `Reply` hanya membawa satu reaksi, jadi yang
+//! dikirim reaksi penutup.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, QuotedKind, Reply, plugin};
 
 use super::efek::{apply_image_effect, upload_image};
 
-/// Efek di `applyImageEffect` (`tofigure.js:39`).
+/// Efek di `applyImageEffect`.
 const EFEK: &str = "tofigura";
 
-/// Kartu pakai — `tofigure.js:22-24`.
+/// Kartu pakai —.
 fn help(prefix: &str) -> String {
     format!(
         "🎭 *ꜰɪɢᴜʀᴇ sᴛʏʟᴇ*\n\n\
@@ -28,7 +20,7 @@ fn help(prefix: &str) -> String {
 }
 
 /// `m.isImage || (m.quoted && m.quoted.type === 'imageMessage')`
-/// (`tofigure.js:20`).
+///
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -38,7 +30,7 @@ fn is_image(ctx: &Ctx) -> bool {
 }
 
 /// `m.quoted && m.quoted.isMedia` → quoted; `m.isMedia` → pemicu
-/// (`tofigure.js:29-33`).
+///
 fn unduh_media(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return Some(ctx.download_quoted_media());
@@ -77,7 +69,7 @@ pub fn tofigure(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal mendownload gambar").with_reaction("❌");
     };
 
-    // `tofigure.js:38-40` — upload + efek; kegagalan keduanya masuk `catch`.
+    // Upload + efek; kegagalan keduanya masuk `catch`.
     let Ok(image_url) = upload_image(&*ctx.http, &buffer) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -253,7 +245,7 @@ mod tests {
 
     #[test]
     fn kartu_pakai_pakai_prefix_ctx() {
-        // `tofigure.js:24` memakai `${m.prefix}`.
+        // memakai `${m.prefix}`.
         let http = Stub::baru(vec![], Ok(Vec::new()));
         let r = tofigure(ctx_stub(http.clone(), None, None, "!"));
         assert_eq!(
@@ -320,7 +312,7 @@ mod tests {
     #[test]
     fn upload_gagal_membalas_template_error() {
         // Semua provider upload gagal (Litterbox/Kappa/Uguu/Nekohime 1 call
-        // masing-masing, Leopard 2, Upload.ee 2) → `catch` di JS.
+        // masing-masing, Leopard 2, Upload.ee 2) → `catch` di versi awal.
         let balasan: Vec<(u16, Vec<u8>)> = (0..8).map(|_| (500, Vec::new())).collect();
         let http = Stub::baru(balasan, Ok(b"gambar-asli".to_vec()));
         let r = tofigure(ctx_stub(http.clone(), media_gambar(), None, "."));

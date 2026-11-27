@@ -1,5 +1,4 @@
-//! `plugins/ai/tochibi.js` — ubah gambar ke style Chibi lewat `oktz_scraper::seaart::live3d`.
-//! Ponytail: `m.react('🕕')` hilang karena `Reply` hanya satu reaksi; hanya `✅`/`❌`/`☢` akhir.
+//! Ubah gambar ke style Chibi lewat `oktz_scraper::seaart::live3d`.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin};
 
@@ -8,16 +7,16 @@ const PROMPT: &str = "Transform into chibi style, big head and small body propor
 const HELP: &str = "🎀 *ᴄʜɪʙɪ sᴛʏʟᴇ*\n\n> Kirim/reply gambar untuk diubah ke style Chibi\n\n`{prefix}tochibi`";
 const GAGAL_DOWNLOAD: &str = "❌ Gagal mendownload gambar";
 
-/// Kartu pakai — `tochibi.js:23-25` memakai `${m.prefix}`.
+/// Kartu pakai — memakai `${m.prefix}`.
 fn help(prefix: &str) -> String {
     HELP.replace("{prefix}", prefix)
 }
 
 /// Unduh gambar dari quoted atau pesan pemicu. `None` = tidak ada gambar sama sekali
-/// (JS menampilkan kartu pakai), `Some(Err)` = gambar ada tapi unduhan gagal.
+/// (versi awal menampilkan kartu pakai), `Some(Err)` = gambar ada tapi unduhan gagal.
 ///
-/// `tochibi.js:28-33`: sumber unduhan adalah `m.quoted.isMedia` kalau ada,
-/// lalu `m.isMedia`. Syarat "ada gambar" (`tochibi.js:20`) memakai
+/// : sumber unduhan adalah `m.quoted.isMedia` kalau ada,
+/// lalu `m.isMedia`. Syarat "ada gambar" memakai
 /// `m.isImage` atau quoted bertipe `imageMessage`.
 fn ambil_gambar(ctx: &Ctx) -> Option<Result<Vec<u8>, MediaError>> {
     if let Some(q) = ctx.quoted()
@@ -57,7 +56,7 @@ pub fn tochibi(ctx: Ctx) -> Reply {
     let gambar = oktz_scraper::seaart::live3d(&*ctx.http, &buffer, PROMPT);
     match gambar {
         Ok(bytes) => Reply::image(MediaSource::bytes(bytes), String::new()).with_reaction("✅"),
-        // `tochibi.js:47-50` — `catch` memakai template error `te(...)`.
+        // `catch` memakai template error `te(...)`.
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }
@@ -137,7 +136,7 @@ mod tests {
     }
 
     fn image_bytes(r: &Reply) -> Vec<u8> {
-        // JS `m.react('✅')` (`tochibi.js:47`) membungkus balasan jadi
+        // versi awal `m.react('✅')` membungkus balasan jadi
         // `Reaction`; lepas dulu supaya isi gambarnya bisa diperiksa.
         match r.without_mutations().tanpa_reaksi() {
             Reply::Image { media, .. } => match media {
@@ -158,7 +157,7 @@ mod tests {
 
     #[test]
     fn kartu_pakai_memakai_prefix_ctx() {
-        // `tochibi.js:25` memakai `${m.prefix}`, bukan titik hardcode.
+        // memakai `${m.prefix}`, bukan titik hardcode.
         let http = HttpStub::urutan(vec![]);
         let ctx = Ctx { text: ".tochibi".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: "!".into(), command: "tochibi".into(), http, ..Ctx::default() };
         let r = tochibi(ctx);
@@ -205,7 +204,7 @@ mod tests {
             (200, r#"{"status":false}"#),
         ]);
         let r = run(http, Ok(b"IMG".to_vec()));
-        // `tochibi.js:49` — `te(prefix, command, pushName)`.
+        // `te(prefix, command, pushName)`.
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "tochibi")

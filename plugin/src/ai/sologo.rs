@@ -1,9 +1,8 @@
-//! `plugins/ai/sologo.js` — buat logo dari prompt, kirim thumbnail + caption.
+//! Buat logo dari prompt, kirim thumbnail + caption.
 //!
-//! `ponytail:` header `User-Agent` per-request (`sologo.js:32`) tidak bisa
-//! dikirim — `HttpGet` tidak punya setter header. reacted `🕕` (`sologo.js:26`)
-//! dilewati karena `Reply::Reaction` hanya menampung satu emoji; reaksi
-//! terakhir (`❌`/`✅`/`☢`) yang ikut.
+//! `Keterbatasan:` header `User-Agent` per-request tidak bisa dikirim — `HttpGet` tidak
+//! punya setter header. reacted `🕕` dilewati karena `Reply::Reaction` hanya menampung satu
+//! emoji; reaksi terakhir (`❌`/`✅`/`☢`) yang ikut.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -13,8 +12,8 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 const ENDPOINT: &str = "https://api.nexray.eu.cc/ai/sologo";
 
-/// `${obj.k}` di JS: objek jadi JSON kompak. Field yang tidak ada jadi string
-/// kosong — bukan `"undefined"` seperti di JS, mengikuti konvensi plugin
+/// `${obj.k}` di versi awal: objek jadi JSON kompak. Field yang tidak ada jadi string
+/// kosong — bukan `"undefined"` seperti di versi awal, mengikuti konvensi plugin
 /// sekelas di folder ini (`quillbot.rs`).
 fn field(value: &Value, key: &str) -> String {
     match value.get(key) {
@@ -42,7 +41,7 @@ fn field(value: &Value, key: &str) -> String {
     is_bot_admin = false
 )]
 pub fn sologo(ctx: Ctx) -> Reply {
-    // `sologo.js:20` — `m.text` di-`trim()` dulu, `m.args.join(" ")` fallback.
+    // `m.text` di-`trim()` dulu, `m.args.join(" ")` fallback.
     let prompt = if ctx.text.trim().is_empty() {
         ctx.args.join(" ")
     } else {
@@ -64,7 +63,7 @@ pub fn sologo(ctx: Ctx) -> Reply {
     // jadi `data.status` undefined → cabang "⚠️ AI gagal" di bawah.
     let data = res.json().unwrap_or(Value::Null);
 
-    // `sologo.js:38` — `!data.status || !data.result || data.result.length === 0`.
+    // `!data.status || !data.result || data.result.length === 0`.
     let first = data
         .get("result")
         .and_then(Value::as_array)

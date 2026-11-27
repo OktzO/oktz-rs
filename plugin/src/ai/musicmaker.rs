@@ -1,15 +1,14 @@
-//! `plugins/ai/musicmaker.js` — membuat musik/lagu AI dari teks (prompt).
+//! Membuat musik/lagu AI dari teks (prompt).
 //!
-//! `ponytail:` JS memanggil `sock.sendMessage` dua kali (audio lalu image) +
-//! `m.react("🕕")` lalu `m.react("✅")`. `Reply` hanya menampung satu reaksi,
-//! jadi yang dipegang adalah yang terakhir (`✅`), dan kedua pesan jadi satu
-//! `Sequence` (audio dulu, image dengan caption diikuti).
-//! `example` diisi persis `pluginConfig` JS.
+//! `Keterbatasan:` versi awal memanggil `sock.sendMessage` dua kali (audio lalu image) +
+//! `m.react("🕕")` lalu `m.react("✅")`. `Reply` hanya menampung satu reaksi, jadi yang
+//! dipegang adalah yang terakhir (`✅`), dan kedua pesan jadi satu `Sequence` (audio dulu,
+//! image dengan caption diikuti). `example` diisi persis `pluginConfig` versi awal.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// Endpoint `https://api.nexray.eu.cc/ai/suno?prompt=...` (`musicmaker.js:29`).
+/// Endpoint `https://api.nexray.eu.cc/ai/suno?prompt=...`.
 pub(crate) fn api_url(prompt: &str) -> String {
     format!(
         "https://api.nexray.eu.cc/ai/suno?prompt={}",
@@ -17,20 +16,20 @@ pub(crate) fn api_url(prompt: &str) -> String {
     )
 }
 
-/// Teks balasan saat prompt kosong (`musicmaker.js:22-23`).
+/// Teks balasan saat prompt kosong.
 pub(crate) fn help() -> String {
     "❌ Masukkan deskripsi lagu yang ingin dibuat.\n\nContoh: `.musicmaker Lagu pop romantis yang ceria`".to_string()
 }
 
-/// Teks gagal AI (`musicmaker.js:41`).
+/// Teks gagal AI.
 pub(crate) const AI_GAGAL: &str =
     "⚠️ AI gagal membuat lagu. Coba gunakan prompt (deskripsi) yang lain.";
 
-/// Teks error jaringan (`musicmaker.js:68`).
+/// Teks error jaringan.
 pub(crate) const ERROR_SERVER: &str =
     "😔 Terjadi kesalahan saat memproses permintaan pembuatan lagu ke AI. Server AI mungkin sibuk.";
 
-/// Caption image hasil (`musicmaker.js:46-50`).
+/// Caption image hasil.
 pub(crate) fn caption(r: &Value) -> String {
     format!(
         "🎵 *MUSIC MAKER AI* 🎵\n\n\
@@ -88,8 +87,8 @@ pub fn musicmaker(ctx: Ctx) -> Reply {
     };
     let data = res.json().unwrap_or(Value::Null);
     let status_ok = data.get("status").is_some_and(crate::common::js_truthy_value);
-    // JS `!data.status || !data.result` (`musicmaker.js:39`): `result` harus
-    // truthy juga — `result: null` di JS masuk cabang gagal, bukan jadi caption "null".
+    // versi awal `!data.status || !data.result`: `result` harus
+    // truthy juga — `result: null` di versi awal masuk cabang gagal, bukan jadi caption "null".
     let Some(r) = data
         .get("result")
         .filter(|v| status_ok && crate::common::js_truthy_value(v))
@@ -195,7 +194,7 @@ mod tests {
     }
 
     fn urutan_media(r: &Reply) -> Vec<(String, Option<String>)> {
-        // JS `m.react("✅")` terakhir (`musicmaker.js:63`) membungkus balasan
+        // versi awal `m.react("✅")` terakhir membungkus balasan
         // jadi `Reaction`; lepas dulu supaya isi Sequence-nya bisa diperiksa.
         match r.without_mutations().tanpa_reaksi() {
             Reply::Sequence(list) => list
