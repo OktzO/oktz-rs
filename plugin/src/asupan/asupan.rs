@@ -1,12 +1,9 @@
-//! `plugins/asupan/asupan.js` — random video asupan.
+//! Random video asupan.
 //!
-//! `pub mod asupan;` perlu ditambah manual ke `src/asupan/mod.rs` (mod.rs
-//! berisi plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
-//!
-//! `ponytail:` JS membaca 8 berkas JSON lalu mengambil byte video lewat HTTP.
-//! Di Rust berkas dibaca lewat `ctx.berkas()` dan byte video lewat
-//! `ctx.http.get()`. Reaksi `🕕` / `❌` dari JS diruntuhkan jadi satu reaksi
-//! terakhir karena `Reply::with_reaction` hanya boleh satu emoji.
+//! `Keterbatasan:` versi awal membaca 8 berkas JSON lalu mengambil byte video lewat HTTP.
+//! Di Rust berkas dibaca lewat `ctx.berkas()` dan byte video lewat `ctx.http.get()`. Reaksi
+//! `🕕` / `❌` dari versi awal diruntuhkan jadi satu reaksi terakhir karena
+//! `Reply::with_reaction` hanya boleh satu emoji.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -30,7 +27,7 @@ const FILES: [&str; 8] = [
 const ERR_DATA_EMPTY: &str = "❌ Data asupan tidak tersedia";
 const ERR_AMBIL: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Video asupan tidak ditemukan";
 
-/// `loadJsonData` — gabungkan `url` dari semua berkas JSON — `asupan.js:20-36`.
+/// `loadJsonData` — gabungkan `url` dari semua berkas JSON —.
 fn muat_url(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
     for file in FILES {

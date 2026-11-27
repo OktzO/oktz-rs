@@ -1,4 +1,4 @@
-//! `plugins/asupan/asupantiktok.js` — video TikTok dari username random atau spesifik.
+//! Video TikTok dari username random atau spesifik.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;

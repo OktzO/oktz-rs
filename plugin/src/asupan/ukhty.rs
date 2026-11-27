@@ -1,7 +1,4 @@
-//! `plugins/asupan/ukhty.js` — video ukhty.
-//!
-//! `pub mod ukhty;` perlu ditambah manual ke `src/asupan/mod.rs` (mod.rs
-//! berisi plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
+//! Video ukhty.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -14,7 +11,7 @@ const MAX_COBA: usize = 5;
 const ERR_KOSONG: &str = "❌ Data tidak tersedia";
 const ERR_VIDEO: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Video tidak ditemukan";
 
-/// `loadJsonData('ukhty.json')` — `ukhty.js:19-27`.
+/// `loadJsonData('ukhty.json')` —.
 fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {
     let Ok(teks) = berkas.baca_teks(PATH) else {
         return Vec::new();
@@ -50,14 +47,14 @@ pub fn ukhty(ctx: Ctx) -> Reply {
     let urls = match muat_data(ctx.berkas()) {
         u if !u.is_empty() => u,
         // `m.react('❌')` lalu `m.reply('❌ Data tidak tersedia')`
-        // (`ukhty.js:35-38`).
+        //
         _ => return Reply::text(ERR_KOSONG).with_reaction("❌"),
     };
 
     match ambil_video(ctx.http.as_ref(), &urls) {
-        // `m.react('✅')` setelah `sock.sendMedia` (`ukhty.js:42-45`).
+        // `m.react('✅')` setelah `sock.sendMedia`.
         Some(data) => Reply::video(MediaSource::bytes(data), "").with_reaction("✅"),
-        // `sendMedia` melempar di JS (URL mati) → `catch` (`ukhty.js:47-50`).
+        // `sendMedia` melempar di versi awal (URL mati) → `catch`.
         None => Reply::text(ERR_VIDEO).with_reaction("❌"),
     }
 }

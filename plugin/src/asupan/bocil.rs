@@ -1,7 +1,4 @@
-//! `plugins/asupan/bocil.js` — video bocil, khusus premium/owner.
-//!
-//! Urutan efek JS dipertahankan: `m.react('🕕')` SELALU jalan lebih dulu,
-//! termasuk saat ditolak atau data kosong, jadi balasannya `Sequence`.
+//! Video bocil, khusus premium/owner.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -14,7 +11,7 @@ const MAX_COBA: usize = 5;
 const ERR_KOSONG: &str = "❌ Data tidak tersedia";
 const ERR_VIDEO: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Video tidak ditemukan";
 
-/// `m.reply` cabang premium (`bocil.js:35-37`).
+/// `m.reply` cabang premium.
 pub(crate) fn pesan_premium(prefix: &str) -> String {
     format!(
         "🔞 *Konten Premium*\n\n\
@@ -23,8 +20,8 @@ pub(crate) fn pesan_premium(prefix: &str) -> String {
     )
 }
 
-/// `loadJsonData('bocil.json')` — item dibiarkan utuh supaya `item.url` yang
-/// hilang tetap jatuh ke cabang `catch` seperti di JS.
+/// `loadJsonData('bocil.json')` — item dibiarkan utuh supaya `item.url`
+/// hilang tetap jatuh ke cabang `catch` seperti di versi awal.
 fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<Value> {
     let Ok(teks) = berkas.baca_teks(PATH) else {
         return Vec::new();
@@ -74,7 +71,7 @@ pub fn bocil(ctx: Ctx) -> Reply {
             Reply::video(MediaSource::bytes(bytes), ""),
             reaksi("✅"),
         ]),
-        // `sock.sendMedia` melempar di JS (URL mati/hilang) → `catch`.
+        // `sock.sendMedia` melempar di versi awal (URL mati/hilang) → `catch`.
         None => Reply::sequence(vec![reaksi("🕕"), reaksi("❌"), Reply::text(ERR_VIDEO)]),
     }
 }
