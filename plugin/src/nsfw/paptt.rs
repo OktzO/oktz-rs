@@ -1,28 +1,24 @@
-//! `plugins/nsfw/paptt.js` — gambar PAPTT acak dari API `kyzznekoo`.
+//! Gambar PAPTT acak dari API `kyzznekoo`.
 //!
-//! `ponytail:` plugin dimatikan (`is_enabled = false`) karena endpoint
-//! `kyzznekoo.zone.id/api/asupan/paptt` balas 404 sejak 2026-11-15 dan tidak
-//! ada penggantinya — API pengganti (`apiii-xrina.my.id`) tidak punya route
-//! NSFW. Nyalakan lagi kalau endpoint aslinya hidup.
+//! `Keterbatasan:` plugin dimatikan (`is_enabled = false`) karena endpoint
+//! `kyzznekoo.zone.id/api/asupan/paptt` balas 404 sejak 2026-11-15 dan tidak ada
+//! penggantinya — API pengganti (`apiii-xrina.my.id`) tidak punya route NSFW. Nyalakan lagi
+//! kalau endpoint aslinya hidup.
 //!
-//! `ponytail:` axios di JS mengirim dua header per-request
-//! (`User-Agent` Chrome/150 dan `Content-Type: application/json`). `HttpGet`
-//! tidak punya setter header, jadi keduanya tidak ikut — `UreqHttp` sudah
-//! memasang UA-nya sendiri untuk GET.
+//! `Keterbatasan:` axios di versi awal mengirim dua header per-request (`User-Agent`
+//! Chrome/150 dan `Content-Type: application/json`). `HttpGet` tidak punya setter header,
+//! jadi keduanya tidak ikut — `UreqHttp` sudah memasang UA-nya sendiri untuk GET.
 //!
-//! `ponytail:` `console.error("[PAPTT Error]", e)` di cabang `catch` tidak punya
+//! `Keterbatasan:` `console.error("[PAPTT Error]", e)` di cabang `catch` tidak punya
 //! padanan — `Reply` tidak membawa log.
-//!
-//! `pluginConfig` JS tidak punya field `example`, jadi `example` kosong di
-//! sini — bukan diisi tebakan.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 
-/// `paptt.js:22` — URL tanpa query, templatenya tidak pernah berubah.
+/// URL tanpa query, templatenya tidak pernah berubah.
 pub(crate) const API_URL: &str = "https://kyzznekoo.zone.id/api/asupan/paptt";
 
-/// Caption di `sock.sendMessage` (`paptt.js:30`). Asterisk di dalamnya itu
+/// Caption di `sock.sendMessage`. Asterisk di dalamnya itu
 /// markdown WA, bukan karakter biasa.
 const CAPTION: &str = "🔞 *PAPTT*";
 
@@ -44,7 +40,7 @@ const CAPTION: &str = "🔞 *PAPTT*";
     is_bot_admin = false
 )]
 pub fn paptt(ctx: Ctx) -> Reply {
-    // `await m.react("🕕")` pembuka di JS digantikan reaksi penutup: `Reply`
+    // `await m.react("🕕")` pembuka di versi awal digantikan reaksi penutup: `Reply`
     // hanya menyimpan satu reaksi, jadi yang terakhir (`✅`/`❌`) yang pegang.
     let Ok(res) = ctx.http.get(API_URL) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
@@ -153,14 +149,14 @@ mod tests {
 
     #[test]
     fn example_is_empty_because_js_has_no_example_field() {
-        // `pluginConfig` JS berhenti di `isEnabled` — tidak ada `example`.
+        // `pluginConfig` versi awal berhenti di `isEnabled` — tidak ada `example`.
         let meta = oktz_plugin_api::find("paptt").unwrap().meta.clone();
         assert_eq!(meta.example, "");
     }
 
     #[test]
     fn the_alias_is_the_name_itself_and_resolves_to_the_same_plugin() {
-        // Alias `"paptt"` identik dengan nama di JS, jadi lookup-nya satu
+        // Alias `"paptt"` identik dengan nama di versi awal, jadi lookup-nya satu
         // entri saja — bukan dua plugin.
         let meta = oktz_plugin_api::find("paptt").unwrap().meta.clone();
         assert_eq!(meta.alias, ["paptt"]);
@@ -196,7 +192,7 @@ mod tests {
 
     #[test]
     fn extra_arguments_are_ignored_like_in_js() {
-        // `m.args` tidak pernah dibaca di handler JS.
+        // `m.args` tidak pernah dibaca di handler versi awal.
         let s = stub(vec![1, 2]);
         let ctx = Ctx {
             text: "apa saja 123".into(),
@@ -211,7 +207,7 @@ mod tests {
 
     #[test]
     fn an_empty_body_still_becomes_an_image_reply() {
-        // JS tidak mengecek panjang buffer — `Buffer.from(res.data)` selalu
+        // versi awal tidak mengecek panjang buffer — `Buffer.from(res.data)` selalu
         // jalan, walau body kosong.
         let s = stub(Vec::new());
         let r = run(ctx_with(s.clone()));
@@ -254,7 +250,7 @@ mod tests {
             command: String::new(),
             ..Default::default()
         });
-        // `te()` JS: `prefix || '.'`, `command || '?'`.
+        // `te()` versi awal: `prefix || '.'`, `command || '?'`.
         assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "?"));
         assert_eq!(reaction_of(&r), Some("❌"));
     }
