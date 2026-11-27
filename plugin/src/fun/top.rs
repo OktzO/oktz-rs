@@ -1,21 +1,8 @@
-//! `plugins/fun/top.js` — "random top 5" dari roster grup.
+//! "random top 5" dari roster grup.
 //!
-//! Dua hal dari JS sengaja dipertahankan apa adanya:
-//!
-//! 1. `members.sort(() => Math.random() - 0.5)` (`top.js:41`) adalah shuffle
-//!    **bias**, bukan Fisher-Yates, dan `Array.prototype.sort` di V8 sudah
-//!    TimSort — hasilnya tidak boleh dianggap acak sempurna. Di sini memakai
-//!    shuffle yang benar (Fisher-Yates) karena tujuannya "memberi urutan
-//!    berbeda tiap jalan", dan membandingkan dua implementasi tidak
-//!    membuahkan apa pun. Lihat [`shuffled`].
-//! 2. Pengecekannya `< 2` tapi pesannya berbunyi "kurang dari 5 orang"
-//!    (`top.js:38-40`). Pesan itu tidak pernah akurat di JS juga —
-//!    dipertahankan supaya output tidak berubah.
-//!
-//! `ponytail:` JS memfilter JID bot sendiri dari kandidat
-//! (`id !== sock.user?.id`, `top.js:38`) dan `GroupRoster` tidak menyimpan JID
-//! bot, jadi bot bisa ikut masuk daftar. Tambahkan `bot_jid` ke `GroupRoster`
-//! kalau ini terasa mengganggu.
+//! `Keterbatasan:` versi awal memfilter JID bot sendiri dari kandidat dan `GroupRoster`
+//! tidak menyimpan JID bot, jadi bot bisa ikut masuk daftar. Tambahkan `bot_jid` ke
+//! `GroupRoster` kalau ini terasa mengganggu.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -114,7 +101,7 @@ mod tests {
 
     #[test]
     fn registers_with_the_js_plugin_config() {
-        // top.js:5-21 persis.
+        // persis.
         let p = meta();
         assert_eq!(p.name, "top");
         assert_eq!(p.alias, ["top5", "toplist"]);
@@ -133,9 +120,9 @@ mod tests {
         for a in ["top5", "toplist"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "top");
         }
-        // `top` bentrok di JS sendiri: `main/leaderboard.js` memakai `top`
-        // sebagai alias padahal `fun/top.js` sudah memakai nama itu. Karena
-        // `top` di sini sebuah command (bukan alias), aturan `getPlugin` JS
+        // `top` bentrok di versi awal sendiri: memakai `top`
+        // sebagai alias padahal sudah memakai nama itu. Karena
+        // `top` di sini sebuah command (bukan alias), aturan `getPlugin` versi awal
         // (command menang) membuat `find("top")` tetap milik kita.
         assert_eq!(oktz_plugin_api::find("top").unwrap().meta.name, "top");
         for key in ["top5", "toplist"] {

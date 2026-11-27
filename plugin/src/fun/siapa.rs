@@ -1,22 +1,16 @@
-//! `plugins/fun/siapa.js` — acak satu member grup untuk kategori tertentu.
+//! Acak satu member grup untuk kategori tertentu.
 //!
-//! `pluginConfig.name` di JS adalah array 52 kategori; `#[plugin]` hanya
-//! menerima satu string, jadi kategori pertama jadi `name` dan sisanya jadi
-//! command tambahan (`PluginMeta::commands`, `plugins.js:207-209`) —
-//! `husbualbum.rs` memakai aturan yang sama.
-//!
-//! `ponytail:` dua langkah JS TIDAK di-port: penyaringan
-//! `id !== sock.user?.id?.split(':')[0] + '@s.whatsapp.net'` (butuh `sock`,
-//! bot sendiri bisa ikut terundi) dan cabang `catch` yang memanggil
-//! `te(m.prefix, m.command, m.pushName)` — handler Rust tidak bisa melempar,
-//! jadi tidak ada error yang perlu ditangkap.
+//! `Keterbatasan:` dua langkah versi awal TIDAK diimplementasikan: penyaringan `id !==
+//! sock.user?.id?.split(':')[0] + '@s.whatsapp.net'` (butuh `sock`, bot sendiri bisa ikut
+//! terundi) dan cabang `catch` yang memanggil `te(m.prefix, m.command, m.pushName)` —
+//! handler Rust tidak bisa melempar, jadi tidak ada error yang perlu ditangkap.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{jid_number, random_index};
 
 /// `name` (kategori pertama) + sisa array `name` sebagai command tambahan.
-/// Dipakai tes untuk membandingkan attribute `#[plugin]` dengan array JS.
+/// Dipakai tes untuk membandingkan attribute `#[plugin]` dengan array versi awal.
 #[cfg(test)]
 pub(crate) const COMMANDS: [&str; 52] = [
     "bego", "goblok", "janda", "perawan", "babi", "tolol", "pekok", "jancok", "pinter", "pintar",
@@ -103,7 +97,7 @@ mod tests {
 
     /// `find(kategori)` selalu mengembalikan plugin ini: `pintar`, `ganteng`,
     /// `cantik`, `cupu`, `kaya`, `noob`, `pro` juga alias plugin `cek*`, tapi
-    /// di JS command menang atas alias (`plugins.js:539-544`) — persis seperti
+    /// di versi awal command menang atas alias — persis
     /// di sini. Test tetap memanggil handler lewat `name` + `category`.
     fn entry() -> &'static oktz_plugin_api::PluginEntry {
         oktz_plugin_api::all_plugins()
@@ -160,7 +154,7 @@ mod tests {
     fn every_category_from_the_js_name_array_resolves() {
         // `find(c)` tidak boleh jadi kriteria: `pintar`/`ganteng`/`kaya`/dst
         // juga alias plugin `cek*`, tapi command menang di registry — persis
-        // seperti di JS (`plugins.js:539-544`). Yang diuji di sini: seluruh
+        // seperti di versi awal. Yang diuji di sini: seluruh
         // 52 kategori terdaftar sebagai command plugin ini.
         let meta = &entry().meta;
         for c in COMMANDS {

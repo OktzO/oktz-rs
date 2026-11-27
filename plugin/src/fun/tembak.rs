@@ -1,34 +1,15 @@
-//! `plugins/fun/tembak.js` — menembak seseorang untuk pacaran.
-//!
-//! ## Penyimpangan
-//!
-//! - **Baca data user lain.** `db.getUser(targetJid)` hanya bisa dijawab kalau
-//!   target ada di roster grup (`Participant::data`) — pola `putus.rs`. Untuk
-//!   target yang tidak ada di grup, data dianggap kosong (`{}`), sama seperti
-//!   user yang belum pernah ada di store.
-//! - **JID bot** (`m.botNumber`) tidak ada di `Ctx`, jadi guard
-//!   `targetJid === m.botNumber` ("Bot tidak bisa pacaran!") dilewati.
-//! - **`sentMsg?.key?.id`** yang disimpan ke sesi tidak bisa ditiru — `Reply`
-//!   tidak pernah mengembalikan id pesan terkirim. Tidak ada yang membacanya:
-//!   `answerHandler` JS mencari sesi lewat `target` + `chat`, bukan id.
-//! - **Kedaluwarsa 1 jam** di JS lewat `setTimeout` per sesi; di sini dicek
-//!   malas saat answer handler membaca sesi.
-//! - **`saluranCtx()` + `{ contextInfo }`** — mention target + pengirim sudah
-//!   tercakup oleh `Reply::Text.mentions`.
-//! - **`delete x.fun.pasangan`** ditulis `null` — `Mutation::SetUser` adalah
-//!   merge partial (pola `putus.rs`), pembaca JS `fun?.pasangan` memperlakukan
-//!   `null` sama dengan tidak ada.
+//! Menembak seseorang untuk pacaran.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value, json};
 
 use crate::common::{jid_number, now_ms};
 
-/// Peta sesi JS punya sendiri (`global.tembakSessions`) — awalan membedakannya
+/// Peta sesi versi awal punya sendiri (`global.tembakSessions`) — awalan membedakannya
 /// di map global `Ctx::sessions`.
 const SESSION_PREFIX: &str = "tembakSessions";
 
-/// Umur sesi tembakan: 1 jam (`tembak.js:120-123`).
+/// Umur sesi tembakan: 1 jam.
 const EXPIRED_MS: i64 = 3_600_000;
 
 fn session_key(chat: &str, target: &str) -> String {
@@ -36,7 +17,7 @@ fn session_key(chat: &str, target: &str) -> String {
 }
 
 /// `args[0].replace(/[^0-9]/g, '')` dengan syarat panjang `> 5 && < 20`
-/// (`tembak.js:32-36`).
+///
 fn target_dari_args(arg: Option<&String>) -> Option<String> {
     let arg = arg?;
     let num: String = arg.chars().filter(|c| c.is_ascii_digit()).collect();
@@ -67,7 +48,7 @@ fn tembak_target(data: &Value) -> Option<&str> {
     data.get("fun").and_then(|f| f.get("tembakTarget")).and_then(Value::as_str)
 }
 
-/// Kartu cara pakai (`tembak.js:39-45`).
+/// Kartu cara pakai.
 fn cara_pakai(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -91,7 +72,7 @@ fn cara_pakai(prefix: &str) -> String {
     is_private = false
 )]
 pub fn tembak(ctx: Ctx) -> Reply {
-    // Urutan target: quoted → mention → argumen angka (`tembak.js:27-36`).
+    // Urutan target: quoted → mention → argumen angka.
     let target_jid = if let Some(q) = ctx.quoted() {
         Some(q.sender.clone())
     } else if let Some(m) = ctx.mentioned.first() {
@@ -112,7 +93,7 @@ pub fn tembak(ctx: Ctx) -> Reply {
     let sender_data = ctx.user_data.clone();
     let target_data = data_user(&ctx, &target_jid);
 
-    // Pengirim sudah punya pasangan yang saling (`tembak.js:62-72`).
+    // Pengirim sudah punya pasangan yang saling.
     if let Some(pasangan_sender) = pasangan(&sender_data) {
         let partner_data = data_user(&ctx, pasangan_sender);
         if pasangan(&partner_data) == Some(ctx.sender.as_str()) {
@@ -134,7 +115,7 @@ pub fn tembak(ctx: Ctx) -> Reply {
         }
     }
 
-    // Target sudah pacaran dengan orang lain (`tembak.js:74-83`).
+    // Target sudah pacaran dengan orang lain.
     if let Some(pasangan_target) = pasangan(&target_data)
         && pasangan_target != ctx.sender {
             let partner_data = data_user(&ctx, pasangan_target);
@@ -150,11 +131,11 @@ pub fn tembak(ctx: Ctx) -> Reply {
         }
 
     // Target pernah menembak pengirim (atau sudah pasangannya) → balasan
-    // diterima langsung (`tembak.js:85-104`).
+    // diterima langsung.
     if tembak_target(&target_data) == Some(ctx.sender.as_str())
         || pasangan(&target_data) == Some(ctx.sender.as_str())
     {
-        // `db.setUser` dua sisi (`tembak.js:89-93`).
+        // `db.setUser` dua sisi.
         let mutations = vec![
             Mutation::SetUser {
                 jid: ctx.sender.clone(),
@@ -181,7 +162,7 @@ pub fn tembak(ctx: Ctx) -> Reply {
         .with_reaction("💕");
     }
 
-    // Catat tembakan baru (`tembak.js:106-123`).
+    // Catat tembakan baru.
     let count = sender_data
         .get("fun")
         .and_then(|f| f.get("tembakCount"))
@@ -223,7 +204,7 @@ pub fn tembak(ctx: Ctx) -> Reply {
     .with_reaction("💘")
 }
 
-/// Padanan `answerHandler` (`tembak.js:142-218`): teks persis `terima`/`tolak`
+/// Padanan `answerHandler`: teks persis `terima`/`tolak`
 /// (tanpa prefix) dari target tembakan yang me-reply pesan apa pun.
 #[oktz_plugin_api::answer_handler]
 pub fn tembak_answer(ctx: &Ctx) -> Option<Reply> {
@@ -233,7 +214,7 @@ pub fn tembak_answer(ctx: &Ctx) -> Option<Reply> {
     }
     ctx.quoted.as_ref()?;
 
-    // Semua sesi dengan target = pengirim di chat ini (`tembak.js:151-153`),
+    // Semua sesi dengan target = pengirim di chat ini,
     // yang belum kedaluwarsa satu jam (`:157-161`).
     let kunci = {
         let map = ctx
@@ -538,7 +519,7 @@ mod tests {
     #[test]
     fn answer_menolak_teks_lain_dan_tanpa_quote() {
         let sessions = oktz_plugin_api::new_session_store();
-        // JS: body.trim().toLowerCase() harus persis "terima"/"tolak", plus
+        // versi awal: body.trim().toLowerCase() harus persis "terima"/"tolak", plus
         // wajib me-reply sesuatu.
         for teks_masuk in ["", "terima ya", "tolak.", "Terimakasih"] {
             let c = Ctx {

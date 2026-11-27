@@ -91,7 +91,7 @@ mod tests {
         assert!(!m.is_private && !m.is_group && !m.is_owner && !m.is_premium);
     }
 
-    /// `rate.js:47-49` — teks bantuan memakai "Dinilai" (bukan "Dinilai").
+    /// Teks bantuan memakai "Dinilai" (bukan "Dinilai").
     #[test]
     fn output_sama_dengan_js() {
         for kosong in ["", "   ", "\t"] {
@@ -103,7 +103,7 @@ mod tests {
         }
     }
 
-    /// `rate.js:60-62` — `Rating dari aku: *<score>*` lalu komentar.
+    /// `Rating dari aku: *<score>*` lalu komentar.
     #[test]
     fn rating_dibatasi_ke_daftar_js() {
         for _ in 0..80 {

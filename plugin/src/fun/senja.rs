@@ -1,24 +1,23 @@
-//! `plugins/fun/senja.js` — kutipan senja/romantis random dari `api.neoxr.eu`.
+//! Kutipan senja/romantis random dari `api.neoxr.eu`.
 //!
-//! `ponytail:` `Reply::Reaction` hanya bisa membawa satu emoji, sedangkan JS
-//! bereaksi `🕕` lebih dulu lalu menggantinya dengan `❌`/`✅`/`☢`. Yang ikut
-//! hanya reaksi terakhir.
+//! `Keterbatasan:` `Reply::Reaction` hanya bisa membawa satu emoji, sedangkan versi awal
+//! bereaksi `🕕` lebih dulu lalu menggantinya dengan `❌`/`✅`/`☢`. Yang ikut hanya reaksi
+//! terakhir.
 //!
-//! `ponytail:` `config.APIkey?.neoxr` (`config.js:327` = `process.env
-//! .APIKEY_NEOXR || ""`) tidak dibawa `Ctx`, jadi kuncinya dikunci kosong.
+//! `Keterbatasan:` `config.APIkey?.neoxr` tidak dibawa `Ctx`, jadi kuncinya dikunci kosong.
 //!
-//! `ponytail:` `Ctx` tidak membawa `m.pushName`, jadi `{pushName}` pada template
-//! error selalu jatuh ke `User`.
+//! `Keterbatasan:` `Ctx` tidak membawa `m.pushName`, jadi `{pushName}` pada template error
+//! selalu jatuh ke `User`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::js_truthy;
 use crate::fun::fuckmylife::{error_reply, text_value};
 
-/// `config.APIkey?.neoxr || ''` (`senja.js:4`).
+/// `config.APIkey?.neoxr || ''`.
 const NEOXR_APIKEY: &str = "";
 
-/// `❌ Gagal mengambil kata senja` (`senja.js:29`).
+/// `❌ Gagal mengambil kata senja`.
 const GAGAL: &str = "❌ Gagal mengambil kata senja";
 
 fn url() -> String {
@@ -44,7 +43,7 @@ fn url() -> String {
 )]
 pub fn senja(ctx: Ctx) -> Reply {
     // `f()` mengembalikan `null` untuk status >= 400 maupun request yang gagal
-    // (`src/lib/http.js:44-59`), sedangkan baris berikutnya menulis
+    // , sedangkan baris berikutnya menulis
     // `res.status` TANPA `?.` — jadi `null` melempar TypeError dan masuk
     // `catch`.
     let payload = match ctx.http.get(&url()) {

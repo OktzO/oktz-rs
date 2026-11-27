@@ -1,28 +1,7 @@
-//! `plugins/fun/gachawaifu.js` — gacha waifu, jaga perasaan, nikahi.
+//! Gacha waifu, jaga perasaan, nikahi.
 //!
-//! Engine `src/lib/waifu.js` + `src/lib/romance.js` + potongan
-//! `addExpWithLevelCheck` (`src/lib/level.js:217`) di-inline ke berkas ini
-//! supaya `lib/` tidak perlu modul baru. Helper RPG yang sudah ada dipakai
-//! ulang lewat `crate::rpg::heal` (`apply_exp`, `math_random`, `rpg_map`,
-//! `thousands_en`, `MAX_KOIN`).
-//!
-//! Yang tidak bisa dicerminkan persis (semua ditandai `ponytail:` di tempat
+//! Yang tidak bisa dicerminkan persis (semua ditandai `Keterbatasan:` di tempat
 //! pemakaiannya):
-//!
-//! 1. Pool `data/waifu/*.js` belum ter-port → `WAIFU_ENTRIES` kosong, jadi
-//!    cabang gacha selalu jatuh ke `te()` + reaksi ☢ seperti `waifupool.rs`.
-//! 2. Kartu `viewOnceMessage` + `nativeFlowMessage` + gambar Pinterest
-//!    (`getBuffer`) tidak ada di `Reply` → balasan teks polos dengan isi
-//!    `body` yang sama; opsi tombol dibuang. URL gambarnya tetap diambil
-//!    lewat `getWaifuImage` (pinterest), `imageUrl` menyimpan URL itu —
-//!    `IMAGE_FALLBACK` cuma kalau gagal (`gachawaifu.js:40`).
-//! 3. Kartu level-up canvas di `checkAndNotifyLevelUp` tidak ikut — hanya
-//!    `exp`/`rpg` yang tersimpan (`apply_exp`).
-//! 4. `delete user.waifu` → `waifu: null` (SetUser merge, bukan delete).
-//! 5. Satu `Reply` hanya bisa satu reaksi — urutan JS (`🕕` lalu `✅`)
-//!    dipadatkan ke reaksi TERAKHIR.
-//!
-//! `pub mod gachawaifu;` perlu ditambah manual ke `src/fun/mod.rs`.
 
 use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
@@ -33,10 +12,10 @@ use crate::common::{
 };
 use crate::rpg::heal::{MAX_KOIN, apply_exp, math_random, rpg_map, thousands_en};
 
-/// `TIER_ORDER` (`src/lib/romance.js:5`).
+/// `TIER_ORDER`.
 const TIER_ORDER: [&str; 5] = ["Common", "Rare", "Epic", "Legendary", "Mythic"];
 
-/// `TIER_WEIGHTS` (`data/waifu/index.js:45`) — bobot per tier sebelum dibagi
+/// `TIER_WEIGHTS` — bobot per tier sebelum dibagi
 /// jumlah entri tier itu.
 const TIER_WEIGHTS: [(&str, f64); 5] = [
     ("Common", 55.0),
@@ -46,7 +25,7 @@ const TIER_WEIGHTS: [(&str, f64); 5] = [
     ("Mythic", 1.5),
 ];
 
-/// Satu baris `DOWRY` (`src/lib/romance.js:12-18`).
+/// Satu baris `DOWRY`.
 pub(crate) struct Dowry {
     pub limit: i64,
     pub koin: i64,
@@ -96,7 +75,7 @@ const DOWRY: [(&str, Dowry); 5] = [
     ),
 ];
 
-/// `MOOD_MULT` (`src/lib/romance.js:20`).
+/// `MOOD_MULT`.
 const MOOD_MULT: [(&str, f64); 5] = [
     ("ceria", 1.3),
     ("romantis", 1.2),
@@ -105,20 +84,20 @@ const MOOD_MULT: [(&str, f64); 5] = [
     ("marah", 0.5),
 ];
 
-/// `PITY_THRESHOLD` (`src/lib/romance.js:8`).
+/// `PITY_THRESHOLD`.
 const PITY_THRESHOLD: i64 = 20;
-/// `EVENT_CHANCE` (`src/lib/romance.js:9`).
+/// `EVENT_CHANCE`.
 const EVENT_CHANCE: f64 = 0.18;
-/// `ANGER_THRESHOLD` (`src/lib/romance.js:10`).
+/// `ANGER_THRESHOLD`.
 const ANGER_THRESHOLD: f64 = 50.0;
 
-/// Fallback `getWaifuImage` (`plugins/fun/gachawaifu.js:40`) — dipakai kalau
+/// Fallback `getWaifuImage` — dipakai kalau
 /// pencarian Pinterest gagal/kosong.
 const IMAGE_FALLBACK: &str =
     "https://i.pinimg.com/736x/8f/3e/2a/8f3e2a77ec65cdbcfad4ff3bc17e825f.jpg";
 
-/// Satu aksi `ACTIONS` (`src/lib/waifu.js:8-74`). `text` memakai placeholder
-/// `{n}` yang di-`replace` dengan nama waifu, padanan `text: (n) => ...`.
+/// Satu aksi `ACTIONS`. `text` memakai placeholder
+/// `{n}` yang di-`replace` dengan nama waifu, padanan `text: (n) =>...`.
 pub(crate) struct ActionDef {
     key: &'static str,
     phase: &'static str,
@@ -615,7 +594,7 @@ const ACTIONS_MARRIED: &[ActionDef] = &[
     },
 ];
 
-/// `ACTIONS[key]` (`src/lib/waifu.js:126`) — cari lintas tiga fase.
+/// `ACTIONS[key]` — cari lintas tiga fase.
 pub(crate) fn find_action(key: &str) -> Option<&'static ActionDef> {
     ACTIONS_APPROACH
         .iter()
@@ -624,7 +603,7 @@ pub(crate) fn find_action(key: &str) -> Option<&'static ActionDef> {
         .find(|a| a.key == key)
 }
 
-/// `PERSONALITY_TAG` (`src/lib/waifu.js:77-88`) — `(like, dislike)`.
+/// `PERSONALITY_TAG` — `(like, dislike)`.
 const PERSONALITY_TAG: [(&str, &[&str], &[&str]); 10] = [
     ("tsundere", &["jalan_taman", "piknik_taman"], &["rayu"]),
     ("deredere", &["peluk_depan", "cium_bibir", "mesra"], &[]),
@@ -662,10 +641,10 @@ const PERSONALITY_TAG: [(&str, &[&str], &[&str]); 10] = [
     ),
 ];
 
-/// Varian `aff` di `EVENTS` (`src/lib/waifu.js:90-111`).
+/// Varian `aff` di `EVENTS`.
 enum EventAff {
     Fixed(f64),
-    /// `aff: (p) => (p === "deredere" || p === "genki" ? 9 : 4)` — id `cat`.
+    /// `aff: (p) => (p === "deredere" || p === "genki" ? 9: 4)` — id `cat`.
     Cat,
 }
 
@@ -940,9 +919,9 @@ type OpsiMenu = (&'static str, &'static str);
 /// Menu: key, judul, daftar opsi.
 type Menu = (&'static str, &'static str, &'static [OpsiMenu]);
 
-/// `MENUS` (`gachawaifu.js:303-327`) — key, judul, dan opsi (label + id aksi).
+/// `MENUS` — key, judul, dan opsi (label + id aksi).
 ///
-/// Opsi `menu_lainnya` bergantung pada `affection`, jadi isinya kosong di
+/// Opsi `menu_lainnya` bergantung pada `affection`, jadi isinya kosong
 /// sini dan dihitung di [`menu_lainnya_options`].
 const MENUS: [Menu; 19] = [
     (
@@ -1093,7 +1072,7 @@ const MENUS: [Menu; 19] = [
     ),
 ];
 
-/// Opsi `menu_lainnya` — bergantung pada `affection` (`gachawaifu.js:316-320`).
+/// Opsi `menu_lainnya` — bergantung pada `affection`.
 fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str)] {
     if affection < 80.0 {
         &[
@@ -1116,7 +1095,7 @@ fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str
     }
 }
 
-/// Tombol aksi utama per fase affection (`gachawaifu.js:100-124`).
+/// Tombol aksi utama per fase affection.
 fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'static str)] {
     if affection < 80.0 {
         &[
@@ -1146,14 +1125,14 @@ fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'sta
     }
 }
 
-/// Footer kartu waifu (`gachawaifu.js:127-129`).
+/// Footer kartu waifu.
 const FOOTER_DEFAULT: &str = "❤️ Jaga terus perasaannya ya!";
 const FOOTER_MENU: &str = "💭 Dia menunggu jawabanmu...";
 const FOOTER_MARRIED: &str = "❤️ Kamu sudah menikahinya!";
 const FOOTER_PANDUAN: &str = "Tekan tombol untuk mulai!";
 
 /// Rakit kartu interaktif waifu — padanan `sendWaifuMessage`
-/// (`gachawaifu.js:74-152`).
+///
 ///
 /// `custom` = `Some(..)` berarti tombol khusus (menu), dan footernya jadi
 /// "💭 Dia menunggu jawabanmu...". `None` memakai tombol utama sesuai fase
@@ -1191,7 +1170,7 @@ fn kartu_waifu(
     let header = CardHeader::new()
         .title(format!("🌟 *{} TIER WAIFU* 🌟", tier.to_uppercase()))
         .subtitle(nama.clone());
-    // `sendWaifuMessage` JS — header media hanya kalau byte terunduh.
+    // `sendWaifuMessage` versi awal — header media hanya kalau byte terunduh.
     let header = match w.get("imageUrl").and_then(Value::as_str) {
         Some(url) if !url.is_empty() => {
             let header = match crate::fun::gachahusbu::gambar_bytes(ctx, url) {
@@ -1209,7 +1188,7 @@ fn kartu_waifu(
         .with_buttons(buttons)
 }
 
-/// Daftar pemicu tamparan (`gachawaifu.js:334`).
+/// Daftar pemicu tamparan.
 const MESUM_ACTIONS: [&str; 15] = [
     "peluk",
     "cium",
@@ -1228,7 +1207,7 @@ const MESUM_ACTIONS: [&str; 15] = [
     "intim_bahu",
 ];
 
-/// `VALID_PERSONALITIES` (`data/waifu/index.js:46-49`).
+/// `VALID_PERSONALITIES`.
 const VALID_PERSONALITIES: [&str; 10] = [
     "tsundere",
     "deredere",
@@ -1242,13 +1221,13 @@ const VALID_PERSONALITIES: [&str; 10] = [
     "amayadori",
 ];
 
-/// Entri mentah pool waifu — bentuk `data/waifu/*.js` sebelum validasi.
+/// Entri mentah pool waifu — bentuk sebelum validasi.
 ///
 /// Alias dari [`crate::fun::pool_data::RawPool`] supaya data waifu dan husbu
 /// memakai satu tipe yang sama.
 pub(crate) type RawWaifu = crate::fun::pool_data::RawPool;
 
-/// Hasil `buildPool` (`data/waifu/index.js:61-80`).
+/// Hasil `buildPool`.
 pub(crate) struct Waifu {
     pub name: String,
     pub series: String,
@@ -1256,14 +1235,14 @@ pub(crate) struct Waifu {
     pub personality: String,
     pub keyword: String,
     pub age: i64,
-    /// Disimpan sebagai string ("160 cm") — JS menyimpan apa adanya.
+    /// Disimpan sebagai string ("160 cm") — versi awal menyimpan apa adanya.
     pub height: String,
-    /// Disimpan sebagai string ("45 kg") — JS menyimpan apa adanya.
+    /// Disimpan sebagai string ("45 kg") — versi awal menyimpan apa adanya.
     pub weight: String,
     pub roll_weight: f64,
 }
 
-/// `data/waifu/*.js` — 378 entri, urutan `FRANCHISES` di `data/waifu/index.js`.
+/// 378 entri, urutan `FRANCHISES`.
 use crate::fun::pool_data::WAIFU_ENTRIES;
 
 /// `buildPool` — validasi, dedupe nama, trim, keyword default, bobot tier.
@@ -1332,8 +1311,8 @@ pub(crate) fn build_pool(raw: &[RawWaifu]) -> Vec<Waifu> {
     all
 }
 
-/// `rollWaifu` (`src/lib/waifu.js:113-123`). `None` = pool kosong, padanan
-/// `undefined` yang bikin `picked.keyword` melempar di JS.
+/// `rollWaifu`. `None` = pool kosong, padanan
+/// `undefined` yang bikin `picked.keyword` melempar di versi awal.
 pub(crate) fn roll_waifu<'a>(
     pool: &'a [Waifu],
     pity_counter: i64,
@@ -1355,7 +1334,7 @@ pub(crate) fn roll_waifu<'a>(
     eligible.last().copied()
 }
 
-/// `TIER_ORDER.indexOf(tier)` — `-1` untuk tier tak dikenal, seperti JS.
+/// `TIER_ORDER.indexOf(tier)` — `-1` untuk tier tak dikenal, seperti versi awal.
 pub(crate) fn tier_index(tier: &str) -> i64 {
     TIER_ORDER
         .iter()
@@ -1373,7 +1352,7 @@ pub(crate) fn jnum(f: f64) -> Value {
     }
 }
 
-/// `${n}` JS: integral tanpa desimal, selain itu apa adanya.
+/// `${n}` versi awal: integral tanpa desimal, selain itu apa adanya.
 pub(crate) fn fmt_num(f: f64) -> String {
     if f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e15 {
         (f as i64).to_string()
@@ -1382,7 +1361,7 @@ pub(crate) fn fmt_num(f: f64) -> String {
     }
 }
 
-/// `Math.round` JS: setengah selalu ke ATAS (`-5.5` → `-5`), beda dari
+/// `Math.round` versi awal: setengah selalu ke ATAS (`-5.5` → `-5`), beda
 /// `f64::round` Rust yang menjauh dari nol (`-5.5` → `-6`).
 pub(crate) fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
@@ -1400,7 +1379,7 @@ pub(crate) fn mstr(v: Option<&Value>) -> Option<String> {
     v.and_then(Value::as_str).map(str::to_string)
 }
 
-/// Objek JSON dari `Value`, kosong kalau bukan object (JS `{}` saat field
+/// Objek JSON dari `Value`, kosong kalau bukan object (versi awal `{}` saat field
 /// hilang).
 pub(crate) fn map_of(v: Option<&Value>) -> Map<String, Value> {
     v.and_then(Value::as_object).cloned().unwrap_or_default()
@@ -1416,7 +1395,7 @@ pub(crate) fn iso_now(ms: i64) -> String {
 }
 
 /// `new Date(iso).getTime()` untuk bentuk yang ditulis [`iso_now`]. `None`
-/// kalau tidak bisa diparse (JS: `NaN`, semua perbandingan `false`).
+/// kalau tidak bisa diparse (versi awal: `NaN`, semua perbandingan `false`).
 pub(crate) fn iso_to_ms(iso: &str) -> Option<i64> {
     let b = iso.as_bytes();
     if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || b[10] != b'T' {
@@ -1440,15 +1419,15 @@ pub(crate) fn iso_to_ms(iso: &str) -> Option<i64> {
     Some(days * 86_400_000 + (h * 3600 + mi * 60 + s) * 1000 + millis)
 }
 
-/// `todayStr()` (`gachawaifu.js:56-58`) — `toLocaleDateString("id-ID")` di
+/// `todayStr()` — `toLocaleDateString("id-ID")`
 /// Asia/Jakarta, bentuk `DD/MM/YYYY` = [`date_dmy`].
 pub(crate) fn today_str(now: i64) -> String {
     date_dmy(now)
 }
 
-/// `marrageDay` (`gachawaifu.js:157-162`).
+/// `marrageDay`.
 ///
-/// `ponytail:` tanggal yang tidak bisa diparse di JS jadi `NaN` dan hasilnya
+/// `Keterbatasan:` tanggal yang tidak bisa diparse di versi awal jadi `NaN` dan hasilnya
 /// `NaN` juga; di sini jatuh ke `0`.
 pub(crate) fn marrage_day(married_date: Option<&str>, now: i64) -> i64 {
     let Some(date) = married_date else { return 0 };
@@ -1462,7 +1441,7 @@ fn waifu_jid(name: &str) -> String {
     format!("waifu_{name}@s.whatsapp.net")
 }
 
-/// Satu aksi yang sudah dihitung (`applyAction`, `src/lib/waifu.js:125-139`).
+/// Satu aksi yang sudah dihitung.
 pub(crate) struct ActionResult {
     pub phase: &'static str,
     pub change: i64,
@@ -1472,7 +1451,7 @@ pub(crate) struct ActionResult {
     pub dislike: bool,
 }
 
-/// `finalGain` (`src/lib/romance.js:88-101`).
+/// `finalGain`.
 pub(crate) struct Gain {
     pub change: i64,
     pub drain: i64,
@@ -1480,7 +1459,7 @@ pub(crate) struct Gain {
     pub angry: bool,
 }
 
-/// Hasil `rollEvent` (`src/lib/waifu.js:141-153`).
+/// Hasil `rollEvent`.
 pub(crate) struct EventRoll {
     pub text: String,
     pub aff: f64,
@@ -1490,15 +1469,15 @@ pub(crate) struct EventRoll {
     pub anger: f64,
 }
 
-/// `diminish` (`src/lib/romance.js:43-46`).
+/// `diminish`.
 pub(crate) fn diminish(change: f64, current: f64) -> i64 {
-    // `(current || 50)`: affection `0` di JS jatuh ke 50, bukan 1.05.
+    // `(current || 50)`: affection `0` di versi awal jatuh ke 50, bukan 1.05.
     let current = if current == 0.0 { 50.0 } else { current };
     let f = (1.05 - current / 100.0).max(0.15);
     (js_round(change * f) as i64).max(1)
 }
 
-/// `fatigueMult` (`src/lib/romance.js:49-53`).
+/// `fatigueMult`.
 pub(crate) fn fatigue_mult(actions_today: i64) -> f64 {
     if actions_today <= 3 {
         return 1.0;
@@ -1506,9 +1485,9 @@ pub(crate) fn fatigue_mult(actions_today: i64) -> f64 {
     (1.0 - (actions_today - 3) as f64 * 0.12).max(0.25)
 }
 
-/// `neglectDecay` (`src/lib/romance.js:56-62`) → `(decay, hours)`.
+/// `neglectDecay` → `(decay, hours)`.
 pub(crate) fn neglect_decay(last_interaction: Option<i64>, now: i64) -> (i64, f64) {
-    // `if (!last)` — `0` ikut dianggap belum pernah interaksi, seperti JS.
+    // `if (!last)` — `0` ikut dianggap belum pernah interaksi, seperti versi awal.
     let Some(last) = last_interaction.filter(|v| *v != 0) else {
         return (0, 0.0);
     };
@@ -1519,8 +1498,8 @@ pub(crate) fn neglect_decay(last_interaction: Option<i64>, now: i64) -> (i64, f6
     (((hours / 24.0).floor() as i64 * 3).min(20), hours)
 }
 
-/// `applyNeglect` (`src/lib/romance.js:77-85`) — MUTASI `waifu`, kembalikan
-/// `decay`. Dipanggil walau aksi nanti tidak dikenal, persis JS.
+/// `applyNeglect` — MUTASI `waifu`, kembalikan
+/// `decay`. Dipanggil walau aksi nanti tidak dikenal, persis versi awal.
 pub(crate) fn apply_neglect(waifu: &mut Map<String, Value>, now: i64) -> i64 {
     let last = mnum(waifu.get("lastInteractionAt")).map(|f| f as i64);
     let (decay, _) = neglect_decay(last, now);
@@ -1562,7 +1541,7 @@ pub(crate) fn final_gain(raw_change: i64, affection: f64, actions_today: i64, an
     }
 }
 
-/// `angerUpdate` (`src/lib/romance.js:69-74`): dislike +12, like -8, clamp.
+/// `angerUpdate`: dislike +12, like -8, clamp.
 pub(crate) fn anger_update(anger: f64, like: bool, dislike: bool) -> f64 {
     let mut a = anger;
     if dislike {
@@ -1573,7 +1552,7 @@ pub(crate) fn anger_update(anger: f64, like: bool, dislike: bool) -> f64 {
     a.clamp(0.0, 100.0)
 }
 
-/// `angerEffMood` (`src/lib/romance.js:65-67`).
+/// `angerEffMood`.
 pub(crate) fn anger_eff_mood(mood: &str, anger: f64) -> String {
     if anger >= ANGER_THRESHOLD {
         "marah".to_string()
@@ -1593,7 +1572,7 @@ fn unit_utf16(c: char) -> u32 {
     }
 }
 
-/// `getDailyMood` (`src/lib/romance.js:30-40`).
+/// `getDailyMood`.
 pub(crate) fn get_daily_mood(sender_jid: &str, date_str: &str) -> &'static str {
     let seed = format!("{date_str}_{sender_jid}");
     let mut h: u32 = 0;
@@ -1615,7 +1594,7 @@ pub(crate) fn get_daily_mood(sender_jid: &str, date_str: &str) -> &'static str {
     }
 }
 
-/// `moodState` (`gachawaifu.js:64-68`).
+/// `moodState`.
 pub(crate) fn mood_state(waifu: &Map<String, Value>, sender: &str, now: i64) -> String {
     if let Some(until) = mstr(waifu.get("moodUntil"))
         && iso_to_ms(&until).is_some_and(|t| now < t)
@@ -1629,7 +1608,7 @@ pub(crate) fn mood_state(waifu: &Map<String, Value>, sender: &str, now: i64) -> 
     get_daily_mood(sender, &today_str(now)).to_string()
 }
 
-/// `moodLabel` (`gachawaifu.js:60-62`).
+/// `moodLabel`.
 pub(crate) fn mood_label(mood: &str) -> String {
     match mood {
         "ceria" => "ceria 😄".to_string(),
@@ -1641,10 +1620,10 @@ pub(crate) fn mood_label(mood: &str) -> String {
     }
 }
 
-/// `angerMeter` (`gachawaifu.js:70-74`).
+/// `angerMeter`.
 pub(crate) fn anger_meter(waifu: &Map<String, Value>) -> String {
     let a = mnum(waifu.get("anger")).unwrap_or(0.0);
-    // `ponytail:` `repeat` JS melempar untuk n negatif (anger negatif yang
+    // `Keterbatasan:` `repeat` versi awal melempar untuk n negatif (anger negatif
     // tersimpan rusak); di sini n dijepit 0..=10.
     let n = (js_round(a / 10.0) as i64).clamp(0, 10) as usize;
     format!(
@@ -1655,7 +1634,7 @@ pub(crate) fn anger_meter(waifu: &Map<String, Value>) -> String {
     )
 }
 
-/// Personality darurat saat `waifu.personality` kosong (`gachawaifu.js:294-297`).
+/// Personality darurat saat `waifu.personality` kosong.
 pub(crate) fn backfill_personality(name: &str) -> &'static str {
     let mut h: u32 = 0;
     for c in name.chars() {
@@ -1665,7 +1644,7 @@ pub(crate) fn backfill_personality(name: &str) -> &'static str {
     ["tsundere", "deredere", "kuudere", "dandere", "genki"][(h % 5) as usize]
 }
 
-/// `applyAction` (`src/lib/waifu.js:125-139`).
+/// `applyAction`.
 pub(crate) fn apply_action(
     key: &str,
     waifu: &Map<String, Value>,
@@ -1674,7 +1653,7 @@ pub(crate) fn apply_action(
     rng: &mut dyn FnMut() -> f64,
 ) -> Option<ActionResult> {
     let action = find_action(key)?;
-    // `!waifu.personality` — string kosong juga gugur, seperti JS.
+    // `!waifu.personality` — string kosong juga gugur, seperti versi awal.
     if !js_truthy(waifu.get("personality")) {
         return None;
     }
@@ -1709,7 +1688,7 @@ pub(crate) fn apply_action(
     })
 }
 
-/// `rollEvent` (`src/lib/waifu.js:141-153`).
+/// `rollEvent`.
 pub(crate) fn roll_event(
     married: bool,
     phase: &str,
@@ -1771,7 +1750,7 @@ pub(crate) fn roll_event(
     })
 }
 
-/// `initStats` (`gachawaifu.js:164-167`): `{ totalGacha: 0, byTier: {},
+/// `initStats`: `{ totalGacha: 0, byTier: {},
 /// pityCounter: 0, rarest: null, marriedCount: 0 }`.
 pub(crate) fn default_stats() -> Map<String, Value> {
     let mut stats = Map::new();
@@ -1792,7 +1771,7 @@ pub(crate) fn init_stats(user: &mut Map<String, Value>) -> Map<String, Value> {
     map_of(user.get("waifuStats"))
 }
 
-/// `recordPull` (`gachawaifu.js:169-180`) — MUTASI `stats` + `user.waifuHistory`.
+/// `recordPull` — MUTASI `stats` + `user.waifuHistory`.
 pub(crate) fn record_pull(
     stats: &mut Map<String, Value>,
     user: &mut Map<String, Value>,
@@ -1844,13 +1823,13 @@ pub(crate) fn record_pull(
     user.insert("waifuHistory".into(), Value::Array(history));
 }
 
-/// `DOWRY[tier]` (`src/lib/romance.js:12-18`).
+/// `DOWRY[tier]`.
 pub(crate) fn dowry_of(tier: &str) -> Option<&'static Dowry> {
     DOWRY.iter().find(|(t, _)| *t == tier).map(|(_, d)| d)
 }
 
 /// `{ Common: 1, Rare: 1.2, Epic: 1.5, Legendary: 2, Mythic: 3 }[tier] || 1`
-/// (`gachawaifu.js:376`).
+///
 pub(crate) fn tier_mult(tier: &str) -> f64 {
     match tier {
         "Common" => 1.0,
@@ -1862,7 +1841,7 @@ pub(crate) fn tier_mult(tier: &str) -> f64 {
     }
 }
 
-/// `db.updateEnergi` (`database.js:627-644`) — `None` = tidak menulis.
+/// `db.updateEnergi` — `None` = tidak menulis.
 /// `unlimited` = `user.energi === -1` ATAU owner (`config.energi.owner`,
 /// default `-1`). Premium tidak masuk: default `config.energi.premium`
 /// `99999999`, bukan `-1` (lihat `buyenergi.rs`).
@@ -1873,7 +1852,7 @@ pub(crate) fn energi_gain(user: &Map<String, Value>, amount: i64, unlimited: boo
     Some((mnum_or(user.get("energi"), 0.0) as i64 + amount).max(0))
 }
 
-/// `db.updateKoin` (`database.js:646-654`) — `None` = koin `-1` (tak terbatas).
+/// `db.updateKoin` — `None` = koin `-1` (tak terbatas).
 pub(crate) fn koin_gain(user: &Map<String, Value>, amount: i64) -> Option<i64> {
     if mnum(user.get("koin")) == Some(-1.0) {
         return None;
@@ -1881,7 +1860,7 @@ pub(crate) fn koin_gain(user: &Map<String, Value>, amount: i64) -> Option<i64> {
     Some((mnum_or(user.get("koin"), 0.0) as i64 + amount).clamp(0, MAX_KOIN))
 }
 
-/// `user.exp || 0` (`level.js:222`) — `-1` tetap `-1` (truthy di JS).
+/// `user.exp || 0` — `-1` tetap `-1` (truthy di versi awal).
 pub(crate) fn old_exp(user: &Map<String, Value>) -> i64 {
     mnum(user.get("exp")).unwrap_or(0.0) as i64
 }
@@ -1911,7 +1890,7 @@ fn balas(
     }
 }
 
-/// `${v}` JS: number integral tanpa `.0`, string apa adanya, `undefined`
+/// `${v}` versi awal: number integral tanpa `.0`, string apa adanya, `undefined`
 /// untuk field hilang — bukan string kosong.
 pub(crate) fn js_str(v: Option<&Value>) -> String {
     match v {
@@ -1923,7 +1902,7 @@ pub(crate) fn js_str(v: Option<&Value>) -> String {
     }
 }
 
-/// `handler` (`gachawaifu.js:182-474`) — urutan cabang persis JS.
+/// `handler` — urutan cabang persis versi awal.
 fn dispatch(ctx: &Ctx, rng: &mut dyn FnMut() -> f64) -> Reply {
     let Some(root) = ctx.user_data.as_object() else {
         // `db.getUser(m.sender)` mengembalikan null → `if (!user) return`.
@@ -1939,7 +1918,7 @@ fn dispatch(ctx: &Ctx, rng: &mut dyn FnMut() -> f64) -> Reply {
     }
 }
 
-/// Cabang `waifuku`/`istriku` (`gachawaifu.js:189-215`).
+/// Cabang `waifuku`/`istriku`.
 fn status_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     let waifu_value = user.get("waifu");
     if !js_truthy(waifu_value) {
@@ -2009,7 +1988,7 @@ fn status_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
         .with_reaction("✅")
 }
 
-/// Cabang `tinggalinwaifu` (`gachawaifu.js:217-229`).
+/// Cabang `tinggalinwaifu`.
 fn tinggalin_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     let waifu_value = user.get("waifu");
     if !js_truthy(waifu_value) {
@@ -2048,7 +2027,7 @@ fn tinggalin_waifu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     Reply::text(text).mutating(mutations).with_reaction("💔")
 }
 
-/// Panduan `panduan` (`gachawaifu.js:238-246`) — kartu viewOnce-nya tidak
+/// Panduan `panduan` — kartu viewOnce-nya tidak
 /// ikut, hanya `body`.
 fn guide(prefix: &str) -> String {
     format!(
@@ -2064,7 +2043,7 @@ fn guide(prefix: &str) -> String {
     )
 }
 
-/// `getWaifuImage` (`gachawaifu.js:25-41`) — satu URL Pinterest acak untuk
+/// `getWaifuImage` — satu URL Pinterest acak
 /// `imageUrl`; `IMAGE_FALLBACK` kalau pencarian gagal atau kosong.
 fn gambar_waifu(ctx: &Ctx, keyword: &str, rng: &mut dyn FnMut() -> f64) -> String {
     let Ok(urls) = oktz_scraper::rinn::pinterest(&*ctx.http, keyword, 5) else {
@@ -2079,7 +2058,7 @@ fn gambar_waifu(ctx: &Ctx, keyword: &str, rng: &mut dyn FnMut() -> f64) -> Strin
         .unwrap_or_else(|| IMAGE_FALLBACK.to_string())
 }
 
-/// Cabang `gachawaifu`/`gachaistri` (`gachawaifu.js:231-287`).
+/// Cabang `gachawaifu`/`gachaistri`.
 fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f64) -> Reply {
     if js_truthy(user.get("waifu")) {
         let w = map_of(user.get("waifu"));
@@ -2104,7 +2083,7 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
         .map(|a| a.to_lowercase())
         .unwrap_or_default();
     if sub != "start" {
-        // `gachawaifu.js:262-278` — kartu panduan tanpa header, footer
+        // Kartu panduan tanpa header, footer
         // "Tekan tombol untuk mulai!" dan satu tombol Mulai Gacha.
         return Reply::interactive(guide(&ctx.prefix))
             .with_footer(FOOTER_PANDUAN)
@@ -2118,8 +2097,8 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     let mut stats = init_stats(&mut user);
     let pool = build_pool(WAIFU_ENTRIES);
     let Some(picked) = roll_waifu(&pool, mnum_or(stats.get("pityCounter"), 0.0) as i64, rng) else {
-        // `picked.keyword` melempar di JS → cabang catch: `te()` + ☢.
-        // `ponytail:` `initStats` sudah menulis `user.waifuStats` di memori JS
+        // `picked.keyword` melempar di versi awal → cabang catch: `te()` + ☢.
+        // `Keterbatasan:` `initStats` sudah menulis `user.waifuStats` di memori versi awal
         // yang ikut ter-flush nanti; di sini tidak ada mutasi.
         return Reply::text(error_template(ctx)).with_reaction("☢");
     };
@@ -2140,7 +2119,7 @@ fn gacha_waifu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     w.insert("rollWeight".into(), Value::from(picked.roll_weight));
     w.insert("affection".into(), jnum(50.0));
     w.insert("married".into(), Value::from(false));
-    // `getWaifuImage` (`gachawaifu.js:270`) — satu URL Pinterest segar,
+    // `getWaifuImage` — satu URL Pinterest segar,
     // `IMAGE_FALLBACK` kalau gagal/kosong.
     w.insert(
         "imageUrl".into(),
@@ -2190,7 +2169,7 @@ fn waifu_patch(w: &Map<String, Value>) -> Map<String, Value> {
     patch
 }
 
-/// Cabang `waifuaction` (`gachawaifu.js:289-473`).
+/// Cabang `waifuaction`.
 fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f64) -> Reply {
     if !js_truthy(user.get("waifu")) {
         return balas(
@@ -2211,7 +2190,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     let mut w = map_of(user.get("waifu"));
     let now = now_ms();
 
-    // Backfill personality (`gachawaifu.js:294-300`) — setUser langsung di JS;
+    // Backfill personality — setUser langsung di versi awal;
     // di sini ikut menempel ke balasan mana pun yang membawa patch `waifu`.
     let mut dirty = false;
     if !js_truthy(w.get("personality")) {
@@ -2227,7 +2206,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     };
 
     if let Some((_, title, opsi)) = MENUS.iter().find(|(k, _, _)| *k == action) {
-        // `sendMenu` → `sendWaifuMessage(title, options)` (`gachawaifu.js:301`).
+        // `sendMenu` → `sendWaifuMessage(title, options)`.
         let opsi: Vec<(&str, &str)> = if opsi.is_empty() {
             menu_lainnya_options(mnum_or(w.get("affection"), 50.0)).to_vec()
         } else {
@@ -2276,7 +2255,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
 
         let mut patch = Map::new();
         patch.insert("waifu".into(), Value::Object(w.clone()));
-        // `ponytail:` tier tak dikenal bikin JS melempar (`DOWRY[tier]`
+        // `Keterbatasan:` tier tak dikenal bikin versi awal melempar (`DOWRY[tier]`
         // undefined); di sini dowry-nya dilewati. Tier selalu valid dari pool.
         let (limit, koin, exp) = dowry_of(&tier).map_or((0, 0, 0), |d| (d.limit, d.koin, d.exp));
         if let Some(new_energi) = energi_gain(user, limit, ctx.is_owner) {
@@ -2402,7 +2381,7 @@ fn waifu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     }
 }
 
-/// Aksi `approach`/`intim` biasa (`gachawaifu.js:395-472`).
+/// Aksi `approach`/`intim` biasa.
 fn action_engine(
     ctx: &Ctx,
     user: &Map<String, Value>,
@@ -2424,7 +2403,7 @@ fn action_engine(
     let mood = anger_eff_mood(&mood_state(w, &ctx.sender, now), anger);
     let Some(result) = apply_action(action, w, &mood, mult, rng) else {
         // Aksi tak dikenal. `applyNeglect` sudah memutasi waifu sebelum ini
-        // dan di JS ikut ter-flush; mutasinya dibawa balasan ❓.
+        // dan di versi awal ikut ter-flush; mutasinya dibawa balasan ❓.
         return balas(
             &ctx.sender,
             "Aksi tidak dikenali. Gunakan tombol waifu.".to_string(),
@@ -2443,7 +2422,7 @@ fn action_engine(
     }
     let affection = mnum_or(w.get("affection"), 50.0);
     if result.phase == "intim" && !married && affection < 80.0 {
-        // JS `return;` — tanpa pesan, tapi mutasi `applyNeglect` tetap ada.
+        // versi awal `return;` — tanpa pesan, tapi mutasi `applyNeglect` tetap ada.
         return Reply::None.with_mutation(set_user(&ctx.sender, waifu_patch(w)));
     }
 
@@ -2800,7 +2779,7 @@ mod tests {
         serde_json::json!({ "waifu": waifu, "exp": 0, "energi": 5, "koin": 100 })
     }
 
-    // ------------------------------------------------------------- meta
+    // ------------------------------------------------------------ meta
 
     #[test]
     fn meta_sesuai_config_js() {
@@ -2843,7 +2822,7 @@ mod tests {
         }
     }
 
-    // ------------------------------------------------------------ tabel
+    // ----------------------------------------------------------- tabel
 
     #[test]
     fn tabel_actions_dan_konstanta_sesuai_waifu_js() {
@@ -2861,7 +2840,7 @@ mod tests {
 
     #[test]
     fn tiap_teks_aksi_memakai_placeholder_n() {
-        // Teks JS yang memang tidak memakai `${n}` (`src/lib/waifu.js:35,38,57`).
+        // Teks versi awal yang memang tidak memakai `${n}`.
         const TANPA_N: [&str; 3] = ["peluk_depan", "mesra", "bulanmadu_hotel"];
         for a in ACTIONS_APPROACH
             .iter()
@@ -2902,7 +2881,7 @@ mod tests {
         );
     }
 
-    // ------------------------------------------------------------ pool
+    // ----------------------------------------------------------- pool
 
     fn raw(name: &'static str, tier: &'static str, personality: &'static str) -> RawWaifu {
         RawWaifu {
@@ -2956,12 +2935,12 @@ mod tests {
         // r = 1.0 * total: semua bobot dikurangi, sisa 0 di entri terakhir.
         let mut rng = scripted(vec![1.0]);
         assert_eq!(roll_waifu(&pool, 0, &mut rng).unwrap().name, "Miku");
-        // Pool kosong = `undefined` di JS (picked.keyword melempar).
+        // Pool kosong = `undefined` di versi awal (picked.keyword melempar).
         let mut rng = scripted(vec![0.0]);
         assert!(roll_waifu(&[], 0, &mut rng).is_none());
     }
 
-    // ------------------------------------------------------- engine
+    // ------------------------------------------------------ engine
 
     #[test]
     fn diminish_floor_dan_lantai_15_persen() {
@@ -3044,7 +3023,7 @@ mod tests {
     #[test]
     fn apply_action_urutan_mult_like_menang_atas_dislike() {
         // rayu: `likes` memuat tsundere, TAPI tag tsundere men-dislike `rayu`
-        // — JS memakai `if (liked) ... else if (disliked)`, jadi 1.2.
+        // Versi awal memakai `if (liked)... else if (disliked)`, jadi 1.2.
         let w = map_of(Some(
             &serde_json::json!({ "name": "Yuki", "personality": "tsundere" }),
         ));
@@ -3182,7 +3161,7 @@ mod tests {
         assert_eq!(ev.koin, 2000);
     }
 
-    // ------------------------------------------------ helper waktu & teks
+    // ----------------------------------------------- helper waktu & teks
 
     #[test]
     fn iso_now_dan_iso_to_ms_bolak_balik() {
@@ -3355,7 +3334,7 @@ mod tests {
         assert_eq!(js_round(2.4), 2.0);
     }
 
-    // ---------------------------------------------------------- handler
+    // --------------------------------------------------------- handler
 
     #[test]
     fn user_tidak_ada_berarti_diam_total() {
@@ -3531,7 +3510,7 @@ mod tests {
 
     #[test]
     fn gacha_start_memilih_dan_menyimpan_waifu() {
-        // `rollWaifu` JS tetap memanggil rng() sekali walau total bobot 0.
+        // `rollWaifu` versi awal tetap memanggil rng() sekali walau total bobot 0.
         let r = run(
             "gachawaifu",
             &["start"],

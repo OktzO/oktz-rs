@@ -1,36 +1,18 @@
-//! `plugins/fun/sulap.js` — pertunjukan sulap: admin "menghilangkan" member.
-//!
-//! ## Penyimpangan
-//!
-//! - **Kunci sesi.** JS mengunci sesi dengan `sent.key.id` (id pesan prompt yang
-//!   baru dikirim). `Reply` tidak pernah mengembalikan id pesan terkirim, jadi
-//!   sesi dikunci `sulapSessions:<chat>:<admin>` — padanan semantiknya, karena
-//!   guard `session.admin !== m.sender` tetap dijalankan di alur reply.
-//! - **Kedaluwarsa 120 detik** di JS lewat `setTimeout`; di sini dicek malas
-//!   saat alur reply membaca sesi (timestamp disimpan apa adanya).
-//! - **JID bot** (`sock.user?.id`) tidak ada di `Ctx`, jadi dua guard bot
-//!   (`m.quoted.sender !== sock.user?.id` dan `targetNumber === botNumber`)
-//!   dilewati. Cabang tanpa mention: kalau pesan yang di-quote punya sender
-//!   (orang lain), alur berhenti seperti JS; kalau tidak ada, keluar teks
-//!   "Mention orangnya dong!".
-//! - **`replyHandler` di-port sebagai `answer_handler`** (pola `confess.rs`):
-//!   di JS ia berjalan untuk pesan biasa yang me-quote prompt, bukan command.
-//! - **`await sleep(2000)`** sebelum kick tidak ditiru — handler Rust sinkron,
-//!   dan jeda dramatis tidak mengubah output.
+//! Pertunjukan sulap: admin "menghilangkan" member.
 
 use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 use serde_json::json;
 
 use crate::common::{jid_number, now_ms, random_index};
 
-/// Peta sesi JS punya sendiri (`global.sulapSessions`), sedangkan
+/// Peta sesi versi awal punya sendiri (`global.sulapSessions`), sedangkan
 /// `Ctx::sessions` satu map global — makanya diberi awalan.
 const SESSION_PREFIX: &str = "sulapSessions";
 
-/// Umur sesi 120 detik (`sulap.js:45-47`).
+/// Umur sesi 120 detik.
 const EXPIRED_MS: i64 = 120_000;
 
-/// `successLines` (`sulap.js:21-26`).
+/// `successLines`.
 const SUCCESS_LINES: [&str; 4] = [
     "💨 *POOF!* Dan... dia menghilang!",
     "🌟 Sulap berhasil! Sampai jumpa lagi~",
@@ -42,7 +24,7 @@ fn session_key(chat: &str, admin: &str) -> String {
     format!("{SESSION_PREFIX}:{chat}:{admin}")
 }
 
-/// Prompt pertunjukan (`sulap.js:35-37`).
+/// Prompt pertunjukan.
 fn prompt() -> String {
     "🎩✨ *ᴘᴇʀᴛᴜɴᴊᴜᴋᴀɴ sᴜʟᴀᴘ*\n\n\
      Siapa yang ingin dihilangkan?\n\n\
@@ -55,7 +37,7 @@ fn success_line() -> &'static str {
     SUCCESS_LINES[random_index(SUCCESS_LINES.len())]
 }
 
-/// Pesan penutup setelah kick berhasil (`sulap.js:115-121`).
+/// Pesan penutup setelah kick berhasil.
 fn success_text(target_number: &str, sender_number: &str) -> String {
     format!(
         "{}\n\n🎯 @{target_number} telah menghilang!\n🎩 Pesulap: @{sender_number}\n\n> _Pertunjukan selesai~_ ✨",
@@ -90,7 +72,7 @@ pub fn sulap(ctx: Ctx) -> Reply {
     Reply::text(prompt()).with_reaction("🎩")
 }
 
-/// Padanan `replyHandler` (`sulap.js:50-128`) — dijalankan untuk pesan
+/// Padanan `replyHandler` — dijalankan untuk pesan
 /// non-command yang me-quote prompt sulap.
 #[oktz_plugin_api::answer_handler]
 pub fn sulap_reply(ctx: &Ctx) -> Option<Reply> {
@@ -116,7 +98,7 @@ pub fn sulap_reply(ctx: &Ctx) -> Option<Reply> {
 
     let target_jid = match ctx.mentioned.first() {
         Some(jid) => jid.clone(),
-        // JS: `m.quoted?.sender && m.quoted.sender !== sock.user?.id` → return
+        // versi awal: `m.quoted?.sender && m.quoted.sender !== sock.user?.id` → return
         // false. JID bot tidak tersedia, jadi cabang ini dipakai untuk semua
         // quoted yang punya sender (kasus umum: bukan bot).
         None if !quoted.sender.is_empty() => return None,
@@ -149,7 +131,7 @@ pub fn sulap_reply(ctx: &Ctx) -> Option<Reply> {
     }
 
     // `sock.groupParticipantsUpdate(m.chat, [targetJid], 'remove')`; kegagalan
-    // jatuh ke `catch` JS: "😅 Sulapnya gagal...".
+    // jatuh ke `catch` versi awal: "😅 Sulapnya gagal...".
     if let Err(e) = ctx.sock().ubah_peserta(&ctx.chat, std::slice::from_ref(&target_jid), AksiPeserta::Keluar) {
         return Some(Reply::text(format!(
             "😅 Sulapnya gagal...\n\n> {}",
@@ -476,7 +458,7 @@ mod tests {
             "❌ Mention orangnya dong!"
         );
 
-        // Quoted punya sender (orang lain) → JS `return false`.
+        // Quoted punya sender (orang lain) → versi awal `return false`.
         let sessions = oktz_plugin_api::new_session_store();
         sulap(ctx_prompt(sessions.clone()));
         let mut c = reply_ctx(sessions, "628333@s.whatsapp.net");

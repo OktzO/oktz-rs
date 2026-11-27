@@ -1,20 +1,19 @@
-//! `plugins/fun/waifupool.js` — jelajahi pool waifu dengan paginasi.
+//! Jelajahi pool waifu dengan paginasi.
 //!
-//! `ponytail:` `searchPool` (`data/waifu/index.js`) dan `sock.sendButton`
-//! (tombol interaktif) tidak tersedia di `Ctx`/`Reply`; handler diakhiri
-//! `error_template` + `☢` (pola `swm.rs`). Emoji tier, aritmatika paginasi,
-//! parsing nav/query, dan rendering satu entri di-port agar bisa diuji.
-//! Saat data pool + tombol tersedia, tambahkan `pub mod waifupool;` di
-//! `src/fun/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! `Keterbatasan:` `searchPool` dan `sock.sendButton` (tombol interaktif) tidak tersedia di
+//! `Ctx`/`Reply`; handler diakhiri `error_template` + `☢` (pola `swm.rs`). Emoji tier,
+//! aritmatika paginasi, parsing nav/query, dan rendering satu entri diimplementasikan agar
+//! bisa diuji. Saat data pool + tombol tersedia, tambahkan `pub mod waifupool;` di
+//! `src/fun/mod.rs` secara manual (mod.rs milik plugin lain — dilarang menyentuh per
+//! brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `PAGE_SIZE` (`waifupool.js:44`). Dipakai hanya oleh test render/paginasi.
+/// `PAGE_SIZE`. Dipakai hanya oleh test render/paginasi.
 #[cfg(test)]
 pub(crate) const HALAMAN_SIZE: usize = 10;
 
-/// Satu entri waifu dari pool (`waifupool.js:61-63`). Dipakai hanya oleh test.
+/// Satu entri waifu dari pool. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) struct Waifu {
     pub tier: String,
@@ -23,7 +22,7 @@ pub(crate) struct Waifu {
     pub personality: String,
 }
 
-/// `tierEmoji(t)` (`waifupool.js:30-32`). Dipakai hanya oleh test.
+/// `tierEmoji(t)`. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) fn emoji_tier(tier: &str) -> &'static str {
     match tier {
@@ -36,7 +35,7 @@ pub(crate) fn emoji_tier(tier: &str) -> &'static str {
     }
 }
 
-/// Parsing nav + query (`waifupool.js:36-39`). Dipakai hanya oleh test.
+/// Parsing nav + query. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) struct NavQuery {
     pub nav: Option<String>,
@@ -53,7 +52,7 @@ pub(crate) fn parse_nav_query(args: &[String]) -> NavQuery {
     NavQuery { nav, query }
 }
 
-/// Hitung halaman (`waifupool.js:40-43`). Dipakai hanya oleh test.
+/// Hitung halaman. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) fn hitung_halaman(page: usize, _total: usize, nav: &Option<String>) -> usize {
     match nav.as_deref() {
@@ -63,14 +62,14 @@ pub(crate) fn hitung_halaman(page: usize, _total: usize, nav: &Option<String>) -
     }
 }
 
-/// Total halaman (`waifupool.js:53`): `Math.max(1, Math.ceil(pool.length / 10))`.
+/// Total halaman: `Math.max(1, Math.ceil(pool.length / 10))`.
 /// Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) fn total_halaman(pool_len: usize) -> usize {
     pool_len.div_ceil(HALAMAN_SIZE).max(1)
 }
 
-/// Satu baris entri waifu (`waifupool.js:61-63`). Dipakai hanya oleh test.
+/// Satu baris entri waifu. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) fn render_entri(index: usize, w: &Waifu) -> String {
     format!(
@@ -84,7 +83,7 @@ pub(crate) fn render_entri(index: usize, w: &Waifu) -> String {
     )
 }
 
-/// Header teks (`waifupool.js:57-59`). Dipakai hanya oleh test.
+/// Header teks. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) fn render_header(query: Option<&str>, pool_len: usize, cur: usize, total: usize) -> String {
     let mut out = String::from("📖 *WAIFU POOL* 📖\n\n");
@@ -97,7 +96,7 @@ pub(crate) fn render_header(query: Option<&str>, pool_len: usize, cur: usize, to
     out
 }
 
-/// Tidak ada kecocokan (`waifupool.js:50-51`). Dipakai hanya oleh test.
+/// Tidak ada kecocokan. Dipakai hanya oleh test.
 #[cfg(test)]
 pub(crate) const TIDAK_ADA_WAIFU: &str = "🔍 Tidak ada waifu cocok dengan \"{query}\". Coba nama/tier/franchise lain.";
 
@@ -139,7 +138,7 @@ mod tests {
     fn meta_dan_alias() {
         let p = oktz_plugin_api::find("waifupool").unwrap();
         assert_eq!(p.meta.name, "waifupool");
-        // Alias ikut JS `plugins/fun/waifupool.js` (`name: ["waifupool",
+        // Alias ikut versi awal (`name: ["waifupool",
         // "poolwaifu"]`).
         assert_eq!(p.meta.commands, ["poolwaifu"]);
         assert!(p.meta.alias.is_empty(), "alias JS: []");
@@ -174,7 +173,7 @@ mod tests {
 
         let nq = parse_nav_query(&["prev".into()]);
         assert_eq!(nq.nav, None);
-        // `waifupool.js:37-38`: tanpa argumen kedua `prev` bukan nav, jadi ikut
+        // : tanpa argumen kedua `prev` bukan nav, jadi ikut
         // masuk query — bukan dikonsumsi.
         assert_eq!(nq.query, "prev");
 

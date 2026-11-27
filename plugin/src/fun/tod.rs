@@ -1,16 +1,15 @@
 //! `plugins/fun/tod.rs` — putar botol: pilih satu member grup lalu undi
-//! TRUTH atau DARE.
 //!
-//! `ponytail:` JS memanggil `sock.groupMetadata(m.chat)` dan, kalau roster
-//! kosong, `randomMember.jid` melempar `TypeError` yang ditangkap `catch`.
-//! Di sini roster kosong langsung menghasilkan balasan template error yang
-//! sama — tidak ada jalur yang bisa "diam-diam" membalas tanpa target.
+//! `Keterbatasan:` versi awal memanggil `sock.groupMetadata(m.chat)` dan, kalau roster
+//! kosong, `randomMember.jid` melempar `TypeError` yang ditangkap `catch`. Di sini roster
+//! kosong langsung menghasilkan balasan template error yang sama — tidak ada jalur yang
+//! bisa "diam-diam" membalas tanpa target.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{jid_number, random_index};
 
-/// `src/lib/error.js` memakai `config.errorTemplate` (`config.js:153`).
+/// memakai `config.errorTemplate`.
 /// `m.pushName` tidak ada di `Ctx`, jadi fallback `'User'` yang dipakai.
 #[allow(dead_code)]
 pub(crate) fn error_template(prefix: &str, command: &str) -> String {
@@ -159,7 +158,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("tod").unwrap();
         assert_eq!(p.meta.name, "tod");
-        // `name` di JS berupa array; tiga elemen pertama jadi name + alias.
+        // `name` di versi awal berupa array; tiga elemen pertama jadi name + alias.
         assert_eq!(p.meta.commands, ["spin", "putarbotol"]);
         assert_eq!(p.meta.alias, ["todgame"]);
         assert_eq!(p.meta.category, "fun");
@@ -258,7 +257,7 @@ mod tests {
 
     #[test]
     fn an_empty_roster_takes_the_error_branch() {
-        // `sock.groupMetadata` + `randomMember.jid` di JS melempar TypeError,
+        // `sock.groupMetadata` + `randomMember.jid` di versi awal melempar TypeError,
         // jadi catch memanggil `te(...)`.
         let out = run(GroupRoster::default(), "tod");
         assert_eq!(

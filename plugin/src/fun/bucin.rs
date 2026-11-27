@@ -1,9 +1,5 @@
-//! `plugins/fun/bucin.js` — kutipan bucin/romantis acak dari `bucin.json`.
-//!
-//! Bentuk balasan BERBEDA dari `dare.js`/`truth.js`: kutip di dalam code
-//! fence dan dua newline di ekor (````"${quote}"```\n\n`), jadi plugin ini
-//! tidak memakai `data_plugin!`.
-//!
+//! Kutipan bucin/romantis acak dari `bucin.json`.
+
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::random_item;
@@ -394,7 +390,7 @@ pub(crate) const BUCIN: [&str; 365] = [
     is_bot_admin = false
 )]
 pub fn bucin(_ctx: Ctx) -> Reply {
-    // JS: `if (!quote) { await m.reply('❌ Data tidak tersedia!'); return }`
+    // versi awal: `if (!quote) { await m.reply('❌ Data tidak tersedia!'); return }`
     match random_item(&BUCIN) {
         Some(quote) => Reply::text(format!("```\"{quote}\"```\n\n")),
         None => Reply::text("❌ Data tidak tersedia!"),
@@ -409,8 +405,8 @@ mod tests {
     const SENDER: &str = "628111@s.whatsapp.net";
 
     /// `find("bucin")` mengembalikan `cekbucin` — `bucin` adalah alias plugin
-    /// cek itu, dan tabrakan nama ini memang ada di JS. Test plugin fun
-    /// harus mencari lewat `name` + `category`, bukan lewat alias yang
+    /// cek itu, dan tabrakan nama ini memang ada di versi awal. Test plugin fun
+    /// harus mencari lewat `name` + `category`, bukan lewat alias
     /// dipakai plugin lain.
     fn fun_bucin() -> &'static oktz_plugin_api::PluginEntry {
         oktz_plugin_api::all_plugins()
@@ -456,7 +452,7 @@ mod tests {
 
     #[test]
     fn the_quote_sits_inside_double_quotes_in_a_code_fence() {
-        // JS: ``` `${quote}` dengan kutip literal `"` di kedua sisi.
+        // versi awal: ``` `${quote}` dengan kutip literal `"` di kedua sisi.
         for _ in 0..50 {
             let t = text_of(&run("")).to_string();
             assert!(t.starts_with("```\""), "harus mulai dengan fence+kutip: {t}");

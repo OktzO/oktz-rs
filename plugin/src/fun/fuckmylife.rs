@@ -1,36 +1,35 @@
-//! `plugins/fun/fuckmylife.js` — cerita FML random dari `api.neoxr.eu`.
+//! Cerita FML random dari `api.neoxr.eu`.
 //!
-//! `ponytail:` `Reply::Reaction` hanya bisa membawa satu emoji, sedangkan JS
-//! bereaksi `🕕` lebih dulu lalu menggantinya dengan `❌`/`✅`/`☢`. Yang ikut
-//! hanya reaksi terakhir.
+//! `Keterbatasan:` `Reply::Reaction` hanya bisa membawa satu emoji, sedangkan versi awal
+//! bereaksi `🕕` lebih dulu lalu menggantinya dengan `❌`/`✅`/`☢`. Yang ikut hanya reaksi
+//! terakhir.
 //!
-//! `ponytail:` `config.APIkey?.neoxr` (`config.js:327` = `process.env
-//! .APIKEY_NEOXR || ""`) tidak dibawa `Ctx`, jadi kuncinya dikunci kosong —
-//! pola yang sama dipakai `info/jadwalbola.rs` dan `ai/anime-gen.rs`.
+//! `Keterbatasan:` `config.APIkey?.neoxr` tidak dibawa `Ctx`, jadi kuncinya dikunci kosong
+//! — pola yang sama dipakai `info/jadwalbola.rs` dan `ai/anime-gen.rs`.
 //!
-//! `ponytail:` `Ctx` tidak membawa `m.pushName`, jadi `{pushName}` pada template
-//! error selalu jatuh ke `User` seperti `pushName || 'User'` di JS saat
-//! `pushName` kosong.
+//! `Keterbatasan:` `Ctx` tidak membawa `m.pushName`, jadi `{pushName}` pada template error
+//! selalu jatuh ke `User` seperti `pushName || 'User'` di versi awal saat `pushName`
+//! kosong.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::js_truthy;
 
-/// `config.APIkey?.neoxr || ''` (`fuckmylife.js:4`).
+/// `config.APIkey?.neoxr || ''`.
 const NEOXR_APIKEY: &str = "";
 
-/// `❌ Gagal mengambil FML story` (`fuckmylife.js:30`).
+/// `❌ Gagal mengambil FML story`.
 const GAGAL: &str = "❌ Gagal mengambil FML story";
 
 fn url() -> String {
     format!("https://api.neoxr.eu/api/fml?apikey={NEOXR_APIKEY}")
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js`).
+/// `te(prefix, command, pushName)`.
 ///
-/// `config.js:153` mengeset `errorTemplate`, jadi template bawaan di
-/// `error.js` praktis tidak pernah terpakai. `||` pada `prefix` dan `command`
+/// mengeset `errorTemplate`, jadi template bawaan
+/// praktis tidak pernah terpakai. `||` pada `prefix` dan `command`
 /// tetap ditulis karena `Ctx` mengizinkan keduanya kosong, sedangkan string
 /// non-kosong apa adanya adalah satu-satunya nilai truthy yang mungkin.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
@@ -43,8 +42,8 @@ pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `data.data.text` — string dipakai apa adanya, nilai lain dirender seperti
-/// `${value}` di JS (pola yang sama dipakai `common::joined_strings`).
+/// `data.data.text` — string dipakai apa adanya, nilai lain dirender
+/// `${value}` di versi awal (pola yang sama dipakai `common::joined_strings`).
 pub(crate) fn text_value(v: &Value) -> String {
     v.as_str().map_or_else(|| v.to_string(), str::to_string)
 }
@@ -200,7 +199,7 @@ mod tests {
 
     #[test]
     fn an_offline_request_falls_into_the_failed_branch_not_the_error_template() {
-        // JS pakai `data?.status`, jadi `f()` yang mengembalikan `null` tidak
+        // versi awal pakai `data?.status`, jadi `f()` yang mengembalikan `null` tidak
         // melempar — ia masuk cabang `❌ Gagal`, bukan `catch`.
         let r = run(Stub::offline());
         assert_eq!(text_of(&r), "❌ Gagal mengambil FML story");
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn the_error_template_keeps_the_js_fallbacks_for_empty_prefix_and_command() {
-        // `prefix || '.'` dan `command || '?'` dari `error.js`.
+        // `prefix || '.'` dan `command || '?'`.
         assert!(error_reply("", "").contains("command `.?`"), "prefix/command kosong");
         assert!(
             error_reply("!", "fml").contains("command `!fml`"),

@@ -1,10 +1,10 @@
-//! `plugins/fun/cekpacar.js` — status hubungan `user.fun.pasangan`.
+//! Status hubungan `user.fun.pasangan`.
 //!
-//! `ponytail:` `Ctx` hanya membawa store untuk `sender` (`user_data`) dan untuk
-//! member grup (`Participant::data`). Target dari quote/mention/angka yang TIDAK
-//! ada di roster diperlakukan seperti `db.getUser(...) || {}` — sama dengan
-//! user yang belum pernah ada, jadi jawabannya "tidak punya pasangan".
-//! Akibatnya `isMutual` hanya bisa `true` untuk pasangan yang ada di roster.
+//! `Keterbatasan:` `Ctx` hanya membawa store untuk `sender` (`user_data`) dan untuk member
+//! grup (`Participant::data`). Target dari quote/mention/angka yang TIDAK ada di roster
+//! diperlakukan seperti `db.getUser(...) || {}` — sama dengan user yang belum pernah ada,
+//! jadi jawabannya "tidak punya pasangan". Akibatnya `isMutual` hanya bisa `true` untuk
+//! pasangan yang ada di roster.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -14,7 +14,7 @@ const HEADER: &str = "*sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*";
 
 pub(crate) const NO_PAIR_REACT: &str = "💔";
 
-/// Target + flag `isOther`, urutan cabang JS persis:
+/// Target + flag `isOther`, urutan cabang versi awal persis:
 /// `quoted` → `mentionedJid[0]` → `args[0]` (hanya 6..19 digit).
 pub(crate) fn resolve_target(ctx: &Ctx) -> (String, bool) {
     if let Some(q) = ctx.quoted() {
@@ -32,7 +32,7 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> (String, bool) {
     (ctx.sender.clone(), false)
 }
 
-/// `isOther ? '@<nomor>' : 'Kamu'`.
+/// `isOther ? '@<nomor>': 'Kamu'`.
 fn nama(target: &str, is_other: bool) -> String {
     if is_other {
         format!("@{}", jid_number(target))

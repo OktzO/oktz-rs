@@ -1,19 +1,6 @@
-//! Data pool gacha — `oktz-md/data/waifu/*.js` dan `oktz-md/data/husbu/*.js`.
-//!
-//! ## Generated
-//!
-//! Isi berkas ini DIHASILKAN dari berkas JS asli (36 franchise husbu + 40
-//! franchise waifu), urutan franchise mengikuti array `FRANCHISES` di
-//! `data/<x>/index.js` — urutan itu menentukan urutan pool, jadi harus sama.
-//! Validasi (tier, personality, duplikat) TIDAK dilakukan di sini: itu
-//! duties `build_pool` di `gachawaifu.rs` / `gachahusbu.rs`, sama seperti di
-//! JS (`buildPool` di `data/<x>/index.js`).
-//!
-//! `height` dan `weight` disimpan sebagai STRING ("166 cm", "51 kg") karena
-//! JS menyimpan apa adanya dan menampilkannya apa adanya di kartu gacha —
-//! kalau diringkas jadi angka, teks balasan jadi berbeda satu karakter.
+//! Data pool gacha — dan.
 
-/// Satu entri pool mentah — cerminan objek di `data/<x>/*.js`.
+/// Satu entri pool mentah — cerminan objek.
 pub(crate) struct RawPool {
     pub name: &'static str,
     pub series: &'static str,
@@ -25,7 +12,7 @@ pub(crate) struct RawPool {
     pub keyword: Option<&'static str>,
 }
 
-/// `data/waifu/` — 378 entri mentah, urutan `FRANCHISES` di `data/waifu/index.js`.
+/// `data/waifu/` — 378 entri mentah, urutan `FRANCHISES`.
 pub(crate) const WAIFU_ENTRIES: &[RawPool] = &[
     RawPool {
         name: "Hinata Hyuga",
@@ -3809,7 +3796,7 @@ pub(crate) const WAIFU_ENTRIES: &[RawPool] = &[
     },
 ];
 
-/// `data/husbu/` — 303 entri mentah, urutan `FRANCHISES` di `data/husbu/index.js`.
+/// `data/husbu/` — 303 entri mentah, urutan `FRANCHISES`.
 pub(crate) const HUSBU_ENTRIES: &[RawPool] = &[
     RawPool {
         name: "Naruto Uzumaki",

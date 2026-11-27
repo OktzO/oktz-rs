@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn the_echo_uses_the_invoked_command_word_not_the_canonical_one() {
-        // JS `m.body.slice(1)` memakai kata yang diketik user.
+        // versi awal `m.body.slice(1)` memakai kata yang diketik user.
         let __balasan = run("gimana", "cara belajar");
         let t = text_of(&__balasan);
         assert!(t.starts_with("gimana cara belajar?\n*"), "{t}");

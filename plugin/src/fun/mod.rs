@@ -28,26 +28,26 @@ pub mod top;
 pub mod truth;
 pub mod waifualbum;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod husbupool;
 pub mod terima;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod cekkhodam;
 pub mod waifupool;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod gachawaifu;
 
-// Data pool gacha (dihasilkan dari data/waifu + data/husbu versi JS).
+// Data pool gacha (dihasilkan dari data/waifu + data/husbu versi versi awal).
 pub mod pool_data;
 
 // Plugin gacha husbu (sub-command husbuku/tinggalinhusbu/husbuaction).
 pub mod gachahusbu;
 
-// Port batch paritas: confess.
+// Port batch perilaku: confess.
 pub mod confess;
 
 // Port batch: sulap (kick dramatis), tembak/tolak (pasangan).

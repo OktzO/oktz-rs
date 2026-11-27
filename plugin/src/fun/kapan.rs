@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn the_question_mark_is_appended_even_when_the_input_already_has_one() {
-        // JS: `${m.body.slice(1)}?` — `?` ditambahkan tanpa syarat, jadi
+        // versi awal: `${m.body.slice(1)}?` — `?` ditambahkan tanpa syarat, jadi
         // input yang sudah berakhir `?` jadi `??`. Bukan salah port.
         let t = run("aku nikah?").text_body().unwrap().to_string();
         assert!(t.starts_with("kapan aku nikah??\n*"), "{t}");

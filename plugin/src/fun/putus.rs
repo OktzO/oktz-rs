@@ -1,16 +1,6 @@
-//! `plugins/fun/putus.rs` — putuskan hubungan dengan pasangan tersimpan di
-//! `user.fun.pasangan`.
+//! `plugins/fun/putus.rs` — putuskan hubungan dengan pasangan tersimpan
 //!
-//! `ponytail:` dua hal tidak bisa dicerminkan persis:
-//!
-//! 1. `delete senderData.fun.pasangan` tidak ada padanannya di
-//!    `Mutation::SetUser` (itu merge `??`), jadi `pasangan` ditulis `null`.
-//!    Pembaca JS `userData.fun?.pasangan` memperlakukan `null` sama dengan
-//!    tidak ada — tapi byte-nya berbeda.
-//! 2. `db.getUser(exPartner)` hanya bisa dijawab kalau pasangannya masih ada di
-//!    roster grup (`Participant::data`). Untuk pasangan yang tidak ada di grup,
-//!    `isMutual` selalu false dan pencatatan di sisi lama ikut hilang — sama
-//!    seperti `db.getUser` untuk user yang belum pernah ada.
+//! `Keterbatasan:` dua hal tidak bisa dicerminkan persis:
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -18,7 +8,7 @@ use crate::common::jid_number;
 
 pub(crate) const NO_PARTNER: &str = "❌ *Kamu gak ada pacar wehh*";
 
-/// `Mutation::SetUser` yang mengosongkan pasangan — lihat catatan `ponytail:`.
+/// `Mutation::SetUser` yang mengosongkan pasangan — lihat catatan `Keterbatasan:`.
 fn clear_partner(jid: &str) -> Mutation {
     Mutation::SetUser {
         jid: jid.to_string(),
@@ -191,7 +181,7 @@ mod tests {
     #[test]
     fn a_one_sided_pair_only_clears_the_sender() {
         // Mantan yang balas-follow tapi tidak ada di grup: `db.getUser` tidak
-        // terbaca, jadi `isMutual` false — persis cabang tanpa `if` di JS.
+        // terbaca, jadi `isMutual` false — persis cabang tanpa `if` di versi awal.
         let roster = member(THEM, serde_json::json!({ "fun": { "pasangan": "999@s.whatsapp.net" } }));
         let r = run(serde_json::json!({ "fun": { "pasangan": THEM } }), roster);
         assert_eq!(cleared_by(&r), [ME.to_string()]);

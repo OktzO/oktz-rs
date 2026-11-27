@@ -1,9 +1,4 @@
-//! `plugins/fun/renungan.js` — kirim satu gambar renungan/motivasi acak.
-//!
-//! Reaksi JS (`🕕` lalu `✅`/`❌`) diterjemahkan jadi satu reaksi — `Reply`
-//! hanya bisa membawa satu. `Reply::Reaction` membungkus isi balasan, dan
-//! `Reply::payload` menembus pembungkus itu, jadi gambar di dalam reaksi
-//! tetap ter-upload pipeline.
+//! Kirim satu gambar renungan/motivasi acak.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -118,14 +113,14 @@ pub(crate) fn random_image() -> Option<&'static str> {
     random_item(&RENUNGAN)
 }
 
-/// `renungan.js:22-27` — cabang `catch` (gambar gagal dikirim).
+/// Cabang `catch` (gambar gagal dikirim).
 pub(crate) const ERR_GAGAL: &str = "❌ Gagal mengambil gambar. Coba lagi!";
 
 pub(crate) fn renungan_reply() -> Reply {
     match random_image() {
-        // JS bereaksi `🕕` lalu `✅` setelah `sendMedia` sukses.
+        // versi awal bereaksi `🕕` lalu `✅` setelah `sendMedia` sukses.
         Some(url) => Reply::image(MediaSource::url(url), "").with_reaction("✅"),
-        // JS: `getRandomItem` mengembalikan `undefined` → `sendMedia` melempar
+        // versi awal: `getRandomItem` mengembalikan `undefined` → `sendMedia` melempar
         // → `catch` → reaksi `❌` + pesan ini.
         None => Reply::text(ERR_GAGAL).with_reaction("❌"),
     }
@@ -217,7 +212,7 @@ mod tests {
 
     #[test]
     fn the_fallback_branch_reports_that_no_image_is_available() {
-        // Cabang `if (!quote)` di JS. Tidak mungkin terjadi selama tabel
+        // Cabang `if (!quote)` di versi awal. Tidak mungkin terjadi selama tabel
         // 100 entri ini utuh, jadi diuji lewat tabel kosong.
         assert_eq!(random_item(&[]), None);
         assert_eq!(
@@ -226,7 +221,7 @@ mod tests {
         );
     }
 
-    /// `renungan.js:22-27` — teks galat saat gambar tidak bisa diambil.
+    /// Teks galat saat gambar tidak bisa diambil.
     #[test]
     fn output_sama_dengan_js() {
         assert_eq!(ERR_GAGAL, "❌ Gagal mengambil gambar. Coba lagi!");
@@ -236,7 +231,7 @@ mod tests {
     fn the_table_is_the_real_json_and_reacts_with_a_check_mark() {
         assert_eq!(RENUNGAN.len(), 100, "src/data/renungan.json");
         assert!(RENUNGAN.iter().all(|u| u.starts_with("https://telegra.ph/file/")));
-        // Reaksi JS: `🕕` lalu `✅`/`❌`. Yang dibawa adalah reaksi terakhir.
+        // Reaksi versi awal: `🕕` lalu `✅`/`❌`. Yang dibawa adalah reaksi terakhir.
         assert!(matches!(run().without_mutations(), Reply::Reaction { .. }));
     }
 }

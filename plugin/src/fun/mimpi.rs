@@ -1,19 +1,8 @@
-//! `plugins/fun/mimpi.js` — port 1:1, termasuk data inline-nya.
+//! Port 1:1, termasuk data inline-nya.
 //!
-//! Dua detail yang sengaja dipertahankan:
-//!
-//! 1. `pick(arr)` memakai `seedNum % arr.length` (`mimpi.js:79`) — SEED dari
-//!    nama, jadi dreamworld orang yang sama selalu sama. Yang acak hanya
-//!    `pickMulti`. Port ini memakai `wrapping_rem` untuk meniru `%` JS yang
-//!    negatif-tetap-negatif, walau `charCodeAt` tidak pernah negatif sehingga
-//!    hasilnya sama persis untuk input apa pun.
-//! 2. `pickMulti` mengacak dengan `sort(() => Math.random() - 0.5)`
-//!    (`mimpi.js:80`), shuffle bias. Di sini Fisher-Yates — tujuannya
-//!    " ambil N yang berbeda", dan kedua implementasi memenuhi itu.
-//!
-//! `ponytail:` `m.pushName` tidak ada di `Ctx`, jadi nama bawaannya hanya
-//! nomor pengirim (`m.sender.split('@')[0]`), sama seperti cabang yang tidak
-//! punya args di JS (`mimpi.js:101`).
+//! `Keterbatasan:` `m.pushName` tidak ada di `Ctx`, jadi nama bawaannya hanya nomor
+//! pengirim (`m.sender.split('@')[0]`), sama seperti cabang yang tidak punya args di versi
+//! awal.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -87,9 +76,9 @@ const MESSAGES: [&str; 8] = [
 
 /// `Array.from(seed).reduce((acc, c) => acc + c.charCodeAt(0), 0)`.
 ///
-/// Rust mengiterasi `char` (UTF-8 scalar), JS mengiterasi unit UTF-16. Untuk
+/// Rust mengiterasi `char` (UTF-8 scalar), versi awal mengiterasi unit UTF-16. Untuk
 /// nama Indonesia keduanya sama; untuk emoji atau Tuits (supes plan), satu
-/// emoji di JS = 2 unit surrogate dan di Rust = 1 char, sehingga seed-nya
+/// emoji di versi awal = 2 unit surrogate dan di Rust = 1 char, sehingga seed-nya
 /// berbeda dan dreamworld-nya berbeda.
 pub(crate) fn seed_num(seed: &str) -> u32 {
     seed.chars().fold(0u32, |acc, c| acc.wrapping_add(c as u32))
@@ -141,7 +130,7 @@ pub(crate) fn render(name: &str) -> String {
 }
 
 /// Nama yang dipakai: `m.args.join(' ')`, kalau kosong `m.pushName`, kalau
-/// masih kosong nomor pengirim (`mimpi.js:101`).
+/// masih kosong nomor pengirim.
 ///
 /// Penting: bukan [`crate::common::body_stripped`]. Helper itu merekonstruksi
 /// `m.body.slice(1)` yang MASIH memuat kata command — benar untuk plugin `?`
@@ -161,7 +150,7 @@ pub(crate) fn reply_for(ctx: &Ctx) -> String {
     render(&explorer_name(ctx))
 }
 
-/// `mimpi.js:106` — pesan pertama, sebelum jeda 1,5 detik.
+/// Pesan pertama, sebelum jeda 1,5 detik.
 pub(crate) const MASUK_MIMPI: &str = "🌙 *Memasuki alam dream...*";
 #[plugin(
     name = "mimpi",
@@ -175,8 +164,8 @@ pub(crate) const MASUK_MIMPI: &str = "🌙 *Memasuki alam dream...*";
     is_private = false
 )]
 pub fn mimpi(ctx: Ctx) -> Reply {
-    // JS mengirim dua pesan berurutan: "Memasuki alam dream..." lalu kartunya,
-    // dengan reaksi `🌙` di awal (`mimpi.js:105-117`).
+    // versi awal mengirim dua pesan berurutan: "Memasuki alam dream..." lalu kartunya,
+    // dengan reaksi `🌙` di awal.
     Reply::sequence(vec![
         Reply::text(MASUK_MIMPI),
         Reply::text(reply_for(&ctx)),
@@ -216,7 +205,7 @@ mod tests {
 
     #[test]
     fn registers_with_the_js_plugin_config() {
-        // `mimpi.js:8-23` persis, termasuk `energi: 1`.
+        // persis, termasuk `energi: 1`.
         let p = meta();
         assert_eq!(p.name, "mimpi");
         assert_eq!(p.alias, ["dream", "dreamworld"]);
@@ -246,9 +235,9 @@ mod tests {
                 .map(|e| e.meta.name.as_str())
                 .collect();
             owners.sort_unstable();
-            // `mimpi` bukan punya kita saja: `plugins/primbon/tafsirmimpi.js`
+            // `mimpi` bukan punya kita saja:
             // mendaftarkan `mimpi` sebagai alias (baris 5) padahal file ini
-            // memakai nama itu sebagai `name`. Warisan JS, bukan bug port —
+            // memakai nama itu sebagai `name`. Warisan versi awal, bukan bug port —
             // sudah dicatat di `common::tests_roster_state::JS_COLLISIONS`.
             if key == "mimpi" {
                 assert_eq!(owners, ["mimpi", "tafsirmimpi"], "tabrakan JS hilang");
@@ -258,9 +247,9 @@ mod tests {
         }
     }
 
-    // -- seed: cabang yang membuat dreamworld deterministik ---------------
+    // - seed: cabang yang membuat dreamworld deterministik ---------------
 
-    /// `mimpi.js:105-117` — dua pesan berurutan: "Memasuki alam dream..."
+    /// Dua pesan berurutan: "Memasuki alam dream..."
     /// lalu kartu dreamworld, dengan reaksi `🌙` di awal.
     #[test]
     fn output_sama_dengan_js() {
@@ -343,7 +332,7 @@ mod tests {
         assert!(levels.len() > 1, "seed tidak memengaruhi pilihan: {levels:?}");
     }
 
-    // -- struktur kartu ---------------------------------------------------
+    // - struktur kartu ---------------------------------------------------
 
     #[test]
     fn the_card_has_every_section_and_the_closing_border() {
@@ -390,7 +379,7 @@ mod tests {
         assert_eq!(pick_multi(&ENCOUNTERS, 20).len(), 9);
     }
 
-    // -- cabang nama ------------------------------------------------------
+    // - cabang nama ------------------------------------------------------
 
     #[test]
     fn no_argument_falls_back_to_the_sender_number_with_the_device_suffix_kept() {
@@ -420,8 +409,8 @@ mod tests {
     #[test]
     fn an_empty_argument_is_the_fallback_case_not_a_blank_name() {
         // `m.args.join(' ')` = "" → `pushName` → nomor pengirim. `Ctx` tidak
-        // punya pushName, jadi lompatan kedua yang hilang; nomor pengirim yang
-        // dipakai, sama seperti cabang JS yang tidak punya args.
+        // punya pushName, jadi lompatan kedua yang hilang; nomor pengirim
+        // dipakai, sama seperti cabang versi awal yang tidak punya args.
         assert_eq!(explorer_name(&ctx_of(&[])), "628111");
     }
 

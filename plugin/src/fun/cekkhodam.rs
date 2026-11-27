@@ -1,12 +1,4 @@
-//! `plugins/fun/cekkhodam.js` — cek khodam dengan audio TTS (Google TTS).
-//!
-//! Catatan: `pub mod cekkhodam;` perlu ditambah manual ke
-//! `rust/crates/oktz-plugins/src/fun/mod.rs` (mod.rs milik plugin lain,
-//! jangan disentuh).
-//!
-//! Teks dikonversi ke URL `translate.google.com/translate_tts` lalu di-fetch
-//! melalui `ctx.http` dan dikirim sebagai audio. `pushName` tidak ada di
-//! `Ctx`, jadi target diturunkan dari nomor sender/mention/teks.
+//! Cek khodam dengan audio TTS (Google TTS).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -69,12 +61,12 @@ fn tts_url(teks: &str) -> String {
     )
 }
 
-/// Target nama — urutan cabang JS persis (`cekkhodam.js:47-55`):
+/// Target nama — urutan cabang versi awal persis:
 /// `quoted` → `mentionedJid[0]` → `m.text` → `m.pushName` → nomor sender.
 ///
 /// `m.pushName` ada di `Ctx` (`ctx.push_name`), jadi dipakai apa adanya.
 /// `m.quoted.pushName` tidak ada di `Ctx` — untuk quote dipakai nomor
-/// pengirim, sama seperti cabang fallback JS.
+/// pengirim, sama seperti cabang fallback versi awal.
 fn target_name(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         q.sender.split('@').next().unwrap_or(&q.sender).to_string()
@@ -120,7 +112,7 @@ pub fn cekkhodam(ctx: Ctx) -> Reply {
         return Reply::text("❌ Gagal membuat audio khodam, coba lagi nanti.");
     }
 
-    // JS tidak memanggil `m.react` sama sekali (`cekkhodam.js:56-72`), jadi
+    // versi awal tidak memanggil `m.react` sama sekali, jadi
     // balasan audio ini TIDAK diberi reaksi.
     Reply::audio(MediaSource::bytes(buf))
 }
@@ -250,11 +242,11 @@ mod tests {
     fn mention_digunakan_sebagai_target() {
         let r = run_dengan_mention(Stub::bytes(b"x".to_vec()), "628999@s.whatsapp.net");
         assert!(r.has_media());
-        // JS tidak bereaksi di plugin ini.
+        // versi awal tidak bereaksi di plugin ini.
         assert!(reaction_of(&r).is_none());
     }
 
-    /// `cekkhodam.js:47` — `m.pushName` dipakai kalau tidak ada quote/mention/teks.
+    /// `m.pushName` dipakai kalau tidak ada quote/mention/teks.
     #[test]
     fn push_name_dipakai_sebagai_target_bawaan() {
         let ctx = Ctx {
@@ -271,7 +263,7 @@ mod tests {
         assert_eq!(target_name(&ctx), "Budi");
     }
 
-    /// `cekkhodam.js:48-49` — quote menang atas push_name.
+    /// Quote menang atas push_name.
     #[test]
     fn quote_menang_atas_push_name() {
         let ctx = Ctx {

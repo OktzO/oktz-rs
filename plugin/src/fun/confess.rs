@@ -1,28 +1,10 @@
-//! `plugins/fun/confess.js` — kirim pesan anonim ke seseorang (menfess).
-//!
-//! ## Penyimpangan yang tidak bisa ditiru
-//!
-//! 1. **Kirim ke chat lain.** JS memanggil `sock.sendMessage(targetJid, …)` —
-//!    pesan benar-benar terkirim ke nomor tujuan. `Reply` di Rust hanya bisa
-//!    membalas di `ctx.chat`, dan tidak ada API kirim-ke-jid-lain. Jadi
-//!    plugin ini hanya menulis state sesi + membalas teks "berhasil terkirim"
-//!    ke chat asal, seperti versi sebelum ini.
-//! 2. **`forwardedNewsletterMessageInfo`.** Balasan balasan di JS menyertakan
-//!    `newsletterJid` + `newsletterName`; `Reply` tidak punya-nya.
-//! 3. **`exists === undefined`.** JS membedakan tiga keadaan
-//!    `sock.onWhatsApp`: `true` (terdaftar), `false` (tidak terdaftar), dan
-//!    `undefined` (belum bisa dipastikan). `Sock::ada_whatsapp` hanya punya
-//!    `bool`, jadi keadaan "belum bisa dipastikan" dipetakan ke daftar
-//!    kosong — lihat [`cek_whatsapp`].
-//!
-//! Handler utama memeriksa nomor tujuan via `sock.ada_whatsapp`, menyimpan
-//! data menfess di `ctx.sessions`, dan membalas teks sukses.
-//! Answer handler menangani balasan ke pesan menfess.
+//! Kirim pesan anonim ke seseorang (menfess).
+
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const CONFESS_SESSION_PREFIX: &str = "confess:";
 
-/// `confess.js:32-40` — teks bantuan, memakai prefix yang sedang aktif.
+/// Teks bantuan, memakai prefix yang sedang aktif.
 fn help_text(prefix: &str) -> String {
     format!(
         "💌 *LAYANAN MENFESS ANONIM* 💌\n\n\
@@ -47,7 +29,7 @@ fn normalize_number(raw: &str) -> String {
     }
 }
 
-/// `confess.js:70-82` — teks yang dikirim ke nomor tujuan.
+/// Teks yang dikirim ke nomor tujuan.
 #[cfg(test)]
 fn confess_text(message: &str) -> String {
     format!(
@@ -60,7 +42,7 @@ fn confess_text(message: &str) -> String {
     )
 }
 
-/// `confess.js:84-88` — teks konfirmasi ke pengirim.
+/// Teks konfirmasi ke pengirim.
 fn success_text(target_number: &str) -> String {
     format!(
         "✅ *MENFESS BERHASIL TERKIRIM!* ✅\n\n\
@@ -70,8 +52,8 @@ fn success_text(target_number: &str) -> String {
     )
 }
 
-/// Hasil pemeriksaan nomor di WhatsApp — padanan tiga cabang JS
-/// (`confess.js:99-108`).
+/// Hasil pemeriksaan nomor di WhatsApp — padanan tiga cabang versi awal
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StatusWa {
     /// `onWa.exists === true` — boleh proceed.
@@ -82,10 +64,10 @@ pub(crate) enum StatusWa {
     BelumPasti,
 }
 
-/// `sock.onWhatsApp(targetNumber)` (`confess.js:99`).
+/// `sock.onWhatsApp(targetNumber)`.
 ///
 /// `Sock::ada_whatsapp` mengembalikan `Vec<AdaWhatsapp>`; daftar kosong
-/// berarti tidak ada entri untuk nomor itu — dipetakan ke
+/// berarti tidak ada entri untuk nomor itu — dipetakan
 /// [`StatusWa::BelumPasti`] (setara `exists === undefined`).
 pub(crate) fn cek_whatsapp(hasil: &[oktz_plugin_api::AdaWhatsapp], jid: &str) -> StatusWa {
     match hasil.iter().find(|a| a.jid == jid) {
@@ -192,7 +174,7 @@ pub fn confess(ctx: Ctx) -> Reply {
 ///
 /// Dipanggil untuk pesan non-command. `None` berarti "tidak menangani".
 ///
-/// JS asli mengirim balasan ke `confessInfo.senderChat` (bukan `m.chat`),
+/// versi awal asli mengirim balasan ke `confessInfo.senderChat` (bukan `m.chat`),
 /// yang tidak dapat direplikasi dengan `Reply` karena semua balasan
 /// mengikuti `ctx.chat`. Sini hanya mengonfirmasi di chat saat ini.
 #[oktz_plugin_api::answer_handler]
@@ -215,7 +197,7 @@ pub fn confess_reply(ctx: &Ctx) -> Option<Reply> {
 
     ctx.session_take(&key);
 
-    // `confess.js:154-162` — teks balasan yang dikirim ke pengirim.
+    // Teks balasan yang dikirim ke pengirim.
     let reply_text = format!(
         "💌 *ADA BALASAN MENFESS NIH KAK!* 💌\n\n\
          Orang yang kamu kirimin menfess tadi barusan balas pesanmu:\n\n\
@@ -239,7 +221,7 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    /// `Sock` yang selalu gagal — meniru timeout `onWhatsApp` di JS.
+    /// `Sock` yang selalu gagal — meniru timeout `onWhatsApp` di versi awal.
     #[derive(Debug)]
     struct SockGagal;
 
@@ -360,7 +342,7 @@ mod tests {
         assert!(h.contains("6281234567890"));
     }
 
-    /// `confess.js:30-40` — teks bantuan persis, dengan prefix hidup.
+    /// Teks bantuan persis, dengan prefix hidup.
     #[test]
     fn output_sama_dengan_js() {
         let t = text_of(&run(""));
@@ -376,7 +358,7 @@ mod tests {
         );
     }
 
-    /// `confess.js:44-46` — format salah.
+    /// Format salah.
     #[test]
     fn format_salah_menggunakan_prefix_hidup() {
         assert_eq!(
@@ -385,7 +367,7 @@ mod tests {
         );
     }
 
-    /// `confess.js:56-58` — nomor tidak valid.
+    /// Nomor tidak valid.
     #[test]
     fn nomor_tidak_valid_ditolak() {
         assert_eq!(
@@ -394,7 +376,7 @@ mod tests {
         );
     }
 
-    /// `confess.js:62-64` — menfess untuk diri sendiri.
+    /// Menfess untuk diri sendiri.
     #[test]
     fn menfess_ke_diri_sendiri_ditolak() {
         let ctx = Ctx {
@@ -413,7 +395,7 @@ mod tests {
         );
     }
 
-    /// `confess.js:101-103` — verifikasi WA gagal.
+    /// Verifikasi WA gagal.
     #[test]
     fn verifikasi_gagal_memuat_nomor() {
         let t = text_of(&run("628999123456|hallo kak"));

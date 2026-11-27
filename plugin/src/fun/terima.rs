@@ -1,16 +1,8 @@
-//! `plugins/fun/terima.js` — menerima tembakan (pasangan).
+//! Menerima tembakan (pasangan).
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `db.getUser`/`db.setUser` untuk JID lain (bukan hanya
-//! `user_data` milik pengirim yang tersedia di `Ctx`), state global
-//! `tembakSessions`, `m.botNumber`, `saluranCtx()` (injek `mentionedJid`),
-//! dan `sock.sendMessage(..., { contextInfo })` dengan dua mention.
-//!
-//! `ponytail:` kalau store grup dan `sock` tersedia di `Ctx` nanti, port
-//! ulang dari `plugins/fun/terima.js` (guard target tembakan, tulis
-//! `pasangan`/`jadiPacar`/`terimaCount` ke dua user, hapus session, reaksi
-//! `💕`).
+//! `Keterbatasan:` kalau store grup dan `sock` tersedia di `Ctx` nanti, tambahkan (guard
+//! target tembakan, tulis `pasangan`/`jadiPacar`/`terimaCount` ke dua user, hapus session,
+//! reaksi `💕`).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

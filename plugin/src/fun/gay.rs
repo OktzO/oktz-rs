@@ -1,11 +1,4 @@
-//! `plugins/fun/gay.js` — nama command di JS adalah `gaycheck`, bukan `gay`
-//! (`name: 'gaycheck'`, file-nya `gay.js`). Itu yang terdaftar di registry,
-//! jadi nama yang dipakai di sini mengikuti `pluginConfig`, bukan nama file.
-//!
-//! Perhatikan: JS mengambil DUA anggota secara acak dengan dua pemanggilan
-//! `Math.random()` terpisah (`gay.js:26-27`), jadi keduanya boleh orang yang
-//! sama. Itu bukan bug yang perlu dibetulkan — mengacak sekali lalu mengulang
-//! akan mengubah perilaku yang sudah ada.
+//! Nama command di versi awal adalah `gaycheck`, bukan `gay`
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -14,7 +7,7 @@ use crate::common::{jid_number, random_index, roster_jids};
 /// `m.reply(text, { mentions: [orang1, orang2] })` — Router yang transmit
 /// mention ke `contextInfo`; di sini cukup dikembalikan sebagai JID.
 fn build(members: &[String]) -> Option<(String, Vec<String>)> {
-    // Dicek SEBELUM `random_index`: helper itu mengasumsikan `len > 0` (JS juga
+    // Dicek SEBELUM `random_index`: helper itu mengasumsikan `len > 0` (versi awal juga
     // begitu — `participants[NaN]` = undefined, bukan crash). Mengacak dulu
     // akan panic, dan "grup tanpa member" bukan kondisi yang boleh jadi panic.
     if members.is_empty() {
@@ -88,7 +81,7 @@ mod tests {
 
     #[test]
     fn registers_with_the_js_plugin_config() {
-        // gay.js:4-18 persis. `example` tidak ada di pluginConfig JS dan
+        // persis. `example` tidak ada di pluginConfig versi awal
         // juga tidak ada di sini — jangan mengarang.
         let p = meta();
         assert_eq!(p.name, "gaycheck");
@@ -125,7 +118,7 @@ mod tests {
 
     #[test]
     fn the_reply_always_names_two_members_and_strips_the_server() {
-        // Dua anggota acak dari dua orang bisa sama (JS juga begitu), jadi
+        // Dua anggota acak dari dua orang bisa sama (versi awal juga begitu), jadi
         // yang diuji adalah bentuknya, bukan kombinasi spesifiknya.
         let ctx = ctx_of(&["628111@s.whatsapp.net", "628222@s.whatsapp.net"]);
         for _ in 0..50 {
@@ -144,7 +137,7 @@ mod tests {
     #[test]
     fn a_single_member_may_be_picked_twice_exactly_like_js() {
         // `orang1` dan `orang2` diindependenkan, jadi satu anggota tunggal
-        // menghasilkan "X *Nge gay sama* X". Ini perilaku JS, bukan kebetulan.
+        // menghasilkan "X *Nge gay sama* X". Ini perilaku versi awal, bukan kebetulan.
         let only = vec!["628999@s.whatsapp.net".to_string()];
         let (text, mentions) = build(&only).unwrap();
         assert_eq!(text, "@628999 *Nge gay sama* @628999");
@@ -153,7 +146,7 @@ mod tests {
 
     #[test]
     fn an_empty_roster_reports_instead_of_panicking() {
-        // JS tidak mengecek roster kosong; `participants[NaN]` = undefined dan
+        // versi awal tidak mengecek roster kosong; `participants[NaN]` = undefined
         // hasilnya `@undefined`. Di sini ditolak eksplisit supaya tidak pernah
         // keluar teks berisi "undefined".
         assert!(build(&[]).is_none());

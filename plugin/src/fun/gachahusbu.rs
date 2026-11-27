@@ -1,20 +1,4 @@
-//! `plugins/fun/gachahusbu.js` — gacha husbu (suami virtual) + sub-command.
-//!
-//! ## Penyimpangan yang tidak bisa ditiru
-//!
-//! 1. **Gambar header.** JS mengambil gambar dari Pinterest lewat
-//!    `api.nexray.web.id/api/search/pinterest` lalu meng-upload-nya ke WA.
-//!    `Reply::CardHeader` hanya bisa menunjuk URL/berkas; upload-nya
-//!    dikerjakan pipeline, jadi hasilnya sama — tetapi URL gambarnya memakai
-//!    fallback tetap, bukan hasil pencarian Pinterest.
-//! 2. **View-once.** JS membungkus kartu dalam `viewOnceMessage`; `Reply`
-//!    tidak punya pembungkus itu, jadi kartu dikirim sebagai interactive
-//!    message biasa.
-//!
-//! Sub-command: `husbuku`/`suamiku` (status), `tinggalinhusbu` (putus),
-//! `gachahusbu`/`gachasuami` (gacha + panduan), `husbuaction` (aksi).
-//! State husbu disimpan di `user.husbu`, statistik di `user.husbuStats`,
-//! riwayat di `user.husbuHistory`.
+//! Gacha husbu (suami virtual) + sub-command.
 
 use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
@@ -30,7 +14,7 @@ use crate::fun::gachawaifu::{
 use crate::fun::pool_data::HUSBU_ENTRIES;
 use crate::rpg::heal::{apply_exp, math_random, rpg_map, thousands_en};
 
-/// `TIER_WEIGHTS` (`data/husbu/index.js:37`).
+/// `TIER_WEIGHTS`.
 const TIER_WEIGHTS: [(&str, f64); 5] = [
     ("Common", 55.0),
     ("Rare", 25.0),
@@ -39,17 +23,17 @@ const TIER_WEIGHTS: [(&str, f64); 5] = [
     ("Mythic", 1.5),
 ];
 
-/// `VALID_HUSB_PERSONALITIES` (`data/husbu/index.js:38-40`).
+/// `VALID_HUSB_PERSONALITIES`.
 const VALID_HUSB_PERSONALITIES: [&str; 11] = [
     "tsundere", "kuudere", "genki", "yandere", "dandere", "oji-san", "playboy", "prince", "badboy",
     "sunao", "femboy",
 ];
 
-/// `PITY_THRESHOLD` (`src/lib/romance.js:9`).
+/// `PITY_THRESHOLD`.
 const PITY_THRESHOLD: i64 = 20;
-/// `EVENT_CHANCE` (`src/lib/romance.js:10`).
+/// `EVENT_CHANCE`.
 const EVENT_CHANCE: f64 = 0.18;
-/// `MOOD_MULT` (`src/lib/romance.js:20`).
+/// `MOOD_MULT`.
 const MOOD_MULT: [(&str, f64); 5] = [
     ("ceria", 1.3),
     ("romantis", 1.2),
@@ -58,14 +42,14 @@ const MOOD_MULT: [(&str, f64); 5] = [
     ("marah", 0.5),
 ];
 
-/// `HUSB_PERSONALITIES` (`gachahusbu.js:174`) — dipakai untuk backfill.
+/// `HUSB_PERSONALITIES` — dipakai untuk backfill.
 const HUSB_PERSONALITIES: [&str; 11] = VALID_HUSB_PERSONALITIES;
 
-/// Gambar fallback saat Pinterest tidak bisa diakses (`gachahusbu.js:40`).
+/// Gambar fallback saat Pinterest tidak bisa diakses.
 const IMAGE_FALLBACK: &str =
     "https://i.pinimg.com/736x/8f/3e/2a/8f3e2a77ec65cdbcfad4ff3bc17e825f.jpg";
 
-/// Satu aksi `HUSB_ACTIONS` (`src/lib/husbu.js:21-80`).
+/// Satu aksi `HUSB_ACTIONS`.
 pub(crate) struct ActionDef {
     key: &'static str,
     phase: &'static str,
@@ -557,7 +541,7 @@ const HUSB_ACTIONS: &[ActionDef] = &[
     },
 ];
 
-/// `HUSB_PERSONALITY_TAG` (`src/lib/husbu.js:7-19`).
+/// `HUSB_PERSONALITY_TAG`.
 const PERSONALITY_TAG: [(&str, &[&str], &[&str]); 11] = [
     ("tsundere", &["jalan_taman", "piknik_taman"], &["rayu"]),
     (
@@ -614,7 +598,7 @@ const PERSONALITY_TAG: [(&str, &[&str], &[&str]); 11] = [
     ),
 ];
 
-/// `HUSB_EVENTS` (`src/lib/husbu.js:82-103`) — 20 event.
+/// `HUSB_EVENTS` — 20 event.
 const EVENTS: &[EventDef] = &[
     EventDef {
         id: "rain",
@@ -864,7 +848,7 @@ type OpsiMenu = (&'static str, &'static str);
 /// Menu: key, judul, daftar opsi.
 type Menu = (&'static str, &'static str, &'static [OpsiMenu]);
 
-/// `MENUS` (`gachahusbu.js:298-322`).
+/// `MENUS`.
 const MENUS: [Menu; 19] = [
     (
         "menu_jalanjalan",
@@ -1014,7 +998,7 @@ const MENUS: [Menu; 19] = [
     ),
 ];
 
-/// Daftar pemicu tamparan (`gachahusbu.js:329`).
+/// Daftar pemicu tamparan.
 const MESUM_ACTIONS: [&str; 15] = [
     "peluk",
     "cium",
@@ -1033,7 +1017,7 @@ const MESUM_ACTIONS: [&str; 15] = [
     "intim_bahu",
 ];
 
-/// Footer kartu husbu (`gachahusbu.js:123-125`).
+/// Footer kartu husbu.
 const FOOTER_DEFAULT: &str = "❤️ Buat dia luluh dan jatuh cinta padamu!";
 const FOOTER_MENU: &str = "💭 Dia menunggu jawabanmu...";
 const FOOTER_MARRIED: &str = "❤️ Kamu adalah istrinya yang sah!";
@@ -1052,11 +1036,11 @@ struct ActionResult {
 /// `EventAff` — nilai affection per event.
 enum EventAff {
     Fixed(f64),
-    /// `aff: (p) => (p === "playboy" || p === "genki" ? 9 : 4)`.
+    /// `aff: (p) => (p === "playboy" || p === "genki" ? 9: 4)`.
     Cat,
 }
 
-/// Sumber koin acak per event (`koin: () => ...`).
+/// Sumber koin acak per event (`koin: () =>...`).
 enum EventKoin {
     Wallet,
     Lottery,
@@ -1089,13 +1073,13 @@ struct EventRoll {
     anger: f64,
 }
 
-/// `husbu_' + nama tanpa spasi + '@s.whatsapp.net'` (`gachahusbu.js:214`).
+/// `husbu_' + nama tanpa spasi + '@s.whatsapp.net'`.
 fn husbu_jid(name: &str) -> String {
     let clean: String = name.chars().filter(|c| !c.is_whitespace()).collect();
     format!("husbu_{clean}@s.whatsapp.net")
 }
 
-/// `buildPool` (`data/husbu/index.js:47-77`) — validasi, dedupe, trim, bobot.
+/// `buildPool` — validasi, dedupe, trim, bobot.
 fn build_pool() -> Vec<crate::fun::gachawaifu::Waifu> {
     let mut seen: Vec<String> = Vec::new();
     let mut all: Vec<crate::fun::gachawaifu::Waifu> = Vec::new();
@@ -1161,7 +1145,7 @@ fn build_pool() -> Vec<crate::fun::gachawaifu::Waifu> {
     all
 }
 
-/// `rollHusbu` (`src/lib/husbu.js:105-115`).
+/// `rollHusbu`.
 fn roll_husbu<'a>(
     pool: &'a [crate::fun::gachawaifu::Waifu],
     pity_counter: i64,
@@ -1183,7 +1167,7 @@ fn roll_husbu<'a>(
     eligible.last().copied()
 }
 
-/// `applyAction` (`src/lib/husbu.js:117-131`).
+/// `applyAction`.
 fn apply_action(
     key: &str,
     husbu: &Map<String, Value>,
@@ -1226,7 +1210,7 @@ fn apply_action(
     })
 }
 
-/// `rollEvent` (`src/lib/husbu.js:133-145`).
+/// `rollEvent`.
 fn roll_event(
     married: bool,
     phase: &str,
@@ -1287,7 +1271,7 @@ fn roll_event(
     })
 }
 
-/// Opsi `menu_lainnya` — bergantung pada `affection` (`gachahusbu.js:311-315`).
+/// Opsi `menu_lainnya` — bergantung pada `affection`.
 fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str)] {
     if affection < 80.0 {
         &[
@@ -1310,7 +1294,7 @@ fn menu_lainnya_options(affection: f64) -> &'static [(&'static str, &'static str
     }
 }
 
-/// Tombol aksi utama per fase affection (`gachahusbu.js:93-121`).
+/// Tombol aksi utama per fase affection.
 fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'static str)] {
     if affection < 80.0 {
         &[
@@ -1341,7 +1325,7 @@ fn tombol_utama(affection: f64, married: bool) -> &'static [(&'static str, &'sta
 }
 
 /// Rakit kartu interaktif husbu — padanan `sendHusbuMessage`
-/// (`gachahusbu.js:68-147`).
+///
 fn kartu_husbu(
     ctx: &Ctx,
     h: &Map<String, Value>,
@@ -1393,7 +1377,7 @@ fn kartu_husbu(
         .with_buttons(buttons)
 }
 
-/// `getBuffer(url)` (`gachahusbu.js:43-51`) — byte gambar dengan Referer
+/// `getBuffer(url)` — byte gambar dengan Referer
 /// pinterest. `None` = gagal/kosong; pemanggil mengirim kartu tanpa header.
 pub(crate) fn gambar_bytes(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
     let call = oktz_plugin_api::HttpCall::get(url)
@@ -1407,12 +1391,12 @@ pub(crate) fn gambar_bytes(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
     (data.len() > 100).then_some(data)
 }
 
-/// `marrageDay` (`gachahusbu.js:149-154`).
+/// `marrageDay`.
 fn hari_pernikahan(h: &Map<String, Value>, now: i64) -> i64 {
     marrage_day(mstr(h.get("marriedDate")).as_deref(), now)
 }
 
-/// `moodState` (`gachahusbu.js:56-60`).
+/// `moodState`.
 fn mood_state_husbu(
     _user: &Map<String, Value>,
     h: &Map<String, Value>,
@@ -1452,7 +1436,7 @@ fn balas(
     }
 }
 
-/// `gachahusbu.js:233-241` — panduan.
+/// Panduan.
 fn guide(prefix: &str) -> String {
     format!(
         "💕 *SISTEM GACHA HUSBU* 💕\n\n\
@@ -1472,7 +1456,7 @@ fn guide(prefix: &str) -> String {
     )
 }
 
-/// Cabang `husbuku`/`suamiku` (`gachahusbu.js:183-209`).
+/// Cabang `husbuku`/`suamiku`.
 fn status_husbu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     let Some(h_value) = user.get("husbu").filter(|v| js_truthy(Some(*v))) else {
         return Reply::text(format!(
@@ -1542,7 +1526,7 @@ fn status_husbu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
         .with_reaction("✅")
 }
 
-/// Cabang `tinggalinhusbu` (`gachahusbu.js:211-223`).
+/// Cabang `tinggalinhusbu`.
 fn tinggalin_husbu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     let Some(h_value) = user.get("husbu").filter(|v| js_truthy(Some(*v))) else {
         return Reply::text("⚠️ *Kamu bahkan belum punya husbu!* Cari dulu gih!");
@@ -1582,7 +1566,7 @@ fn tinggalin_husbu(ctx: &Ctx, user: &Map<String, Value>) -> Reply {
     Reply::text(text).mutating(mutations).with_reaction("💔")
 }
 
-/// Cabang `gachahusbu`/`gachasuami` (`gachahusbu.js:225-282`).
+/// Cabang `gachahusbu`/`gachasuami`.
 fn gacha_husbu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f64) -> Reply {
     if let Some(h_value) = user.get("husbu").filter(|v| js_truthy(Some(*v))) {
         let h = map_of(Some(h_value));
@@ -1626,7 +1610,7 @@ fn gacha_husbu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
     let pool = build_pool();
     let pity = mnum_or(stats.get("pityCounter"), 0.0) as i64;
     let Some(picked) = roll_husbu(&pool, pity, rng) else {
-        // JS: `picked.keyword` melempar → `catch` → `te()` + reaksi ☢.
+        // versi awal: `picked.keyword` melempar → `catch` → `te()` + reaksi ☢.
         return Reply::text(error_template(ctx)).with_reaction("☢");
     };
     let now = now_ms();
@@ -1682,7 +1666,7 @@ fn gacha_husbu(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f6
         .with_reaction("✅")
 }
 
-/// Cabang `husbuaction` (`gachahusbu.js:284-467`).
+/// Cabang `husbuaction`.
 fn husbu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f64) -> Reply {
     let Some(h_value) = user.get("husbu").filter(|v| js_truthy(Some(*v))) else {
         return balas(
@@ -1703,7 +1687,7 @@ fn husbu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     let mut h = map_of(Some(h_value));
     let now = now_ms();
 
-    // Backfill personality (`gachahusbu.js:289-295`).
+    // Backfill personality.
     let mut dirty = false;
     if !js_truthy(h.get("personality")) {
         let name = mstr(h.get("name")).unwrap_or_default();
@@ -1890,7 +1874,7 @@ fn husbu_action(ctx: &Ctx, user: &Map<String, Value>, rng: &mut dyn FnMut() -> f
     action_engine(ctx, user, &mut h, &action, rng)
 }
 
-/// Mesin aksi umum (`gachahusbu.js:390-466`).
+/// Mesin aksi umum.
 fn action_engine(
     ctx: &Ctx,
     user: &Map<String, Value>,
@@ -2116,10 +2100,10 @@ fn action_engine(
     balas(&ctx.sender, text, Some(patch), Some(emoji))
 }
 
-/// `handler` (`gachahusbu.js:176-468`) — urutan cabang persis JS.
+/// `handler` — urutan cabang persis versi awal.
 fn dispatch(ctx: &Ctx, rng: &mut dyn FnMut() -> f64) -> Reply {
     let Some(root) = ctx.user_data.as_object() else {
-        // JS: `if (!user) return;` — diam.
+        // versi awal: `if (!user) return;` — diam.
         return Reply::None;
     };
     let user = root.clone();

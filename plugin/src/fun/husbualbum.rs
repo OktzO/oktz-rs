@@ -1,16 +1,10 @@
-//! `plugins/fun/husbualbum.js` — riwayat gacha husbu + statistik luck.
+//! Riwayat gacha husbu + statistik luck.
 //!
-//! `albumStats` ada di `src/lib/husbu.js:147` DAN `src/lib/waifu.js:184` dengan
-//! tubuh yang persis sama dan konstanta yang sama (`TIER_VALUE`/`TIER_EXPECTED`
-//! dari `src/lib/romance.js`). Satu implementasi di [`crate::common::album_stats`]
-//! melayani keduanya — bukan dua salinan yang bisa menyimpang diam-diam saat
-//! ada yang memperbaiki `toFixed` di satu sisi saja.
-//!
-//! `ponytail:` JS memanggil `db.getUser(m.sender)` dan `if (!user) return;`
-//! tanpa balasan sama sekali. `Ctx::user_data` = `Value::Null` untuk user yang
-//! belum pernah ada, jadi user null diperlakukan sebagai "album kosong" —
-//! pesan yang diberikan JS, bukan diam. Bedanya nyata (user baru dapat cara
-//! mulai gacha) dan disengaja: diam tidak pernah bisa dit touted.
+//! `Keterbatasan:` versi awal memanggil `db.getUser(m.sender)` dan `if (!user) return;`
+//! tanpa balasan sama sekali. `Ctx::user_data` = `Value::Null` untuk user yang belum pernah
+//! ada, jadi user null diperlakukan sebagai "album kosong" — pesan yang diberikan versi
+//! awal, bukan diam. Bedanya nyata (user baru dapat cara mulai gacha) dan disengaja: diam
+//! tidak pernah bisa dit touted.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -76,8 +70,8 @@ mod tests {
 
     #[test]
     fn registers_with_the_js_plugin_config() {
-        // `name` di JS adalah ARRAY ["husbualbum", "albumhusbu"] dengan alias
-        // kosong; elemen kedua jadi command tambahan (`plugins.js:207-209`).
+        // `name` di versi awal adalah ARRAY ["husbualbum", "albumhusbu"] dengan alias
+        // kosong; elemen kedua jadi command tambahan.
         let p = meta();
         assert_eq!(p.name, "husbualbum");
         assert_eq!(p.commands, ["albumhusbu"]);
@@ -113,7 +107,7 @@ mod tests {
 
     #[test]
     fn an_absent_or_empty_history_takes_the_empty_album_branch() {
-        // `if (!user) return;` JS tidak membalas apa pun; di sini user null
+        // `if (!user) return;` versi awal tidak membalas apa pun; di sini user null
         // ikut diberi cara mulai (lihat doc modul).
         for user in [
             serde_json::json!(null),
@@ -182,7 +176,7 @@ mod tests {
 
     #[test]
     fn a_zero_total_never_produces_a_nan_or_a_full_bar() {
-        // JS: `stats.total ? ... : 0` — short-circuit, bukan NaN.
+        // versi awal: `stats.total ?...: 0` — short-circuit, bukan NaN.
         let out = reply_text(&ctx_of(serde_json::json!({
             "husbuHistory": [pull("Common", "A")],
             "husbuStats": {"byTier": {"Common": 5}}

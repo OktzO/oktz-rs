@@ -1,4 +1,4 @@
-//! `plugins/fun/husbupool.js` — jelajahi pool husbu — cari nama/franchise/tier.
+//! Jelajahi pool husbu — cari nama/franchise/tier.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -29,17 +29,17 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn husbupool(ctx: Ctx) -> Reply {
-    // `husbupool.js` butuh `searchPool(query)` dari `src/data/husbu/index.js`,
+    // butuh `searchPool(query)`,
     // yang menggabungkan 36 file franchise dan membangun pool dengan rollWeight.
-    // Data tersebut hidup di sisi JS (`data/husbu/`), bukan di crate Rust.
-    // Tanpa data pool yang sama, hasil pencarian tidak akan cocok dengan JS.
+    // Data tersebut hidup di sisi versi awal (`data/husbu/`), bukan di crate Rust.
+    // Tanpa data pool yang sama, hasil pencarian tidak akan cocok dengan versi awal.
     //
-    // Juga butuh status halaman per (sender, query) (`pages: Map`) dan
+    // Juga butuh status halaman per (sender, query) (`pages: Map`)
     // `sock.sendButton` untuk navigasi prev/next — keduanya I/O yang tidak
     // ada di `Ctx` class A.
     //
-    // `ponytail:` pindahkan data husbu ke Rust (atau sertakan sebagai embedded
-    // data di crate ini), lalu implementasikan pencarian + paginasi dalam
+    // `Keterbatasan:` pindahkan data husbu ke Rust (atau sertakan sebagai embedded
+    // data di crate ini), lalu implementasikan pencarian + paginasi
     // `Reply::Text` / `Reply::Interactive`.
     Reply::text(help(&ctx.prefix))
 }

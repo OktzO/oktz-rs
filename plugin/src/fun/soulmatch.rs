@@ -91,7 +91,7 @@ pub(crate) fn reading(score: u32) -> &'static str {
     }
 }
 
-/// Seed acak 0..100 — JS memakai `Date.now() % 100`; `Date.now()` tidak ada di
+/// Seed acak 0..100 — versi awal memakai `Date.now() % 100`; `Date.now()` tidak ada
 /// `Ctx`, jadi disamakan dengan undian seragam.
 pub(crate) fn soul_seed() -> u32 {
     rand::rng().random_range(0..100)

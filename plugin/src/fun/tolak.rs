@@ -1,26 +1,11 @@
-//! `plugins/fun/tolak.js` — menolak tembakan dari seseorang.
-//!
-//! ## Penyimpangan
-//!
-//! - **Baca data user lain.** `db.getUser(shooterJid)` hanya bisa dijawab
-//!   kalau penembak ada di roster grup (`Participant::data`) — pola
-//!   `putus.rs`/`tembak.rs`. Untuk penembak yang tidak ada di grup, data
-//!   dianggap kosong.
-//! - **JID bot** (`m.botNumber`) tidak ada di `Ctx`, jadi guard
-//!   `shooterJid === m.botNumber` ("Bot tidak punya hati untuk ditolak!")
-//!   dilewati.
-//! - **`delete x.fun.pasangan` / `delete x.fun.tembakTarget`** ditulis `null` —
-//!   `Mutation::SetUser` adalah merge partial (pola `putus.rs`); pembaca JS
-//!   `fun?.pasangan` memperlakukan `null` sama dengan tidak ada.
-//! - Sesi `global.tembakSessions` dibaca/dihapus lewat awalan
-//!   `tembakSessions:` di map global `Ctx::sessions` (lihat `tembak.rs`).
+//! Menolak tembakan dari seseorang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value, json};
 
 use crate::common::jid_number;
 
-/// Awalan sesi milik `tembak.js` di map global (lihat `fun/tembak.rs`).
+/// Awalan sesi milik di map global (lihat `fun/tembak.rs`).
 const SESSION_PREFIX: &str = "tembakSessions";
 
 fn session_key(chat: &str, target: &str) -> String {
@@ -37,7 +22,7 @@ fn data_user(ctx: &Ctx, jid: &str) -> Value {
         .unwrap_or(Value::Null)
 }
 
-/// Kartu cara pakai (`tolak.js:42-46`).
+/// Kartu cara pakai.
 fn cara_pakai(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -46,8 +31,8 @@ fn cara_pakai(prefix: &str) -> String {
     )
 }
 
-/// Pesan penolakan (`tolak.js:93-98`) — teks yang sama dipakai answer handler
-/// di `tembak.js`.
+/// Pesan penolakan — teks yang sama dipakai answer handler
+///
 fn tolak_text(shooter_num: &str, sender_num: &str) -> String {
     format!(
         "💔 *WADUHH, YANG SABAR YAK* @{shooter_num}\n\n\
@@ -69,7 +54,7 @@ fn tolak_text(shooter_num: &str, sender_num: &str) -> String {
     is_private = false
 )]
 pub fn tolak(ctx: Ctx) -> Reply {
-    // Urutan penembak: quoted → mention → sesi tembakan (`tolak.js:24-39`).
+    // Urutan penembak: quoted → mention → sesi tembakan.
     let shooter_jid = if let Some(q) = ctx.quoted() {
         Some(q.sender.clone()).filter(|s| !s.is_empty())
     } else if let Some(m) = ctx.mentioned.first() {
@@ -99,7 +84,7 @@ pub fn tolak(ctx: Ctx) -> Reply {
     let shooter_data = data_user(&ctx, &shooter_jid);
     let shooter_num = jid_number(&shooter_jid).to_string();
 
-    // Penembak tidak sedang menembak pengirim (`tolak.js:63-72`).
+    // Penembak tidak sedang menembak pengirim.
     let pasangan = shooter_data
         .get("fun")
         .and_then(|f| f.get("pasangan"))
@@ -117,7 +102,7 @@ pub fn tolak(ctx: Ctx) -> Reply {
         };
     }
 
-    // Hapus pasangan/tembakan, catat hitungan ditolak (`tolak.js:74-82`).
+    // Hapus pasangan/tembakan, catat hitungan ditolak.
     let ditolak = shooter_data
         .get("fun")
         .and_then(|f| f.get("ditolakCount"))

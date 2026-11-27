@@ -1,14 +1,6 @@
-//! `plugins/fun/jodoh.js` — jodohkan dua member grup acak.
+//! Jodohkan dua member grup acak.
 //!
-//! `ponytail:` dua hal tidak bisa dicerminkan persis:
-//!
-//! 1. `sock.user.id` tidak ada di `Ctx`, jadi bot sendiri TIDAK bisa dibuang
-//!    dari kandidat. Kalau bot adalah anggota grup, dia bisa jadi hasil
-//!    jodoh. Tambahkan `bot_jid: String` ke `Ctx` kalau router mau
-//!    membuangnya.
-//! 2. `sort(() => Math.random() - 0.5)` di JS adalah shuffle bias. Di sini
-//!    Fisher-Yates — tujuannya "ambil dua orang berbeda", dan keduanya
-//!    memenuhi itu.
+//! `Keterbatasan:` dua hal tidak bisa dicerminkan persis:
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -27,7 +19,7 @@ const LOVE_QUOTES: [&str; 8] = [
 
 pub(crate) const ERR_META: &str = "❌ *ɢᴀɢᴀʟ*";
 pub(crate) const ERR_MIN_TWO: &str = "> Minimal ada 2 member untuk dijodohkan!";
-/// `jodoh.js:66-68` — `m.groupMetadata` melempar, jadi metadata grup tidak
+/// `m.groupMetadata` melempar, jadi metadata grup tidak
 /// bisa diambil sama sekali.
 pub(crate) const ERR_NO_GROUP: &str = "> Tidak bisa mengambil data grup!";
 pub(crate) const ERR_REGISTRATION: &str =
@@ -62,7 +54,7 @@ pub(crate) fn progress_bar(percent: u32) -> String {
 }
 
 /// Truthiness JavaScript untuk `user.isRegistered`. Objek dan array kosong
-/// tetap truthy di JS, jadi keduanya tidak boleh ikut jadi `false`.
+/// tetap truthy di versi awal, jadi keduanya tidak boleh ikut jadi `false`.
 fn truthy(v: Option<&serde_json::Value>) -> bool {
     match v {
         None | Some(serde_json::Value::Null) => false,
@@ -106,7 +98,7 @@ pub(crate) fn roll_compatibility() -> u32 {
     rand::rng().random_range(1..=100)
 }
 
-/// Label gender, dengan fallback acak persis seperti JS.
+/// Label gender, dengan fallback acak persis seperti versi awal.
 fn label_for(data: &serde_json::Value, fallback: Option<&str>) -> &'static str {
     match gender(data) {
         Some("Laki-laki") => "👨",
@@ -185,7 +177,7 @@ pub(crate) fn render(
     is_private = false
 )]
 pub fn jodoh(ctx: Ctx) -> Reply {
-    // `jodoh.js:63-69` — `m.groupMetadata` melempar → "Tidak bisa mengambil
+    // `m.groupMetadata` melempar → "Tidak bisa mengambil
     // data grup!". Di Rust roster kosong berarti metadata grup tidak terbaca
     // (bukan "grup dengan 0 member"), jadi cabang ini yang dipakai.
     if ctx.roster.is_empty() {
@@ -322,7 +314,7 @@ mod tests {
         (oktz_plugin_api::find("jodoh").unwrap().handler)(ctx)
     }
 
-    /// `Reply::Text` polos untuk cabang guard (JS reply tanpa `m.react`),
+    /// `Reply::Text` polos untuk cabang guard (versi awal reply tanpa `m.react`),
     /// `Reply::Reaction` untuk cabang yang memutar botol.
     fn split(r: &Reply) -> (String, Vec<String>) {
         let inner = match r.without_mutations() {
@@ -364,7 +356,7 @@ mod tests {
 
     #[test]
     fn an_unreadable_group_roster_takes_the_group_error_branch() {
-        // `jodoh.js:64-69` — `m.groupMetadata` melempar.
+        // `m.groupMetadata` melempar.
         let ctx = ctx_of(plain(0), serde_json::json!({}));
         let (text, mentions) = split(&run(ctx));
         assert_eq!(text, format!("{ERR_META}\n\n{ERR_NO_GROUP}"));
