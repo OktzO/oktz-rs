@@ -1,10 +1,4 @@
-//! `plugins/cek/cekkarma.js` — cek tingkat karma kamu.
-//!
-//! Persen = `floor(rand * 101)` (`cekkarma.js:18`), ambang tier
-//! `80/60/40/20` (`cekkarma.js:22-26`), kalimat "diri sendiri" vs "orang
-//! lain" di `cekkarma.js:28-34`.
-//!
-//! Perhatikan: penanda bold di JS ditutup — `*${percent}%*`.
+//! Cek tingkat karma kamu.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -14,7 +8,7 @@ pub(crate) fn karma_percent() -> u32 {
     roll(101)
 }
 
-/// Ambang persis `cekkarma.js:22-26` — semua `>=`, semua kelipatan 20.
+/// Ambang persis — semua `>=`, semua kelipatan 20.
 pub(crate) fn karma_desc(percent: u32) -> &'static str {
     if percent >= 80 {
         "Karma baik! Surga menantimu~ ✨"
@@ -69,7 +63,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `cekkarma.js:22-26` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 5] = [
         "Karma baik! Surga menantimu~ ✨",
         "Cukup baik, terus tingkatkan! 🙏",
@@ -118,7 +112,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`cekkarma.js:28-34`) — penanda bold harus ditutup.
+        // Template versi awal — penanda bold harus ditutup.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));
             let percent = percent_of(&text);

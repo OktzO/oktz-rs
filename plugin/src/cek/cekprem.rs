@@ -1,10 +1,9 @@
-//! `plugins/cek/cekprem.js` — detail status premium dari daftar `premium`.
+//! Detail status premium dari daftar `premium`.
 //!
-//! `ponytail:` `config.isPremium/isOwner` membaca `config.js`, yang tidak ada
-//! di `Ctx`. Gantinya: daftar `owner`/`partner`/`premium` dari settings.
-//! Sifatnya dipertahankan: di `config.js`, owner selalu dianggap premium dan
-//! partner selalu dianggap premium, jadi daftar yang-shortcut itu ikut
-//! ditiru agar plug-in ini tidak memberi jawaban lebih longgar dari JS.
+//! `Keterbatasan:` `config.isPremium/isOwner` membaca, yang tidak ada di `Ctx`. Gantinya:
+//! daftar `owner`/`partner`/`premium` dari settings. Sifatnya dipertahankan:, owner selalu
+//! dianggap premium dan partner selalu dianggap premium, jadi daftar yang-shortcut itu ikut
+//! ditiru agar plug-in ini tidak memberi jawaban lebih longgar dari versi awal.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -17,17 +16,17 @@ fn is_owner(ctx: &Ctx, number: &str) -> bool {
     joined_strings(ctx.setting_list("owner")).iter().any(|n| n == number)
 }
 
-/// `config.isPartner` — owner otomatis partner (`config.js:466`).
+/// `config.isPartner` — owner otomatis partner.
 fn is_partner(ctx: &Ctx, number: &str) -> bool {
     is_owner(ctx, number) || joined_strings(ctx.setting_list("partner")).iter().any(|n| n == number)
 }
 
-/// `config.isPremium` — owner dan partner otomatis premium (`config.js:406`).
+/// `config.isPremium` — owner dan partner otomatis premium.
 fn is_premium(ctx: &Ctx, number: &str) -> bool {
     is_partner(ctx, number) || joined_strings(ctx.setting_list("premium")).iter().any(|n| n == number)
 }
 
-/// `db.data.premium.find(p => typeof p === 'string' ? p === n : p.id === n)`.
+/// `db.data.premium.find(p => typeof p === 'string' ? p === n: p.id === n)`.
 fn find_premium(ctx: &Ctx, number: &str) -> Option<serde_json::Value> {
     ctx.setting_list("premium")
         .iter()
@@ -309,11 +308,11 @@ mod tests {
         assert!(find_premium(&ctx, "628333").is_none());
     }
 
-    /// Prefiks normalisasi nomor di JS (`cekprem.js:39`):
+    /// Prefiks normalisasi nomor di versi awal:
     /// `targetNumber = '62' + targetNumber.slice(1)`.
     const PREFIX_NOL_JS: &str = "62";
 
-    /// Locale tanggal di JS (`cekprem.js:19`):
+    /// Locale tanggal di versi awal:
     /// `toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })`.
     const LOCALE_TANGGAL_JS: &str = "id-ID";
 

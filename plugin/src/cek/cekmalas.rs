@@ -1,4 +1,4 @@
-//! `plugins/cek/cekmalas.js` — Cek tingkat kemalasan 0-100%, lima ambang `>= 90/70/50/30`.
+//! Cek tingkat kemalasan 0-100%, lima ambang `>= 90/70/50/30`.
 
 use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(seen.len(), 5, "tier yang tidak terjangkau: {seen:?}");
     }
 
-    /// Kunci output: template JS persis (`cekmalas.js:34-40`).
+    /// Kunci output: template versi awal persis.
     ///
     /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
     /// deterministik; jalur handler dicek terpisah di bawah.

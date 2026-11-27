@@ -1,10 +1,4 @@
-//! `plugins/cek/cekpintar.js` — cek seberapa pintar kamu.
-//!
-//! IQ = `floor(rand * 100) + 70` (`cekpintar.js:20`) sehingga 70..=169,
-//! ambang tier `150/130/110/90` (`cekpintar.js:23-33`), kalimat "diri
-//! sendiri" vs "orang lain" di `cekpintar.js:35-40`.
-//!
-//! Perhatikan: penanda bold di JS ditutup — `*${iq}*`.
+//! Cek seberapa pintar kamu.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -17,7 +11,7 @@ pub(crate) fn pintar_iq() -> u32 {
     roll(100) + 70
 }
 
-/// `cekpintar.js:23-33`.
+///
 pub(crate) fn pintar_desc(iq: u32) -> &'static str {
     if iq >= 150 {
         "JENIUS! Einstein level! 🧠✨"
@@ -72,7 +66,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `cekpintar.js:23-33` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 5] = [
         "JENIUS! Einstein level! 🧠✨",
         "Sangat cerdas! 🎓",
@@ -121,7 +115,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`cekpintar.js:35-40`) — penanda bold harus ditutup.
+        // Template versi awal — penanda bold harus ditutup.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));
             let iq = iq_of(&text);

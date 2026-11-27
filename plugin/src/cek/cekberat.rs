@@ -1,10 +1,4 @@
-//! `plugins/cek/cekberat.js` — cek berat badan random.
-//!
-//! Angka berat = `floor(rand * 60) + 40` (`cekberat.js:22`), ambang tier
-//! `90/70/55/45` (`cekberat.js:23-32`), dan dua kalimat "diri sendiri" vs
-//! "orang lain" (`cekberat.js:34-40`).
-//!
-//! Perhatikan: penanda bold di JS ditutup — `*${berat} kg*`.
+//! Cek berat badan random.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -14,7 +8,7 @@ pub(crate) fn berat_kg() -> u32 {
     roll(60) + 40
 }
 
-/// `cekberat.js:22-32`. Ambang 55 dan 45 (bukan kelipatan 10) — inilah yang
+/// . Ambang 55 dan 45 (bukan kelipatan 10) — inilah
 /// membedakannya dari `cek.rs`.
 pub(crate) fn berat_desc(kg: u32) -> &'static str {
     if kg >= 90 {
@@ -70,7 +64,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `cekberat.js:23-32` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 5] = [
         "Big boy/girl! 💪",
         "Berisi dan sehat! 😊",
@@ -119,7 +113,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`cekberat.js:34-40`) — termasuk penanda bold yang
+        // Template versi awal — termasuk penanda bold
         // harus tertutup dan baris kosong berisi empat spasi.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));

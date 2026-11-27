@@ -1,7 +1,4 @@
-//! `plugins/cek/cekgacha.js` — Cek hoki gacha kamu.
-//!
-//! Balasan: kegachaan acak `floor(rand * 101)` + lima tier deskripsi (ambang
-//! `>= 90/70/50/30`), lalu dua kalimat "diri sendiri" vs "orang lain".
+//! Cek hoki gacha kamu.
 
 use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -42,7 +39,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier cekgacha.js — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 5] = [
         "HOKI PARAH! SSR GUARANTEED! ✨💎",
         "Lucky! Pasti dapet SR keatas! 🍀",
@@ -51,7 +48,7 @@ mod tests {
         "SIAL! Nanti aja gachanya! 💔",
     ];
 
-    /// Rentang inklusif tiap tier, dibaca dari ambang `percent >= N` di JS.
+    /// Rentang inklusif tiap tier, dibaca dari ambang `percent >= N` di versi awal.
     const BANDS: [(u32, u32); 5] = [(90, 100), (70, 89), (50, 69), (30, 49), (0, 29)];
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -149,7 +146,7 @@ mod tests {
     fn device_ikut_teks_tapi_mention_penuh() {
         let jid = "628999:3@s.whatsapp.net";
         let (text, mentions) = split(&run(ctx_with(Some(jid))));
-        // JS `mentioned.split('@')[0]` membuang server saja; `:device` tetap
+        // versi awal `mentioned.split('@')[0]` membuang server saja; `:device` tetap
         // tampil (lihat `jid_number_strips_the_server_but_keeps_the_device`).
         assert!(text.contains("@628999:3 yak?"), "display: {text}");
         assert_eq!(mentions, vec![jid.to_string()]);
@@ -178,7 +175,7 @@ mod tests {
 
     #[test]
     fn mention_yang_sama_dengan_sender_mengambil_cabang_kamu() {
-        // JS: `mentioned === m.sender`, jadi mention milik diri sendiri bukan
+        // versi awal: `mentioned === m.sender`, jadi mention milik diri sendiri bukan
         // "orang lain" meski `mentionedJid` terisi.
         let (text, mentions) = split(&run(ctx_with(Some(ME))));
         assert!(text.contains("Tingkat"), "{text}");
@@ -192,7 +189,7 @@ mod tests {
         assert!(run(ctx_with(Some(OTHER))).mutations().is_empty());
     }
 
-    /// Kunci output: template JS persis (`cekgacha.js:34-40`).
+    /// Kunci output: template versi awal persis.
     ///
     /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
     /// deterministik; jalur handler dicek terpisah di bawah.

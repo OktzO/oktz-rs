@@ -1,8 +1,8 @@
-//! `plugins/cek/cekpartner.js` — detail status partner dari daftar `partner`.
+//! Detail status partner dari daftar `partner`.
 //!
-//! `ponytail:` `db.data.partner` adalah store top-level, bukan
-//! `db.data.settings`. `Ctx` hanya membawa settings, jadi daftarnya dibaca dari
-//! `ctx.setting_list("partner")` — sama seperti `owner/delpartner.rs`.
+//! `Keterbatasan:` `db.data.partner` adalah store top-level, bukan `db.data.settings`.
+//! `Ctx` hanya membawa settings, jadi daftarnya dibaca dari `ctx.setting_list("partner")` —
+//! sama seperti `owner/delpartner.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -13,7 +13,7 @@ const DAY_MS: f64 = 1000.0 * 60.0 * 60.0 * 24.0;
 
 /// `new Date(ts).toLocaleDateString('id-ID', {day, month, year})`.
 ///
-/// Timestamp yang bukan angka menghasilkan `Invalid Date` di JS, dan itu
+/// Timestamp yang bukan angka menghasilkan `Invalid Date` di versi awal, dan itu
 /// diteruskan apa adanya — bukan diganti tanggal Epoch.
 pub(crate) fn format_date(v: Option<&serde_json::Value>) -> String {
     match v.and_then(serde_json::Value::as_i64) {
@@ -23,7 +23,7 @@ pub(crate) fn format_date(v: Option<&serde_json::Value>) -> String {
 }
 
 /// `Math.ceil((expired - from) / 86400000)` — `NaN` jadi 0, seperti `?? '?'`
-/// tidak pernah terpakai di JS tapi hasil render tetap harus berupa angka.
+/// tidak pernah terpakai di versi awal tapi hasil render tetap harus berupa angka.
 pub(crate) fn days_between(expired: Option<i64>, from: i64) -> i64 {
     match expired {
         Some(e) => ((e - from) as f64 / DAY_MS).ceil() as i64,
@@ -43,7 +43,7 @@ pub(crate) fn total_days(info: &serde_json::Value) -> String {
     }
 }
 
-/// `info.addedAt ? formatDate(info.addedAt) : 'Unknown'` — nilai kosong
+/// `info.addedAt ? formatDate(info.addedAt): 'Unknown'` — nilai kosong
 /// dicek sebelum `formatDate`, jadi tidak pernah jadi `Invalid Date`.
 pub(crate) fn added_at(info: &serde_json::Value) -> String {
     match info.get("addedAt") {
@@ -298,11 +298,11 @@ mod tests {
         assert_eq!(format_date(Some(&serde_json::json!("nope"))), "Invalid Date");
     }
 
-    /// Prefiks normalisasi nomor di JS (`cekpartner.js:44`):
+    /// Prefiks normalisasi nomor di versi awal:
     /// `targetNumber = '62' + targetNumber.slice(1)`.
     const PREFIX_NOL_JS: &str = "62";
 
-    /// Locale tanggal di JS (`cekpartner.js:24`):
+    /// Locale tanggal di versi awal:
     /// `toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })`.
     const LOCALE_TANGGAL_JS: &str = "id-ID";
 

@@ -1,10 +1,4 @@
-//! `plugins/cek/cektinggi.js` — cek tinggi badan random.
-//!
-//! Tinggi = `floor(rand * 50) + 150` (`cektinggi.js:21`) sehingga 150..=199,
-//! ambang tier `190/175/165/155` (`cektinggi.js:23-33`), kalimat "diri
-//! sendiri" vs "orang lain" di `cektinggi.js:35-40`.
-//!
-//! Perhatikan: penanda bold di JS ditutup — `*${tinggi} cm*`.
+//! Cek tinggi badan random.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -14,7 +8,7 @@ pub(crate) fn tinggi_cm() -> u32 {
     roll(50) + 150
 }
 
-/// `cektinggi.js:23-33`.
+///
 pub(crate) fn tinggi_desc(cm: u32) -> &'static str {
     if cm >= 190 {
         "TINGGI BANGET! Model basketball! 🏀"
@@ -29,7 +23,7 @@ pub(crate) fn tinggi_desc(cm: u32) -> &'static str {
     }
 }
 
-/// Kalimat "orang lain" di JS memang berbeda dari kalimat self: `tingkat
+/// Kalimat "orang lain" di versi awal memang berbeda dari kalimat self: `tingkat
 /// ketinggian` vs `Tinggi badan`. Ketidakkonsistenan itu dibiarkan — itu isi
 /// file aslinya, bukan bug yang boleh dirapikan diam-diam.
 pub(crate) fn tinggi_text(ctx: &Ctx, cm: u32) -> String {
@@ -72,7 +66,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `cektinggi.js:23-33` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 5] = [
         "TINGGI BANGET! Model basketball! 🏀",
         "Tinggi ideal! 😎",
@@ -121,7 +115,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`cektinggi.js:35-40`) — penanda bold harus ditutup.
+        // Template versi awal — penanda bold harus ditutup.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));
             let cm = cm_of(&text);

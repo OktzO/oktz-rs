@@ -1,4 +1,4 @@
-//! `plugins/cek/cekbucin.js` — Cek tingkat kebucinan 0-100%, lima ambang `>= 90/70/50/30`.
+//! Cek tingkat kebucinan 0-100%, lima ambang `>= 90/70/50/30`.
 
 use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -101,8 +101,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `bucin` juga nama `plugins/fun/bucin.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `bucin` bukan milik cekbucin.
+        // `bucin` juga nama; nama didahulukan
+        // , jadi alias `bucin` bukan milik cekbucin.
         assert_eq!(
             oktz_plugin_api::find("cekbucin").map(|p| p.meta.name.as_str()),
             Some("cekbucin")
@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(seen.len(), 5, "tier yang tidak terjangkau: {seen:?}");
     }
 
-    /// Kunci output: template JS persis (`cekbucin.js:34-40`).
+    /// Kunci output: template versi awal persis.
     ///
     /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
     /// deterministik; jalur handler dicek terpisah di bawah.

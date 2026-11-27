@@ -29,7 +29,7 @@ pub(crate) fn jodoh_desc(percent: u32) -> &'static str {
     is_private = false
 )]
 pub fn cekjodoh(ctx: Ctx) -> Reply {
-    // JS: `m.text?.trim().split(/[&,]/).map(trim).filter(Boolean)` — nama yang
+    // versi awal: `m.text?.trim().split(/[&,]/).map(trim).filter(Boolean)` — nama
     // dipisah tidak pernah dipakai lagi, handler cuma butuh jumlahnya.
     let name_count = ctx
         .text

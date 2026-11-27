@@ -1,7 +1,7 @@
 use crate::common::random_index;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `(type, title, desc)` — urutan persis seperti `personalities` di JS;
+/// `(type, title, desc)` — urutan persis seperti `personalities` di versi awal;
 /// indeks hasil undian bergantung urutan ini.
 pub(crate) const PERSONALITIES: [(&str, &str, &str); 16] = [
     (

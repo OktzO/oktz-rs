@@ -1,4 +1,4 @@
-//! `plugins/cek/cekgamer.js` — Cek tingkat kegameran 0-100%, lima ambang `>= 90/70/50/30`.
+//! Cek tingkat kegameran 0-100%, lima ambang `>= 90/70/50/30`.
 
 use crate::common::{cek_reply, percent_101};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -109,7 +109,7 @@ mod tests {
             );
         }
         // `pro` juga command plugin `siapa` (`bego`) — command didahulukan
-        // (`plugins.js:539-544`), jadi alias `pro` kalah, persis seperti JS.
+        // , jadi alias `pro` kalah, persis seperti versi awal.
         assert_eq!(
             oktz_plugin_api::find("pro").map(|p| p.meta.name.as_str()),
             Some("bego")
@@ -197,7 +197,7 @@ mod tests {
         assert_eq!(seen.len(), 5, "tier yang tidak terjangkau: {seen:?}");
     }
 
-    /// Kunci output: template JS persis (`cekgamer.js:34-40`).
+    /// Kunci output: template versi awal persis.
     ///
     /// Persennya dikunci (bukan acak) supaya teks yang dibandingkan
     /// deterministik; jalur handler dicek terpisah di bawah.

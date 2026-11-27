@@ -1,16 +1,9 @@
-//! `plugins/cek/ceksisaumur.js` — cek sisa umur kamu.
-//!
-//! Tiga undian terpisah (`ceksisaumur.js:22-24`): `tahun` 20..=99, `bulan`
-//! 0..=11, `hari` 0..=29. Tier memakai `>` (bukan `>=`) pada `tahun`
-//! (`ceksisaumur.js:27-34`).
-//!
-//! Perhatikan: penanda bold di JS ditutup —
-//! `*${tahun} Tahun ${bulan} Bulan ${hari} Hari*`.
+//! Cek sisa umur kamu.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Tiga undian terpisah — `ceksisaumur.js:22-24`. Semuanya 0..=n-1; hanya
+/// Tiga undian terpisah —. Semuanya 0..=n-1; hanya
 /// tahun yang diberi offset.
 pub(crate) fn sisaumur_tahun() -> u32 {
     roll(80) + 20
@@ -25,7 +18,7 @@ pub(crate) fn sisaumur_hari() -> u32 {
 }
 
 /// SATU-SATUNYA plugin di batch ini yang memakai `>` bukan `>=`
-/// (`ceksisaumur.js:27-34`).
+///
 ///
 /// Konsekuensi: `tahun == 80` -> tier kedua, `tahun == 60` -> tier ketiga,
 /// `tahun == 40` -> tier keempat. Kalau dibikin `>=`, tiga nilai itu lompat satu
@@ -89,7 +82,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `ceksisaumur.js:27-34` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 4] = [
         "Panjang umur banget! 🎉",
         "Lumayan panjang~ ✨",
@@ -145,7 +138,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`ceksisaumur.js:36-41`) — penanda bold harus ditutup.
+        // Template versi awal — penanda bold harus ditutup.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));
             let (tahun, bulan, hari) = durasi_of(&text);
@@ -195,7 +188,7 @@ mod tests {
 
     #[test]
     fn ambang_pakai_tanda_lebih_besar_bukan_lebih_besar_sama() {
-        // `tahun > 80` -> tier pertama, jadi 80 masih tier kedua (JS:27-34).
+        // `tahun > 80` -> tier pertama, jadi 80 masih tier kedua (versi awal:27-34).
         assert_eq!(sisaumur_desc(99), "Panjang umur banget! 🎉");
         assert_eq!(sisaumur_desc(81), "Panjang umur banget! 🎉");
         assert_eq!(sisaumur_desc(80), "Lumayan panjang~ ✨");

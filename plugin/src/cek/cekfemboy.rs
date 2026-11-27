@@ -1,26 +1,9 @@
-//! `plugins/cek/cekfemboy.js` — cek seberapa femboy kamu.
-//!
-//! Scraper acak ada di crate `oktz_scraper` (`lufemboy`), bukan disalin ke
-//! sini. Konversi GIF → MP4 memakai `oktz_plugin_api::ffmpeg` dengan stdin dan
-//! stdout pipa; JS-nya lewat dua berkas temporer (`cekfemboy.js:23-46`).
-//!
-//! Semantik yang disalin dari JS:
-//! - Target = `m.mentionedJid[0] || m.sender`; nama self dari `m.text?.trim()`
-//!   (`cekfemboy.js:49-54`). `m.pushName` tidak ada di `Ctx`, jadi self tanpa
-//!   teks jatuh ke `"Kamu"` (BLOCKED.md §18).
-//! - Unduhan GIF gagal → balas teks saja (`:60-62`); konversi gagal → balas
-//!   teks saja (`:64-69`) — dua `catch` kosong yang hasilnya sama.
-//! - Kalimat self vs orang lain (`:71-78`) + `mentions: [mentioned]`.
-//! - Kuirk: keluaran `pipe:1` tidak bisa `-movflags faststart` (butuh seek),
-//!   jadi diganti fragmen `frag_keyframe+empty_moov` + `-f mp4`; sisa argumen
-//!   (`-t 30`, `scale`, `libx264`, `yuv420p`, `-an`) sama dengan JS.
-//! - `te(m.prefix, m.command, m.pushName)` → `common::error_template`.
-//! - JS tidak memanggil `m.react` di plugin ini, jadi tidak ada reaksi.
+//! Cek seberapa femboy kamu.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use oktz_scraper::lufemboy::cek_femboy;
 
-/// `convertGifToMp4` (`cekfemboy.js:33-35`) dengan keluaran dialihkan ke pipa.
+/// `convertGifToMp4` dengan keluaran dialihkan ke pipa.
 pub(crate) const ARGUMEN_GIF_KE_MP4: [&str; 21] = [
     "-y",
     "-ignore_loop",
@@ -45,10 +28,10 @@ pub(crate) const ARGUMEN_GIF_KE_MP4: [&str; 21] = [
     "pipe:1",
 ];
 
-/// Kalimat balasan (`cekfemboy.js:71-78`).
+/// Kalimat balasan.
 ///
-/// Yang dibedakan cuma sapaan self vs orang lain; `@` + nomor tampil di
-/// kedua cabang. Spasi sebelum `\n\n` di cabang orang lain ikut JS.
+/// Yang dibedakan cuma sapaan self vs orang lain; `@` + nomor tampil
+/// kedua cabang. Spasi sebelum `\n\n` di cabang orang lain ikut versi awal.
 fn balasan(nomor: &str, is_self: bool, hasil: &str) -> String {
     if is_self {
         format!("Hai @{nomor}\n\n{hasil}")
@@ -57,16 +40,16 @@ fn balasan(nomor: &str, is_self: bool, hasil: &str) -> String {
     }
 }
 
-/// `fetchBuffer(result.gif)` + `convertGifToMp4` (`cekfemboy.js:60-69`).
+/// `fetchBuffer(result.gif)` + `convertGifToMp4`.
 ///
-/// `None` = GIF tidak bisa diunduh (axios melempar untuk 4xx/5xx, sama seperti
-/// `UreqHttp`) atau ffmpeg gagal; keduanya di JS berakhir di `catch` kosong
+/// `None` = GIF tidak bisa diunduh (axios melempar untuk 4xx/5xx, sama
+/// `UreqHttp`) atau ffmpeg gagal; keduanya di versi awal berakhir di `catch` kosong
 /// lalu balas teks.
 fn video_dari_gif(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
     let gif = ctx.http.get(url).ok()?;
     let gif = gif.body.bytes();
     if gif.is_empty() {
-        // `Buffer.alloc(0)` truthy di JS, lalu ffmpeg menolak masukannya —
+        // `Buffer.alloc(0)` truthy di versi awal, lalu ffmpeg menolak masukannya —
         // hasil akhirnya sama: tidak ada video.
         return None;
     }
@@ -104,7 +87,7 @@ pub fn cekfemboy(ctx: Ctx) -> Reply {
         format!("@{nomor}")
     };
 
-    // `cekfemboy(nama)` cuma melempar kalau nama kosong (`lufemboy.js:3`),
+    // `cekfemboy(nama)` cuma melempar kalau nama kosong,
     // dan itu tidak mungkin dari cabang di atas; `Err` tetap ditangani supaya
     // tidak ada panic.
     let Ok(hasil) = cek_femboy(&*ctx.http, &nama) else {
@@ -278,7 +261,7 @@ mod tests {
 
     #[test]
     fn mention_dengan_device_tidak_dibuang_dari_bagian_tampil() {
-        // `cb.split("@")[0]` cuma membuang server, bukan `:3` — sama seperti JS.
+        // `cb.split("@")[0]` cuma membuang server, bukan `:3` — sama seperti versi awal.
         let jid_device = "628999:3@s.whatsapp.net";
         let r = cekfemboy(ctx_of(StubHttp::offline(), vec![jid_device.to_string()], ""));
         let (teks, mentions) = teks_dan_mention(&r);
@@ -311,7 +294,7 @@ mod tests {
     #[test]
     fn gif_palsu_tidak_pernah_jadi_video_yang_dikirim() {
         // Byte yang bukan GIF: ffmpeg (kalau ada) menolaknya, `jalankan_dengan_masukan`
-        // mengembalikan `Err`, dan JS pun jatuh ke balasan teks.
+        // mengembalikan `Err`, dan versi awal pun jatuh ke balasan teks.
         let r = cekfemboy(ctx_of(StubHttp::baru(b"bukan gif".to_vec()), Vec::new(), "Budi"));
         let (teks, mentions) = teks_dan_mention(&r);
         assert!(teks.contains("Budi, kamu "), "{teks}");
@@ -335,22 +318,22 @@ mod tests {
         assert!(argumen.contains(&"-an"));
     }
 
-    /// Perintah ffmpeg di JS (`cekfemboy.js:38`). Bedanya hanya input/output:
-    /// JS menulis ke berkas temporer, Rust memakai pipa.
+    /// Perintah ffmpeg di versi awal. Bedanya hanya input/output:
+    /// versi awal menulis ke berkas temporer, Rust memakai pipa.
     const PERINTAH_JS: &str = "ffmpeg -y -ignore_loop 0 -i \"{gif}\" -t 30 -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -c:v libx264 -pix_fmt yuv420p -movflags faststart -preset ultrafast -an \"{mp4}\"";
 
-    /// Nama berkas temporer di JS (`cekfemboy.js:31-32`) — dihapus lagi di
+    /// Nama berkas temporer di versi awal — dihapus lagi
     /// blok `finally`.
     const BERKAS_GIF_JS: &str = "cekfemboy-{id}.gif";
     const BERKAS_MP4_JS: &str = "cekfemboy-{id}.mp4";
 
-    /// Pesan error konversi di JS (`cekfemboy.js:41`) — dilempar, lalu
+    /// Pesan error konversi di versi awal — dilempar, lalu
     /// ditangkap `catch` kosong, jadi tidak pernah sampai ke user.
     const PESAN_KONVERSI_GAGAL_JS: &str = "Gagal convert GIF";
 
     #[test]
     fn perintah_ffmpeg_js_dan_argumen_rust_cocok() {
-        // Semua argumen JS harus ada di Rust; yang berubah hanya yang
+        // Semua argumen versi awal harus ada di Rust; yang berubah hanya
         // memang tidak bisa dipakai lewat pipa (lihat doc-comment modul).
         let perintah = PERINTAH_JS.replace('"', "");
         for arg in ARGUMEN_GIF_KE_MP4 {
@@ -374,7 +357,7 @@ mod tests {
 
     #[test]
     fn pesan_error_konversi_js_tidak_pernah_muncul_di_balasan() {
-        // `catch` kosong di JS (`cekfemboy.js:64-69`) → pesan "Gagal convert
+        // `catch` kosong di versi awal → pesan "Gagal convert
         // GIF" tidak boleh bocor ke user; jawabannya tetap teks biasa.
         let r = cekfemboy(ctx_of(StubHttp::baru(b"bukan gif".to_vec()), Vec::new(), "Budi"));
         let (teks, _) = teks_dan_mention(&r);

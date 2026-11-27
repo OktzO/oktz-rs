@@ -1,10 +1,9 @@
-//! `plugins/cek/cekowner.js` — role owner/partner/premium + ringkasan store.
+//! Role owner/partner/premium + ringkasan store.
 //!
-//! `ponytail:` `config.isOwner/isPartner/isPremium` membaca `config.js`, yang
-//! tidak ada di `Ctx`. Yang dipakai sebagai gantinya adalah daftar
-//! `owner`/`partner`/`premium` dari settings — satu-satunya sumber yang
-//! memang membaca store, dan itu juga yang ditulis `owner/*` plugin. Owner list
-//! di `config.js` sendiri tidak terlihat di sini.
+//! `Keterbatasan:` `config.isOwner/isPartner/isPremium` membaca, yang tidak ada di `Ctx`.
+//! Yang dipakai sebagai gantinya adalah daftar `owner`/`partner`/`premium` dari settings —
+//! satu-satunya sumber yang memang membaca store, dan itu juga yang ditulis `owner/*`
+//! plugin. Owner list sendiri tidak terlihat di sini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -54,7 +53,7 @@ pub(crate) fn normalize(mut number: String) -> String {
     number
 }
 
-/// `user.energi === -1 ? '∞' : (user.energi ?? 0)`.
+/// `user.energi === -1 ? '∞': (user.energi ?? 0)`.
 pub(crate) fn energi(user: &serde_json::Value) -> String {
     match user.get("energi").and_then(serde_json::Value::as_i64) {
         Some(-1) => "∞".to_string(),
@@ -63,7 +62,7 @@ pub(crate) fn energi(user: &serde_json::Value) -> String {
     }
 }
 
-/// `user.koin === -1 ? '∞' : (user.koin ?? 0).toLocaleString('id-ID')`.
+/// `user.koin === -1 ? '∞': (user.koin ?? 0).toLocaleString('id-ID')`.
 pub(crate) fn koin(user: &serde_json::Value) -> String {
     match user.get("koin").and_then(serde_json::Value::as_i64) {
         Some(-1) => "∞".to_string(),

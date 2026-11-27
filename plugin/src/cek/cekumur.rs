@@ -1,10 +1,4 @@
-//! `plugins/cek/cekumur.js` — cek umur mental kamu.
-//!
-//! Persen = `floor(rand * 80) + 5` (`cekumur.js:18`) sehingga 5..=84, ambang
-//! tier `60/40/20` (`cekumur.js:22-25`), kalimat "diri sendiri" vs "orang
-//! lain" di `cekumur.js:27-32`.
-//!
-//! Perhatikan: penanda bold di JS ditutup — `*${percent}%*`.
+//! Cek umur mental kamu.
 
 use crate::common::{num_and_self, roll};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -14,7 +8,7 @@ pub(crate) fn umur_percent() -> u32 {
     roll(80) + 5
 }
 
-/// Empat tier — `cekumur.js:22-25`, semua `>=`.
+/// Empat tier —, semua `>=`.
 pub(crate) fn umur_desc(percent: u32) -> &'static str {
     if percent >= 60 {
         "Bijaksana seperti orang tua! 🧓"
@@ -67,7 +61,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::find;
 
-    /// Tier `cekumur.js:22-25` — urutan dari ambang tertinggi.
+    /// Tier — urutan dari ambang tertinggi.
     const TIERS: [&str; 4] = [
         "Bijaksana seperti orang tua! 🧓",
         "Dewasa dan matang~ 🧑",
@@ -115,7 +109,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Template JS (`cekumur.js:27-32`) — penanda bold harus ditutup.
+        // Template versi awal — penanda bold harus ditutup.
         for _ in 0..500 {
             let (text, mentions) = split(&run(ctx_with(Some(OTHER))));
             let percent = percent_of(&text);
