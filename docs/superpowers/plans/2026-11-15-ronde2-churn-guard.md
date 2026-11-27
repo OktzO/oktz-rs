@@ -20,7 +20,6 @@
 - `cargo update` TERLARANG; tidak ada dep baru.
 - Komentar Bahasa Indonesia, hanya alasan non-obvious.
 - Semua perintah cargo wajib: `export PATH="/nix/store/0554jm1l1qw1pcfqsliw91hnifn11w8m-gnumake-4.4.1/bin:/nix/store/061ybr50r1m2jnvih4vvpgmgwb37df3r-gcc-wrapper-12.2.0/bin:$PATH" CARGO_TARGET_DIR=/tmp/opencode/oktz-target`.
-- JANGAN jalankan `scripts/paritas-audit.py` di mesin ini (merusak `docs/paritas/`, lihat ledger ronde 1).
 - Jangan sentuh: `vendor/`, `throttle_send` 300ms, ffmpeg params, `brat.rs` decode self-render, path `.topixel`.
 
 ## Review Focus

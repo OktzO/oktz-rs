@@ -1,4 +1,4 @@
-//! Sementara: dump semua kunci registry (nama + alias) untuk audit paritas.
+//! Sementara: dump semua kunci registry (nama + alias) untuk audit registry.
 use std::collections::BTreeMap;
 use std::io::Write;
 

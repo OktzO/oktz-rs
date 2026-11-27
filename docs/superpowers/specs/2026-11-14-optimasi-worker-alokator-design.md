@@ -47,7 +47,7 @@ Dua keluhan produksi:
 - TIDAK mengubah parameter encode ffmpeg/preset/resolusi (paritas perilaku JS).
 - TIDAK mengubah handler plugin jadi async (membongkar seluruh registry — jauh di luar
   scope ini; `ponytail:` catatan `ureq_http.rs:5-7`).
-- TIDAK menyentuh `vendor/`, `scripts/paritas-audit.py`, `docs/paritas/*`.
+- TIDAK menyentuh `vendor/`.
 - Tidak ada "unload plugin jarang dipakai dari RAM": di binary statis Rust tidak ada
   konsep unload kode; pemakai RAM nyata adalah alokator + buffer per-panggilan + churn
   store, yang justru jadi target di sini.

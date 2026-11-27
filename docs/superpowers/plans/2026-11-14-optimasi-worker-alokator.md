@@ -17,7 +17,7 @@
 ## Global Constraints
 
 - Paritas byte-per-byte TIDAK berubah — jangan sentuh render/teks/balasan.
-- Jangan sentuh: `ourin-md/`, `vendor/`, `scripts/paritas-audit.py`, `docs/paritas/*`, throttle 300ms (`pipeline.rs:4039`), parameter ffmpeg.
+- Jangan sentuh: `ourin-md/`, `vendor/`, throttle 300ms (`pipeline.rs:4039`), parameter ffmpeg.
 - `cargo update` TERLARANG — tambah dep baru saja (Cargo.lock menambah entri baru, dep lama tidak berubah).
 - Komentar kode Bahasa Indonesia, hanya alasan non-obvious + rujukan baris JS / `ponytail:`.
 - Urutan aman: `cargo build --release` → `cargo test --release` → `cargo clippy --release --all-targets`.
@@ -261,7 +261,7 @@ Expected: bersih.
 
 - [ ] **Step 3: Paritas**
 
-Run: `python scripts/paritas-audit.py`
+Verifikasi: `cargo test --workspace`.
 Expected: lulus (tidak ada file JS yang tersentuh, jadi wajib tetap hijau).
 
 - [ ] **Step 4: Lint launcher + smoke plugin count**
