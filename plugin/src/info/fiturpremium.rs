@@ -1,15 +1,15 @@
-//! `plugins/info/fiturpremium.js` — daftar command `isPremium` di registry.
+//! Daftar command `isPremium` di registry.
 //!
-//! `ponytail:` `db.setting('capprem')` adalah override global di store dan
-//! `Ctx` tidak membawanya, jadi syaratnya selalu `PluginMeta::is_premium`.
+//! `Keterbatasan:` `db.setting('capprem')` adalah override global di store dan `Ctx` tidak
+//! membawanya, jadi syaratnya selalu `PluginMeta::is_premium`.
 
 use oktz_plugin_api::{Ctx, Reply, all_plugins, plugin};
 
 const EMPTY: &str =
     "📝 *DAFTAR FITUR PREMIUM*\n\nSaat ini belum ada fitur yang terdaftar sebagai fitur premium eksklusif.";
 
-/// Nama-nama command premium apa adanya (urut registry) — `render` yang
-/// mengurutkannya, seperti `premiumFeatures.sort()` di JS.
+/// Nama-nama command premium apa adanya (urut registry) — `render`
+/// mengurutkannya, seperti `premiumFeatures.sort()` di versi awal.
 pub(crate) fn premium_lines() -> Vec<String> {
     all_plugins()
         .iter()
@@ -23,7 +23,7 @@ pub(crate) fn render(names: &[String]) -> String {
         return EMPTY.to_string();
     }
     // `premiumFeatures.sort()` terjadi sebelum join, jadi render juga mengurutkan
-    // — kalau tidak, urutan registry (yang acak) bocor ke balasan.
+    // Kalau tidak, urutan registry (yang acak) bocor ke balasan.
     let mut sorted = names.to_vec();
     sorted.sort();
     let list = sorted

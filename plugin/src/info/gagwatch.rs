@@ -1,8 +1,8 @@
-//! `plugins/info/gagwatch.js` — stok GAG2 Watch dari `my.izuka-api.xyz`.
+//! Stok GAG2 Watch dari `my.izuka-api.xyz`.
 //!
-//! `ponytail:` reaksi hilang sebagian. JS bereaksi `🕕` di awal lalu `✅`,
-//! `❌`, atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi
-//! hanya reaksi terakhir yang ikut.
+//! `Keterbatasan:` reaksi hilang sebagian. versi awal bereaksi `🕕` di awal lalu `✅`, `❌`,
+//! atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi terakhir
+//! yang ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -12,13 +12,13 @@ use crate::common::{js_falsy, js_truthy_value};
 pub(crate) const URL: &str = "https://my.izuka-api.xyz/api/tools/gag2-watch?watchItems=Seed";
 
 /// `data.status`/`data.data`/`data.data.stock` kosong → cabang `❌`
-/// (`gagwatch.js:23-26`).
+///
 pub(crate) const NO_DATA: &str = "Maaf, data GAG2 tidak ditemukan atau sistem sedang bermasalah.";
 
-/// Cabang `catch` (`gagwatch.js:60-63`).
+/// Cabang `catch`.
 pub(crate) const FAILED: &str = "Terjadi kesalahan saat mengambil data GAG. Coba lagi nanti.";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang.
+/// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
         None => "undefined".to_string(),
@@ -28,7 +28,7 @@ fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `arr || '-'` (`gagwatch.js:33,34`) — fallback kalau nilai falsy.
+/// `arr || '-'` — fallback kalau nilai falsy.
 fn or_dash(v: Option<&Value>) -> String {
     if v.is_some_and(js_truthy_value) {
         interp(v)
@@ -38,7 +38,7 @@ fn or_dash(v: Option<&Value>) -> String {
 }
 
 /// `*TITLE:*\n` + `- {name}: {quantity}\n` per item, lalu baris kosong.
-/// `gagwatch.js:45-60`. `Err` kalau `arr` bukan array — di JS `.forEach`
+/// . `Err` kalau `arr` bukan array — di versi awal `.forEach`
 /// melempar TypeError yang ditangkap `catch`.
 fn item_list(arr: Option<&Value>, title: &str) -> Result<String, String> {
     let items = arr
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn a_missing_list_is_an_error_not_a_silent_empty_section() {
-        // `stock.seeds.forEach` melempar TypeError di JS → cabang catch.
+        // `stock.seeds.forEach` melempar TypeError di versi awal → cabang catch.
         let mut s = stock();
         s.as_object_mut().unwrap().remove("gear");
         assert_eq!(render(&s).unwrap_err(), FAILED);

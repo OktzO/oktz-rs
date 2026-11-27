@@ -1,20 +1,18 @@
-//! `plugins/info/infotourney.js` — info turnamen Mobile Legends dari infotourney.com.
+//! Info turnamen Mobile Legends dari infotourney.com.
 //!
-//! `ponytail:` JS memakai `cheerio` untuk parse `.items-row .item`, `h2[itemprop="name"] a`,
-//! `p img`, `time[itemprop="datePublished"]`, dan `p[style="text-align: center;"]`.
-//! `oktz-plugins` tidak punya parser HTML, jadi semua dipakai manual di bawah.
+//! `Keterbatasan:` versi awal memakai `cheerio` untuk parse `.items-row.item`,
+//! `h2[itemprop="name"] a`, `p img`, `time[itemprop="datePublished"]`, dan
+//! `p[style="text-align: center;"]`. `oktz-plugins` tidak punya parser HTML, jadi semua
+//! dipakai manual di bawah.
 //!
-//! `ponytail:` `timeHelper.fromTimestamp(datePublished, "DD/MM/YYYY HH:mm")` — tanpa
+//! `Keterbatasan:` `timeHelper.fromTimestamp(datePublished, "DD/MM/YYYY HH:mm")` — tanpa
 //! crate tanggal, string datetime dikembalikan apa adanya kalau tidak bisa di-parse.
 //!
-//! `ponytail:` `sock.sendMedia(..., { type: 'image' })` menjadi
+//! `Keterbatasan:` `sock.sendMedia(..., { type: 'image' })` menjadi
 //! `Reply::image(MediaSource::Url)` dengan caption. URL di-fetch pipeline saat kirim.
 //!
-//! `ponytail:` `m.react` dua kali (`🕕` lalu `✅`/`❌`) — hanya reaksi akhir yang terkirim.
-//!
-//! Catatan: baris `pub mod infotourney;` perlu ditambahkan ke
-//! `rust/crates/oktz-plugins/src/info/mod.rs` oleh orchestrator (tidak boleh
-//! disentuh agent porting per aturan PORT-BRIEF #2).
+//! `Keterbatasan:` `m.react` dua kali (`🕕` lalu `✅`/`❌`) — hanya reaksi akhir yang
+//! terkirim.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -38,7 +36,7 @@ fn fetch_tournaments(http: &dyn oktz_plugin_api::HttpGet) -> Result<Vec<Tourname
     Ok(parse_tournaments(&html, "https://infotourney.com/tournament/mobile-legends"))
 }
 
-/// Parse `.items-row .item` dari HTML.
+/// Parse `.items-row.item` dari HTML.
 fn parse_tournaments(html: &str, base_url: &str) -> Vec<Tournament> {
     let mut turnamen = Vec::new();
     // Cari setiap `.item` di dalam `.items-row`
@@ -132,7 +130,7 @@ fn tag_text(html: &str, nama: &str) -> Option<String> {
 
 /// Isi innerHTML dari tag pertama yang cocok.
 fn tag_inner_html(html: &str, _selector: &str) -> String {
-    // Cari <p style="..."> ... </p>
+    // Cari <p style="...">... </p>
     let pola = r#"<p style="text-align: center;">"#;
     let Some(start) = html.find(pola) else {
         return String::new();

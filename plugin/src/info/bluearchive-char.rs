@@ -1,20 +1,16 @@
-//! `plugins/info/bluearchive-char.js` — info character Blue Archive.
+//! Info character Blue Archive.
 //!
-//! `ponytail:`
+//! `Keterbatasan:`
 //! 1. `contextInfo` `{forwardingScore, isForwarded, forwardedNewsletter…}`
-//!    yang ditempel pada `sock.sendMessage` (`bluearchive-char.js:143-150`)
-//!    tidak punya field di `Reply` — badge forwarded-newsletter hilang.
-//!    `config.saluran?.id` / `config.saluran?.name` (`config.js:124-127`)
-//!    hanya dipakai di `contextInfo` itu, jadi ikut tidak terjangkau.
-//! 2. `char.bio.substring(0, 200)` dihitung per unit UTF-16 di JS; di sini
-//!    per `char`, jadi batasnya bergeser untuk emoji.
+//! yang ditempel pada `sock.sendMessage`
+//! tidak punya field di `Reply` — badge forwarded-newsletter hilang.
+//! `config.saluran?.id` / `config.saluran?.name`
+//! hanya dipakai di `contextInfo` itu, jadi ikut tidak terjangkau.
+//! 2. `char.bio.substring(0, 200)` dihitung per unit UTF-16 di versi awal; di sini
+//! per `char`, jadi batasnya bergeser untuk emoji.
 //! 3. Reaksi `🕕` (`:91`) dan `✅` (`:159`) tidak bisa dua-duanya: satu
-//!    `Reply` hanya membawa satu `Reaction`. Yang dipasang adalah reaksi
-//!    cabang akhir.
-//!
-//! `list()` (`bluearchive-char.js:33-46`) juga menyatukan ulang `imgSmall`
-//! dan `img` ke prefiks CDN, tapi `char()` hanya membaca `.url` dari hasil
-//! itu — penyatuan di `list()` tidak pernah dipakai, jadi tidak ditulis.
+//! `Reply` hanya membawa satu `Reaction`. Yang dipasang adalah reaksi
+//! cabang akhir.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -27,13 +23,13 @@ const URL_CHAR: &str = "https://api.dotgg.gg/bluearchive/characters/";
 const CDN: &str = "https://images.dotgg.gg/bluearchive/characters/";
 
 /// Semua kegagalan di plugin ini berakhir di teks yang sama: `throw` apa pun
-/// langsung ditangkap `catch` (`bluearchive-char.js:160-163`) yang hanya
+/// langsung ditangkap `catch` yang hanya
 /// memanggil `te(...)`, tanpa menyertakan `error.message`.
 fn gagal(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
-/// `if (!name)` (`bluearchive-char.js:80`) — teks literal, bukan `te`.
+/// `if (!name)` — teks literal, bukan `te`.
 fn cara_pakai(prefix: &str) -> String {
     format!(
         "🎮 *ʙʟᴜᴇ ᴀʀᴄʜɪᴠᴇ ᴄʜᴀʀᴀᴄᴛᴇʀ*\n\n\
@@ -45,10 +41,10 @@ fn cara_pakai(prefix: &str) -> String {
     )
 }
 
-/// `BluArchive.findUrl` (`bluearchive-char.js:21-31`).
+/// `BluArchive.findUrl`.
 ///
-/// `urls.includes(clean)` dulu; kalau tidak, setiap kata harus muncul di
-/// `url` dan yang pertama menang. `Err` = `null` di JS, artinya `char()`
+/// `urls.includes(clean)` dulu; kalau tidak, setiap kata harus muncul
+/// `url` dan yang pertama menang. `Err` = `null` di versi awal, artinya `char()`
 /// melempar.
 fn find_url(input: &str, urls: &[Value]) -> Result<String, ()> {
     // `input.toLowerCase().replace(/\s+/g, "_")` — satu rune whitespace
@@ -73,7 +69,7 @@ fn find_url(input: &str, urls: &[Value]) -> Result<String, ()> {
 
     let words: Vec<&str> = clean.split('_').collect();
     for url in urls {
-        // `url.toLowerCase()` pada entri non-string melempar TypeError di JS,
+        // `url.toLowerCase()` pada entri non-string melempar TypeError di versi awal,
         // jadi tidak bisa dilewati diam-diam.
         let Some(asli) = url.as_str() else {
             return Err(());
@@ -96,20 +92,20 @@ fn urls_of(list: &Value) -> Option<Vec<Value>> {
 
 /// `char(...)` — `list()`, `findUrl()`, lalu `GET /characters/<url>`.
 ///
-/// Satu-satunya teks "Character … tidak ditemukan" di JS
-/// (`bluearchive-char.js:57-59`) tidak pernah tampil: `char()` melempar, dan
+/// Satu-satunya teks "Character … tidak ditemukan" di versi awal
+/// tidak pernah tampil: `char()` melempar,
 /// `catch` menggantinya dengan `te(...)`.
 fn fetch_char(http: &dyn oktz_plugin_api::HttpGet, name: &str) -> Option<Value> {
     let list = http.get(URL_LIST).ok()?.json()?;
     // `data.map(..)` melempar kalau `data` bukan array — `urls_of` mengembalikan
-    // `None` untuk kasus itu, persis seperti catch di `bluearchive-char.js:160`.
+    // `None` untuk kasus itu, persis seperti catch.
     let urls = urls_of(&list)?;
     let found = find_url(name, &urls).ok()?;
     // Sebaliknya `...data` di `:66` tidak melempar untuk non-objek: hasilnya
     // objek kosong, jadi semua field-nya jadi `undefined` di caption.
     http.get(&format!("{URL_CHAR}{found}")).ok()?.json()
 }
-/// `let caption = ...` (`bluearchive-char.js:100-135`).
+/// `let caption =...`.
 fn caption(c: &Value) -> String {
     let s = |v: Option<&Value>| js_str(v);
     // `char.name?.toUpperCase()` — `?.` membuat `undefined` lolos, lalu
@@ -121,7 +117,7 @@ fn caption(c: &Value) -> String {
     let mut t = format!("🎮 *{name}*\n\n");
 
     if let Some(Value::String(bio)) = c.get("bio").filter(|v| crate::common::js_truthy_value(v)) {
-        // `substring(0, 200)` dihitung per unit UTF-16 di JS.
+        // `substring(0, 200)` dihitung per unit UTF-16 di versi awal.
         let cut: String = bio.chars().take(200).collect();
         let dots = if bio.chars().count() > 200 { "..." } else { "" };
         t.push_str(&format!("> {cut}{dots}\n\n"));
@@ -214,7 +210,7 @@ pub fn bluearchive_char(ctx: Ctx) -> Reply {
     };
 
     let cap = caption(&char);
-    // `char.img = data.img ? CDN + data.img : null` (`bluearchive-char.js:70-72`).
+    // `char.img = data.img ? CDN + data.img: null`.
     let img = char
         .get("img")
         .filter(|v| crate::common::js_truthy_value(v))

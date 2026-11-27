@@ -1,12 +1,11 @@
-//! `plugins/info/jadwalbola.js` — jadwal sepak bola dari `api.neoxr.eu`.
+//! Jadwal sepak bola dari `api.neoxr.eu`.
 //!
-//! `ponytail:` reaksi hilang sebagian. JS bereaksi `🕕`, lalu `❌`, `✅`, atau
-//! `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi
-//! terakhir yang ikut.
+//! `Keterbatasan:` reaksi hilang sebagian. versi awal bereaksi `🕕`, lalu `❌`, `✅`, atau
+//! `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi terakhir yang
+//! ikut.
 //!
-//! `ponytail:` `ctx.http` tidak bisa mengikuti `sendWithRetry`/delay dari
-//! plugin lain, dan `jadwalbola.js` memang tidak punya retry — satu `GET`
-//! lalu selesai.
+//! `Keterbatasan:` `ctx.http` tidak bisa mengikuti `sendWithRetry`/delay dari plugin lain,
+//! dan memang tidak punya retry — satu `GET` lalu selesai.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -15,18 +14,18 @@ use crate::common::js_truthy_value;
 
 /// `config.APIkey.neoxr` dibaca dari `ctx.config()` — nilainya sudah
 /// `process.env.APIKEY_NEOXR || ""` di `oktz_core::config::ApiKeys`, jadi
-/// string kosong di produksi sama dengan `"|| ""` di JS.
+/// string kosong di produksi sama dengan `"|| ""` di versi awal.
 pub(crate) fn url(api_key: &str) -> String {
     format!("https://api.neoxr.eu/api/bola?apikey={api_key}")
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
-/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di JS.
+/// `te(prefix, command, pushName)`.
+/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di versi awal.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     crate::common::error_template_bawaan(prefix, command)
 }
 
-/// `LEAGUE_EMOJI` (`jadwalbola.js:27-37`) — urutan penting, karena
+/// `LEAGUE_EMOJI` — urutan penting, karena
 /// `Object.entries` dipakai dan yang pertama cocok menang.
 const LEAGUE_EMOJI: [(&str, &str); 9] = [
     ("liga inggris", "🏴󠁧󠁢󠁥󠁮󠁧󠁿"),
@@ -42,8 +41,8 @@ const LEAGUE_EMOJI: [(&str, &str); 9] = [
 
 /// `getLeagueEmoji(league)` — `lower.includes(key) || key.includes(lower)`.
 ///
-/// String kosong ikut mengembalikan emoji pertama, persis seperti
-/// `key.includes("")` yang selalu benar di JS.
+/// String kosong ikut mengembalikan emoji pertama, persis
+/// `key.includes("")` yang selalu benar di versi awal.
 pub(crate) fn league_emoji(league: &str) -> &'static str {
     let lower = league.to_lowercase();
     for (key, emoji) in LEAGUE_EMOJI {
@@ -54,7 +53,7 @@ pub(crate) fn league_emoji(league: &str) -> &'static str {
     "⚽"
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang.
+/// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
         None => "undefined".to_string(),
@@ -65,7 +64,7 @@ fn interp(v: Option<&Value>) -> String {
 }
 
 /// Kunci pengelompokan: `match.date || "TBA"`, lalu dipaksa jadi string
-/// seperti indeks objek JS.
+/// seperti indeks objek versi awal.
 fn date_key(match_: &Value) -> String {
     match match_.get("date") {
         Some(v) if js_truthy_value(v) => interp(Some(v)),
@@ -73,7 +72,7 @@ fn date_key(match_: &Value) -> String {
     }
 }
 
-/// `.filter(...)` di `jadwalbola.js:63-70` —liga, home, away, atau tanggal
+/// `.filter(...)` —liga, home, away, atau tanggal
 /// mengandung `filter` (sudah lowercase).
 pub(crate) fn filter_matches(matches: &[Value], filter: &str) -> Vec<Value> {
     if filter.is_empty() {
@@ -94,7 +93,7 @@ pub(crate) fn filter_matches(matches: &[Value], filter: &str) -> Vec<Value> {
         .collect()
 }
 
-/// Kegagalan saat menyusun balasan, dipetakan ke cabang JS masing-masing.
+/// Kegagalan saat menyusun balasan, dipetakan ke cabang versi awal masing-masing.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RenderErr {
     /// `matches.length === 0` setelah filter → `❌` + pesan filter.
@@ -167,7 +166,7 @@ pub fn jadwalbola(ctx: Ctx) -> Reply {
         Err(_) => return error_branch(&ctx),
     };
     // `f()` mengembalikan `null` saat gagal, dan `data?.status` yang null
-    // membuat `throw new Error("Tidak ada jadwal tersedia")` di JS.
+    // membuat `throw new Error("Tidak ada jadwal tersedia")` di versi awal.
     let data = res.json().unwrap_or(Value::Null);
     let Some(all) = data
         .get("data")
@@ -375,9 +374,9 @@ mod tests {
         assert_eq!(league_emoji("Liga Inggris"), "🏴󠁧󠁢󠁥󠁮󠁧󠁿");
         assert_eq!(league_emoji("BRI SUPER LEAGUE"), "🇮🇩");
         // Kuncinya "liga champions", sedangkan inputnya "champions league":
-        // `"champions league".includes("liga champions")` dan
+        // `"champions league".includes("liga champions")`
         // `"liga champions".includes("champions league")` sama-sama false,
-        // jadi JS jatuh ke `⚽`.
+        // jadi versi awal jatuh ke `⚽`.
         assert_eq!(league_emoji("Champions League"), "⚽", "urut kata tidak sama");
         // `lower.includes(key)` menang lebih dulu: "Liga Italia" memuat
         // "liga italia", dan urutan peta menempatkan Italia sebelum Spanyol.

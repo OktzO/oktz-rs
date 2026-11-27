@@ -1,8 +1,8 @@
-//! `plugins/info/harilibur.js` — hari libur & nasional mendatang.
+//! Hari libur & nasional mendatang.
 //!
-//! `ponytail:` reaksi hilang sebagian. JS bereaksi `🕕` di awal lalu `✅`,
-//! `❌`, atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi
-//! hanya reaksi terakhir yang ikut.
+//! `Keterbatasan:` reaksi hilang sebagian. versi awal bereaksi `🕕` di awal lalu `✅`, `❌`,
+//! atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi terakhir
+//! yang ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -11,13 +11,13 @@ use crate::common::js_falsy;
 
 pub(crate) const URL: &str = "https://api.nexray.eu.cc/information/hari-libur";
 
-/// `data.status`/`data.result` kosong → cabang `❌` (`harilibur.js:26-29`).
+/// `data.status`/`data.result` kosong → cabang `❌`.
 pub(crate) const NO_DATA: &str = "⚠️ Gagal mengambil informasi hari libur saat ini.";
 
-/// Cabang `catch` (`harilibur.js:58-61`).
+/// Cabang `catch`.
 pub(crate) const FAILED: &str = "😔 Terjadi kesalahan saat mengambil data hari libur.";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang.
+/// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
         None => "undefined".to_string(),
@@ -27,7 +27,7 @@ fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// Satu blok daftar (`harilibur.js:36-49`): judul + maksimal lima baris
+/// Satu blok daftar: judul + maksimal lima baris
 /// `- {date}: {event} ({daysUntil} hari lagi)`. `cap: true` menambah baris
 /// kosong penutup yang hanya boleh ada setelah blok hari libur.
 fn block(items: Option<&Value>, title: &str, cap: bool) -> String {
@@ -51,11 +51,11 @@ fn block(items: Option<&Value>, title: &str, cap: bool) -> String {
 
 /// Caption untuk `result` yang sudah lolos cek `status`.
 ///
-/// `Err` kalau `result.mendatang` hilang: di JS itu `TypeError` yang ditangkap
+/// `Err` kalau `result.mendatang` hilang: di versi awal itu `TypeError` yang ditangkap
 /// `catch`, jadi bukan string kosong.
 pub(crate) fn render(result: &Value) -> Result<String, String> {
-    // `r.mendatang.hari_libur` melempar TypeError kalau `mendatang` null atau
-    // tidak ada — keduanya ditangkap `catch` di JS.
+    // `r.mendatang.hari_libur` melempar TypeError kalau `mendatang` null
+    // tidak ada — keduanya ditangkap `catch` di versi awal.
     let mendatang = match result.get("mendatang") {
         Some(Value::Null) | None => return Err(FAILED.to_string()),
         Some(v) => v,
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn a_missing_mendatang_is_an_error_not_an_empty_caption() {
-        // `r.mendatang.hari_libur` melempar TypeError di JS → cabang catch.
+        // `r.mendatang.hari_libur` melempar TypeError di versi awal → cabang catch.
         assert!(render(&serde_json::json!({})).is_err());
         assert_eq!(render(&serde_json::json!({})).unwrap_err(), FAILED);
     }

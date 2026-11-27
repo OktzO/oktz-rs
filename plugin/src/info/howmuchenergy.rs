@@ -1,7 +1,4 @@
-//! `plugins/info/howmuchenergy.js` — biaya energi tiap command dari registry.
-//!
-//! Harga diambil dari `db.setting('capenergi')[nama]`, dan hanya itu yang
-//! dibaca plugin ini — `config.energi.*` milik middleware, bukan plugin.
+//! Biaya energi tiap command dari registry.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -168,7 +165,7 @@ mod tests {
         }
     }
 
-    // -- override `db.setting('capenergi')` ---------------------------------
+    // - override `db.setting('capenergi')` ---------------------------------
 
     #[test]
     fn an_absent_or_empty_capenergi_setting_falls_back_to_the_plugin_meta() {
@@ -226,7 +223,7 @@ mod tests {
 
     #[test]
     fn only_the_probe_branch_carries_a_reaction() {
-        // JS bereaksi "🕕" lalu "✅", tapi hanya setelah guard args.length === 0.
+        // versi awal bereaksi "🕕" lalu "✅", tapi hanya setelah guard args.length === 0.
         let help_reply = handler(&[], serde_json::json!({}));
         assert!(matches!(
             help_reply.without_mutations(),

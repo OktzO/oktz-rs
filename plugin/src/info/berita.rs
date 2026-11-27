@@ -1,13 +1,14 @@
-//! `plugins/info/berita.js` — berita terkini dari RSS berbagai sumber.
+//! Berita terkini dari RSS berbagai sumber.
 //!
-//! `ponytail:` JS memakai `cheerio` dengan `{ xmlMode: true }` untuk parsing
-//! RSS. `oktz-plugins` tidak punya parser HTML/XML dan menambah dependency
-//! baru dilarang, jadi markup RSS — `<item>`, `<title>`, `<link>`,
-//! `<pubDate>`, `<description>` — dipakai manual di bawah.
+//! `Keterbatasan:` versi awal memakai `cheerio` dengan `{ xmlMode: true }` untuk parsing
+//! RSS. `oktz-plugins` tidak punya parser HTML/XML dan menambah dependency baru dilarang,
+//! jadi markup RSS — `<item>`, `<title>`, `<link>`, `<pubDate>`, `<description>` — dipakai
+//! manual di bawah.
 //!
-//! `ponytail:` `formatDate` di JS pakai `new Date(...).toLocaleString('id-ID')`.
-//! Tanpa crate tanggal, pubDate yang tidak bisa di-parse dikembalikan apa
-//! adanya (cabang `catch` di JS). Format yang dihasilkan hanya pendekatan.
+//! `Keterbatasan:` `formatDate` di versi awal pakai `new
+//! Date(...).toLocaleString('id-ID')`. Tanpa crate tanggal, pubDate yang tidak bisa
+//! di-parse dikembalikan apa adanya (cabang `catch` di versi awal). Format yang dihasilkan
+//! hanya pendekatan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -42,7 +43,7 @@ const SOURCES: &[NewsSource] = &[
     },
 ];
 
-/// Kunci file (slug) untuk setiap sumber, cocok dengan `m.command` JS.
+/// Kunci file (slug) untuk setiap sumber, cocok dengan `m.command` versi awal.
 fn source_slug(s: &NewsSource) -> &'static str {
     match s.url {
         u if u.contains("antaranews") => "antara",
@@ -144,7 +145,7 @@ fn tag_content(html: &str, nama: &str) -> String {
 
 /// Buang semua tag HTML dari teks.
 fn strip_html_tags(raw: &str) -> String {
-    // JS memakai cheerio `$(...).text()`: entitas di-decode LEBIH DULU, baru
+    // versi awal memakai cheerio `$(...).text()`: entitas di-decode LEBIH DULU, baru
     // tag hasil decode ikut dibuang. Tanpa urutan ini `&lt;b&gt;` tetap
     // tampil sebagai teks mentah di Rust.
     let decoded = decode_entities(raw);
@@ -208,7 +209,7 @@ fn decode_entities(raw: &str) -> String {
 }
 
 /// `formatDate` — parse pubDate RSS (RFC 2822) dan format ringkas.
-/// Gagal parse -> balik string asli (mirip `catch` di JS).
+/// Gagal parse -> balik string asli (mirip `catch` di versi awal).
 fn format_rss_date(date_str: &str) -> String {
     if date_str.is_empty() {
         return String::new();

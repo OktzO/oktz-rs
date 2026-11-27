@@ -1,7 +1,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-// `ponytail:` `config.bot.name` / `config.owner.name` di-hardcode dari
-// `config.js` karena `Ctx` tidak membawa config. Ganti dengan config runtime
+// `Keterbatasan:` `config.bot.name` / `config.owner.name` di-hardcode
+// karena `Ctx` tidak membawa config. Ganti dengan config runtime
 // kalau router someday menyediakannya.
 pub(crate) const BOT_NAME: &str = "Oktz Bot";
 

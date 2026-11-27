@@ -1,7 +1,4 @@
-//! `plugins/info/whatrolethis.js` — syarat akses tiap command dari registry.
-//!
-//! Baris "Premium 💎" bisa datang dari `db.setting('capprem')[nama]`, bukan
-//! dari `pluginConfig.isPremium` — key-nya nama plugin, bukan alias.
+//! Syarat akses tiap command dari registry.
 
 use oktz_plugin_api::{Ctx, PluginMeta, Reply, plugin};
 use serde_json::Value;
@@ -12,7 +9,7 @@ pub(crate) const HELP: &str = "🔍 *PENGECEKAN AKSES FITUR*\n\nSistem untuk men
 
 pub(crate) const HEADER: &str = "🔍 *DETAIL AKSES FITUR*\n\n";
 
-/// Baris syarat akses, urutan `if` di `whatrolethis.js:41-52`. Kosong =
+/// Baris syarat akses, urutan `if`. Kosong =
 /// semua orang. `premium` = hasil resolusi `db.setting('capprem')` terhadap
 /// `pluginConfig.isPremium`, bukan `m.is_premium` mentah.
 pub(crate) fn roles_of(m: &PluginMeta, premium: bool) -> Vec<&'static str> {
@@ -71,7 +68,7 @@ pub fn whatrolethis(ctx: Ctx) -> Reply {
     let body = render_probe(HEADER, &ctx.args, |name| {
         match oktz_plugin_api::find(name) {
             Some(p) => {
-                // `overrides[name] !== undefined ? overrides[name] : isPremium`
+                // `overrides[name] !== undefined ? overrides[name]: isPremium`
                 let premium = overrides
                     .and_then(|m| m.get(name))
                     .map_or(p.meta.is_premium, |v| js_truthy(Some(v)));
@@ -149,7 +146,7 @@ mod tests {
         assert!(HELP.contains("- *.whatrolethis <nama_fitur1> <nama_fitur2> ...*"));
     }
 
-    // -- tabel role --------------------------------------------------------
+    // - tabel role --------------------------------------------------------
 
     #[test]
     fn a_plugin_with_no_restriction_is_free_for_everyone() {
@@ -221,7 +218,7 @@ mod tests {
         );
     }
 
-    // -- loop ---------------------------------------------------------------
+    // - loop ---------------------------------------------------------------
 
     #[test]
     fn an_alias_resolves_and_reports_the_canonical_name() {
@@ -269,7 +266,7 @@ mod tests {
         assert_eq!(out.matches("✅ *").count(), 17);
     }
 
-    // -- override `db.setting('capprem')` -----------------------------------
+    // - override `db.setting('capprem')` -----------------------------------
 
     #[test]
     fn an_absent_or_empty_capprem_setting_falls_back_to_the_plugin_meta() {
@@ -312,7 +309,7 @@ mod tests {
 
     #[test]
     fn a_falsy_but_present_override_wins_over_the_plugin_meta() {
-        // `overrides[name] !== undefined` benar-benar dipakai di JS, jadi nilai
+        // `overrides[name] !== undefined` benar-benar dipakai di versi awal, jadi nilai
         // falsy yang tersimpan tetap mengalahkan `isPremium`.
         for value in [serde_json::json!(false), serde_json::json!(null), serde_json::json!(0), serde_json::json!("")] {
             let out = run_with(&["cekprem"], serde_json::json!({ "capprem": { "cekprem": value } }));

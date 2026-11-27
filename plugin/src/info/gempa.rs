@@ -1,19 +1,16 @@
-//! `plugins/info/gempa.js` — info gempa terkini dari BMKG.
+//! Info gempa terkini dari BMKG.
 //!
-//! `ponytail:`
+//! `Keterbatasan:`
 //! 1. `sock.sendMedia(m.chat, Buffer.from(imgRes.data), text, m, {type:'image'})`
-//!    (`gempa.js:56`) dijawab `Reply::image(MediaSource::url(..), text)`.
-//!    `MediaSource::Url` baru di-fetch saat pipeline mengirim, sedangkan JS
-//!    men-download dulu di `:52-55`; akibatnya `catch` di `:59` yang turun ke
-//!    `m.reply(text, ..)` tidak bisa terjadi di sini.
-//! 2. `contextInfo: saluranCtx()` (`gempa.js:60` dan `:63`) tidak punya field
-//!    di `Reply` — badge forwarded-newsletter hilang.
+//! dijawab `Reply::image(MediaSource::url(..), text)`.
+//! `MediaSource::Url` baru di-fetch saat pipeline mengirim, sedangkan versi awal
+//! men-download dulu di `:52-55`; akibatnya `catch` di `:59` yang turun
+//! `m.reply(text..)` tidak bisa terjadi di sini.
+//! 2. `contextInfo: saluranCtx()` tidak punya field
+//! di `Reply` — badge forwarded-newsletter hilang.
 //! 3. `m.react('🕕')` di `:21` tidak ikut: `Reply::Reaction` hanya bisa
-//!    membawa satu emoji, jadi yang dipasang adalah reaksi cabang akhir
-//!    (`✅` atau `☢`). Sama seperti `crate::info::jadwalbola`.
-//!
-//! `gempa.js` tidak pernah memanggil `te(...)`, jadi `error_template` tidak
-//! dipakai di file ini.
+//! membawa satu emoji, jadi yang dipasang adalah reaksi cabang akhir
+//! (`✅` atau `☢`). Sama seperti `crate::info::jadwalbola`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -23,13 +20,13 @@ use crate::common::js_truthy;
 const URL_JSON: &str = "https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json";
 const URL_SHAKEMAP: &str = "https://data.bmkg.go.id/DataMKG/TEWS/";
 
-/// `const g = response.data.Infogempa.gempa` (`gempa.js:29`) lalu `g.Shakemap`
+/// `const g = response.data.Infogempa.gempa` lalu `g.Shakemap`
 /// di `:30`. Kalau `gempa` tidak ada di payload, baris pertama tidak melempar
-/// — yang melempar adalah pembacaan properti di baris berikutnya, jadi
+/// Yang melempar adalah pembacaan properti di baris berikutnya, jadi
 /// pesannya adalah `TypeError` V8 itu, bukan teks buatan plugin.
 const MISSING_PAYLOAD: &str = "Cannot read properties of undefined (reading 'Shakemap')";
 
-/// `${nilai}` di dalam template literal JS — `String(x)`.
+/// `${nilai}` di dalam template literal versi awal — `String(x)`.
 ///
 /// Field BMKG diinterpolasi apa adanya, jadi nilai yang hilang ikut tampil
 /// sebagai `undefined`, bukan sebagai string kosong.
@@ -52,7 +49,7 @@ pub(crate) fn js_str(v: Option<&Value>) -> String {
     }
 }
 
-/// `const text = ...` (`gempa.js:34-46`).
+/// `const text =...`.
 fn caption(g: &Value) -> String {
     let f = |k: &str| js_str(g.get(k));
     let mut t = String::from("🌍 *Info Gempa Terkini — BMKG*\n\n");
@@ -70,7 +67,7 @@ fn caption(g: &Value) -> String {
     t
 }
 
-/// `catch (e)` (`gempa.js:65-70`): `❌ *Gagal…*\n\n> ${e.message || "Coba lagi nanti"}`.
+/// `catch (e)`: `❌ *Gagal…*\n\n> ${e.message || "Coba lagi nanti"}`.
 fn gagal(pesan: &str) -> Reply {
     let pesan = if pesan.is_empty() {
         "Coba lagi nanti"
@@ -109,7 +106,7 @@ pub fn gempa(ctx: Ctx) -> Reply {
     };
 
     let text = caption(&g);
-    // `g.Shakemap ? `…/${g.Shakemap}` : null` (`gempa.js:30-32`) — nilai
+    // `g.Shakemap ? `…/${g.Shakemap}`: null` — nilai
     // kosong itu falsy, jadi tidak jadi URL.
     let shakemap = g
         .get("Shakemap")
@@ -341,7 +338,7 @@ mod tests {
 
     #[test]
     fn a_very_long_field_is_not_truncated_by_the_caption() {
-        // Tidak ada `slice` di `gempa.js:34-46`; BMKG yang memotong.
+        // Tidak ada `slice`; BMKG yang memotong.
         let panjang = "x".repeat(500);
         let body = format!(r#"{{"Infogempa":{{"gempa":{{"Wilayah":"{panjang}"}}}}}}"#);
         assert!(body.starts_with(r#"{"Infogempa":{"gempa":{"Wilayah":""#), "{body}");

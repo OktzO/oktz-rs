@@ -11,11 +11,11 @@ pub mod jadwalbola;
 pub mod livescore;
 pub mod whatrolethis;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod berita;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod gag2;
 pub mod infotourney;

@@ -1,15 +1,7 @@
-//! `plugins/info/livescore.js` — live score sepak bola dari `goal.com`.
+//! Live score sepak bola dari `goal.com`.
 //!
-//! Sumbernya halaman HTML dengan satu blok `<script id="__NEXT_DATA__">`
-//! berisi JSON. Blok itu diambil persis seperti regex JS
-//! `/__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s` — penanda
-//! tetap, lalu berhenti di `</script>` pertama. Tidak ada parser HTML di
-//! `oktz-plugin-api`, dan tidak boleh menambah dependency baru, jadi ini
-//! satu-satunya potongan HTML yang memang dibutuhkan plugin ini.
-//!
-//! `ponytail:` reaksi hilang sebagian. JS bereaksi `🕕`, lalu `✅` atau `❌`;
-//! `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi
-//! terakhir yang ikut.
+//! `Keterbatasan:` reaksi hilang sebagian. versi awal bereaksi `🕕`, lalu `✅` atau `❌`;
+//! `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi terakhir yang ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -18,7 +10,7 @@ use crate::common::js_truthy_value;
 
 pub(crate) const URL: &str = "https://www.goal.com/id/livescore";
 
-/// Penanda sebelum payload JSON — sama persis dengan regex JS.
+/// Penanda sebelum payload JSON — sama persis dengan regex versi awal.
 const MARKER: &str = "__NEXT_DATA__\" type=\"application/json\">";
 
 pub(crate) const NO_MATCH: &str = "⚽ *LIVESCORE BOLA* ⚽\n\n\
@@ -28,7 +20,7 @@ pub(crate) const NO_MATCH: &str = "⚽ *LIVESCORE BOLA* ⚽\n\n\
 pub(crate) const NO_SCORE: &str = "❌ *GAGAL MENGAMBIL SKOR*\n\n\
     Maaf, sistem gagal mengambil data live score saat ini.";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk null.
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null` untuk null.
 fn interp(v: Option<&Value>) -> String {
     match v {
         None => "undefined".to_string(),
@@ -38,7 +30,7 @@ fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `_statusIndo(status)` (`livescore.js:47-55`) — kunci yang tidak dikenal
+/// `_statusIndo(status)` — kunci yang tidak dikenal
 /// diteruskan apa adanya.
 pub(crate) fn status_indo(status: Option<&Value>) -> String {
     let key = match status {
@@ -57,7 +49,7 @@ pub(crate) fn status_indo(status: Option<&Value>) -> String {
     .to_string()
 }
 
-/// Rantai `??` pada `m.score.teamA` (`livescore.js:64`).
+/// Rantai `??` pada `m.score.teamA`.
 ///
 /// objek → `current` / `normalTime` / `score` / `'-'`; selain itu nilai itu
 /// sendiri, atau `'-'` kalau null/undefined.
@@ -83,7 +75,7 @@ fn red_cards(m: &Value, side: &str) -> i64 {
         .unwrap_or(0)
 }
 
-/// `m.period` (`livescore.js:66`): objek → `name`/`short`/`long`/`'-'`,
+/// `m.period`: objek → `name`/`short`/`long`/`'-'`,
 /// selain itu `m.period || ''`.
 pub(crate) fn period(m: &Value) -> String {
     match m.get("period") {
@@ -101,7 +93,7 @@ pub(crate) fn period(m: &Value) -> String {
 
 /// Ambil `props.pageProps.content.liveScores` dari HTML `goal.com`.
 ///
-/// Pesan `Err` mengikuti `throw` di `ambilLivescore` dan dipakai verbatim di
+/// Pesan `Err` mengikuti `throw` di `ambilLivescore` dan dipakai verbatim
 /// teks `catch`.
 pub(crate) fn extract(html: &str) -> Result<Value, &'static str> {
     let start = html.find(MARKER).ok_or("Gagal menemukan data skor")? + MARKER.len();

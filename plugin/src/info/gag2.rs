@@ -1,12 +1,4 @@
-//! `plugins/info/gag2.js` — cek stock Grow a Garden dengan fitur watch.
-//!
-//! Catatan: `mod.rs` kategori `info` sudah memuat plugin `gag` dan
-//! `gagwatch` yang bukan milik tugas ini, jadi baris `pub mod gag2;`
-//! perlu ditambahkan manual di `rust/crates/oktz-plugins/src/info/mod.rs`.
-//!
-//! `setTimeout` / loop 30 detik untuk mode watch tidak punya padanan di
-//! `Ctx`, jadi hanya mode stock yang diimplementasikan. Mode watch
-//! melaporkan bahwa tidak tersedia di konteks Rust.
+//! Cek stock Grow a Garden dengan fitur watch.
 
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
 use serde_json::Value;
@@ -286,7 +278,7 @@ mod tests {
 
     #[test]
     fn emoji_for_item_berdasar_nama() {
-        // `emojiForItem` (`gag2.js:38-45`) mencocokkan kata kunci INGGRIS;
+        // `emojiForItem` mencocokkan kata kunci INGGRIS;
         // nama Indonesia seperti "Benih Apel" jatuh ke emoji default.
         assert_eq!(emoji_for_item("Seed Apel"), "🌱");
         assert_eq!(emoji_for_item("Watering Can"), "💧");

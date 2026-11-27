@@ -1,8 +1,8 @@
-//! `plugins/info/gag.js` — stok Grow a Garden dari `api.nexray.eu.cc`.
+//! Stok Grow a Garden dari `api.nexray.eu.cc`.
 //!
-//! `ponytail:` reaksi hilang sebagian. JS bereaksi `🕕` di awal lalu `✅`,
-//! `❌`, atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi
-//! hanya reaksi terakhir yang ikut. Reaksi `🕕` dibuang.
+//! `Keterbatasan:` reaksi hilang sebagian. versi awal bereaksi `🕕` di awal lalu `✅`, `❌`,
+//! atau `☢`; `Reply::Reaction` hanya bisa membawa satu emoji, jadi hanya reaksi terakhir
+//! yang ikut. Reaksi `🕕` dibuang.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -11,13 +11,13 @@ use crate::common::js_falsy;
 
 pub(crate) const URL: &str = "https://api.nexray.eu.cc/information/growagarden";
 
-/// `data.status`/`data.result` kosong → cabang `❌` (`gag.js:26-29`).
+/// `data.status`/`data.result` kosong → cabang `❌`.
 pub(crate) const NO_DATA: &str = "⚠️ Gagal mengambil informasi Grow a Garden saat ini.";
 
-/// Cabang `catch` (`gag.js:65-67`).
+/// Cabang `catch`.
 pub(crate) const FAILED: &str = "😔 Terjadi kesalahan saat mengambil data GAG.";
 
-/// `${value}` di JS: field yang hilang jadi `"undefined"`, `null` jadi
+/// `${value}` di versi awal: field yang hilang jadi `"undefined"`, `null` jadi
 /// `"null"`. `Value::to_string` sudah benar untuk angka dan string.
 fn interp(v: Option<&Value>) -> String {
     match v {
@@ -28,7 +28,7 @@ fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `formatStock(arr, title)` (`gag.js:35-40`): `"!arr || arr.length === 0"`
+/// `formatStock(arr, title)`: `"!arr || arr.length === 0"`
 /// jadi string kosong, sehingga bagian kosong hilang total dari caption.
 pub(crate) fn format_stock(arr: Option<&Value>, title: &str) -> String {
     let Some(items) = arr.and_then(Value::as_array).filter(|a| !a.is_empty()) else {
@@ -94,7 +94,7 @@ pub fn gag(ctx: Ctx) -> Reply {
         Ok(r) => r,
         Err(_) => return Reply::text(FAILED).with_reaction("☢"),
     };
-    // Body yang bukan JSON membuat `res.data.status` undefined di JS, jadi
+    // Body yang bukan JSON membuat `res.data.status` undefined di versi awal, jadi
     // jatuh ke cabang yang sama dengan payload rusak.
     let data = res.json().unwrap_or(Value::Null);
     if js_falsy(data.get("status")) || js_falsy(data.get("result")) {
