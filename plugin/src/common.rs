@@ -8,16 +8,16 @@ macro_rules! data_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
      $example:literal, $data:expr) => {
         #[plugin(
-                            name = $name,
-                            alias = $alias,
-                            category = "fun",
-                            description = $desc,
-                            usage = $usage,
-                            example = $example,
-                            cooldown = 3,
-                            energi = 0,
-                            is_private = false
-                        )]
+                                    name = $name,
+                                    alias = $alias,
+                                    category = "fun",
+                                    description = $desc,
+                                    usage = $usage,
+                                    example = $example,
+                                    cooldown = 3,
+                                    energi = 0,
+                                    is_private = false
+                                )]
         pub fn $fn_name(_ctx: Ctx) -> Reply {
             data_reply(&$data)
         }
@@ -30,16 +30,16 @@ macro_rules! tanya_plugin {
     ($fn_name:ident, $name:literal, $alias:expr, $desc:literal, $usage:literal,
      $example:literal, $answers:ident, $help:expr) => {
         #[plugin(
-                            name = $name,
-                            alias = $alias,
-                            category = "fun",
-                            description = $desc,
-                            usage = $usage,
-                            example = $example,
-                            cooldown = 3,
-                            energi = 0,
-                            is_private = false
-                        )]
+                                    name = $name,
+                                    alias = $alias,
+                                    category = "fun",
+                                    description = $desc,
+                                    usage = $usage,
+                                    example = $example,
+                                    cooldown = 3,
+                                    energi = 0,
+                                    is_private = false
+                                )]
         pub fn $fn_name(ctx: Ctx) -> Reply {
             tanya_reply(&ctx, &$answers, $help)
         }

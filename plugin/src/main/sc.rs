@@ -4,7 +4,7 @@ use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// Satu-satunya URL.
-pub(crate) const REPO_URL: &str = "https://github.com/OktzO/oktz-md";
+pub(crate) const REPO_URL: &str = "https://github.com/OktzO/oktz-rs";
 
 /// Body kartu.
 pub(crate) fn body(nama_pengirim: &str, bot: &oktz_plugin_api::config::BotInfo) -> String {
@@ -14,7 +14,7 @@ pub(crate) fn body(nama_pengirim: &str, bot: &oktz_plugin_api::config::BotInfo) 
          > 🤖 *Name*: {}\n\
          > ⚙️ *Version*: {}\n\
          > 👨‍💻 *Developer*: {}\n\
-         > 🧩 *Repo*: OktzO/oktz-md\n\n\
+         > 🧩 *Repo*: OktzO/oktz-rs\n\n\
          Klik tombol di bawah untuk mendapatkan scriptnya ya!",
         bot.name, bot.version, bot.developer
     )
@@ -75,7 +75,7 @@ mod tests {
              > 🤖 *Name*: Oktz Bot\n\
              > ⚙️ *Version*: 3.3.1\n\
              > 👨‍💻 *Developer*: Zann\n\
-             > 🧩 *Repo*: OktzO/oktz-md\n\n\
+             > 🧩 *Repo*: OktzO/oktz-rs\n\n\
              Klik tombol di bawah untuk mendapatkan scriptnya ya!"
         );
     }
