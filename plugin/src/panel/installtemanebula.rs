@@ -1,9 +1,8 @@
 //! `plugins/panel/installtemanebula.rs` — install tema Nebula (AtasBawahCantik)
-//! lewat SSH.
 //!
-//! `ponytail:` sama seperti `installtemabilling.rs`: guard + validasi dipindah,
-//! tiga `execSSH` (Node 22, Blueprint, `blueprint -install nebula`) tidak bisa
-//! jalan tanpa klien SSH yang tidak ada di `Ctx`.
+//! `Keterbatasan:` sama seperti `installtemabilling.rs`: guard + validasi dipindah, tiga
+//! `execSSH` (Node 22, Blueprint, `blueprint -install nebula`) tidak bisa jalan tanpa klien
+//! SSH yang tidak ada di `Ctx`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

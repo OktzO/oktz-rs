@@ -1,18 +1,10 @@
-//! `plugins/panel/linode.js` — manajemen VPS Linode (13 command).
+//! Manajemen VPS Linode (13 command).
 //!
-//! `pluginConfig.name` JS adalah array 13 nama dengan `alias: []`, jadi elemen
-//! pertama (`linode2gb`) jadi `name` dan 12 sisanya masuk `commands` — pola
-//! yang sama dengan `panel/uninstalltema.rs`.
-//!
-//! `ponytail:` JS memakai `fetch` global dengan header `Authorization: Bearer`,
-//! jadi semua permintaan lewat [`oktz_plugin_api::HttpCall`] +
-//! `ctx.http.call` (bukan `http.get` polos yang membuang header). Semua
-//! kegagalan — fetch error, JSON rusak, `!res.ok` — jatuh ke `catch` yang sama:
-//! `m.react('☢')` + `te(prefix, command, pushName)` (`linode.js:375-378`).
-//!
-//! Alur `linode*gb` menunggu 60 detik di tengah handler
-//! (`await new Promise(r => setTimeout(r, 60000))`, `linode.js:94`) —
-//! diterjemahkan apa adanya dengan `std::thread::sleep`.
+//! `Keterbatasan:` versi awal memakai `fetch` global dengan header `Authorization: Bearer`,
+//! jadi semua permintaan lewat [`oktz_plugin_api::HttpCall`] + `ctx.http.call` (bukan
+//! `http.get` polos yang membuang header). Semua kegagalan — fetch error, JSON rusak,
+//! `!res.ok` — jatuh ke `catch` yang sama: `m.react('☢')` + `te(prefix, command,
+//! pushName)`.
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpMethod, Reply, plugin};
 use serde_json::Value;
@@ -20,7 +12,7 @@ use rand::Rng;
 
 use crate::common::error_template;
 
-/// `linode.js:21-26` — spesifikasi per command create.
+/// Spesifikasi per command create.
 struct Spec {
     command: &'static str,
     jenis: &'static str,
@@ -35,9 +27,9 @@ const LINODE_TYPES: [Spec; 4] = [
     Spec { command: "linode16gb", jenis: "g6-standard-8", ram: "16GB", label: "16GB" },
 ];
 
-/// `linode.js:4` — tanpa `I`, `O`, `l` (huruf yang membingungkan).
+/// Tanpa `I`, `O`, `l` (huruf yang membingungkan).
 const KARAKTER: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
-/// `linode.js:13` — tanpa `0`, `1`.
+/// Tanpa `0`, `1`.
 const NOMOR: &[u8] = b"23456789";
 
 /// `randomKarakter(length)` — `Math.floor(Math.random() * chars.length)`,
@@ -55,8 +47,8 @@ fn random_nomor(panjang: usize) -> String {
         .collect()
 }
 
-/// Pesan saat token belum diset (`linode.js:47-48`) — string kosong itu
-/// falsy di JS, sama seperti `String::is_empty()` di sini.
+/// Pesan saat token belum diset — string kosong itu
+/// falsy di versi awal, sama seperti `String::is_empty()` di sini.
 fn token_kosong() -> String {
     "❌ Linode API Token tidak dikonfigurasi!\n\n\
      Tambahkan di config.js:\n\
@@ -68,8 +60,8 @@ fn token_kosong() -> String {
         .to_string()
 }
 
-/// Menu bantuan (`linode.js:358-373`) — tidak pernah tercapai lewat registry
-/// (semua 13 nama adalah command), dibawa untuk paritas.
+/// Menu bantuan — tidak pernah tercapai lewat registry
+/// (semua 13 nama adalah command), dibawa untuk perilaku.
 fn menu_bantuan() -> String {
     "☁️ *ʟɪɴᴏᴅᴇ ᴄᴏᴍᴍᴀɴᴅs*\n\n\
      > .linode2gb <label> - Buat VPS 2GB\n\
@@ -93,7 +85,7 @@ fn minta_id(prefix: &str, cmd: &str, contoh_id: &str) -> String {
     format!("❌ Masukkan ID Linode!\n\nContoh: {prefix}{cmd} {contoh_id}")
 }
 
-/// `${nilai}` di dalam template literal JS — `undefined` untuk null/hilang,
+/// `${nilai}` di dalam template literal versi awal — `undefined` untuk null/hilang,
 /// angka dan bool diratakan, array digabung koma (dipakai `ipv4`).
 fn js_str(v: Option<&Value>) -> String {
     match v {
@@ -124,13 +116,13 @@ fn ipv4_pertama(info: &Value) -> String {
     if s.is_empty() { "-".to_string() } else { s.to_string() }
 }
 
-/// Header standar semua permintaan Linode (`linode.js:78-81` dll).
+/// Header standar semua permintaan Linode.
 fn headers(req: HttpCall, token: &str) -> HttpCall {
     req.header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {token}"))
 }
 
-/// `res.ok` JS — status 200-299.
+/// `res.ok` versi awal — status 200-299.
 fn res_ok(status: u16) -> bool {
     (200..300).contains(&status)
 }
@@ -173,7 +165,7 @@ pub fn linode(ctx: Ctx) -> Reply {
     }
 }
 
-/// Dispatch satu command; `Err` = jalur `catch` JS.
+/// Dispatch satu command; `Err` = jalur `catch` versi awal.
 fn kerjakan(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let cmd = ctx.command.as_str();
 
@@ -192,12 +184,12 @@ fn kerjakan(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
         "sisalinode" => sisalinode(ctx, token),
         "cekvpslinode" => cekvpslinode(ctx, token),
         // Tidak terjangkau lewat registry (semua nama terdaftar), dibawa
-        // untuk paritas dengan `else` terakhir di JS.
+        // untuk perilaku dengan `else` terakhir di versi awal.
         _ => Ok(Reply::text(menu_bantuan())),
     }
 }
 
-/// Cabang create `linode2gb`..`linode16gb` (`linode.js:54-118`).
+/// Cabang create `linode2gb`..`linode16gb`.
 fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     let Some(label) = ctx.args.first() else {
         return Ok(Reply::text(format!(
@@ -207,7 +199,7 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     };
     let label = label.clone();
 
-    // `randomKarakter(5) + randomNomor(3)` (`linode.js:61`).
+    // `randomKarakter(5) + randomNomor(3)`.
     let root_pass = format!("{}{}", random_karakter(5), random_nomor(3));
 
     let body = serde_json::json!({
@@ -236,7 +228,7 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     let linode_id = js_str(data.get("id"));
 
     // `await m.reply('🕕 Linode sedang dibuat... Tunggu 60 detik.')`
-    // (`linode.js:92`), lalu `setTimeout` 60000 ms (`linode.js:94`).
+    // , lalu `setTimeout` 60000 ms.
     let tunggu = Reply::text("🕕 Linode sedang dibuat... Tunggu 60 detik.");
     std::thread::sleep(std::time::Duration::from_secs(60));
 
@@ -264,7 +256,7 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
         spec.ram,
     );
 
-    // Urutan JS: react 🚀 → reply 🕕 → (tunggu) → reply final → react ✅.
+    // Urutan versi awal: react 🚀 → reply 🕕 → (tunggu) → reply final → react ✅.
     Ok(Reply::sequence(vec![
         Reply::reaction("🚀"),
         tunggu,
@@ -273,7 +265,7 @@ fn buat_linode(ctx: &Ctx, token: &str, spec: &Spec) -> Result<Reply, ()> {
     ]))
 }
 
-/// `listlinode` (`linode.js:120-150`).
+/// `listlinode`.
 fn listlinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let req = headers(
         HttpCall::get("https://api.linode.com/v4/linode/instances"),
@@ -316,7 +308,7 @@ fn listlinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
 }
 
 /// `onlinode` / `offlinode` / `rebootlinode` — POST ke sub-resource aksi
-/// (`linode.js:152-253`). `m.react(emoji)` mendahului request; urutan kirim
+/// . `m.react(emoji)` mendahului request; urutan kirim
 /// tetap dijaga lewat `Sequence`.
 fn aksi_id(ctx: &Ctx, token: &str, aksi: &str, emoji: &str, sukses: &str) -> Result<Reply, ()> {
     let Some(id) = ctx.args.first() else {
@@ -341,7 +333,7 @@ fn aksi_id(ctx: &Ctx, token: &str, aksi: &str, emoji: &str, sukses: &str) -> Res
     ]))
 }
 
-/// `rebuildlinode` (`linode.js:224-253`).
+/// `rebuildlinode`.
 fn rebuild(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let Some(id) = ctx.args.first() else {
         return Ok(Reply::text(minta_id(
@@ -381,7 +373,7 @@ fn rebuild(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     ]))
 }
 
-/// `delinode` — DELETE (`linode.js:255-277`).
+/// `delinode` — DELETE.
 fn delinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let Some(id) = ctx.args.first() else {
         return Ok(Reply::text(minta_id(&ctx.prefix, "delinode", "12345")));
@@ -406,7 +398,7 @@ fn delinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     ]))
 }
 
-/// `saldolinode` (`linode.js:279-304`) — `data.koin` dan
+/// `saldolinode` — `data.koin`
 /// `data.credit_remaining` dibagi 100, `toFixed(2)`.
 fn saldo(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let req = headers(
@@ -436,7 +428,7 @@ fn saldo(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     ]))
 }
 
-/// `sisalinode` (`linode.js:306-325`).
+/// `sisalinode`.
 fn sisalinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let req = headers(
         HttpCall::get("https://api.linode.com/v4/linode/instances"),
@@ -459,7 +451,7 @@ fn sisalinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     ]))
 }
 
-/// `cekvpslinode` (`linode.js:327-356`).
+/// `cekvpslinode`.
 fn cekvpslinode(ctx: &Ctx, token: &str) -> Result<Reply, ()> {
     let Some(id) = ctx.args.first() else {
         return Ok(Reply::text(minta_id(&ctx.prefix, "cekvpslinode", "12345")));
@@ -587,7 +579,7 @@ mod tests {
 
     #[test]
     fn http_gagal_jatuh_ke_catch_reaksi_radioaktif() {
-        // NoHttp (default) selalu gagal — padanan `fetch` melempar di JS.
+        // NoHttp (default) selalu gagal — padanan `fetch` melempar di versi awal.
         let c = ctx("listlinode", &[], "token-test");
         let r = linode(c);
         assert!(matches!(
@@ -655,7 +647,7 @@ mod tests {
 
     #[test]
     fn command_tak_dikenal_menampilkan_menu_bantuan() {
-        // Jalur `else` terakhir JS — tidak terjangkau lewat registry (semua
+        // Jalur `else` terakhir versi awal — tidak terjangkau lewat registry (semua
         // nama terdaftar sebagai command), diuji langsung lewat dispatch.
         let c = ctx("bukanlinode", &[], "token-test");
         match kerjakan(&c, "token-test") {

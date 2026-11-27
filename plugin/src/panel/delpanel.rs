@@ -1,22 +1,20 @@
-//! `plugins/panel/delpanel.js` — hapus server (+ user) Pterodactyl.
+//! Hapus server (+ user) Pterodactyl.
 //!
-//! `ponytail:` `config.pterodactyl.server1..3` (`config.js:258-299`) TIDAK
-//! ada di `oktz_plugin_api::config::Runtime`, dan `Ctx::config()` read-only.
-//! Mengikuti pola `cpanel.rs`, nilai `domain`/`apikey` di-hardcode dari
-//! `config.js` yang memang kosong untuk ketiga server — jadi cabang
-//! `validateServerConfig` (`delpanel.js:29-34`) selalu menemukan
-//! `['domain', 'apikey (PTLA)']` dan handler berakhir di kartu
-//! "sᴇʀᴠᴇʀ sX ʙᴇʟᴜᴍ ᴋᴏɴꜰɪɢ", persis perilaku produksi JS. Sisa alur
-//! (GET server → GET user → DELETE → opsi `full`) tetap diport lewat
-//! `ctx.http.call` supaya port penuh tinggal mengganti sumber konfigurasi;
-//! lewat konfigurasi kosong jalur itu tidak terjangkau, dan test menjangkau
-//! lewat `run_dengan_konfigurasi` dengan config palsu.
+//! `Keterbatasan:` `config.pterodactyl.server1..3` TIDAK ada di
+//! `oktz_plugin_api::config::Runtime`, dan `Ctx::config()` read-only. Mengikuti pola
+//! `cpanel.rs`, nilai `domain`/`apikey` di-hardcode yang memang kosong untuk ketiga server
+//! — jadi cabang `validateServerConfig` selalu menemukan `['domain', 'apikey (PTLA)']` dan
+//! handler berakhir di kartu "sᴇʀᴠᴇʀ sX ʙᴇʟᴜᴍ ᴋᴏɴꜰɪɢ", persis perilaku produksi versi awal.
+//! Sisa alur (GET server → GET user → DELETE → opsi `full`) tetap diport lewat
+//! `ctx.http.call` supaya port penuh tinggal mengganti sumber konfigurasi; lewat
+//! konfigurasi kosong jalur itu tidak terjangkau, dan test menjangkau lewat
+//! `run_dengan_konfigurasi` dengan config palsu.
 
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
 
 use crate::common::error_template;
 
-/// `config.pterodactyl.serverN` — `domain`/`apikey` kosong di `config.js`.
+/// `config.pterodactyl.serverN` — `domain`/`apikey` kosong.
 struct KonfigServer {
     domain: &'static str,
     apikey: &'static str,
@@ -26,7 +24,7 @@ const SERVER1: KonfigServer = KonfigServer { domain: "", apikey: "" };
 const SERVER2: KonfigServer = KonfigServer { domain: "", apikey: "" };
 const SERVER3: KonfigServer = KonfigServer { domain: "", apikey: "" };
 
-/// `validateServerConfig` (`delpanel.js:29-34`).
+/// `validateServerConfig`.
 fn field_hilang(cfg: &KonfigServer) -> Vec<&'static str> {
     let mut missing = Vec::new();
     if cfg.domain.is_empty() {
@@ -38,8 +36,8 @@ fn field_hilang(cfg: &KonfigServer) -> Vec<&'static str> {
     missing
 }
 
-/// Header standar Pterodactyl (`delpanel.js:88-92`) — varian user GET hanya
-/// membawa Authorization (`delpanel.js:102`).
+/// Header standar Pterodactyl — varian user GET hanya
+/// membawa Authorization.
 fn headers(req: HttpCall, apikey: &str, penuh: bool) -> HttpCall {
     let req = req.header("Authorization", format!("Bearer {apikey}"));
     if penuh {
@@ -94,7 +92,7 @@ fn kerjakan(
     let server_cfg = konfig_server_dari(server_key, s1, s2, s3);
     let missing = field_hilang(server_cfg);
 
-    // `validateServerConfig` gagal → kartu "belum konfig" (`delpanel.js:59-66`).
+    // `validateServerConfig` gagal → kartu "belum konfig".
     if !missing.is_empty() {
         let available = server_tersedia_dari(s1, s2, s3);
         let mut txt = format!("⚠️ *sᴇʀᴠᴇʀ {} ʙᴇʟᴜᴍ ᴋᴏɴꜰɪɢ*\n\n", server_key.to_uppercase());
@@ -152,7 +150,7 @@ fn server_tersedia_dari(s1: &KonfigServer, s2: &KonfigServer, s3: &KonfigServer)
     out
 }
 
-/// Alur setelah validasi (`delpanel.js:86-141`). `Err` = `catch` luar.
+/// Alur setelah validasi. `Err` = `catch` luar.
 fn alur_hapus(
     ctx: &Ctx,
     server_cfg: &KonfigServer,
@@ -205,7 +203,7 @@ fn alur_hapus(
 
     let mode = if option == Some("full") { "Server + User" } else { "Server saja" };
 
-    // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴘᴀɴᴇʟ...*...')` (`delpanel.js:108`).
+    // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴘᴀɴᴇʟ...*...')`.
     let tahap_satu = format!(
         "🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴘᴀɴᴇʟ...*\n\n> Server: *{server_label}*\n> Panel: `{nama_server}`\n> Mode: *{mode}*"
     );
@@ -295,7 +293,7 @@ mod tests {
 
     #[test]
     fn konfigurasi_kosong_config_js_selalu_belum_konfig() {
-        // `config.js` pterodactyl server1..3 domain/apikey kosong → JS produksi
+        // pterodactyl server1..3 domain/apikey kosong → versi awal produksi
         // selalu berhenti di kartu ini, apa pun argumennya.
         for args in [
             vec![],

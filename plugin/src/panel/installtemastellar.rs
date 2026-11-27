@@ -1,7 +1,7 @@
 //! `plugins/panel/installtemastellar.rs` — install tema Stellar lewat SSH.
 //!
-//! `ponytail:` guard + validasi dipindah; tiga `execSSH` (deps, `flavor.sh`,
-//! build assets) butuh klien SSH yang tidak ada di `Ctx`.
+//! `Keterbatasan:` guard + validasi dipindah; tiga `execSSH` (deps, `flavor.sh`, build
+//! assets) butuh klien SSH yang tidak ada di `Ctx`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

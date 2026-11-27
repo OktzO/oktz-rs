@@ -1,19 +1,9 @@
-//! `plugins/panel/addseller.js` — kelola seller/reseller panel.
+//! Kelola seller/reseller panel.
 //!
-//! Satu plugin JS dengan enam pintu masuk: `name: 'addseller'` dan
-//! `alias: ['addreseller','delseller','delreseller','listseller','listreseller']`.
-//! Semua kunci masuk `alias` di Rust — `addseller` sebagai `name`, sisanya
-//! persis daftar `alias` JS.
-//!
-//! State disimpan di `database/cpanel/legacy_sellers.json`
-//! (`getLegacyData`/`saveLegacyData`, `addseller.js:32-51`) — dibaca/tulis
-//! lewat `Ctx::berkas()`, jadi plugin ini full-port, bukan stub.
-//!
-//! `ponytail:` `isLid`/`lidToJid` (`addseller.js:4`) tidak ada di `Ctx`; JID
-//! dipakai apa adanya seperti `cleanJid` tanpa cabang LID. Sinkronisasi
-//! `config.pterodactyl` dari legacy data (`addseller.js:65-68`) tidak ada
-//! padanannya karena `Ctx::config()` read-only dan tanpa field pterodactyl —
-//! tidak berpengaruh pada balasan.
+//! `Keterbatasan:` `isLid`/`lidToJid` tidak ada di `Ctx`; JID dipakai apa adanya seperti
+//! `cleanJid` tanpa cabang LID. Sinkronisasi `config.pterodactyl` dari legacy data tidak
+//! ada padanannya karena `Ctx::config()` read-only dan tanpa field pterodactyl — tidak
+//! berpengaruh pada balasan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Map, Value};
@@ -28,7 +18,7 @@ fn legacy_default() -> Value {
     Value::Object(m)
 }
 
-/// `getLegacyData()` (`addseller.js:32-38`) — gagal parse = default, sama
+/// `getLegacyData()` — gagal parse = default,
 /// seperti `try { JSON.parse } catch { default }`.
 fn muat_legacy(ctx: &Ctx) -> Value {
     match ctx.berkas().baca_teks(LEGACY_PATH) {
@@ -37,7 +27,7 @@ fn muat_legacy(ctx: &Ctx) -> Value {
     }
 }
 
-/// `saveLegacyData()` (`addseller.js:40-51`) — buat folder induk dulu.
+/// `saveLegacyData()` — buat folder induk dulu.
 fn simpan_legacy(ctx: &Ctx, data: &Value) -> bool {
     let _ = ctx.berkas().buat_folder("database/cpanel");
     let Ok(json) = serde_json::to_string_pretty(data) else {
@@ -46,7 +36,7 @@ fn simpan_legacy(ctx: &Ctx, data: &Value) -> bool {
     ctx.berkas().tulis_teks(LEGACY_PATH, &json).is_ok()
 }
 
-/// `getNumber(jid)` (`addseller.js:27-30`) — `cleanJid(jid).split('@')[0]`;
+/// `getNumber(jid)` — `cleanJid(jid).split('@')[0]`;
 /// `cleanJid` tanpa LID: JID tanpa `@` diberi `@s.whatsapp.net`.
 fn nomor_dari_jid(jid: &str) -> Option<String> {
     let clean = if jid.contains('@') {
@@ -60,7 +50,7 @@ fn nomor_dari_jid(jid: &str) -> Option<String> {
     if nomor.is_empty() { None } else { Some(nomor) }
 }
 
-/// `hasAccess(senderJid, isOwner, legacyData)` (`addseller.js:53-59`) —
+/// `hasAccess(senderJid, isOwner, legacyData)` —
 /// owner, atau nomor sender ada di `ownerPanels`.
 fn punya_akses(ctx: &Ctx, data: &Value) -> bool {
     if ctx.is_owner {
@@ -91,7 +81,7 @@ fn sudah_seller(data: &Value, nomor: &str) -> bool {
     daftar_seller(data).iter().any(|s| s == nomor)
 }
 
-/// `m.react('✅')` sebelum `m.reply(...)` (`addseller.js:131-140`,
+/// `m.react('✅')` sebelum `m.reply(...)` (,
 /// `:153-162`).
 fn balas_dengan_reaksi(text: String) -> Reply {
     Reply::text(text).with_reaction("✅")
@@ -119,7 +109,7 @@ pub fn addseller(ctx: Ctx) -> Reply {
     let data = muat_legacy(&ctx);
     let cmd = ctx.command.as_str();
 
-    // Guard akses sebelum cabang mana pun (`addseller.js:70-72`).
+    // Guard akses sebelum cabang mana pun.
     if !punya_akses(&ctx, &data) {
         return Reply::text("❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*\n\n> Fitur ini hanya untuk Owner atau Owner Panel.");
     }
@@ -132,7 +122,7 @@ pub fn addseller(ctx: Ctx) -> Reply {
         return cmd_list(&data);
     }
 
-    // Target: quoted → mention → teks → sender (`addseller.js:96-105`).
+    // Target: quoted → mention → teks → sender.
     let target_user = if let Some(q) = ctx.quoted() {
         nomor_dari_jid(&q.sender)
     } else if let Some(jid) = ctx.mentioned.first() {
@@ -158,12 +148,12 @@ pub fn addseller(ctx: Ctx) -> Reply {
     if is_del {
         return cmd_del(&ctx, &data, &target);
     }
-    // Tidak terjangkau lewat registry (enam kunci tercakup semua); di JS
+    // Tidak terjangkau lewat registry (enam kunci tercakup semua); di versi awal
     // handler hanya berhenti tanpa balasan.
     Reply::None
 }
 
-/// `isList` (`addseller.js:82-94`).
+/// `isList`.
 fn cmd_list(data: &Value) -> Reply {
     let sellers = daftar_seller(data);
     if sellers.is_empty() {
@@ -180,7 +170,7 @@ fn cmd_list(data: &Value) -> Reply {
     Reply::text(txt)
 }
 
-/// `isAdd` (`addseller.js:116-144`).
+/// `isAdd`.
 fn cmd_add(ctx: &Ctx, data: &Value, target: &str) -> Reply {
     if sudah_seller(data, target) {
         return Reply::text(format!("❌ `{target}` sudah menjadi seller."));
@@ -227,7 +217,7 @@ fn cmd_add(ctx: &Ctx, data: &Value, target: &str) -> Reply {
     ))
 }
 
-/// `isDel` (`addseller.js:146-163`).
+/// `isDel`.
 fn cmd_del(ctx: &Ctx, data: &Value, target: &str) -> Reply {
     if !sudah_seller(data, target) {
         return Reply::text(format!("❌ `{target}` bukan seller."));

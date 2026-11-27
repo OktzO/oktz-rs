@@ -1,11 +1,10 @@
-//! `plugins/panel/installtemabilling.js` — install tema Billing Pterodactyl
-//! lewat SSH.
+//! Install tema Billing Pterodactyl
 //!
-//! `ponytail:` hanya guard + validasinya yang dipindah. Langkah JS setelah
-//! `m.react('🕕')` — `new ssh2.Client()`, `.connect()`, tiga `execSSH` — butuh
-//! soket TCP yang tidak ada di `Ctx`, jadi tidak bisa di-port; balasannya
-//! gantinya memberi tahu host mana yang tidak bisa disentuh. `parse_input` dipakai
-//! juga oleh `uninstalltema.rs` (lihat laporan batch).
+//! `Keterbatasan:` hanya guard + validasinya yang dipindah. Langkah versi awal setelah
+//! `m.react('🕕')` — `new ssh2.Client()`, `.connect()`, tiga `execSSH` — butuh soket TCP
+//! yang tidak ada di `Ctx`, jadi tidak bisa diimplementasikan; balasannya gantinya memberi
+//! tahu host mana yang tidak bisa disentuh. `parse_input` dipakai juga oleh
+//! `uninstalltema.rs` (lihat laporan batch).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -16,7 +15,7 @@ pub(crate) const USAGE: &str = "╭┈┈⬡「 🎨 *ɪɴsᴛᴀʟʟ ᴛᴇᴍ�
 
 pub(crate) const BAD_FORMAT: &str = "❌ Format salah! Gunakan: `ip|password`";
 
-/// `text.split('|')` — JS tidak melimitasi jumlah bagian, hanya mensyaratkan
+/// `text.split('|')` — versi awal tidak melimitasi jumlah bagian, hanya mensyaratkan
 /// minimal dua. bagianbeyond index 1 diabaikan.
 pub(crate) fn parse_input(text: &str) -> Option<(String, String)> {
     let parts: Vec<&str> = text.split('|').collect();
@@ -26,7 +25,7 @@ pub(crate) fn parse_input(text: &str) -> Option<(String, String)> {
     Some((parts[0].trim().to_string(), parts[1].trim().to_string()))
 }
 
-/// Balasan untuk langkah yang tidak bisa di-port: format sudah sah, IP sudah
+/// Balasan untuk langkah yang tidak bisa diimplementasikan: format sudah sah, IP sudah
 /// dibaca, tapi tidak ada klien SSH di `Ctx`.
 pub(crate) fn ssh_unavailable(ip: &str) -> String {
     format!(

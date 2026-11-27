@@ -1,29 +1,28 @@
-//! `plugins/panel/cpanel.js` — menu kumpulan command panel (v1-v5).
+//! Menu kumpulan command panel (v1-v5).
 //!
-//! `ponytail:` status server, token DigitalOcean, dan website diambil dari
-//! `config.js` (`config.pterodactyl.server1..5`, `config.digitalocean.token`,
-//! `config.info.website`). `Ctx` tidak membawa config, jadi nilainya ikut
-//! `config.js` yang di-hardcode — persis seperti `info/benefitpartner.rs`
-//! melakukan untuk `config.bot.name`. Saat port ini semua `domain`/`apikey`
-//! masih kosong, jadi kelima status `❌` dan token DO `❌`; begitu `config.js`
-//! diisi, baris ini ikut stale sampai router menyediakannya lewat `Ctx`.
+//! `Keterbatasan:` status server, token DigitalOcean, dan website diambil
+//! (`config.pterodactyl.server1..5`, `config.digitalocean.token`, `config.info.website`).
+//! `Ctx` tidak membawa config, jadi nilainya ikut yang di-hardcode — persis seperti
+//! `info/benefitpartner.rs` melakukan untuk `config.bot.name`. Saat port ini semua
+//! `domain`/`apikey` masih kosong, jadi kelima status `❌` dan token DO `❌`; begitu diisi,
+//! baris ini ikut stale sampai router menyediakannya lewat `Ctx`.
 //!
-//! `ponytail:` `getAccessibleServers` (roles-cpanel.js) membaca file
-//! `database/cpanel/*.json` lewat `fs` — tidak ada padanannya di `Ctx`, jadi
-//! role user non-owner selalu tampil "Tidak ada". Lihat laporan batch.
+//! `Keterbatasan:` `getAccessibleServers` membaca file `database/cpanel/*.json` lewat `fs`
+//! — tidak ada padanannya di `Ctx`, jadi role user non-owner selalu tampil "Tidak ada".
+//! Lihat laporan batch.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 pub(crate) const VALID_SERVERS: [&str; 5] = ["v1", "v2", "v3", "v4", "v5"];
 
-/// `config.info.website` (`config.js:12`).
+/// `config.info.website`.
 pub(crate) const WEBSITE: &str = "https://oktzz.xyz";
 
-/// `config.pterodactyl.server1..5` — semua `domain` dan `apikey` kosong di
-/// `config.js`, jadi `getStatus` mengembalikan `❌` untuk kelimanya.
+/// `config.pterodactyl.server1..5` — semua `domain` dan `apikey` kosong
+/// , jadi `getStatus` mengembalikan `❌` untuk kelimanya.
 pub(crate) const SERVER_OK: [bool; 5] = [false, false, false, false, false];
 
-/// `config.digitalocean.token` kosong di `config.js`.
+/// `config.digitalocean.token` kosong.
 pub(crate) const DO_HAS_TOKEN: bool = false;
 
 fn mark(ok: bool) -> &'static str {
@@ -124,7 +123,7 @@ pub(crate) fn build_menu(prefix: &str, roles: &str) -> String {
     is_bot_admin = false
 )]
 pub fn cpanel(ctx: Ctx) -> Reply {
-    // JS: `const prefix = m.prefix || '.'` — mode noprefix tetap pakai titik.
+    // versi awal: `const prefix = m.prefix || '.'` — mode noprefix tetap pakai titik.
     let prefix = if ctx.prefix.is_empty() { "." } else { ctx.prefix.as_str() };
     Reply::text(build_menu(prefix, &role_list(&ctx)))
 }
@@ -215,7 +214,7 @@ mod tests {
 
     #[test]
     fn the_config_backed_status_marks_are_reported_per_server() {
-        // `config.js` masih kosong untuk kelima server dan token DigitalOcean.
+        // masih kosong untuk kelima server dan token DigitalOcean.
         let __balasan = run(".", false);
         let t = text_of(&__balasan);
         assert!(

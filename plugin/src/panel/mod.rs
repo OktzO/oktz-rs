@@ -8,8 +8,8 @@ pub mod jedacreate;
 pub mod rolemanager;
 pub mod uninstalltema;
 
-// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori panel):
-// file yang sudah ada di disk tapi belum dideklarasikan (orphan) dan
+// Ditambahkan untuk perilaku 1:1 dengan bot versi awal (kategori panel):
+// file yang sudah ada di disk tapi belum dideklarasikan (orphan)
 // port baru dari `plugins/panel/`.
 pub mod createserver;
 pub mod delpanel;

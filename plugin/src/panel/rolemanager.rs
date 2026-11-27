@@ -1,25 +1,19 @@
-//! `plugins/panel/rolemanager.js` — kelola owner/ceo/reseller per server.
+//! Kelola owner/ceo/reseller per server.
 //!
-//! `pluginConfig.name` di JS adalah 45 command hasil loop
-//! `ROLES × VALID_SERVERS × (add|del|list)`; `#[plugin]` hanya menerima satu
-//! string, jadi command pertama jadi `name` dan 44 sisanya jadi alias — aturan
-//! yang sama dipakai `fun/siapa.rs` untuk array `name` miliknya.
+//! `Keterbatasan:` menyimpan tiap pasangan role/server di file sendiri
+//! (`database/cpanel/<role>_<server>.json`). `Mutation` hanya punya `SetSetting`, jadi
+//! semua daftar dipindah ke satu setting `cpanelRoles` dengan kunci `"<role>_<server>"` →
+//! array nomor. Pemetaan 1:1, hanya tempatnya yang berbeda.
 //!
-//! `ponytail:` `src/lib/roles-cpanel.js` menyimpan tiap pasangan
-//! role/server di file sendiri (`database/cpanel/<role>_<server>.json`).
-//! `Mutation` hanya punya `SetSetting`, jadi semua daftar dipindah ke satu
-//! setting `cpanelRoles` dengan kunci `"<role>_<server>"` → array nomor.
-//! Pemetaan 1:1, hanya tempatnya yang berbeda.
-//!
-//! `ponytail:` `isLid(jid)` → `lidToJid(jid)` tidak di-port; `src/lib/lid.js`
-//! butuh cache file `database/lid-cache.json` plus `jidDecode` dari `onigis`.
-//! JID `@lid` karena itu diproses apa adanya: angka device-nya yang dipakai.
+//! `Keterbatasan:` `isLid(jid)` → `lidToJid(jid)` tidak diimplementasikan; butuh cache file
+//! `database/lid-cache.json` plus `jidDecode` dari `onigis`. JID `@lid` karena itu diproses
+//! apa adanya: angka device-nya yang dipakai.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `VALID_SERVERS` (`roles-cpanel.js:4`).
+/// `VALID_SERVERS`.
 pub(crate) const SERVERS: [&str; 5] = ["v1", "v2", "v3", "v4", "v5"];
-/// `VALID_ROLES` (`roles-cpanel.js:5`) — urutan ini menentukan role pertama
+/// `VALID_ROLES` — urutan ini menentukan role pertama
 /// yang cocok di `getUserRole`.
 pub(crate) const ROLES: [&str; 3] = ["owner", "ceo", "reseller"];
 
@@ -65,7 +59,7 @@ fn capitalize(s: &str) -> String {
     }
 }
 
-/// `cleanJid` + `getNumber` digabung: JS membentuk JID lengkap lalu memotong
+/// `cleanJid` + `getNumber` digabung: versi awal membentuk JID lengkap lalu memotong
 /// bagian sebelum `@`. Hasilnya sama persis dengan memotong langsung.
 fn number_of(jid: &str) -> Option<String> {
     let trimmed = jid.trim();
@@ -189,7 +183,7 @@ pub fn rolemanager(ctx: Ctx) -> Reply {
         ));
     }
 
-    // Urutan target: reply, lalu mention, lalu angka di teks — sama seperti JS.
+    // Urutan target: reply, lalu mention, lalu angka di teks — sama seperti versi awal.
     let target = ctx
         .quoted()
         .and_then(|q| number_of(&q.sender))
@@ -213,7 +207,7 @@ pub fn rolemanager(ctx: Ctx) -> Reply {
     let mut list = list_for(&ctx, role, server);
 
     if action == "add" {
-        // `addRole(targetUser, server, role)` — `getUserRole` di JS (roles-cpanel.js:83)
+        // `addRole(targetUser, server, role)` — `getUserRole` di versi awal
         // dipanggil atas TARGET, bukan atas pengirim.
         if let Some(existing) = role_of(&ctx, &target, server) {
             return Reply::text(format!(
@@ -310,7 +304,7 @@ mod tests {
 
     #[test]
     fn all_forty_five_generated_commands_resolve() {
-        // 3 role x 5 server x 3 aksi — angka ini berasal dari loop di JS.
+        // 3 role x 5 server x 3 aksi — angka ini berasal dari loop di versi awal.
         assert_eq!(ROLES.len() * SERVERS.len() * 3, 45);
         let mut seen = 0;
         for role in ROLES {
@@ -370,7 +364,7 @@ mod tests {
     #[test]
     fn an_owner_without_a_target_gets_the_usage_card() {
         let r = run("addownerv1", serde_json::json!({}), "628111@s.whatsapp.net", true);
-        // Owner tetap butuh target: guard `!targetUser` di JS jalan untuk semua.
+        // Owner tetap butuh target: guard `!targetUser` di versi awal jalan untuk semua.
         let t = body(&r);
         assert!(t.starts_with("⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*"), "{t}");
         assert!(t.contains("> `.addownerv1 @user`"), "{t}");
@@ -434,7 +428,7 @@ mod tests {
         }
     }
 
-    // `canManageRole` (roles-cpanel.js:149) menolak HANYA role `owner` sebagai
+    // `canManageRole` menolak HANYA role `owner` sebagai
     // target; `ceo` boleh menambah `ceo`. Yang ditolak cuma reseller/tanpa role
     // (lihat test sebelumnya) dan target `owner` (lihat `a_manager_cannot_touch_owner_role`).
     #[test]

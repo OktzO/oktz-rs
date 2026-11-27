@@ -1,11 +1,8 @@
-//! `plugins/panel/cekjeda.js` — status cooldown panel create.
+//! Status cooldown panel create.
 //!
-//! Dua setting yang dibaca `jedacreate.rs`: `panelCreateJeda` (durasi) dan
-//! `panelCreateLastUsed` (epoch ms create terakhir).
-//!
-//! `ponytail:` `formatTime` di sini BUKAN milik `jedacreate.rs` — JS punya dua
-//! fungsi dengan nama sama dan bentuk berbeda: yang di `cekjeda.js` menyertakan
-//! detik pada level jam dan menulis `"0 detik"` untuk nilai non-positif.
+//! `Keterbatasan:` `formatTime` di sini BUKAN milik `jedacreate.rs` — versi awal punya dua
+//! fungsi dengan nama sama dan bentuk berbeda: yang menyertakan detik pada level jam dan
+//! menulis `"0 detik"` untuk nilai non-positif.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -14,7 +11,7 @@ use crate::panel::jedacreate::{DEFAULT_JEDA, JEDA_KEY, LAST_USED_KEY};
 
 pub(crate) const NO_ACCESS: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Kamu tidak memiliki akses ke CPanel!";
 
-/// `formatTime(ms)` dari `cekjeda.js:22` — berbeda dari padanannya di
+/// `formatTime(ms)` — berbeda dari padanannya
 /// `jedacreate.rs`: jam tetap membawa detik, dan nilai non-positif jadi
 /// `"0 detik"` (bukan `"Tanpa jeda"`).
 pub(crate) fn format_time(ms: i64) -> String {
@@ -33,15 +30,15 @@ pub(crate) fn format_time(ms: i64) -> String {
     }
 }
 
-/// `timeHelper.fromTimestamp(ms, 'HH:mm:ss')` (`time.js:112`) — jam lokal
+/// `timeHelper.fromTimestamp(ms, 'HH:mm:ss')` — jam lokal
 /// Asia/Jakarta, dua digit per bagian.
 fn clock_hms(ms: i64) -> String {
     let (_, _, _, h, m, s) = jakarta_parts(ms);
     format!("{}:{}:{}", pad2(h), pad2(m), pad2(s))
 }
 
-/// Guard JS: `hasAccessToServer` membaca file role di `database/cpanel/`
-/// (roles-cpanel.js, pakai `fs`) — tidak ada padanannya di `Ctx`. Yang
+/// Guard versi awal: `hasAccessToServer` membaca file role di `database/cpanel/`
+/// Tidak ada padanannya di `Ctx`. Yang
 /// tersisa adalah cabang owner; lihat catatan batch.
 fn has_access(ctx: &Ctx) -> bool {
     ctx.is_owner
@@ -65,7 +62,7 @@ pub(crate) fn status_text(jeda_ms: i64, last_used: i64, now: i64, is_owner: bool
     text.push_str(&format!("┃ {status_desc}\n"));
     text.push_str("╰┈┈⬡\n\n");
 
-    // `jedaMs === 0 ? 'OFF' : formatTime(jedaMs)` — `OFF` tidak diformat ulang.
+    // `jedaMs === 0 ? 'OFF': formatTime(jedaMs)` — `OFF` tidak diformat ulang.
     let jeda_label = if jeda_ms == 0 {
         "OFF".to_string()
     } else {
@@ -178,7 +175,7 @@ mod tests {
     #[test]
     fn a_sender_without_cpanel_access_is_refused() {
         // Role owner/ceo/reseller dibaca dari file `database/cpanel/*.json`;
-        // tanpa akses itu, hanya owner yang lolos — sama seperti JS saat semua
+        // tanpa akses itu, hanya owner yang lolos — sama seperti versi awal saat semua
         // file role kosong.
         let r = run(Value::Null, false);
         assert_eq!(text_of(&r), NO_ACCESS);

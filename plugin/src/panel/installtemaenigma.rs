@@ -1,6 +1,6 @@
-//! `plugins/panel/installtemaenigma.js` — install tema Enigma lewat SSH.
+//! Install tema Enigma lewat SSH.
 //!
-//! `ponytail:` sama seperti dua installer tema lain: guard + validasi dipindah,
+//! `Keterbatasan:` sama seperti dua installer tema lain: guard + validasi dipindah,
 //! `execSSHInteractive` (yang menulis `AKSES TOKEN`, pilihan tema, lalu link
 //! WA/group/channel) butuh klien SSH yang tidak ada di `Ctx`.
 
@@ -15,7 +15,7 @@ pub(crate) const USAGE: &str = "╭┈┈⬡「 🎨 *ɪɴsᴛᴀʟʟ ᴛᴇᴍ�
 pub(crate) const BAD_FORMAT: &str =
     "❌ Format salah!\n\n> Gunakan: `ip|password|link_wa|link_group|link_channel`";
 
-/// Lima bagian yang di-`trim`; `None` kalau kurang dari lima (JS:
+/// Lima bagian yang di-`trim`; `None` kalau kurang dari lima (versi awal:
 /// `parts.length < 5`).
 pub(crate) fn parse_input(text: &str) -> Option<[String; 5]> {
     let parts: Vec<&str> = text.split('|').collect();

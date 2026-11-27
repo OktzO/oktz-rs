@@ -1,7 +1,4 @@
-//! `plugins/panel/jedacreate.js` — set jeda global untuk semua panel create.
-//!
-//! Dua setting global: `panelCreateJeda` (durasi) dan `panelCreateLastUsed`
-//! (reset ke 0 setiap kali jeda diubah).
+//! Set jeda global untuk semua panel create.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -16,7 +13,7 @@ pub(crate) const DEFAULT_JEDA: i64 = 5 * 60 * 1000;
 ///
 /// `""` dan `"0"` → 0 (jeda mati, sebelum regex dijalankan). Tidak cocok regex
 /// → `None` (format salah). Angka yang melimpah `i64` tetap dianggap valid —
-/// JS tidak punya batas integer — jadi hasilnya disaturasi, bukan ditolak.
+/// versi awal tidak punya batas integer — jadi hasilnya disaturasi, bukan ditolak.
 pub(crate) fn parse_time(input: &str) -> Option<i64> {
     let t = input.trim();
     if t.is_empty() || t == "0" {
@@ -26,7 +23,7 @@ pub(crate) fn parse_time(input: &str) -> Option<i64> {
     if digits.is_empty() {
         return None;
     }
-    // Unit TIDAK boleh di-`trim`: regex `^(\d+)(s|m|h)?$` menolak spasi di
+    // Unit TIDAK boleh di-`trim`: regex `^(\d+)(s|m|h)?$` menolak spasi
     // tengah, jadi `"5 m"` format salah — bukan `5m`.
     let unit = &t[digits.len()..];
     let factor = match unit.to_ascii_lowercase().as_str() {
@@ -39,8 +36,8 @@ pub(crate) fn parse_time(input: &str) -> Option<i64> {
     Some(value.saturating_mul(factor))
 }
 
-/// `formatTime(ms)` dari `jedacreate.js:35` — bentuknya sendiri: jam tidak
-/// menyertakan detik (bandingkan `cekjeda.js`, yang tidak ikut dipakai di sini).
+/// `formatTime(ms)` — bentuknya sendiri: jam tidak
+/// menyertakan detik.
 pub(crate) fn format_time(ms: i64) -> String {
     if ms <= 0 {
         return "Tanpa jeda".to_string();
@@ -265,7 +262,7 @@ mod tests {
 
     #[test]
     fn an_empty_whitespace_input_is_the_info_branch_not_an_error() {
-        // `!input` menang sebelum `parseTime`, jadi `"   "` tidak jadi format salah.
+        // `!input` menang sebelum `parseTime`, jadi `" "` tidak jadi format salah.
         let r = run("   ", Value::Null);
         assert!(text_of(&r).starts_with("⏱️ *ᴊᴇᴅᴀ ᴘᴀɴᴇʟ ᴄʀᴇᴀᴛᴇ*"));
         assert!(r.mutations().is_empty());
@@ -282,7 +279,7 @@ mod tests {
 
     #[test]
     fn an_overlong_number_is_accepted_and_saturated() {
-        // JS `parseInt` tidak punya batas integer, jadi angka sepanjang ini
+        // versi awal `parseInt` tidak punya batas integer, jadi angka sepanjang ini
         // tetap FORMAT VALID — hanya nilainya yang tidak muat i64.
         let r = run("99999999999999999999", Value::Null);
         assert!(!text_of(&r).starts_with("❌"), "{}", text_of(&r));
@@ -310,7 +307,7 @@ mod tests {
 
     #[test]
     fn format_time_drops_seconds_once_hours_are_reached() {
-        // Bentuk `jedacreate.js`, bukan `cekjeda.js`: jam tidak bawa detik.
+        // Bentuk, bukan: jam tidak bawa detik.
         assert_eq!(format_time(0), "Tanpa jeda");
         assert_eq!(format_time(-5), "Tanpa jeda");
         assert_eq!(format_time(45_000), "45 detik");

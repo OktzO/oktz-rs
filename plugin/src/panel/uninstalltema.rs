@@ -1,20 +1,15 @@
-//! `plugins/panel/uninstalltema.js` — uninstall tema Pterodactyl lewat SSH.
+//! Uninstall tema Pterodactyl lewat SSH.
 //!
-//! `ponytail:` `pluginConfig.name` di JS adalah array
-//! `['uinstalltema','uninstalltema','removetema','hapustema']` dengan `alias: []`,
-//! jadi elemen pertama jadi `name` dan sisanya jadi command tambahan
-//! (`PluginMeta::commands`) — pola yang sama dengan `group/autodl.rs`.
-//!
-//! Yang dipindah: kedua guard, pembacaan `ip|password`, dan penulisan
-//! `global.installtema = { vps, pwvps }` (saya di sini `Ctx::session_set`).
-//! `ress.connect()` + `exec` + tulis `skyzodev/2/y/x` ke stream butuh klien SSH
-//! yang tidak ada di `Ctx`. `parse_input` dipakai dari `installtemabilling.rs`.
+//! `Keterbatasan:` `pluginConfig.name` di versi awal adalah array
+//! `['uinstalltema','uninstalltema','removetema','hapustema']` dengan `alias: []`, jadi
+//! elemen pertama jadi `name` dan sisanya jadi command tambahan (`PluginMeta::commands`) —
+//! pola yang sama dengan `group/autodl.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::panel::installtemabilling::{BAD_FORMAT, parse_input};
 
-/// Kunci global yang diisi JS — dipakai plugin lain sebagai sumber kredensial.
+/// Kunci global yang diisi versi awal — dipakai plugin lain sebagai sumber kredensial.
 pub(crate) const SESSION_KEY: &str = "installtema";
 
 pub(crate) const USAGE: &str = "╭┈┈⬡「 🗑️ *ᴜɴɪɴsᴛᴀʟʟ ᴛᴇᴍᴀ* 」\n\
@@ -91,7 +86,7 @@ mod tests {
     #[test]
     fn registers_with_the_js_plugin_config() {
         let m = &find("uinstalltema").unwrap().meta;
-        // JS `name` adalah array; elemen pertama jadi name, sisanya command.
+        // versi awal `name` adalah array; elemen pertama jadi name, sisanya command.
         assert_eq!(m.name, "uinstalltema");
         assert_eq!(m.commands, ["uninstalltema", "removetema", "hapustema"]);
         assert!(m.alias.is_empty());
@@ -149,7 +144,7 @@ mod tests {
     }
 
     // Perintah dan input stream yang belum bisa dieksekusi — dijaga agar
-    // port SSH nanti tidak perlu membuka `uninstalltema.js` lagi.
+    // port SSH nanti tidak perlu membuka lagi.
     const UNINSTALL_CMD: &str =
         "bash <(curl -s https://raw.githubusercontent.com/veryLinh/Theme-Autoinstaller/main/install.sh)";
     const STREAM_INPUTS: [&str; 4] = ["skyzodev", "2", "y", "x"];
