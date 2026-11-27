@@ -1,37 +1,17 @@
-//! `plugins/ephoto/ephoto.js` — efek teks dari en.ephoto360.com.
+//! Efek teks dari en.ephoto360.com.
 //!
-//! `pluginConfig.name` di JS adalah array 32 efek; `#[plugin]` hanya menerima
-//! satu string, jadi efek pertama jadi `name` dan sisanya jadi command
-//! tambahan (`PluginMeta::commands`, `plugins.js:207-209`), lalu alias JS
-//! (`ephoto`) menyusul — aturan yang sama seperti `siapa.rs` dan
-//! `husbualbum.rs`.
-//!
-//! Alur scraper `ephoto(url, textInput)` (`ephoto.js:64-101`) kini di-port
-//! utuh lewat `HttpGet::call` (header kustom, multipart, dan cookie sesi
-//! didukung penuh):
-//!
-//! 1. GET halaman efek dengan UA Chrome → kumpulkan `set-cookie` dan baca
-//!    `<input name=token|build_server|build_server_id>` dari HTML.
-//! 2. POST multipart ke URL yang sama (`text[]`, token, build_server,
-//!    build_server_id + cookie sesi) → baca `<input name=form_value_input>`
-//!    (nilai JSON), salin `text` ke kunci `text[]`.
-//! 3. POST urlencoded `form_value_input` ke `/effect/create-image` dengan
-//!    cookie sesi → ambil `image` dari JSON-nya.
-//!
-//! Hasilnya `buildServer + image` (`ephoto.js:100`).
-//!
-//! `ponytail:` JS melempar di langkah 3 kalau `set-cookie` kosong
-//! (`initialResponse.headers['set-cookie'].join`), dan `sendMedia` di dalam
-//! `try` gagal kalau URL hasilnya tidak bisa diunduh — keduanya jatuh ke
-//! template error yang sama, jadi di sini keduanya `Err`.
+//! `Keterbatasan:` versi awal melempar di langkah 3 kalau `set-cookie` kosong
+//! (`initialResponse.headers['set-cookie'].join`), dan `sendMedia` di dalam `try` gagal
+//! kalau URL hasilnya tidak bisa diunduh — keduanya jatuh ke template error yang sama, jadi
+//! di sini keduanya `Err`.
 
 use oktz_plugin_api::{
     Ctx, HttpCall, HttpGet, HttpResponse, MediaSource, MultipartPart, Reply, plugin,
 };
 use serde_json::Value;
 
-/// `EFFECT_URLS` (`ephoto.js:5-38`) — urutan objek JS dipertahankan karena
-/// `Object.keys(...).map(...)` di `ephoto.js:117` ikut bergantung padanya.
+/// `EFFECT_URLS` — urutan objek versi awal dipertahankan karena
+/// `Object.keys(...).map(...)` ikut bergantung padanya.
 /// Kunci bukan identifier Rust yang sah (`1917style`), jadi tabel bukan map.
 pub(crate) const EFEK: [(&str, &str); 32] = [
     (
@@ -161,8 +141,8 @@ pub(crate) const EFEK: [(&str, &str); 32] = [
     ("lighteffects", "https://en.ephoto360.com/light-effects-74.html"),
 ];
 
-/// `name` (efek pertama) + sisa array `name` + alias JS `ephoto` — urutan ini
-/// dipakai tes untuk membandingkan attribute `#[plugin]` dengan array JS.
+/// `name` (efek pertama) + sisa array `name` + alias versi awal `ephoto` — urutan ini
+/// dipakai tes untuk membandingkan attribute `#[plugin]` dengan array versi awal.
 #[cfg(test)]
 pub(crate) const COMMANDS: [&str; 33] = [
     "glitchtext",
@@ -202,13 +182,13 @@ pub(crate) const COMMANDS: [&str; 33] = [
 
 /// `'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 /// Gecko) Chrome/105.0.0.0 Safari/537.36'` — dipakai ketiga langkah
-/// (`ephoto.js:68,85,94`).
+///
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36";
 
-/// `https://en.ephoto360.com/effect/create-image` (`ephoto.js:92`).
+/// `https://en.ephoto360.com/effect/create-image`.
 const ENDPOINT_CREATE: &str = "https://en.ephoto360.com/effect/create-image";
 
-/// `EFFECT_URLS[command]` (`ephoto.js:130`).
+/// `EFFECT_URLS[command]`.
 pub(crate) fn url_efek(command: &str) -> Option<&'static str> {
     EFEK
         .iter()
@@ -216,7 +196,7 @@ pub(crate) fn url_efek(command: &str) -> Option<&'static str> {
         .map(|(_, url)| *url)
 }
 
-/// `ephoto.js:117-123` — daftar efek untuk command `ephoto`.
+/// Daftar efek untuk command `ephoto`.
 pub(crate) fn daftar_efek(prefix: &str) -> String {
     let mut out = String::new();
     for (nama, _) in EFEK.iter() {
@@ -226,16 +206,16 @@ pub(crate) fn daftar_efek(prefix: &str) -> String {
     out
 }
 
-/// `ephoto.js:127` — teks kosong.
+/// Teks kosong.
 pub(crate) fn tanpa_teks(prefix: &str, command: &str) -> String {
     format!("❌ *ᴇʀʀᴏʀ*\n\n> Masukkan text!\n> *Contoh:* {prefix}{command} Foto-AI")
 }
 
-/// `ephoto.js:132` — efek tidak ada di peta.
+/// Efek tidak ada di peta.
 pub(crate) const EFEK_TAK_ADA: &str = "❌ Efek tidak ditemukan";
 
 /// `te(m.prefix, m.command, m.pushName)` dengan `config.errorTemplate`
-/// (`config.js:153`). `m.pushName` tidak ada di `Ctx`, jadi fallback `'User'`
+/// . `m.pushName` tidak ada di `Ctx`, jadi fallback `'User'`
 /// yang dipakai — sama seperti `tod.rs`/`wwkill.rs`.
 #[allow(dead_code)]
 pub(crate) fn error_template(prefix: &str, command: &str) -> String {
@@ -246,7 +226,7 @@ pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `initialResponse.headers['set-cookie']?.join('; ')` (`ephoto.js:87`) —
+/// `initialResponse.headers['set-cookie']?.join('; ')` —
 /// axios menyimpan `set-cookie` sebagai array, jadi semua entri digabung.
 fn cookie_header(headers: &[(String, String)]) -> Option<String> {
     let cookies: Vec<&str> = headers
@@ -257,7 +237,7 @@ fn cookie_header(headers: &[(String, String)]) -> Option<String> {
     (!cookies.is_empty()).then(|| cookies.join("; "))
 }
 
-/// Baca satu atribut dari string tag `<input ...>` — nilai bisa berkutip
+/// Baca satu atribut dari string tag `<input...>` — nilai bisa berkutip
 /// ganda, berkutip tunggal, atau tanpa kutip.
 fn atribut(tag: &str, nama: &str) -> Option<String> {
     let mut i = 0;
@@ -318,7 +298,7 @@ fn atribut(tag: &str, nama: &str) -> Option<String> {
     None
 }
 
-/// HTML-escape: `&quot;` `&amp;` `&#39;` `&apos;` `&lt;` `&gt;` `&nbsp;` dan
+/// HTML-escape: `&quot;` `&amp;` `&#39;` `&apos;` `&lt;` `&gt;` `&nbsp;`
 /// entri numerik (`&#68;` / `&#x44;`). `cheerio` men-decode entitas ini saat
 /// membaca nilai atribut, jadi `.val()` hasilnya sudah polos.
 fn decode_entities(s: &str) -> String {
@@ -362,12 +342,12 @@ fn decode_entities(s: &str) -> String {
     out
 }
 
-/// `$('input[name=X]').val()` (`ephoto.js:76-79,88`) — cari tag `<input>`
+/// `$('input[name=X]').val()` — cari tag `<input>`
 /// pertama dengan atribut `name` yang cocok, lalu baca `value`-nya.
 ///
-/// `ponytail:` elemen tanpa atribut `value` menghasilkan string kosong
+/// `Keterbatasan:` elemen tanpa atribut `value` menghasilkan string kosong
 /// (`cheerio` `.val()`), sedangkan `input` tidak ditemukan sama sekali
-/// menghasilkan `undefined` di JS — di sini jadi `Err` agar jatuh ke template
+/// menghasilkan `undefined` di versi awal — di sini jadi `Err` agar jatuh ke template
 /// error, bukan mengirim `"undefined"` ke server.
 fn input_value(html: &str, nama: &str) -> Option<String> {
     let mut rest = html;
@@ -385,14 +365,14 @@ fn input_value(html: &str, nama: &str) -> Option<String> {
     None
 }
 
-/// `String(nilai)` di JS — koersi yang dipakai `new URLSearchParams(obj)`
-/// (`ephoto.js:93`) untuk tiap nilai properti.
+/// `String(nilai)` di versi awal — koersi yang dipakai `new URLSearchParams(obj)`
+/// untuk tiap nilai properti.
 fn js_string(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => {
-            // `String(1917)` = `"1917"`, bukan `"1917.0"` — angka bulat JS
+            // `String(1917)` = `"1917"`, bukan `"1917.0"` — angka bulat versi awal
             // tidak punya bagian pecahan.
             if let Some(i) = n.as_i64() {
                 i.to_string()
@@ -442,7 +422,7 @@ fn form_encode(pasangan: &[(String, String)]) -> String {
 }
 
 /// `axios` menolak status non-2xx (`validateStatus` bawaan) — semua `catch`
-/// di handler JS berasal dari sini atau dari field yang hilang.
+/// di handler versi awal berasal dari sini atau dari field yang hilang.
 fn periksa_status(res: &HttpResponse) -> Result<(), String> {
     if (200..300).contains(&res.status) {
         Ok(())
@@ -451,11 +431,11 @@ fn periksa_status(res: &HttpResponse) -> Result<(), String> {
     }
 }
 
-/// `ephoto(url, textInput)` (`ephoto.js:64-101`) — tiga langkah scraper:
+/// `ephoto(url, textInput)` — tiga langkah scraper:
 /// GET halaman efek, POST multipart ber-cookie, POST final ke endpoint
 /// `create-image`. Hasil: `buildServer + image`.
 fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
-    // Langkah 1 (`ephoto.js:67-74`): GET halaman efek dengan UA Chrome.
+    // Langkah 1: GET halaman efek dengan UA Chrome.
     let awal = http
         .call(
             &HttpCall::get(url)
@@ -473,7 +453,7 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
     let build_server_id = input_value(&html, "build_server_id")
         .ok_or("input build_server_id tidak ditemukan")?;
 
-    // Langkah 2 (`ephoto.js:66,81-90`): POST multipart ke URL yang sama.
+    // Langkah 2: POST multipart ke URL yang sama.
     // `formData.append('text[]', textInput)` dulu, baru token dst — urutan
     // part dipertahankan.
     let mut panggilan = HttpCall::post(url)
@@ -496,7 +476,7 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
     periksa_status(&post)?;
     let post_html = post.text();
 
-    // `JSON.parse($$('input[name=form_value_input]').val())` (`ephoto.js:88`).
+    // `JSON.parse($$('input[name=form_value_input]').val())`.
     let nilai_form = input_value(&post_html, "form_value_input")
         .ok_or("input form_value_input tidak ditemukan")?;
     let parsed: Value = serde_json::from_str(&nilai_form)
@@ -504,7 +484,7 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
     let obj = parsed.as_object().ok_or("form_value_input bukan objek")?;
 
     // `formValueInput['text[]'] = formValueInput.text; delete
-    // formValueInput.text` (`ephoto.js:89-90`) — kunci lain tetap urut asli,
+    // formValueInput.text` — kunci lain tetap urut asli,
     // `text[]` ditambahkan di akhir.
     let mut pasangan: Vec<(String, String)> = Vec::with_capacity(obj.len());
     for (k, v) in obj {
@@ -521,8 +501,8 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
         .unwrap_or_else(|| "undefined".into());
     pasangan.push(("text[]".into(), teks_akhir));
 
-    // Langkah 3 (`ephoto.js:92-98`): POST urlencoded ke endpoint create-image.
-    // JS tanpa `.?` di sini — `set-cookie` kosong melempar dan jatuh ke
+    // Langkah 3: POST urlencoded ke endpoint create-image.
+    // versi awal tanpa `.?` di sini — `set-cookie` kosong melempar dan jatuh
     // template error.
     let cookie = cookie.ok_or("set-cookie kosong")?;
     let akhir = http
@@ -536,7 +516,7 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
         .map_err(|e| e.message)?;
     periksa_status(&akhir)?;
 
-    // `finalResponseData.image` (`ephoto.js:99`).
+    // `finalResponseData.image`.
     let image = akhir
         .json()
         .and_then(|v| v.get("image")?.as_str().map(str::to_string))
@@ -652,7 +632,7 @@ mod tests {
         }
     }
 
-    /// `ephoto.js:118-123` dirakit utuh supaya teks tampilan bisa dibandingkan
+    /// dirakit utuh supaya teks tampilan bisa dibandingkan
     /// tanpa menyalin 32 baris efek dua kali.
     fn harapan_daftar(prefix: &str) -> String {
         format!(
@@ -852,8 +832,8 @@ mod tests {
         assert_eq!(url_efek("tidak-ada"), None);
     }
 
-    /// Semua 32 URL template sama persis dengan `EFFECT_URLS` JS
-    /// (`ephoto.js:5-38`) — diulang utuh di sini supaya pergeseran satu baris
+    /// Semua 32 URL template sama persis dengan `EFFECT_URLS` versi awal
+    /// Diulang utuh di sini supaya pergeseran satu baris
     /// saja ketahuan.
     #[test]
     fn every_effect_url_matches_the_js_table_verbatim() {
@@ -951,7 +931,7 @@ mod tests {
         assert!(!daftar.ends_with('\n'), "join tidak menambah baris kosong");
     }
 
-    // ---- scraper `ephoto(url, textInput)` (`ephoto.js:64-101`) ----
+    // --- scraper `ephoto(url, textInput)` ----
 
     #[test]
     fn the_scraper_returns_build_server_plus_image() {
@@ -1027,7 +1007,7 @@ mod tests {
         let panggilan = s.panggilan.lock().unwrap();
         let post = &panggilan[2];
         assert_eq!(post.url, "https://en.ephoto360.com/effect/create-image");
-        // `text` dihapus, `text[]` ditambahkan di akhir (`ephoto.js:89-90`).
+        // `text` dihapus, `text[]` ditambahkan di akhir.
         assert_eq!(
             header_dari(post, "cookie"),
             Some("PHPSESSID=abc123; path=/; lang=en")
@@ -1041,7 +1021,7 @@ mod tests {
     #[test]
     fn a_missing_set_cookie_fails_like_the_js_join() {
         // `initialResponse.headers['set-cookie'].join('; ')` di langkah 3
-        // melempar kalau tidak ada cookie (`ephoto.js:94`).
+        // melempar kalau tidak ada cookie.
         let s = Arc::new(ScraperStub {
             cookie: vec![],
             ..stub()
