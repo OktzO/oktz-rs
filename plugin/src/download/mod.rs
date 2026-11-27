@@ -20,15 +20,15 @@ pub mod videy;
 pub mod ytmp3;
 pub mod ytmp4;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod aio;
 pub mod alightmotion;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod tiktok;
 pub mod tiktokdl2;
 pub mod ttmp3;

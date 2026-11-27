@@ -1,8 +1,4 @@
 //! Klien HTTP dan(assert) kecil khusus uji jaringan downloader.
-//!
-//! Padananrequest di `plugins/download/*.js` memakai `axios`; helper ini
-//! memakai `curl` yang sudah tersedia agar crate plugin tidak menambah
-//! dependency jaringan. Semua fungsi di modul ini hanya aktif pada `cfg(test)`.
 
 use oktz_plugin_api::{
     Ctx, HttpBody, HttpCall, HttpError, HttpGet, HttpMethod, HttpResponse, MultipartPart, Reply,

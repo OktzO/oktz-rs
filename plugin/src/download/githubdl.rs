@@ -1,18 +1,18 @@
-//! `plugins/download/githubdl.js` — unduh repository GitHub sebagai ZIP.
+//! Unduh repository GitHub sebagai ZIP.
 //!
-//! `ponytail:` pemeriksaan kedua di JS memakai `fetch(..., { method: 'HEAD' })`,
-//! tapi `HttpGet` (`oktz-plugin-api`) tidak punya HEAD — hanya GET. Konsekuensinya
-//! ZIP yang dicek ikut terunduh utuh, dan `maxContentLength` yang di JS membatasi
-//! sisanya tidak ada di sini. Tambahkan metode HEAD ke trait `HttpGet` kalau
-//! repo besar mulai jadi masalah.
+//! `Keterbatasan:` pemeriksaan kedua di versi awal memakai `fetch(..., { method: 'HEAD'
+//! })`, tapi `HttpGet` (`oktz-plugin-api`) tidak punya HEAD — hanya GET. Konsekuensinya ZIP
+//! yang dicek ikut terunduh utuh, dan `maxContentLength` yang di versi awal membatasi
+//! sisanya tidak ada di sini. Tambahkan metode HEAD ke trait `HttpGet` kalau repo besar
+//! mulai jadi masalah.
 //!
-//! `ponytail:` `Reply` tidak punya variant document, jadi hasil `sendMedia` hanya
+//! `Keterbatasan:` `Reply` tidak punya variant document, jadi hasil `sendMedia` hanya
 //! terkirim sebagai nama file teks.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `githubdl.js:36-42` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -23,15 +23,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `githubdl.js:46` — username ada, repository tidak.
+/// Username ada, repository tidak.
 pub(crate) const NO_REPO: &str = "❌ *ʀᴇᴘᴏ ᴅɪʙᴜᴛᴜʜᴋᴀɴ*\n\n> Masukkan nama repository";
 
-/// `githubdl.js:56` — API GitHub menjawab tidak `ok`.
+/// API GitHub menjawab tidak `ok`.
 pub(crate) fn not_found(username: &str, repo: &str) -> String {
     format!("❌ *ʀᴇᴘᴏ ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> `{username}/{repo}` tidak ada")
 }
 
-/// `githubdl.js:68` — HEAD ke ZIP tidak `ok`.
+/// HEAD ke ZIP tidak `ok`.
 pub(crate) fn bad_branch(branch: &str, default_branch: &str) -> String {
     format!(
         "❌ *ʙʀᴀɴᴄʜ ᴛɪᴅᴀᴋ ᴀᴅᴀ*\n\n\
@@ -40,7 +40,7 @@ pub(crate) fn bad_branch(branch: &str, default_branch: &str) -> String {
     )
 }
 
-/// Hasil pemecahan argumen `githubdl.js:19-33`. `username`/`repo` kosong
+/// Hasil pemecahan argumen. `username`/`repo` kosong
 /// berarti input malformed — hanya `username` yang diperiksa plugin.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct Target {
@@ -49,7 +49,7 @@ pub(crate) struct Target {
     pub branch: String,
 }
 
-/// `githubdl.js:23` — `/github\.com\/([^/]+)\/([^/]+)/i` tanpa regex crate.
+/// `/github\.com\/([^/]+)\/([^/]+)/i` tanpa regex crate.
 /// `user` dan `repo` wajib punya minimal satu karakter (`[^/]+`).
 fn match_repo_url(url: &str) -> Option<(String, String)> {
     const NEEDLE: &[u8] = b"github.com/";
@@ -73,14 +73,14 @@ fn match_repo_url(url: &str) -> Option<(String, String)> {
     None
 }
 
-/// `githubdl.js:19-33`. `args[0]` kosong membuat `branch` tetap kosong, padahal
-/// JS isi `'main'` — bedanya tidak terlihat karena `username` kosong sudah lebih
+/// . `args[0]` kosong membuat `branch` tetap kosong, padahal
+/// versi awal isi `'main'` — bedanya tidak terlihat karena `username` kosong sudah lebih
 /// dulu mengembalikan kartu pakai.
 pub(crate) fn parse_target<S: AsRef<str>>(args: &[S]) -> Target {
     let Some(first) = args.first().map(AsRef::as_ref) else {
         return Target::default();
     };
-    // `includes('github.com')` di JS TIDAK case-insensitive; regex-nya iya.
+    // `includes('github.com')` di versi awal TIDAK case-insensitive; regex-nya iya.
     if first.contains("github.com") {
         let Some((username, repo)) = match_repo_url(first) else {
             return Target::default();
@@ -104,12 +104,12 @@ pub(crate) fn parse_target<S: AsRef<str>>(args: &[S]) -> Target {
     }
 }
 
-/// `githubdl.js:73` — `fileName` untuk `sendMedia`.
+/// `fileName` untuk `sendMedia`.
 pub(crate) fn zip_filename(repo: &str, branch: &str) -> String {
     format!("{repo} - Branch: {branch}.zip")
 }
 
-/// `res.ok` di JS = status 2xx. `HttpGet` sudah mengembalikan `Err` di atas
+/// `res.ok` di versi awal = status 2xx. `HttpGet` sudah mengembalikan `Err` di atas
 /// 399, tapi 3xx juga tidak `ok`.
 fn is_ok(status: u16) -> bool {
     (200..300).contains(&status)
@@ -133,7 +133,7 @@ fn is_ok(status: u16) -> bool {
 )]
 pub fn githubdl(ctx: Ctx) -> Reply {
     let target = parse_target(&ctx.args);
-    // `githubdl.js:35` hanya memeriksa `username` lebih dulu; `repo` kosong
+    // hanya memeriksa `username` lebih dulu; `repo` kosong
     // ditangani setelahnya supaya urutannya sama.
     let Some(username) = target.username else {
         return Reply::text(help(&ctx.prefix));
@@ -156,7 +156,7 @@ pub fn githubdl(ctx: Ctx) -> Reply {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "main".to_string());
 
-    // `branch = branch || defaultBranch`; `branch` sudah `'main'` dari
+    // `branch = branch || defaultBranch`; `branch` sudah `'main'`
     // `parse_target`, jadi `defaultBranch` praktis hanya untuk pesan error.
     let branch = if target.branch.is_empty() {
         default_branch.clone()
@@ -165,8 +165,8 @@ pub fn githubdl(ctx: Ctx) -> Reply {
     };
     let zip_url = format!("https://github.com/{username}/{repo}/archive/refs/heads/{branch}.zip");
 
-    // `githubdl.js:70-77` — `sendMedia` document dari URL zip, lalu reaksi
-    // centang. GET pengecekan branch tetap jalan dulu seperti di JS.
+    // `sendMedia` document dari URL zip, lalu reaksi
+    // centang. GET pengecekan branch tetap jalan dulu seperti di versi awal.
     match ctx.http.get(&zip_url) {
         Ok(r) if is_ok(r.status) => Reply::document(
             MediaSource::url(zip_url).with_mimetype("application/zip"),
@@ -389,7 +389,7 @@ mod tests {
     fn a_resolved_branch_sends_the_zip_document() {
         let http = Stub::ok(200);
         let r = run(http.clone(), &["niceplugin", "NiceBot", "main"]);
-        // `githubdl.js:70-77` — dokumen zip dari URL + nama berkas.
+        // Dokumen zip dari URL + nama berkas.
         let isi = match r.without_mutations() {
             Reply::Reaction { reply, .. } => reply.as_ref(),
             lain => lain,
@@ -469,7 +469,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan GitHub; set OKTZ_TEST_GITHUB_REPO, opsional OKTZ_TEST_GITHUB_BRANCH"]
     fn live_githubdl_mengambil_dokumen() {
-        // Uji live padanan `plugins/download/githubdl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let repo = env_required("OKTZ_TEST_GITHUB_REPO");

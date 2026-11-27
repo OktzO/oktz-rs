@@ -1,23 +1,14 @@
-//! `plugins/download/pixeldraindl.js` — unduh file dari Pixeldrain.
-//!
-//! `config.APIkey?.neoxr` dibaca dari runtime `Ctx`, lalu dipakai apa adanya
-//! pada query `apikey=` seperti `pixeldraindl.js:4,36`.
-//!
-//! `f()` (`src/lib/http.js:32`) **tidak pernah melempar**: status `>= 400` dan
-//! semua error transport RETURN `null`. Jadi `Err` dari `ctx.http.get` — termasuk
-//! status di atas 399 yang memang jadi `Err` di API plugin — dipetakan ke
-//! `Value::Null`, bukan ke cabang `catch`. Kalau tidak, kegagalan jaringan akan
-//! diam-diam memakai pesan yang berbeda dari `f()` di Node.
+//! Unduh file dari Pixeldrain.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::js_falsy;
 
-/// `pixeldraindl.js:36` — endpoint aggregator neoxr.
+/// Endpoint aggregator neoxr.
 pub(crate) const ENDPOINT: &str = "https://api.neoxr.eu/api/pixeldrain";
 
-/// `pixeldraindl.js:24-29` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📥 *ᴘɪxᴇʟᴅʀᴀɪɴ ᴅᴏᴡɴʟᴏᴀᴅ*\n\n\
@@ -29,10 +20,10 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `pixeldraindl.js:42` — `!data?.status || !data?.data`.
+/// `!data?.status || !data?.data`.
 pub(crate) const TIDAK_ADA: &str = "❌ *ɢᴀɢᴀʟ*\n\n> File tidak ditemukan atau link tidak valid";
 
-/// `pixeldraindl.js:71` — `file.size` ditulis ulang mentah dari backend, bukan
+/// `file.size` ditulis ulang mentah dari backend, bukan
 /// angka hasil konversi ke MB.
 pub(crate) fn terlalu_besar(size: &str) -> String {
     format!(
@@ -42,9 +33,9 @@ pub(crate) fn terlalu_besar(size: &str) -> String {
     )
 }
 
-/// `/^(https?:\/\/[\w.-]*\.?pixeldrain\.com\/)/` (`pixeldraindl.js:22`).
+/// `/^(https?:\/\/[\w.-]*\.?pixeldrain\.com\/)/`.
 ///
-/// Regex JS ini TIDAK punya flag `i`, jadi `HTTPS://PIXELDRAIN.COM/` ditolak.
+/// Regex versi awal ini TIDAK punya flag `i`, jadi `HTTPS://PIXELDRAIN.COM/` ditolak.
 /// `[\w.-]*` juga tidak dikunci ke batas label, jadi `evilpixeldrain.com/`
 /// tetap lolos — dua keanehan itu ikut dipertahankan, bukan diperbaiki.
 pub(crate) fn is_pixeldrain_url(url: &str) -> bool {
@@ -58,13 +49,13 @@ pub(crate) fn is_pixeldrain_url(url: &str) -> bool {
     let Some(ix) = rest.find("pixeldrain.com/") else {
         return false;
     };
-    // `\w` di JS ASCII saja: `A-Za-z0-9_`.
+    // `\w` di versi awal ASCII saja: `A-Za-z0-9_`.
     rest[..ix]
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-')
 }
 
-/// `encodeURIComponent` (`pixeldraindl.js:36`) — BEDA dari `searchParams.set`
+/// `encodeURIComponent` — BEDA dari `searchParams.set`
 /// milik `douyindl::query_encode`: spasi jadi `%20`, bukan `+`.
 pub(crate) fn encode_uri_component(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
@@ -88,7 +79,7 @@ pub(crate) fn encode_uri_component(raw: &str) -> String {
     out
 }
 
-/// `pixeldraindl.js:36` — URL aggregator lengkap.
+/// URL aggregator lengkap.
 pub(crate) fn api_url(url: &str, apikey: &str) -> String {
     format!(
         "{ENDPOINT}?url={}&apikey={}",
@@ -97,8 +88,8 @@ pub(crate) fn api_url(url: &str, apikey: &str) -> String {
     )
 }
 
-/// `String(x)` untuk nilai JSON — dipakai untuk `file.url` yang masuk ke
-/// `sendMedia`. `null` ikut jadi string kosong, sama seperti di JS.
+/// `String(x)` untuk nilai JSON — dipakai untuk `file.url` yang masuk
+/// `sendMedia`. `null` ikut jadi string kosong, sama seperti di versi awal.
 fn js_to_string(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -108,10 +99,10 @@ fn js_to_string(v: &Value) -> String {
     }
 }
 
-/// `file.size?.match(/([\d.]+)\s*(MB|GB|KB)/i)` (`pixeldraindl.js:48`).
+/// `file.size?.match(/([\d.]+)\s*(MB|GB|KB)/i)`.
 ///
 /// `?.` hanya short-circuit kalau `size` `null`/`undefined`. Kalau `size` ada
-/// tapi BUKAN string (angka, objek, array), `.match` bukan method dan JS melempar
+/// tapi BUKAN string (angka, objek, array), `.match` bukan method dan versi awal melempar
 /// `TypeError` — itu masuk cabang `catch`. Bentuk itu dipisah di sini lewat
 /// [`SizeField`] supaya tidak hilang.
 #[derive(Debug, Clone, Copy)]
@@ -120,14 +111,14 @@ pub(crate) enum SizeField<'a> {
     Absent,
     /// String — `String.prototype.match` dipanggil.
     Text(&'a str),
-    /// Ada tapi bukan string — JS melempar `TypeError`.
+    /// Ada tapi bukan string — versi awal melempar `TypeError`.
     BukanTeks,
 }
 
-/// `/([\d.]+)\s*(MB|GB|KB)/i` + konversi ke MB (`pixeldraindl.js:48-56`).
+/// `/([\d.]+)\s*(MB|GB|KB)/i` + konversi ke MB.
 ///
 /// Hanya kemunculan PERTAMA yang dipakai. Nilai dibaca dengan `parseFloat`, jadi
-/// `"1.2.3"` terbaca `1.2`; `"."` jadi `NaN` dan perbandingan mana pun dengan
+/// `"1.2.3"` terbaca `1.2`; `"."` jadi `NaN` dan perbandingan mana pun
 /// NaN bernilai false, jadi `sizeInMB` praktis tetap 0.
 pub(crate) fn size_in_mb(size: SizeField<'_>) -> f64 {
     let SizeField::Text(raw) = size else {
@@ -191,7 +182,7 @@ fn unit_dari(raw: &str) -> Option<Unit> {
     }
 }
 
-/// `parseFloat` untuk potongan yang hanya berisi digit dan titik: berhenti di
+/// `parseFloat` untuk potongan yang hanya berisi digit dan titik: berhenti
 /// karakter pertama yang bukan bagian angka. `"1.2.3"` -> 1.2, `"5."` -> 5,
 /// `"."` -> NaN (dan NaN membuat semua perbandingan di handler bernilai false).
 fn parse_float_js(raw: &str) -> f64 {
@@ -215,7 +206,7 @@ fn parse_float_js(raw: &str) -> f64 {
     teks.parse().unwrap_or(f64::NAN)
 }
 
-/// `f()` (`src/lib/http.js:32`) — selalu resolve, tidak pernah melempar. Status
+/// `f()` — selalu resolve, tidak pernah melempar. Status
 /// `>= 400` dan error transport keduanya jadi `null`.
 fn f_equivalent(ctx: &Ctx, url: &str) -> Value {
     match ctx.http.get(url) {
@@ -224,7 +215,7 @@ fn f_equivalent(ctx: &Ctx, url: &str) -> Value {
     }
 }
 
-/// Klasifikasi `file.size` sesuai perilaku `?.match` di JS.
+/// Klasifikasi `file.size` sesuai perilaku `?.match` di versi awal.
 fn size_field(file: Option<&Value>) -> SizeField<'_> {
     match file.and_then(|f| f.get("size")) {
         None | Some(Value::Null) => SizeField::Absent,
@@ -250,7 +241,7 @@ fn size_field(file: Option<&Value>) -> SizeField<'_> {
     is_bot_admin = false
 )]
 pub fn pixeldraindl(ctx: Ctx) -> Reply {
-    // `pixeldraindl.js:19-20` — `m.args[0]`, bukan `m.text`.
+    // `m.args[0]`, bukan `m.text`.
     let url = ctx.args.first().map(|a| a.trim()).unwrap_or_default();
 
     if url.is_empty() || !is_pixeldrain_url(url) {
@@ -259,7 +250,7 @@ pub fn pixeldraindl(ctx: Ctx) -> Reply {
 
     let data = f_equivalent(&ctx, &api_url(url, &ctx.config().api_keys.neoxr));
 
-    // `!data?.status || !data?.data` — keduanya pakai falsiness JS, bukan
+    // `!data?.status || !data?.data` — keduanya pakai falsiness versi awal, bukan
     // `=== true` atau sekadar "key tidak ada".
     if js_falsy(data.get("status")) || js_falsy(data.get("data")) {
         return Reply::text(TIDAK_ADA).with_reaction("❌");
@@ -267,7 +258,7 @@ pub fn pixeldraindl(ctx: Ctx) -> Reply {
 
     let file = data.get("data");
 
-    // `file.size?.match(...)` pada nilai non-string melempar `TypeError`, dan
+    // `file.size?.match(...)` pada nilai non-string melempar `TypeError`,
     // itu satu-satunya jalan yang masih hidup ke cabang `catch`.
     let size = size_field(file);
     let mb = size_in_mb(size);
@@ -280,7 +271,7 @@ pub fn pixeldraindl(ctx: Ctx) -> Reply {
     };
 
     if mb > 0.0 && mb <= 100.0 {
-        // `pixeldraindl.js:60-68` — `sendMedia` document dari URL, nama berkas
+        // `sendMedia` document dari URL, nama berkas
         // dari `file.filename`, mimetype bawaan `application/octet-stream`.
         let url_file = file
             .and_then(|f| f.get("url"))
@@ -415,7 +406,7 @@ mod tests {
         );
         assert_eq!(p.meta.cooldown, 15);
         assert_eq!(p.meta.energi, 2);
-        // `pixeldraindl.js:6-16` tidak menyebut satu pun flag permission.
+        // tidak menyebut satu pun flag permission.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
@@ -486,7 +477,7 @@ mod tests {
 
     #[test]
     fn the_first_argument_is_trimmed_before_the_guard() {
-        // `args[0]?.trim()` — spasi di tepi hilang sebelum regex, jadi URL yang
+        // `args[0]?.trim()` — spasi di tepi hilang sebelum regex, jadi URL
         // sama menolak sebagai mentah tapi lolos setelah di-trim.
         assert!(!is_pixeldrain_url("  https://pixeldrain.com/u/x  "));
         let r = run(
@@ -504,7 +495,7 @@ mod tests {
 
     #[test]
     fn api_key_neoxr_dibaca_dari_runtime() {
-        // `config.APIkey?.neoxr` di `pixeldraindl.js:4` dibaca saat runtime,
+        // `config.APIkey?.neoxr` dibaca saat runtime,
         // bukan konstanta kosong hasil port lama.
         let http = Stub::json(ok_file(serde_json::json!("5 MB")));
         run_with_key(
@@ -597,7 +588,7 @@ mod tests {
         for size in ["5 MB", "100 MB", "0.09 GB", "1024 KB", "12 mb"] {
             let http = Stub::json(ok_file(serde_json::json!(size)));
             let r = run(http.clone(), &["https://pixeldrain.com/u/x"]);
-            // `pixeldraindl.js:60-68` — dokumen dari URL, nama dari
+            // Dokumen dari URL, nama
             // `file.filename`. `with_reaction` membungkusnya dalam `Reaction`.
             let isi = match r.without_mutations() {
                 Reply::Reaction { reply, .. } => reply.as_ref(),
@@ -671,7 +662,7 @@ mod tests {
 
     #[test]
     fn a_truthy_non_boolean_status_is_accepted_like_in_js() {
-        // `!data?.status` memakai falsiness JS, bukan `status === true`.
+        // `!data?.status` memakai falsiness versi awal, bukan `status === true`.
         for status in [
             serde_json::json!(1),
             serde_json::json!("true"),
@@ -709,7 +700,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Pixeldrain; set OKTZ_TEST_PIXELDRAIN_URL dan APIKEY_NEOXR bila perlu"]
     fn live_pixeldraindl_mengambil_dokumen() {
-        // Uji live padanan `plugins/download/pixeldraindl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_PIXELDRAIN_URL");

@@ -1,33 +1,16 @@
-//! `plugins/download/instagramdl.js` — unduh video/foto Instagram.
-//!
-//! Scraper `instagramDownloader` (`src/scraper/ig.js`) sudah ada di crate
-//! `oktz-scraper` (`oktz_scraper::ig::instagram_download`), termasuk pemanggilan
-//! `igdl` dari paket npm `btch-downloader`. Plugin ini hanya memetakan
-//! hasilnya: guard URL, pemisahan caption, dan pemilihan video-vs-image.
-//!
-//! Tiga penyimpangan yang tercatat apa adanya:
-//!
-//! - **Item kedua dan seterusnya tidak dikirim.** JS mengirim satu pesan per
-//!   item media (`instagramdl.js:59-74`); satu `Reply` hanya satu pesan, jadi
-//!   hanya item pertama — yang juga satu-satunya yang boleh membawa caption —
-//!   yang ikut. Untuk unggahan multi-foto sisanya hilang.
-//! - **Thumbnail tidak dikirim.** Scraper menyediakan `thumbnail`, tapi JS pun
-//!   tidak pernah memakainya di plugin ini.
-//! - **Reaksi awal `🕕` dibuang** (`instagramdl.js:39`), mengikuti konvensi
-//!   repo: `Reply::Reaction` hanya bisa satu, jadi reaksi terakhir yang ikut —
-//!   `✅` setelah terkirim, `❌` di cabang gagal.
+//! Unduh video/foto Instagram.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `IG_REGEX` (`instagramdl.js:18`) tanpa regex crate: `instagram.com/`
+/// `IG_REGEX` tanpa regex crate: `instagram.com/`
 /// diikuti salah satu segmen `p|reel|reels|stories|tv` lalu `/`.
 pub(crate) fn is_instagram_url(url: &str) -> bool {
     let lower = url.to_lowercase();
     let mut from = 0;
     while let Some(i) = lower[from..].find("instagram.com/") {
         let rest = &lower[from + i + "instagram.com/".len()..];
-        // Slash penutup wajib: regex JS `\/(p|…)\/` menolak `…/p` tanpa slash.
+        // Slash penutup wajib: regex versi awal `\/(p|…)\/` menolak `…/p` tanpa slash.
         let Some(seg_end) = rest.find('/') else {
             return false;
         };
@@ -39,7 +22,7 @@ pub(crate) fn is_instagram_url(url: &str) -> bool {
     false
 }
 
-/// `instagramdl.js:25-29` — kartu penggunaan.
+/// Kartu penggunaan.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📸 *ɪɴsᴛᴀɢʀᴀᴍ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n\
@@ -50,25 +33,25 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `instagramdl.js:35` — URL bukan Instagram.
+/// URL bukan Instagram.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link Instagram (reel/post/story).";
 
-/// `instagramdl.js:46` — `result.media` kosong.
+/// `result.media` kosong.
 pub(crate) const NO_MEDIA: &str = "❌ Gagal mengambil media. Coba link lain.";
 
-/// `instagramdl.js:79` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) fn failed(message: &str) -> String {
     format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʰ*\n\n> {message}")
 }
 
-/// Satu item media setelah pemetaan `src/scraper/ig.js:23-33`.
+/// Satu item media setelah pemetaan.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Item {
     pub is_video: bool,
     pub url: String,
 }
 
-/// Bentuk hasil `instagramDownloader` (`src/scraper/ig.js:41-49`) — hanya
+/// Bentuk hasil `instagramDownloader` — hanya
 /// field yang dibaca plugin.
 #[derive(Debug, Default)]
 pub(crate) struct Download {
@@ -77,7 +60,7 @@ pub(crate) struct Download {
     pub media: Vec<Item>,
 }
 
-/// `instagramdl.js:50-57` — caption. Item kedua dan seterusnya dikirim tanpa
+/// Caption. Item kedua dan seterusnya dikirim tanpa
 /// caption (`caption = ""` setelah tiap pengiriman).
 pub(crate) fn build_caption(url: &str, download: &Download) -> String {
     let is_story = url.contains("/stories/");
@@ -96,8 +79,8 @@ pub(crate) fn build_caption(url: &str, download: &Download) -> String {
     caption.trim().to_string()
 }
 
-/// Baca hasil scraper (`src/scraper/ig.js:41-49`). Field yang tidak ada berarti
-/// string kosong di JS juga, karena scraper selalu mengisinya.
+/// Baca hasil scraper. Field yang tidak ada berarti
+/// string kosong di versi awal juga, karena scraper selalu mengisinya.
 fn hasil_dari(data: &Value) -> Download {
     Download {
         username: data
@@ -117,7 +100,7 @@ fn hasil_dari(data: &Value) -> Download {
                 items
                     .iter()
                     .map(|item| Item {
-                        // `instagramdl.js:60` — `video` atau `mp4` jadi video.
+                        // `video` atau `mp4` jadi video.
                         is_video: matches!(
                             item.get("type").and_then(Value::as_str),
                             Some("video") | Some("mp4")
@@ -163,8 +146,8 @@ pub fn instagramdl(ctx: Ctx) -> Reply {
     let download = match oktz_scraper::ig::instagram_download(ctx.http.as_ref(), url) {
         Ok(value) => hasil_dari(&value),
         // `instagramDownloader` melempar `Gagal mengambil media dari Instagram`
-        // dua kali — termasuk saat `media` kosong, jadi cabang `NO_MEDIA` di
-        // bawah praktis tidak terjangkau (`ig.js:20` dan `:36`).
+        // dua kali — termasuk saat `media` kosong, jadi cabang `NO_MEDIA`
+        // bawah praktis tidak terjangkau.
         Err(e) => return Reply::text(failed(&e.message)).with_reaction("❌"),
     };
 
@@ -174,7 +157,7 @@ pub fn instagramdl(ctx: Ctx) -> Reply {
 
     let caption = build_caption(url, &download);
     let first = &download.media[0];
-    // `instagramdl.js:60-73`: `video`/`mp4` → video, sisanya → image.
+    // : `video`/`mp4` → video, sisanya → image.
     let balasan = if first.is_video {
         Reply::video(MediaSource::url(first.url.clone()), caption)
     } else {
@@ -335,10 +318,10 @@ mod tests {
 
     #[test]
     fn the_unanchored_regex_quirk_of_the_js_is_kept() {
-        // `IG_REGEX` tidak dikunci ke host: `p/` di akhir URL sudah cukup, dan
+        // `IG_REGEX` tidak dikunci ke host: `p/` di akhir URL sudah cukup,
         // host apa pun yang memuat `instagram.com/` ikut lolos. `douyindl`
         // sengaja mengetatkan guard host-nya; di sini Guardian ini harus
-        // persis sama dengan JS, jadi kedua kasus ini tetap diterima.
+        // persis sama dengan versi awal, jadi kedua kasus ini tetap diterima.
         assert!(is_instagram_url("https://instagram.com/p/"));
         assert!(is_instagram_url("https://notinstagram.com/p/abc"));
     }

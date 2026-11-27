@@ -1,30 +1,16 @@
-//! `plugins/download/likeedl.js` — unduh video Likee.
-//!
-//! Scraper `likee` (`src/scraper/likee.js`) sudah ada di crate `oktz-scraper`
-//! (`oktz_scraper::likee::likee`): satu POST form ke `likeedownloader.com`
-//! lengkap dengan header `User-Agent`, `Referer`, `origin`, dan
-//! `x-requested-with`, lalu empat regex kecil. Plugin ini hanya memetakan
-//! hasilnya — logika scraper tidak diduplikasi di sini.
-//!
-//! Dua penyimpangan yang tercatat apa adanya:
-//!
-//! - **`contextInfo` forwarding tidak ikut** (`likeedl.js:52-55`); `Reply` tidak
-//!   punya field forwarding.
-//! - **Reaksi terakhir yang dipakai, sesuai tiap cabang JS.** `Reply::Reaction`
-//!   hanya bisa satu, jadi `🕕` (`likeedl.js:35`) ikut sebagai reaksi terakhir di
-//!   cabang gagal dan `✅` (`:58`) di cabang sukses.
+//! Unduh video Likee.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 
-/// `likeedl.js:31` — `/likee\.(video|com)/i`, tidak dikunci ke host.
+/// `/likee\.(video|com)/i`, tidak dikunci ke host.
 pub(crate) fn is_likee_url(url: &str) -> bool {
     let lower = url.to_lowercase();
     lower.contains("likee.video") || lower.contains("likee.com")
 }
 
-/// `likeedl.js:23-28` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -34,18 +20,18 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `likeedl.js:32` — URL bukan Likee.
+/// URL bukan Likee.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link Likee.";
 
-/// `likeedl.js:47` — kedua field watermark kosong.
+/// Kedua field watermark kosong.
 pub(crate) const NO_VIDEO: &str = "❌ Video tidak ditemukan.";
 
-/// `likeedl.js:41` — scraper mengembalikan `null`/falsy.
+/// Scraper mengembalikan `null`/falsy.
 pub(crate) const GAGAL_AMBIL: &str = "❌ Gagal mengambil video. Coba link lain.";
 
-/// Bagian hasil `likee` (`src/scraper/likee.js:29-34`) yang dibaca plugin.
-/// Regex yang tidak cocok mengisi `null` di scraper, yang oleh `||` di
-/// `likeedl.js:44` diperlakukan sama dengan string kosong.
+/// Bagian hasil `likee` yang dibaca plugin.
+/// Regex yang tidak cocok mengisi `null` di scraper, yang oleh `||`
+/// diperlakukan sama dengan string kosong.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Likee {
     pub without_watermark: String,
@@ -53,7 +39,7 @@ pub(crate) struct Likee {
 }
 
 impl Likee {
-    /// `likeedl.js:44` — `without_watermark || with_watermark`.
+    /// `without_watermark || with_watermark`.
     pub(crate) fn video_url(&self) -> &str {
         if self.without_watermark.is_empty() {
             &self.with_watermark
@@ -103,14 +89,14 @@ pub fn likeedl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `src/scraper/likee.js:22` melempar `Fetch failed` kalau `template`
+    // melempar `Fetch failed` kalau `template`
     // kosong, dan `catch` di plugin ikut membawa `te(...)` dengan reaksi jam
     // yang sudah menyala sejak baris 35.
     let Ok(value) = oktz_scraper::likee::likee(ctx.http.as_ref(), url) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("🕕");
     };
 
-    // `likeedl.js:40-42` — `!data`. Scraper `likee` hanya melempar atau
+    // `!data`. Scraper `likee` hanya melempar
     // mengembalikan objek, jadi cabang ini praktis tidak terjangkau; tetap
     // ditulis supaya teksnya tidak hilang.
     if !crate::common::js_truthy(Some(&value)) {
@@ -123,7 +109,7 @@ pub fn likeedl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `likeedl.js:50-58` — `sendMedia` video tanpa caption, lalu centang hijau.
+    // `sendMedia` video tanpa caption, lalu centang hijau.
     Reply::video(MediaSource::url(video), "").with_reaction("✅")
 }
 
@@ -362,14 +348,14 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `likeedl.js:41` — pesan "gagal mengambil video".
+        // Pesan "gagal mengambil video".
         assert_eq!(
             GAGAL_AMBIL,
             "❌ Gagal mengambil video. Coba link lain."
         );
-        // `likeedl.js:47` — video tidak ditemukan.
+        // Video tidak ditemukan.
         assert_eq!(NO_VIDEO, "❌ Video tidak ditemukan.");
-        // `likeedl.js:32` — URL bukan Likee.
+        // URL bukan Likee.
         assert_eq!(BAD_URL, "❌ URL tidak valid. Gunakan link Likee.");
     }
 

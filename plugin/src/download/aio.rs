@@ -1,6 +1,4 @@
-//! `plugins/download/aio.js` — all-in-one downloader lewat `oktz_scraper::aio`.
-//! Ponytail: `sendMedia(..., quoted: m)` tidak ada padanannya pada variant
-//! media `Reply`; quoted diabaikan, hanya caption yang dikirim.
+//! All-in-one downloader lewat `oktz_scraper::aio`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -52,7 +50,7 @@ pub fn aio(ctx: Ctx) -> Reply {
     }
     let judul = result.get("title").and_then(Value::as_str).unwrap_or("");
 
-    // JS: for (const item of result.media) — satu pesan per item.
+    // versi awal: for (const item of result.media) — satu pesan per item.
     let mut urutan: Vec<Reply> = media
         .iter()
         .filter_map(|item| {

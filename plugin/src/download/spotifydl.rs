@@ -1,20 +1,11 @@
-//! `plugins/download/spotifydl.js` — unduh lagu dari Spotify.
-//!
-//! Urutan backend mengikuti `src/lib/resolve.js`: scraper lokal `spotyloader`
-//! dulu, lalu agregator `nexray` sebagai cadangan
-//! (`src/capabilities/spotify.js:13-72`). Bentuk lokal dan amplop aggregator
-//! dinormalisasi terpisah.
-//!
-//! Audio dikirim seperti `spotifydl.js:33-38`: `{ audio: { url }, mimetype:
-//! "audio/mpeg" }` → [`Reply::Audio`]. `fileName` tidak punya padanan di
-//! [`MediaSource`], dan Baileys juga mengabaikannya untuk `audioMessage`.
+//! Unduh lagu dari Spotify.
 
 use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use super::douyindl::query_encode;
 
-/// `nexray` di `src/lib/aggregator.js:22`.
+/// `nexray`.
 pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/downloader/spotify";
 
 /// Cadangan kedua: bentuk responsnya sama dengan nexray, dan tetap hidup ketika
@@ -22,7 +13,7 @@ pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/downloader/spotify";
 pub(crate) const ENDPOINT_IZUKA: &str = "https://my.izuka-api.xyz/api/downloader/spotify";
 
 /// Link track/album/playlist Spotify. Album dan playlist diterima karena
-/// backend mengambil track pertama dari keduanya (`src/capabilities/spotify.js`).
+/// backend mengambil track pertama dari keduanya.
 pub(crate) fn is_track_url(text: &str) -> bool {
     let t = text.to_lowercase();
     let Some(rest) = t.split("open.spotify.com").nth(1) else {
@@ -31,22 +22,22 @@ pub(crate) fn is_track_url(text: &str) -> bool {
     rest.contains("/track/") || rest.contains("/album/") || rest.contains("/playlist/")
 }
 
-/// `spotifydl.js:19` — link hilang atau bukan track.
+/// Link hilang atau bukan track.
 pub(crate) const BAD_URL: &str = "❌ *Waduh, link Spotify-nya mana nih atau kurang tepat!*\n\n\
      Kamu harus memasukkan tautan (link) lagu dari Spotify yang valid. \
      Pastikan itu adalah link ke track/lagu ya! \n\n\
      Contoh: `.spdl https://open.spotify.com/track/3RY0NyQQXxuAiyk5eAS4fC`";
 
-/// `spotifydl.js:50` — backend menjawab tapi tidak ada URL unduhan.
+/// Backend menjawab tapi tidak ada URL unduhan.
 pub(crate) const NO_DOWNLOAD: &str =
     "⚠️ *Gagal mengambil lagu!* \n\nServer tidak merespon dengan tautan unduhan yang valid.";
 
-/// `spotifydl.js:53` — kegagalan proses.
+/// Kegagalan proses.
 pub(crate) const SYS_ERROR: &str = "😔 *Terjadi kesalahan sistem saat memproses tautan Spotify tersebut.* \
      Mohon coba lagi nanti ya!";
 
-/// Hasil `trackUnduh` (`src/capabilities/spotify.js:131`). `Err` = respons
-/// tanpa URL unduhan yang bisa dipakai — kelas yang di plugin dipisahkan dari
+/// Hasil `trackUnduh`. `Err` = respons
+/// tanpa URL unduhan yang bisa dipakai — kelas yang di plugin dipisahkan
 /// kegagalan proses lewat `adaNormalisasiGagal`.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Track {
@@ -57,14 +48,14 @@ pub(crate) struct Track {
 
 /// Kegagalan normalisasi aggregator dipisahkan dari kegagalan backend.
 /// `status: false` dilempar oleh `lewatNexray` sebelum `normalize`, jadi bukan
-/// bukti link tidak ada (`src/capabilities/spotify.js:57-72`).
+/// bukti link tidak ada.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AggregatorFailure {
     Backend,
     Normalization,
 }
 
-/// `trackUnduh` (`src/capabilities/spotify.js:131-146`).
+/// `trackUnduh`.
 fn track_dari(isi: &Value) -> Result<Track, ()> {
     let raw = isi
         .get("url")
@@ -94,12 +85,12 @@ fn track_dari(isi: &Value) -> Result<Track, ()> {
     })
 }
 
-/// Bentuk lokal `downloadSpotify` (`src/scraper/spotify.js:8-53`).
+/// Bentuk lokal `downloadSpotify`.
 fn normalize_local(body: &Value) -> Result<Track, ()> {
     track_dari(body)
 }
 
-/// Bentuk amplop aggregator (`isiAmplop`, `src/capabilities/spotify.js:96-108`).
+/// Bentuk amplop aggregator.
 fn normalize_aggregator(body: &Value) -> Result<Track, AggregatorFailure> {
     let envelope =
         body.is_array() || (body.get("status").is_some() || body.get("result").is_some());
@@ -142,7 +133,7 @@ pub fn spotifydl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `resolve.js` mencoba backend lokal sebelum backend API. Error lokal
+    // mencoba backend lokal sebelum backend API. Error lokal
     // tidak menghentikan aggregator; hanya normalisasi yang gagal yang membuat
     // pesan tautan, sisanya adalah kegagalan proses.
     let mut normalisasi_gagal = false;
@@ -177,7 +168,7 @@ pub fn spotifydl(ctx: Ctx) -> Reply {
     };
 
     match data {
-        // `spotifydl.js:33-40` — `{ audio: { url }, mimetype: "audio/mpeg" }`
+        // `{ audio: { url }, mimetype: "audio/mpeg" }`
         // lalu reaksi ✅.
         Some(track) => {
             Reply::audio(Ms::url(track.url).with_mimetype("audio/mpeg")).with_reaction("✅")
@@ -421,7 +412,7 @@ mod tests {
             http.clone(),
             "https://open.spotify.com/track/3RY0NyQQXxuAiyk5eAS4fC",
         );
-        // `spotifydl.js:33-40` — media audio + reaksi ✅.
+        // Media audio + reaksi ✅.
         let (mime, _) = audio_dari(isi(&r)).expect("audio harus terkirim");
         assert_eq!(mime, "audio/mpeg");
         let seen = http.seen.lock().unwrap().clone();
@@ -492,8 +483,8 @@ mod tests {
 
     #[test]
     fn a_response_without_a_download_url_gets_the_amber_warning() {
-        // `adaNormalisasiGagal` (`spotifydl.js:48`): backend menjawab normalisasi
-        // gagal karena tidak ada yang bisa dikirim — track tidak ada atau
+        // `adaNormalisasiGagal`: backend menjawab normalisasi
+        // gagal karena tidak ada yang bisa dikirim — track tidak ada
         // terkunci region.
         for body in [
             serde_json::json!({ "status": true, "result": { "title": "x", "url": "ftp://x" } }),
@@ -512,8 +503,8 @@ mod tests {
 
     #[test]
     fn aggregator_status_false_adalah_kegagalan_backend_bukan_normalisasi_gagal() {
-        // `lewatNexray` melempar sebelum `normalize` di `src/capabilities/spotify.js`.
-        // Jadi `status: false` tidak menghasilkan awalan `normalisasi gagal:` dan
+        // `lewatNexray` melempar sebelum `normalize`.
+        // Jadi `status: false` tidak menghasilkan awalan `normalisasi gagal:`
         // pesan yang benar adalah kegagalan proses, bukan tautan tidak ada.
         let r = run(
             Stub::body(serde_json::json!({ "status": false, "msg": "not found" })),
@@ -561,7 +552,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Spotify; set OKTZ_TEST_SPOTIFY_URL"]
     fn live_spotifydl_mengambil_audio() {
-        // Uji live padanan `plugins/download/spotifydl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_SPOTIFY_URL");

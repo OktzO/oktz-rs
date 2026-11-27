@@ -1,24 +1,7 @@
-//! `plugins/download/pindl.js` — unduh gambar/video dari Pinterest.
-//!
-//! Lapisan kapabilitas kini ikut: scraper lokal (`src/scraper/pindl.js`,
-//! proxy `ilovepin.net`) sudah di-port sebagai
-//! `oktz_scraper::pindl::scrape_pinterest`, dan `normalize`
-//! (`src/capabilities/pinterest.js:94-111`) disalin di bawah — entri media
-//! pertama dengan URL http yang dipakai, tipe tidak dikenal ditolak.
-//!
-//! Jalur kirim di JS memakai `child_process` + `fs` (`queueFFmpeg`,
-//! `fs.statSync`) untuk video HLS. Di sini yang dipakai jalur FALLBACK JS
-//! (`pindl.js:220-236`): buffer video diunduh dengan `User-Agent` +
-//! `Referer: https://www.pinterest.com/` (Pinterest menolak UA generik),
-//! lalu dikirim sebagai video byte. Gambar dikirim sebagai URL
-//! (`pindl.js:278-289`), GIF jatuh ke jalur gambar seperti `catch` GIF JS
-//! (`pindl.js:291-297`).
-//!
-//! Reaksi ✅ hanya dikirim kalau ada file yang benar-benar terkirim
-//! (`sentCount`, `pindl.js:111-117,300-303`).
+//! Unduh gambar/video dari Pinterest.
 
 // Cabang unduh/HLS tidak terjangkau di sini (stub resolver selalu gagal), tapi
-// kode JS-nya tetap ikut dipor supaya perilakunya bisa diuji dan nanti hidup
+// kode versi awal-nya tetap ikut dipor supaya perilakunya bisa diuji dan nanti hidup
 // begitu kapabilitasnya ada.
 #![allow(dead_code)]
 
@@ -26,14 +9,14 @@ use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
 use crate::common::host_dari;
 
-/// `pindl.js:20` — batas body video (dan batas file yang boleh dikirim).
+/// Batas body video (dan batas file yang boleh dikirim).
 pub(crate) const BATAS_BODY_VIDEO: u64 = 64 * 1024 * 1024;
 
-/// `pindl.js:222` — UA unduhan fallback video Pinterest.
+/// UA unduhan fallback video Pinterest.
 pub(crate) const UA_PINTEREST: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
-/// `pindl.js:83-87` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📌 *ᴘɪɴᴛᴇʀᴇsᴛ ᴅᴏᴡɴʟᴏᴀᴅ*\n\n\
@@ -44,16 +27,16 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `pindl.js:94` — URL bukan Pinterest.
+/// URL bukan Pinterest.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link Pinterest.";
 
-/// `pindl.js:305-307` — tidak ada satu pun file yang terkirim.
+/// Tidak ada satu pun file yang terkirim.
 ///
-/// `lastError` boleh `None` (baris "Penyebab" lalu tidak ada sama sekali) atau
+/// `lastError` boleh `None` (baris "Penyebab" lalu tidak ada sama sekali)
 /// `Some` yang dipotong 120 karakter seperti `String(lastError).slice(0, 120)`.
-/// `lastError ? ... : ""` memakai kebenaran JS, bukan `Option`: string kosong
-/// juga falsy, jadi baris "Penyebab" hilang. String lain (termasuk `"0"` dan
-/// `"false"`) tetap truthy seperti di JS.
+/// `lastError ?...: ""` memakai kebenaran versi awal, bukan `Option`: string kosong
+/// juga falsy, jadi baris "Penyebab" hilang. String lain (termasuk `"0"`
+/// `"false"`) tetap truthy seperti di versi awal.
 pub(crate) fn gagal(last_error: Option<&str>) -> String {
     let sebab = match last_error {
         Some(err) if !err.is_empty() => format!("> Penyebab: `{}`\n", potong_120(err)),
@@ -70,14 +53,14 @@ pub(crate) fn gagal(last_error: Option<&str>) -> String {
 /// `String(lastError).slice(0, 120)`.
 ///
 /// Dihitung per karakter, bukan per byte, jadi untuk teks BMP hasilnya identik
-/// dengan JS. Untuk karakter astral (emoji di luar BMP) JS bisa memotong pasangan
+/// dengan versi awal. Untuk karakter astral (emoji di luar BMP) versi awal bisa memotong pasangan
 /// surrogate dan menghasilkan setengah karakter; Rust tidak punya surrogate, jadi
 /// yang dipotong adalah karakter utuh.
 fn potong_120(s: &str) -> String {
     s.chars().take(120).collect()
 }
 
-/// `terlaluBesar` (`pindl.js:23-25`) — batas inklusif: file tepat sebesar batas
+/// `terlaluBesar` — batas inklusif: file tepat sebesar batas
 /// masih boleh dikirim.
 pub(crate) fn terlalu_besar(ukuran: u64) -> bool {
     ukuran > BATAS_BODY_VIDEO
@@ -90,13 +73,13 @@ pub(crate) struct Rencana {
     pub hls: bool,
 }
 
-/// `rencanaVideo` (`pindl.js:35-41`).
+/// `rencanaVideo`.
 ///
-/// Dua keanehan JS yang WAJIB dipertahankan:
-/// - `/720p|480p|360p|240p/g` case-sensitive, jadi `720P` tidak diganti.
-/// - `.replace(".mp4", ".m3u8")` TANPA flag `g`, jadi hanya kemunculan PERTAMA.
+/// Dua keanehan versi awal yang WAJIB dipertahankan:
+/// `/720p|480p|360p|240p/g` case-sensitive, jadi `720P` tidak diganti.
+/// `.replace(".mp4", ".m3u8")` TANPA flag `g`, jadi hanya kemunculan PERTAMA.
 ///
-/// `hls` dihitung dari `masterUrl` SETELAH dua penggantian itu, bukan dari
+/// `hls` dihitung dari `masterUrl` SETELAH dua penggantian itu, bukan
 /// URL asal — `https://cdn/a.m3u8` sudah HLS walau asalnya `.mp4`.
 pub(crate) fn rencana_video(url: Option<&str>) -> Rencana {
     let asal = url.unwrap_or("").to_string();
@@ -135,7 +118,7 @@ fn ganti_kualitas(s: &str) -> String {
     out
 }
 
-/// `hostPinterest` (`pindl.js:50-62`) — guard per label: `pin.it` langsung
+/// `hostPinterest` — guard per label: `pin.it` langsung
 /// benar, host lain harus punya satu label bernama `pinterest` dan pathname-nya
 /// diawali `/pin/`.
 pub(crate) fn host_pinterest(url: &str) -> bool {
@@ -168,15 +151,15 @@ pub(crate) struct Varian {
     pub audio: Option<String>,
 }
 
-/// `pindl.js:137-165` — baca manifest master HLS dan pilih varian VIDEO dengan
+/// Baca manifest master HLS dan pilih varian VIDEO
 /// `BANDWIDTH` tertinggi, plus URI audio pertama yang ditandai `TYPE=AUDIO`.
 ///
 /// `master_url` adalah `masterUrl` hasil [`rencana_video`] — bukan teks
-/// manifest. `baseUrl` di JS dihitung dari URL itu, bukan dari isi body.
+/// manifest. `baseUrl` di versi awal dihitung dari URL itu, bukan dari isi body.
 ///
-/// Baris varian dibaca lewat `lines[i + 1]` TANPA cek batas, jadi manifest yang
+/// Baris varian dibaca lewat `lines[i + 1]` TANPA cek batas, jadi manifest
 /// diakhiri `#EXT-X-STREAM-INF` tidak menghasilkan varian sama sekali. Itu
-/// faithfully mengikuti JS, bukan mengikuti spesifikasi HLS.
+/// faithfully mengikuti versi awal, bukan mengikuti spesifikasi HLS.
 pub(crate) fn pilih_varian(master_url: &str, manifest: &str) -> Varian {
     let lines: Vec<&str> = manifest
         .split('\n')
@@ -192,9 +175,9 @@ pub(crate) fn pilih_varian(master_url: &str, manifest: &str) -> Varian {
             let bw = angka_setelah(line, "BANDWIDTH=").unwrap_or(0);
             if bw > last_bandwidth {
                 last_bandwidth = bw;
-                // `u?.startsWith("http") ? u : baseUrl + u` — `u` boleh `undefined` kalau
+                // `u?.startsWith("http") ? u: baseUrl + u` — `u` boleh `undefined` kalau
                 // manifestnya berakhir tepat di baris `#EXT-X-STREAM-INF`, dan `baseUrl +
-                // undefined` di JS menghasilkan teks `"undefined"`, bukan string kosong.
+                // undefined` di versi awal menghasilkan teks `"undefined"`, bukan string kosong.
                 let candidate = lines.get(i + 1).copied().unwrap_or("undefined");
                 varian.video = Some(jadi_absolut(candidate, &base));
             }
@@ -237,7 +220,7 @@ fn teks_dalam_kutip(line: &str, label: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-/// `u?.startsWith("http") ? u : baseUrl + u` — `undefined` jadi `baseUrl`.
+/// `u?.startsWith("http") ? u: baseUrl + u` — `undefined` jadi `baseUrl`.
 fn jadi_absolut(u: &str, base: &str) -> String {
     if u.starts_with("http") {
         u.to_string()
@@ -247,15 +230,15 @@ fn jadi_absolut(u: &str, base: &str) -> String {
 }
 
 /// `resolver.resolve("pinterest", { url })` — lapisan kapabilitas belum
-/// di-port. `Err` = melempar, persis seperti backend yang gagal.
-/// Satu media hasil `normalize` (`src/capabilities/pinterest.js:94-111`).
+/// diimplementasikan. `Err` = melempar, persis seperti backend yang gagal.
+/// Satu media hasil `normalize`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Media {
     pub jenis: String,
     pub url: String,
 }
 
-/// `dariLokal` (`pinterest.js:94-111`) — entri media PERTAMA dengan URL http;
+/// `dariLokal` — entri media PERTAMA dengan URL http;
 /// tipe yang bukan video/image ditolak, bukan ditebak jadi gambar.
 pub(crate) fn normalize_pinterest(hasil: &serde_json::Value) -> Result<Media, ()> {
     let Some(media) = hasil.get("media").and_then(serde_json::Value::as_array) else {
@@ -292,9 +275,9 @@ pub(crate) fn normalize_pinterest(hasil: &serde_json::Value) -> Result<Media, ()
 
 /// `resolver.resolve("pinterest", { url })` — scraper lokal saja
 /// (`scrape_pinterest` tidak pernah `Err`; `catch`-nya mengembalikan `null`,
-/// jadi `null` di sini = lemparan JS).
+/// jadi `null` di sini = lemparan versi awal).
 fn resolve_pinterest(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> Result<Media, ()> {
-    // `scrape_pinterest` tidak pernah `Err` (`catch` JS mengembalikan `null`),
+    // `scrape_pinterest` tidak pernah `Err` (`catch` versi awal mengembalikan `null`),
     // jadi `null` = lemparan → `normalize` menolak.
     let hasil = oktz_scraper::pindl::scrape_pinterest(http, url).unwrap_or(serde_json::Value::Null);
     normalize_pinterest(&hasil)
@@ -322,7 +305,7 @@ pub fn pindl(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `pindl.js:93` — syarat `includes` hanya menyaring teks tanpa struktur URL
+    // Syarat `includes` hanya menyaring teks tanpa struktur URL
     // lebih dulu; `host_pinterest` yang menentukan.
     let mention_pinterest = url.contains("pinterest") || url.contains("pin.it");
     if !mention_pinterest || !host_pinterest(url) {
@@ -330,14 +313,14 @@ pub fn pindl(ctx: Ctx) -> Reply {
     }
 
     match resolve_pinterest(ctx.http.as_ref(), url) {
-        // `pindl.js:118-309` — satu media per pin (`normalize` hanya meneruskan
-        // satu). Video memakai jalur FALLBACK JS: buffer diunduh dengan
-        // UA + Referer Pinterest (`pindl.js:220-236`). Gambar dan GIF (yang
-        // di JS di-ffmpeg dulu, gagal → `catch` gambar) dikirim sebagai URL.
+        // Satu media per pin (`normalize` hanya meneruskan
+        // satu). Video memakai jalur FALLBACK versi awal: buffer diunduh
+        // UA + Referer Pinterest. Gambar dan GIF (
+        // di versi awal di-ffmpeg dulu, gagal → `catch` gambar) dikirim sebagai URL.
         Ok(media) => {
             if media.jenis == "video" {
                 // `axios.get(media.url, { headers: UA + Referer pinterest })`
-                // (`pindl.js:221-225`) — Pinterest memblokir UA generik.
+                // Pinterest memblokir UA generik.
                 let res = ctx.http.call(
                     &HttpCall::get(&media.url)
                         .header("User-Agent", UA_PINTEREST)
@@ -353,14 +336,14 @@ pub fn pindl(ctx: Ctx) -> Reply {
                     _ => {}
                 }
                 // Fallback gagal → `lastError` terisi, `sentCount` tetap 0
-                // (`pindl.js:238-241,300-307`).
+                //
                 return Reply::text(gagal(Some("Gagal mengunduh video Pinterest")))
                     .with_reaction("❌");
             }
-            // `pindl.js:278-289` — `sendMedia(chat, media.url, { type: "image" })`.
+            // `sendMedia(chat, media.url, { type: "image" })`.
             Reply::image(MediaSource::url(media.url), "").with_reaction("✅")
         }
-        // `pindl.js:310-314` — `m.pushName` tidak ada di `Ctx`, jadi `User`.
+        // `m.pushName` tidak ada di `Ctx`, jadi `User`.
         Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }
@@ -590,7 +573,7 @@ mod tests {
 
     #[test]
     fn video_pinterest_diunduh_byte_dengan_header_js() {
-        // `pindl.js:219-230` memakai fallback axios dengan UA + Referer,
+        // memakai fallback axios dengan UA + Referer,
         // lalu mengirim buffer video. `MediaSource::Url` tidak membawa header.
         let http = Arc::new(PinterestStub::default());
         let r = run_dengan_http(http.clone(), "https://pin.it/abc");
@@ -742,7 +725,7 @@ mod tests {
             .and_then(|s| s.split('`').next())
             .expect("baris Penyebab harus ada");
         assert_eq!(isi.chars().count(), 120);
-        // String kosong juga falsy di JS, jadi barisnya hilang.
+        // String kosong juga falsy di versi awal, jadi barisnya hilang.
         assert_eq!(gagal(Some("")), gagal(None));
     }
 
@@ -788,7 +771,7 @@ mod tests {
 
     #[test]
     fn a_manifest_ending_on_the_variant_line_yields_the_js_undefined_url() {
-        // JS membaca `lines[i + 1]` tanpa cek batas; `undefined?.startsWith`
+        // versi awal membaca `lines[i + 1]` tanpa cek batas; `undefined?.startsWith`
         // falsy, jadi `baseUrl + undefined` -> teks `"undefined"`.
         let master = "https://cdn/pin/master.m3u8";
         assert_eq!(
@@ -821,7 +804,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Pinterest; set OKTZ_TEST_PINTEREST_URL"]
     fn live_pindl_mengambil_media() {
-        // Uji live padanan `plugins/download/pindl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_PINTEREST_URL");

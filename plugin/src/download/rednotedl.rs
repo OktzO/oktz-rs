@@ -1,27 +1,9 @@
-//! `plugins/download/rednotedl.js` — unduh video/foto dari RedNote.
-//!
-//! Scraper `RedNoteDL` (`src/scraper/rednote.js`) sudah ada di crate
-//! `oktz-scraper` (`oktz_scraper::rednote::red_note_dl`): satu POST JSON ke
-//! `rednote.savevideodown.com` lengkap dengan header `X-Forwarded-For`,
-//! `X-Real-IP`, dan `Client-IP` berisi IP acak, lalu pemetaan field. Plugin ini
-//! hanya memetakan hasilnya ke balasan.
-//!
-//! Tiga penyimpangan yang tercatat apa adanya:
-//!
-//! - **Foto kedua dan seterusnya tidak dikirim.** JS mengirim maksimal 5 foto
-//!   satu per satu (`rednotedl.js:48-52`); satu `Reply` hanya satu pesan, jadi
-//!   hanya foto pertama yang ikut.
-//! - **Catatan sisa foto pindah ke caption.** JS mengirimnya sebagai pesan
-//!   terpisah setelah semua foto (`rednotedl.js:53-57`); di sini teks itu
-//!   jadi caption foto pertama supaya tidak hilang.
-//! - **Reaksi awal `🕕` dibuang** (`rednotedl.js:33`), mengikuti konvensi repo:
-//!   `Reply::Reaction` hanya bisa satu, jadi reaksi terakhir yang ikut — `✅`
-//!   setelah terkirim, `☢` di cabang gagal.
+//! Unduh video/foto dari RedNote.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `rednotedl.js:23-29` — kartu pakai, delimiter markdown-nya asterisk.
+/// Kartu pakai, delimiter markdown-nya asterisk.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📕 *RedNote Downloader*\n\n\
@@ -33,15 +15,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `rednotedl.js:40` — `result.status` falsy.
+/// `result.status` falsy.
 pub(crate) fn rednote_failed(error: &str) -> String {
     format!("❌ *RedNote Gagal*\n\n> {error}")
 }
 
-/// `rednotedl.js:64` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const TRANSPORT_FAILED: &str = "❌ Gagal mengambil data RedNote, coba lagi nanti";
 
-/// Bentuk `status: true` dari `RedNoteDL` (`src/scraper/rednote.js:35-44`).
+/// Bentuk `status: true` dari `RedNoteDL`.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct Rednote {
     /// `title` tidak ikut keluar kalau `undefined`, jadi `None` = `undefined`.
@@ -51,8 +33,8 @@ pub(crate) struct Rednote {
     pub results: Vec<String>,
 }
 
-/// `String(v)` untuk nilai JSON — `${result.error}` (`rednotedl.js:40`) sama
-/// saja mem-string-kan nilai apa adanya, bukan memaksa jadi teks. Kunci yang
+/// `String(v)` untuk nilai JSON — `${result.error}`
+/// saja mem-string-kan nilai apa adanya, bukan memaksa jadi teks. Kunci
 /// tidak ada berarti `undefined`, yang berbeda dari `null`.
 fn teks_js(value: Option<&Value>) -> String {
     match value {
@@ -78,7 +60,7 @@ pub(crate) fn hasil_dari(body: &Value) -> Result<Rednote, String> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_string(),
-        // `[directVideoUrl || downloadUrl]` bisa berisi `undefined`, dan
+        // `[directVideoUrl || downloadUrl]` bisa berisi `undefined`,
         // `directImages` bisa bukan array — keduanya jadi daftar kosong URL.
         results: body
             .get("results")
@@ -93,7 +75,7 @@ pub(crate) fn hasil_dari(body: &Value) -> Result<Rednote, String> {
     })
 }
 
-/// `rednotedl.js:53-57` — catatan sisa foto, hanya kalau lebih dari lima.
+/// Catatan sisa foto, hanya kalau lebih dari lima.
 pub(crate) fn more_note(count: usize) -> String {
     if count > 5 {
         format!("_Masih ada {} foto lagi, maksimal 5_", count - 5)
@@ -125,8 +107,8 @@ pub fn rednotedl(ctx: Ctx) -> Reply {
     }
 
     let data = match oktz_scraper::rednote::red_note_dl(ctx.http.as_ref(), url) {
-        // `RedNoteDL` tidak punya `try`, jadi kegagalan transport melempar dan
-        // masuk `catch` (`rednotedl.js:61-65`).
+        // `RedNoteDL` tidak punya `try`, jadi kegagalan transport melempar
+        // masuk `catch`.
         Err(_) => return Reply::text(TRANSPORT_FAILED).with_reaction("☢"),
         Ok(value) => match hasil_dari(&value) {
             Ok(data) => data,
@@ -135,11 +117,11 @@ pub fn rednotedl(ctx: Ctx) -> Reply {
     };
 
     if data.kind == "video" {
-        // `results[0]` bisa `undefined` walau array-nya panjang satu; di JS
+        // `results[0]` bisa `undefined` walau array-nya panjang satu; di versi awal
         // `sendMedia(undefined)` melempar dan masuk `catch`.
         match data.results.first() {
             Some(video) if !video.is_empty() => {
-                // `rednotedl.js:44` — video dengan caption `result.title`.
+                // Video dengan caption `result.title`.
                 return Reply::video(
                     MediaSource::url(video.clone()),
                     data.title.clone().unwrap_or_default(),
@@ -151,11 +133,11 @@ pub fn rednotedl(ctx: Ctx) -> Reply {
     }
 
     if data.results.is_empty() {
-        // `rednotedl.js:43-58` tidak terkirim apa pun; hanya reaksi centang.
+        // tidak terkirim apa pun; hanya reaksi centang.
         return Reply::None.with_reaction("✅");
     }
 
-    // `ponytail:` hanya foto pertama yang ikut — `Reply` cuma bisa satu media.
+    // `Keterbatasan:` hanya foto pertama yang ikut — `Reply` cuma bisa satu media.
     Reply::image(
         MediaSource::url(data.results[0].clone()),
         more_note(data.results.len()),
@@ -317,7 +299,7 @@ mod tests {
 
     #[test]
     fn the_failure_branch_prints_a_missing_error_verbatim() {
-        // `rednotedl.js:40` memakai `${result.error}`; scraper selalu mengisi
+        // memakai `${result.error}`; scraper selalu mengisi
         // error dari `resData.error || "Gagal mengambil data"`, jadi di sini
         // yang bisa hilang adalah seluruh kuncinya — tercetak `undefined`.
         for body in [serde_json::json!({ "status": false }), serde_json::json!({})] {
@@ -327,7 +309,7 @@ mod tests {
                 "body {body}"
             );
         }
-        // Nilai non-teks ikut ter-string-kan seperti `String(v)` di JS.
+        // Nilai non-teks ikut ter-string-kan seperti `String(v)` di versi awal.
         assert_eq!(
             hasil_dari(&serde_json::json!({ "status": false, "error": 7 })).unwrap_err(),
             "7"
@@ -383,8 +365,8 @@ mod tests {
 
     #[test]
     fn a_video_without_any_url_falls_into_the_catch_branch() {
-        // `results` tetap panjang satu walau nilainya `undefined` (`rednote.js:42`),
-        // jadi `result.results?.[0]` falsy dan `sendMedia` melempar di JS.
+        // `results` tetap panjang satu walau nilainya `undefined`,
+        // jadi `result.results?.[0]` falsy dan `sendMedia` melempar di versi awal.
         for body in [
             serde_json::json!({ "success": true, "type": "video", "title": "x" }),
             serde_json::json!({ "success": true, "type": "video", "title": "x", "directVideoUrl": null, "downloadUrl": null }),

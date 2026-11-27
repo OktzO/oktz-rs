@@ -1,31 +1,16 @@
-//! `plugins/download/mediafiredl.js` — unduh file dari MediaFire.
-//!
-//! Scraper `mediafire` (`src/scraper/mediafire.js`) sudah ada di crate
-//! `oktz-scraper` (`oktz_scraper::mediafire::mediafire`): GET halaman
-//! MediaFire, ekstraksi meta + tombol unduh, dan tebakan MIME dari ekstensi.
-//! Yang dipindah di sini SEMUA logika plugin: guard URL, kartu pakai, dan
-//! `getFileName` beserta `decodeURIComponent`-nya.
-//!
-//! Dua penyimpitan yang tercatat apa adanya:
-//!
-//! - **`forwardingScore`/`isForwarded` tidak ikut.** JS menandai dokumen
-//!   sebagai pesan terus-terusan (`mediafiredl.js:60-63`); `Reply` tidak punya
-//!   field forwarding.
-//! - **Reaksi `🕕` tetap menyala di jalur sukses.** JS bereaksi `🕕` sekali di
-//!   awal lalu tidak bereaksi lagi kalau dokumen terkirim (`mediafiredl.js:46`),
-//!   jadi reaksi terakhir yang dipakai plugin ini memang `🕕`.
+//! Unduh file dari MediaFire.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::now_ms;
 
-/// `mediafiredl.js:43` — `/mediafire\.com/i`, tidak dikunci ke host.
+/// `/mediafire\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_mediafire_url(url: &str) -> bool {
     url.to_lowercase().contains("mediafire.com")
 }
 
-/// `mediafiredl.js:35-40` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -35,14 +20,14 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `mediafiredl.js:44` — seluruh pesan dibungkus asterisk, termasuk `link`/`File`.
+/// Seluruh pesan dibungkus asterisk, termasuk `link`/`File`.
 pub(crate) const BAD_URL: &str = "❌ *URL tidak valid. Gunakan link MediaFire.*";
 
-/// `mediafiredl.js:52` — respons tanpa `download.link_download`.
+/// Respons tanpa `download.link_download`.
 pub(crate) const NO_LINK: &str =
     "❌ Gagal mendapatkan link download. File mungkin tidak tersedia.";
 
-/// Bagian hasil `mediafire` (`src/scraper/mediafire.js:72-82`) yang dibaca
+/// Bagian hasil `mediafire` yang dibaca
 /// plugin: `meta.title`, `download.link_download`, dan `download.mimetype`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MediafireFile {
@@ -51,7 +36,7 @@ pub(crate) struct MediafireFile {
     pub mimetype: String,
 }
 
-/// Baca hasil scraper. Kunci yang tidak ada berarti string kosong di JS juga,
+/// Baca hasil scraper. Kunci yang tidak ada berarti string kosong di versi awal juga,
 /// karena scraper selalu mengisinya dengan `""` kalau meta tidak ada.
 fn hasil_dari(data: &Value) -> MediafireFile {
     let teks = |path: &str| {
@@ -67,9 +52,9 @@ fn hasil_dari(data: &Value) -> MediafireFile {
     }
 }
 
-/// `decodeURIComponent` — hanya `%XX`, spasi tidak disentuh (beda dari
+/// `decodeURIComponent` — hanya `%XX`, spasi tidak disentuh (beda
 /// `decodeURIComponent` versi form). Rangkaian `%` yang tidak sah dibiarkan
-/// apa adanya; di JS itu melempar `URIError`, yang tidak akan pernah terjadi
+/// apa adanya; di versi awal itu melempar `URIError`, yang tidak akan pernah terjadi
 /// karena string-nya berasal dari URL MediaFire.
 ///
 /// Argumen byte per byte lalu didekode UTF-8 sekaligus: `from_utf8_lossy`
@@ -94,7 +79,7 @@ pub(crate) fn decode_uri_component(raw: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-/// `mediafiredl.js:20-29` — `getFileName`. Argumen `now_ms` menggantikan
+/// `getFileName`. Argumen `now_ms` menggantikan
 /// `Date.now()` supaya cabang cadangan bisa diuji.
 pub(crate) fn get_file_name(result: &MediafireFile, now_ms: i64) -> String {
     let direct_name = result.title.trim();
@@ -149,8 +134,8 @@ pub fn mediafiredl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `mediafire.js:69` melempar saat `link_download` kosong, jadi scraper itu
-    // tidak pernah sampai ke pemeriksaan `mediafiredl.js:50`.
+    // melempar saat `link_download` kosong, jadi scraper itu
+    // tidak pernah sampai ke pemeriksaan.
     let Ok(value) = oktz_scraper::mediafire::mediafire(ctx.http.as_ref(), url) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("🕕");
     };
@@ -159,7 +144,7 @@ pub fn mediafiredl(ctx: Ctx) -> Reply {
         return Reply::text(NO_LINK).with_reaction("❌");
     }
 
-    // `mediafiredl.js:54-66` — `sendMessage` document dengan URL, mimetype dari
+    // `sendMessage` document dengan URL, mimetype
     // scraper, dan nama dari `getFileName`.
     Reply::document(
         MediaSource::url(result.link_download.clone()).with_mimetype(result.mimetype.clone()),
@@ -176,7 +161,7 @@ mod tests {
 
     const SENDER: &str = "628111@s.whatsapp.net";
 
-    /// Stub `HttpGet` yang membalas satu halaman HTML tetap — scraper dan
+    /// Stub `HttpGet` yang membalas satu halaman HTML tetap — scraper
     /// plugin diuji tanpa jaringan.
     #[derive(Debug, Default)]
     struct StubHttp {
@@ -357,7 +342,7 @@ mod tests {
 
     #[test]
     fn the_scraper_failure_branch_is_the_error_template() {
-        // Halaman tanpa tombol unduh → `mediafire.js:69` melempar, persis yang
+        // Halaman tanpa tombol unduh → melempar, persis
         // terjadi kalau parsing HTML gagal di Node.
         let r = (oktz_plugin_api::find("mediafiredl").unwrap().handler)(ctx_dengan(
             "https://www.mediafire.com/file/xxx",

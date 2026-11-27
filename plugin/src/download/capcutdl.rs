@@ -1,18 +1,14 @@
-//! `plugins/download/capcutdl.js` — unduh video CapCut.
-//!
-//! Scraper `capcut` memakai kontrak resmi `btch-downloader@6.3.6` melalui
-//! `oktz_scraper::btch`, termasuk endpoint, header, envelope, dan penanganan
-//! error transport seperti SDK Node.
+//! Unduh video CapCut.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `capcutdl.js:31` — `/capcut\.com/i`, tidak dikunci ke host.
+/// `/capcut\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_capcut_url(url: &str) -> bool {
     url.to_lowercase().contains("capcut.com")
 }
 
-/// `capcutdl.js:23-28` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -22,18 +18,18 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `capcutdl.js:32` — URL bukan CapCut.
+/// URL bukan CapCut.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link CapCut.";
 
-/// `capcutdl.js:41` — backend menjawab tanpa `originalVideoUrl`.
+/// Backend menjawab tanpa `originalVideoUrl`.
 pub(crate) const NO_VIDEO: &str = "❌ Gagal mengambil video. Coba link lain.";
 
-/// `capcutdl.js:40` — `data?.status` harus `true`.
+/// `data?.status` harus `true`.
 pub(crate) fn status_ok(data: &Value) -> bool {
     data.get("status").and_then(Value::as_bool) == Some(true)
 }
 
-/// `capcutdl.js:40` — `data?.originalVideoUrl`.
+/// `data?.originalVideoUrl`.
 pub(crate) fn original_video_url(data: &Value) -> String {
     data.get("originalVideoUrl")
         .and_then(Value::as_str)
@@ -67,7 +63,7 @@ pub fn capcutdl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `capcutdl.js:38` memakai SDK Node yang menangkap error transport dan
+    // memakai SDK Node yang menangkap error transport
     // mengembalikan envelope `status: false`.
     let data = oktz_scraper::btch::capcut(ctx.http.as_ref(), url);
 
@@ -76,8 +72,8 @@ pub fn capcutdl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `capcutdl.js:44-50` — `sendMedia` video tanpa caption; reaksi ⏱️ adalah
-    // satu-satunya reaksi yang dikirim JS.
+    // `sendMedia` video tanpa caption; reaksi ⏱️ adalah
+    // satu-satunya reaksi yang dikirim versi awal.
     Reply::video(MediaSource::url(video), "").with_reaction("🕕")
 }
 
@@ -193,8 +189,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `cc` diklaim dua kali di JS: `download/capcutdl.js:5` (alias) dan
-        // `group/clearchat.js:3` (array `name`). Tabrakan bawaan repo, bukan
+        // `cc` diklaim dua kali di versi awal: (alias)
+        // (array `name`). Tabrakan bawaan repo, bukan
         // hasil port — hanya satu yang bisa menang di registry.
         for a in ["ccdl", "capcut"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "capcutdl");
@@ -216,9 +212,9 @@ mod tests {
 
     #[test]
     fn the_unanchored_regex_quirk_of_the_js_is_kept() {
-        // `/capcut\.com/i` tidak dikunci ke host, jadi `notcapcut.com` dan
+        // `/capcut\.com/i` tidak dikunci ke host, jadi `notcapcut.com`
         // `capcut.com.evil.example` tetap lolos — Guardian ini harus persis
-        // sama dengan JS.
+        // sama dengan versi awal.
         assert!(is_capcut_url("https://capcut.com.evil.example/x"));
         assert!(is_capcut_url("https://notcapcut.com/x"));
         assert!(is_capcut_url("https://www.CAPCUT.com/t/1"));
@@ -291,7 +287,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan CapCut; set OKTZ_TEST_CAPCUT_URL"]
     fn live_capcutdl_mengambil_video() {
-        // Uji live padanan `plugins/download/capcutdl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_CAPCUT_URL");

@@ -1,12 +1,4 @@
-//! `plugins/download/ytmp4.js` — unduh video YouTube.
-//!
-//! Resolver berlapis kini ikut. Rantai backend JS untuk mp4 adalah
-//! `youtube-fallback` (scraper lokal SaveTube, `getYoutubeDirectUrl`) →
-//! `izuka` (agregator, `/api/downloader/ytmp4`) — `src/capabilities/youtube.js:395-414`.
-//! URL-nya bentuk kanonik `kanonikDari(idVideo(url))` dari [`super::ytmp3::kanonik`].
-//!
-//! Video kini benar-benar dikirim: `sock.sendMedia(..., { type: "video" })`
-//! (`ytmp4.js:61-63`) → [`Reply::Video`] tanpa caption, lalu reaksi ✅.
+//! Unduh video YouTube.
 
 use oktz_plugin_api::{Ctx, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
@@ -14,24 +6,24 @@ use serde_json::Value;
 use super::douyindl::query_encode;
 use super::ytmp3::{host_youtube, kanonik, url_field, url_nama, url_video_normal};
 
-/// `AGGREGATORS.izuka.base` + path di `src/capabilities/youtube.js:257`.
+/// `AGGREGATORS.izuka.base` + path.
 pub(crate) const ENDPOINT: &str = "https://my.izuka-api.xyz/api/downloader/ytmp4";
 
-/// `ytmp4.js:50` — link hilang.
+/// Link hilang.
 pub(crate) fn contoh(prefix: &str) -> String {
     format!("Contoh: {prefix}ytmp4 https://youtube.com/watch?v=xxx")
 }
 
-/// `ytmp4.js:51` — bukan host YouTube.
+/// Bukan host YouTube.
 pub(crate) const BUKAN_YOUTUBE: &str = "❌ URL harus YouTube";
 
-/// `ytmp4.js:71` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const GAGAL: &str = "Gagal mengunduh video.";
 
-/// `normalize` (`src/capabilities/youtube.js:331`) untuk jalur video — membuka
+/// `normalize` untuk jalur video — membuka
 /// amplop aggregator dan memeriksa `status`-nya dulu, lalu `urlUnduhan`:
 /// `dl`/`download_url`/`download` → `video_normal` (array, ext mp4) → `url`
-/// polos. `video_normal` non-array diabaikan seperti `Array.isArray` di JS.
+/// polos. `video_normal` non-array diabaikan seperti `Array.isArray` di versi awal.
 pub(crate) fn normalize(isi: &Value) -> Result<String, ()> {
     let mut url = url_nama(isi);
     if url.is_empty() {
@@ -46,7 +38,7 @@ pub(crate) fn normalize(isi: &Value) -> Result<String, ()> {
     Ok(url)
 }
 
-/// `pastikanBentuk` + `lewatIzuka` (`youtube.js:238,257`) digabung: pemeriksaan
+/// `pastikanBentuk` + `lewatIzuka` digabung: pemeriksaan
 /// bentuk aggregator diletakkan di sini juga karena `izuka` tidak butuh key.
 fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<String, ()> {
     let target = format!("{ENDPOINT}?url={}", query_encode(kanonik));
@@ -67,20 +59,20 @@ fn unduh_izuka(ctx: &Ctx, kanonik: &str) -> Result<String, ()> {
     normalize(result)
 }
 
-/// `getVideoDownloadUrl` (`ytmp4.js:42-45`) + resolver `resolve("youtube")` —
+/// `getVideoDownloadUrl` + resolver `resolve("youtube")` —
 /// rantai backend mp4: `youtube-fallback` (SaveTube lokal,
-/// `youtube.js:403-407`) → `izuka` (`youtube.js:409-413`). SaveTube
+/// ) → `izuka`. SaveTube
 /// mengembalikan `{url}` polos tanpa ampel, jadi [`normalize`] langsung
 /// membacanya.
 pub(crate) fn unduh_video(ctx: &Ctx, url: &str) -> Result<String, ()> {
     let kanonik = kanonik(url)?;
-    // 1. `youtube-fallback` — hanya untuk mp4 (`applies`, `youtube.js:405`).
+    // 1. `youtube-fallback` — hanya untuk mp4.
     if let Ok(v) = oktz_scraper::youtube::get_youtube_direct_url(&*ctx.http, &kanonik, Some("360"))
         && let Ok(url) = normalize(&v)
     {
         return Ok(url);
     }
-    // 2. `izuka` (`youtube.js:409-413`).
+    // 2. `izuka`.
     unduh_izuka(ctx, &kanonik)
 }
 
@@ -110,7 +102,7 @@ pub fn ytmp4(ctx: Ctx) -> Reply {
     }
 
     match unduh_video(&ctx, url) {
-        // `ytmp4.js:61-64` — `sendMedia` video tanpa caption lalu reaksi ✅.
+        // `sendMedia` video tanpa caption lalu reaksi ✅.
         Ok(download) => Reply::video(Ms::url(download), "").with_reaction("✅"),
         Err(()) => Reply::text(GAGAL).with_reaction("❌"),
     }
@@ -124,7 +116,7 @@ mod tests {
 
     #[derive(Debug)]
     struct Stub {
-        /// Respons per-backend dicocokkan dari potongan URL: SaveTube di
+        /// Respons per-backend dicocokkan dari potongan URL: SaveTube
         /// `savetube`, izuka di `izuka`. `None` = transport error.
         per_backend: Vec<(&'static str, Option<Value>)>,
         seen: Mutex<Vec<String>>,
@@ -240,7 +232,7 @@ mod tests {
         assert_eq!(p.meta.example, ".ytmp4 https://youtube.com/watch?v=xxx");
         assert_eq!(p.meta.cooldown, 20);
         assert_eq!(p.meta.energi, 2);
-        // JS `ytmp4.js:3-12` tidak menyebut satu pun flag permission.
+        // versi awal tidak menyebut satu pun flag permission.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
@@ -256,8 +248,8 @@ mod tests {
 
     #[test]
     fn an_invalid_video_id_fails_fast_like_the_capability_target() {
-        // `target()` (`youtube.js:129`) melempar kalau `idVideo` null — ID
-        // "xxx" bukan 11 karakter. `ytmp4.js:65-72` menangkapnya jadi
+        // `target()` melempar kalau `idVideo` null — ID
+        // "xxx" bukan 11 karakter. menangkapnya jadi
         // "Gagal mengunduh video." Tidak ada request yang dibuang.
         let http = Stub::per_backend(vec![("", Some(ok_body()))]);
         let r = run(http.clone(), "https://youtube.com/watch?v=xxx");
@@ -302,9 +294,9 @@ mod tests {
 
     #[test]
     fn the_izuka_string_video_normal_shape_is_rejected_like_javascript() {
-        // `urlUnduhan` di `src/capabilities/youtube.js:308-324` hanya memproses
+        // `urlUnduhan` hanya memproses
         // `video_normal` bila berbentuk array. Bentuk string harus gagal agar
-        // port sama persis dengan implementasi JS asli.
+        // port sama persis dengan implementasi versi awal asli.
         let isi = serde_json::json!({
             "status": true,
             "result": {
@@ -405,7 +397,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan YouTube MP4; set OKTZ_TEST_YTMP4_URL"]
     fn live_ytmp4_mengambil_video() {
-        // Uji live padanan `plugins/download/ytmp4.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_YTMP4_URL");

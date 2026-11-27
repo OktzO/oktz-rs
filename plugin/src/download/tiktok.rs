@@ -1,56 +1,42 @@
-//! `plugins/download/tiktokdl.js` — download video/slide TikTok tanpa watermark.
+//! Download video/slide TikTok tanpa watermark.
 //!
-//! Command-nya dipanggil dengan beberapa nama: JS `name: ["tiktok", "tt",
-//! "ttmp4"]` dan `alias: ["tiktokdl", "ttdown"]` (`tiktokdl.js:381-384`), jadi
-//! di sini `tiktok` jadi nama dan sisanya alias.
-//!
-//! Yang diport apa adanya:
-//! - Pemeriksaan URL (`tiktokdl.js:407`) — `tiktok.com`, `vt.tiktok`, atau
-//!   `vm.tiktok`.
-//! - Caption video (`tiktokdl.js:411-431`) dan caption foto (`tiktokdl.js:452`).
-//! - Tombol "🎵 Ambil Music" (`tiktokdl.js:399-405`) — di JS dikirim lewat
-//!   `sock.sendButton(..., { type: "video", buttons })`, jadi video-nya jadi
-//!   HEADER kartu native-flow dan tombolnya menempel di kartu yang sama.
-//! - Pesan gagal (`tiktokdl.js:509-514`) dan pesan "slide berhasil"
-//!   (`tiktokdl.js:504`).
-//!
-//! `ponytail:` yang berbeda dari JS, beserta alasannya:
-//! - `resolveTikTokUrl` (`tiktokdl.js:3-24`) mengikuti redirect短 link
-//!   `vt.tiktok.com` dan mengambil URL akhirnya. Klien HTTP Rust mengikuti
-//!   redirect secara internal tapi tidak参加会议 URL akhir, jadi short link
-//!   diteruskan apa adanya — Savett dan TikWM sama-sama menerimanya.
-//! - Urutan provider: JS mencoba TikWM lalu Savett (`tiktokdl.js:352-375`).
-//!   `oktz_scraper::tiktok::ttdown` sudah merantai TikWM → Savett → YuuLabs →
-//!   MusicalDown, jadi rantai yang lebih panjang itu yang dipakai di sini.
-//! - `formatDate` (`tiktokdl.js:35-46`) memakai `toLocaleDateString` dengan
-//!   locale Inggris; tanpa ICU di Rust, scraper memakai format ISO-like.
+//! `Keterbatasan:` yang berbeda dari versi awal, beserta alasannya:
+//! - `resolveTikTokUrl` mengikuti redirect短 link
+//! `vt.tiktok.com` dan mengambil URL akhirnya. Klien HTTP Rust mengikuti
+//! redirect secara internal tapi tidak参加会议 URL akhir, jadi short link
+//! diteruskan apa adanya — Savett dan TikWM sama-sama menerimanya.
+//! - Urutan provider: versi awal mencoba TikWM lalu Savett.
+//! `oktz_scraper::tiktok::ttdown` sudah merantai TikWM → Savett → YuuLabs →
+//! MusicalDown, jadi rantai yang lebih panjang itu yang dipakai di sini.
+//! - `formatDate` memakai `toLocaleDateString`
+//! locale Inggris; tanpa ICU di Rust, scraper memakai format ISO-like.
 //! - Album slide butuh `albumMessage` + `relayMessage` per slide
-//!   (`tiktokdl.js:470+`); kontrak `Reply` cuma satu media per pesan, jadi
-//!   cabang foto mengirim foto pertama saja.
+//! ; kontrak `Reply` cuma satu media per pesan, jadi
+//! cabang foto mengirim foto pertama saja.
 
 use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
-/// `tiktokdl.js:401-405` — regex `/tiktok\.com|vt\.tiktok|vm\.tiktok/i`.
+/// Regex `/tiktok\.com|vt\.tiktok|vm\.tiktok/i`.
 pub(crate) fn url_tiktok_valid(url: &str) -> bool {
     let kecil = url.to_lowercase();
     kecil.contains("tiktok.com") || kecil.contains("vt.tiktok") || kecil.contains("vm.tiktok")
 }
 
-/// `tiktokdl.js:410-411` — pesan tanpa URL.
+/// Pesan tanpa URL.
 pub(crate) fn bantuan(prefix: &str, command: &str) -> String {
     format!("📌 Contoh: *{prefix}{command} https://vt.tiktok.com/...*")
 }
 
-/// `tiktokdl.js:407-409` — URL bukan TikTok.
+/// URL bukan TikTok.
 pub(crate) const URL_TIDAK_VALID: &str =
     "❌ URL tidak valid. Gunakan link TikTok yang valid.\n\nContoh: `.tt https://vt.tiktok.com/ZSxxxx/`";
 
-/// `tiktokdl.js:434-441` — UA unduhan video.
+/// UA unduhan video.
 const UA_VIDEO: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
-/// `tiktokdl.js:435` — `Referer` unduhan video.
+/// `Referer` unduhan video.
 const REFERER_VIDEO: &str = "https://www.tiktok.com/";
 
 /// `result.data` → unduhan pertama yang cocok.
@@ -100,7 +86,7 @@ fn field(hasil: &Value, path: &str) -> String {
     }
 }
 
-/// `tiktokdl.js:411-431` — caption video.
+/// Caption video.
 pub(crate) fn caption_video(hasil: &Value) -> String {
     let provider = {
         let p = field(hasil, "_provider");
@@ -143,7 +129,7 @@ pub(crate) fn caption_video(hasil: &Value) -> String {
     )
 }
 
-/// `tiktokdl.js:467-479` — caption foto.
+/// Caption foto.
 ///
 /// Perbedaannya dengan `caption_video`: baris `- Music:` ikut, baris
 /// `- Uploaded:` (bukan `- Taken At:`), dan judul statistiknya
@@ -188,13 +174,13 @@ pub(crate) fn caption_foto(hasil: &Value) -> String {
     )
 }
 
-/// `tiktokdl.js:504` — pesan setelah slide berhasil dikirim.
+/// Pesan setelah slide berhasil dikirim.
 pub(crate) const SLIDE_BERHASIL: &str =
     "📸 Slide berhasil dikirim!\nTekan tombol di bawah untuk ambil music.";
 
-/// `tiktokdl.js:509-514` — cabang `catch`.
+/// Cabang `catch`.
 ///
-/// `detail` = `e.message?.slice(0, 300) || "Unknown error"` (`tiktokdl.js:512`).
+/// `detail` = `e.message?.slice(0, 300) || "Unknown error"`.
 pub(crate) fn gagal(prefix: &str, detail: &str) -> String {
     let potong: String = detail.chars().take(300).collect();
     let detail = if potong.is_empty() {
@@ -240,7 +226,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         return gagal_reply("Semua provider TikTok gagal");
     };
 
-    // `tiktokdl.js:399-405` — tombol "Ambil Music" menunjuk ke `.ttmp3`.
+    // Tombol "Ambil Music" menunjuk ke `.ttmp3`.
     let tombol_musik = InteractiveButton::quick_reply(
         "🎵 Ambil Music",
         format!("{}ttmp3 {teks}", ctx.prefix),
@@ -248,7 +234,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
 
     if let Some(alamat) = url_video(&hasil) {
         // `axios.get(videoItem.url, { responseType: "arraybuffer" })`
-        // (`tiktokdl.js:433-441`).
+        //
         let Ok(res) = ctx.http.call(
             &HttpCall::get(&alamat)
                 .header("User-Agent", UA_VIDEO)
@@ -265,7 +251,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
             .map(|(_, v)| v.clone())
             .unwrap_or_default();
-        // `if (ct.includes("text/html")) throw` (`tiktokdl.js:443-444`).
+        // `if (ct.includes("text/html")) throw`.
         if content_type.contains("text/html") {
             return gagal_reply("Gagal mendapatkan file video (response HTML)");
         }
@@ -275,7 +261,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             "video/mp4".to_string()
         };
         // `sock.sendButton(jid, buffer, caption, m, { type: "video", buttons })`
-        // (`tiktokdl.js:447-453`) — video jadi header kartu native-flow.
+        // Video jadi header kartu native-flow.
         return Reply::interactive(caption_video(&hasil))
             .with_header(CardHeader::new().video(
                 Ms::bytes(res.body.bytes().to_vec()).with_mimetype(mimetype),
@@ -284,17 +270,17 @@ pub fn tiktok(ctx: Ctx) -> Reply {
             .with_reaction("✅");
     }
 
-    // Cabang foto/slide (`tiktokdl.js:455+`).
+    // Cabang foto/slide.
     if let Some(foto) = unduhan(&hasil, "photo")
         .and_then(|d| d.get("url"))
         .and_then(Value::as_str)
         .filter(|u| !u.is_empty())
     {
-        // `tiktokdl.js:496-506` — album slide lalu tombol "ambil music".
+        // Album slide lalu tombol "ambil music".
         //
-        // `ponytail:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
+        // `Keterbatasan:` `Reply::Sequence` tidak boleh dibungkus `Reaction`
         // (pipeline merender `Sequence` lewat loop, bukan `render_reply`), jadi
-        // reaksi ✅ pada jalur ini tidak ikut — sama seperti
+        // reaksi ✅ pada jalur ini tidak ikut — sama
         // `download/tiktokdl2.rs`.
         return Reply::sequence(vec![
             Reply::interactive(caption_foto(&hasil))
@@ -306,7 +292,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         ]);
     }
 
-    // Cabang MP3 (`tiktokdl.js:487+`).
+    // Cabang MP3.
     if let Some(mp3) = url_mp3(&hasil) {
         return Reply::sequence(vec![
             Reply::text(caption_foto(&hasil)),
@@ -348,7 +334,7 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("tiktok").unwrap();
         assert_eq!(p.meta.name, "tiktok");
-        // JS `name: ["tiktok", "tt", "ttmp4"]` + `alias: ["tiktokdl", "ttdown"]`.
+        // versi awal `name: ["tiktok", "tt", "ttmp4"]` + `alias: ["tiktokdl", "ttdown"]`.
         assert_eq!(p.meta.alias, ["tt", "ttmp4", "tiktokdl", "ttdown"]);
         assert_eq!(p.meta.category, "download");
         assert_eq!(p.meta.description, "Download video/slide TikTok tanpa watermark");
@@ -389,7 +375,7 @@ mod tests {
 
     #[test]
     fn caption_foto_mengikuti_baris_javascript() {
-        // `tiktokdl.js:467-479` — ikon 📸, baris `- Music:`, `- Uploaded:` dan
+        // Ikon 📸, baris `- Music:`, `- Uploaded:`
         // judul `*Statistik Konten:*`.
         let c = caption_foto(&hasil_contoh());
         assert!(c.starts_with("📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞"), "{c}");
@@ -406,17 +392,17 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `tiktokdl.js:513` — pesan gagal.
+        // Pesan gagal.
         assert_eq!(
             gagal(".", "Gagal mengunduh"),
             "❌ *Gagal mengunduh TikTok*\n\n> Gagal mengunduh\n\nCoba lagi nanti, atau bisa coba *.tt2* sebagai alternatif.\nJika tetap gagal, pastikan link valid dan video tidak private."
         );
-        // `tiktokdl.js:504` — pesan slide.
+        // Pesan slide.
         assert_eq!(
             SLIDE_BERHASIL,
             "📸 Slide berhasil dikirim!\nTekan tombol di bawah untuk ambil music."
         );
-        // Detail kosong → "Unknown error" (`tiktokdl.js:512`).
+        // Detail kosong → "Unknown error".
         assert!(gagal(".", "").contains("> Unknown error"));
     }
 

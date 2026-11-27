@@ -1,22 +1,22 @@
-//! `plugins/download/alightmotion.js` — unduh project/preset Alight Motion.
+//! Unduh project/preset Alight Motion.
 //!
-//! `ponytail:` JS mengirim `document: { url }` (sumber `Url`, bukan byte), dan
-//! nama berkas memakai `config.bot.name`. Di `Ctx::default()` nama bot kosong,
-//! jadi tes di bawah menghasilkan `AlightMotion_.zip`; produksi (lebih
-//! `Runtime::from_config`) menghasilkan `AlightMotion_Oktz Bot.zip` seperti JS.
+//! `Keterbatasan:` versi awal mengirim `document: { url }` (sumber `Url`, bukan byte), dan
+//! nama berkas memakai `config.bot.name`. Di `Ctx::default()` nama bot kosong, jadi tes di
+//! bawah menghasilkan `AlightMotion_.zip`; produksi (lebih `Runtime::from_config`)
+//! menghasilkan `AlightMotion_Oktz Bot.zip` seperti versi awal.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `alightmotion.js:40` — UA yang dikirim ke API.
+/// UA yang dikirim ke API.
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
 
-/// `alightmotion.js:41` — Content-Type yang dikirim ke API.
+/// Content-Type yang dikirim ke API.
 const CONTENT_TYPE: &str = "application/json";
 
-/// `alightmotion.js:23-28` — kartu pakai saat `text` kosong.
+/// Kartu pakai saat `text` kosong.
 fn help(prefix: &str) -> String {
     format!(
         "📥 *ALIGHT MOTION DOWNLOADER*\n\n\
@@ -27,7 +27,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `alightmotion.js:36` — endpoint + query `url`, di-encode `encodeURIComponent`.
+/// Endpoint + query `url`, di-encode `encodeURIComponent`.
 fn api_url(target_url: &str) -> String {
     format!(
         "https://kyzznekoo.zone.id/api/alightmotion/download?url={}",
@@ -35,8 +35,8 @@ fn api_url(target_url: &str) -> String {
     )
 }
 
-/// `alightmotion.js:49` — `data.status` truthy, `data.data` ada, dan
-/// `data.data.url` string tidak kosong. `||` JS membuat `0`/`""`/`null` gagal,
+/// `data.status` truthy, `data.data` ada,
+/// `data.data.url` string tidak kosong. `||` versi awal membuat `0`/`""`/`null` gagal,
 // jadi `as_str` yang kosong ikut ditolak.
 fn download_url(body: &Value) -> Option<String> {
     let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
@@ -47,7 +47,7 @@ fn download_url(body: &Value) -> Option<String> {
         .map(String::from)
 }
 
-/// `src/lib/error.js` + `config.errorTemplate` (`config.js:153`).
+/// + `config.errorTemplate`.
 ///
 /// `pushName || 'User'` jadi `'User'` karena `m.pushName` tidak ada di `Ctx`;
 // `prefix || '.'` dan `command || '?'` tetap dihormati.
@@ -310,7 +310,7 @@ mod tests {
             ..Ctx::default()
         };
         let r = alightmotion(ctx);
-        // `m.react("✅")` membungkus balasan dokumen (`alightmotion.js:63`).
+        // `m.react("✅")` membungkus balasan dokumen.
         let Reply::Document { file_name, .. } = r.without_mutations().tanpa_reaksi() else {
             panic!("harus document");
         };
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn error_template_mengikuti_ganti_prefix_dan_command() {
-        // `prefix || '.'` / `command || '?'` di `src/lib/error.js:5-6`.
+        // `prefix || '.'` / `command || '?'`.
         assert_eq!(
             error_template("", ""),
             "☢ Ehhh~ command `.?` lagi ada kendala, User\n\

@@ -1,18 +1,14 @@
-//! `plugins/download/cocofundl.js` — unduh video CocoFun.
-//!
-//! Scraper `cocofun` memakai kontrak resmi `btch-downloader@6.3.6` melalui
-//! `oktz_scraper::btch`, termasuk envelope `result` dan penanganan error
-//! transport seperti SDK Node.
+//! Unduh video CocoFun.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `cocofundl.js:31` — `/cocofun\.com/i`, tidak dikunci ke host.
+/// `/cocofun\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_cocofun_url(url: &str) -> bool {
     url.to_lowercase().contains("cocofun.com")
 }
 
-/// `cocofundl.js:23-28` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -22,22 +18,22 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `cocofundl.js:32` — URL bukan CocoFun.
+/// URL bukan CocoFun.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link CocoFun.";
 
-/// `cocofundl.js:41` — backend menjawab tanpa `status`/`result`.
+/// Backend menjawab tanpa `status`/`result`.
 pub(crate) const NO_RESULT: &str = "❌ Gagal mengambil video. Coba link lain.";
 
-/// `cocofundl.js:48` — `result` ada tapi kedua field URL kosong.
+/// `result` ada tapi kedua field URL kosong.
 pub(crate) const NO_VIDEO: &str = "❌ Video tidak ditemukan.";
 
-/// `cocofundl.js:40` — `data?.status` harus `true` dan `data?.result` harus ada.
+/// `data?.status` harus `true` dan `data?.result` harus ada.
 pub(crate) fn accepted(data: &Value) -> bool {
     data.get("status").and_then(Value::as_bool) == Some(true)
         && data.get("result").is_some_and(|r| !r.is_null())
 }
 
-/// `cocofundl.js:45` — `result.no_watermark || result.watermark`.
+/// `result.no_watermark || result.watermark`.
 pub(crate) fn video_url(data: &Value) -> String {
     let result = data.get("result").unwrap_or(&Value::Null);
     result
@@ -75,7 +71,7 @@ pub fn cocofundl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `cocofundl.js:38` memakai SDK Node yang menangkap error transport dan
+    // memakai SDK Node yang menangkap error transport
     // mengembalikan envelope `status: false`.
     let data = oktz_scraper::btch::cocofun(ctx.http.as_ref(), url);
 
@@ -88,8 +84,8 @@ pub fn cocofundl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `cocofundl.js:51-57` — `sendMedia` video tanpa caption; reaksi ⏱️ adalah
-    // satu-satunya reaksi yang dikirim JS.
+    // `sendMedia` video tanpa caption; reaksi ⏱️ adalah
+    // satu-satunya reaksi yang dikirim versi awal.
     Reply::video(MediaSource::url(video), "").with_reaction("🕕")
 }
 
@@ -312,7 +308,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan CocoFun; set OKTZ_TEST_COCOFUN_URL"]
     fn live_cocofundl_mengambil_video() {
-        // Uji live padanan `plugins/download/cocofundl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_COCOFUN_URL");

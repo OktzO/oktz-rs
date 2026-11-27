@@ -1,19 +1,15 @@
-//! `plugins/download/snackvideodl.js` — unduh video SnackVideo.
-//!
-//! Scraper `snackvideo` memakai kontrak resmi `btch-downloader@6.3.6` melalui
-//! `oktz_scraper::btch`, termasuk envelope `result` dan penanganan error
-//! transport seperti SDK Node.
+//! Unduh video SnackVideo.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use serde_json::Value;
 
-/// `snackvideodl.js:31` — `/snackvideo\.com/i`, tidak dikunci ke host.
+/// `/snackvideo\.com/i`, tidak dikunci ke host.
 pub(crate) fn is_snackvideo_url(url: &str) -> bool {
     url.to_lowercase().contains("snackvideo.com")
 }
 
-/// `snackvideodl.js:23-28` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -23,13 +19,13 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `snackvideodl.js:32` — URL bukan SnackVideo.
+/// URL bukan SnackVideo.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link SnackVideo.";
 
-/// `snackvideodl.js:41` — backend menjawab tanpa `status`/`result.videoUrl`.
+/// Backend menjawab tanpa `status`/`result.videoUrl`.
 pub(crate) const NO_VIDEO: &str = "❌ Gagal mengambil video. Coba link lain.";
 
-/// `snackvideodl.js:40` — `data?.status && data?.result?.videoUrl`.
+/// `data?.status && data?.result?.videoUrl`.
 pub(crate) fn accepted(data: &Value) -> bool {
     data.get("status").and_then(Value::as_bool) == Some(true)
         && data
@@ -39,7 +35,7 @@ pub(crate) fn accepted(data: &Value) -> bool {
             .is_some_and(|s| !s.is_empty())
 }
 
-/// `snackvideodl.js:46` — `result.videoUrl`, tapi hanya dibaca setelah guard
+/// `result.videoUrl`, tapi hanya dibaca setelah guard
 /// `status`/`videoUrl` lulus; di luar itu plugin tidak pernah menyentuh URL.
 pub(crate) fn video_url(data: &Value) -> String {
     if !accepted(data) {
@@ -78,7 +74,7 @@ pub fn snackvideodl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_URL);
     }
 
-    // `snackvideodl.js:38` memakai SDK Node yang menangkap error transport dan
+    // memakai SDK Node yang menangkap error transport
     // mengembalikan envelope `status: false`.
     let data = oktz_scraper::btch::snackvideo(ctx.http.as_ref(), url);
 
@@ -86,8 +82,8 @@ pub fn snackvideodl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("🕕");
     }
 
-    // `snackvideodl.js:46-52` — `sendMedia` video tanpa caption; reaksi ⏱️
-    // adalah satu-satunya reaksi yang dikirim JS.
+    // `sendMedia` video tanpa caption; reaksi ⏱️
+    // adalah satu-satunya reaksi yang dikirim versi awal.
     Reply::video(MediaSource::url(video_url(&data)), "").with_reaction("🕕")
 }
 
@@ -281,7 +277,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan SnackVideo; set OKTZ_TEST_SNACKVIDEO_URL"]
     fn live_snackvideodl_mengambil_video() {
-        // Uji live padanan `plugins/download/snackvideodl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_SNACKVIDEO_URL");

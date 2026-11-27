@@ -1,19 +1,18 @@
-//! `plugins/download/threaddl.js` — unduh foto dan video dari Threads.
+//! Unduh foto dan video dari Threads.
 //!
-//! `ponytail:` `he.decode` dari paket npm `he` punya tabel ~2000 entitas.
-//! Yang dipindah di sini subset yang lazim muncul pada teks Threads plus
-//! semua entitas numerik (`&#123;` / `&#x7B;`); entitas di luar subset itu
-//! dibiarkan apa adanya — sama seperti `he.decode` pada entity yang tidak
-//! dikenal.
+//! `Keterbatasan:` `he.decode` dari paket npm `he` punya tabel ~2000 entitas. Yang dipindah
+//! di sini subset yang lazim muncul pada teks Threads plus semua entitas numerik (`&#123;`
+//! / `&#x7B;`); entitas di luar subset itu dibiarkan apa adanya — sama seperti `he.decode`
+//! pada entity yang tidak dikenal.
 //!
-//! `ponytail:` axios di sini memakai `validateStatus: () => true`, jadi status
-//! 4xx/5xx tidak melempar. `HttpGet` justru mengembalikan `Err` di atas 399,
-//! sehingga 4xx/5xx sekarang masuk ke cabang `catch` (`☢`), bukan ke cabang
-//! "gagal mengambil data" (`❌`). Perbaiki di `HttpGet` kalau bedanya penting.
+//! `Keterbatasan:` axios di sini memakai `validateStatus: () => true`, jadi status 4xx/5xx
+//! tidak melempar. `HttpGet` justru mengembalikan `Err` di atas 399, sehingga 4xx/5xx
+//! sekarang masuk ke cabang `catch` (`☢`), bukan ke cabang "gagal mengambil data" (`❌`).
+//! Perbaiki di `HttpGet` kalau bedanya penting.
 //!
-//! `ponytail:` `Reply` tidak punya variant album maupun video. Postinggan
-//! banyak media hanya mengirim teks caption-nya; satu video juga hanya teks
-//! caption; satu foto masih terkirim sebagai gambar.
+//! `Keterbatasan:` `Reply` tidak punya variant album maupun video. Postinggan banyak media
+//! hanya mengirim teks caption-nya; satu video juga hanya teks caption; satu foto masih
+//! terkirim sebagai gambar.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -21,14 +20,14 @@ use serde_json::Value;
 use super::facebookdl::axios_query;
 use crate::common::js_truthy_value;
 
-/// `threaddl.js:4` — worker pihak ketiga.
+/// Worker pihak ketiga.
 pub(crate) const BASE_URL: &str =
     "https://workers-playground-cool-wood-c008.accoutydusra.workers.dev";
 
-/// `threaddl.js:60` — link kosong atau tidak memuat kata "threads".
+/// Link kosong atau tidak memuat kata "threads".
 pub(crate) const BAD_LINK: &str = "❌ *Waduh, Link Threads-nya mana nih?*\n\nKamu harus memasukkan tautan (link) dari postingan Threads yang ingin diunduh. Pastikan linknya benar ya! \n\nContoh: `.tdl https://www.threads.net/@zuck/post/xxx`";
 
-/// `threaddl.js:93` — respons gagal, bukan melempar.
+/// Respons gagal, bukan melempar.
 pub(crate) fn failed(reason: &str) -> String {
     format!(
         "⚠️ *Aduh, gagal mengambil data dari Threads!*\n\n\
@@ -37,7 +36,7 @@ pub(crate) fn failed(reason: &str) -> String {
     )
 }
 
-/// `threaddl.js:129` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const SYSTEM_FAILED: &str = "😔 *Sepertinya ada gangguan di sistemku.* \n\nTerjadi kesalahan fatal saat mencoba memproses link Threads tersebut. Silakan coba lagi nanti ya!";
 
 /// Entitas bernama yang dipakai teks Threads, ditulis tanpa `&` dan `;`.
@@ -87,8 +86,8 @@ pub(crate) fn he_decode(raw: &str) -> String {
     out
 }
 
-/// Satu entitas di depan `raw` (`he.js:232-297`): tulis hasil ke `out`, lalu
-/// kembalikan berapa byte yang termakan. `regexDecode` (`he.js:54`) membaca
+/// Satu entitas di depan `raw`: tulis hasil ke `out`, lalu
+/// kembalikan berapa byte yang termakan. `regexDecode` membaca
 /// entitas bernama lama TANPA titik dua juga — `he.decode('&amp b')` =
 /// `'& b'` — jadi nama entitas dicari lebih dulu, baru angka.
 fn decode_entity(raw: &str, out: &mut String) -> usize {
@@ -136,7 +135,7 @@ fn decode_entity(raw: &str, out: &mut String) -> usize {
     1 + name_len
 }
 
-/// `threaddl.js:6-8` — `cleanText`.
+/// `cleanText`.
 pub(crate) fn clean_text(raw: Option<&Value>) -> String {
     // `String(text || "")`: null/undefined/number 0/string kosong semua jadi "".
     let text = match raw {
@@ -187,7 +186,7 @@ pub(crate) fn clean_text(raw: Option<&Value>) -> String {
 
 /// Satu media hasil `normalizeResult`.
 ///
-/// `normalizeResult` juga mengisi `Quality`, tapi `threaddl.js:107-113` hanya
+/// `normalizeResult` juga mengisi `Quality`, tapi hanya
 /// membaca `Type` dan `Result_url`, jadi field yang tak pernah dipakai tidak
 /// ikut dipindah.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,7 +195,7 @@ pub(crate) enum Item {
     Image { url: String },
 }
 
-/// `threaddl.js:10-19` — `uniqueByUrl`.
+/// `uniqueByUrl`.
 fn unique_by_url(list: Option<&Value>) -> Vec<&Value> {
     let Some(items) = list.and_then(Value::as_array) else {
         return Vec::new();
@@ -220,7 +219,7 @@ fn unique_by_url(list: Option<&Value>) -> Vec<&Value> {
     out
 }
 
-/// `threaddl.js:21-42` — `normalizeResult`: video dulu, baru gambar.
+/// `normalizeResult`: video dulu, baru gambar.
 pub(crate) fn normalize_result(data: &Value) -> Vec<Item> {
     let mut out = Vec::new();
     for item in unique_by_url(data.get("video").and_then(|v| v.get("qualities"))) {
@@ -244,7 +243,7 @@ pub(crate) fn normalize_result(data: &Value) -> Vec<Item> {
     out
 }
 
-/// `threaddl.js:96-104`.
+///
 pub(crate) fn caption(info: &Value, count: usize) -> String {
     let author = info
         .get("author")
@@ -297,7 +296,7 @@ pub fn threaddl(ctx: Ctx) -> Reply {
     }
 
     let target = format!("{BASE_URL}?url={}&action=info", axios_query(url));
-    // `threaddl.js:66-85` — worker hanya menerima profil browser dan origin
+    // Worker hanya menerima profil browser dan origin
     // threadsvid, jadi header axios wajib diteruskan lewat `HttpCall`.
     let request = HttpCall::get(&target)
         .header("sec-ch-ua-platform", "\"Android\"")
@@ -351,8 +350,8 @@ pub fn threaddl(ctx: Ctx) -> Reply {
 
     let text = caption(&info, result.len());
     if result.len() > 1 {
-        // `threaddl.js:115-117` — teks dulu lalu album (banyak pesan). Kontrak
-        // `Reply` satu media per pesan; tanpa `albumMessage` di pipeline, yang
+        // Teks dulu lalu album (banyak pesan). Kontrak
+        // `Reply` satu media per pesan; tanpa `albumMessage` di pipeline,
         // terkirim hanya teksnya — sama seperti catatan sebelumnya.
         return Reply::text(text).with_reaction("✅");
     }
@@ -360,7 +359,7 @@ pub fn threaddl(ctx: Ctx) -> Reply {
         Item::Image { url } => {
             Reply::image(MediaSource::url(url.clone()), text).with_reaction("✅")
         }
-        // `threaddl.js:121-124` — `{ video: { url }, caption: captionText }`:
+        // `{ video: { url }, caption: captionText }`:
         // satu media membawa caption yang sama.
         Item::Video { url } => {
             Reply::video(MediaSource::url(url.clone()), text).with_reaction("✅")
@@ -502,7 +501,7 @@ mod tests {
     fn he_decode_covers_named_decimal_and_hex_entities() {
         assert_eq!(he_decode("a &amp; b"), "a & b");
         // `he.decode` tetap membaca entitas bernama lama tanpa titik dua
-        // (`he.js:246-264`), sudah dibuktikan di `he` 1.2.0.
+        // , sudah dibuktikan di `he` 1.2.0.
         assert_eq!(he_decode("a &amp b"), "a & b");
         assert_eq!(he_decode("&ltp&gt;"), "<p>");
         assert_eq!(he_decode("&#39;&#x27;"), "''");
@@ -647,7 +646,7 @@ mod tests {
 
     #[test]
     fn metadata_request_memakai_header_js() {
-        // `threaddl.js:66-85` mengirim header browser dan origin threadsvid.
+        // mengirim header browser dan origin threadsvid.
         let http = Stub::body(
             serde_json::json!({ "success": true, "data": { "images": { "urls": [] } } }),
         );
@@ -717,7 +716,7 @@ mod tests {
             })),
             "https://www.threads.net/@zuck/post/1",
         );
-        // `threaddl.js:121-124` — video + caption yang sama.
+        // Video + caption yang sama.
         let isi = match r.without_mutations() {
             Reply::Reaction { reply, .. } => reply.as_ref(),
             lain => lain,
@@ -796,7 +795,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Threads; set OKTZ_TEST_THREADS_URL"]
     fn live_threaddl_mengambil_video() {
-        // Uji live padanan `plugins/download/threaddl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_THREADS_URL");

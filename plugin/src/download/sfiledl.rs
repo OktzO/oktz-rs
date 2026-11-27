@@ -1,25 +1,11 @@
-//! `plugins/download/sfiledl.js` — unduh file dari Sfile.mobi.
-//!
-//! Urutan backend mengikuti `src/lib/resolve.js`: scraper lokal
-//! `src/scraper/sfiledl.js` dulu, lalu aggregator `neoxr` sebagai cadangan
-//! (`src/capabilities/sfile.js:26-60`). Key `neoxr` dibaca dari runtime `Ctx`.
-//! Key kosong membuat `aggregator.hit` dilewati tanpa request, seperti JS.
-//!
-//! Dua pesan khusus di `catch` sekarang terjangkau: key aggregator kosong
-//! (`missingEnvNameOf` + `explainFailure`) dan respons yang gagal dinormalisasi
-//! (`adaNormalisasiGagal`).
-//!
-//! Dokumen dikirim seperti `sfiledl.js:73-83`: `sendMedia(..., { type:
-//! "document", fileName: data.filename, mimetype: data.mime })` →
-//! [`Reply::Document`]. Mime dari scraper lokal selalu kosong — pipeline memakai
-//! `application/octet-stream` sebagai bawaan (`socket.js:813`).
+//! Unduh file dari Sfile.mobi.
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::host_dari;
 
-/// `sfiledl.js:49-52` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -28,15 +14,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `sfiledl.js:56` — host bukan Sfile.
+/// Host bukan Sfile.
 pub(crate) const BUKAN_HOST: &str = "❌ URL harus dari sfile.mobi atau sfile.co!";
 
-/// `sfiledl.js:105` — `adaNormalisasiGagal(error)` benar.
+/// `adaNormalisasiGagal(error)` benar.
 pub(crate) const NORMALISASI_GAGAL: &str =
     "❌ Gagal mendapatkan link download. File mungkin tidak tersedia.";
 
 /// `explainFailure(new MissingApiKeyError("aggregator", envName), …)`
-/// (`src/lib/stalker-fallback.js:29-33`). `command` sudah dirangkai jadi
+/// . `command` sudah dirangkai jadi
 /// `` `${prefix}sfiledl` `` oleh pemanggil.
 pub(crate) fn api_key_belum_diset(command: &str, env_name: &str) -> String {
     format!(
@@ -46,11 +32,11 @@ pub(crate) fn api_key_belum_diset(command: &str, env_name: &str) -> String {
     )
 }
 
-/// `hostSfile` (`sfiledl.js:32-42`) tanpa crate URL: protokol harus http(s),
+/// `hostSfile` tanpa crate URL: protokol harus http(s),
 /// userinfo dan port dibuang, host berhenti di `/?#`, lalu dibandingkan per label
 /// (`sfile.mobi`, `*.sfile.mobi`, `sfile.co`, `*.sfile.co`).
 ///
-/// Guard per label, bukan `includes`: `sfile.mobi.evil.example` dan
+/// Guard per label, bukan `includes`: `sfile.mobi.evil.example`
 /// `notsfile.mobi` tetap memuat teks "sfile" tapi bukan Sfile.
 pub(crate) fn host_sfile(url: &str) -> bool {
     let Some(host) = host_dari(url) else {
@@ -62,7 +48,7 @@ pub(crate) fn host_sfile(url: &str) -> bool {
         || host.ends_with(".sfile.co")
 }
 
-/// Hasil `normalize` (`src/capabilities/sfile.js:84-96`): `filename`, `url`,
+/// Hasil `normalize`: `filename`, `url`,
 /// `mime` — `size` tidak pernah dibaca plugin, jadi tidak dibawa.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct SfileData {
@@ -71,17 +57,17 @@ pub(crate) struct SfileData {
     pub mime: String,
 }
 
-/// `normalize` (`src/capabilities/sfile.js:63-100`) untuk backend lokal —
+/// `normalize` untuk backend lokal —
 /// bentuk scraper: `{file_name, size_from_text, author_name, upload_date,
 /// download_count, download_url}` dengan `null` untuk yang tidak ketemu.
-/// Ampel aggregator (`{status, data:{url,...}}`) dibuka juga, mengikuti JS.
+/// Ampel aggregator (`{status, data:{url...}}`) dibuka juga, mengikuti versi awal.
 ///
 /// URL kosong/bukan http = kegagalan: `sfile()` mengembalikan
 /// `download_url: null` pada tiga jalur keluar, dan meneruskannya berarti
 /// `sendMedia(undefined)` sambil memberi centang hijau.
 fn normalize_sfile(raw: &Value) -> Result<SfileData, ()> {
     // `raw.status === false` — bentuk lokal tidak punya `status`, jadi
-    // pemeriksaannya eksplisit (`sfile.js:69-74`).
+    // pemeriksaannya eksplisit.
     if raw.get("status") == Some(&Value::Bool(false)) {
         return Err(());
     }
@@ -117,7 +103,7 @@ fn normalize_sfile(raw: &Value) -> Result<SfileData, ()> {
     })
 }
 
-/// Kelas kegagalan resolver yang dibedakan plugin `sfiledl.js:85-109`.
+/// Kelas kegagalan resolver yang dibedakan plugin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ResolveFailure {
     MissingApiKey,
@@ -126,7 +112,7 @@ enum ResolveFailure {
 }
 
 /// `resolver.resolve("sfile", { url })`: backend lokal dulu, lalu aggregator
-/// `neoxr` (`src/capabilities/sfile.js:125-141`). `aggregator.hit` melewati
+/// `neoxr`. `aggregator.hit` melewati
 /// aggregator tanpa request bila key kosong.
 fn resolve_sfile(http: &dyn HttpGet, url: &str, apikey: &str) -> Result<SfileData, ResolveFailure> {
     if let Ok(body) = oktz_scraper::sfiledl::sfile(http, url)
@@ -139,7 +125,7 @@ fn resolve_sfile(http: &dyn HttpGet, url: &str, apikey: &str) -> Result<SfileDat
         return Err(ResolveFailure::MissingApiKey);
     }
 
-    // `aggregator.hit("neoxr", "/api/sfile", ...)`: key masuk query dan header.
+    // `aggregator.hit("neoxr", "/api/sfile"...)`: key masuk query dan header.
     let target = format!(
         "https://api.neoxr.eu/api/sfile?url={}&apikey={}",
         super::douyindl::query_encode(url),
@@ -181,12 +167,12 @@ pub fn sfiledl(ctx: Ctx) -> Reply {
     }
 
     match resolve_sfile(ctx.http.as_ref(), url, &ctx.config().api_keys.neoxr) {
-        // `sfiledl.js:73-83` — `sendMedia` document dari URL, nama dari
+        // `sendMedia` document dari URL, nama
         // `data.filename`. Mime lokal selalu kosong (scraper tidak membaca
         // mime), jadi `MediaSource` tidak membawa mimetype — pipeline memakai
-        // bawaan `application/octet-stream` seperti `socket.js:813`.
+        // bawaan `application/octet-stream` seperti.
         Ok(data) => Reply::document(MediaSource::url(data.url), data.filename).with_reaction("✅"),
-        // `missingEnvNameOf` diperiksa lebih dulu, seperti `sfiledl.js:93-97`.
+        // `missingEnvNameOf` diperiksa lebih dulu, seperti.
         Err(ResolveFailure::MissingApiKey) => Reply::text(api_key_belum_diset(
             &format!("{}sfiledl", ctx.prefix),
             "APIKEY_NEOXR",
@@ -640,7 +626,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Sfile; set OKTZ_TEST_SFILE_URL dan APIKEY_NEOXR bila perlu"]
     fn live_sfiledl_mengambil_dokumen() {
-        // Uji live padanan `plugins/download/sfiledl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_SFILE_URL");

@@ -1,6 +1,6 @@
-//! `plugins/download/shopeedl.js` — unduh video dari Shopee.
+//! Unduh video dari Shopee.
 //!
-//! `ponytail:` `Reply` tidak punya variant video, jadi hasil `sendMessage` hanya
+//! `Keterbatasan:` `Reply` tidak punya variant video, jadi hasil `sendMessage` hanya
 //! terkirim sebagai caption teks; URL videonya tidak ikut.
 
 use oktz_plugin_api::{Ctx, HttpBody, HttpGet, MediaSource, Reply, plugin};
@@ -8,10 +8,10 @@ use serde_json::Value;
 
 use crate::common::js_truthy_value;
 
-/// `shopeedl.js:17` — host scraper pihak ketiga.
+/// Host scraper pihak ketiga.
 pub(crate) const BASE_URL: &str = "https://shopeenowatermark.com";
 
-/// `shopeedl.js:35` — urutan kualitas pilihan.
+/// Urutan kualitas pilihan.
 const ORDER: [&str; 8] = [
     "V1080P",
     "V720P",
@@ -23,18 +23,18 @@ const ORDER: [&str; 8] = [
     "V360P_H265",
 ];
 
-/// `shopeedl.js:47` — link tidak ada atau tidak memuat kata "shopee".
+/// Link tidak ada atau tidak memuat kata "shopee".
 pub(crate) const BAD_URL: &str =
     "❌ Masukkan link video Shopee yang valid.\n\nContoh: `.shopeedl https://shopee.co.id/...`";
 
-/// `shopeedl.js:56` — `streams_array` kosong atau tidak ada.
+/// `streams_array` kosong atau tidak ada.
 pub(crate) const NO_STREAM: &str =
     "⚠️ Gagal mengekstrak video. Pastikan link video Shopee sudah benar dan bersifat publik.";
 
-/// `shopeedl.js:77` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const SEND_FAILED: &str = "😔 Gagal mengunduh video dari Shopee.";
 
-/// `` `${value}` `` di JS — field yang hilang tercetak `undefined`, `null`
+/// `` `${value}` `` di versi awal — field yang hilang tercetak `undefined`, `null`
 /// tercetak `null`.
 fn template_value(value: Option<&Value>) -> String {
     match value {
@@ -45,7 +45,7 @@ fn template_value(value: Option<&Value>) -> String {
     }
 }
 
-/// `shopeedl.js:34-41` — `bestStream`.
+/// `bestStream`.
 pub(crate) fn best_stream(streams: &[Value]) -> Option<&Value> {
     for quality in ORDER {
         if let Some(found) = streams
@@ -58,7 +58,7 @@ pub(crate) fn best_stream(streams: &[Value]) -> Option<&Value> {
     streams.first()
 }
 
-/// `shopeedl.js:62-65`.
+///
 pub(crate) fn caption(data: &Value, best: &Value) -> String {
     let mut out = String::from("🛍️ *SHOPEE VIDEO DOWNLOADER* 🛍️\n\n");
     if let Some(username) = data.get("username").filter(|v| js_truthy_value(v)) {
@@ -133,12 +133,12 @@ pub fn shopeedl(ctx: Ctx) -> Reply {
         return Reply::text(NO_STREAM).with_reaction("❌");
     };
 
-    // `shopeedl.js:67-72` — `sendMessage` video dengan caption, lalu centang
+    // `sendMessage` video dengan caption, lalu centang
     // hijau. URL mentah dikirim, pipeline yang mengunduh saat kirim.
     Reply::video(MediaSource::url(url_stream(best)), caption(&data, best)).with_reaction("✅")
 }
 
-/// `videoUrl` dari satu stream — `best.stream_url` (`shopeedl.js:62`).
+/// `videoUrl` dari satu stream — `best.stream_url`.
 fn url_stream(best: &Value) -> String {
     best.get("stream_url")
         .and_then(Value::as_str)
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(best_stream(&tanpa_hd).unwrap()["quality"], "V720P");
 
         let h265_saja = vec![stream("V1080P_H265"), stream("V360P")];
-        // `shopeedl.js:35` menaruh `V360P` sebelum `V1080P_H265`, jadi JS
+        // menaruh `V360P` sebelum `V1080P_H265`, jadi versi awal
         // memilih yang lebih kecil lebih dulu kalau `V1080P` tidak ada.
         assert_eq!(best_stream(&h265_saja).unwrap()["quality"], "V360P");
 
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Shopee; set OKTZ_TEST_SHOPEE_URL"]
     fn live_shopeedl_mengambil_video() {
-        // Uji live padanan `plugins/download/shopeedl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_SHOPEE_URL");

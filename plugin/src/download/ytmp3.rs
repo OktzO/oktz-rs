@@ -1,32 +1,17 @@
-//! `plugins/download/ytmp3.js` — unduh audio YouTube.
-//!
-//! Resolver berlapis (`src/lib/resolve.js`) kini ikut: rantai backend JS
-//! untuk mp3 adalah `ytdl-native` (scraper lokal `d.ymcdn.org`) → `izuka`
-//! (agregator, `/api/downloader/ytmp3`) → `nexray` (agregator,
-//! `/api/downloader/ytmp3`) — `src/capabilities/youtube.js:395-432`. URL yang
-//! dikirim setiap backend adalah bentuk kanonik `kanonikDari(idVideo(url))`
-//! (`youtube.js:129`), bukan teks mentah user.
-//!
-//! Audio kini benar-benar dikirim: `sock.sendMedia(..., { type: "audio",
-//! mimetype: mimetypeFor(format) })` (`ytmp3.js:83-88`) →
-//! [`Reply::Audio`] dengan mimetype dari `MediaSource` (pipeline memakai
-//! `audio/mpeg` sebagai bawaan, `socket.js:798`). Nama berkas `fileName`
-//! yang dioper JS di options TIDAK berlaku untuk audio di `sendMedia`
-//! (`socket.js:743-747` hanya menyalin `audio`, `mimetype`, `ptt`), jadi
-//! `Reply::Audio` tanpa nama berkas tetap padan.
+//! Unduh audio YouTube.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use super::douyindl::query_encode;
 
-/// `AGGREGATORS.izuka.base` + path di `src/capabilities/youtube.js:257`.
+/// `AGGREGATORS.izuka.base` + path.
 pub(crate) const ENDPOINT: &str = "https://my.izuka-api.xyz/api/downloader/ytmp3";
 
-/// `FORMAT_DEFAULT` (`src/lib/media-format.js:98`).
+/// `FORMAT_DEFAULT`.
 pub(crate) const FORMAT_DEFAULT: &str = "mp3";
 
-/// `MIMETYPE_DARI_FORMAT` (`src/lib/media-format.js:33`).
+/// `MIMETYPE_DARI_FORMAT`.
 #[allow(dead_code)] // dipakai `ytmp4.rs` lewat `super::`
 const MIMETYPE_DARI_FORMAT: [(&str, &str); 14] = [
     ("mp3", "audio/mpeg"),
@@ -45,7 +30,7 @@ const MIMETYPE_DARI_FORMAT: [(&str, &str); 14] = [
     ("3gp", "audio/3gpp"),
 ];
 
-/// `FORMAT_DARI_MIME` (`src/lib/media-format.js:59`).
+/// `FORMAT_DARI_MIME`.
 const FORMAT_DARI_MIME: [(&str, &str); 23] = [
     ("audio/mpeg", "mp3"),
     ("audio/mpeg3", "mp3"),
@@ -73,7 +58,7 @@ const FORMAT_DARI_MIME: [(&str, &str); 23] = [
 ];
 
 /// `TOKEN_FORMAT` — gabungan kunci `MIMETYPE_DARI_FORMAT` dan nilai
-/// `FORMAT_DARI_MIME` (`media-format.js:84`), bukan daftar terpisah: kalau
+/// `FORMAT_DARI_MIME`, bukan daftar terpisah: kalau
 /// daftar ini melenceng dari dua tabel itu, bug "format yang berbohong" bisa
 /// muncul lagi hanya di satu sisi.
 const TOKEN_FORMAT: [&str; 17] = [
@@ -81,7 +66,7 @@ const TOKEN_FORMAT: [&str; 17] = [
     "3gp", "mov", "flv", "avi",
 ];
 
-/// `String(x)` untuk nilai JSON — `dasarMime`/`formatFromToken` di JS memanggil
+/// `String(x)` untuk nilai JSON — `dasarMime`/`formatFromToken` di versi awal memanggil
 /// bentuk ini sebelum membaca apa pun, jadi `null` ikut jadi string kosong.
 pub(crate) fn js_to_string(v: &Value) -> String {
     match v {
@@ -92,19 +77,19 @@ pub(crate) fn js_to_string(v: &Value) -> String {
     }
 }
 
-/// `dasarMime` (`media-format.js:103`) — parameter MIME dibuang, huruf kecil.
+/// `dasarMime` — parameter MIME dibuang, huruf kecil.
 fn dasar_mime(raw: &str) -> String {
     raw.split(';').next().unwrap_or("").trim().to_lowercase()
 }
 
-/// `formatFromToken` (`media-format.js:112`).
+/// `formatFromToken`.
 pub(crate) fn format_from_token(v: Option<&Value>) -> Option<String> {
     let dasar = dasar_mime(&v.map(js_to_string).unwrap_or_default());
     let token = dasar.strip_prefix('.').unwrap_or(&dasar).to_string();
     TOKEN_FORMAT.contains(&token.as_str()).then_some(token)
 }
 
-/// `formatFromMime` (`media-format.js:119`).
+/// `formatFromMime`.
 pub(crate) fn format_from_mime(v: Option<&Value>) -> Option<String> {
     let dasar = dasar_mime(&v.map(js_to_string).unwrap_or_default());
     FORMAT_DARI_MIME
@@ -113,7 +98,7 @@ pub(crate) fn format_from_mime(v: Option<&Value>) -> Option<String> {
         .map(|(_, format)| (*format).to_string())
 }
 
-/// `mimetypeFor` (`media-format.js:130`).
+/// `mimetypeFor`.
 #[allow(dead_code)] // dipakai `ytmp4.rs` lewat `super::`
 pub(crate) fn mimetype_for(format: &str) -> String {
     let token = format_from_token(Some(&Value::String(format.to_string()))).unwrap_or_default();
@@ -135,7 +120,7 @@ pub(crate) fn mimetype_for(format: &str) -> String {
         .unwrap_or_default()
 }
 
-/// `extensionFor` (`media-format.js:138`).
+/// `extensionFor`.
 pub(crate) fn extension_for(format: &str) -> String {
     format_from_token(Some(&Value::String(format.to_string())))
         .unwrap_or_else(|| FORMAT_DEFAULT.to_string())
@@ -192,9 +177,9 @@ pub(crate) fn is_http_url(s: &str) -> bool {
     lower.starts_with("http://") || lower.starts_with("https://")
 }
 
-/// `urlUnduhan` (`youtube.js:311`) tiga nama pertama: `dl`, `download_url`,
+/// `urlUnduhan` tiga nama pertama: `dl`, `download_url`,
 /// `download`. Dipisah dari cabang `video_normal`/`url` supaya `ytmp4` bisa
-/// menyisipkan cabangnya di posisi yang sama dengan JS.
+/// menyisipkan cabangnya di posisi yang sama dengan versi awal.
 pub(crate) fn url_nama(isi: &Value) -> String {
     for nama in ["dl", "download_url", "download"] {
         let kandidat = isi.get(nama).map(js_to_string).unwrap_or_default();
@@ -217,7 +202,7 @@ pub(crate) fn url_field(isi: &Value) -> String {
     }
 }
 
-/// `formatDilaporan` (`youtube.js:319`).
+/// `formatDilaporan`.
 pub(crate) fn format_dilaporkan(isi: &Value, url: &str) -> Option<String> {
     if let Some(token) = format_from_token(isi.get("format")) {
         return Some(token);
@@ -230,10 +215,10 @@ pub(crate) fn format_dilaporkan(isi: &Value, url: &str) -> Option<String> {
     query_param(url, "mime").and_then(|mime| format_from_mime(Some(&Value::String(mime))))
 }
 
-/// `normalize` (`youtube.js:331`) — membuka ampel aggregator sendiri: `result`
+/// `normalize` — membuka ampel aggregator sendiri: `result`
 /// objek (bukan array) dibuka, dan `status` yang ada TAPI bukan `true` berarti
 /// gagal. Bentuk lokal `ytdl` membawa `status`-nya sendiri, jadi pemeriksaan
-/// ditulis eksplisit — `!raw.status` akan salah memblokir bentuk SaveTube yang
+/// ditulis eksplisit — `!raw.status` akan salah memblokir bentuk SaveTube
 /// tidak punya `status` sama sekali.
 pub(crate) fn normalize(raw: &Value) -> Result<AudioDownload, ()> {
     if let Some(status) = raw.get("status")
@@ -262,9 +247,9 @@ pub(crate) fn normalize(raw: &Value) -> Result<AudioDownload, ()> {
     })
 }
 
-/// `urlUnduhan` cabang `video_normal` (`youtube.js:316-323`) — HANYA bentuk
-/// array `[{ext, quality, url}]`; nilai `video_normal` string diabaikan seperti
-/// `Array.isArray` di JS. `ext` bukan `"mp4"` tidak pernah dipilih.
+/// `urlUnduhan` cabang `video_normal` — HANYA bentuk
+/// array `[{ext, quality, url}]`; nilai `video_normal` string diabaikan
+/// `Array.isArray` di versi awal. `ext` bukan `"mp4"` tidak pernah dipilih.
 pub(crate) fn url_video_normal(isi: &Value) -> String {
     let Some(daftar) = isi.get("video_normal").and_then(Value::as_array) else {
         return String::new();
@@ -305,12 +290,12 @@ pub(crate) struct AudioDownload {
     pub url: String,
 }
 
-/// `ytmp3.js:87` — `${title || "audio"}.${extensionFor(format)}`.
+/// `${title || "audio"}.${extensionFor(format)}`.
 ///
-/// Di JS nama ini dioper sebagai `options.fileName` pada `sendMedia` audio,
+/// Di versi awal nama ini dioper sebagai `options.fileName` pada `sendMedia` audio,
 /// tetapi `sendMedia` audio tidak menyalin `fileName` ke payload
-/// (`socket.js:743-747`), jadi `Reply::Audio` tidak membawanya. Fungsi ini
-/// tetap dipertahankan sebagai padanan teks JS + untuk test.
+/// , jadi `Reply::Audio` tidak membawanya. Fungsi ini
+/// tetap dipertahankan sebagai padanan teks versi awal + untuk test.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn file_name(audio: &AudioDownload) -> String {
     let title = if audio.title.is_empty() {
@@ -321,17 +306,17 @@ pub(crate) fn file_name(audio: &AudioDownload) -> String {
     format!("{title}.{}", extension_for(&audio.format))
 }
 
-/// `kanonikDari(idVideo(url))` (`src/capabilities/youtube.js:129`) — semua
-/// backend JS menerima `https://www.youtube.com/watch?v=<id>`, bukan teks
+/// `kanonikDari(idVideo(url))` — semua
+/// backend versi awal menerima `https://www.youtube.com/watch?v=<id>`, bukan teks
 /// mentah user. Pola ID = 11 karakter `[A-Za-z0-9_-]` (`POLA_ID`,
-/// `youtube.js:24`); bentuk berbagi yang diterima: `youtu.be/<id>`,
-/// `watch?v=<id>` (dengan parameter lain di sekitarnya), dan
-/// `shorts|live|embed|v/<id>` (`JALUR_LANGKAS`, `youtube.js:25`).
+/// ); bentuk berbagi yang diterima: `youtu.be/<id>`,
+/// `watch?v=<id>` (dengan parameter lain di sekitarnya),
+/// `shorts|live|embed|v/<id>`.
 ///
 /// `Err` = `idVideo` mengembalikan `null` — guard plugin `host_youtube` sudah
 /// lolos, jadi ini hanya bentuk yang host-nya YouTube tapi tidak ada ID-nya.
 pub(crate) fn kanonik(url: &str) -> Result<String, ()> {
-    // `kandidatTautan` (`youtube.js:63-77`): tautan lengkap dulu, lalu token
+    // `kandidatTautan`: tautan lengkap dulu, lalu token
     // yang memuat "youtu".
     let mentah = url.trim();
     let dasar = match tautan_lengkap(mentah) {
@@ -347,7 +332,7 @@ pub(crate) fn kanonik(url: &str) -> Result<String, ()> {
     } else {
         format!("https://{dasar}")
     };
-    // `parseTautan` + `hostYoutube` (`youtube.js:80-88`).
+    // `parseTautan` + `hostYoutube`.
     let Some((_, host)) = host_dari(&dengan_skema) else {
         return Err(());
     };
@@ -355,7 +340,7 @@ pub(crate) fn kanonik(url: &str) -> Result<String, ()> {
         return Err(());
     }
 
-    // `idDariTautan` (`youtube.js:90-109`). `query` tidak dibaca langsung —
+    // `idDariTautan`. `query` tidak dibaca langsung —
     // `query_param` memarsing URL utuh sendiri.
     let sisi = dengan_skema
         .split_once("://")
@@ -391,14 +376,14 @@ pub(crate) fn kanonik(url: &str) -> Result<String, ()> {
     Ok(format!("https://www.youtube.com/watch?v={id}"))
 }
 
-/// `POLA_ID` (`youtube.js:24`) — `^[A-Za-z0-9_-]{11}$`.
+/// `POLA_ID` — `^[A-Za-z0-9_-]{11}$`.
 fn pola_id(s: &str) -> bool {
     s.len() == 11
         && s.bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
-/// `pastikanBentuk` + `lewatIzuka` (`youtube.js:238,257`) digabung: pemeriksaan
+/// `pastikanBentuk` + `lewatIzuka` digabung: pemeriksaan
 /// bentuk aggregator diletakkan di sini juga karena `izuka` tidak butuh key.
 fn unduh_izuka(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
     let target = format!("{ENDPOINT}?url={}", query_encode(kanonik));
@@ -418,8 +403,8 @@ fn unduh_izuka(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
     normalize(result)
 }
 
-/// `lewatNexray` (`youtube.js:279-291`) — backend mp3 terakhir. Nexray membawa
-/// `result.url`, dipetakan JS jadi `download` sebelum `normalize`; ampelnya
+/// `lewatNexray` — backend mp3 terakhir. Nexray membawa
+/// `result.url`, dipetakan versi awal jadi `download` sebelum `normalize`; ampelnya
 /// dibuka [`normalize`], jadi di sini cukup status + `result.url`.
 fn unduh_nexray(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
     let target = format!(
@@ -459,14 +444,14 @@ fn unduh_savetube(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()
     normalize(&v)
 }
 
-/// `getAudioDownload` (`ytmp3.js:55-59`) + resolver `resolve("youtube")` —
-/// backend mp3 JS: `ytdl-native` (lokal) → `izuka` → `nexray`
-/// (`youtube.js:395-432`), ditambah SaveTube. Keempatnya jalan paralel di
+/// `getAudioDownload` + resolver `resolve("youtube")` —
+/// backend mp3 versi awal: `ytdl-native` (lokal) → `izuka` → `nexray`
+/// , ditambah SaveTube. Keempatnya jalan paralel
 /// thread terpisah, yang pertama sukses menang (latensi = backend tercepat,
 /// bukan jumlah); semua gagal = `Err`. Thread yang kalah jalan sampai
 /// selesai lalu buang hasilnya via kanal putus.
 ///
-/// `ponytail:` InnerTube `youtubei/v1/player` (ANDROID, `adaptiveFormats`
+/// `Keterbatasan:` InnerTube `youtubei/v1/player` (ANDROID, `adaptiveFormats`
 /// audio) tidak ditambah: SaveTube sudah memberi URL langsung lewat
 /// scraper yang teruji, sedangkan player butuh pemeliharaan versi klien +
 /// risiko decipher `n`. Upgrade path: bila SaveTube melambat, tambah
@@ -505,25 +490,25 @@ pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     Err(())
 }
 
-/// `.play` — API persis JS (`play.js:35`): **hanya** nexray, tanpa balapan
+/// `.play` — API persis versi awal: **hanya** nexray, tanpa balapan
 /// backend. Plugin lain (`play2`, `ytmp3`) tetap memakai [`unduh_audio`].
 pub(crate) fn unduh_audio_nexray(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     let kanonik = kanonik(url)?;
     unduh_nexray(ctx.http.as_ref(), &kanonik)
 }
 
-/// `ytmp3.js:64` — link hilang.
+/// Link hilang.
 pub(crate) fn contoh(prefix: &str) -> String {
     format!("Contoh: {prefix}ytmp3 https://youtube.com/watch?v=xxx")
 }
 
-/// `ytmp3.js:65` — bukan host YouTube.
+/// Bukan host YouTube.
 pub(crate) const BUKAN_YOUTUBE: &str = "❌ URL harus YouTube";
 
-/// `ytmp3.js:99` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const GAGAL: &str = "Gagal mengunduh audio.";
 
-/// `hostYoutube` (`ytmp3.js:29`) tanpa crate regex.
+/// `hostYoutube` tanpa crate regex.
 pub(crate) fn host_youtube(url: &str) -> bool {
     let mentah = url.trim();
     let lengkap = tautan_lengkap(mentah);
@@ -642,9 +627,9 @@ pub fn ytmp3(ctx: Ctx) -> Reply {
     }
 
     match unduh_audio(&ctx, url) {
-        // `ytmp3.js:83-89` — `sendMedia(..., { type: "audio", mimetype:
-        // mimetypeFor(format), ptt: false })` lalu reaksi ✅. `fileName` di
-        // options JS tidak berlaku untuk audio (`socket.js:743-747`).
+        // `sendMedia(..., { type: "audio", mimetype:
+        // mimetypeFor(format), ptt: false })` lalu reaksi ✅. `fileName`
+        // options versi awal tidak berlaku untuk audio.
         Ok(audio) => Reply::audio(Ms::url(audio.url).with_mimetype(mimetype_for(&audio.format)))
             .with_reaction("✅"),
         Err(()) => Reply::text(GAGAL).with_reaction("❌"),
@@ -660,7 +645,7 @@ mod tests {
     #[derive(Debug)]
     struct Stub {
         /// Respons per-backend dicocokkan dari potongan URL: backend `ytdl`
-        /// di `d.ymcdn.org`, `izuka` di `my.izuka-api.xyz`, `nexray` di
+        /// di `d.ymcdn.org`, `izuka` di `my.izuka-api.xyz`, `nexray`
         /// `api.nexray.web.id`. `None` = transport error.
         per_backend: Vec<(&'static str, Option<Value>)>,
         seen: Mutex<Vec<String>>,
@@ -803,7 +788,7 @@ mod tests {
         }
         // Balapan: ytdl gagal, izuka+nexray sama-sama sukses di stub, jadi
         // pemenangnya tak tentu — yang pasti pemenang menyentuh URL baku
-        // kanonik (`kanonikDari`, youtube.js:129).
+        // kanonik.
         let seen = http.seen.lock().unwrap().clone();
         assert!(
             seen.iter().any(|u| u.contains(
@@ -816,7 +801,7 @@ mod tests {
     #[test]
     fn the_local_ytdl_shape_is_normalized_directly() {
         // Bentuk sukses `ytdl` (`{status:true, title, dl}`) dibaca `normalize`
-        // — dipanggil langsung karena menjalankan scraper ytdl di stub butuh
+        // Dipanggil langsung karena menjalankan scraper ytdl di stub butuh
         // tiga balasan berantai (init → convert → progress); itu sudah ditutup
         // test scraper `oktz-scraper/ytdl.rs`.
         let audio = normalize(&ytdl_ok()).unwrap();
@@ -852,7 +837,7 @@ mod tests {
 
     #[test]
     fn kanonik_mengikuti_kanonikdari_idvideo() {
-        // `kanonikDari(idVideo(url))` (`youtube.js:129`) — semua bentuk share
+        // `kanonikDari(idVideo(url))` — semua bentuk share
         // dipetakan ke watch?v=<id>.
         assert_eq!(
             kanonik("https://youtu.be/dQw4w9WgXcQ").unwrap(),
@@ -887,7 +872,7 @@ mod tests {
         assert_eq!(p.meta.example, ".ytmp3 https://youtube.com/watch?v=xxx");
         assert_eq!(p.meta.cooldown, 20);
         assert_eq!(p.meta.energi, 2);
-        // JS `ytmp3.js:4-13` tidak menyebut satu pun flag permission.
+        // versi awal tidak menyebut satu pun flag permission.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
@@ -962,7 +947,7 @@ mod tests {
 
     #[test]
     fn the_reported_format_wins_over_the_requested_one() {
-        // `media-format.js` ada karena aggregator menjawab `webm` untuk slot
+        // ada karena aggregator menjawab `webm` untuk slot
         // mp3; nama berkas dan mimetype harus mengikuti yang dilaporkan host.
         let isi = serde_json::json!({
             "download_url": "https://cdn.example/a?mime=audio%2Fwebm",
@@ -1022,7 +1007,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan YouTube MP3; set OKTZ_TEST_YTMP3_URL"]
     fn live_ytmp3_mengambil_audio() {
-        // Uji live padanan `plugins/download/ytmp3.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_YTMP3_URL");

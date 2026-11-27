@@ -1,17 +1,9 @@
-//! `plugins/download/douyindl.js` — unduh video/audio Douyin.
-//!
-//! Urutan backend mengikuti `src/lib/resolve.js`: scraper lokal
-//! `snapvideotools` dulu, lalu agregator `nexrayWeb` sebagai cadangan
-//! (`src/capabilities/douyin.js:31-67`). Normalisasi lokal dan aggregator
-//! dipisah karena bentuk responsnya berbeda.
-//!
-//! Media dikirim seperti `douyindl.js:73-87`: video dengan caption, lalu audio
-//! kalau ada → [`Reply::Sequence`] berisi [`Reply::Video`] + [`Reply::Audio`].
+//! Unduh video/audio Douyin.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `nexrayWeb` di `src/lib/aggregator.js:24`.
+/// `nexrayWeb`.
 pub(crate) const ENDPOINT: &str = "https://api.nexray.web.id/api/downloader/douyin";
 
 /// `URLSearchParams.set` meng-encode sebagai
@@ -31,10 +23,10 @@ pub(crate) fn query_encode(raw: &str) -> String {
     out
 }
 
-/// Host Douyin yang sah — `douyindl.js:27-42`.
+/// Host Douyin yang sah —.
 ///
 /// Guard host, bukan `includes`: `douyin.com.evil.example` dan `notdouyin.com`
-/// lolos pemeriksaan substring; meneruskannya berarti satu request ke host yang
+/// lolos pemeriksaan substring; meneruskannya berarti satu request ke host
 /// tidak sengaja PLUS satu kegagalan di breaker kapabilitas untuk semua orang.
 pub(crate) fn host_douyin(url: &str) -> bool {
     let url = url.trim();
@@ -44,7 +36,7 @@ pub(crate) fn host_douyin(url: &str) -> bool {
     if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
         return false;
     }
-    // `new URL()` reading hostAuthority: userinfo dibuang, port dibuang, dan
+    // `new URL()` reading hostAuthority: userinfo dibuang, port dibuang,
     // host berhenti di `/`, `?`, atau `#`.
     let authority = rest
         .split(['/', '?', '#'])
@@ -64,7 +56,7 @@ pub(crate) fn host_douyin(url: &str) -> bool {
         || host.ends_with(".iesdouyin.com")
 }
 
-/// `douyindl.js:49-55` — kartu penggunaan.
+/// Kartu penggunaan.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎵 *Douyin Downloader*\n\n\
@@ -76,15 +68,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `douyindl.js:62` — host ditolak.
+/// Host ditolak.
 pub(crate) const BAD_HOST: &str =
     "❌ URL tidak valid. Gunakan link dari douyin.com atau v.douyin.com";
 
-/// `douyindl.js:91` — cabang `catch`.
+/// Cabang `catch`.
 pub(crate) const FAILED: &str = "❌ Gagal mengambil data Douyin, coba lagi nanti";
 
-/// `urlMedia` (`src/capabilities/douyin.js:84`) — hanya `http(s)` yang lolos.
-/// Regex JS memakai flag `i`, jadi huruf besar pada skema tetap valid.
+/// `urlMedia` — hanya `http(s)` yang lolos.
+/// Regex versi awal memakai flag `i`, jadi huruf besar pada skema tetap valid.
 fn url_media(value: Option<&Value>) -> String {
     let s = value
         .and_then(Value::as_str)
@@ -101,7 +93,7 @@ fn url_media(value: Option<&Value>) -> String {
     }
 }
 
-/// Hasil `normalize` (`src/capabilities/douyin.js:89`) — `Err` = semua backend
+/// Hasil `normalize` — `Err` = semua backend
 /// menjawab tanpa URL video yang bisa diunduh.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct DouyinData {
@@ -111,7 +103,7 @@ pub(crate) struct DouyinData {
     pub audio: String,
 }
 
-/// Bentuk lokal `DouyinDL` dari `src/scraper/douyin.js`.
+/// Bentuk lokal `DouyinDL`.
 pub(crate) fn normalize_local(body: &Value) -> Result<DouyinData, ()> {
     if body.get("status").and_then(Value::as_bool) == Some(false) {
         return Err(());
@@ -138,7 +130,7 @@ pub(crate) fn normalize_local(body: &Value) -> Result<DouyinData, ()> {
     })
 }
 
-/// Bentuk aggregator `nexrayWeb` dari `src/capabilities/douyin.js:46`.
+/// Bentuk aggregator `nexrayWeb`.
 pub(crate) fn normalize_aggregator(body: &Value) -> Result<DouyinData, ()> {
     if body.get("status").and_then(Value::as_bool) != Some(true) {
         return Err(());
@@ -174,7 +166,7 @@ pub(crate) fn normalize_aggregator(body: &Value) -> Result<DouyinData, ()> {
     })
 }
 
-/// `douyindl.js:73` — `data.platform || "Douyin"` dan `data.title || ""`.
+/// `data.platform || "Douyin"` dan `data.title || ""`.
 pub(crate) fn caption(data: &DouyinData) -> String {
     let platform = if data.platform.is_empty() {
         "Douyin"
@@ -213,7 +205,7 @@ pub fn douyindl(ctx: Ctx) -> Reply {
         return Reply::text(BAD_HOST);
     }
 
-    // `resolve.js` mengurutkan semua backend lokal sebelum backend API.
+    // mengurutkan semua backend lokal sebelum backend API.
     // Kegagalan lokal tidak menghentikan percobaan aggregator.
     let local = oktz_scraper::douyin::douyin_dl(ctx.http.as_ref(), text)
         .ok()
@@ -228,7 +220,7 @@ pub fn douyindl(ctx: Ctx) -> Reply {
     });
 
     match data {
-        // `douyindl.js:73-87` — video dengan caption, lalu audio kalau ada,
+        // Video dengan caption, lalu audio kalau ada,
         // dua pesan terpisah. `Reply::Sequence` merender keduanya.
         Some(data) => {
             let mut balasan = vec![Reply::video(
@@ -424,7 +416,7 @@ mod tests {
             assert!(host_douyin(good), "harus lolos: {good}");
         }
         // Yang ini semuanya memuat "douyin.com" sebagai substring tapi host
-        //-nya milik orang lain — persis kasus yang dijaga `hostDouyin`.
+        // Nya milik orang lain — persis kasus yang dijaga `hostDouyin`.
         for bad in [
             "https://douyin.com.evil.example/x",
             "https://notdouyin.com/x",
@@ -456,7 +448,7 @@ mod tests {
         let http = Stub::body(ok_body());
         let r = run(http.clone(), "https://douyin.com.evil.example/x");
         assert_eq!(text_of(&r), BAD_HOST);
-        // `douyindl.js:58-60`: input salah bukan kegagalan proses, jadi tidak
+        // : input salah bukan kegagalan proses, jadi tidak
         // ada reaksi sama sekali di cabang ini.
         assert!(
             !matches!(r.without_mutations(), Reply::Reaction { .. }),
@@ -536,7 +528,7 @@ mod tests {
 
     #[test]
     fn a_response_without_a_video_url_is_a_failure_not_a_green_tick() {
-        // `normalize` menolak respons tanpa URL video (`capabilities/douyin.js:106`)
+        // `normalize` menolak respons tanpa URL video
         // supaya plugin tidak mengirim apa-apa lalu tetap memberi centang hijau.
         for body in [
             serde_json::json!({ "status": false, "msg": "gagal" }),
@@ -577,7 +569,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Douyin; set OKTZ_TEST_DOUYIN_URL"]
     fn live_douyindl_mengambil_video() {
-        // Uji live padanan `plugins/download/douyindl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_DOUYIN_URL");

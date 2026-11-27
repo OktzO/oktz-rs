@@ -1,41 +1,31 @@
-//! `plugins/download/ttmp3.js` — download audio TikTok.
+//! Download audio TikTok.
 //!
-//! Command-nya dipanggil dengan beberapa nama: JS `name: ["ttmp3"]` dan
-//! `alias: ["ttmusic", "tiktokmusic"]` (`ttmp3.js:11-13`). Tombol "🎵 Ambil
-//! Music" di plugin `tiktok` menunjuk ke perintah ini
-//! (`tiktokdl.js:399-405`).
-//!
-//! Yang diport apa adanya:
-//! - Pemeriksaan URL (`ttmp3.js:95`) — `tiktok.com` atau `vt.tiktok`.
-//! - Alur: pakai MP3 dari provider; kalau tidak ada, ambil video lalu
-//!   ekstrak audio-nya dengan ffmpeg (`ttmp3.js:104-135`).
-//!
-//! `ponytail:` yang berbeda dari JS, beserta alasannya:
-//! - JS menulis berkas sementara di `tmp/` lalu menghapusnya; di sini
-//!   video dan audio mengalir lewat pipe ffmpeg, jadi tidak ada berkas
-//!   yang perlu dibersihkan.
-//! - `fileName: TikTok_Audio_${Date.now()}.mp3` (`ttmp3.js:147`) tidak bisa
-//!   ditulis: kontrak `Reply::Audio` tidak punya nama berkas.
-//! - `Referer` saat mengunduh MP3 memakai origin URL (`ttmp3.js:127`); di sini
-//!   memakai origin yang sama persis.
+//! `Keterbatasan:` yang berbeda dari versi awal, beserta alasannya:
+//! - versi awal menulis berkas sementara di `tmp/` lalu menghapusnya; di sini
+//! video dan audio mengalir lewat pipe ffmpeg, jadi tidak ada berkas
+//! yang perlu dibersihkan.
+//! - `fileName: TikTok_Audio_${Date.now()}.mp3` tidak bisa
+//! ditulis: kontrak `Reply::Audio` tidak punya nama berkas.
+//! - `Referer` saat mengunduh MP3 memakai origin URL; di sini
+//! memakai origin yang sama persis.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `ttmp3.js:31-33` — UA unduhan audio.
+/// UA unduhan audio.
 const UA_AUDIO: &str = "Mozilla/5.0 (Linux; Android 15; SM-F958 Build/AP3A.240905.015) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.86 Mobile Safari/537.36";
 
-/// `ttmp3.js:34` — `Referer` unduhan video.
+/// `Referer` unduhan video.
 const REFERER_VIDEO: &str = "https://www.tiktok.com/";
 
-/// `ttmp3.js:86-91` — pesan tanpa URL.
+/// Pesan tanpa URL.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "╭┈┈⬡「 🎵 *ᴛɪᴋᴛᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅ* 」\n┃ ㊗ ᴜsᴀɢᴇ: `{prefix}ttmp3 <url>`\n╰┈┈⬡\n\n> Contoh: {prefix}ttmp3 https://vt.tiktok.com/xxx"
     )
 }
 
-/// `ttmp3.js:95` — `/tiktok\.com|vt\.tiktok/i`.
+/// `/tiktok\.com|vt\.tiktok/i`.
 pub(crate) fn url_tiktok_valid(url: &str) -> bool {
     let kecil = url.to_lowercase();
     kecil.contains("tiktok.com") || kecil.contains("vt.tiktok")
@@ -50,9 +40,9 @@ fn unduhan<'a>(hasil: &'a Value, tipe: &str) -> Option<&'a Value> {
         .find(|d| d.get("type").and_then(Value::as_str) == Some(tipe))
 }
 
-/// `extractAudioFromVideo` (`ttmp3.js:36-70`) — video → MP3 lewat ffmpeg.
+/// `extractAudioFromVideo` — video → MP3 lewat ffmpeg.
 ///
-/// `ffmpeg -i pipe:0 -vn -acodec libmp3lame -f mp3 pipe:1` — skalanya sama
+/// `ffmpeg -i pipe:0 -vn -acodec libmp3lame -f mp3 pipe:1` — skalanya
 /// dengan `ffmpeg(input).noVideo().audioCodec("libmp3lame").format("mp3")`.
 fn ekstrak_audio(video: &[u8]) -> Result<Vec<u8>, String> {
     oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(
@@ -107,7 +97,7 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
         return gagal("Gagal mengambil data TikTok.");
     };
 
-    // `ttmp3.js:106` — MP3 langsung dari provider.
+    // MP3 langsung dari provider.
     if let Some(audio) = unduhan(&hasil, "mp3")
         .and_then(|d| d.get("url"))
         .and_then(Value::as_str)
@@ -128,7 +118,7 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
         }
     }
 
-    // `ttmp3.js:111-118` — tidak ada MP3, ambil videonya lalu ekstrak audio.
+    // Tidak ada MP3, ambil videonya lalu ekstrak audio.
     let Some(video) = ["nowatermark_hd", "nowatermark"]
         .iter()
         .find_map(|tipe| {
@@ -160,7 +150,7 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
     }
 }
 
-/// `new URL(audioSource).origin` (`ttmp3.js:127`).
+/// `new URL(audioSource).origin`.
 fn origin_dari(url: &str) -> String {
     let tanpa_skema = url
         .strip_prefix("https://")
@@ -182,7 +172,7 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("ttmp3").unwrap();
         assert_eq!(p.meta.name, "ttmp3");
-        // JS `name: ["ttmp3"]` + `alias: ["ttmusic", "tiktokmusic"]`.
+        // versi awal `name: ["ttmp3"]` + `alias: ["ttmusic", "tiktokmusic"]`.
         assert_eq!(p.meta.alias, ["ttmusic", "tiktokmusic"]);
         assert_eq!(p.meta.category, "download");
         assert_eq!(p.meta.description, "Download audio TikTok");
@@ -226,7 +216,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `ttmp3.js:158` — judul error memakai small-caps "mengunduh".
+        // Judul error memakai small-caps "mengunduh".
         // Jalur gagal dipancing dengan `Ctx::default()`: `http`-nya `NoHttp`
         // sehingga scraper gagal dan plugin melaporkan pesan error.
         let ctx = Ctx {

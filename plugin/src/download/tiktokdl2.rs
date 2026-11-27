@@ -1,53 +1,22 @@
-//! `plugins/download/tiktokdl2.js` — download video/slide TikTok tanpa watermark.
-//!
-//! Scraper savett sudah ada di crate `oktz-scraper` sebagai
-//! `oktz_scraper::tiktok::ttdown_from_save_tt` (`src/scraper/tiktok.js:87-135`),
-//! jadi plugin ini hanya memetakan hasilnya ke balasan.
-//!
-//! Penyimpangan yang tercatat apa adanya:
-//!
-//! - **Provider cadangan `ttdown`.** JS cuma memakai savett
-//!   (`tiktokdl2.js:96-100,137`); di sini kegagalan savett jatuh ke
-//!   `oktz_scraper::tiktok::ttdown` (TikWM → savett → YuuLabs → MusicalDown)
-//!   supaya tautan yang ditolak savett tetap ada jalan.
-//! - **Album slide tidak dikirim.** JS merakit `albumMessage` + `relayMessage`
-//!   per slide (`tiktokdl2.js:170-249`); kontrak `Reply` cuma satu media per
-//!   pesan. Slide dikirim satu per satu sebagai gambar, dengan pesan
-//!   "📸 *Mengirim N slide...*" (`tiktokdl2.js:171`) tetap ikut.
-//! - **Reaksi awal `⏱️` dibuang** (`tiktokdl2.js:134`), mengikuti konvensi
-//!   repo: `Reply` hanya membawa satu reaksi, jadi reaksi penutup yang ikut.
-//! - **Reaksi `✅` cabang mp3 hilang** (`tiktokdl2.js:261`). `Reply::Reaction`
-//!   di dalam `Sequence` dianggap varian tak didukung pipeline
-//!   (`pipeline.rs:3023-3029`), jadi yang terkirim hanya note + audio.
-//! - **Statistik selalu `-`.** Caption JS memakai `views`/`likes`/`bookmarks`/
-//!   `comments`/`shares`/`duration` dari `#video-info` (`tiktokdl2.js:34-46`);
-//!   scraper port tidak mengurai blok itu, jadi nilainya sama seperti
-//!   fallback `|| '-'` di JS.
-//! - **Penentuan video dari `type`.** JS memakai `downloads.nowm[0]`
-//!   (`tiktokdl2.js:146-147`); di sini unduhan pertama yang bukan
-//!   watermark/mp3/foto — TikWM menamai HD-nya `nowatermark_hd` dan
-//!   MusicalDown mp4-nya `mp4`, keduanya video tanpa watermark.
-//!
-//! `pub mod tiktokdl2;` perlu ditambah manual ke `src/download/mod.rs` —
-//! berkas ini belum ikut dikompilasi tanpa baris itu.
+//! Download video/slide TikTok tanpa watermark.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `tiktokdl2.js:131` — regex `/tiktok\.com|vt\.tiktok/i` tidak cocok.
+/// Regex `/tiktok\.com|vt\.tiktok/i` tidak cocok.
 pub(crate) const URL_TIDAK_VALID: &str = "❌ URL tidak valid. Gunakan link TikTok.";
 
-/// `tiktokdl2.js:252` — catatan saat kontennya cuma audio.
+/// Catatan saat kontennya cuma audio.
 pub(crate) const NOTE_MP3: &str =
     "🍀 *NOTE*\n> Konten ini tidak memiliki video/slide, mengirim audio saja...";
 
-/// `tiktokdl2.js:151` — UA unduhan video (Chrome 120, beda dari UA savett).
+/// UA unduhan video (Chrome 120, beda dari UA savett).
 pub(crate) const UA_VIDEO: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
-/// `tiktokdl2.js:152` — `Referer` unduhan video.
+/// `Referer` unduhan video.
 pub(crate) const REFERER_VIDEO: &str = "https://www.tiktok.com/";
 
-/// `tiktokdl2.js:123-127` — kartu pakai; `${m.prefix}` muncul dua kali.
+/// Kartu pakai; `${m.prefix}` muncul dua kali.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "╭┈┈⬡「 🎵 *ᴛɪᴋᴛᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅ* 」\n\
@@ -57,9 +26,9 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `tiktokdl2.js:139-144` — caption. `views`/`likes`/`comments`/`shares`/
-/// `duration` tidak dibawa scraper, jadi selalu `-` seperti `|| '-'` di JS.
-/// Baris komentar memakai U+FFFD apa adanya dari JS (byte `ef bf bd`).
+/// Caption. `views`/`likes`/`comments`/`shares`/
+/// `duration` tidak dibawa scraper, jadi selalu `-` seperti `|| '-'` di versi awal.
+/// Baris komentar memakai U+FFFD apa adanya dari versi awal (byte `ef bf bd`).
 pub(crate) fn caption(hasil: &Value) -> String {
     let username = hasil
         .get("author")
@@ -76,7 +45,7 @@ pub(crate) fn caption(hasil: &Value) -> String {
     )
 }
 
-/// `result.downloads.nowm[0]` (`tiktokdl2.js:147`) — unduhan video TANPA
+/// `result.downloads.nowm[0]` — unduhan video TANPA
 /// watermark pertama. `type` kosong/hilang dilewati: tanpa label, tidak
 /// diketahui itu video atau bukan.
 pub(crate) fn unduhan_video(hasil: &Value) -> Option<&Value> {
@@ -104,7 +73,7 @@ pub(crate) fn unduhan_foto(hasil: &Value) -> Vec<&Value> {
         .unwrap_or_default()
 }
 
-/// `result.mp3[0]` (`tiktokdl2.js:240,256`) — URL audio pertama.
+/// `result.mp3[0]` — URL audio pertama.
 pub(crate) fn unduhan_mp3(hasil: &Value) -> Option<&str> {
     hasil
         .get("downloads")
@@ -146,14 +115,14 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
         return Reply::text(URL_TIDAK_VALID);
     }
 
-    // ponytail: reaksi ⏱️ (`tiktokdl2.js:134`) hilang — `Reply` hanya
+    // Keterbatasan: reaksi ⏱️ hilang — `Reply` hanya
     // membawa satu reaksi, jadi hanya reaksi penutup di bawah yang dikirim.
 
-    // `tiktokdl2.js:267-271` — catch membalas template error + reaksi ☢.
+    // Catch membalas template error + reaksi ☢.
     let gagal = || Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
 
-    // ponytail: JS cuma memakai savett; `ttdown` ditambahkan sebagai cadangan
-    // (lihat header). Hapus `or_else` kalau ingin persis seperti JS.
+    // Keterbatasan: versi awal cuma memakai savett; `ttdown` ditambahkan sebagai cadangan
+    // (lihat header). Hapus `or_else` kalau ingin persis seperti versi awal.
     let hasil = match oktz_scraper::tiktok::ttdown_from_save_tt(&*ctx.http, url)
         .or_else(|_| oktz_scraper::tiktok::ttdown(&*ctx.http, url))
     {
@@ -162,7 +131,7 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
     };
 
     if let Some(video) = unduhan_video(&hasil) {
-        // `axios.get(nowm[0])` dengan url kosong melempar di JS, jadi masuk
+        // `axios.get(nowm[0])` dengan url kosong melempar di versi awal, jadi masuk
         // catch — bukan lanjut ke cabang mp3.
         let Some(alamat) = video
             .get("url")
@@ -178,7 +147,7 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
         ) else {
             return gagal();
         };
-        // axios melempar untuk 4xx/5xx (`tiktokdl2.js:147-154`).
+        // axios melempar untuk 4xx/5xx.
         if !(200..300).contains(&res.status) {
             return gagal();
         }
@@ -189,11 +158,11 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
         .with_reaction("✅");
     }
 
-    // Cabang foto/slide (`tiktokdl2.js:170-249`).
+    // Cabang foto/slide.
     //
-    // `ponytail:` album slide butuh `albumMessage` + `relayMessage`
-    // (`tiktokdl2.js:196-234`), tidak ada di kontrak `Reply`; slide dikirim
-    // satu per satu sebagai gambar. Reaksi ✅ juga tidak bisa menempel di
+    // `Keterbatasan:` album slide butuh `albumMessage` + `relayMessage`
+    // , tidak ada di kontrak `Reply`; slide dikirim
+    // satu per satu sebagai gambar. Reaksi ✅ juga tidak bisa menempel
     // `Sequence` (pipeline melewati varian `Reaction`).
     let foto = unduhan_foto(&hasil);
     if !foto.is_empty() {
@@ -202,7 +171,7 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
             foto.len()
         ))];
         for (i, slide) in foto.iter().enumerate() {
-            // `if (!imgUrl) continue` (`tiktokdl2.js:179-181`): slide tanpa URL
+            // `if (!imgUrl) continue`: slide tanpa URL
             // dilewati, bukan dikirim sebagai `MediaSource::url("")` yang pasti
             // gagal fetch di pipeline.
             let Some(alamat) = slide
@@ -212,8 +181,8 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
             else {
                 continue;
             };
-            // `caption: i === 0 ? caption : ''` (`tiktokdl2.js:185`) — caption
-            // menempel menurut indeks slide mentah, persis JS.
+            // `caption: i === 0 ? caption: ''` — caption
+            // menempel menurut indeks slide mentah, persis versi awal.
             let teks = if i == 0 {
                 caption(&hasil)
             } else {
@@ -222,11 +191,11 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
             balasan.push(Reply::image(MediaSource::url(alamat.to_string()), teks));
         }
         // Semua slide gagal punya URL → `throw new Error('Gagal mengunduh
-        // gambar slide')` (`tiktokdl2.js:193`) → catch.
+        // gambar slide')` → catch.
         if balasan.len() == 1 {
             return gagal();
         }
-        // `tiktokdl2.js:236-245` — audio MP3 menyusul album.
+        // Audio MP3 menyusul album.
         if let Some(mp3) = unduhan_mp3(&hasil) {
             balasan.push(Reply::audio(
                 MediaSource::url(mp3).with_mimetype("audio/mpeg"),
@@ -236,10 +205,10 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
     }
 
     if let Some(mp3) = unduhan_mp3(&hasil) {
-        // ponytail: album slide butuh `albumMessage` + `relayMessage`
-        // (`tiktokdl2.js:196-234`), tidak ada di kontrak `Reply`; cabang foto
+        // Keterbatasan: album slide butuh `albumMessage` + `relayMessage`
+        // , tidak ada di kontrak `Reply`; cabang foto
         // diperlakukan seperti album kosong sehingga mendarat di note + audio
-        // ini. Reaksi ✅ (`tiktokdl2.js:261`) juga tidak bisa menempel di
+        // ini. Reaksi ✅ juga tidak bisa menempel
         // `Sequence` (pipeline melewati varian `Reaction`).
         return Reply::sequence(vec![
             Reply::text(NOTE_MP3),
@@ -247,7 +216,7 @@ pub fn tiktokdl2(ctx: Ctx) -> Reply {
         ]);
     }
 
-    // `tiktokdl2.js:265` — `throw new Error('Tidak ada media yang dapat diunduh')`.
+    // `throw new Error('Tidak ada media yang dapat diunduh')`.
     gagal()
 }
 
@@ -259,11 +228,11 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    /// Caption yang diharapkan; baris komentar memuat U+FFFD seperti JS.
+    /// Caption yang diharapkan; baris komentar memuat U+FFFD seperti versi awal.
     const CAPTION_BUDI: &str = "✅ *Done kak*\n\n👤 *Budi*\n👁️ Views: - | ❤️ Likes: -\n\u{fffd} Comments: - | 🔗 Shares: -\n⏱️ Duration: -";
     const CAPTION_TOK: &str = "✅ *Done kak*\n\n👤 *Tok*\n👁️ Views: - | ❤️ Likes: -\n\u{fffd} Comments: - | 🔗 Shares: -\n⏱️ Duration: -";
 
-    /// Balasan TikWM (`src/scraper/tiktok.js:26-66`): `play` → nowatermark.
+    /// Balasan TikWM: `play` → nowatermark.
     const TIKWM_VIDEO: &str = r#"{"code":0,"data":{"title":"Judul","duration":30,"play":"/sd.mp4","music":"/m.mp3","author":{"nickname":"Tok"}}}"#;
 
     /// `(status, body, headers)` per permintaan.
@@ -481,7 +450,7 @@ mod tests {
 
     #[test]
     fn url_hanya_perlu_memuat_penanda_tiktok_tanpa_peka_huruf_besar_kecil() {
-        // `/tiktok\.com|vt\.tiktok/i` — pencocokan substring di teks yang
+        // `/tiktok\.com|vt\.tiktok/i` — pencocokan substring di teks
         // sudah di-trim, jadi host aneh dan huruf besar pun lolos.
         for text in [
             "https://www.tiktok.com/@budi/video/1",
@@ -654,7 +623,7 @@ mod tests {
     fn caption_memakai_username_atau_strip() {
         let dengan = serde_json::json!({ "author": { "username": "Budi" } });
         assert_eq!(caption(&dengan), CAPTION_BUDI);
-        // `tiktokdl2.js:143` memuat U+FFFD (byte ef bf bd) sebelum " Comments:".
+        // memuat U+FFFD (byte ef bf bd) sebelum " Comments:".
         assert!(
             caption(&dengan)
                 .as_bytes()
@@ -727,7 +696,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan TikTok2; set OKTZ_TEST_TIKTOK2_URL"]
     fn live_tiktokdl2_mengambil_video() {
-        // Uji live padanan `plugins/download/tiktokdl2.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_TIKTOK2_URL");

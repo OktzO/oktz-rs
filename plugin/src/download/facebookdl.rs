@@ -1,15 +1,9 @@
-//! `plugins/download/facebookdl.js` — unduh video Facebook.
-//!
-//! Scraper `fbdown` (`src/scraper/fbdown.js`) cuma satu GET ke agregator
-//! nexray dan tidak butuh API key, jadi ikut dipindah utuh di sini.
-//!
-//! Video kini benar-benar dikirim: `sock.sendMedia(m.chat, video.url, caption,
-//! m, { type: "video" })` (`facebookdl.js:64-71`) → [`Reply::Video`].
+//! Unduh video Facebook.
 
 use oktz_plugin_api::{Ctx, HttpGet, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `fbdown.js:5` — agregator `nexrayWeb` (`src/lib/aggregator.js:30`).
+/// Agregator `nexrayWeb`.
 pub(crate) const ENDPOINT: &str = "https://api.nexray.web.id/api/downloader/facebook";
 
 /// `encodeURIComponent` versi axios untuk `params` — `axios.cjs:1866`.
@@ -31,13 +25,13 @@ pub(crate) fn axios_query(raw: &str) -> String {
     out
 }
 
-/// `facebookdl.js:32` — `/facebook\.com|fb\.watch|fb\.com/i`.
+/// `/facebook\.com|fb\.watch|fb\.com/i`.
 pub(crate) fn is_facebook_url(url: &str) -> bool {
     let lower = url.to_lowercase();
     lower.contains("facebook.com") || lower.contains("fb.watch") || lower.contains("fb.com")
 }
 
-/// `facebookdl.js:24-29` — kartu pakai, delimiter markdown-nya backtick.
+/// Kartu pakai, delimiter markdown-nya backtick.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *CARA PAKAI*\n\n\
@@ -47,17 +41,17 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `facebookdl.js:33` — URL bukan Facebook.
+/// URL bukan Facebook.
 pub(crate) const BAD_URL: &str = "❌ URL tidak valid. Gunakan link Facebook.";
 
-/// `facebookdl.js:43` — respons tanpa `medias` yang tidak kosong.
+/// Respons tanpa `medias` yang tidak kosong.
 pub(crate) const NO_MEDIA: &str = "❌ Gagal mengambil video. Coba link lain atau pastikan postingan bersifat publik.\n\n_Catatan: Sistem saat ini belum mendukung download foto Facebook, hanya video._";
 
-/// `facebookdl.js:53` — `medias` ada tapi tidak ada URL-nya.
+/// `medias` ada tapi tidak ada URL-nya.
 pub(crate) const NO_VIDEO: &str = "❌ Video tidak ditemukan di link tersebut.\n\n_Catatan: Sistem saat ini belum mendukung download foto Facebook, hanya video._";
 
-/// Satu entri `result.medias` (`src/scraper/fbdown.js:11-12`). `formatted_size`
-/// tidak pernah diisi scraper, tapi barisnya tetap ada di caption (`facebookdl.js:59`).
+/// Satu entri `result.medias`. `formatted_size`
+/// tidak pernah diisi scraper, tapi barisnya tetap ada di caption.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Media {
     pub quality: String,
@@ -73,7 +67,7 @@ pub(crate) struct Facebook {
 }
 
 /// `r.title ?? ""` — `null` jadi string kosong, nilai selain string tetap
-/// tercetak seperti di JS.
+/// tercetak seperti di versi awal.
 fn nullable_text(value: Option<&Value>) -> String {
     match value {
         None | Some(Value::Null) => String::new(),
@@ -82,14 +76,14 @@ fn nullable_text(value: Option<&Value>) -> String {
     }
 }
 
-/// `fbdown.js:8-15` — hanya `status === true` dengan `result` yang diterima.
+/// Hanya `status === true` dengan `result` yang diterima.
 pub(crate) fn normalize(body: &Value) -> Option<Facebook> {
     if body.get("status").and_then(Value::as_bool) != Some(true) {
         return None;
     }
     let result = body.get("result").filter(|r| !r.is_null())?;
     let mut medias = Vec::new();
-    // Urutan push di `fbdown.js:11-12` menentukan urutan `medias`.
+    // Urutan push menentukan urutan `medias`.
     for (field, quality) in [("video_hd", "hd"), ("video_sd", "sd")] {
         if let Some(url) = result
             .get(field)
@@ -109,7 +103,7 @@ pub(crate) fn normalize(body: &Value) -> Option<Facebook> {
     })
 }
 
-/// `facebookdl.js:47-49` — HD dulu, lalu SD, lalu item pertama.
+/// HD dulu, lalu SD, lalu item pertama.
 pub(crate) fn pick(medias: &[Media]) -> Option<&Media> {
     medias
         .iter()
@@ -118,7 +112,7 @@ pub(crate) fn pick(medias: &[Media]) -> Option<&Media> {
         .or_else(|| medias.first())
 }
 
-/// `facebookdl.js:56-62`.
+///
 pub(crate) fn caption(data: &Facebook, media: &Media) -> String {
     let title = if data.title.is_empty() {
         "Video Facebook"
@@ -140,8 +134,8 @@ pub(crate) fn caption(data: &Facebook, media: &Media) -> String {
     out
 }
 
-/// `fbdown(url)` (`src/scraper/fbdown.js`). Scraper itu sendiri yang menelan
-/// kegagalan jaringan dan mengembalikan `{ status: false }`, jadi `catch` di
+/// `fbdown(url)`. Scraper itu sendiri yang menelan
+/// kegagalan jaringan dan mengembalikan `{ status: false }`, jadi `catch`
 /// plugin praktis tidak pernah menyala — dan `Err` di sini berarti bentuk itu.
 pub(crate) fn fetch(url: &str, http: &dyn HttpGet) -> Option<Facebook> {
     let target = format!("{ENDPOINT}?url={}", axios_query(url));
@@ -192,8 +186,8 @@ pub fn facebookdl(ctx: Ctx) -> Reply {
         return Reply::text(NO_VIDEO).with_reaction("❌");
     }
 
-    // `facebookdl.js:64-72` — `sendMedia` video dengan caption, lalu reaksi
-    // centang. URL mentah dikirim (pipeline yang mengunduh saat kirim), sama
+    // `sendMedia` video dengan caption, lalu reaksi
+    // centang. URL mentah dikirim (pipeline yang mengunduh saat kirim),
     // seperti `sendMedia(chat, video.url, …)` yang menyerahkan `url` ke Baileys.
     Reply::video(MediaSource::url(media.url.clone()), caption(&data, media)).with_reaction("✅")
 }
@@ -364,7 +358,7 @@ mod tests {
     fn a_resolved_video_sends_the_video_media_with_the_caption() {
         let http = Stub::body(ok_body());
         let r = run(http.clone(), "https://www.facebook.com/watch?v=xxx");
-        // `facebookdl.js:64-72` — media video dengan caption yang sama.
+        // Media video dengan caption yang sama.
         let isi = match r.without_mutations() {
             Reply::Reaction { reply, .. } => reply.as_ref(),
             lain => lain,
@@ -485,7 +479,7 @@ mod tests {
 
     #[test]
     fn a_failed_response_is_reported_as_no_media_not_as_a_system_error() {
-        // `fbdown.js:15` menelan respons gagal jadi `{ status: false }`, jadi
+        // menelan respons gagal jadi `{ status: false }`, jadi
         // `catch` plugin tidak pernah menyala untuk request yang gagal.
         for body in [
             serde_json::json!({ "status": false, "message": "Gagal mengambil data dari API" }),
@@ -506,7 +500,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Facebook; set OKTZ_TEST_FACEBOOK_URL"]
     fn live_facebookdl_mengambil_video() {
-        // Uji live padanan `plugins/download/facebookdl.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_FACEBOOK_URL");

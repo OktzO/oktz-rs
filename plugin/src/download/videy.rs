@@ -1,29 +1,12 @@
-//! `plugins/download/videy.js` — unduh video dari videy.co.
-//!
-//! Urutan backend mengikuti `src/lib/resolve.js`: backend lokal `videyShare`
-//! (probe CDN, `src/scraper/videy.js:101-127`) dulu, lalu aggregator `neoxr`
-//! sebagai cadangan (`src/capabilities/videy.js:25-63`). Key `neoxr` dibaca dari
-//! runtime `Ctx`; key kosong membuat `aggregator.hit` melewati aggregator tanpa
-//! request, seperti JS.
-//!
-//! `normalize` (`src/capabilities/videy.js:80-109`) membuka amplop
-//! `{status, data:{url}}` dan menolak `status: false` serta URL kosong; bentuk
-//! lokal `{id, ext, url}` lewat tanpa amplop.
-//!
-//! Video dikirim seperti `videy.js:72-80`: `sock.sendMedia(..., { type:
-//! "video" })` → [`Reply::Video`], lalu reaksi ✅.
-//!
-//! Dua pesan khusus di `catch` sekarang terjangkau: key aggregator kosong
-//! (`missingEnvNameOf` + `explainFailure`) dan respons yang gagal dinormalisasi
-//! (`adaNormalisasiGagal`).
+//! Unduh video dari videy.co.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource as Ms, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::host_dari;
 
-/// `videy.js:48-51` — kartu pakai. Baris contoh dibungkus satu pasang backtick,
-/// sama seperti di JS.
+/// Kartu pakai. Baris contoh dibungkus satu pasang backtick,
+/// sama seperti di versi awal.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎬 *ᴠɪᴅᴇʏ ᴅᴏᴡɴʟᴏᴀᴅ*\n\n\
@@ -32,15 +15,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `videy.js:55` — host bukan Videy.
+/// Host bukan Videy.
 pub(crate) const BUKAN_HOST: &str = "❌ URL tidak valid. Gunakan link dari videy.co";
 
-/// `videy.js:101` — `adaNormalisasiGagal(error)` benar.
+/// `adaNormalisasiGagal(error)` benar.
 pub(crate) const NORMALISASI_GAGAL: &str =
     "❌ Gagal mengambil video. Link tidak valid atau sudah expired.";
 
 /// `explainFailure(new MissingApiKeyError("aggregator", envName), …)`
-/// (`src/lib/stalker-fallback.js:29-33`). `command` sudah dirangkai jadi
+/// . `command` sudah dirangkai jadi
 /// `` `${prefix}videy` `` oleh pemanggil.
 pub(crate) fn api_key_belum_diset(command: &str, env_name: &str) -> String {
     format!(
@@ -50,9 +33,9 @@ pub(crate) fn api_key_belum_diset(command: &str, env_name: &str) -> String {
     )
 }
 
-/// `hostVidey` (`videy.js:31-41`) tanpa crate URL: protokol harus http(s),
+/// `hostVidey` tanpa crate URL: protokol harus http(s),
 /// userinfo dan port dibuang, host berhenti di `/?#`, lalu dibandingkan per
-/// label. Sub-domain ikut diterima karena halaman videy dilayani dari
+/// label. Sub-domain ikut diterima karena halaman videy dilayani
 /// `www.videy.co`.
 pub(crate) fn host_videy(url: &str) -> bool {
     let Some(host) = host_dari(url) else {
@@ -61,7 +44,7 @@ pub(crate) fn host_videy(url: &str) -> bool {
     host == "videy.co" || host.ends_with(".videy.co")
 }
 
-/// Kelas kegagalan resolver yang dibedakan plugin `videy.js:82-104`.
+/// Kelas kegagalan resolver yang dibedakan plugin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ResolveFailure {
     MissingApiKey,
@@ -70,7 +53,7 @@ enum ResolveFailure {
 }
 
 /// `resolver.resolve("videy", { url })`: backend lokal dulu, lalu aggregator
-/// `neoxr` (`src/capabilities/videy.js:117-129`). `aggregator.hit` melewati
+/// `neoxr`. `aggregator.hit` melewati
 /// aggregator tanpa request bila key kosong.
 fn resolve_videy(
     http: &dyn oktz_plugin_api::HttpGet,
@@ -88,8 +71,8 @@ fn resolve_videy(
         return Err(ResolveFailure::MissingApiKey);
     }
 
-    // 2. `lewatNeoxr` — `aggregator.hit("neoxr", "/api/videy", ...)`.
-    // Key masuk query dan header, seperti `src/lib/aggregator.js:117-139`.
+    // 2. `lewatNeoxr` — `aggregator.hit("neoxr", "/api/videy"...)`.
+    // Key masuk query dan header, seperti.
     let target = format!(
         "https://api.neoxr.eu/api/videy?url={}&apikey={}",
         super::douyindl::query_encode(url),
@@ -103,7 +86,7 @@ fn resolve_videy(
     normalize_videy(&body).map_err(|_| ResolveFailure::Normalization)
 }
 
-/// `urlVideo` (`videy.js:97-99`) — `String(nilai ?? "").trim()`, lalu uji
+/// `urlVideo` — `String(nilai ?? "").trim()`, lalu uji
 /// `^https?:\/\//i`.
 fn url_video(isi: &Value) -> Option<String> {
     let url = match isi.get("url") {
@@ -116,9 +99,9 @@ fn url_video(isi: &Value) -> Option<String> {
     (kecil.starts_with("http://") || kecil.starts_with("https://")).then_some(url)
 }
 
-/// `normalize` (`videy.js:80-110`) — ampel aggregator dibuka di sini.
+/// `normalize` — ampel aggregator dibuka di sini.
 fn normalize_videy(raw: &Value) -> Result<String, ()> {
-    // `raw.status === false` — bentuk lokal `{status: "error", msg}` dari
+    // `raw.status === false` — bentuk lokal `{status: "error", msg}`
     // scraper tidak kena pemeriksaan ini, tapi URL-nya pasti kosong, jadi
     // jalurnya tetap berakhir `Err` lewat pemeriksaan URL.
     if raw.get("status") == Some(&Value::Bool(false)) {
@@ -133,7 +116,7 @@ fn normalize_videy(raw: &Value) -> Result<String, ()> {
 
 /// Unduh byte media final dengan header probe CDN.
 ///
-/// `src/scraper/videy.js:101-127` memakai UA + Referer untuk memprobe CDN.
+/// memakai UA + Referer untuk memprobe CDN.
 /// `MediaSource::Url` tidak membawa header per-media, jadi URL final harus
 /// ditarik byte di scope plugin; pipeline hanya akan memakai UA generik.
 fn unduh_media_videy(
@@ -186,7 +169,7 @@ pub fn videy(ctx: Ctx) -> Reply {
     }
 
     match resolve_videy(ctx.http.as_ref(), url, &ctx.config().api_keys.neoxr) {
-        // `videy.js:72-80` — `sendMedia` video, lalu reaksi ✅. Media final
+        // `sendMedia` video, lalu reaksi ✅. Media final
         // diunduh byte lebih dulu agar header CDN Videy tidak hilang.
         Ok(url_video) => match unduh_media_videy(ctx.http.as_ref(), &url_video) {
             Ok(data) => Reply::video(Ms::bytes(data), "").with_reaction("✅"),
@@ -197,7 +180,7 @@ pub fn videy(ctx: Ctx) -> Reply {
                 unreachable!("unduhan media tidak mengubah klasifikasi resolver")
             }
         },
-        // `missingEnvNameOf` diperiksa lebih dulu, seperti `videy.js:89-93`.
+        // `missingEnvNameOf` diperiksa lebih dulu, seperti.
         Err(ResolveFailure::MissingApiKey) => Reply::text(api_key_belum_diset(
             &format!("{}videy", ctx.prefix),
             "APIKEY_NEOXR",
@@ -535,7 +518,7 @@ mod tests {
 
     #[test]
     fn final_cdn_media_diunduh_dengan_header_dan_dikirim_sebagai_byte() {
-        // `src/scraper/videy.js:101-127` memakai UA + Referer untuk probe CDN.
+        // memakai UA + Referer untuk probe CDN.
         // `MediaSource::Url` tidak membawa header, jadi media final harus
         // diunduh byte di scope plugin sebelum dikirim.
         let http = Arc::new(MediaStub::default());
@@ -648,7 +631,7 @@ mod tests {
             })),
         )]);
         let r = run_dengan_key(http, "https://videy.co/v?id=7ZH1ZRIF", "KUNCI-RUNTIME");
-        // `status: false` ditolak `normalize` (`src/capabilities/videy.js:88-90`),
+        // `status: false` ditolak `normalize`,
         // sehingga plugin memakai pesan link invalid, bukan template proses.
         assert_eq!(text_of(&r), NORMALISASI_GAGAL);
         assert_eq!(reaksi(&r), Some("❌"));
@@ -676,7 +659,7 @@ mod tests {
     #[test]
     #[ignore = "uji jaringan Videy; set OKTZ_TEST_VIDEY_URL dan APIKEY_NEOXR bila perlu"]
     fn live_videy_mengambil_video() {
-        // Uji live padanan `plugins/download/videy.js`.
+        // Uji live padanan.
         use crate::download::live_test::{assert_media, env_required, live_ctx};
 
         let url = env_required("OKTZ_TEST_VIDEY_URL");
