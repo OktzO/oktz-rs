@@ -1,4 +1,4 @@
-//! `plugins/primbon/zodiak.js` — ramalan zodiak per-APY.
+//! Ramalan zodiak per-APY.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -166,7 +166,7 @@ mod tests {
             assert!(t.starts_with("⭐ *ᴢᴏᴅɪᴀᴋ*"), "{arg:?}: {t}");
             assert!(t.contains("• aries"), "{arg:?}: {t}");
             assert!(t.contains("• pisces"), "{arg:?}: {t}");
-            // Tidak ada reaksi: JS `return` sebelum `m.react`.
+            // Tidak ada reaksi: versi awal `return` sebelum `m.react`.
             assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Text { .. }));
         }
     }

@@ -1,4 +1,4 @@
-//! `plugins/primbon/ramalanjodoh.js` — ramalan jodoh dua orang dari tanggal lahir.
+//! Ramalan jodoh dua orang dari tanggal lahir.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -70,7 +70,7 @@ pub fn ramalanjodoh(ctx: Ctx) -> Reply {
         return Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢");
     };
 
-    // `!data?.status || !data?.data?.result` — cek satu tingkat lebih dalam
+    // `!data?.status || !data?.data?.result` — cek satu tingkat lebih
     // dibanding plugin primbon lain.
     let Some(body) = resp.json() else {
         return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Gagal meramal").with_reaction("❌");
@@ -210,7 +210,7 @@ mod tests {
         }
     }
 
-    /// `hasil_ramalan` bukan array — `forEach` JS di-skip, daftar kosong saja.
+    /// `hasil_ramalan` bukan array — `forEach` versi awal di-skip, daftar kosong saja.
     #[test]
     fn a_non_array_hasil_ramalan_leaves_the_numbered_list_empty() {
         let mut body = payload();

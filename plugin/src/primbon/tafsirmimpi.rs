@@ -1,4 +1,4 @@
-//! `plugins/primbon/tafsirmimpi.js` — cari tafsir mimpi lewat API primbon.
+//! Cari tafsir mimpi lewat API primbon.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -9,7 +9,7 @@ use crate::tools::phisingataubukan::encode_uri_component;
 const ENDPOINT: &str = "https://api.siputzx.my.id/api/primbon/tafsirmimpi";
 
 /// `r.total` dipakai sebagai angka (`r.total - 10`), jadi nilai non-angka
-/// di-JS jadi `NaN` dan seluruh perbandingan `>` berikutnya salah.
+/// di-versi awal jadi `NaN` dan seluruh perbandingan `>` berikutnya salah.
 fn total_of(r: &Value) -> Option<i64> {
     r.get("total").and_then(Value::as_i64)
 }

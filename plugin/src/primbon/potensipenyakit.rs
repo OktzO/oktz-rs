@@ -1,4 +1,4 @@
-//! `plugins/primbon/potensipenyakit.js` — cek potensi penyakit dari tanggal lahir.
+//! Cek potensi penyakit dari tanggal lahir.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -125,8 +125,8 @@ mod tests {
         assert!(!p.meta.is_group && !p.meta.is_private);
     }
 
-    /// Argumen tidak di-parse sebagai angka: `tgl`/`bln`/`thn` ikut mentah ke
-    /// query dan ke teks balasan, persis template literal JS.
+    /// Argumen tidak di-parse sebagai angka: `tgl`/`bln`/`thn` ikut mentah
+    /// query dan ke teks balasan, persis template literal versi awal.
     #[test]
     fn three_arguments_are_passed_through_verbatim() {
         let r = run_with(

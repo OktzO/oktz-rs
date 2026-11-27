@@ -1,4 +1,4 @@
-//! `plugins/primbon/nomerhoki.js` — cek keberuntungan nomor HP.
+//! Cek keberuntungan nomor HP.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -17,7 +17,7 @@ fn only_digits(ctx: &Ctx) -> String {
         .collect()
 }
 
-/// Pembacaan `a.b` di JS (`nomerhoki.js:37-53`): kalau `a` `undefined`/
+/// Pembacaan `a.b` di versi awal: kalau `a` `undefined`/
 /// `null`, Property Access-nya melempar TypeError yang ditangkap `catch` —
 /// itu sebabnya `Err(())`. Kalau `a` primitif, hasilnya `undefined` tanpa
 /// melempar.
@@ -103,7 +103,7 @@ pub fn nomerhoki(ctx: Ctx) -> Reply {
     };
 
     // `r.energi_positif.details` dan seterusnya melempar TypeError kalau
-    // rantai property-nya melewati `undefined`/`null` → sama seperti `catch` JS.
+    // rantai property-nya melewati `undefined`/`null` → sama seperti `catch` versi awal.
     match render(r) {
         Ok(text) => Reply::text(text).with_reaction("✅"),
         Err(()) => Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢"),
@@ -163,7 +163,7 @@ mod tests {
         r.without_mutations().text_body().expect("harus ada teks")
     }
 
-    /// `data` harus TRUTHY supaya lolos `!data?.data` — objek kosong `{}` di JS
+    /// `data` harus TRUTHY supaya lolos `!data?.data` — objek kosong `{}` di versi awal
     /// falsy, jadi tidak bisa dipakai di sini.
     fn payload_with_status(status: Value) -> Value {
         serde_json::json!({
@@ -256,7 +256,7 @@ mod tests {
         assert!(t.ends_with("> Status: ✅ HOKI"), "{t}");
     }
 
-    /// `r.analisis.status ? '✅ HOKI' : '❌ TIDAK HOKI'` — falsy JS lain
+    /// `r.analisis.status ? '✅ HOKI': '❌ TIDAK HOKI'` — falsy versi awal lain
     /// (`0`, `""`, `null`, field hilang) semuanya memilih TIDAK HOKI.
     #[test]
     fn a_falsy_analysis_status_prints_tidak_hoki() {
@@ -270,7 +270,7 @@ mod tests {
                 "{status}"
             );
         }
-        // `status` bernilai objek kosong: `{}` falsy di JS, jadi bukan HOKI.
+        // `status` bernilai objek kosong: `{}` falsy di versi awal, jadi bukan HOKI.
         let r = run_with(Arc::new(Stub(payload_with_status(serde_json::json!({})))), &["628123"]);
         let t = reply_text(&r);
         assert!(
@@ -279,8 +279,8 @@ mod tests {
         );
     }
 
-    /// Rantai property yang melewati `undefined`/`null` melempar TypeError di
-    /// JS (`r.energi_positif.details`), jadi jawabannya template error, bukan
+    /// Rantai property yang melewati `undefined`/`null` melempar TypeError
+    /// versi awal (`r.energi_positif.details`), jadi jawabannya template error, bukan
     /// balasan berisi `undefined`.
     #[test]
     fn a_missing_parent_object_falls_into_the_error_template() {

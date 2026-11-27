@@ -1,4 +1,4 @@
-//! `plugins/primbon/sifatusahabisnis.js` — sifat usaha dari tanggal lahir.
+//! Sifat usaha dari tanggal lahir.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -168,9 +168,9 @@ mod tests {
         assert!(t.ends_with("> _konsisten_"), "{t}");
     }
 
-    /// Field hilang tidak boleh menjatuhkan balasan — `${undefined}` di JS
+    /// Field hilang tidak boleh menjatuhkan balasan — `${undefined}` di versi awal
     /// dicetak apa adanya, jadi `display` mengembalikan teks itu juga.
-    /// `data` harus non-kosong: `{}` falsy di JS dan lebih dulu kena cabang
+    /// `data` harus non-kosong: `{}` falsy di versi awal dan lebih dulu kena cabang
     /// `❌ *ɢᴀɢᴀʟ*`.
     #[test]
     fn a_payload_missing_every_field_still_renders_the_frame() {

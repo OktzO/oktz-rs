@@ -1,4 +1,4 @@
-//! `plugins/primbon/kecocokannamapasangan.js` — cek kecocokan nama pasangan.
+//! Cek kecocokan nama pasangan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;

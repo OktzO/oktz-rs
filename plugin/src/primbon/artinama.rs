@@ -1,4 +1,4 @@
-//! `plugins/primbon/artinama.js` — cek arti nama lewat API primbon.
+//! Cek arti nama lewat API primbon.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -7,14 +7,14 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 pub(crate) const ENDPOINT: &str = "https://api.siputzx.my.id/api/primbon/artinama";
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
-/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di JS.
+/// `te(prefix, command, pushName)`.
+/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di versi awal.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     crate::common::error_template_bawaan(prefix, command)
 }
 
-/// `${v}` — interpolasi string literal JS. String lewat apa adanya, angka jadi
-/// digit JS-nya, field yang tidak ada jadi `"undefined"` — persis yang dicetak
+/// `${v}` — interpolasi string literal versi awal. String lewat apa adanya, angka jadi
+/// digit versi awal-nya, field yang tidak ada jadi `"undefined"` — persis yang dicetak
 /// template literal, bukan string kosong.
 pub(crate) fn display(value: Option<&Value>) -> String {
     match value {
@@ -27,7 +27,7 @@ pub(crate) fn display(value: Option<&Value>) -> String {
     }
 }
 
-/// Kebenaran JS: `null`, `false`, `0`, `""`, `NaN`, dan array/object kosong
+/// Kebenaran versi awal: `null`, `false`, `0`, `""`, `NaN`, dan array/object kosong
 /// semuanya falsy.
 pub(crate) fn truthy(v: &Value) -> bool {
     match v {
