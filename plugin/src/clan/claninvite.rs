@@ -1,13 +1,10 @@
-//! `plugins/clan/claninvite.js` — tambah target ke clan dan tautkan `clanId`-nya.
+//! Tambah target ke clan dan tautkan `clanId`-nya.
 //!
-//! JS memakai `m.mentionedJid?.[0] || m.quoted?.sender`; `Ctx` menyediakan
-//! keduanya, jadi urutan itu dipertahankan.
-//!
-//! `ponytail:` JS menolak target yang `getUser(target).clanId` sudah terisi —
-//! baris store milik user lain tidak bisa dibaca dari `Ctx`. Yang di sini
-//! dijequivalentkan dengan "target sudah jadi anggota clan mana pun" dari peta
-//! `clans`. Selisihnya satu: user dengan `clanId` menunjuk clan yang sudah
-//! dihapus lolos di Rust, sedangkan JS menolaknya.
+//! `Keterbatasan:` versi awal menolak target yang `getUser(target).clanId` sudah terisi —
+//! baris store milik user lain tidak bisa dibaca dari `Ctx`. Yang di sini dijequivalentkan
+//! dengan "target sudah jadi anggota clan mana pun" dari peta `clans`. Selisihnya satu:
+//! user dengan `clanId` menunjuk clan yang sudah dihapus lolos di Rust, sedangkan versi
+//! awal menolaknya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -87,7 +84,7 @@ pub fn claninvite(ctx: Ctx) -> Reply {
     let name = field_str(clan, "name");
     let emb = emblem(clan);
 
-    // `if (targetUser?.clanId) return …` — lihat catatan `ponytail:` di atas.
+    // `if (targetUser?.clanId) return …` — lihat catatan `Keterbatasan:` di atas.
     if all.values().any(|c| members(c).contains(&target)) {
         return Reply::text("❌ User tersebut sudah punya clan");
     }

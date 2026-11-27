@@ -1,4 +1,4 @@
-//! `plugins/clan/clankick.js` — leader mengeluarkan member dari clan.
+//! Leader mengeluarkan member dari clan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn the_device_suffix_is_not_stripped_when_matching_the_leader() {
-        // `clan.leader !== m.sender` di JS membandingkan string penuh; JID
+        // `clan.leader !== m.sender` di versi awal membandingkan string penuh; JID
         // `628111:3@s.whatsapp.net` tidak dianggap leader yang sama.
         let r = run(ctx_of(
             serde_json::json!({"clanId": "DRG"}),

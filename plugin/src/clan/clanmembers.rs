@@ -1,11 +1,10 @@
-//! `plugins/clan/clanmembers.js` — daftar member clan beserta level & koin.
+//! Daftar member clan beserta level & koin.
 //!
-//! `ponytail:` JS memanggil `db.getUser(jid)` untuk SETIAP member. Baris store
-//! milik orang lain tidak bisa dibaca dari `Ctx` — yang tersedia cuma baris
-//! sender (`ctx.user_data`) dan baris peserta grup yang sudah dimuat
-//! (`ctx.roster.participants[].data`). Tiga sumber itu dipakai di sini.
-//! Member yang tidak ada di ketiganya memakai default yang sama dengan JS:
-//! `level` 1 dan `koin` 0.
+//! `Keterbatasan:` versi awal memanggil `db.getUser(jid)` untuk SETIAP member. Baris store
+//! milik orang lain tidak bisa dibaca dari `Ctx` — yang tersedia cuma baris sender
+//! (`ctx.user_data`) dan baris peserta grup yang sudah dimuat
+//! (`ctx.roster.participants[].data`). Tiga sumber itu dipakai di sini. Member yang tidak
+//! ada di ketiganya memakai default yang sama dengan versi awal: `level` 1 dan `koin` 0.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -27,7 +26,7 @@ pub(crate) fn level_of(user: &Value) -> i64 {
 }
 
 /// `(memberUser?.koin || 0).toLocaleString('id-ID')` — `koin` string non-angka
-/// jadi `0` di JS (`Number("abc") || 0`).
+/// jadi `0` di versi awal (`Number("abc") || 0`).
 pub(crate) fn koin_of(user: &Value) -> String {
     let k = user.get("koin");
     if !crate::common::js_truthy(k) {

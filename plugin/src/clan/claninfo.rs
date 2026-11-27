@@ -1,4 +1,4 @@
-//! `plugins/clan/claninfo.js` — tampilkan detail satu clan (level, exp bar, war stats).
+//! Tampilkan detail satu clan (level, exp bar, war stats).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -8,10 +8,10 @@ use crate::common::jid_number;
 /// `expBar(exp, nextLevel)` — target `level * 10000`, isi dibulatkan ke 0..=10
 /// sel dari 10.
 ///
-/// `progress` TIDAK dijaga untuk `target == 0`: di JS `exp / 0` jadi `Infinity`
+/// `progress` TIDAK dijaga untuk `target == 0`: di versi awal `exp / 0` jadi `Infinity`
 /// (atau `NaN` kalau `exp` juga 0) lalu `Math.min(…, 1)` tetap menghasilkan 1,
 /// dan `f64::min` Rust mengembalikan operand kedua saat satuannya NaN — jadi
-/// kedua kasus jatuh ke bar penuh, sama seperti JS.
+/// kedua kasus jatuh ke bar penuh, sama seperti versi awal.
 pub(crate) fn exp_bar(exp: f64, next_level: i64) -> String {
     let progress = (exp / (next_level as f64 * 10_000.0)).min(1.0);
     let filled = (progress * 10.0).round().clamp(0.0, 10.0) as usize;
@@ -36,7 +36,7 @@ pub(crate) fn rank_title(level: i64) -> &'static str {
 }
 
 /// `((wins / totalGames) * 100).toFixed(1)` — satu desimal, atau `—` kalau
-/// belum pernah war. `toFixed` JS setengah ke atas; `f64::round`_set halfway
+/// belum pernah war. `toFixed` versi awal setengah ke atas; `f64::round`_set halfway
 /// ke atas juga, jadi keduanya cocok.
 pub(crate) fn win_rate(wins: i64, losses: i64) -> String {
     let total = wins + losses;
@@ -164,8 +164,8 @@ fn locale_date_id(ms: i64) -> String {
     format!("{d}/{m}/{y}")
 }
 
-/// `new Date(clan.createdAt)` → epoch ms. String ISO milik JS
-/// (`2026-01-02T03:04:05.000Z`) dibaca lewat offset Jakarta supaya angkanya sama
+/// `new Date(clan.createdAt)` → epoch ms. String ISO milik versi awal
+/// (`2026-01-02T03:04:05.000Z`) dibaca lewat offset Jakarta supaya angkanya
 /// dengan `Date.parse` pada waktu yang sama.
 fn parse_created(raw: &str) -> i64 {
     let b = raw.as_bytes();
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn exp_beyond_the_target_clamps_at_a_full_bar() {
         assert!(exp_bar(99_999.0, 1).starts_with("██████████"), "100%");
-        // Level 0 → target 0, JS `exp / 0` = Infinity lalu `Math.min(…, 1)` = 1.
+        // Level 0 → target 0, versi awal `exp / 0` = Infinity lalu `Math.min(…, 1)` = 1.
         assert_eq!(exp_bar(0.0, 0), "██████████ 100%");
         assert_eq!(exp_bar(0.0, 1), "░░░░░░░░░░ 0%");
     }

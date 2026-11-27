@@ -1,13 +1,12 @@
-//! `plugins/clan/clanleaderboard.js` — ranking clan berdasarkan skor
-//! `wins*100 + exp + level*500`, Turun 10 teratas.
+//! Ranking clan berdasarkan skor
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::clan::clancreate::{clans, emblem, field_num, field_str, members};
 
-/// `getRankTitle(level)` — di `clanleaderboard.js` emblem saja, tanpa nama tier
-/// seperti di `claninfo.js`. Dua fungsi itu berbeda dan tidak boleh disatukan.
+/// `getRankTitle(level)` — emblem saja, tanpa nama tier
+/// seperti. Dua fungsi itu berbeda dan tidak boleh disatukan.
 pub(crate) fn rank_emoji(level: i64) -> &'static str {
     match level {
         l if l >= 50 => "👑",
@@ -32,7 +31,7 @@ fn level_of(clan: &Value) -> i64 {
     if l == 0 { 1 } else { l }
 }
 
-/// `((wins / total) * 100).toFixed(0)` — TANPA desimal, berbeda dari
+/// `((wins / total) * 100).toFixed(0)` — TANPA desimal, berbeda
 /// `claninfo` yang `toFixed(1)`.
 fn win_rate0(wins: i64, losses: i64) -> String {
     let total = wins + losses;
@@ -53,10 +52,10 @@ fn medal(index: usize) -> String {
     }
 }
 
-/// Urutan `Array.prototype.sort` JS: V8 stabilize, jadi comparator yang
+/// Urutan `Array.prototype.sort` versi awal: V8 stabilize, jadi comparator
 /// mengembalikan 0 tidak mengubah urutan asli. `slice::sort_by` di Rust tidak
 /// dijamin stable, jadi indeks asli ikut disimpan dan dipakai sebagai
-/// tie-break — urutan clan dengan skor kembar jadi sama dengan JS.
+/// tie-break — urutan clan dengan skor kembar jadi sama dengan versi awal.
 pub(crate) fn ranked<'a>(all: &[(&'a String, &'a Value)]) -> Vec<(&'a String, &'a Value)> {
     let mut idx: Vec<usize> = (0..all.len()).collect();
     idx.sort_by(|a, b| {

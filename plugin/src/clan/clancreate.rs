@@ -1,10 +1,10 @@
-//! `plugins/clan/clancreate.js` — buat clan baru, potong koin, simpan ke store global.
+//! Buat clan baru, potong koin, simpan ke store global.
 //!
-//! `ponytail:` JS menyimpan seluruh clan di `db.db.data.clans`, satu map global
-//! yang bukan milik user maupun grup. `Ctx` hanya membuka tiga wearer state
-//! (user, group, settings), jadi map itu dipindah ke key global `clans` di
-//! `settings` — satu-satunya map global yang bisa dibaca plugin. Bentuk
-//! isinya sama dengan JS; hanya lokasinya yang berbeda.
+//! `Keterbatasan:` versi awal menyimpan seluruh clan di `db.db.data.clans`, satu map global
+//! yang bukan milik user maupun grup. `Ctx` hanya membuka tiga wearer state (user, group,
+//! settings), jadi map itu dipindah ke key global `clans` di `settings` — satu-satunya map
+//! global yang bisa dibaca plugin. Bentuk isinya sama dengan versi awal; hanya lokasinya
+//! yang berbeda.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -12,10 +12,10 @@ use serde_json::{Map, Value};
 use crate::common::jid_number;
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// Key global tempat peta `clans` disimpan — lihat catatan `ponytail:` di atas.
+/// Key global tempat peta `clans` disimpan — lihat catatan `Keterbatasan:` di atas.
 pub(crate) const CLANS_KEY: &str = "clans";
 
-/// Batas member per clan. `clancreate.js` tidak punya konstanta ini (ia
+/// Batas member per clan. tidak punya konstanta ini (ia
 /// menulis `50` inline), empat plugin lain menyebut angka yang sama.
 pub(crate) const MAX_MEMBERS: usize = 50;
 
@@ -23,8 +23,8 @@ pub(crate) const CLAN_CREATE_COST: f64 = 50_000.0;
 
 pub(crate) const MAX_CLAN_NAME: usize = 20;
 
-/// `updateKoin` JS: `Math.min(MAX_KOIN, koin + amount)` dengan
-/// `MAX_KOIN = 9000000000000` (`database.js:650`). Bulat di semua sisi, jadi
+/// `updateKoin` versi awal: `Math.min(MAX_KOIN, koin + amount)`
+/// `MAX_KOIN = 9000000000000`. Bulat di semua sisi, jadi
 /// clamp tidak pernah menghasilkan pecahan.
 pub(crate) const MAX_KOIN: i64 = 9_000_000_000_000;
 
@@ -32,7 +32,7 @@ pub(crate) const CLAN_EMBLEMS: [&str; 10] = [
     "🐉", "🦅", "🐺", "🦁", "🔥", "⚡", "🌙", "☀️", "💎", "🗡️",
 ];
 
-/// Peta clan global, atau map kosong kalau key belum pernah ditulis — sama
+/// Peta clan global, atau map kosong kalau key belum pernah ditulis —
 /// dengan `if (!db.db.data.clans) db.db.data.clans = {}` di tiap plugin.
 pub(crate) fn clans(ctx: &Ctx) -> Map<String, Value> {
     ctx.setting(CLANS_KEY)
@@ -57,8 +57,8 @@ pub(crate) fn find_clan<'a>(clans: &'a Map<String, Value>, key: &str) -> Option<
     find_clan_entry(clans, key).map(|(_, c)| c)
 }
 
-/// Versi [`find_clan`] yang juga mengembalikan kunci peta. `clanjoin` dan
-/// `clanleave` butuh kunci itu: JS menulis `db.setUser(sender, { clanId })`
+/// Versi [`find_clan`] yang juga mengembalikan kunci peta. `clanjoin`
+/// `clanleave` butuh kunci itu: versi awal menulis `db.setUser(sender, { clanId })`
 /// dengan nilai yang sama persis dengan indeks `db.db.data.clans` yang dipakai
 /// untuk lookup, bukan dengan `clan.id`.
 pub(crate) fn find_clan_entry<'a>(
@@ -79,7 +79,7 @@ pub(crate) fn find_clan_entry<'a>(
         })
 }
 
-/// `clan.x || default` untuk string — `""` dan `null` sama-sama falsy di JS.
+/// `clan.x || default` untuk string — `""` dan `null` sama-sama falsy di versi awal.
 pub(crate) fn field_str(clan: &Value, key: &str) -> String {
     match clan.get(key).and_then(Value::as_str) {
         Some(s) if !s.is_empty() => s.to_string(),
@@ -137,7 +137,7 @@ pub(crate) fn random_emblem() -> &'static str {
 }
 
 /// `name.replace(/[^a-zA-Z]/g, '').toUpperCase()` — angka dan spasi ikut hilang,
-/// jadi `Dragon  Slayer 1` menjadi `DRAGONSLAYER`.
+/// jadi `Dragon Slayer 1` menjadi `DRAGONSLAYER`.
 pub(crate) fn clean_name(name: &str) -> String {
     name.chars()
         .filter(char::is_ascii_alphabetic)
@@ -150,7 +150,7 @@ fn take(clean: &str, n: usize) -> String {
 }
 
 /// `Math.random().toString(36).slice(2, 5).toUpperCase()` — tiga digit base-36.
-/// JS memakai tiga digit pertama pecahan, yang tidak pernah `0` di depan;
+/// versi awal memakai tiga digit pertama pecahan, yang tidak pernah `0` di depan;
 /// undian penuh 0..36³ di sini menyertakan Awalan `0` untuk 1 dari 36³ hasil.
 /// ID ini hanya dipakai sebagai cadangan saat 104 kandidat lain sudah terpakai.
 fn random_suffix() -> String {
@@ -196,7 +196,7 @@ pub(crate) fn short_id(name: &str, taken: impl Fn(&str) -> bool) -> String {
     format!("{}{}", take(&clean, 2), random_suffix())
 }
 
-/// `updateKoin(jid, amount)` (`database.js:646`).
+/// `updateKoin(jid, amount)`.
 ///
 /// Dua guard yang tidak boleh dilewati: `koin === -1` adalah sentinel
 /// "unlimited" yang Freeze, dan hasil dijepit ke `0..=MAX_KOIN`.
@@ -264,15 +264,15 @@ pub fn clancreate(ctx: Ctx) -> Reply {
         return Reply::text(help());
     }
 
-    // `clanName.length` di JS menghitung UTF-16 code unit. `ponytail:` untuk
-    // nama clan Latin keduanya sama; nama astral (emoji) dihitung 2 di JS dan
+    // `clanName.length` di versi awal menghitung UTF-16 code unit. `Keterbatasan:`
+    // nama clan Latin keduanya sama; nama astral (emoji) dihitung 2 di versi awal
     // 1 di Rust, jadi batas 20 EMU di sini longgar 20 char.
     if clan_name.chars().count() > MAX_CLAN_NAME {
         return Reply::text(format!("❌ Nama clan maksimal {MAX_CLAN_NAME} karakter"));
     }
 
-    // `/^[a-zA-Z0-9\s]+$/` — `\s` JS adalah whitespace Unicode, hampir sama
-    // dengan `char::is_whitespace`; selisihnya cuma `\u{FEFF}` yang `\s` JS
+    // `/^[a-zA-Z0-9\s]+$/` — `\s` versi awal adalah whitespace Unicode, hampir
+    // dengan `char::is_whitespace`; selisihnya cuma `\u{FEFF}` yang `\s` versi awal
     // anggap spasi dan Rust tidak, dan itu tidak muncul di nama clan.
     if !clan_name
         .chars()
@@ -336,7 +336,7 @@ pub fn clancreate(ctx: Ctx) -> Reply {
     })
 }
 
-/// `new Date().toISOString()` — format yang sama dengan yang ditulis JS, jadi
+/// `new Date().toISOString()` — format yang sama dengan yang ditulis versi awal, jadi
 /// `claninfo` bisa membacanya kembali. Timestamp di-shift -7h supaya
 /// `jakarta_parts` (yang selalu +7) mengembalikan dinding jam UTC.
 pub(crate) fn iso_now() -> String {

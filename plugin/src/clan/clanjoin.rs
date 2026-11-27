@@ -1,4 +1,4 @@
-//! `plugins/clan/clanjoin.js` — gabung ke clan berdasarkan ID, nama, atau nama clan.
+//! Gabung ke clan berdasarkan ID, nama, atau nama clan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;

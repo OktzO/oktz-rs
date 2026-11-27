@@ -1,14 +1,13 @@
-//! `plugins/clan/clanwar.js` — clanvs clan: power, hasil acak, hadiah.
+//! Clanvs clan: power, hasil acak, hadiah.
 //!
-//! `ponytail:` JS memanggil `db.getUser(jid)` untuk SETIAP member kedua clan
-//! (power, lalu `updateKoin`/`updateExp`/`updateEnergi`). Baris store milik
-//! orang lain tidak bisa dibaca dari `Ctx` — yang tersedia cuma baris sender
-//! (`ctx.user_data`) dan baris peserta grup yang sudah dimuat
-//! (`ctx.roster.participants[].data`), sama seperti yang dicatat di
-//! `clanmembers.rs`. Member di luar dua sumber itu dihitung dengan default JS
-//! (level 1, exp 0) untuk power, dan TIDAK bisa diberi hadiah karena nilai
-//! lama `koin`/`exp`/`energi`-nya tidak diketahui. Jumlah yang terlewat
-//! disebut di balasan supaya hadiah hilang tidak senyap.
+//! `Keterbatasan:` versi awal memanggil `db.getUser(jid)` untuk SETIAP member kedua clan
+//! (power, lalu `updateKoin`/`updateExp`/`updateEnergi`). Baris store milik orang lain
+//! tidak bisa dibaca dari `Ctx` — yang tersedia cuma baris sender (`ctx.user_data`) dan
+//! baris peserta grup yang sudah dimuat (`ctx.roster.participants[].data`), sama seperti
+//! yang dicatat di `clanmembers.rs`. Member di luar dua sumber itu dihitung dengan default
+//! versi awal (level 1, exp 0) untuk power, dan TIDAK bisa diberi hadiah karena nilai lama
+//! `koin`/`exp`/`energi`-nya tidak diketahui. Jumlah yang terlewat disebut di balasan
+//! supaya hadiah hilang tidak senyap.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -26,9 +25,9 @@ pub(crate) const ENERGI_LOSE: f64 = 3.0;
 pub(crate) const CLAN_EXP_WIN: f64 = 5_000.0;
 pub(crate) const CLAN_EXP_LOSE: f64 = 1_000.0;
 
-/// `updateExp` clamp: `MAX_EXP = 9000000000` (`database.js:663`).
+/// `updateExp` clamp: `MAX_EXP = 9000000000`.
 pub(crate) const MAX_EXP: i64 = 9_000_000_000;
-/// `level = Math.floor(exp / 10000) + 1` (`clanwar.js:139`).
+/// `level = Math.floor(exp / 10000) + 1`.
 pub(crate) const EXP_PER_LEVEL: f64 = 10_000.0;
 pub(crate) const MIN_MEMBERS: usize = 3;
 
@@ -74,7 +73,7 @@ pub(crate) fn exp_of(user: &Value) -> f64 {
 pub(crate) fn calculate_power(ctx: &Ctx, clan: &Value) -> f64 {
     let mut total = 0.0f64;
     for jid in members(clan) {
-        // Baris yang tak terbaca → default JS, bukan 0: clan minimal 3 member
+        // Baris yang tak terbaca → default versi awal, bukan 0: clan minimal 3 member
         // supaya ini tidak pernah menghasilkan power negatif.
         let (level, exp) = match user_row(ctx, &jid) {
             Some(u) => (level_of(u) as f64, exp_of(u)),
@@ -181,7 +180,7 @@ pub(crate) fn result_text(
 /// `db.updateKoin/updateExp/updateEnergi` untuk satu member.
 ///
 /// `koin`/`exp`/`energi` bernilai `-1` adalah sentinel "tidak pernah
-/// dibatasi" di `database.js`; kalau sudah `-1`, fungsi JS mengembalikan
+/// dibatasi"; kalau sudah `-1`, fungsi versi awal mengembalikan
 /// `-1` tanpa menulis apa pun. Nilai `-1` karena alasan lain (owner/premium)
 /// tidak bisa dievaluasi di sini — `config` tidak terbuka lewat `Ctx`.
 ///
@@ -204,7 +203,7 @@ fn reward_member(ctx: &Ctx, jid: &str, r: &Rewards) -> Option<Mutation> {
     })
 }
 
-/// `clan.wins || 0` sebagai bulat. Semua penghitung clan di JS berupa
+/// `clan.wins || 0` sebagai bulat. Semua penghitung clan di versi awal berupa
 /// bilangan bulat, jadi hasilnya ditulis sebagai integer JSON — `serde_json::json!(1.0)`
 /// akan jadi `1.0` dan plugin lain yang baca `as_i64` ikut salah.
 fn field_int(clan: &Value, key: &str) -> i64 {
@@ -265,7 +264,7 @@ pub fn clanwar(ctx: Ctx) -> Reply {
         return Reply::text("❌ Kamu belum punya clan");
     };
 
-    // JS: `m.text?.trim()` — SELURUH teks, bukan `args[0]`.
+    // versi awal: `m.text?.trim()` — SELURUH teks, bukan `args[0]`.
     let target = ctx.text.trim().to_string();
     if target.is_empty() {
         return Reply::text(HELP);
@@ -275,9 +274,9 @@ pub fn clanwar(ctx: Ctx) -> Reply {
     let Some((my_key, my_clan)) = all.get_key_value(&my_clan_id).map(|(k, v)| (k.clone(), v.clone())) else {
         return Reply::text("❌ Clan kamu tidak ditemukan");
     };
-    // `enemyKey` bisa sama dengan `myKey`: `target` yang cocok lewat nama atau
+    // `enemyKey` bisa sama dengan `myKey`: `target` yang cocok lewat nama
     // `clan.id` (bukan lewat kunci peta) lolos dari cek "war melawan diri
-    // sendiri" di JS. Kasus itu ditangani di bawah, bukan dicegah.
+    // sendiri" di versi awal. Kasus itu ditangani di bawah, bukan dicegah.
     let Some((enemy_key, enemy)) = find_clan_entry(&all, &target) else {
         return Reply::text("❌ Clan lawan tidak ditemukan");
     };
@@ -302,7 +301,7 @@ pub fn clanwar(ctx: Ctx) -> Reply {
 
     let mut my_new = my_clan.clone();
     settle(&mut my_new, is_win);
-    // Kalau lawan ternyata clan sendiri (cocok lewat nama), JS memakai satu
+    // Kalau lawan ternyata clan sendiri (cocok lewat nama), versi awal memakai satu
     // objek yang sama untuk `myClan` dan `enemyClan`, jadi kedua `settle`
     // menumpuk di satu baris. Menyalin `my_new` mempertahankan itu.
     let mut enemy_new = if enemy_key == my_key {
@@ -587,7 +586,7 @@ mod tests {
         let a_won = field_num(a, "wins") == 1.0;
         assert_eq!(a_won, field_num(b, "losses") == 1.0, "satu menang satu kalah");
         assert_eq!(field_num(a, "losses") == 1.0, !a_won);
-        // exp = 5000 -> level 1 ; exp = 1000 -> level 1
+        // exp = 5000 -> level 1; exp = 1000 -> level 1
         assert_eq!(field_num(a, "exp"), if a_won { CLAN_EXP_WIN } else { CLAN_EXP_LOSE });
         assert_eq!(a["level"], serde_json::json!(1), "floor(5000/10000)+1 dan floor(1000/10000)+1");
         assert_eq!(b["level"], serde_json::json!(1));
@@ -729,7 +728,7 @@ mod tests {
     #[test]
     fn a_target_that_resolves_back_to_my_own_clan_still_settles_once_per_side() {
         // `.clanwar Alpha` — "Alpha" bukan `clanId`, jadi cek "diri sendiri"
-        // di JS tidak menangkapnya dan `myClan`/`enemyClan` menunjuk objek
+        // di versi awal tidak menangkapnya dan `myClan`/`enemyClan` menunjuk objek
         // yang sama: wins dan losses naik dua-duanya, exp dapat 5000+1000.
         let map = serde_json::json!({
             "A": clan("A", "Alpha", &["628111@s.whatsapp.net", "2@s", "3@s"], 1.0, 0.0, 0.0),

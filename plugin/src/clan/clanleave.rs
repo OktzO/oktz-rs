@@ -1,4 +1,4 @@
-//! `plugins/clan/clanleave.js` — keluar dari clan; leader terakhir membubarkan clan.
+//! Keluar dari clan; leader terakhir membubarkan clan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn a_member_missing_from_the_list_still_clears_the_pointer() {
-        // JS `filter` tidak melempar; hasilnya tetap daftar lama.
+        // versi awal `filter` tidak melempar; hasilnya tetap daftar lama.
         let r = run(
             serde_json::json!({"clanId": "DRG"}),
             serde_json::json!({ "DRG": clan(OTHER, serde_json::json!([OTHER])) }),
