@@ -1,11 +1,9 @@
-//! `plugins/tts/ttselon.js` — TTS suara Elon Musk lewat API Emilia.
+//! TTS suara Elon Musk lewat API Emilia.
 //!
-//! `ponytail:` `m.react('🚀')` lalu `✅`/`❌`/`☢` — satu reaksi terakhir.
-//! `ctx.config()` tidak dibaca (API tidak butuh kunci).
-//! `sock.sendMessage({ audio, contextInfo: saluranCtx() })` →
-//! `Reply::voice_note` (contextInfo/saluran diabaikan, `Reply` tidak bawa
-//! contextInfo).
-//! `fs` temp + ffmpeg → `ctx.berkas()` + `oktz_plugin_api::ffmpeg`.
+//! `Keterbatasan:` `m.react('🚀')` lalu `✅`/`❌`/`☢` — satu reaksi terakhir. `ctx.config()`
+//! tidak dibaca (API tidak butuh kunci). `sock.sendMessage({ audio, contextInfo:
+//! saluranCtx() })` → `Reply::voice_note` (contextInfo/saluran diabaikan, `Reply` tidak
+//! bawa contextInfo). `fs` temp + ffmpeg → `ctx.berkas()` + `oktz_plugin_api::ffmpeg`.
 //! `te(...)` → `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
@@ -13,7 +11,7 @@ use oktz_plugin_api::ffmpeg;
 use serde_json::Value;
 
 
-/// `https://api.emiliabot.my.id/tools/text-to-speech?text=<teks>` (`ttselon.js:58`).
+/// `https://api.emiliabot.my.id/tools/text-to-speech?text=<teks>`.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://api.emiliabot.my.id/tools/text-to-speech?text={}",
@@ -21,20 +19,20 @@ pub(crate) fn api_url(text: &str) -> String {
     )
 }
 
-/// Bantuan saat teks kosong (`ttselon.js:50-52`).
+/// Bantuan saat teks kosong.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "🚀 *ᴇʟᴏɴ ᴍᴜsᴋ ᴛᴛs*\n\n> Gunakan: `{prefix}ttselon <text>`"
     )
 }
 
-/// Suara Elon tidak ditemukan (`ttselon.js:63-65`).
+/// Suara Elon tidak ditemukan.
 pub(crate) const SUARA_ERROR: &str = "❌ Elon voice error. Coba TTS lain.";
 
-/// Nama folder temp (`ttselon.js:68`).
+/// Nama folder temp.
 const TEMP_DIR: &str = "temp";
 
-/// Prefix berkas temp (`ttselon.js:70-71`).
+/// Prefix berkas temp.
 const TEMP_PREFIX: &str = "tts_";
 
 /// `ctx.berkas()` + ffmpeg: tulis WAV, konversi ke Opus/OGG, baca, bersihkan.
@@ -71,7 +69,7 @@ fn konversi_ke_opus(berkas: &dyn oktz_plugin_api::berkas::Berkas, wav: &[u8]) ->
     hasil.and_then(|_| berkas.baca(&opus_path))
 }
 
-/// Cari suara Elon Musk dari array `result` (`ttselon.js:61`).
+/// Cari suara Elon Musk dari array `result`.
 fn cari_suara_elon(data: &Value) -> Option<String> {
     let daftar = data.get("result").and_then(Value::as_array)?;
     for item in daftar {
@@ -134,9 +132,9 @@ pub fn ttselon(ctx: Ctx) -> Reply {
     Reply::voice_note(MediaSource::bytes(opus)).with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

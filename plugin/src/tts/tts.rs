@@ -1,12 +1,4 @@
-//! `plugins/tts/tts.js` — Google Text To Speech.
-//!
-//! Catatan: ini adalah kategori baru (`tts`) yang belum ada di repo Rust,
-//! jadi `tts/mod.rs` dibuat bersama file ini. Baris `pub mod tts;` perlu
-//! ditambahkan manual di `rust/crates/oktz-plugins/src/tts/mod.rs`.
-//!
-//! `fotoApi.nexray.geminiTts` dari `src/lib/apimanager.js` tidak punya
-//! padanan di `Ctx`. Handler hanya mendukung teks input; sintesis suara
-//! tidak tersedia di konteks Rust.
+//! Google Text To Speech.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -36,7 +28,7 @@ pub fn tts(ctx: Ctx) -> Reply {
         ));
     }
 
-    // JS: `fotoApi.nexray.geminiTts(text)` → `t.result` (URL audio), lalu
+    // versi awal: `fotoApi.nexray.geminiTts(text)` → `t.result` (URL audio), lalu
     // `sock.sendMessage({ audio: { url: t.result }, mimetype: "audio/mpeg" })`.
     // Tidak ada fungsi TTS di konteks Rust.
     Reply::text(format!(
