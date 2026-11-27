@@ -47,3 +47,5 @@ pub mod igstory;
 pub mod igstoryimg;
 pub mod kalender;
 pub mod ttqc;
+
+pub mod igpreview;

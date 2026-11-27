@@ -24,4 +24,6 @@ serde_json.workspace = true
 oktz-store = { path = "../lib/oktz-store" }
 oktz-core = { path = "../lib/oktz-core" }
 oktz-wa = { path = "../lib/oktz-wa" }
+image = { version = "0.24", default-features = false, features = ["jpeg", "png", "webp", "gif", "webp-encoder"] }
+ab_glyph = "0.2"
 tokio = { version = "1.53", features = ["rt", "macros"] }
