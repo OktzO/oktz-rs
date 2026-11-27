@@ -1,12 +1,4 @@
-//! `plugins/vps/sisavps.js` — cek sisa kuota VPS DigitalOcean.
-//!
-//! ## Penyimpangan
-//!
-//! `config.digitalocean.token` / `.sellers` / `.ownerPanels` dibaca dari
-//! environment — lihat `crate::vps`.
-//!
-//! `Promise.all` dua endpoint dijemput berurutan; hasilnya identik karena
-//! keduanya read-only.
+//! Cek sisa kuota VPS DigitalOcean.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -14,10 +6,10 @@ use serde_json::Value;
 use crate::common::error_template;
 use crate::vps::{has_access, js_str, token};
 
-/// Render `sisavps.js:50-60`.
+/// Render.
 fn teks_kuota(account: &Value, droplets_used: usize) -> String {
     let limit = js_str(account.get("droplet_limit"));
-    // `dropletLimit - dropletsUsed` — aritmetika number JS, jadi `10 - 2`
+    // `dropletLimit - dropletsUsed` — aritmetika number versi awal, jadi `10 - 2`
     // = `8` (bukan "10 - 2"). Kalau limit bukan angka, hasilnya `NaN`.
     let remaining = match account.get("droplet_limit").and_then(Value::as_f64) {
         Some(l) => crate::vps::fmt_num(l - droplets_used as f64),

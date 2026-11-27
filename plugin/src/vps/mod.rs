@@ -1,26 +1,4 @@
-//! Kategori `vps` — plugin DigitalOcean (`plugins/vps/*.js`).
-//!
-//! ## Penyimpangan: sumber token & daftar penjual
-//!
-//! JS membaca `config.digitalocean` (`config.js:301-306`):
-//!
-//! ```js
-//! digitalocean: {
-//!   token: "",
-//!   region: "sgp1",
-//!   sellers: [],
-//!   ownerPanels: [],
-//! },
-//! ```
-//!
-//! Nilai itu ada di `oktz_core::config::Runtime::digitalocean`, diisi
-//! `Runtime::from_config` dari `DIGITALOCEAN_TOKEN`, `DIGITALOCEAN_SELLERS`,
-//! dan `DIGITALOCEAN_OWNER_PANELS` (daftar dipisah koma). Kosong = perilaku
-//! bawaan `config.js` (`token: ""`), plugin membalas
-//! `⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*`.
-//!
-//! Catatan: `Runtime` punya `api_keys.linode` (dari `LINODE_API_TOKEN`) —
-//! itu dipakai plugin `panel/linode.js`, bukan kategori ini.
+//! Kategori `vps` — plugin DigitalOcean.
 
 pub mod cekvps;
 pub mod delvps;
@@ -46,7 +24,7 @@ pub(crate) fn has_access(ctx: &oktz_plugin_api::Ctx) -> bool {
     dc.sellers.iter().any(|s| s == clean) || dc.owner_panels.iter().any(|s| s == clean)
 }
 
-/// `${nilai}` di dalam template literal JS — `String(x)`.
+/// `${nilai}` di dalam template literal versi awal — `String(x)`.
 ///
 /// Field DigitalOcean diinterpolasi apa adanya, jadi nilai yang hilang ikut
 /// tampil sebagai `undefined`, bukan sebagai string kosong.
@@ -69,7 +47,7 @@ pub(crate) fn js_str(v: Option<&serde_json::Value>) -> String {
     }
 }
 
-/// `String(number)` JS — angka bulat tanpa desimal, pecahan dengan desimal
+/// `String(number)` versi awal — angka bulat tanpa desimal, pecahan dengan desimal
 /// yang tidak berbunga nol.
 pub(crate) fn fmt_num(n: f64) -> String {
     if n.is_nan() {
@@ -89,7 +67,7 @@ pub(crate) fn fmt_num(n: f64) -> String {
 }
 
 /// Nama bulan panjang bahasa Indonesia — `Intl.DateTimeFormat('id-ID', {
-/// month: 'long' })` (`src/lib/time.js:23-26`).
+/// month: 'long' })`.
 pub(crate) const BULAN: [&str; 12] = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September",
     "Oktober", "November", "Desember",
@@ -97,7 +75,7 @@ pub(crate) const BULAN: [&str; 12] = [
 
 /// Ubah timestamp ISO-8601 menjadi bagian waktu Asia/Jakarta (UTC+7).
 ///
-/// `new Date(iso)` di JS memakai ISO-8601 yang bawaan offset; kalau stringnya
+/// `new Date(iso)` di versi awal memakai ISO-8601 yang bawaan offset; kalau stringnya
 /// berakhiran `Z` berarti UTC, kalau tidak ada offset berarti waktu lokal
 /// server — yang di produksi selalu UTC. Offset eksplisit (`+07:00`) juga
 /// dihormati.
@@ -178,7 +156,7 @@ fn dari_epoch(epoch: i64) -> (i64, u32, u32, u32, u32, u32) {
     (y, m, d, jam, menit, detik)
 }
 
-/// `fromTimestamp(iso, "DD MMMM YYYY HH:mm:ss")` (`src/lib/time.js:112-114`).
+/// `fromTimestamp(iso, "DD MMMM YYYY HH:mm:ss")`.
 pub(crate) fn format_tanggal(iso: &str) -> String {
     let Some((y, m, d, h, mi, s)) = jakarta(iso) else {
         // `new Date("bukan tanggal")` = Invalid Date; `Intl` lalu melempar

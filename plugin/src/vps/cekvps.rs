@@ -1,15 +1,4 @@
-//! `plugins/vps/cekvps.js` — cek detail VPS DigitalOcean.
-//!
-//! ## Penyimpangan
-//!
-//! 1. `config.digitalocean.token` / `.sellers` / `.ownerPanels` tidak ada di
-//!    `oktz_core::config::Runtime`, jadi dibaca dari environment
-//!    (`DIGITALOCEAN_TOKEN`, `DIGITALOCEAN_SELLERS`,
-//!    `DIGITALOCEAN_OWNER_PANELS`) — lihat `crate::vps`.
-//! 2. `timeHelper.fromTimestamp` memakai `Intl.DateTimeFormat` dengan zona
-//!    `Asia/Jakarta`; di sini dihitung manual sebagai UTC+7 (Jakarta tidak
-//!    punya DST) dengan nama bulan Indonesia yang sama.
-//! 3. `m.react` tidak ada di JS plugin ini — tidak ada yang perlu ditiru.
+//! Cek detail VPS DigitalOcean.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -18,7 +7,7 @@ use crate::common::error_template;
 use crate::vps::{format_tanggal, has_access, token};
 
 /// `droplet.networks?.v4?.find(n => n.type === "public")?.ip_address || "-"`
-/// (`cekvps.js:60-61`).
+///
 fn ipv4_publik(droplet: &Value) -> String {
     droplet
         .pointer("/networks/v4")
@@ -33,7 +22,7 @@ fn ipv4_publik(droplet: &Value) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-/// `droplet.networks?.v6?.[0]?.ip_address || "-"` (`cekvps.js:62`).
+/// `droplet.networks?.v6?.[0]?.ip_address || "-"`.
 fn ipv6(droplet: &Value) -> String {
     droplet
         .pointer("/networks/v6")
@@ -45,8 +34,8 @@ fn ipv6(droplet: &Value) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-/// `droplet.status === "active" ? "🟢 Active" : "🔴 " + droplet.status`
-/// (`cekvps.js:63-64`).
+/// `droplet.status === "active" ? "🟢 Active": "🔴 " + droplet.status`
+///
 fn status(droplet: &Value) -> String {
     let s = droplet
         .get("status")
@@ -59,7 +48,7 @@ fn status(droplet: &Value) -> String {
     }
 }
 
-/// `droplet.region?.name || droplet.region?.slug` (`cekvps.js:76`).
+/// `droplet.region?.name || droplet.region?.slug`.
 fn region(droplet: &Value) -> String {
     let r = droplet.get("region");
     let name = r.and_then(|x| x.get("name")).map(|v| crate::vps::js_str(Some(v)));
@@ -73,7 +62,7 @@ fn region(droplet: &Value) -> String {
     }
 }
 
-/// Render `cekvps.js:66-79`.
+/// Render.
 fn teks_detail(droplet: &Value) -> String {
     let s = |k: &str| crate::vps::js_str(droplet.get(k));
     let img = droplet

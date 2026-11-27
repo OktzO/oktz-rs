@@ -1,9 +1,4 @@
-//! `plugins/vps/listvps.js` — list semua VPS DigitalOcean.
-//!
-//! ## Penyimpangan
-//!
-//! `config.digitalocean.token` / `.sellers` / `.ownerPanels` dibaca dari
-//! environment — lihat `crate::vps`.
+//! List semua VPS DigitalOcean.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -12,7 +7,7 @@ use crate::common::error_template;
 use crate::vps::{has_access, js_str, token};
 
 /// `droplet.networks?.v4?.find(n => n.type === 'public')?.ip_address || '-'`
-/// (`listvps.js:45`).
+///
 fn ipv4_publik(droplet: &Value) -> String {
     droplet
         .pointer("/networks/v4")
@@ -27,7 +22,7 @@ fn ipv4_publik(droplet: &Value) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-/// Render daftar droplet — `listvps.js:54-63`.
+/// Render daftar droplet —.
 fn teks_daftar(droplets: &[Value]) -> String {
     let mut t = String::from("📋 *ʟɪsᴛ ᴠᴘs ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ*\n");
     t.push_str(&format!("> Total: {} droplet\n\n", droplets.len()));
@@ -83,7 +78,7 @@ pub fn listvps(ctx: Ctx) -> Reply {
         return Reply::text("❌ *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*");
     }
 
-    // `await m.reply('🕕 *ᴍᴇɴɢᴀᴍʙɪʟ ᴅᴀᴛᴀ ᴠᴘs...*')` (`listvps.js:36`).
+    // `await m.reply('🕕 *ᴍᴇɴɢᴀᴍʙɪʟ ᴅᴀᴛᴀ ᴠᴘs...*')`.
     let progres = Reply::text("🕕 *ᴍᴇɴɢᴀᴍʙɪʟ ᴅᴀᴛᴀ ᴠᴘs...*");
 
     let call = oktz_plugin_api::HttpCall::get("https://api.digitalocean.com/v2/droplets")

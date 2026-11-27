@@ -1,20 +1,11 @@
-//! `plugins/vps/vpskontrol.js` — kontrol VPS (on/off/restart).
-//!
-//! ## Penyimpangan
-//!
-//! 1. `config.digitalocean.token` / `.sellers` / `.ownerPanels` dibaca dari
-//!    environment — lihat `crate::vps`.
-//! 2. JS punya SATU file untuk empat command (`turnon`, `turnoff`,
-//!    `restartvps`, `rebootvps`) dan memilih aksi lewat `m.command`. Di Rust
-//!    satu `#[plugin]` = satu nama, jadi tiap aksi punya plugin sendiri;
-//!    teks yang dihasilkan tetap sama karena `action.text` sama.
+//! Kontrol VPS (on/off/restart).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::error_template;
 use crate::vps::{has_access, js_str, token};
 
-/// Satu baris `actions` (`vpskontrol.js:40-45`).
+/// Satu baris `actions`.
 pub(crate) struct Aksi {
     /// `type` — nilai body API.
     pub(crate) tipe: &'static str,
@@ -24,7 +15,7 @@ pub(crate) struct Aksi {
     pub(crate) teks: &'static str,
 }
 
-/// `actions[m.command]` (`vpskontrol.js:46-50`).
+/// `actions[m.command]`.
 pub(crate) fn aksi(command: &str) -> Option<Aksi> {
     Some(match command {
         "turnon" => Aksi {
@@ -109,7 +100,7 @@ pub fn restartvps(ctx: Ctx) -> Reply {
     kontrol(ctx, "restartvps")
 }
 
-/// Plugin `rebootvps` — sama dengan `restartvps` (`vpskontrol.js:44`).
+/// Plugin `rebootvps` — sama dengan `restartvps`.
 #[plugin(
     name = "rebootvps",
     alias = [],
@@ -130,7 +121,7 @@ pub fn rebootvps(ctx: Ctx) -> Reply {
     kontrol(ctx, "rebootvps")
 }
 
-/// Badan handler yang dipakai keempat command — `vpskontrol.js:31-78`.
+/// Badan handler yang dipakai keempat command —.
 fn kontrol(ctx: Ctx, command: &str) -> Reply {
     let token = token(&ctx);
     if token.is_empty() {
@@ -284,7 +275,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // Tanpa token env -> guard pertama, sama seperti JS.
+        // Tanpa token env -> guard pertama, sama seperti versi awal.
         let r = run(
             "turnon",
             Stub::with(r#"{"action":{"status":"in-progress"}}"#),

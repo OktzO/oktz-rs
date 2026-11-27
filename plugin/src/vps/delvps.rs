@@ -1,13 +1,4 @@
-//! `plugins/vps/delvps.js` — hapus VPS DigitalOcean.
-//!
-//! ## Penyimpangan
-//!
-//! `config.digitalocean.token` / `.sellers` / `.ownerPanels` dibaca dari
-//! environment — lihat `crate::vps`.
-//!
-//! `axios.delete` dikirim lewat `HttpCall` dengan metode `DELETE`; klien
-//! `UreqHttp` (`lib/oktz-plugin-api/ureq_http.rs`) meneruskan metode itu
-//! apa adanya.
+//! Hapus VPS DigitalOcean.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -50,7 +41,7 @@ pub fn delvps(ctx: Ctx) -> Reply {
         ));
     }
 
-    // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `...`')` (`delvps.js:35`).
+    // `await m.reply('🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `...`')`.
     let progres = Reply::text(format!(
         "🗑️ *ᴍᴇɴɢʜᴀᴘᴜs ᴠᴘs...*\n\n> ID: `{droplet_id}`"
     ));
