@@ -1,25 +1,24 @@
-//! `plugins/search/gsmarena.js` — cari spesifikasi HP di GSMArena.
+//! Cari spesifikasi HP di GSMArena.
 //!
-//! `ponytail:` JS memakai paket npm `gsmarena-api` yang mem-parse HTML dengan
-//! cheerio. Yang dipindah di sini bentuk respons yang dibaca plugin (hasil
-//! pencarian + detail perangkat) dengan selector yang sama persis, ditulis
-//! manual karena crate ini tidak punya parser HTML dan menambah dependency baru
-//! dilarang.
+//! `Keterbatasan:` versi awal memakai paket npm `gsmarena-api` yang mem-parse HTML dengan
+//! cheerio. Yang dipindah di sini bentuk respons yang dibaca plugin (hasil pencarian +
+//! detail perangkat) dengan selector yang sama persis, ditulis manual karena crate ini
+//! tidak punya parser HTML dan menambah dependency baru dilarang.
 //!
-//! `ponytail:` `www.gsmarena.com` menyajikan halaman "Turnstile check" untuk
-//! klien tanpa browser. Kalau itu yang masuk, `parse_search` mengembalikan
-//! daftar kosong dan plugin menjawab "HP tidak ditemukan" — persis apa yang
-//! terjadi di JS ketika cheerio tidak menemukan satu pun `<li>`.
+//! `Keterbatasan:` `www.gsmarena.com` menyajikan halaman "Turnstile check" untuk klien
+//! tanpa browser. Kalau itu yang masuk, `parse_search` mengembalikan daftar kosong dan
+//! plugin menjawab "HP tidak ditemukan" — persis apa yang terjadi di versi awal ketika
+//! cheerio tidak menemukan satu pun `<li>`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};
 
 use crate::download::douyindl::query_encode;
 
-/// `getDataFromUrl` (`gsmarena-api/src/services/utils.js`) — base host fix.
+/// `getDataFromUrl` — base host fix.
 pub(crate) const BASE: &str = "https://www.gsmarena.com";
 
-/// `gsmarena.js:34` — kartu penggunaan.
+/// Kartu penggunaan.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📱 *ɢsᴍᴀʀᴇɴᴀ*\n\n\
@@ -28,20 +27,20 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `gsmarena.js:46` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(query: &str) -> String {
     format!("📱 HP tidak ditemukan untuk *{query}*")
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
-/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di JS.
+/// `te(prefix, command, pushName)`.
+/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di versi awal.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     crate::common::error_template_bawaan(prefix, command)
 }
 
 // ── SELECTOR MINIMAL ────────────────────────────────────────────────────────
 //
-// cheerio tidak ada. Yang dipakai di bawah hanya operasi yang sama dengan
+// cheerio tidak ada. Yang dipakai di bawah hanya operasi yang sama
 // selector yang dibaca `gsmarena-api`: `.makers li`, `a`, `span`, `img`,
 // `td.ttl`, `td.nfo`, `th`, dan delapan selector `quickSpec`.
 
@@ -61,9 +60,9 @@ fn find_open(html: &str, from: usize, tag: &str) -> Option<usize> {
     }
 }
 
-/// Isi tag pertama setelah `from` — `$(…).text()` untuk teks biasa, dan
+/// Isi tag pertama setelah `from` — `$(…).text()` untuk teks biasa,
 /// `$(…).html()` untuk `<span>` yang memang dibaca sebagai HTML mentah
-/// (`search.js:16-17`).
+///
 fn inner_after(html: &str, from: usize, tag: &str) -> Option<String> {
     let open_end = html[from..].find('>')? + from + 1;
     let close = format!("</{tag}>");
@@ -112,7 +111,7 @@ fn decode_entities(raw: &str) -> String {
     out
 }
 
-/// `search.search()` (`gsmarena-api/src/services/search.js`): `.makers li`,
+/// `search.search()`: `.makers li`,
 /// lalu `a[href]`, `span` dengan `<br>` diganti spasi, dan `img[title]`.
 pub(crate) fn parse_search(html: &str) -> Vec<Device> {
     let mut devices = Vec::new();
@@ -131,7 +130,7 @@ pub(crate) fn parse_search(html: &str) -> Vec<Device> {
             continue;
         };
         devices.push(Device {
-            // `search.js:14` — hanya satu kemunculan pertama yang dihapus.
+            // Hanya satu kemunculan pertama yang dihapus.
             id: href.replacen(".php", "", 1),
             name: text_at(block, "<span", "span").replacen("<br>", " ", 1),
             description: attr_after(block, find_open(block, 0, "img").unwrap_or(0), "title")
@@ -149,12 +148,12 @@ pub(crate) struct Device {
     pub description: String,
 }
 
-/// `catalog.getDevice()` → `name` (`catalog.js:47`).
+/// `catalog.getDevice()` → `name`.
 pub(crate) fn device_name(html: &str) -> String {
     text_at(html, "class=\"specs-phone-name-title\"", "h1")
 }
 
-/// `catalog.getDevice()` → `quickSpec` (`catalog.js:28-38`). Delapan selector
+/// `catalog.getDevice()` → `quickSpec`. Delapan selector
 /// tetap; yang kosong dibuang di `formatDetail`, bukan di sini.
 pub(crate) fn quick_spec(html: &str) -> Vec<Spec> {
     const SELECTORS: [(&str, &str, &str); 8] = [
@@ -183,7 +182,7 @@ pub(crate) struct Spec {
     pub value: String,
 }
 
-/// `catalog.getDevice()` → `detailSpec` (`catalog.js:49-69`): tiap `<table>`
+/// `catalog.getDevice()` → `detailSpec`: tiap `<table>`
 /// jadi satu kategori, `th` adalah namanya, tiap `<tr>` menyimpan
 /// `td.ttl` + `td.nfo`.
 pub(crate) fn parse_detail_spec(html: &str) -> Vec<Value> {
@@ -204,7 +203,7 @@ pub(crate) fn parse_detail_spec(html: &str) -> Vec<Value> {
             continue;
         }
         let mut specs = Vec::new();
-        // `$(el).find('tr')` (catalog.js:97) mengambil semua baris termasuk yang
+        // `$(el).find('tr')` mengambil semua baris termasuk
         // memuat `<th>`, jadi pemindaian mulai dari awal `<table>`.
         let mut row = 0;
         while let Some(tr) = find_open(block, row, "tr") {
@@ -213,7 +212,7 @@ pub(crate) fn parse_detail_spec(html: &str) -> Vec<Value> {
             };
             let cells = &block[tr..tr_end];
             row = tr_end + "</tr>".len();
-            // `$('td.ttl', ele)` / `$('td.nfo', ele)` (catalog.js:101-102) —
+            // `$('td.ttl', ele)` / `$('td.nfo', ele)` —
             // dua selector BERBEDA, jadi tiap `<td>` dicari dari awal baris.
             let cell = |cls: &str| -> Option<String> {
                 let mut at = 0;
@@ -230,7 +229,7 @@ pub(crate) fn parse_detail_spec(html: &str) -> Vec<Value> {
                 "value": cell("nfo").unwrap_or_default(),
             }));
         }
-        // `if (category)` (catalog.js:105) — kategori kosong dibuang, daftar
+        // `if (category)` — kategori kosong dibuang, daftar
         // spesifikasi yang kosong TIDAK.
         if !category.is_empty() {
             out.push(serde_json::json!({ "category": category, "specifications": specs }));
@@ -239,7 +238,7 @@ pub(crate) fn parse_detail_spec(html: &str) -> Vec<Value> {
     out
 }
 
-/// `gsmarena.js:64-81` — `formatList`. Deskripsi dipotong pada 80 karakter
+/// `formatList`. Deskripsi dipotong pada 80 karakter
 /// (`desc.slice(0, 80) + "..."`), bukan 83.
 pub(crate) fn format_list(devices: &[Device], query: &str, prefix: &str) -> String {
     let mut txt = format!("📱 *ʜᴀsɪʟ ᴘᴇɴᴄᴀʀɪᴀɴ*\n> *{query}*\n\n");
@@ -260,7 +259,7 @@ pub(crate) fn format_list(devices: &[Device], query: &str, prefix: &str) -> Stri
     txt
 }
 
-/// `gsmarena.js:83-103` — `formatDetail`: seluruh `quickSpec` yang tidak
+/// `formatDetail`: seluruh `quickSpec` yang tidak
 /// kosong, lalu maksimal 8 kategori dan 5 spesifikasi per kategori.
 pub(crate) fn format_detail(name: &str, quick: &[Spec], detail: &[Value]) -> String {
     let mut txt = format!("📱 *{name}*\n\n");
@@ -316,7 +315,7 @@ pub fn gsmarena(ctx: Ctx) -> Reply {
 
     let error = error_reply(&ctx.prefix, &ctx.command);
 
-    // `results.php3?sQuickSearch=yes&sName=<query>` (`search.js:6`).
+    // `results.php3?sQuickSearch=yes&sName=<query>`.
     let search_url =
         format!("{BASE}/results.php3?sQuickSearch=yes&sName={}", query_encode(&query));
     let Some(html) = ctx.http.get(&search_url).ok().map(|r| r.text()) else {
@@ -328,7 +327,7 @@ pub fn gsmarena(ctx: Ctx) -> Reply {
         return Reply::text(not_found(&query));
     }
 
-    // `gsmarena.js:49-53` — satu hasil langsung dibuka halamannya.
+    // Satu hasil langsung dibuka halamannya.
     if results.len() > 1 {
         return Reply::text(format_list(&results, &query, &ctx.prefix));
     }
@@ -561,7 +560,7 @@ mod tests {
         assert!(t.contains("📋 *ʀɪɴɢᴋᴀsᴀɴ:*"), "{t}");
         assert!(t.contains("> 🔹 *Display size:* 6.78 inch"), "{t}");
         assert!(t.contains("> 🔹 *Chipset:* Unisoc T606"), "{t}");
-        // `formatDetail` (gsmarena.js:88) mem-loop SELURUH `quickSpec` tanpa
+        // `formatDetail` mem-loop SELURUH `quickSpec` tanpa
         // menyaring nilai kosong, jadi entri yang kosong tetap jadi baris.
         assert!(
             t.contains("> 🔹 *Display resolution:* \n"),

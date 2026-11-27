@@ -1,17 +1,12 @@
-//! `plugins/search/pinvid.js` — cari video Pinterest.
+//! Cari video Pinterest.
 //!
-//! `ponytail:` `config.APIkey?.firefly` tidak ada di `Ctx`, jadi kunci ikut
-//! nilai bawaan `"default"` persis seperti `|| "default"` di JS saat `.env`
-//! kosong (`pinvid.js:53`).
+//! `Keterbatasan:` `config.APIkey?.firefly` tidak ada di `Ctx`, jadi kunci ikut nilai
+//! bawaan `"default"` persis seperti `|| "default"` di versi awal saat `.env` kosong.
 //!
-//! `ponytail:` `fs`, `child_process` (`ffmpeg`), `crypto`, album WA
-//! (`sock.relayMessage`), dan `config.saluran` tidak ada di API plugin:
-//! konversi `.m3u8`, berkas sementara, thumbnail newsletter, dan pengiriman
-//! album tidak ikut. Yang dipindah adalah guard, pemotongan daftar, ambang
-//! ukuran, dan seluruh susunan pesan.
-//!
-//! Catatan dari audit: `firefly.maiku.my.id` — tunnel Argo-nya mati
-//! (Cloudflare 530 / 1033), jadi endpoint ini praktis selalu gagal.
+//! `Keterbatasan:` `fs`, `child_process` (`ffmpeg`), `crypto`, album WA
+//! (`sock.relayMessage`), dan `config.saluran` tidak ada di API plugin: konversi `.m3u8`,
+//! berkas sementara, thumbnail newsletter, dan pengiriman album tidak ikut. Yang dipindah
+//! adalah guard, pemotongan daftar, ambang ukuran, dan seluruh susunan pesan.
 
 #![allow(dead_code)] // jalur unduh/ffmpeg tidak ada padanannya
 
@@ -20,10 +15,10 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.firefly || "default"` (`pinvid.js:53`).
+/// `config.APIkey?.firefly || "default"`.
 pub(crate) const FIREFLY_APIKEY: &str = "default";
 
-/// `pinvid.js:42-47` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📌 *ᴘɪɴᴛᴇʀᴇsᴛ ᴠɪᴅᴇᴏ sᴇᴀʀᴄʜ*\n\n\
@@ -32,26 +27,26 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `pinvid.js:61` — endpoint mati atau `data` kosong.
+/// Endpoint mati atau `data` kosong.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Tidak ditemukan video untuk: {query}")
 }
 
-/// `pinvid.js:128` — tidak ada satu pun video yang berhasil diproses.
+/// Tidak ada satu pun video yang berhasil diproses.
 pub(crate) const GAGAL_UNDUH: &str = "❌ Gagal mengunduh video";
 
-/// `pinvid.js:113` — ambang ukuran buffer video.
+/// Ambang ukuran buffer video.
 pub(crate) const MIN_BYTES: usize = 1000;
 
-/// `config.saluran?.id || "120363400911374213@newsletter"` (`pinvid.js:179`).
+/// `config.saluran?.id || "120363400911374213@newsletter"`.
 #[allow(dead_code)]
 pub(crate) const SALURAN_ID: &str = "120363400911374213@newsletter";
 
-/// `config.saluran?.name || config.bot?.name || "Bot"` (`pinvid.js:180`).
+/// `config.saluran?.name || config.bot?.name || "Bot"`.
 #[allow(dead_code)]
 pub(crate) const SALURAN_NAME: &str = "Bot";
 
-/// `pinvid.js:52-57` — endpoint aggregator.
+/// Endpoint aggregator.
 pub(crate) fn api_url(query: &str) -> String {
     format!(
         "https://firefly.maiku.my.id/api/pinterestvideo?apikey={FIREFLY_APIKEY}&q={}",
@@ -59,7 +54,7 @@ pub(crate) fn api_url(query: &str) -> String {
     )
 }
 
-/// `!res.data?.status || !res.data?.data?.length` (`pinvid.js:59`).
+/// `!res.data?.status || !res.data?.data?.length`.
 pub(crate) fn kosong(body: &Value) -> bool {
     !crate::common::js_truthy(body.get("status"))
         || body
@@ -68,7 +63,7 @@ pub(crate) fn kosong(body: &Value) -> bool {
             .is_none_or(|a| a.is_empty())
 }
 
-/// `res.data.data.slice(0, 5)` (`pinvid.js:64`).
+/// `res.data.data.slice(0, 5)`.
 pub(crate) fn take_videos(body: &Value) -> Vec<Value> {
     body.get("data")
         .and_then(Value::as_array)
@@ -77,7 +72,7 @@ pub(crate) fn take_videos(body: &Value) -> Vec<Value> {
 }
 
 /// `videoUrl.includes(".m3u8")` menentukan jalur ffmpeg; sisanya bisa
-/// diunduh langsung (`pinvid.js:85`).
+/// diunduh langsung.
 pub(crate) fn perlu_ffmpeg(url: &str) -> bool {
     url.contains(".m3u8")
 }
@@ -116,7 +111,7 @@ pub fn pinvid(ctx: Ctx) -> Reply {
         return Reply::text(tidak_ditemukan(query)).with_reaction("❌");
     }
 
-    // `pinvid.js:73-124` — unduh tiap video: `.m3u8` lewat `ffmpeg` ke berkas
+    // Unduh tiap video: `.m3u8` lewat `ffmpeg` ke berkas
     // sementara, sisanya `axios.get` biasa. Keduanya butuh `child_process`
     // atau buffer yang tidak bisa dikirim lewat `Reply` satu-per-video
     // (album butuh `sock.relayMessage`), jadi `mediaList` selalu kosong.

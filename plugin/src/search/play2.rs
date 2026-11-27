@@ -1,37 +1,34 @@
-//! `plugins/search/play2.js` — pemutar lagu dengan LIRIK SINKRON.
+//! Pemutar lagu dengan LIRIK SINKRON.
 //!
 //! PENYIMPANGAN (satu baris per butir):
 //! - `ytmusic-api` diganti [`super::ytmusic::search_lagu`] (InnerTube
-//!   WEB_REMIX filter songs) untuk jalur judul; jalur URL tetap
-//!   `ytsearch::search`. Pesan "Lagu tidak ditemukan di YT Music"
-//!   dipertahankan untuk jalur judul.
-//! - Savetube/ytmp3.ing tidak diport ulang di sini: unduhan audio memakai
-//!   [`oktz_scraper::playytmp3::savetube_download`] →
-//!   [`oktz_scraper::playytmp3::ytmp3ing_download`] (jalur sama dengan
-//!   `.play`), lalu fallback `crate::download::ytmp3::unduh_audio`
-//!   (`ytdl-native → savetube → izuka → nexray`).
-//! - Kartu player HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan
-//!   section `GenAIaeacdsnwHtmlPrimitive` — sama seperti `sendMusicPlayer`
-//!   (`play2.js:893-943`), submessage teksnya `"${title} - ${artist}"`.
-//!   Amplop TIDAK lagi ikut JS: botJid `0@bot` + score 1 + edit susulan
-//!   identik (adendum 8 — terbukti render di Android 2.26.45.99 lewat
-//!   `.cekkartu` K/L/M; amplop JS `867051314767696@bot`/999 hanya bukti
-//!   versi WA lama).
-//!   Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
-//!   `rAF`), bukan WS. Audio PENUH tertanam di kartu (opus 16k,
-//!   langit-langit 768 KB terukur di klien owner — adendum 11) dan diputar
-//!   lewat **Web Audio** `decodeAudioData`, bukan `<audio src>`: kartu
-//!   dirender dengan origin opaque sehingga Blink menolak semua URL media
-//!   (adendum 13). Lagu yang lebih panjang dipangkas durasinya khusus untuk
-//!   kartu. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
-//!   dikirim sebagai fallback untuk klien non-Android yang tidak merender
-//!   primitif HTML.
-//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dilewati (`ponytail:`;
-//!   LRCLIB cukup; upgrade path: tambah InnerTube timedtext bila perlu).
-//!
-//! Yang dipor penuh karena murni dan bisa diuji: parser LRC, konversi lirik
-//! polos menjadi lirik bertime, normalisasi, pemformat durasi,
-//! `secondsFromTimestamp`, `escapeHtml`, dan kartu pakai.
+//! WEB_REMIX filter songs) untuk jalur judul; jalur URL tetap
+//! `ytsearch::search`. Pesan "Lagu tidak ditemukan di YT Music"
+//! dipertahankan untuk jalur judul.
+//! - Savetube/ytmp3.ing tidak ditambahkan di sini: unduhan audio memakai
+//! [`oktz_scraper::playytmp3::savetube_download`] →
+//! [`oktz_scraper::playytmp3::ytmp3ing_download`] (jalur sama
+//! `.play`), lalu fallback `crate::download::ytmp3::unduh_audio`
+//! (`ytdl-native → savetube → izuka → nexray`).
+//! - Kartu player HTML dikirim lewat `RichAi` (`Reply::TabelAi`)
+//! section `GenAIaeacdsnwHtmlPrimitive` — sama seperti `sendMusicPlayer`
+//! , submessage teksnya `"${title} - ${artist}"`.
+//! Amplop TIDAK lagi ikut versi awal: botJid `0@bot` + score 1 + edit susulan
+//! identik (adendum 8 — terbukti render di Android 2.26.45.99 lewat
+//! `.cekkartu` K/L/M; amplop versi awal `867051314767696@bot`/999 hanya bukti
+//! versi WA lama).
+//! Lirik sinkron hidup di dalam player browser (JSON base64 + highlight
+//! `rAF`), bukan WS. Audio PENUH tertanam di kartu (opus 16k,
+//! langit-langit 768 KB terukur di klien owner — adendum 11) dan diputar
+//! lewat **Web Audio** `decodeAudioData`, bukan `<audio src>`: kartu
+//! dirender dengan origin opaque sehingga Blink menolak semua URL media
+//! (adendum 13). Lagu yang lebih panjang dipangkas durasinya khusus
+//! kartu. Voice note opus (ffmpeg `libopus` 16k/24kHz/mono/ogg) tetap
+//! dikirim sebagai fallback untuk klien non-Android yang tidak merender
+//! primitif HTML.
+//! - Fallback lirik `ytm.getLyrics` (ytmusic-api) dilewati (`Keterbatasan:`;
+//! LRCLIB cukup; upgrade path: tambah InnerTube timedtext bila perlu).
+
 #![allow(clippy::collapsible_if)]
 
 use std::collections::HashMap;
@@ -45,31 +42,31 @@ use crate::download::ytmp3::{mimetype_for, unduh_audio};
 
 use super::{ytmusic, ytsearch};
 
-/// `play2.js:954` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{prefix}play2 <judul lagu / URL YouTube>`\n\nKartu player interaktif dengan lagu full + lirik sinkron.\n\nContoh: `{prefix}play2 another love tom odell`"
     )
 }
 
-/// `play2.js:1104` — pesan `catch`.
+/// Pesan `catch`.
 pub(crate) fn gagal(message: &str) -> String {
     format!("❌ Gagal memproses lagu.\n\n> {message}")
 }
 
-/// `play2.js:980` — pesan yang dilempar saat pencarian tidak menghasilkan
+/// Pesan yang dilempar saat pencarian tidak menghasilkan
 /// entri untuk input judul.
 pub(crate) const LAGU_TIDAK_DITEMUKAN: &str = "Lagu tidak ditemukan di YT Music";
 
-/// `play2.js:1002` — `yts` tidak menemukan video untuk URL yang diberikan.
+/// `yts` tidak menemukan video untuk URL yang diberikan.
 pub(crate) const VIDEO_TIDAK_DITEMUKAN: &str = "Video tidak ditemukan";
 
-/// `play2.js:281-285` — regex ID video; pesan untuk ID yang tidak ketemu.
+/// Regex ID video; pesan untuk ID yang tidak ketemu.
 #[cfg(test)]
 pub(crate) const URL_TIDAK_VALID: &str = "URL YouTube tidak valid";
 
-/// `play2.js:295` / `:308` / `:327` / `:345` — pesan savetube; rantai resolver
-/// pengganti hanya memakai `Download gagal`, sisanya disimpan sebagai teks JS.
+/// / `:308` / `:327` / `:345` — pesan savetube; rantai resolver
+/// pengganti hanya memakai `Download gagal`, sisanya disimpan sebagai teks versi awal.
 #[allow(dead_code)]
 pub(crate) const CDN_TIDAK_TERSEDIA: &str = "CDN tidak tersedia";
 #[allow(dead_code)]
@@ -78,12 +75,12 @@ pub(crate) const METADATA_KOSONG: &str = "Metadata kosong";
 pub(crate) const DECRYPT_GAGAL: &str = "Decrypt metadata gagal";
 pub(crate) const DOWNLOAD_GAGAL: &str = "Download gagal";
 
-/* CONFIG (`play2.js:12-46`). */
+/* Konfigurasi. */
 
 const LRCLIB_API: &str = "https://lrclib.net/api";
 const LRCLIB_USER_AGENT: &str = "WA-Bot/1.0 (https://github.com/)";
 
-/// `User-Agent` savetube (`play2.js:21`) — ikut dipakai `downloadAudioBuffer`.
+/// `User-Agent` savetube — ikut dipakai `downloadAudioBuffer`.
 const USER_AGENT: &str =
     "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36";
 
@@ -93,9 +90,9 @@ const MAX_ORIGINAL_AUDIO_SIZE: usize = MAX_ORIGINAL_AUDIO_MB * 1024 * 1024;
 const MAX_COMPRESSED_AUDIO_MB: usize = 6;
 const MAX_COMPRESSED_AUDIO_SIZE: usize = MAX_COMPRESSED_AUDIO_MB * 1024 * 1024;
 
-/* LIRIK (`play2.js:104-215`). */
+/* Lirik. */
 
-/// `play2.js:104` — `parseLrcTimestamp`. Menolak `seconds >= 60`.
+/// `parseLrcTimestamp`. Menolak `seconds >= 60`.
 pub(crate) fn parse_lrc_timestamp(menit: f64, detik: f64, pecahan: Option<&str>) -> Option<f64> {
     if !menit.is_finite() || !detik.is_finite() || !(0.0..60.0).contains(&detik) {
         return None;
@@ -122,9 +119,9 @@ pub(crate) struct Baris {
     pub text: String,
 }
 
-/// `parseSyncedLyrics` (`play2.js:134-173`).
+/// `parseSyncedLyrics`.
 ///
-/// Baris tanpa timestamp atau tanpa teks dilewati; hasil diurutkan naik dan
+/// Baris tanpa timestamp atau tanpa teks dilewati; hasil diurutkan naik
 /// duplikat (waktu SELISIH < 1 ms dan teks sama) dibuang.
 pub(crate) fn parse_synced_lyrics(lrc: &str) -> Vec<Baris> {
     let mut result: Vec<Baris> = Vec::new();
@@ -152,7 +149,7 @@ pub(crate) fn parse_synced_lyrics(lrc: &str) -> Vec<Baris> {
                     stamps.push((m, d, f));
                     cursor = close + 1;
                 }
-                // Kurung siku bukan timestamp: ikut dibuang oleh regex di JS.
+                // Kurung siku bukan timestamp: ikut dibuang oleh regex di versi awal.
                 None => cursor = close + 1,
             }
         }
@@ -213,7 +210,7 @@ fn pecah_timestamp(isi: &str) -> Option<(f64, f64, String)> {
     Some((menit.parse().ok()?, detik.parse().ok()?, pecahan.to_string()))
 }
 
-/// `plainLyricsToSynced` (`play2.js:179-199`) — jarak antar baris 2..8 detik.
+/// `plainLyricsToSynced` — jarak antar baris 2..8 detik.
 pub(crate) fn plain_lyrics_to_synced(lyrics: &str, durasi: f64) -> Vec<Baris> {
     if lyrics.is_empty() {
         return Vec::new();
@@ -240,7 +237,7 @@ pub(crate) fn plain_lyrics_to_synced(lyrics: &str, durasi: f64) -> Vec<Baris> {
         .collect()
 }
 
-/// `normalizeLyrics` (`play2.js:201-215`) — buang waktu bukan angka dan teks
+/// `normalizeLyrics` — buang waktu bukan angka dan teks
 /// kosong setelah `trim()`, lalu urutkan.
 pub(crate) fn normalize_lyrics(mut lyrics: Vec<Baris>) -> Vec<Baris> {
     lyrics.retain(|b| b.time.is_finite() && !b.text.trim().is_empty());
@@ -252,8 +249,8 @@ pub(crate) fn normalize_lyrics(mut lyrics: Vec<Baris>) -> Vec<Baris> {
     lyrics
 }
 
-/// `escapeHtml` (`play2.js:235-242`) — urutan penggantian penting: `&` dulu.
-/// Hanya dipakai kartu HTML JS yang tidak diport; disimpan untuk paritas teks.
+/// `escapeHtml` — urutan penggantian penting: `&` dulu.
+/// Hanya dipakai kartu HTML versi awal yang tidak diport; disimpan untuk perilaku teks.
 #[allow(dead_code)]
 pub(crate) fn escape_html(text: &str) -> String {
     text.replace('&', "&amp;")
@@ -263,12 +260,12 @@ pub(crate) fn escape_html(text: &str) -> String {
         .replace('\'', "&#039;")
 }
 
-/// `escapeAttr` = `escapeHtml` (`play2.js:244-246`).
+/// `escapeAttr` = `escapeHtml`.
 pub(crate) fn escape_attr(text: &str) -> String {
     escape_html(text)
 }
 
-/// Encoder base64 standar (dengan padding) — crate `base64` tidak ada di
+/// Encoder base64 standar (dengan padding) — crate `base64` tidak ada
 /// workspace ini (`google.rs:180`).
 pub(crate) fn base64_encode(data: &[u8]) -> String {
     const TABEL: &[u8; 64] =
@@ -300,11 +297,11 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
 /// Batas ukuran unduhan thumbnail poster.
 const MAX_POSTER_BYTES: usize = 100 * 1024;
 
-/// `getThumb` (`play2.js:485-500`): `sharp.resize(250,250,{fit:'cover'})
-/// .jpeg({quality:50})` → `data:image/jpeg;base64,...` via
+/// `getThumb`: `sharp.resize(250,250,{fit:'cover'})
+/// .jpeg({quality:50})` → `data:image/jpeg;base64...` via
 /// `oktz_plugin_api::gambar::sharp` (tanpa dependensi baru). Gagal/unduhan
 /// di atas 100 KB/gambar tak dikenali → `""` (HTML memakai placeholder SVG,
-/// lihat `play2.js:510-512`).
+///
 pub(crate) fn poster_base64(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> String {
     if url.is_empty() {
         return String::new();
@@ -338,7 +335,7 @@ fn cache_cari() -> &'static Mutex<HashMap<String, Vec<ytsearch::Video>>> {
 /// Hanya hasil non-kosong yang disimpan; error/kosong tidak di-cache.
 /// `Max 64 entri, penuh → clear` — tanpa `shared` yang perlu diedit
 /// (`ytsearch.rs` di luar cakupan), tanpa dependency baru.
-/// `ponytail:` tanpa TTL; upgrade path: simpan waktu + evict per entri.
+/// `Keterbatasan:` tanpa TTL; upgrade path: simpan waktu + evict per entri.
 pub(crate) fn cari_video(
     http: &dyn oktz_plugin_api::HttpGet,
     q: &str,
@@ -363,7 +360,7 @@ pub(crate) fn cari_video(
     Ok(v)
 }
 
-/// `secondsFromTimestamp` (`play2.js:248-257`) — 2 atau 3 bagian; selain itu 0.
+/// `secondsFromTimestamp` — 2 atau 3 bagian; selain itu 0.
 pub(crate) fn seconds_from_timestamp(timestamp: &str) -> f64 {
     if timestamp.is_empty() {
         return 0.0;
@@ -382,7 +379,7 @@ pub(crate) fn seconds_from_timestamp(timestamp: &str) -> f64 {
     }
 }
 
-/// `formatDuration` (`play2.js:260-275`) — jam muncul hanya di atas nol.
+/// `formatDuration` — jam muncul hanya di atas nol.
 pub(crate) fn format_duration(detik: f64) -> String {
     if !detik.is_finite() || detik <= 0.0 {
         return "0:00".to_string();
@@ -398,14 +395,14 @@ pub(crate) fn format_duration(detik: f64) -> String {
     }
 }
 
-/// `/youtube\.com|youtu\.be/i.test(text)` (`play2.js:970`).
+/// `/youtube\.com|youtu\.be/i.test(text)`.
 pub(crate) fn looks_like_youtube_url(text: &str) -> bool {
     let low = text.to_lowercase();
     low.contains("youtube.com") || low.contains("youtu.be")
 }
 
-/// `(?:v=|shorts\/|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})` (`play2.js:1010`)
-/// — kejadian pertama di URL, lalu tepat 11 karakter.
+/// `(?:v=|shorts\/|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})`
+/// Kejadian pertama di URL, lalu tepat 11 karakter.
 #[cfg(test)]
 pub(crate) fn video_id_dari(url: &str) -> Option<String> {
     let awalan = ["v=", "shorts/", "youtu.be/", "embed/"];
@@ -427,7 +424,7 @@ pub(crate) fn video_id_dari(url: &str) -> Option<String> {
     (id.len() == 11).then_some(id)
 }
 
-/* LRCLIB (`play2.js:49-98`). */
+/* LRCLIB. */
 
 /// Bentuk jawaban `getLRCLyrics` yang dipakai plugin.
 pub(crate) struct LirikLagu {
@@ -435,8 +432,8 @@ pub(crate) struct LirikLagu {
     pub synced: String,
 }
 
-/// `getLRCLyrics` (`play2.js:49-98`) — `None` = semua kegagalan (transport,
-/// status tidak ok, body rusak) di JS ditelan `catch`/pemeriksaan status.
+/// `getLRCLyrics` — `None` = semua kegagalan (transport,
+/// status tidak ok, body rusak) di versi awal ditelan `catch`/pemeriksaan status.
 pub(crate) fn cari_lirik(
     http: &dyn oktz_plugin_api::HttpGet,
     judul: &str,
@@ -483,7 +480,7 @@ pub(crate) fn cari_lirik(
     })
 }
 
-/* AUDIO (`play2.js:281-479`, unduhan lewat rantai `ytmp3::unduh_audio`). */
+/* Audio, unduhan lewat rantai `ytmp3::unduh_audio`. */
 
 /// Ringkas pesan galat tahap unduhan supaya muat di satu baris balasan.
 fn ringkas(pesan: &str) -> String {
@@ -495,12 +492,12 @@ fn ringkas(pesan: &str) -> String {
     }
 }
 
-/// `downloadAudioBuffer` (`play2.js:375-389`).
+/// `downloadAudioBuffer`.
 fn unduh_buffer(ctx: &Ctx, url: &str) -> Result<Vec<u8>, String> {
     if url.is_empty() {
         return Err("URL audio kosong".to_string());
     }
-    // Berkas audio bisa >3 MB; default `UreqHttp` 20 detik terlalu ketat di
+    // Berkas audio bisa >3 MB; default `UreqHttp` 20 detik terlalu ketat
     // panel lambat (gagal → fallback rantai unduh yang juga lambat).
     let res = ctx
         .http
@@ -520,10 +517,10 @@ fn unduh_buffer(ctx: &Ctx, url: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 
-/// Argumen `compressAudio` (`play2.js:395-479`) — opus 16k/24kHz/mono/ogg.
+/// Argumen `compressAudio` — opus 16k/24kHz/mono/ogg.
 /// `pipe:1` WAJIB: ffmpeg menolak jalan tanpa berkas keluaran
-/// (`At least one output file must be specified`), dan JS selalu
-/// mengirimkannya (`play2.js:419`).
+/// (`At least one output file must be specified`), dan versi awal selalu
+/// mengirimkannya.
 const ARGUMEN_FFMPEG: [&str; 19] = [
     "-hide_banner",
     "-loglevel",
@@ -546,7 +543,7 @@ const ARGUMEN_FFMPEG: [&str; 19] = [
     "pipe:1",
 ];
 
-/// `compressAudio` (`play2.js:395-479`) — stdin `pipe:0`, stdout `pipe:1`.
+/// `compressAudio` — stdin `pipe:0`, stdout `pipe:1`.
 /// Batas 6 MB keluaran diperiksa di [`proses`] supaya bisa diuji tanpa
 /// ffmpeg sungguhan.
 fn kompres_audio(input: &[u8]) -> Result<Vec<u8>, String> {
@@ -582,24 +579,24 @@ fn kompres_dengan(input: &[u8], argumen: &[&str]) -> Result<Vec<u8>, String> {
 type Kompresor = fn(&[u8]) -> Result<Vec<u8>, String>;
 
 /// Poster bawaan kalau thumbnail kosong/gagal — sama dengan `createMusicPlayer`
-/// (`play2.js:510-512`).
+///
 pub(crate) const POSTER_PLACEHOLDER: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzFhMGQxMiIvPjx0ZXh0IHg9IjIwMCIgeT0iMjEwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TUFJTiBQQ0xAYVlFUlI8L3RleHQ+PC9zdmc+";
 
 /// Batas muatan HTML primitif. TERUKUR di perangkat owner (adendum 11):
 /// kartu Y 768 KB render di Android 2.26.45.99 — angka komunitas yang lebih
-/// kecil (Vanta "native limit is 60000", kotonehara 64 KiB) tidak berlaku di
+/// kecil (Vanta "native limit is 60000", kotonehara 64 KiB) tidak berlaku
 /// build ini; zaileys malah menetapkan 256 KiB. 768_000 = tepi zona terbukti.
 pub(crate) const MAX_HTML_PAYLOAD_BYTES: usize = 768_000;
 
-/// `createMusicPlayer` (`play2.js:506-887`) versi Rust — port PENUH: bg
+/// `createMusicPlayer` versi Rust — port PENUH: bg
 /// poster blur + veil, header, heart, mini-lirik sinkron, progress bar,
-/// controls ±10s + play/pause, audio tertanam. Template verbatim JS dengan
-/// token `__…__` (bukan `format!` — kurung kurawal CSS/JS tidak perlu
+/// controls ±10s + play/pause, audio tertanam. Template verbatim versi awal
+/// token `__…__` (bukan `format!` — kurung kurawal CSS/versi awal tidak perlu
 /// di-escape, dan template bisa di-diff langsung terhadap oracle).
 ///
 /// `audio_b64` = audio opus (hasil [`kompres_audio`]) dalam base64; kartu
 /// memuatnya lewat Web Audio `decodeAudioData`, BUKAN `<audio src>`. Kartu
-/// dirender WhatsApp dengan origin OPAQUE, dan
+/// dirender WhatsApp dengan origin OPAQUE,
 /// `HTMLMediaElement::IsSafeToLoadURL` menolak SEMUA URL media pada origin
 /// opaque — `data:`, blob in-document, semuanya, "Media load rejected by URL
 /// safety check" (terukur di perangkat owner, adendum 13). Web Audio tidak
@@ -655,7 +652,7 @@ fn player_html_aman(
     }
 }
 
-/// Template verbatim `createMusicPlayer` (`play2.js:517-886`); token
+/// Template verbatim `createMusicPlayer`; token
 /// diganti [`player_html`]. Note bawah disesuaikan: lagu penuh juga
 /// dikirim sebagai voice note (deviasi Rust yang dipertahankan).
 const PLAYER_TEMPLATE: &str = r#"<style>
@@ -1097,7 +1094,7 @@ const PLAYER_TEMPLATE: &str = r#"<style>
 "#;
 
 /// Section HTML `GenAIaeacdsnwHtmlPrimitive` — `sendMusicPlayer`
-/// (`play2.js:916-927`).
+///
 pub(crate) fn section_html(html: &str) -> serde_json::Value {
     json!({
         "view_model": {
@@ -1111,12 +1108,12 @@ pub(crate) fn section_html(html: &str) -> serde_json::Value {
     })
 }
 
-/* HANDLER (`play2.js:949-1107`). */
+/* Handler. */
 
-/// Alur `try` (`play2.js:960-1099`). `Err` memuat `error.message` untuk
+/// Alur `try`. `Err` memuat `error.message`
 /// template `catch`.
 fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
-    // JS: judul → `ytmusic.search`, URL → `yts(ytUrl)`; di sini judul →
+    // versi awal: judul → `ytmusic.search`, URL → `yts(ytUrl)`; di sini judul →
     // `ytmusic::search_lagu`, URL → `ytsearch::search` (lihat deviasi header).
     let adalah_url = looks_like_youtube_url(text);
     let pesan_kosong = if adalah_url {
@@ -1223,7 +1220,7 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     }
 
     // `sendMusicPlayer(sock, m.chat, html, "${title} - ${artist}")`
-    // (`play2.js:1098`): kartu memuat poster, lirik, dan AUDIO PENUH
+    // : kartu memuat poster, lirik, dan AUDIO PENUH
     // tertanam (adendum 11 — langit-langit 768 KB terukur di klien owner).
     // Voice note tetap dikirim sebagai fallback klien non-Android.
     let poster = poster_base64(ctx.http.as_ref(), &video.thumbnail);
@@ -1253,8 +1250,8 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     let rich = RichAi {
         // Amplop kartu HTML terbukti render di Android 2.26.45.99 (adendum 8,
         // `.cekkartu` K/L/M ×3): botJid `0@bot` + edit susulan identik.
-        // Score 999 `sendMusicPlayer` JS ditinggalkan — itu bukti versi WA
-        // lama; envelope proven memakai score 1. Disclaimer "" tetap (JS).
+        // Score 999 `sendMusicPlayer` versi awal ditinggalkan — itu bukti versi WA
+        // lama; envelope proven memakai score 1. Disclaimer "" tetap (versi awal).
         submessages: vec![AiSubMessage::Teks {
             teks: format!("{title} - {artist}"),
         }],
@@ -1267,13 +1264,13 @@ fn proses(ctx: &Ctx, text: &str, kompres: Kompresor) -> Result<Reply, String> {
     };
 
     // `with_reaction` di TOP-LEVEL sequence, bukan di elemen: `Mutate`
-    // bersarang di dalam `Sequence` tidak pernah lewat `into_parts()` di
+    // bersarang di dalam `Sequence` tidak pernah lewat `into_parts()`
     // `Pipeline::process`, jadi mencapai `render_reply` dan ditolak
     // (`UnappliedMutation`). Di top-level, `proses` memisahnya dulu.
     Ok(Reply::sequence(vec![
         Reply::reaction("🎧"),
         // Fallback voice note untuk klien yang tidak merender primitif HTML.
-        // `compressAudio` menghasilkan ogg/opus — mimetype sama dengan
+        // `compressAudio` menghasilkan ogg/opus — mimetype sama
         // `mimetypeFor("opus")`.
         Reply::voice_note(
             MediaSource::bytes(kompresi).with_mimetype(mimetype_for("opus")),
@@ -1326,7 +1323,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     /// Stub HTTP multi-URL: pencarian YouTube (POST via `call`), LRCLIB,
-    /// rantai backend ytmp3, dan host audio `cdn.example` — dicocokkan dari
+    /// rantai backend ytmp3, dan host audio `cdn.example` — dicocokkan
     /// potongan URL. `None` = transport error.
     #[derive(Debug)]
     struct Stub {
@@ -1600,7 +1597,7 @@ mod tests {
         let payload = prim["payload"].as_str().expect("payload html");
         assert!(matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"));
         assert!(payload.contains("Lagu Uji"), "{payload}");
-        // Audio penuh tertanam (base64 di const JS) dan diputar Web Audio —
+        // Audio penuh tertanam (base64 di const versi awal) dan diputar Web Audio —
         // `<audio src>` ditolak origin opaque (adendum 13). Voice note tetap
         // fallback non-Android.
         assert!(payload.contains("AUDIO_B64 = '"), "audio tertanam");
@@ -1711,7 +1708,7 @@ mod tests {
 
     #[test]
     fn audio_asli_terlalu_besar_ditolak_sebelum_ffmpeg() {
-        // > 25 MB → "Buffer audio bermasalah" (`downloadAudioBuffer`, JS:384).
+        // > 25 MB → "Buffer audio bermasalah" (`downloadAudioBuffer`, versi awal:384).
         let http = stub_dengan_audio(Some(vec![0u8; MAX_ORIGINAL_AUDIO_SIZE + 1]));
         let r = run_http(http, "lagu besar");
         assert_eq!(text_of(&r), gagal("Buffer audio bermasalah"));
@@ -1988,7 +1985,7 @@ mod tests {
         ] {
             assert!(html.contains(penanda), "penanda JS hilang: {penanda}");
         }
-        // Poster dipakai dua kali (bg blur + poster) seperti JS.
+        // Poster dipakai dua kali (bg blur + poster) seperti versi awal.
         assert_eq!(html.matches("data:image/svg+xml;base64,").count(), 2);
     }
 
@@ -2033,8 +2030,8 @@ mod tests {
 
     #[test]
     fn argumen_ffmpeg_menulis_ke_pipe_stdout() {
-        // ffmpeg menolak jalan tanpa berkas keluaran; JS mengakhiri dengan
-        // `pipe:1` (`play2.js:419`).
+        // ffmpeg menolak jalan tanpa berkas keluaran; versi awal mengakhiri
+        // `pipe:1`.
         assert_eq!(ARGUMEN_FFMPEG.last(), Some(&"pipe:1"));
         assert!(ARGUMEN_FFMPEG.contains(&"pipe:0"));
     }

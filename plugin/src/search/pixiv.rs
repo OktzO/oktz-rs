@@ -1,17 +1,18 @@
-//! `plugins/search/pixiv.js` — cari artwork di Pixiv lewat `api.neoxr.eu`.
+//! Cari artwork di Pixiv lewat `api.neoxr.eu`.
 //!
-//! `ponytail:` `config.APIkey?.neoxr` tidak ada di `Ctx`, jadi kunci dikunci
-//! `""` — pola `search::android1` dan `search::mangatoon`. Query `apikey=`
-//! tetap dikirim apa adanya, sama seperti `|| ''` di JS.
+//! `Keterbatasan:` `config.APIkey?.neoxr` tidak ada di `Ctx`, jadi kunci dikunci `""` —
+//! pola `search::android1` dan `search::mangatoon`. Query `apikey=` tetap dikirim apa
+//! adanya, sama seperti `|| ''` di versi awal.
 //!
-//! `ponytail:` `contextInfo.forwardedNewsletterMessageInfo` +
-//! `sock.sendMessage` tidak ada padanannya di `Reply`; yang dikirim hanya teks
-//! caption-nya. `config.saluran` / `config.bot.name` juga tidak ada di `Ctx`,
-//! dan tanpa newsletter info nilainya juga tidak terpakai.
+//! `Keterbatasan:` `contextInfo.forwardedNewsletterMessageInfo` + `sock.sendMessage` tidak
+//! ada padanannya di `Reply`; yang dikirim hanya teks caption-nya. `config.saluran` /
+//! `config.bot.name` juga tidak ada di `Ctx`, dan tanpa newsletter info nilainya juga tidak
+//! terpakai.
 //!
-//! `ponytail:` `error.response?.status === 403` tidak bisa dibedakan: `HttpError`
-//! hanya membawa `message`, bukan status. Cabang 403 karena itu tidak
-//! terjangkau; teksnya tetap ditulis sebagai fungsi murni.
+//! `Keterbatasan:` `error.response?.status === 403` tidak bisa dibedakan: `HttpError` hanya
+//! membawa `message`, bukan status. Cabang 403 karena itu tidak terjangkau; teksnya tetap
+//! ditulis sebagai fungsi murni.
+
 #![allow(clippy::unnecessary_map_or)]
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -23,19 +24,19 @@ use crate::tools::phisingataubukan::encode_uri_component;
 /// `config.APIkey?.neoxr || ''`.
 const NEOXR_APIKEY: &str = "";
 
-/// `pixiv.js:26` — guard kata kunci kosong.
+/// Guard kata kunci kosong.
 pub(crate) fn butuh_query() -> String {
     "❌ *Masukkan kata kunci pencarian!*\n\n> Contoh: .pixiv rem".to_string()
 }
 
-/// `pixiv.js:84` — khusus status 403. Tidak terjangkau tanpa status di
+/// Khusus status 403. Tidak terjangkau tanpa status
 /// `HttpError`.
 #[allow(dead_code)]
 pub(crate) fn api_key_tidak_valid() -> String {
     "❌ *API Key tidak valid atau limit tercapai*".to_string()
 }
 
-/// `pixiv.js:33` — endpoint + kunci.
+/// Endpoint + kunci.
 pub(crate) fn api_url(query: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/pixiv-search?q={}&apikey={NEOXR_APIKEY}",
@@ -43,7 +44,7 @@ pub(crate) fn api_url(query: &str) -> String {
     )
 }
 
-/// `${value}` di JS.
+/// `${value}` di versi awal.
 fn interp(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_string(),
@@ -53,7 +54,7 @@ fn interp(value: Option<&Value>) -> String {
     }
 }
 
-/// `data.data.slice(0, 10)` (`pixiv.js:43`).
+/// `data.data.slice(0, 10)`.
 pub(crate) fn artworks(data: &Value) -> Vec<Value> {
     data.get("data")
         .and_then(Value::as_array)
@@ -61,8 +62,8 @@ pub(crate) fn artworks(data: &Value) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-/// `pixiv.js:48-61` — caption. Label AI dan NSFW menempel ke judul tanpa spasi,
-/// persis seperti di JS.
+/// Caption. Label AI dan NSFW menempel ke judul tanpa spasi,
+/// persis seperti di versi awal.
 pub(crate) fn caption(results: &[Value], query: &str) -> String {
     let mut cap = String::from("🎨 *ᴘɪxɪᴠ sᴇᴀʀᴄʜ*\n");
     cap.push_str(&format!("📝 *ᴋᴜᴇʀʛ:* {query}\n"));
@@ -77,7 +78,7 @@ pub(crate) fn caption(results: &[Value], query: &str) -> String {
             ""
         };
         // `xRestrict > 0` memakai OPERATOR ">": string angka ikut dikoersi
-        // (`"1" > 0` = true di JS), berbeda dari `===` yang dipakai `aiType`.
+        // (`"1" > 0` = true di versi awal), berbeda dari `===` yang dipakai `aiType`.
         let nsfw = if number_at_least_one(art.get("xRestrict")) {
             " 🔞"
         } else {
@@ -98,7 +99,7 @@ pub(crate) fn caption(results: &[Value], query: &str) -> String {
     cap
 }
 
-/// `n > 0` — `ToNumber` JS: string angka ikut, `"abc"` jadi `NaN` (false),
+/// `n > 0` — `ToNumber` versi awal: string angka ikut, `"abc"` jadi `NaN` (false),
 /// `null` jadi `0` (false), `true` jadi `1` (true).
 fn number_at_least_one(value: Option<&Value>) -> bool {
     let n = match value {
@@ -119,7 +120,7 @@ fn number_at_least_one(value: Option<&Value>) -> bool {
     n.is_finite() && n > 0.0
 }
 
-/// `!data.status || !data.data || data.data.length === 0` (`pixiv.js:38`).
+/// `!data.status || !data.data || data.data.length === 0`.
 pub(crate) fn kosong(data: &Value) -> bool {
     !js_truthy(data.get("status"))
         || data

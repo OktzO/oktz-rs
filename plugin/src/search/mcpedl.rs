@@ -1,10 +1,6 @@
-//! `plugins/search/mcpedl.js` — cari map dan addon Minecraft PE lewat API Cuki.
+//! Cari map dan addon Minecraft PE lewat API Cuki.
 //!
-//! Kunci `config.APIkey?.cuki` dibaca dari `ctx.config()` — sama seperti
-//! `search::mangatoon`. Cabang "API Key belum diset" (`mcpedl.js:53`) benar
-//! kalau kuncinya kosong.
-//!
-//! `ponytail:` `trimText` memakai satuan UTF-16 V8 (`length`/`slice`); di sini
+//! `Keterbatasan:` `trimText` memakai satuan UTF-16 V8 (`length`/`slice`); di sini
 //! `.chars()`. Sama seperti `search::mangatoon`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
@@ -13,17 +9,17 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `mcpedl.js:50` — kartu pakai; contoh memakai command `mcpe`, bukan
-/// `mcpedl`, persis seperti di JS.
+/// Kartu pakai; contoh memakai command `mcpe`, bukan
+/// `mcpedl`, persis seperti di versi awal.
 pub(crate) fn help(prefix: &str) -> String {
     format!("🧱 *MCPEDL SEARCH*\n\n> Contoh:\n`{prefix}mcpe survival`")
 }
 
-/// `mcpedl.js:54` — teks literal.
+/// Teks literal.
 pub(crate) const MISSING_KEY: &str =
     "❌ *API Key belum diset!*\n\n> Isi `APIKEY_CUKI` di file `.env`, lalu restart bot";
 
-/// `mcpedl.js:23-28` — sama seperti `search::mangatoon::trim_text`.
+/// Sama seperti `search::mangatoon::trim_text`.
 pub(crate) fn trim_text(text: Option<&str>, max: usize) -> String {
     let mut value = String::new();
     let mut in_ws = false;
@@ -52,7 +48,7 @@ pub(crate) fn trim_text(text: Option<&str>, max: usize) -> String {
     chars.into_iter().take(max).collect::<String>() + "..."
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang.
+/// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_string(),
@@ -72,7 +68,7 @@ fn or_truthy(value: Option<&Value>, fallback: &str) -> String {
     }
 }
 
-/// `mcpedl.js:61` — `result.results` harus array; `slice(0, 10)`.
+/// `result.results` harus array; `slice(0, 10)`.
 pub(crate) fn take_items(data: &Value) -> Vec<Value> {
     let mut items = data
         .get("results")
@@ -83,7 +79,7 @@ pub(crate) fn take_items(data: &Value) -> Vec<Value> {
     items
 }
 
-/// `mcpedl.js:68-77` — caption hasil sudah di-`trim()` seperti di JS.
+/// Caption hasil sudah di-`trim()` seperti di versi awal.
 pub(crate) fn caption(items: &[Value], data: &Value, query: &str) -> String {
     let mut txt = String::from("🧱 *MCPEDL SEARCH*\n\n");
     txt.push_str(&format!(
@@ -110,7 +106,7 @@ pub(crate) fn caption(items: &[Value], data: &Value, query: &str) -> String {
     txt.trim().to_string()
 }
 
-/// `fetchMcpe` (`mcpedl.js:30-44`).
+/// `fetchMcpe`.
 fn api_url(query: &str, api_key: &str) -> String {
     format!(
         "https://api.cuki.biz.id/api/search/mcpedl?apikey={}&query={}",
@@ -353,7 +349,7 @@ mod tests {
 
     #[test]
     fn a_rating_of_zero_still_falls_back_to_the_dash() {
-        // `item.rating || '-'` — `0` falsy di JS.
+        // `item.rating || '-'` — `0` falsy di versi awal.
         let data = serde_json::json!({ "results": [ { "title": "M", "link": "l", "rating": 0 } ] });
         let items = take_items(&data);
         assert!(caption(&items, &data, "q").contains("⭐ Rating: -"), "0 falsy");
@@ -361,8 +357,8 @@ mod tests {
 
     #[test]
     fn a_non_array_results_field_is_never_treated_as_a_hit() {
-        // Handler menolak bentuk ini sebelum `take_items` dipanggil, karena di
-        // JS `!Array.isArray(..)` melempar.
+        // Handler menolak bentuk ini sebelum `take_items` dipanggil, karena
+        // versi awal `!Array.isArray(..)` melempar.
         let data = serde_json::json!({ "results": "bukan array" });
         assert!(!data
             .get("results")

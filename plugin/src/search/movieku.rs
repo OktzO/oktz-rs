@@ -1,15 +1,15 @@
-//! `plugins/search/movieku.js` — cari film di Movieku beserta link download.
+//! Cari film di Movieku beserta link download.
 //!
-//! `ponytail:` JS memakai cheerio untuk mem-parse halaman detail. Crate ini tidak
-//! punya parser HTML dan menambah dependency baru dilarang, jadi yang dipakai di
-//! sini hanya operasi yang sama dengan selector yang dibaca plugin: `h1`,
-//! `.entry-content p`, `img[src*="wp-content/uploads"]`, `ul li`, `a` di dalam
-//! `li`, `a[href*="abyssplayer"]`, `strong`, dan `a` di dalam `parent()`.
+//! `Keterbatasan:` versi awal memakai cheerio untuk mem-parse halaman detail. Crate ini
+//! tidak punya parser HTML dan menambah dependency baru dilarang, jadi yang dipakai di sini
+//! hanya operasi yang sama dengan selector yang dibaca plugin: `h1`, `.entry-content p`,
+//! `img[src*="wp-content/uploads"]`, `ul li`, `a` di dalam `li`, `a[href*="abyssplayer"]`,
+//! `strong`, dan `a` di dalam `parent()`.
 //!
-//! `ponytail:` JS mengirim DUA pesan saat ada lebih dari satu hasil: kartu
-//! poster dulu, lalu daftar "HASIL LAINNYA". `Reply` hanya satu pesan, jadi
-//! yang terkirim kartu pertamanya; teks daftar tetap ditulis sebagai fungsi
-//! murni.
+//! `Keterbatasan:` versi awal mengirim DUA pesan saat ada lebih dari satu hasil: kartu
+//! poster dulu, lalu daftar "HASIL LAINNYA". `Reply` hanya satu pesan, jadi yang terkirim
+//! kartu pertamanya; teks daftar tetap ditulis sebagai fungsi murni.
+
 #![allow(clippy::needless_range_loop)]
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
@@ -17,10 +17,10 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `movieku.js:23`.
+///
 pub(crate) const ENDPOINT: &str = "https://movieku.rest/wp-admin/admin-ajax.php";
 
-/// `movieku.js:95-104` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎬 *MOVIEKU*\n\n\
@@ -34,12 +34,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `movieku.js:114` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Film dengan kata kunci *{query}* tidak ditemukan, coba gunakan judul yang lebih spesifik ya")
 }
 
-/// `movieku.js:161-170` — blok "HASIL LAINNYA". Maksimal 10 judul dari indeks 1.
+/// Blok "HASIL LAINNYA". Maksimal 10 judul dari indeks 1.
 #[allow(dead_code)]
 pub(crate)
 fn hasil_lainnya(movies: &[Value]) -> String {
@@ -65,7 +65,7 @@ fn hasil_lainnya(movies: &[Value]) -> String {
     list.trim().to_string()
 }
 
-/// `${value}` di JS.
+/// `${value}` di versi awal.
 fn interp(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_string(),
@@ -179,7 +179,7 @@ fn teks_link_pertama(block: &str) -> String {
     String::new()
 }
 
-/// Detail film hasil parse (`movieku.js:71`).
+/// Detail film hasil parse.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct Detail {
     pub title: String,
@@ -199,7 +199,7 @@ pub(crate) struct Detail {
     pub downloads: Vec<(String, Vec<(String, String)>)>,
 }
 
-/// `getMovieDetail` (`movieku.js:36-72`).
+/// `getMovieDetail`.
 pub(crate) fn parse_detail(html: &str) -> Detail {
     let mut d = Detail {
         title: buka_tag(html, 0, "h1")
@@ -241,7 +241,7 @@ pub(crate) fn parse_detail(html: &str) -> Detail {
     }
 
     // `$("ul li").each(..)` — hanya `<li>` PERTAMA yang ada di setiap `<ul>`,
-    // tapi JS memproses semua; di sini semua `<li>` diproses.
+    // tapi versi awal memproses semua; di sini semua `<li>` diproses.
     let mut cursor = 0;
     while let Some(ul) = buka_tag(html, cursor, "ul") {
         let Some(ul_end) = html[ul..].find("</ul>").map(|i| ul + i) else {
@@ -258,7 +258,7 @@ pub(crate) fn parse_detail(html: &str) -> Detail {
             row = li_end + 5;
             let text = teks_dalam(block, 0, block.len());
             if let Some(rest) = text.strip_prefix("Genre:") {
-                // JS memakai `$(el).find("a")`, bukan sisa teks; sisa teks
+                // versi awal memakai `$(el).find("a")`, bukan sisa teks; sisa teks
                 // dipakai hanya sebagai penanda bahwa baris ini genre.
                 if !rest.trim().is_empty() {
                     d.genre = teks_link(block);
@@ -283,7 +283,7 @@ pub(crate) fn parse_detail(html: &str) -> Detail {
         }
     }
 
-    // `$("strong").each(..)` — label kualitas, lalu `<a>` di dalam
+    // `$("strong").each(..)` — label kualitas, lalu `<a>` di
     // `$(el).parent()`.
     let mut at = 0;
     while let Some(pos) = buka_tag(html, at, "strong") {
@@ -348,7 +348,7 @@ fn induk_dari(html: &str, pos: usize) -> Option<(usize, usize)> {
     terbaik.map(|(_, mulai, selesai)| (mulai, selesai))
 }
 
-/// `formatDownloads` (`movieku.js:74-89`) — kualitas SELALU di urutan tetap,
+/// `formatDownloads` — kualitas SELALU di urutan tetap,
 /// bukan urutan kemunculan di HTML.
 pub(crate) fn format_downloads(downloads: &[(String, Vec<(String, String)>)]) -> String {
     if downloads.is_empty() {
@@ -371,7 +371,7 @@ pub(crate) fn format_downloads(downloads: &[(String, Vec<(String, String)>)]) ->
     txt
 }
 
-/// `movieku.js:120-146` — kartu film.
+/// Kartu film.
 pub(crate) fn format_movie(detail: &Detail, movie: &Value, query: &str) -> String {
     let judul = if detail.title.is_empty() {
         let dari_post = movie.get("post_title").and_then(Value::as_str).unwrap_or("");
@@ -421,7 +421,7 @@ pub(crate) fn format_movie(detail: &Detail, movie: &Value, query: &str) -> Strin
     txt
 }
 
-/// `movieku.js:22-34` — POST form-urlencoded ke admin-ajax.
+/// POST form-urlencoded ke admin-ajax.
 fn search_request(query: &str) -> HttpCall {
     HttpCall::post(ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -642,9 +642,9 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `film` sengaja tidak diuji: `plugins/search/film.js` memakai `film`
+        // `film` sengaja tidak diuji: memakai `film`
         // sebagai `name`, dan `getPlugin` mengutamakan `commands` di atas
-        // `aliases` (`src/lib/plugins.js:334`), jadi `.film` tetap ke plugin
+        // `aliases`, jadi `.film` tetap ke plugin
         // film — tabrakan ini tercatat di `common::JS_COLLISIONS`.
         for a in ["movie", "carifilm", "carimovie"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "movieku");

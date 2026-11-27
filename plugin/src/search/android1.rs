@@ -1,20 +1,18 @@
-//! `plugins/search/android1.js` — cari APK MOD dari Android1 lewat
-//! `api.neoxr.eu`.
+//! Cari APK MOD dari Android1 lewat
 //!
-//! `ponytail:` JS mengirim kartu `sock.sendButton` dengan picker
-//! `single_select` (judul "Pilih APK", footer "📱 Android1 Search", dan
-//! thumbnail `getAssetBuffer("foto")`). `Reply::Interactive` hanya membawa
-//! teksnya, jadi daftar yang sama terkirim tanpa tombol/thumbnail — persis
-//! teks `android1.js:83-105`.
+//! `Keterbatasan:` versi awal mengirim kartu `sock.sendButton` dengan picker
+//! `single_select` (judul "Pilih APK", footer "📱 Android1 Search", dan thumbnail
+//! `getAssetBuffer("foto")`). `Reply::Interactive` hanya membawa teksnya, jadi daftar yang
+//! sama terkirim tanpa tombol/thumbnail — persis teks.
 //!
-//! `ponytail:` JS menyimpan hasil ke `db.db.data.sessions` (map sessions
-//! tingkat-atas, di luar `Mutation` yang tersedia) supaya tombol
-//! `android1-get` bisa membacanya. Tidak ada plugin di batch ini yang membaca
-//! map itu, jadi tulisannya dilewati.
+//! `Keterbatasan:` versi awal menyimpan hasil ke `db.db.data.sessions` (map sessions
+//! tingkat-atas, di luar `Mutation` yang tersedia) supaya tombol `android1-get` bisa
+//! membacanya. Tidak ada plugin di batch ini yang membaca map itu, jadi tulisannya
+//! dilewati.
 //!
-//! `ponytail:` reaksi pertama (`🔍`) tidak ikut: `Reply::Reaction` hanya
-//! membawa satu emoji, dan reaksi terakhir (`✅`/`❌`/`☢`) yang menandai hasil
-//! akhir — sama seperti `info/jadwalbola.rs`.
+//! `Keterbatasan:` reaksi pertama (`🔍`) tidak ikut: `Reply::Reaction` hanya membawa satu
+//! emoji, dan reaksi terakhir (`✅`/`❌`/`☢`) yang menandai hasil akhir — sama seperti
+//! `info/jadwalbola.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -22,14 +20,14 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey.neoxr` (`config.js`) = `process.env.APIKEY_NEOXR || ""`.
+/// `config.APIkey.neoxr` = `process.env.APIKEY_NEOXR || ""`.
 ///
-/// `ponytail:` `Ctx` tidak membawa config, jadi kunci ikut `config.js` yang
+/// `Keterbatasan:` `Ctx` tidak membawa config, jadi kunci ikut
 /// di-hardcode — persis `info/jadwalbola.rs`. Begitu `.env` diisi, baris ini
 /// ikut stale sampai router menyediakannya lewat `Ctx`.
 pub(crate) const NEOXR_APIKEY: &str = "";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
@@ -40,7 +38,7 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `android1.js:42-47` — satu-satunya endpoint pencarian.
+/// Satu-satunya endpoint pencarian.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/an1?q={}&apikey={NEOXR_APIKEY}",
@@ -48,7 +46,7 @@ pub(crate) fn api_url(text: &str) -> String {
     )
 }
 
-/// `android1.js:29-36` — kartu penggunaan saat `m.text` kosong.
+/// Kartu penggunaan saat `m.text` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📱 *ᴀɴᴅʀᴏɪᴅ1 sᴇᴀʀᴄʜ*\n\n\
@@ -60,21 +58,21 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `android1.js:51` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(text: &str) -> String {
     format!("❌ Tidak ditemukan hasil untuk: `{text}`")
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
+/// `te(prefix, command, pushName)`.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     crate::common::error_template_bawaan(prefix, command)
 }
 
-/// `android1.js:65-74` — caption daftar aplikasi.
+/// Caption daftar aplikasi.
 ///
 /// Dipanggil dengan `apps` yang SUDAH di-`slice(0, 10)`, jadi `apps.len()`
 /// di baris "aplikasi ditemukan" mengikuti panjang yang sudah dipotong —
-/// sama seperti `apps.length` di JS.
+/// sama seperti `apps.length` di versi awal.
 pub(crate) fn format_list(apps: &[Value], text: &str) -> String {
     let mut caption = format!("📱 Hasil dari pencarian apk mod *{text}*\n");
     caption.push_str(&format!("*{}* aplikasi ditemukan\n\n", apps.len()));
@@ -133,7 +131,7 @@ pub fn android1(ctx: Ctx) -> Reply {
         return Reply::text(not_found(text)).with_reaction("❌");
     }
     // `data.data` string non-kosong lolos guard lalu `apps.forEach` melempar
-    // TypeError di JS -> `catch` -> ☢.
+    // TypeError di versi awal -> `catch` -> ☢.
     let Some(apps) = block.and_then(Value::as_array) else {
         return Reply::text(error_reply(&ctx.prefix, &ctx.command)).with_reaction("☢");
     };

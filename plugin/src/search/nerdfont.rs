@@ -1,28 +1,19 @@
-//! `plugins/search/nerdfont.js` — daftar font Nerd Font untuk dipilih.
+//! Daftar font Nerd Font untuk dipilih.
 //!
-//! `ponytail:` JS memakai cheerio. Crate ini tidak punya parser HTML dan
-//! menambah dependency baru dilarang, jadi yang dipakai di sini hanya operasi
-//! yang sama dengan selector yang dibaca plugin: `div.item`,
-//! `span.nerd-font-invisible-text`, `div` pertama, `a.font-preview`,
-//! `a.nf-oct-link_external`, dan `a.nf-fa-download`.
-//!
-//! Dua anomali JS dipertahankan apa adanya:
-//! 1. `textContent.match(/Version:…/)[1]` melempar kalau pola tidak cocok —
-//!    satu item tanpa `Version:`/`Info:`/gambar membuat SELURUH permintaan
-//!    gagal. `parse_fonts` mengembalikan `Err` untuk itu, persis `throw`.
-//! 2. `sock.sendMessage` dengan `interactiveButtons` + `buttonParamsJson`
-//!    diteruskan apa adanya: `single_select` + `sections[0].rows` jadi
-//!    `InteractiveButton`.
+//! `Keterbatasan:` versi awal memakai cheerio. Crate ini tidak punya parser HTML dan
+//! menambah dependency baru dilarang, jadi yang dipakai di sini hanya operasi yang sama
+//! dengan selector yang dibaca plugin: `div.item`, `span.nerd-font-invisible-text`, `div`
+//! pertama, `a.font-preview`, `a.nf-oct-link_external`, dan `a.nf-fa-download`.
 
 use oktz_plugin_api::registry::InteractiveButton;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::json;
 
 
-/// `nerdfont.js:5` — satu-satunya endpoint.
+/// Satu-satunya endpoint.
 pub(crate) const URL: &str = "https://www.nerdfonts.com/font-downloads";
 
-/// Satu font hasil parse (`nerdfont.js:29-37`).
+/// Satu font hasil parse.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Font {
     pub name: String,
@@ -33,7 +24,7 @@ pub(crate) struct Font {
     pub download_url: String,
 }
 
-/// `nerdfont.js:73` — satu baris tombol. Bentuk JSON yang dibaca Baileys.
+/// Satu baris tombol. Bentuk JSON yang dibaca Baileys.
 pub(crate) fn baris(font: &Font, prefix: &str) -> (String, String, String, String) {
     (
         format!("Font {}", font.name),
@@ -43,7 +34,7 @@ pub(crate) fn baris(font: &Font, prefix: &str) -> (String, String, String, Strin
     )
 }
 
-/// `nerdfont.js:15-16` — `/Version:\s*([^\n\r]+)/` lalu `.trim()`. `null` kalau
+/// `/Version:\s*([^\n\r]+)/` lalu `.trim()`. `null` kalau
 /// pola tidak ada — pemanggilnya melempar `TypeError`.
 fn setelah_label(teks: &str, label: &str) -> Option<String> {
     let at = teks.find(label)?;
@@ -55,9 +46,9 @@ fn setelah_label(teks: &str, label: &str) -> Option<String> {
     Some(value.trim().to_string())
 }
 
-/// `nerdfont.js:24` — `/background-image\s*:\s*url\s*\(\s*['"]?([^'"]+)['"]?\s*\)/i`.
+/// `/background-image\s*:\s*url\s*\(\s*['"]?([^'"]+)['"]?\s*\)/i`.
 ///
-/// Regex JS memakai flag `i`, jadi pencocokan dilakukan pada huruf kecil;
+/// Regex versi awal memakai flag `i`, jadi pencocokan dilakukan pada huruf kecil;
 /// spasi di sekitar `:` dan `(` diizinkan.
 fn url_dari_style(style: &str) -> Option<String> {
     let low = style.to_lowercase();
@@ -121,7 +112,7 @@ fn link_dengan_kelas(block: &str, class: &str) -> Option<(usize, Option<String>)
     None
 }
 
-/// `nerdfonts()` (`nerdfont.js:10-40`) — `div.item` dipisah satu per satu.
+/// `nerdfonts()` — `div.item` dipisah satu per satu.
 ///
 /// Batas tiap blok adalah kemunculan `div class="item"` BERIKUTNYA, bukan
 /// `</div>` pertama: `</div>` pertama milik `div` dalam yang memuat
@@ -130,7 +121,7 @@ fn link_dengan_kelas(block: &str, class: &str) -> Option<(usize, Option<String>)
 /// batas ini setara dengan "`$(…)` berikutnya".
 ///
 /// `Err` berarti `textContent.match(..)[1]` melempar `TypeError`, persis
-/// seperti di JS: satu item yang tidak punya `Version:`, `Info:`, atau
+/// seperti di versi awal: satu item yang tidak punya `Version:`, `Info:`,
 /// `background-image` menggagalkan seluruh permintaan.
 pub(crate) fn parse_fonts(html: &str) -> Result<Vec<Font>, String> {
     // Posisi semua `div class="item"`.
@@ -153,7 +144,7 @@ pub(crate) fn parse_fonts(html: &str) -> Result<Vec<Font>, String> {
             .and_then(|i| isi_tag(block, i, "span"))
             .unwrap_or_default();
         // `$(rynn).find("div").first()` — descendant PERTAMA, jadi blok
-        // `div.item` itu sendiri tidak termasuk. `block` selalu dimulai di
+        // `div.item` itu sendiri tidak termasuk. `block` selalu dimulai
         // `<` tag pembuka itu, jadi pencarian mulai dari indeks 1.
         let first_div = buka_tag(block, 1, "div").ok_or_else(gagal)?;
         let text = isi_tag(block, first_div, "div").ok_or_else(gagal)?;
@@ -184,7 +175,7 @@ pub(crate) fn parse_fonts(html: &str) -> Result<Vec<Font>, String> {
     Ok(out)
 }
 
-/// `TypeError: textContent.match(..) is not a function` — pesan yang sama
+/// `TypeError: textContent.match(..) is not a function` — pesan yang
 /// untuk keempat kegagalan, karena semuanya dari ekspresi yang sama.
 fn gagal() -> String {
     "Cannot read properties of undefined (reading '1')".to_string()
@@ -216,7 +207,7 @@ fn tag_punya_kelas(html: &str, pos: usize, class: &str) -> bool {
         .any(|k| k == class)
 }
 
-/// `nerdfont.js:71-92` — kartu interaktif beserta barisnya.
+/// Kartu interaktif beserta barisnya.
 pub(crate) fn kartu(fonts: &[Font], prefix: &str) -> Reply {
     let rows: Vec<serde_json::Value> = fonts
         .iter()
@@ -261,7 +252,7 @@ pub(crate) fn kartu(fonts: &[Font], prefix: &str) -> Reply {
     is_bot_admin = false
 )]
 pub fn nerdfont(ctx: Ctx) -> Reply {
-    // `nerdfont.js` TIDAK pernah membaca `m.text`: parameter `<query>` di
+    // TIDAK pernah membaca `m.text`: parameter `<query>`
     // `usage` cuma sisa. Permintaan tetap jalan untuk input kosong.
     let Ok(res) = ctx.http.get(URL) else {
         return Reply::text(crate::common::error_template(&ctx));
@@ -469,7 +460,7 @@ Info: Y</div>
 
     #[test]
     fn a_missing_version_label_kills_the_whole_page_like_the_javascript_match() {
-        // `textContent.match(/Version:…/)[1]` = `TypeError` di JS, jadi
+        // `textContent.match(/Version:…/)[1]` = `TypeError` di versi awal, jadi
         // `nerdfonts()` melempar dan handler menjawab template error.
         let html = r#"<div class="item">
       <span class="nerd-font-invisible-text">X</span>

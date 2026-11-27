@@ -1,21 +1,14 @@
-//! `plugins/search/spotify.js` — mencari daftar lagu di Spotify.
+//! Mencari daftar lagu di Spotify.
 //!
-//! `ponytail:` JS memakai `resolver.resolve("spotify", { q })`, yang hanya
-//! dilayani backend agregator `nexray` (`src/capabilities/spotify.js:149-160`):
-//! `GET https://api.nexray.eu.cc/search/spotify?q=…`. Path-nya TANPA prefix
-//! `/api` — menambahkannya membuat host menjawab 404 (sama seperti
+//! `Keterbatasan:` versi awal memakai `resolver.resolve("spotify", { q })`, yang hanya
+//! dilayani backend agregator `nexray`: `GET https://api.nexray.eu.cc/search/spotify?q=…`.
+//! Path-nya TANPA prefix `/api` — menambahkannya membuat host menjawab 404 (sama seperti
 //! `search/applemusic.rs`).
 //!
-//! Bentuk respons dinormalkan di `normalize` (`src/capabilities/spotify.js:148`):
-//! amplop `{ status, result }` dibuka, `result` berupa array dibaca sebagai
-//! daftar track, dan tiap track disaring `trackCari` (`:110-129`) — entri
-//! tanpa judul atau tanpa tautan dibuang, `duration` yang bukan string
-//! menjadi `"0:00"`.
-//!
-//! `ponytail:` tombol "Unduh Lagu Pertama" hanya dikirim kalaucover pertama
-//! bisa diambil (dikecilkan ke 300×170 lewat `sharp`) DAN tautannya cocok
-//! `open.spotify.com/track/`. Kalau salah satu tidak terpenuhi, plugin
-//! mengirim teks polos — persis `spotify.js:62-104`.
+//! `Keterbatasan:` tombol "Unduh Lagu Pertama" hanya dikirim kalaucover pertama bisa
+//! diambil (dikecilkan ke 300×170 lewat `sharp`) DAN tautannya cocok
+//! `open.spotify.com/track/`. Kalau salah satu tidak terpenuhi, plugin mengirim teks polos
+//! — persis.
 
 use oktz_plugin_api::{
     Ctx, HttpError, HttpGet, Reply, plugin,
@@ -26,11 +19,11 @@ use oktz_plugin_api::registry::{
 use serde_json::Value;
 
 /// `aggregator.hit("nexray", "/search/spotify", { params: { q } })`
-/// (`src/capabilities/spotify.js:153-156`). Path tanpa prefix `/api`.
+/// . Path tanpa prefix `/api`.
 pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/search/spotify";
 
 /// Satu lagu hasil pencarian — bentuk `trackCari`
-/// (`src/capabilities/spotify.js:110-129`).
+///
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Track {
     pub title: String,
@@ -42,13 +35,13 @@ pub(crate) struct Track {
 
 /// Pencarian lagu di Spotify.
 ///
-/// `isiAmplop` + `normalize` (`src/capabilities/spotify.js:110-160`).
+/// `isiAmplop` + `normalize`.
 pub(crate) fn cari_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Track>, HttpError> {
     let url = format!("{ENDPOINT}?q={}", encode_q(q));
     let res = http.get(&url)?;
     let raw = res.json().unwrap_or(Value::Null);
 
-    // `isiAmplop` (`src/capabilities/spotify.js:96-108`).
+    // `isiAmplop`.
     let isi = if raw.is_array() || !(raw.get("status").is_some() || raw.get("result").is_some()) {
         raw
     } else {
@@ -72,7 +65,7 @@ pub(crate) fn cari_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Track>, HttpE
         }
     };
 
-    // `normalize`: `Array.isArray(isi) ? isi : isi.tracks`.
+    // `normalize`: `Array.isArray(isi) ? isi: isi.tracks`.
     let daftar = if isi.is_array() {
         isi.as_array().cloned().unwrap_or_default()
     } else {
@@ -84,7 +77,7 @@ pub(crate) fn cari_lagu(http: &dyn HttpGet, q: &str) -> Result<Vec<Track>, HttpE
     Ok(daftar.iter().filter_map(track_cari).collect())
 }
 
-/// `trackCari(entri)` (`src/capabilities/spotify.js:110-129`).
+/// `trackCari(entri)`.
 fn track_cari(entri: &Value) -> Option<Track> {
     if !entri.is_object() {
         return None;
@@ -116,7 +109,7 @@ fn track_cari(entri: &Value) -> Option<Track> {
         .unwrap_or_default()
         .trim()
         .to_string();
-    // `typeof entri.duration === "string" && entri.duration ? … : "0:00"`.
+    // `typeof entri.duration === "string" && entri.duration ? …: "0:00"`.
     let duration = match entri.get("duration") {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
         _ => "0:00".to_string(),
@@ -130,7 +123,7 @@ fn track_cari(entri: &Value) -> Option<Track> {
     })
 }
 
-/// `String(value)` JS untuk nilai JSON.
+/// `String(value)` versi awal untuk nilai JSON.
 fn teks_js(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -158,29 +151,29 @@ fn encode_q(raw: &str) -> String {
     out
 }
 
-/// `/^https?:\/\/open\.spotify\.com\/track\//i` (`spotify.js:62`).
+/// `/^https?:\/\/open\.spotify\.com\/track\//i`.
 pub(crate) fn tautan_track_spotify(url: &str) -> bool {
     let u = url.to_ascii_lowercase();
     u.starts_with("http://open.spotify.com/track/")
         || u.starts_with("https://open.spotify.com/track/")
 }
 
-/// `spotify.js:24` — kata kunci kosong.
+/// Kata kunci kosong.
 pub(crate) fn tanpa_kunci() -> String {
     "❌ *Waduh, kata kuncinya mana nih?*\n\nKamu harus memasukkan judul lagu atau nama artis yang ingin dicari di Spotify. \n\nContoh penggunaan: `.spotify bruno mars`".to_string()
 }
 
-/// `spotify.js:35` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn tidak_ditemukan(text: &str) -> String {
     format!("⚠️ *Maaf, lagu tidak ditemukan!* \n\nAku sudah mencari dengan kata kunci *{text}* tapi tidak ada hasil di Spotify. Coba gunakan judul yang lebih spesifik ya.")
 }
 
-/// `spotify.js:111` — API bermasalah.
+/// API bermasalah.
 pub(crate) fn api_bermasalah() -> String {
     "😔 *Aduh, sepertinya API sedang bermasalah.* \n\nTerjadi kesalahan fatal saat mencoba memproses pencarian Spotify. Silakan coba lagi nanti ya!".to_string()
 }
 
-/// Teks daftar hasil + catatan (`spotify.js:40-77`).
+/// Teks daftar hasil + catatan.
 pub(crate) fn teks_hasil(text: &str, hasil: &[Track], pakai_tombol: bool) -> String {
     let mut content = format!("✨ *HASIL PENCARIAN SPOTIFY* ✨\n\nHalo! Aku berhasil menemukan beberapa lagu berdasarkan kata kunci *{text}*. Berikut adalah daftar teratasnya:\n\n");
     for (i, t) in hasil.iter().enumerate() {
@@ -230,18 +223,18 @@ pub fn spotify(ctx: Ctx) -> Reply {
     let hasil = match cari_lagu(ctx.http.as_ref(), &text) {
         Ok(t) => t.into_iter().take(5).collect::<Vec<_>>(),
         Err(_) => {
-            // `spotify.js:108-112` — reaksi ☢ lalu pesan API bermasalah.
+            // Reaksi ☢ lalu pesan API bermasalah.
             return Reply::text(api_bermasalah()).with_reaction("☢");
         }
     };
 
     if hasil.is_empty() {
-        // `spotify.js:33-36` — reaksi ❌ lalu pesan tidak ditemukan.
+        // Reaksi ❌ lalu pesan tidak ditemukan.
         return Reply::text(tidak_ditemukan(&text)).with_reaction("❌");
     }
 
     let first = &hasil[0];
-    // `spotify.js:49-56` — cover diambil lalu dikecilkan ke 300×170. Kalau
+    // Cover diambil lalu dikecilkan ke 300×170. Kalau
     // gagal, `thumbnailBuffer` tetap `null` dan tombol tidak dikirim.
     let thumbnail = if first.cover.is_empty() {
         None
@@ -259,7 +252,7 @@ pub fn spotify(ctx: Ctx) -> Reply {
     let content = teks_hasil(&text, &hasil, pakai_tombol);
 
     if pakai_tombol {
-        // `spotify.js:79-102` — kartu `buttonsMessage` + tombol unduh.
+        // Kartu `buttonsMessage` + tombol unduh.
         let header = CardHeader::new().location(CardLocation {
             latitude: 0.0,
             longitude: 0.0,
@@ -394,19 +387,19 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `spotify.js:24` — kata kunci kosong.
+        // Kata kunci kosong.
         assert_eq!(
             text_of(&run(Stub::offline(), "")),
             "❌ *Waduh, kata kuncinya mana nih?*\n\nKamu harus memasukkan judul lagu atau nama artis yang ingin dicari di Spotify. \n\nContoh penggunaan: `.spotify bruno mars`"
         );
-        // `spotify.js:35` — tidak ada hasil.
+        // Tidak ada hasil.
         let r = run(Stub::body(serde_json::json!({ "status": true, "result": [] })), "x");
         assert_eq!(
             text_of(&r),
             "⚠️ *Maaf, lagu tidak ditemukan!* \n\nAku sudah mencari dengan kata kunci *x* tapi tidak ada hasil di Spotify. Coba gunakan judul yang lebih spesifik ya."
         );
         assert_eq!(reaction_of(&r), Some("❌"));
-        // `spotify.js:111` — API bermasalah.
+        // API bermasalah.
         let r = run(Stub::offline(), "x");
         assert_eq!(
             text_of(&r),

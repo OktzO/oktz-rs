@@ -1,38 +1,30 @@
-//! `plugins/search/pddikti.js` — cari data mahasiswa/dosen/PT/prodi dari PDDIKTI.
-//!
-//! `pddiktiGet` memakai `validateStatus: () => true`, jadi status 4xx/5xx
-//! TIDAK jadi error: plugin membaca bodinya sendiri lalu melempar
-//! `PDDIKTI HTTP <status>: <potongan json>`. Itu diterjemahkan ke
-//! `HttpCall::get(..).terima_semua_status()`.
-//!
-//! `pluginConfig` di JS tidak punya `isOwner`/`isPremium`/`isGroup`/
-//! `isPrivate` — semuanya `false`.
+//! Cari data mahasiswa/dosen/PT/prodi dari PDDIKTI.
 
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `pddikti.js:16-18`.
+///
 pub(crate) const CORS_PROXY: &str = "https://cors.rifkyshre.biz.id/";
 pub(crate) const API_BASE: &str = "https://api-pddikti.kemdiktisaintek.go.id";
 pub(crate) const FRONTEND_ORIGIN: &str = "https://pddikti.kemdiktisaintek.go.id";
 
-/// `pddikti.js:43-44` — mode detail tanpa `mahasiswaId`. Tidak terjangkau dari
+/// Mode detail tanpa `mahasiswaId`. Tidak terjangkau
 /// handler: guard `args.length < 2` di `:162` lebih dulu membalas.
 #[allow(dead_code)]
 pub(crate) const BUTUH_MHS_ID: &str =
     "Field 'mahasiswaId' wajib untuk mode 'detail'. Ambil dari hasil search mhs (field 'id').";
 
-/// `pddikti.js:74` — kata kunci kosong. Tidak terjangkau dari handler: guard
+/// Kata kunci kosong. Tidak terjangkau dari handler: guard
 /// `if (!query)` di `:189` lebih dulu membalas dengan `BUTUH_KATA_KUNCI`.
 #[allow(dead_code)]
 pub(crate) const KATA_KUNCI_WAJIB: &str = "Kata kunci pencarian wajib (nama, NIM, NIDN, dll).";
 
-/// `pddikti.js:77` — query pendek.
+/// Query pendek.
 pub(crate) const QUERY_TERLALU_PENDEK: &str = "Query terlalu pendek (min 3 karakter).";
 
-/// `pddikti.js:141-153` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎓 *PDDIKTI SEARCH*\n\n\
@@ -47,11 +39,11 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `pddikti.js:162` / `:189` — argumen mode tidak lengkap.
+/// / `:189` — argumen mode tidak lengkap.
 pub(crate) const BUTUH_ID: &str = "❌ Masukkan ID Mahasiswa!";
 pub(crate) const BUTUH_KATA_KUNCI: &str = "❌ Masukkan kata kunci pencarian!";
 
-/// `pddikti.js:20-33` — URL + dua header.
+/// URL + dua header.
 pub(crate) fn request(path: &str) -> HttpCall {
     HttpCall::get(format!("{CORS_PROXY}{API_BASE}{path}"))
         .header("Accept", "application/json")
@@ -59,7 +51,7 @@ pub(crate) fn request(path: &str) -> HttpCall {
         .terima_semua_status()
 }
 
-/// `pddikti.js:81-93` — mode → path. `None` = mode tidak dikenal.
+/// Mode → path. `None` = mode tidak dikenal.
 pub(crate) fn path_for(mode: &str, query: &str) -> Option<String> {
     let q = encode_uri_component(query);
     Some(match mode {
@@ -72,17 +64,17 @@ pub(crate) fn path_for(mode: &str, query: &str) -> Option<String> {
     })
 }
 
-/// `pddikti.js:92` — pesan mode tak dikenal.
+/// Pesan mode tak dikenal.
 pub(crate) fn unknown_mode(mode: &str) -> String {
     format!("Unknown mode '{mode}'. Pakai: all | mhs | dosen | pt | prodi | detail")
 }
 
-/// `pddikti.js:46` — path detail.
+/// Path detail.
 pub(crate) fn detail_path(mhs_id: &str) -> String {
     format!("/detail/mhs/{}", encode_uri_component(mhs_id))
 }
 
-/// `pddikti.js:47-49` — baris ringkasan detail. Handler JS tidak memakainya
+/// Baris ringkasan detail. Handler versi awal tidak memakainya
 /// (hanya `Result.message`); dipakai test untuk membuktikan bentuknya.
 #[allow(dead_code)]
 pub(crate) fn detail_message(data: &Value) -> String {
@@ -98,7 +90,7 @@ pub(crate) fn detail_message(data: &Value) -> String {
     }
 }
 
-/// `${value}` di JS.
+/// `${value}` di versi awal.
 fn interp(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_string(),
@@ -108,7 +100,7 @@ fn interp(value: Option<&Value>) -> String {
     }
 }
 
-/// `pddikti.js:56` — `L`/`P` ke label, selain itu `null` yang jadi `-` lewat `??`.
+/// `L`/`P` ke label, selain itu `null` yang jadi `-` lewat `??`.
 pub(crate) fn jenis_kelamin(value: Option<&Value>) -> Option<&'static str> {
     match value.and_then(Value::as_str) {
         Some("L") => Some("Laki-laki"),
@@ -117,7 +109,7 @@ pub(crate) fn jenis_kelamin(value: Option<&Value>) -> Option<&'static str> {
     }
 }
 
-/// `pddikti.js:97-115` — ringkasan mode `all`.
+/// Ringkasan mode `all`.
 pub(crate) fn all_message(query: &str, mhs: usize, dosen: usize, pt: usize, prodi: usize) -> String {
     format!(
         "🔍 {} hasil untuk \"{query}\" ({mhs} mhs, {dosen} dosen, {pt} pt, {prodi} prodi)",
@@ -125,7 +117,7 @@ pub(crate) fn all_message(query: &str, mhs: usize, dosen: usize, pt: usize, prod
     )
 }
 
-/// `pddikti.js:121-123` — ringkasan mode selain `all`.
+/// Ringkasan mode selain `all`.
 pub(crate) fn list_message(mode: &str, query: &str, count: usize) -> String {
     if count > 0 {
         format!("🔍 {count} hasil {mode} untuk \"{query}\"")
@@ -134,8 +126,8 @@ pub(crate) fn list_message(mode: &str, query: &str, count: usize) -> String {
     }
 }
 
-/// `pddikti.js:172-184` — blok `DETAIL MAHASISWA`. Spasi kolom ditulis
-/// eksplisit di JS, jadi ikut dikunci di sini.
+/// Blok `DETAIL MAHASISWA`. Spasi kolom ditulis
+/// eksplisit di versi awal, jadi ikut dikunci di sini.
 pub(crate) fn detail_block(data: &Value) -> String {
     let jk = jenis_kelamin(data.get("jenis_kelamin")).unwrap_or("-");
     let mut txt = String::from("🎓 *DETAIL MAHASISWA*\n\n");
@@ -151,7 +143,7 @@ pub(crate) fn detail_block(data: &Value) -> String {
     txt
 }
 
-/// `pddikti.js:198-245` — blok hasil mode `all`; tiap kategori maksimal 3.
+/// Blok hasil mode `all`; tiap kategori maksimal 3.
 pub(crate) fn all_block(data: &Value, query: &str) -> String {
     let ambil = |k: &str| -> Vec<Value> {
         data.get(k).and_then(Value::as_array).cloned().unwrap_or_default()
@@ -217,7 +209,7 @@ pub(crate) fn all_block(data: &Value, query: &str) -> String {
     txt
 }
 
-/// `pddikti.js:226-245` — mode selain `all`, maksimal 10 baris.
+/// Mode selain `all`, maksimal 10 baris.
 pub(crate) fn list_block(items: &[Value], mode: &str, query: &str, count: usize) -> String {
     let mut txt = format!("*{}*\n\n", list_message(mode, query, count));
     for (i, item) in items.iter().take(10).enumerate() {
@@ -276,7 +268,7 @@ pub(crate) fn list_block(items: &[Value], mode: &str, query: &str, count: usize)
     txt
 }
 
-/// `x || "-"` — `0` dan `""` falsy di JS.
+/// `x || "-"` — `0` dan `""` falsy di versi awal.
 fn or_dash(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
@@ -286,7 +278,7 @@ fn or_dash(value: Option<&Value>) -> String {
     }
 }
 
-/// `pddikti.js:30` — pesan error HTTP.
+/// Pesan error HTTP.
 pub(crate) fn http_error(status: u16, body: &str) -> String {
     let json = if body.trim().is_empty() {
         String::from("undefined")
@@ -325,13 +317,13 @@ pub fn pddikti(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `m.react("🕕")` di `:156` sudah jalan; reaksi terakhir per cabang yang
+    // `m.react("🕕")` di `:156` sudah jalan; reaksi terakhir per cabang
     // diambil di bawah.
     let mode = ctx.args[0].to_lowercase();
 
     if mode == "detail" {
         // `if (args.length < 2)` (`:162`) dan `if (!query)` (`:189`) keduanya
-        // `return m.reply(..)` tanpa bereaksi lagi — jadi reaksi terakhir yang
+        // `return m.reply(..)` tanpa bereaksi lagi — jadi reaksi terakhir
         // sudah jalan, `🕕`, tetap berlaku.
         if ctx.args.len() < 2 {
             return Reply::text(BUTUH_ID).with_reaction("🕕");
@@ -512,7 +504,7 @@ mod tests {
         );
         assert_eq!(p.meta.cooldown, 15);
         assert_eq!(p.meta.energi, 1);
-        // Tidak ada di pluginConfig JS.
+        // Tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_owner && !p.meta.is_premium);
         assert!(!p.meta.is_group && !p.meta.is_private);
     }
@@ -564,7 +556,7 @@ mod tests {
                 "❌ Query terlalu pendek (min 3 karakter).",
                 "❌",
             ),
-            // Guard `if (!query)` di `:189` tidak bereaksi lagi: `🕕` dari
+            // Guard `if (!query)` di `:189` tidak bereaksi lagi: `🕕`
             // `:156` masih yang terakhir.
             ("all  ", "❌ Masukkan kata kunci pencarian!", "🕕"),
             (
@@ -665,7 +657,7 @@ mod tests {
 
     #[test]
     fn the_four_non_all_modes_render_their_own_row_shape() {
-        // Tanpa `nama_singkat`, JS memakai `?? "-"` — bukan `nama` itu sendiri.
+        // Tanpa `nama_singkat`, versi awal memakai `?? "-"` — bukan `nama` itu sendiri.
         let pt = vec![serde_json::json!({ "nama": "ITB", "kode": "1" })];
         assert!(list_block(&pt, "pt", "q", 1).contains("*#1 ITB (-)*\n- Kode: 1\n\n"));
         let pt = vec![serde_json::json!({ "nama": "ITB", "nama_singkat": "ITB", "kode": "1" })];

@@ -1,13 +1,12 @@
-//! `plugins/search/apkmod-get.js` — unduh satu APK MOD dari hasil pencarian.
+//! Unduh satu APK MOD dari hasil pencarian.
 //!
-//! `ponytail:` JS mengirim dokumen lewat `sock.sendMessage` dengan
-//! `contextInfo: { forwardingScore: 99, isForwarded: true }`; `Reply::Document`
-//! tidak punya context info, jadi penanda forwarded tidak ikut.
+//! `Keterbatasan:` versi awal mengirim dokumen lewat `sock.sendMessage` dengan
+//! `contextInfo: { forwardingScore: 99, isForwarded: true }`; `Reply::Document` tidak punya
+//! context info, jadi penanda forwarded tidak ikut.
 //!
-//! `ponytail:` cabang "URL tidak tersedia" mengirim
-//! `forwardedNewsletterMessageInfo` (`config.saluran?.id`,
-//! `config.saluran?.name || config.bot?.name`) — `Ctx` tidak membawa config,
-//! dan `Reply::Interactive` tidak punya context info, jadi yang terkirim hanya
+//! `Keterbatasan:` cabang "URL tidak tersedia" mengirim `forwardedNewsletterMessageInfo`
+//! (`config.saluran?.id`, `config.saluran?.name || config.bot?.name`) — `Ctx` tidak membawa
+//! config, dan `Reply::Interactive` tidak punya context info, jadi yang terkirim hanya
 //! teksnya.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
@@ -16,11 +15,11 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `apkmod-get.js:35` — endpoint pencarian dengan nomor hasil.
+/// Endpoint pencarian dengan nomor hasil.
 pub(crate) fn api_url(query: &str, no: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/apkmod?q={}&no={no}&apikey={NEOXR_APIKEY}",
@@ -28,15 +27,15 @@ pub(crate) fn api_url(query: &str, no: &str) -> String {
     )
 }
 
-/// `apkmod-get.js:28` — guard format.
+/// Guard format.
 pub(crate) fn bad_format(prefix: &str) -> String {
     format!("❌ Format: `{prefix}apkmod-get <no> <query>`")
 }
 
-/// `apkmod-get.js:68` — caption saat `file.url` tidak ada.
+/// Caption saat `file.url` tidak ada.
 pub(crate) const NO_DOWNLOAD_URL: &str = "> ⚠️ Download URL tidak tersedia";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; ketiganya
@@ -50,8 +49,8 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `apkmod-get.js:56` — `file.filename || `${app.name}.apk``. `app.name` yang
-/// hilang jadi teks `undefined`, sama seperti template literal di JS.
+/// `file.filename || `${app.name}.apk``. `app.name`
+/// hilang jadi teks `undefined`, sama seperti template literal di versi awal.
 pub(crate) fn file_name(file: &Value, app: &Value) -> String {
     match file.get("filename") {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),

@@ -1,20 +1,15 @@
-//! `plugins/search/playcall.js` — putar musik YouTube lewat panggilan suara
-//! WhatsApp.
+//! Putar musik YouTube lewat panggilan suara
 //!
-//! `ponytail:` `global.voipClient` (`playcall.js:48`), `fs`, `crypto`,
-//! `child_process`/`extensionFor`, `yt-search`, dan resolver
-//! `resolver.resolve("youtube", ..)` tidak ada di API plugin. Guard
+//! `Keterbatasan:` `global.voipClient`, `fs`, `crypto`, `child_process`/`extensionFor`,
+//! `yt-search`, dan resolver `resolver.resolve("youtube"..)` tidak ada di API plugin. Guard
 //! `if (!global.voipClient)` jadi selalu benar, jadi itu yang diport — persis
-//! `download::sfiledl` dengan kapabilitas yang belum di-port.
-//!
-//! `pluginConfig.isEnabled` di JS `false`; itu ikut disalin lewat
-//! `is_enabled`.
+//! `download::sfiledl` dengan kapabilitas yang belum diimplementasikan.
 
 #![allow(dead_code)] // jalur panggilan tidak terjangkau tanpa voipClient
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `playcall.js:36-45` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *PANGGILAN MUSIK (PLAYCALL)*\n\n\
@@ -28,16 +23,16 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `playcall.js:49-53` — VoIP belum aktif.
+/// VoIP belum aktif.
 pub(crate) const BELUM_SIAP: &str =
     "⚠️ *LAYANAN BELUM SIAP*\n\nModul panggilan suara VoIP belum aktif atau sedang dalam proses inisialisasi pada server.";
 
-/// `playcall.js:68` — judul tidak ditemukan.
+/// Judul tidak ditemukan.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Musik dengan judul *{query}* tidak ditemukan.")
 }
 
-/// `playcall.js:96-102` — konfirmasi sebelum panggilan redir:.
+/// Konfirmasi sebelum panggilan redir:.
 pub(crate) fn mulai_panggilan(title: &str, timestamp: &str, nomor: &str) -> String {
     format!(
         "📞 *MEMULAI PANGGILAN*\n\n\
@@ -48,20 +43,20 @@ pub(crate) fn mulai_panggilan(title: &str, timestamp: &str, nomor: &str) -> Stri
     )
 }
 
-/// `playcall.js:110` — callback `connected`.
+/// Callback `connected`.
 pub(crate) fn terhubung(title: &str) -> String {
     format!(
         "✅ *TERHUBUNG*\n\nPanggilan berhasil tersambung! Lagu *{title}* sedang diputar di telepon."
     )
 }
 
-/// `playcall.js:117` — callback `ended`; `reason` kosong jadi `"selesai"`.
+/// Callback `ended`; `reason` kosong jadi `"selesai"`.
 pub(crate) fn berakhir(reason: &str) -> String {
     let alasan = if reason.is_empty() { "selesai" } else { reason };
     format!("📵 *PANGGILAN BERAKHIR*\n\nPanggilan telepon telah selesai ({alasan}).")
 }
 
-/// `m.sender.split("@")[0].replace(/\D/g, "")` (`playcall.js:93`) — nomor
+/// `m.sender.split("@")[0].replace(/\D/g, "")` — nomor
 /// tujuan hanya digit.
 pub(crate) fn nomor_dari(jid: &str) -> String {
     jid.split('@')
@@ -72,7 +67,7 @@ pub(crate) fn nomor_dari(jid: &str) -> String {
         .collect()
 }
 
-/// `yts(query)` + `resolver.resolve("youtube", ..)` — keduanya tidak ada di
+/// `yts(query)` + `resolver.resolve("youtube"..)` — keduanya tidak ada
 /// crate ini, jadi panggilan selalu gagal dan yang menyala adalah `catch`.
 fn awal_panggilan(_query: &str) -> Result<(String, String, String), String> {
     Err(BELUM_SIAP.to_string())
@@ -105,13 +100,13 @@ pub fn playcall(ctx: Ctx) -> Reply {
     // `if (!global.voipClient)` dicek sebelum `m.react("🕕")`, jadi tanpa
     // reaksi.
     match awal_panggilan(query) {
-        // `playcall.js:95-124` — file sementara + `voipClient.call` +
+        // File sementara + `voipClient.call` +
         // callback `connected`/`ended`/`error`. Semuanya butuh `fs` dan VoIP,
         // jadi tidak terjangkau.
         Ok((title, timestamp, _audio_url)) => {
             Reply::text(mulai_panggilan(&title, &timestamp, &nomor_dari(&ctx.sender)))
         }
-        // `playcall.js:49-53` — `global.voipClient` tidak ada. Guard ini dicek
+        // `global.voipClient` tidak ada. Guard ini dicek
         // sebelum `m.react("🕕")` di `:55`, jadi tidak ada reaksi.
         Err(message) => Reply::text(message),
     }
@@ -154,7 +149,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `playcall.js:36-45` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "⚠️ *PANGGILAN MUSIK (PLAYCALL)*\n\n\
@@ -166,17 +161,17 @@ mod tests {
              - *.playcall komang*\n\n\
              _Pastikan nomormu dapat menerima panggilan suara WhatsApp._"
         );
-        // `playcall.js:49-53` — VoIP belum siap.
+        // VoIP belum siap.
         assert_eq!(
             text_of(&run("komang")),
             "⚠️ *LAYANAN BELUM SIAP*\n\nModul panggilan suara VoIP belum aktif atau sedang dalam proses inisialisasi pada server."
         );
-        // `playcall.js:68` — judul tidak ditemukan.
+        // Judul tidak ditemukan.
         assert_eq!(
             tidak_ditemukan("surat cinta untuk starla"),
             "❌ Musik dengan judul *surat cinta untuk starla* tidak ditemukan."
         );
-        // `playcall.js:96-102` — konfirmasi sebelum panggilan.
+        // Konfirmasi sebelum panggilan.
         assert_eq!(
             mulai_panggilan("Komang", "3:45", "628111"),
             "📞 *MEMULAI PANGGILAN*\n\n\
@@ -185,7 +180,7 @@ mod tests {
              - Tujuan: *+628111*\n\n\
              _Panggilan sedang dialihkan ke WhatsApp kamu, silakan angkat telepon untuk mendengarkan lagu._"
         );
-        // `playcall.js:110` / `:117`.
+        // / `:117`.
         assert_eq!(
             terhubung("Komang"),
             "✅ *TERHUBUNG*\n\nPanggilan berhasil tersambung! Lagu *Komang* sedang diputar di telepon."
@@ -227,7 +222,7 @@ mod tests {
         for text in ["", "  ", "\t\n"] {
             let t = text_of(&run(text));
             assert!(t.starts_with("⚠️ *PANGGILAN MUSIK (PLAYCALL)*"), "input {text:?}");
-            // `*PENGGUNAAN:*` memakai asterisk, bukan backtick, di `playcall.js:40`.
+            // `*PENGGUNAAN:*` memakai asterisk, bukan backtick.
             assert!(t.contains("- *.playcall <judul lagu>*"), "{t}");
             assert!(t.ends_with("_Pastikan nomormu dapat menerima panggilan suara WhatsApp._"), "{t}");
         }

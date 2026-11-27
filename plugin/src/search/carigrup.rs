@@ -1,9 +1,9 @@
-//! `plugins/search/carigrup.js` — cari grup WhatsApp lewat `api.cuki.biz.id`.
+//! Cari grup WhatsApp lewat `api.cuki.biz.id`.
 //!
-//! `ponytail:` kunci API ada di `config.APIkey?.cuki`, dan `Ctx` tidak membawa
-//! config, jadi nilainya ikut `config.js` yang di-hardcode — persis
-//! `search/android1.rs`. Effect-nya cabang "API key belum dikonfigurasi" jadi
-//! jalur yang benar-benar terpakai sampai router menyediakan config.
+//! `Keterbatasan:` kunci API ada di `config.APIkey?.cuki`, dan `Ctx` tidak membawa config,
+//! jadi nilainya ikut yang di-hardcode — persis `search/android1.rs`. Effect-nya cabang
+//! "API key belum dikonfigurasi" jadi jalur yang benar-benar terpakai sampai router
+//! menyediakan config.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -11,10 +11,10 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.cuki || ''` (`config.js`) = `process.env.APIKEY_CUKI || ""`.
+/// `config.APIkey?.cuki || ''` = `process.env.APIKEY_CUKI || ""`.
 const CUKI_APIKEY: &str = "";
 
-/// `carigrup.js:39` — endpoint pencarian grup.
+/// Endpoint pencarian grup.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://api.cuki.biz.id/api/search/whatsapp-group?apikey={CUKI_APIKEY}&query={}",
@@ -22,22 +22,22 @@ pub(crate) fn api_url(text: &str) -> String {
     )
 }
 
-/// `carigrup.js:25-27` — kartu saat keyword kosong.
+/// Kartu saat keyword kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n> Masukkan keyword pencarian\n\n`Contoh: {prefix}carigrup gb isian`"
     )
 }
 
-/// `carigrup.js:35` — guard kunci.
+/// Guard kunci.
 pub(crate) const NO_APIKEY: &str = "❌ API key cuki belum dikonfigurasi (APIKEY_CUKI)";
 
-/// `carigrup.js:44` — tidak ada grup.
+/// Tidak ada grup.
 pub(crate) fn not_found(text: &str) -> String {
     format!("❌ Tidak ditemukan grup untuk keyword *{text}*")
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -51,10 +51,10 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `carigrup.js:59` — deskripsi dipotong 150 karakter UTF-16 lalu `...`.
+/// Deskripsi dipotong 150 karakter UTF-16 lalu `...`.
 ///
-/// `ponytail:` batas JS dihitung per kode unit UTF-16; di sini per `char`, jadi
-/// emoji di dekat batas bisa berbeda satu karakter dari JS.
+/// `Keterbatasan:` batas versi awal dihitung per kode unit UTF-16; di sini per `char`, jadi
+/// emoji di dekat batas bisa berbeda satu karakter dari versi awal.
 pub(crate) fn short_description(group: &Value) -> String {
     match group.get("description") {
         Some(Value::String(d)) if !d.is_empty() => {
@@ -68,7 +68,7 @@ pub(crate) fn short_description(group: &Value) -> String {
     }
 }
 
-/// `!data.status || !data.data?.groups?.length` (`carigrup.js:42`) —
+/// `!data.status || !data.data?.groups?.length` —
 /// `(data.data, groups)` kalau ada hasil, `None` untuk cabang "tidak
 /// ditemukan".
 ///
@@ -86,7 +86,7 @@ pub(crate) fn found_groups(data: &Value) -> Option<(&Value, &[Value])> {
     Some((head, groups))
 }
 
-/// `carigrup.js:48-61` — hasil pencarian.
+/// Hasil pencarian.
 pub(crate) fn format_result(head: &Value, groups: &[Value]) -> String {
     let mut result = String::from("🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n");
     result.push_str(&format!(

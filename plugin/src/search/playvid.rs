@@ -1,19 +1,19 @@
-//! `plugins/search/playvid.js` — cari dan putar video dari YouTube.
+//! Cari dan putar video dari YouTube.
 //!
-//! `ponytail:` JS memakai paket npm `yt-search`; padanannya ada di
+//! `Keterbatasan:` versi awal memakai paket npm `yt-search`; padanannya ada di
 //! `search/ytsearch.rs`.
 //!
-//! `ponytail:` unduhan video memakai kapabilitas `youtube` format `mp4`, yang
-//! di JS memakai `getYoutubeDirectUrl(url, "360")` (SaveTube). Padanannya
+//! `Keterbatasan:` unduhan video memakai kapabilitas `youtube` format `mp4`, yang di versi
+//! awal memakai `getYoutubeDirectUrl(url, "360")` (SaveTube). Padanannya
 //! `oktz_scraper::youtube::get_youtube_direct_url`.
 //!
-//! `ponytail:` `sock.sendPreview` (pratinjau tautan) menjadi `Reply::Preview`.
+//! `Keterbatasan:` `sock.sendPreview` (pratinjau tautan) menjadi `Reply::Preview`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use super::ytsearch::{self, format_views};
 
-/// `m.pushName` JS kosong menjadi `"Unknown"` (`src/lib/serialize.js:760`).
+/// `m.pushName` versi awal kosong menjadi `"Unknown"`.
 pub(crate) fn push_name(ctx: &Ctx) -> String {
     if ctx.push_name.is_empty() {
         "Unknown".to_string()
@@ -22,14 +22,14 @@ pub(crate) fn push_name(ctx: &Ctx) -> String {
     }
 }
 
-/// `playvid.js:31` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(push: &str, prefix: &str) -> String {
     format!(
         "Halo *{push}* 👋\n\nUntuk mencari dan memutar video dari YouTube, silakan gunakan format:\n- `{prefix}playvid <judul video>`\n\nContoh:\n- `{prefix}playvid windah basudara`"
     )
 }
 
-/// `playvid.js:41-47` — teks informasi.
+/// Teks informasi.
 pub(crate) fn info_video(push: &str, v: &ytsearch::Video) -> String {
     format!(
         "Halo *{push}*, ini video yang kamu cari:\n\n\
@@ -47,7 +47,7 @@ pub(crate) fn info_video(push: &str, v: &ytsearch::Video) -> String {
     )
 }
 
-/// `playvid.js:81` — gagal.
+/// Gagal.
 pub(crate) fn gagal(push: &str) -> String {
     format!("Maaf *{push}*, fitur putar videonya sedang ada kendala atau video tersebut terlalu besar. Silakan coba lagi nanti ya!")
 }
@@ -78,19 +78,19 @@ pub fn playvid(ctx: Ctx) -> Reply {
     let videos = match ytsearch::search(ctx.http.as_ref(), &query) {
         Ok(v) => v,
         Err(_) => {
-            // `playvid.js:71-83` — ❌ lalu pesan kegagalan.
+            // ❌ lalu pesan kegagalan.
             return Reply::text(gagal(&push)).with_reaction("❌");
         }
     };
 
     let Some(video) = videos.first() else {
-        // `playvid.js:38` — `throw new Error("Video tidak ditemukan")` → catch.
+        // `throw new Error("Video tidak ditemukan")` → catch.
         return Reply::text(gagal(&push)).with_reaction("❌");
     };
 
     let info = info_video(&push, video);
 
-    // `playvid.js:64` — link unduhan video.
+    // Link unduhan video.
     let direct =
         match oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("360"))
         {
@@ -103,7 +103,7 @@ pub fn playvid(ctx: Ctx) -> Reply {
         return Reply::text(gagal(&push)).with_reaction("❌");
     };
 
-    // `playvid.js:49-62` — pratinjau tautan, lalu `playvid.js:66-68` — video.
+    // Pratinjau tautan, lalu — video.
     let preview = Reply::text(format!("{}\n{}", video.url, info));
 
     let media = Reply::video(MediaSource::url(download_url.to_string()), "");
@@ -214,17 +214,17 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `playvid.js:31` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("User", "."),
             "Halo *User* 👋\n\nUntuk mencari dan memutar video dari YouTube, silakan gunakan format:\n- `.playvid <judul video>`\n\nContoh:\n- `.playvid windah basudara`"
         );
-        // `playvid.js:81` — pesan kegagalan.
+        // Pesan kegagalan.
         assert_eq!(
             gagal("User"),
             "Maaf *User*, fitur putar videonya sedang ada kendala atau video tersebut terlalu besar. Silakan coba lagi nanti ya!"
         );
-        // `playvid.js:41-47` — teks informasi.
+        // Teks informasi.
         let v = ytsearch::Video {
             url: "https://www.youtube.com/watch?v=aaaaaaaaaaa".into(),
             title: "Lagu Uji".into(),

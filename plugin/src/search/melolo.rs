@@ -1,25 +1,23 @@
-//! `plugins/search/melolo.js` — cari daftar drama pendek per kategori dari
-//! Melolo lewat provider `covenant`.
+//! Cari daftar drama pendek per kategori
 //!
-//! `ponytail:` `config.APIkey?.covenant` tidak ada di `Ctx`, jadi guard
-//! `melolo.js:74` selalu benar dan `explainFailure(MissingApiKeyError(..))`
-//! yang jadi balasan — sama seperti `download::sfiledl`.
+//! `Keterbatasan:` `config.APIkey?.covenant` tidak ada di `Ctx`, jadi guard selalu benar
+//! dan `explainFailure(MissingApiKeyError(..))` yang jadi balasan — sama seperti
+//! `download::sfiledl`.
 //!
-//! `ponytail:` `fotoApi.covenant.meloloCategory` (`src/lib/apimanager.js`) tidak
-//! di-port; jalur HTTP setelahnya tidak terjangkau selama kunci kosong, jadi
-//! hanya logika plugin yang dipindah: normalisasi hasil, pemotongan teks, dan
-//! susunan caption.
+//! `Keterbatasan:` `fotoApi.covenant.meloloCategory` tidak diimplementasikan; jalur HTTP
+//! setelahnya tidak terjangkau selama kunci kosong, jadi hanya logika plugin yang dipindah:
+//! normalisasi hasil, pemotongan teks, dan susunan caption.
 
 #![allow(dead_code)] // jalur HTTP tidak terjangkau tanpa kunci covenant
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// Batas default `trimText` (`melolo.js:22`) — 90, bukan 60 seperti plugin
+/// Batas default `trimText` — 90, bukan 60 seperti plugin
 /// sekelasnya.
 pub(crate) const DEFAULT_MAX: usize = 90;
 
-/// `melolo.js:22-29` — `String(text || "")`, spasi dirapatkan, kosong jadi `-`.
+/// `String(text || "")`, spasi dirapatkan, kosong jadi `-`.
 pub(crate) fn trim_text(text: Option<&Value>, max: usize) -> String {
     let raw = match text {
         None | Some(Value::Null) => String::new(),
@@ -56,13 +54,13 @@ pub(crate) fn trim_text(text: Option<&Value>, max: usize) -> String {
     chars.into_iter().take(max).collect::<String>() + "..."
 }
 
-/// `melolo.js:68` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!("🎭 *MELOLO DRAMA*\n\n> Contoh:\n`{prefix}melolo fantasy`")
 }
 
 /// `explainFailure(new MissingApiKeyError("covenant", "APIKEY_COVENANT"), …)`
-/// (`src/lib/stalker-fallback.js:29-33`). `command` sudah dirangkai jadi
+/// . `command` sudah dirangkai jadi
 /// `` `${prefix}melolo` `` oleh pemanggil.
 pub(crate) fn api_key_belum_diset(command: &str) -> String {
     format!(
@@ -72,12 +70,12 @@ pub(crate) fn api_key_belum_diset(command: &str) -> String {
     )
 }
 
-/// `melolo.js:66` — hasil kosong.
+/// Hasil kosong.
 pub(crate) fn tidak_ditemukan(category: &str) -> String {
     format!("❌ Tidak ditemukan hasil Melolo untuk kategori: {category}")
 }
 
-/// Satu drama setelah `normalizeResults` (`melolo.js:31-49`).
+/// Satu drama setelah `normalizeResults`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Drama {
     pub section: String,
@@ -118,7 +116,7 @@ pub(crate) fn normalize_results(data: &Value) -> Vec<Drama> {
     out
 }
 
-/// `item?.x || "-"` — `0` dan `""` falsy di JS.
+/// `item?.x || "-"` — `0` dan `""` falsy di versi awal.
 fn or_dash(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
@@ -146,7 +144,7 @@ fn null_coalesce(value: Option<&Value>) -> String {
     }
 }
 
-/// `melolo.js:96-108` — caption; judul dipotong 70, section 32, episodes 110.
+/// Caption; judul dipotong 70, section 32, episodes 110.
 pub(crate) fn caption(items: &[Drama], category: &str, usage: Option<&Value>) -> String {
     let mut txt = String::from("🎭 *MELOLO DRAMA*\n\n");
     txt.push_str(&format!("🌿 *Category:* {category}\n"));
@@ -173,7 +171,7 @@ pub(crate) fn caption(items: &[Drama], category: &str, usage: Option<&Value>) ->
     txt.trim().to_string()
 }
 
-/// `items.find((item) => item.image)?.image` (`melolo.js:110`) — item PERTAMA
+/// `items.find((item) => item.image)?.image` — item PERTAMA
 /// yang punya gambar, bukan yang pertama.
 pub(crate) fn cover(items: &[Drama]) -> Option<&str> {
     items
@@ -206,7 +204,7 @@ pub fn melolo(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `melolo.js:74` dicek sebelum `m.react("🔍")` di `:83`, jadi tanpa reaksi.
+    // dicek sebelum `m.react("🔍")` di `:83`, jadi tanpa reaksi.
     Reply::text(api_key_belum_diset(&format!("{}melolo", ctx.prefix)))
 }
 

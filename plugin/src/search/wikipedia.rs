@@ -1,20 +1,16 @@
-//! `plugins/search/wikipedia.js` — mencari artikel Wikipedia bahasa Indonesia.
+//! Mencari artikel Wikipedia bahasa Indonesia.
 //!
-//! `ponytail:` JS memakai `cheerio` untuk parse halaman artikel Wikipedia
+//! `Keterbatasan:` versi awal memakai `cheerio` untuk parse halaman artikel Wikipedia
 //! (`#firstHeading`, `.tagline`, `.mw-parser-output > section`, `.infobox tr`,
-//! `.mw-parser-output img`). `oktz-plugins` tidak punya parser HTML, jadi semua
-//! dipakai manual di bawah. Elemen yang di-remove di JS (`script`, `style`,
-//! `.infobox` dll) dilewati saat ekstraksi teks.
+//! `.mw-parser-output img`). `oktz-plugins` tidak punya parser HTML, jadi semua dipakai
+//! manual di bawah. Elemen yang di-remove di versi awal (`script`, `style`, `.infobox` dll)
+//! dilewati saat ekstraksi teks.
 //!
-//! `ponytail:` `fixUrl` untuk URL protokol-relatif (`//`) dan relativ (`/`).
-//! `uniqueBy` untuk dedup gambar berdasarkan URL.
+//! `Keterbatasan:` `fixUrl` untuk URL protokol-relatif (`//`) dan relativ (`/`). `uniqueBy`
+//! untuk dedup gambar berdasarkan URL.
 //!
-//! `ponytail:` `sock.sendMessage({ image, caption })` menjadi
+//! `Keterbatasan:` `sock.sendMessage({ image, caption })` menjadi
 //! `Reply::image(MediaSource::Url)` dengan caption.
-//!
-//! Catatan: baris `pub mod wikipedia;` perlu ditambahkan ke
-//! `rust/crates/oktz-plugins/src/search/mod.rs` oleh orchestrator (tidak boleh
-//! disentuh agent porting per aturan PORT-BRIEF #2).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -63,7 +59,7 @@ fn get_full_article(http: &dyn oktz_plugin_api::HttpGet, title: &str) -> Result<
         .map_err(|e| format!("Gagal mengambil artikel: {}", e.message))?;
     let html = res.text();
     let cleaned = remove_unwanted(&html);
-    // `cleanText($("#firstHeading").text()) || title` (`wikipedia.js:106`).
+    // `cleanText($("#firstHeading").text()) || title`.
     let heading = clean_text(&extract_by_id(&cleaned, "firstHeading").unwrap_or_default());
     let page_title = if heading.is_empty() { title.to_string() } else { heading };
     let description = extract_by_class(&cleaned, "tagline")
@@ -81,8 +77,8 @@ fn get_full_article(http: &dyn oktz_plugin_api::HttpGet, title: &str) -> Result<
     })
 }
 
-/// Hapus elemen yang di-remove di JS: script, style, noscript, sup.reference,
-/// .mw-editsection, .navbox, .metadata, .ambox, .hatnote, .toc, #toc,
+/// Hapus elemen yang di-remove di versi awal: script, style, noscript, sup.reference,
+/// .mw-editsection.navbox.metadata.ambox.hatnote.toc, #toc,
 /// table.vertical-navbox. Pendekatan sederhana: hapus sejumlah pasang tag.
 fn remove_unwanted(html: &str) -> String {
     let mut out = html.to_string();
@@ -158,7 +154,7 @@ fn remove_by_class_or_id(html: &str, selector: &str) -> String {
 /// Ekstraksi teks dari elemen dengan id tertentu.
 fn extract_by_id(html: &str, id: &str) -> Option<String> {
     let pola = format!("id=\"{id}\"");
-    // Elemen pertama saja, sama seperti selector `cheerio` di JS.
+    // Elemen pertama saja, sama seperti selector `cheerio` di versi awal.
     if let Some(abs) = html.find(&pola) {
         let tag_end = abs + html[abs..].find('>')? + 1;
         let after = &html[tag_end..];
@@ -171,7 +167,7 @@ fn extract_by_id(html: &str, id: &str) -> Option<String> {
 /// Ekstraksi teks dari elemen pertama dengan class tertentu.
 fn extract_by_class(html: &str, class: &str) -> Option<String> {
     let pola = format!("class=\"{class}\"");
-    // Elemen pertama saja, sama seperti selector `cheerio` di JS.
+    // Elemen pertama saja, sama seperti selector `cheerio` di versi awal.
     if let Some(abs) = html.find(&pola) {
         let tag_start = html[..abs].rfind('<').unwrap_or(abs);
         let tag_end = abs + html[abs..].find('>')? + 1;
@@ -190,7 +186,7 @@ fn extract_by_class(html: &str, class: &str) -> Option<String> {
 
 /// Paragraf pengantar dari `.mw-parser-output > section > p` atau `.mw-parser-output > p`.
 fn intro_paragraphs(html: &str) -> Option<String> {
-    // Cari .mw-parser-output
+    // Cari.mw-parser-output
     let parser = extract_by_class(html, "mw-parser-output")?;
     // Cari <p> langsung di dalamnya
     let mut teks = String::new();
@@ -273,7 +269,7 @@ fn extract_images(html: &str, base_url: &str) -> Vec<(String, Option<String>)> {
             let src = attr_from_tag(&parser[abs..], "src");
             let alt = attr_from_tag(&parser[abs..], "alt").map(|s| clean_text(&s));
             // `const src = fixUrl($(img).attr("src")); if (!src) return;`
-            // (`wikipedia.js:159-162`).
+            //
             let Some(fixed) = src.and_then(|s| fix_url(&s, base_url)) else {
                 start = abs + 4;
                 continue;
@@ -377,8 +373,8 @@ fn collapse_whitespace(text: &str) -> String {
     out.trim().to_string()
 }
 
-/// `fixUrl` — URL protokol-relatif dan relativ. JS mengabaikan `base` dan
-/// selalu memakai `BASE` (`wikipedia.js:56-61`).
+/// `fixUrl` — URL protokol-relatif dan relativ. versi awal mengabaikan `base`
+/// selalu memakai `BASE`.
 fn fix_url(url: &str, _base_url: &str) -> Option<String> {
     if url.is_empty() {
         return None;

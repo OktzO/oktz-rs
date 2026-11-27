@@ -1,25 +1,19 @@
-//! `plugins/search/playtiktok.js` — cari dan kirim satu video TikTok terbaik.
-//!
-//! Pakai scraper `oktz_scraper::tiktoksearch::tiktok_search_video` (hasil port
-//! `src/scraper/tiktoksearch.js`), bukan menyalin logika scraper.
-//!
-//! `m.react("🔍")` lalu `m.react("✅")` — `Reply` hanya menampung satu reaksi,
-//! jadi yang dipegang adalah yang terakhir (`✅`).
+//! Cari dan kirim satu video TikTok terbaik.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// Teks balasan saat query kosong (`playtiktok.js:31-33`).
+/// Teks balasan saat query kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎵 *PLAY TIKTOK*\n\n> Contoh:\n`{prefix}playtiktok cewe tiktok`"
     )
 }
 
-/// `formatNumber(n)` (`playtiktok.js:20-25`).
+/// `formatNumber(n)`.
 ///
 /// `Number(n) || 0`: non-angka → 0. `>= 1e6` → `x.x M`, `>= 1e3` → `x.x K`,
-// sisanya angka bulat apa adanya. Rust `format!("{:.1}")` dan JS `toFixed(1)`
+// sisanya angka bulat apa adanya. Rust `format!("{:.1}")` dan versi awal `toFixed(1)`
 // keduanya pakai pembulatan ke-even pada representasi desimal.
 pub(crate) fn format_number(value: f64) -> String {
     if value >= 1_000_000.0 {
@@ -68,7 +62,7 @@ pub fn playtiktok(ctx: Ctx) -> Reply {
     };
 
     // `tiktokSearchVideo` mengembalikan array item yang SUDAH dinormalisasi
-    // (`tiktoksearch.js:64`), bukan objek ber-`result` — `videos[0]` di JS.
+    // , bukan objek ber-`result` — `videos[0]` di versi awal.
     let items = match hasil.as_array() {
         Some(arr) if !arr.is_empty() => arr,
         _ => {
@@ -81,7 +75,7 @@ pub fn playtiktok(ctx: Ctx) -> Reply {
     let title = video
         .get("title")
         .and_then(Value::as_str)
-        .filter(|s| !s.is_empty()) // `video.title || "-"` (`playtiktok.js:47`)
+        .filter(|s| !s.is_empty()) // `video.title || "-"`
         .unwrap_or("-");
     let author = video
         .get("author")
@@ -97,7 +91,7 @@ pub fn playtiktok(ctx: Ctx) -> Reply {
     let music = video
         .get("music")
         .and_then(Value::as_str)
-        .filter(|s| !s.is_empty()) // `video.music || "-"` (`playtiktok.js:53`)
+        .filter(|s| !s.is_empty()) // `video.music || "-"`
         .unwrap_or("-");
     let link = video.get("link").and_then(Value::as_str).unwrap_or("");
 
@@ -197,7 +191,7 @@ mod tests {
     }
 
     fn contoh() -> Value {
-        // Bentuk MENTAH dari API (`tiktoksearch.js:26-50`): link di `data`,
+        // Bentuk MENTAH dari API: link di `data`,
         // statistik di `views`/`comment`/`share`, musik di `music_info.url`.
         // Scraper yang menormalkannya sebelum plugin membacanya.
         serde_json::json!({
@@ -299,7 +293,7 @@ mod tests {
     #[test]
     fn format_number_mengikuti_js() {
         assert_eq!(format_number(1_200_000.0), "1.2M");
-        // `(34_000 / 1000).toFixed(1)` = "34.0" (`playtiktok.js:23`) — ".0"
+        // `(34_000 / 1000).toFixed(1)` = "34.0" — ".0"
         // TIDAK dibuang, jadi bukan "34K".
         assert_eq!(format_number(34_000.0), "34.0K");
         assert_eq!(format_number(450.0), "450");

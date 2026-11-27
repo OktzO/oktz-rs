@@ -1,31 +1,27 @@
-//! `plugins/search/nerdfont-ambil.js` — unduh satu font Nerd Font.
+//! Unduh satu font Nerd Font.
 //!
-//! Parser HTML-nya identik dengan `search::nerdfont` (`nerdfonts()` disalin
-//! apa adanya di kedua file JS), jadi helper-nya dipinjam dari sana.
+//! `Keterbatasan:` `sharp` tidak ada di API plugin: `jpegThumbnail` hasil `.resize(50, 50)`
+//! tidak ikut. Sisanya (dokumen zip + caption) ada padanannya di `Reply::Document`.
 //!
-//! `ponytail:` `sharp` tidak ada di API plugin: `jpegThumbnail` hasil
-//! `.resize(50, 50)` di `nerdfont-ambil.js:78-86` tidak ikut. Sisanya
-//! (dokumen zip + caption) ada padanannya di `Reply::Document`.
-//!
-//! `ponytail:` `sock.sendMessage` di `:74` tidak di-`await`, jadi handler JS
-//! selalu selesai tanpa balasan apa pun; di sini dokumennya dikembalikan
-//! sebagai balasan karena itu satu-satunya jalanpipeline untuk mengirim media.
+//! `Keterbatasan:` `sock.sendMessage` di `:74` tidak di-`await`, jadi handler versi awal
+//! selalu selesai tanpa balasan apa pun; di sini dokumennya dikembalikan sebagai balasan
+//! karena itu satu-satunya jalanpipeline untuk mengirim media.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::search::nerdfont::{Font, URL, parse_fonts};
 
-/// `nerdfont-ambil.js:67` — guard nama font kosong.
+/// Guard nama font kosong.
 pub(crate) fn butuh_nama() -> String {
     "*NERD FONT*\n\n> Masukan nama font yang ingin didownload".to_string()
 }
 
-/// `nerdfont-ambil.js:73` — nama tidak ada di daftar.
+/// Nama tidak ada di daftar.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Font *{query}* tidak ditemukan")
 }
 
-/// `nerdfont-ambil.js:87-88` — caption dokumen.
+/// Caption dokumen.
 pub(crate) fn caption(prefix: &str) -> String {
     format!("*Done*\nJika kamu ingin mendownload lagi, ketik {prefix}nerdfont lagi")
 }
@@ -70,7 +66,7 @@ pub fn nerdfont_ambil(ctx: Ctx) -> Reply {
     };
     let html = res.text();
 
-    // `parse_fonts` `Err` = `TypeError` dari `match(..)[1]`, sama seperti di JS.
+    // `parse_fonts` `Err` = `TypeError` dari `match(..)[1]`, sama seperti di versi awal.
     let fonts = match parse_fonts(&html) {
         Ok(f) => f,
         Err(_) => return Reply::text(crate::common::error_template(&ctx)),
@@ -281,7 +277,7 @@ Info: A patched font</div>
 
     #[test]
     fn a_broken_page_reports_the_error_template_instead_of_panicking() {
-        // Tanpa `Version:` -> `match(..)[1]` melempar di JS.
+        // Tanpa `Version:` -> `match(..)[1]` melempar di versi awal.
         let rusak = r#"<div class="item">
       <span class="nerd-font-invisible-text">X</span>
       <div>Info: Y</div>

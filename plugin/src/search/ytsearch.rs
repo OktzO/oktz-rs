@@ -1,36 +1,12 @@
 //! Padanan paket npm `yt-search` untuk plugin `search/*`.
-//!
-//! JS memakai `import yts from "yt-search"` di `search/yts.js`,
-//! `search/playvid.js`, `search/playch.js`, dan `search/ytplay.js`. Paket itu
-//! mengambil halaman hasil pencarian YouTube dan mengembalikan bentuk berikut
-//! (yang dipakai keempat plugin):
-//!
-//! ```js
-//! {
-//!   url: "https://www.youtube.com/watch?v=<id>",
-//!   title, thumbnail, description, videoId,
-//!   views: <number>, ago: "2 years ago", timestamp: "3:33",
-//!   author: { name, username, url },
-//!   duration: { timestamp: "3:33", seconds: 213 },
-//! }
-//! ```
-//!
-//! Data sumbernya adalah `ytInitialData` — payload yang sama dengan jawaban
-//! InnerTube `youtubei/v1/search`. Di sini endpoint InnerTube yang dipakai
-//! (kunci API dan header identik dengan `oktz-scraper::youtube::search_youtube`)
-//! supaya tidak ada request HTML yang perlu di-parse.
-//!
-//! Yang TIDAK bisa ditiru: `yt-search` juga menyaring jenis hasil (video /
-//! playlist / channel). Yang dikembalikan di sini hanya video, karena keempat
-//! plugin JS hanya pernah memakai `videos`.
 
 use oktz_plugin_api::{HttpCall, HttpError, HttpGet};
 use serde_json::{Value, json};
 
-/// `innertubeKey` (`src/scraper/youtube.js:264`).
+/// `innertubeKey`.
 const INNER_KEY: &str = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
-/// `innertubeUa` (`src/scraper/youtube.js:265-266`).
+/// `innertubeUa`.
 const INNER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 /// Satu hasil video — bentuk `yt-search`.
@@ -57,7 +33,7 @@ pub(crate) struct Video {
     pub author_url: String,
 }
 
-/// `formatViews(n)` — dipakai `playvid.js` dan `playch.js`.
+/// `formatViews(n)` — dipakai dan.
 pub(crate) fn format_views(n: u64) -> String {
     if n == 0 {
         return "0".to_string();
@@ -72,7 +48,7 @@ pub(crate) fn format_views(n: u64) -> String {
 }
 
 /// `Number.prototype.toFixed(1)` — satu desimal, dengan pembulatan banker's
-/// yang sama seperti V8 (ECMAScript `Number::toFixed` memakai pembulatan ke
+/// yang sama seperti V8 (ECMAScript `Number::toFixed` memakai pembulatan
 /// representasi desimal terdekat, bukan pembulatan ke-even).
 fn trim_float(v: f64) -> String {
     let s = format!("{v:.1}");
@@ -82,7 +58,7 @@ fn trim_float(v: f64) -> String {
 /// `yts(query)` — pencarian video YouTube.
 ///
 /// Mengembalikan daftar kosong kalau tidak ada video; error jaringan dilempar
-/// apa adanya (JS `yts` melempar, dan plugin memanggilnya di dalam `try`).
+/// apa adanya (versi awal `yts` melempar, dan plugin memanggilnya di dalam `try`).
 pub(crate) fn search(http: &dyn HttpGet, q: &str) -> Result<Vec<Video>, HttpError> {
     let res = http.call(
         &HttpCall::post(format!(
@@ -120,8 +96,8 @@ pub(crate) fn search(http: &dyn HttpGet, q: &str) -> Result<Vec<Video>, HttpErro
         .collect())
 }
 
-/// Menelusuri `videoRenderer` — sama seperti `findVideoRenderer` di
-/// `src/scraper/youtube.js:268-275`, tapi WITHOUT berhenti di node pertama:
+/// Menelusuri `videoRenderer` — sama seperti `findVideoRenderer`
+/// , tapi WITHOUT berhenti di node pertama:
 /// `yt-search` mengembalikan SEMUA video, bukan cuma yang pertama.
 fn kumpulkan_renderer<'a>(node: Option<&'a Value>, out: &mut Vec<&'a Value>) {
     let Some(node) = node.filter(|v| v.is_object() || v.is_array()) else {
@@ -345,7 +321,7 @@ mod tests {
 
     #[test]
     fn format_views_seperti_js() {
-        // `playvid.js:16-21`.
+        //
         assert_eq!(format_views(0), "0");
         assert_eq!(format_views(999), "999");
         assert_eq!(format_views(1_000), "1.0K");

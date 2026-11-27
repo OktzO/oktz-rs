@@ -1,14 +1,13 @@
-//! `plugins/search/filmget.js` — ambil detail film dari `api.neoxr.eu`.
+//! Ambil detail film dari `api.neoxr.eu`.
 //!
-//! `ponytail:` JS mengirim `sock.sendMessage` dengan `footer` +
-//! `contextInfo: saluranCtx()` + `interactiveButtons` cta_url. Saluran ctx
-//! membaca `config.saluran`/`config.bot.name` dan `Reply` tidak punya context
-//! info, jadi `Reply::Interactive` hanya membawa teksnya.
+//! `Keterbatasan:` versi awal mengirim `sock.sendMessage` dengan `footer` + `contextInfo:
+//! saluranCtx()` + `interactiveButtons` cta_url. Saluran ctx membaca
+//! `config.saluran`/`config.bot.name` dan `Reply` tidak punya context info, jadi
+//! `Reply::Interactive` hanya membawa teksnya.
 //!
-//! `ponytail:` `axios.get(film.thumbnail, { responseType: "arraybuffer" })`
-//! dibungkus `try {} catch {}` — hasilnya TIDAK dipakai apa pun, cuma memaksa
-//! thumbnail terunduh. Request itu tetap dilakukan di sini supaya urutan dan
-//! jumlahnya sama.
+//! `Keterbatasan:` `axios.get(film.thumbnail, { responseType: "arraybuffer" })` dibungkus
+//! `try {} catch {}` — hasilnya TIDAK dipakai apa pun, cuma memaksa thumbnail terunduh.
+//! Request itu tetap dilakukan di sini supaya urutan dan jumlahnya sama.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::InteractiveButton;
@@ -17,11 +16,11 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `filmget.js:37` — endpoint detail film.
+/// Endpoint detail film.
 pub(crate) fn api_url(url: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/film-get?url={}&apikey={NEOXR_APIKEY}",
@@ -29,7 +28,7 @@ pub(crate) fn api_url(url: &str) -> String {
     )
 }
 
-/// `filmget.js:25-31` — kartu saat URL bukan `neoxr.eu`.
+/// Kartu saat URL bukan `neoxr.eu`.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎬 *ꜰɪʟᴍ ᴅᴇᴛᴀɪʟ*\n\n\
@@ -40,10 +39,10 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `filmget.js:42` — film tidak ada.
+/// Film tidak ada.
 pub(crate) const NOT_FOUND: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Film tidak ditemukan";
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -57,19 +56,19 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `data.stream || []` (`filmget.js:46`).
+/// `data.stream || []`.
 pub(crate) fn streams_of(data: &Value) -> &[Value] {
     data.get("stream").and_then(Value::as_array).map_or(&[], Vec::as_slice)
 }
 
-/// `data.download || []` (`filmget.js:47`).
+/// `data.download || []`.
 pub(crate) fn downloads_of(data: &Value) -> &[Value] {
     data.get("download")
         .and_then(Value::as_array)
         .map_or(&[], Vec::as_slice)
 }
 
-/// `filmget.js:58-85` — teks info film.
+/// Teks info film.
 pub(crate) fn format_text(film: &Value, streams: &[Value], downloads: &[Value]) -> String {
     let mut text = format!("🎬 *{}*\n\n", dash(film.get("title"), "Film"));
     text.push_str("╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n");
@@ -158,7 +157,7 @@ pub fn filmget(ctx: Ctx) -> Reply {
         let _ = ctx.http.get(thumb);
     }
 
-    // `filmget.js:87-117` — tombol `cta_url`: satu untuk server streaming
+    // Tombol `cta_url`: satu untuk server streaming
     // pertama, lalu maksimal dua provider download.
     let mut buttons: Vec<InteractiveButton> = Vec::new();
     if let Some(s) = streams.first() {
@@ -297,7 +296,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `filmget.js:25-31` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "🎬 *ꜰɪʟᴍ ᴅᴇᴛᴀɪʟ*\n\n\
@@ -306,9 +305,9 @@ mod tests {
              > `.filmget <url>`\n\n\
              > Gunakan `.film <judul>` untuk cari film dulu"
         );
-        // `filmget.js:42` — film tidak ditemukan.
+        // Film tidak ditemukan.
         assert_eq!(NOT_FOUND, "❌ *ɢᴀɢᴀʟ*\n\n> Film tidak ditemukan");
-        // `filmget.js:58-85` — teks info + baris streaming/download.
+        // Teks info + baris streaming/download.
         let film = serde_json::json!({
             "title": "Civil War", "rating": "8.1", "quality": "HD",
             "duration": "1j 49m", "release": "2024", "tags": "Action",
@@ -349,7 +348,7 @@ mod tests {
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);
         assert!(p.meta.is_enabled);
-        // `pluginConfig` JS tidak menyebut flag permission sama sekali.
+        // `pluginConfig` versi awal tidak menyebut flag permission sama sekali.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium && !p.meta.is_admin);
     }
@@ -425,7 +424,7 @@ mod tests {
 
     #[test]
     fn a_failing_thumbnail_request_does_not_break_the_reply() {
-        // `try { … } catch {}` di `filmget.js:50-56`.
+        // `try { … } catch {}`.
         let http = Stub::new(&[(FILM, DETAIL)]);
         let r = run(http.clone(), "https://tv.neoxr.eu/film/civil-war-2024");
         assert!(body_of(&r).starts_with("🎬 *Civil War*"), "{}", body_of(&r));

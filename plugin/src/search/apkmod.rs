@@ -1,17 +1,16 @@
-//! `plugins/search/apkmod.js` — cari APK MOD Premium lewat `api.neoxr.eu`.
+//! Cari APK MOD Premium lewat `api.neoxr.eu`.
 //!
-//! `ponytail:` JS mengirim daftar lewat `sock.sendButton` dengan picker
-//! `single_select` plus thumbnail `getAssetBuffer("foto")`. `Reply::Interactive`
-//! hanya membawa teksnya, jadi tombol (judul, deskripsi, `id` untuk
-//! `apkmod-get`) dan thumbnail tidak ikut — persis teks `apkmod.js:52-58`.
+//! `Keterbatasan:` versi awal mengirim daftar lewat `sock.sendButton` dengan picker
+//! `single_select` plus thumbnail `getAssetBuffer("foto")`. `Reply::Interactive` hanya
+//! membawa teksnya, jadi tombol (judul, deskripsi, `id` untuk `apkmod-get`) dan thumbnail
+//! tidak ikut — persis teks.
 //!
-//! `ponytail:` label tombol `${app.name.substring(0, 24)}` bisa melempar
-//! TypeError kalau `name` bukan string. Karena tombol tidak bisa dikirim,
-//! pemotongan 24 karakter itu tidak ikut, dan `name` yang hilang dirender
-//! `undefined` lewat [`interp`] — bukan error.
+//! `Keterbatasan:` label tombol `${app.name.substring(0, 24)}` bisa melempar TypeError
+//! kalau `name` bukan string. Karena tombol tidak bisa dikirim, pemotongan 24 karakter itu
+//! tidak ikut, dan `name` yang hilang dirender `undefined` lewat [`interp`] — bukan error.
 //!
-//! `ponytail:` `ctx.sessions` tidak punya padanan map session tingkat-atas yang
-//! dipakai tombol, jadi tidak ada state yang ditulis di sini.
+//! `Keterbatasan:` `ctx.sessions` tidak punya padanan map session tingkat-atas yang dipakai
+//! tombol, jadi tidak ada state yang ditulis di sini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -19,11 +18,11 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `apkmod.js:39` — endpoint pencarian.
+/// Endpoint pencarian.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/apkmod?q={}&apikey={NEOXR_APIKEY}",
@@ -31,7 +30,7 @@ pub(crate) fn api_url(text: &str) -> String {
     )
 }
 
-/// `apkmod.js:27-32` — kartu saat `m.text` kosong.
+/// Kartu saat `m.text` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📱 *ᴀᴘᴋ ᴍᴏᴅ sᴇᴀʀᴄʜ*\n\n\
@@ -41,12 +40,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `apkmod.js:47` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(text: &str) -> String {
     format!("❌ Tidak ditemukan hasil untuk: `{text}`")
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/android1.rs`; dipindah ke `common.rs` kalau orkestrator
@@ -60,7 +59,7 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `apkmod.js:52-58` — caption daftar aplikasi. Dipanggil dengan `apps` yang
+/// Caption daftar aplikasi. Dipanggil dengan `apps`
 /// SUDAH di-`slice(0, 15)`, jadi tidak ada pemotongan kedua di sini.
 pub(crate) fn format_list(apps: &[Value], text: &str) -> String {
     let mut caption = format!("📱 *Hasil pencarian dari {text}*\n\n");
@@ -73,7 +72,7 @@ pub(crate) fn format_list(apps: &[Value], text: &str) -> String {
 }
 
 /// `data.data` yang lolos `!data?.data?.length` — array/string tak kosong,
-/// bentuk lain dianggap gagal (`.length` numeric di JS, bukan array).
+/// bentuk lain dianggap gagal (`.length` numeric di versi awal, bukan array).
 pub(crate) fn has_items(data: Option<&Value>) -> bool {
     match data {
         Some(Value::Array(a)) => !a.is_empty(),
@@ -114,7 +113,7 @@ pub fn apkmod(ctx: Ctx) -> Reply {
         return Reply::text(not_found(text)).with_reaction("❌");
     }
     // String non-kosong lolos guard lalu `apps.forEach` melempar TypeError
-    // di JS -> `catch` -> template error.
+    // di versi awal -> `catch` -> template error.
     let Some(apps) = data.get("data").and_then(Value::as_array) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -348,7 +347,7 @@ mod tests {
         let apps = [serde_json::json!("bukan objek"), serde_json::json!(null), serde_json::json!({"name": 7})];
         let out = format_list(&apps, "🚀 \u{0} ñ");
         assert!(out.starts_with("📱 *Hasil pencarian dari 🚀 \u{0} ñ*\n\n"), "{out}");
-        // JS: `app.name` pada string primitif = undefined; `null.name`
+        // versi awal: `app.name` pada string primitif = undefined; `null.name`
         // melempar TypeError, di sini diturunkan jadi undefined supaya helper
         // tidak panik; `{name: 7}` -> string "7".
         assert!(out.contains("*1.* undefined\n"), "{out}");

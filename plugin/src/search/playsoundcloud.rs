@@ -1,13 +1,9 @@
-//! `plugins/search/playsoundcloud.js` — cari dan download lagu SoundCloud.
-//!
-//! Pakai `oktz_scraper::soundcloud::search_sound_cloud` dan
-//! `oktz_scraper::soundclouddl::scdl` (bukan menyalin logika scraper).
-//! Reaksi ganda JS (`🕕` lalu `✅`) disatukan jadi satu reaksi akhir `✅`.
+//! Cari dan download lagu SoundCloud.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use oktz_scraper::{soundclouddl::scdl, soundcloud::search_sound_cloud};
 
-/// Kartu pakai (`playsoundcloud.js:22-28`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎶 *PLAY SOUNDCLOUD* 🎶\n\n\
@@ -19,10 +15,10 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// `❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭` (`playsoundcloud.js:36`).
+/// `❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭`.
 pub(crate) const LAGU_TIDAK_KETEMU: &str = "❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭";
 
-/// `contentTxt` dari downloadInfo (`playsoundcloud.js:41-46`).
+/// `contentTxt` dari downloadInfo.
 pub(crate) fn info_lagu(download_info: &serde_json::Value) -> String {
     format!(
         "🎵 *Judul :* {}\n👤 *Uploader :* {}\n⏱️ *Durasi :* {}\n👁️ *Views :* {}\n❤️ *Likes :* {}\n📦 *Ukuran :* {}",
@@ -35,7 +31,7 @@ pub(crate) fn info_lagu(download_info: &serde_json::Value) -> String {
     )
 }
 
-/// `txt` keseluruhan (`playsoundcloud.js:48-51`).
+/// `txt` keseluruhan.
 pub(crate) fn teks_berhasil(content_txt: &str) -> String {
     format!(
         "🎉 *BERHASIL DOWNLOAD LAGU!* 🎉\n\n{content_txt}\n\n\
@@ -98,8 +94,8 @@ pub fn playsoundcloud(ctx: Ctx) -> Reply {
         .and_then(|v| v.as_str())
         .or_else(|| track.get("artwork").and_then(|v| v.as_str()));
 
-    // JS memakai `downloadInfo.title` sebagai caption audio
-    // (`playsoundcloud.js:54`), tapi `Reply::Audio` tidak punya caption —
+    // versi awal memakai `downloadInfo.title` sebagai caption audio
+    // , tapi `Reply::Audio` tidak punya caption —
     // variabel `title` lokal di sini cuma memicu peringatan, jadi dihapus.
     let download_url = download_info
         .get("download_url")
@@ -209,9 +205,9 @@ mod tests {
     }
 
     // Stub di bawah adalah respons HTTP mentah, bukan hasil scraper:
-    // `search_sound_cloud` membaca `collection` (`src/scraper/soundcloud.js:27-40`)
+    // `search_sound_cloud` membaca `collection`
     // dan `scdl` melakukan dua POST ke convertico
-    // (`src/scraper/soundclouddl.js:13-32`).
+    //
     const SEARCH_OK: &str = r#"{"collection":[
         {"id":1,"title":"Lagu Satu","permalink_url":"https://s/1","artwork_url":"https://a/1.jpg"},
         {"id":2,"title":"Lagu Dua","permalink_url":"https://s/2"}
@@ -270,7 +266,7 @@ mod tests {
                             media,
                             &Some(MediaSource::Url {
                                 // `base + 'soundcloud-downloader/' + file_url`
-                                // (`src/scraper/soundclouddl.js:32`).
+                                //
                                 url: "https://convertico.com/soundcloud-downloader/1.mp3".into(),
                                 mimetype: None,
                             })

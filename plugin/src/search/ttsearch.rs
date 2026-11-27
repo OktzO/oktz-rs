@@ -1,30 +1,28 @@
-//! `plugins/search/ttsearch.js` — cari video TikTok.
+//! Cari video TikTok.
 //!
-//! `ponytail:` JS memakai scraper `tiktokSearchVideo`
-//! (`src/scraper/tiktoksearch.js`); padanannya sudah ada di crate scraper:
-//! `oktz_scraper::tiktoksearch::tiktok_search_video`.
+//! `Keterbatasan:` versi awal memakai scraper `tiktokSearchVideo`; padanannya sudah ada di
+//! crate scraper: `oktz_scraper::tiktoksearch::tiktok_search_video`.
 //!
-//! `ponytail:` JS mengirim album berisi maksimal 5 video (`maxShow =
-//! Math.min(videos.length, 5)`) dengan `contextInfo` forwarded. `Reply::Video`
-//! tidak punya `contextInfo`, jadi penandaan forwarded tidak ikut — sisanya
-//! (video + caption) sama.
+//! `Keterbatasan:` versi awal mengirim album berisi maksimal 5 video (`maxShow =
+//! Math.min(videos.length, 5)`) dengan `contextInfo` forwarded. `Reply::Video` tidak punya
+//! `contextInfo`, jadi penandaan forwarded tidak ikut — sisanya (video + caption) sama.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
-/// `ttsearch.js:29-37` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "╭┈┈⬡「 🎵 *ᴛɪᴋᴛᴏᴋ sᴇᴀʀᴄʜ* 」\n┃\n㊗ ᴅsᴀɢᴇ: `{prefix}ttsearch <query>`\n┃\n╰┈┈⬡\n\n> `Contoh: {prefix}ttsearch anime`"
     )
 }
 
-/// `ttsearch.js:47` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Tidak ditemukan video untuk: {query}")
 }
 
-/// `ttsearch.js:54-59` — caption tiap video.
+/// Caption tiap video.
 pub(crate) fn caption(video: &Value) -> String {
     let judul = match video.get("title") {
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
@@ -74,18 +72,18 @@ pub fn ttsearch(ctx: Ctx) -> Reply {
     let videos = match oktz_scraper::tiktoksearch::tiktok_search_video(ctx.http.as_ref(), &query) {
         Ok(v) => v,
         Err(_) => {
-            // `ttsearch.js:117-120` — ☢ lalu template error.
+            // ☢ lalu template error.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
     let list = videos.as_array().cloned().unwrap_or_default();
     if list.is_empty() {
-        // `ttsearch.js:45-48` — ❌ lalu pesan tidak ditemukan.
+        // ❌ lalu pesan tidak ditemukan.
         return Reply::text(tidak_ditemukan(&query)).with_reaction("❌");
     }
 
-    // `ttsearch.js:50-64` — maksimal 5 video.
+    // Maksimal 5 video.
     let msgs: Vec<Reply> = list
         .iter()
         .take(5)
@@ -219,14 +217,14 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `ttsearch.js:29-37` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "╭┈┈⬡「 🎵 *ᴛɪᴋᴛᴏᴋ sᴇᴀʀᴄʜ* 」\n┃\n㊗ ᴅsᴀɢᴇ: `.ttsearch <query>`\n┃\n╰┈┈⬡\n\n> `Contoh: .ttsearch anime`"
         );
-        // `ttsearch.js:47` — tidak ditemukan.
+        // Tidak ditemukan.
         assert_eq!(tidak_ditemukan("anime"), "❌ Tidak ditemukan video untuk: anime");
-        // `ttsearch.js:54-59` — caption.
+        // Caption.
         let v = serde_json::json!({
             "title": "Video A",
             "link": "https://www.tiktok.com/@a/video/1",

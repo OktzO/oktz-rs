@@ -1,36 +1,35 @@
-//! `plugins/search/bingimage.js` — cari artwork lewat `api-faa.my.id`.
+//! Cari artwork lewat `api-faa.my.id`.
 //!
-//! `ponytail:` hasil pencarian dikirim sebagai `albumMessage` (`sock.sendMessage`),
-//! dan `Reply` hanya punya satu sumber media per balasan — tidak ada padanan
-//! album. Yang dipindah: guard kata kunci, daftar URL hasil, unduhan tiap
-//! gambar (termasuk kegagalan unduhan yang di JS masuk `catch`), dan reaksi.
-//! Balasan tanpa media yang berhasil dikirim apa adanya — tidak ada teks lain
-//! di JS untuk album itu.
+//! `Keterbatasan:` hasil pencarian dikirim sebagai `albumMessage` (`sock.sendMessage`), dan
+//! `Reply` hanya punya satu sumber media per balasan — tidak ada padanan album. Yang
+//! dipindah: guard kata kunci, daftar URL hasil, unduhan tiap gambar (termasuk kegagalan
+//! unduhan yang di versi awal masuk `catch`), dan reaksi. Balasan tanpa media yang berhasil
+//! dikirim apa adanya — tidak ada teks lain di versi awal untuk album itu.
 //!
-//! `ponytail:` `fotoApi.apiFaa.get("/faa/google-image", …)` adalah
-//! `src/lib/apimanager.js` yang menambah `User-Agent` bawaan dan parameter
-//! query; URL-nya ditulis langsung di sini dengan bentuk yang sama.
+//! `Keterbatasan:` `fotoApi.apiFaa.get("/faa/google-image", …)` adalah yang menambah
+//! `User-Agent` bawaan dan parameter query; URL-nya ditulis langsung di sini dengan bentuk
+//! yang sama.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `bingimage.js:27` — guard kata kunci.
+/// Guard kata kunci.
 pub(crate) fn no_query(prefix: &str) -> String {
     format!("❌ *Masukkan kata kunci pencarian!*\n\n> Contoh: {prefix}carigambar rem")
 }
 
-/// `bingimage.js:45` — `status` falsy.
+/// `status` falsy.
 pub(crate) fn not_found(query: &str) -> String {
     format!("❌ *Tidak ditemukan hasil untuk:* {query}")
 }
 
-/// `bingimage.js:34-41` — `apiFaa` provider `baseURL` + endpoint + params.
+/// `apiFaa` provider `baseURL` + endpoint + params.
 pub(crate) fn api_url(query: &str) -> String {
     format!(
         "https://api-faa.my.id/faa/google-image?query={}&apikey={NEOXR_APIKEY}",
@@ -96,7 +95,7 @@ pub fn bingimage(ctx: Ctx) -> Reply {
         }
     }
 
-    // Album tidak bisa dikirim; lihat catatan `ponytail:` di kepala file.
+    // Album tidak bisa dikirim; lihat catatan `Keterbatasan:` di kepala file.
     Reply::None.with_reaction("✅")
 }
 
@@ -204,7 +203,7 @@ mod tests {
         }
     }
 
-    /// Balasan di dalam pembungkus reaksi — `is_none()` tidak melihat ke
+    /// Balasan di dalam pembungkus reaksi — `is_none()` tidak melihat
     /// dalam `Reaction`, jadi harus diturunkan sendiri.
     fn inner_of(r: &Reply) -> &Reply {
         match r.without_mutations() {
@@ -245,7 +244,7 @@ mod tests {
     #[test]
     fn an_empty_query_shows_the_hint_without_a_request() {
         let http = Stub::empty();
-        // `m.text` tidak di-`trim` di JS, jadi spasi saja TIDAK kosong falsy.
+        // `m.text` tidak di-`trim` di versi awal, jadi spasi saja TIDAK kosong falsy.
         assert_eq!(body_of(&run(http.clone(), "")), no_query("."));
         assert!(http.seen.lock().unwrap().is_empty());
     }

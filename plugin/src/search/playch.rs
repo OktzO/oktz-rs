@@ -1,46 +1,37 @@
-//! `plugins/search/playch.js` — putar musik ke saluran (convert opus).
+//! Putar musik ke saluran (convert opus).
 //!
-//! `ponytail:` JS memakai paket npm `yt-search`; padanannya ada di
-//! `search/ytsearch.rs`. Unduhan audio memakai kapabilitas `youtube` format
-//! `mp3` → `oktz_scraper::youtube::get_youtube_direct_url`.
-//!
-//! PENYIMPANGAN (dijelaskan di laporan akhir):
-//! - `sock.sendMessage(chId, { audio, ptt, waveform })` mengirim voice note ke
-//!   SALURAN. `Reply` di `oktz-plugin-api` tidak punya "kirim ke chat lain",
-//!   jadi voice note-nya dikirim ke chat tempat perintah dipanggil.
-//! - `waveform` kustom tidak ada di `Reply::Audio`.
-//! - `extensionFor(format)` tidak dipakai: input ffmpeg dibaca lewat
-//!   `pipe:0` (ffmpeg mendeteksi format dari isi), bukan berkas sementara
-//!   berekstensi.
+//! `Keterbatasan:` versi awal memakai paket npm `yt-search`; padanannya ada di
+//! `search/ytsearch.rs`. Unduhan audio memakai kapabilitas `youtube` format `mp3` →
+//! `oktz_scraper::youtube::get_youtube_direct_url`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use super::ytsearch::{self, Video};
 
-/// Batas ukuran audio sebelum konversi (`playch.js:144`).
+/// Batas ukuran audio sebelum konversi.
 const MIN_AUDIO: usize = 50_000;
 
-/// Batas ukuran opus hasil konversi (`playch.js:146`).
+/// Batas ukuran opus hasil konversi.
 const MIN_OPUS: usize = 10_000;
 
-/// `playch.js:100-102` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎵 *PLAY SALURAN*\n\n`{prefix}playch <judul lagu>`\n`{prefix}playch --idch <id_saluran> <judul lagu>`"
     )
 }
 
-/// `playch.js:104-106` — saluran belum diatur.
+/// Saluran belum diatur.
 pub(crate) fn tanpa_saluran() -> String {
     "❌ Saluran belum diatur. Gunakan `--idch <id>` atau atur di config.js".to_string()
 }
 
-/// `playch.js:112` — video tidak ditemukan.
+/// Video tidak ditemukan.
 pub(crate) fn video_tidak_ditemukan() -> String {
     "❌ Video tidak ditemukan".to_string()
 }
 
-/// `playch.js:121-135` — teks informasi.
+/// Teks informasi.
 pub(crate) fn info(
     video: &Video,
     kanal: &str,
@@ -70,20 +61,20 @@ pub(crate) fn info(
     info
 }
 
-/// `playch.js:130-131` — deskripsi dipotong 150 karakter dan newline diganti
+/// Deskripsi dipotong 150 karakter dan newline diganti
 /// spasi. Mengembalikan `(teks, apakah_dipotong)`.
 pub(crate) fn potong_deskripsi(deskripsi: &str) -> Option<(String, bool)> {
     if deskripsi.is_empty() {
         return None;
     }
     let dipotong = deskripsi.chars().count() > 150;
-    // `substring(0, 150)` di JS memotong 160 unit UTF-16; untuk teks biasa
+    // `substring(0, 150)` di versi awal memotong 160 unit UTF-16; untuk teks biasa
     // batas karakter sama, jadi `char` dipakai.
     let potong: String = deskripsi.chars().take(150).collect();
     Some((potong.replace('\n', " "), dipotong))
 }
 
-/// `pickVideo(search)` (`playch.js:26-29`).
+/// `pickVideo(search)`.
 pub(crate) fn pilih_video(videos: &[Video]) -> Option<&Video> {
     videos
         .iter()
@@ -91,7 +82,7 @@ pub(crate) fn pilih_video(videos: &[Video]) -> Option<&Video> {
         .or_else(|| videos.first())
 }
 
-/// Pisahkan `--idch <id>` dari teks (`playch.js:93-97`).
+/// Pisahkan `--idch <id>` dari teks.
 pub(crate) fn pisah_idch(raw: &str) -> (Option<String>, String) {
     let Some(pos) = raw.find("--idch") else {
         return (None, raw.trim().to_string());
@@ -109,7 +100,7 @@ pub(crate) fn pisah_idch(raw: &str) -> (Option<String>, String) {
     (Some(nilai), sisa.trim().to_string())
 }
 
-/// Konversi ke Ogg/Opus (`playch.js:47-65`).
+/// Konversi ke Ogg/Opus.
 fn ke_opus(masukan: &[u8]) -> Result<Vec<u8>, String> {
     oktz_plugin_api::ffmpeg::jalankan_dengan_masukan(
         &[
@@ -167,28 +158,28 @@ pub fn playch(ctx: Ctx) -> Reply {
         .unwrap_or_default();
 
     if q.is_empty() {
-        // `playch.js:99-102`.
+        //
         return Reply::text(help(&ctx.prefix));
     }
     if ch_id.is_empty() {
-        // `playch.js:103-106`.
+        //
         return Reply::text(tanpa_saluran());
     }
 
     let videos = match ytsearch::search(ctx.http.as_ref(), &q) {
         Ok(v) => v,
         Err(_) => {
-            // `playch.js:158-166` — ☢ lalu template error.
+            // ☢ lalu template error.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
     let Some(video) = pilih_video(&videos) else {
-        // `playch.js:112`.
+        //
         return Reply::text(video_tidak_ditemukan());
     };
 
-    // `playch.js:119` — unduhan audio mp3.
+    // Unduhan audio mp3.
     let audio = match oktz_scraper::youtube::get_youtube_direct_url(
         ctx.http.as_ref(),
         &video.url,
@@ -203,7 +194,7 @@ pub fn playch(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
-    // `playch.js:114` — nama channel.
+    // Nama channel.
     let kanal = if video.author_name.is_empty() {
         if video.author_username.is_empty() {
             "Unknown".to_string()
@@ -216,7 +207,7 @@ pub fn playch(ctx: Ctx) -> Reply {
 
     let info = info(video, &kanal, &ch_id, potong_deskripsi(&video.description));
 
-    // `playch.js:141-144` — unduh byte audio.
+    // Unduh byte audio.
     let audio_buf = match ctx.http.get(audio_url) {
         Ok(res) => res.body.bytes().to_vec(),
         Err(_) => {
@@ -224,11 +215,11 @@ pub fn playch(ctx: Ctx) -> Reply {
         }
     };
     if audio_buf.len() < MIN_AUDIO {
-        // `playch.js:144` — `throw new Error("Audio terlalu kecil")`.
+        // `throw new Error("Audio terlalu kecil")`.
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
 
-    // `playch.js:145-146` — konversi opus.
+    // Konversi opus.
     let opus = match ke_opus(&audio_buf) {
         Ok(b) if b.len() >= MIN_OPUS => b,
         _ => {
@@ -359,19 +350,19 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `playch.js:100-102` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "🎵 *PLAY SALURAN*\n\n`.playch <judul lagu>`\n`.playch --idch <id_saluran> <judul lagu>`"
         );
-        // `playch.js:104-106` — saluran belum diatur.
+        // Saluran belum diatur.
         assert_eq!(
             tanpa_saluran(),
             "❌ Saluran belum diatur. Gunakan `--idch <id>` atau atur di config.js"
         );
-        // `playch.js:112` — video tidak ditemukan.
+        // Video tidak ditemukan.
         assert_eq!(video_tidak_ditemukan(), "❌ Video tidak ditemukan");
-        // `playch.js:121-135` — teks informasi.
+        // Teks informasi.
         let v = video(213);
         let t = info(&v, "Channel Uji", "123@newsletter", Some(("Deskripsi".into(), false)));
         assert_eq!(

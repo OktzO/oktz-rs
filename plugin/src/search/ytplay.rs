@@ -1,59 +1,33 @@
-//! `plugins/search/ytplay.js` — putar video YouTube via WebSocket player.
+//! Putar video YouTube via WebSocket player.
 //!
-//! PENYIMPANGAN (dijelaskan di laporan akhir):
-//!
-//! JS membangun HTML player sendiri (`buildPlayerHtml`, `ytplay.js:44-844`)
-//! dan mengirimkannya sebagai kartu AI-Rich (`AIRich` + `unifiedResponse`),
-//! lalu player itu menarik video lewat WebSocket
-//! `wss://stream.kanara.my.id/?url=…`.
-//!
-//! Kartu HTML dikirim lewat `RichAi` (`Reply::TabelAi`) dengan section
-//! `GenAIaeacdsnwHtmlPrimitive` — bentuk `aiRich.addSection(...) ; aiRich.send`
-//! (`ytplay.js:891-905`), tapi typenamenya BUKAN `FOAHtmlPrimitiveDemoDONOTUSE`
-//! yang dipakai JS: capture pesan nyata yang bekerja
-//! (`Vanta-effect/lib/richhtml.js:24`, 2026-11-18) dan empat implementasi
-//! publik lain memakai `GenAIaeacdsnwHtmlPrimitive`, sementara `*DEMO*`
-//! hanya muncul di contoh mainan. Submessage teks judul ditambahkan (JS
-//! tidak mengirimnya, tapi parser klien menolak `submessages` kosong).
-//!
-//! Muatan HTML dibatasi `play2::MAX_HTML_PAYLOAD_BYTES` (768 KB, batas asli
-//! klien TERUKUR — adendum 11): poster dibuang kalau masih kelebihan.
-//!
-//! `ponytail:` streaming WebSocket `wss://stream.kanara.my.id/?url=…`
-//! (`ytplay.js:879`, `startVideoStream`) tidak bisa dicapai dari API plugin
-//! (tidak ada klien WebSocket) — player HTML memakai URL direct 360p
-//! (`getYoutubeDirectUrl`, sama seperti `search/playvid.rs`) sebagai
-//! `<video src>`, dan URL WS ditampilkan sebagai teks di dalam player
-//! untuk pemutar eksternal. Upgrade path: tambah klien WebSocket di
-//! `oktz-plugin-api`, atau varian HTML RichAi di sana bila klien butuh
-//! `wsUrl` terstruktur.
-//!
-//! HTML player `buildPlayerHtml` 800 baris (`ytplay.js:44-844`) tidak
-//! disalin utuh: versi ringkas di sini memuat title, channel, durasi,
-//! poster base64 (download seperti `ytplay.js:864-873`), `<video controls>`
-//! dengan `src` direct 360p, dan tombol ganti kualitas 360p/720p.
+//! `Keterbatasan:` streaming WebSocket `wss://stream.kanara.my.id/?url=…` tidak bisa
+//! dicapai dari API plugin (tidak ada klien WebSocket) — player HTML memakai URL direct
+//! 360p (`getYoutubeDirectUrl`, sama seperti `search/playvid.rs`) sebagai `<video src>`,
+//! dan URL WS ditampilkan sebagai teks di dalam player untuk pemutar eksternal. Upgrade
+//! path: tambah klien WebSocket di `oktz-plugin-api`, atau varian HTML RichAi di sana bila
+//! klien butuh `wsUrl` terstruktur.
 
 use oktz_plugin_api::{AiSubMessage, Ctx, Reply, RichAi, plugin};
 use serde_json::json;
 
 use super::play2::{MAX_HTML_PAYLOAD_BYTES, POSTER_PLACEHOLDER, cari_video, poster_base64};
 
-/// `ytplay.js:849-851` — judul/link kosong.
+/// Judul/link kosong.
 pub(crate) fn tanpa_judul(prefix: &str) -> String {
     format!("Mana judul atau link video YouTube yang mau diputar?\n\nContoh: {prefix}ytplay melukis senja")
 }
 
-/// `ytplay.js:889` — judul header kartu.
+/// Judul header kartu.
 pub(crate) fn judul_header(judul: &str) -> String {
     format!("YOUTUBE PLAY - {judul}")
 }
 
-/// `ytplay.js:910` — gagal.
+/// Gagal.
 pub(crate) fn gagal(pesan: &str) -> String {
     format!("Gagal memutar video YouTube.\n{pesan}")
 }
 
-/// `info.duration` → `"m:ss"` (`ytplay.js:875-877`).
+/// `info.duration` → `"m:ss"`.
 pub(crate) fn format_durasi(detik: u64) -> String {
     if detik == 0 {
         return String::new();
@@ -61,7 +35,7 @@ pub(crate) fn format_durasi(detik: u64) -> String {
     format!("{}:{:02}", detik / 60, detik % 60)
 }
 
-/// `escapeHtmlJs` (`ytplay.js:35-42`) — escape untuk string di dalam
+/// `escapeHtmlJs` — escape untuk string di
 /// template HTML: `\`, `"`, backtick, `${`, dan `<`.
 pub(crate) fn escape_js(value: &str) -> String {
     value
@@ -72,11 +46,11 @@ pub(crate) fn escape_js(value: &str) -> String {
         .replace('<', "\\x3C")
 }
 
-/// `buildPlayerHtml` (`ytplay.js:44-844`) versi ringkas: title, channel,
+/// `buildPlayerHtml` versi ringkas: title, channel,
 /// durasi, poster base64, `<video controls src=direct>` + ganti kualitas
 /// 360p/720p (`hd_url` kosong = tanpa tombol), dan `wsUrl` sebagai teks
-/// fallback (streaming WS tidak tercapai — lihat `ponytail:` di header
-/// modul). Pause/seek/mute pakai kontrol native `<video controls>` (JS
+/// fallback (streaming WS tidak tercapai — lihat `Keterbatasan:` di header
+/// modul). Pause/seek/mute pakai kontrol native `<video controls>` (versi awal
 /// custom bar tidak disalin ulang).
 pub(crate) fn build_player_html(
     title: &str,
@@ -133,7 +107,7 @@ function gantiQ(u,btn){{const t=vid.currentTime;vid.src=u;vid.onloadedmetadata=(
     )
 }
 
-/// Section kartu HTML — bentuk `ytplay.js:892-904` dengan primitive
+/// Section kartu HTML — bentuk dengan primitive
 /// `GenAIaeacdsnwHtmlPrimitive` (lihat catatan modul).
 /// `view_model.title` = `titleHeader` (`YOUTUBE PLAY - <judul>`).
 pub(crate) fn section_html(title_header: &str, payload: &str) -> serde_json::Value {
@@ -177,17 +151,17 @@ pub fn ytplay(ctx: Ctx) -> Reply {
     let videos = match cari_video(ctx.http.as_ref(), &query) {
         Ok(v) => v,
         Err(e) => {
-            // `ytplay.js:908-911` — ☢ lalu pesan gagal.
+            // ☢ lalu pesan gagal.
             return Reply::text(gagal(&e.message)).with_reaction("☢");
         }
     };
 
     let Some(video) = videos.first().cloned() else {
-        // `ytplay.js:25` — `throw new Error("Video tidak ditemukan.")`.
+        // `throw new Error("Video tidak ditemukan.")`.
         return Reply::text(gagal("Video tidak ditemukan.")).with_reaction("☢");
     };
 
-    // `ytplay.js:858` — `getYoutubeDirectUrl(yt.url, "360")`.
+    // `getYoutubeDirectUrl(yt.url, "360")`.
     let direct =
         match oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("360"))
         {
@@ -197,7 +171,7 @@ pub fn ytplay(ctx: Ctx) -> Reply {
             }
         };
     let Some(direct_url) = direct.get("url").and_then(|v| v.as_str()) else {
-        // `ytplay.js:860-862` — `throw new Error("Gagal mendapatkan direct link video.")`.
+        // `throw new Error("Gagal mendapatkan direct link video.")`.
         return Reply::text(gagal("Gagal mendapatkan direct link video.")).with_reaction("☢");
     };
 
@@ -218,7 +192,7 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         .filter(|c| !c.is_empty())
         .unwrap_or(video.author_name.as_str());
 
-    // `posterBase64` (`ytplay.js:864-873`): thumbnail diunduh lalu base64.
+    // `posterBase64`: thumbnail diunduh lalu base64.
     // Rust memakai `thumb` direct bila ada, jatuh ke thumbnail pencarian.
     let thumb = direct
         .get("thumb")
@@ -227,8 +201,8 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         .unwrap_or(video.thumbnail.as_str());
     let poster = poster_base64(ctx.http.as_ref(), thumb);
 
-    // `wsUrl` (`ytplay.js:879`) — ditampilkan sebagai teks di player;
-    // streaming WS-nya sendiri tidak tercapai (lihat `ponytail:` modul).
+    // `wsUrl` — ditampilkan sebagai teks di player;
+    // streaming WS-nya sendiri tidak tercapai (lihat `Keterbatasan:` modul).
     let ws_url = format!(
         "wss://stream.kanara.my.id/?url={}",
         url_encode(direct_url)
@@ -253,13 +227,13 @@ pub fn ytplay(ctx: Ctx) -> Reply {
         );
     }
     if html.len() > MAX_HTML_PAYLOAD_BYTES {
-        // Jalur yang mestinya tidak pernah tercapai: poster sudah dibuang dan
+        // Jalur yang mestinya tidak pernah tercapai: poster sudah dibuang
         // sisa HTML ±3 KB. Balas teks gagal, jangan kirim kartu yang ditolak.
         return Reply::text(gagal("Kartu HTML terlalu besar untuk klien WhatsApp."))
             .with_reaction("☢");
     }
     let rich = RichAi {
-        // `ytplay.js:882-898` hanya `addSection` — tapi parser submessage
+        // hanya `addSection` — tapi parser submessage
         // klien melempar "No fragments parsed" kalau `submessages` kosong
         // (dump `WAWebRichResponseParseUtils`), dan semua pengirim kartu
         // HTML yang terbukti render menyertakan ≥1 submessage teks.
@@ -424,7 +398,7 @@ mod tests {
         let Reply::TabelAi(rich) = balasan.without_mutations().tanpa_reaksi() else {
             panic!("harus TabelAi");
         };
-        // `ytplay.js:905` — `aiRich.send` = AIRich; Rust menyusul edit identik
+        // `aiRich.send` = AIRich; Rust menyusul edit identik
         // (adendum 8: syarat render kartu HTML di klien owner).
         assert_eq!(rich.sections.len(), 1, "kartu player hanya satu section HTML");
         assert_eq!(rich.bot_jid.as_deref(), Some("0@bot"));
@@ -446,19 +420,19 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `ytplay.js:849-851` — judul kosong.
+        // Judul kosong.
         assert_eq!(
             tanpa_judul("."),
             "Mana judul atau link video YouTube yang mau diputar?\n\nContoh: .ytplay melukis senja"
         );
-        // `ytplay.js:889` — judul header.
+        // Judul header.
         assert_eq!(judul_header("Lagu"), "YOUTUBE PLAY - Lagu");
-        // `ytplay.js:910` — pesan gagal.
+        // Pesan gagal.
         assert_eq!(
             gagal("Video tidak ditemukan."),
             "Gagal memutar video YouTube.\nVideo tidak ditemukan."
         );
-        // `ytplay.js:875-877` — durasi `m:ss`.
+        // Durasi `m:ss`.
         assert_eq!(format_durasi(213), "3:33");
         assert_eq!(format_durasi(3723), "62:03");
         assert_eq!(format_durasi(0), "");

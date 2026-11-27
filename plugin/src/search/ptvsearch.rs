@@ -1,8 +1,8 @@
-//! `plugins/search/ptvsearch.js` — cari video TikTok via scraper `tiktoksearch`.
+//! Cari video TikTok via scraper `tiktoksearch`.
 //!
-//! `ponytail:` JS mengirim `video: { url }` dengan `mimetype: video/mp4` dan
-//! `ptv: true`, tanpa caption. `Reply::video` tidak punya bidang `ptv`, jadi
-//! dikirim sebagai video biasa. Satu reaksi akhir (`✅`/`❌`/`☢`) dipasang.
+//! `Keterbatasan:` versi awal mengirim `video: { url }` dengan `mimetype: video/mp4` dan
+//! `ptv: true`, tanpa caption. `Reply::video` tidak punya bidang `ptv`, jadi dikirim
+//! sebagai video biasa. Satu reaksi akhir (`✅`/`❌`/`☢`) dipasang.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -69,9 +69,9 @@ pub fn ptvsearch(ctx: Ctx) -> Reply {
     Reply::video(MediaSource::url(link.to_string()), "").with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -197,9 +197,9 @@ mod tests {
     #[test]
     fn jalur_berhasil_mengirim_video_dengan_link_random() {
         // Dua item dengan link; urutan stabil di test karena random_index
-        // dipanggil sekali. Kita cakup: link yang keluar harus salah satu dari
+        // dipanggil sekali. Kita cakup: link yang keluar harus salah satu
         // dua yang diketahui.
-        // `tiktoksearch.js:31` — `link: normalizeUrl(item?.data)`; item tanpa
+        // `link: normalizeUrl(item?.data)`; item tanpa
         // field `data` dibuang scraper, jadi fixture pakai `data`.
         let body = serde_json::json!({
             "status": true,

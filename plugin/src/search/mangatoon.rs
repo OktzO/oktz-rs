@@ -1,31 +1,26 @@
-//! `plugins/search/mangatoon.js` — cari komik di Mangatoon lewat API Cuki.
+//! Cari komik di Mangatoon lewat API Cuki.
 //!
-//! Kunci `config.APIkey?.cuki` dibaca dari `ctx.config()`. Cabang "API Key
-//! belum diset" (`mangatoon.js:53`) benar kalau kuncinya kosong — persis
-//! seperti `process.env.APIKEY_CUKI || ""` di `config.js`.
+//! `Keterbatasan:` `sock.sendMedia(m.chat, cover, caption.trim(), m, {type:'image'})` ada
+//! padanannya: `Reply::Image` dengan `MediaSource::url`.
 //!
-//! `ponytail:` `sock.sendMedia(m.chat, cover, caption.trim(), m, {type:'image'})`
-//! ada padanannya: `Reply::Image` dengan `MediaSource::url`.
-//!
-//! `ponytail:` `trimText` memakai `value.length` dan `value.slice`, yaitu
-//! satuan UTF-16 V8. Di sini dipakai `.chars()` — beda hanya untuk emoji dan
-//! karakter astral di luar BMP.
+//! `Keterbatasan:` `trimText` memakai `value.length` dan `value.slice`, yaitu satuan UTF-16
+//! V8. Di sini dipakai `.chars()` — beda hanya untuk emoji dan karakter astral di luar BMP.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `mangatoon.js:50` — kartu pakai saat `m.text` kosong.
+/// Kartu pakai saat `m.text` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!("📚 *MANGATOON SEARCH*\n\n> Contoh:\n`{prefix}mangatoon love`")
 }
 
-/// `mangatoon.js:54` — teks literal, bukan lewat `explainFailure`.
+/// Teks literal, bukan lewat `explainFailure`.
 pub(crate) const MISSING_KEY: &str =
     "❌ *API Key belum diset!*\n\n> Isi `APIKEY_CUKI` di file `.env`, lalu restart bot";
 
-/// `mangatoon.js:23-28` — spasi beruntai dirapatkan jadi satu, string kosong
+/// Spasi beruntai dirapatkan jadi satu, string kosong
 /// jadi `-`, dan teks panjang dipotong pada `max` karakter (bukan `max + 1`).
 pub(crate) fn trim_text(text: Option<&str>, max: usize) -> String {
     let value = collapse_spaces(text.unwrap_or(""));
@@ -39,7 +34,7 @@ pub(crate) fn trim_text(text: Option<&str>, max: usize) -> String {
     chars.into_iter().take(max).collect::<String>() + "..."
 }
 
-/// `String.prototype.replace(/\s+/g, " ")` — hanya whitespace ASCII dan
+/// `String.prototype.replace(/\s+/g, " ")` — hanya whitespace ASCII
 /// Unicode yang dikenal Rust; hasil `trim()` diambil dari sisanya.
 fn collapse_spaces(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
@@ -71,7 +66,7 @@ fn or_truthy(value: Option<&Value>, fallback: &str) -> String {
     }
 }
 
-/// `mangatoon.js:69-77` — caption hasil, sudah di-`trim()` seperti di JS.
+/// Caption hasil, sudah di-`trim()` seperti di versi awal.
 pub(crate) fn caption(items: &[Value], data: &Value, query: &str) -> String {
     let mut txt = String::from("📚 *MANGATOON SEARCH*\n\n");
     txt.push_str(&format!(
@@ -97,7 +92,7 @@ pub(crate) fn caption(items: &[Value], data: &Value, query: &str) -> String {
     txt.trim().to_string()
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 pub(crate) fn interp(value: Option<&Value>) -> String {
     match value {
@@ -108,7 +103,7 @@ pub(crate) fn interp(value: Option<&Value>) -> String {
     }
 }
 
-/// `mangatoon.js:61-62` — grup `results.komik[].items[]` diratakan jadi satu
+/// Grup `results.komik[].items[]` diratakan jadi satu
 /// daftar lalu dipotong 10.
 pub(crate) fn flat_items(data: &Value) -> Vec<Value> {
     let mut out: Vec<Value> = Vec::new();
@@ -123,7 +118,7 @@ pub(crate) fn flat_items(data: &Value) -> Vec<Value> {
     out
 }
 
-/// `fetchMangatoon` (`mangatoon.js:30-44`) — endpoint + dua header.
+/// `fetchMangatoon` — endpoint + dua header.
 fn api_url(query: &str, api_key: &str) -> String {
     format!(
         "https://api.cuki.biz.id/api/search/mangatoon?apikey={}&query={}",
@@ -156,7 +151,7 @@ pub fn mangatoon(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `mangatoon.js:53` dicek sebelum `m.react('🔍')` di `:57`, jadi cabang ini
+    // dicek sebelum `m.react('🔍')` di `:57`, jadi cabang ini
     // tidak bereaksi sama sekali.
     if ctx.config().api_keys.cuki.is_empty() {
         return Reply::text(MISSING_KEY);
@@ -213,7 +208,7 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    // Selalu gagal: jalur HTTP di JS tidak terjangkau selama kunci kosong,
+    // Selalu gagal: jalur HTTP di versi awal tidak terjangkau selama kunci kosong,
     // jadi stub hanya dipakai untuk membuktikan tidak ada request yang dikirim.
     #[derive(Debug, Default)]
     struct Stub {
@@ -336,7 +331,7 @@ mod tests {
     #[test]
     fn a_query_hits_the_missing_key_branch_without_a_request() {
         // `config.APIkey.cuki` tidak ada di `Ctx`, jadi cabang ini selalu benar
-        // — persis seperti `canvas::pakustad`.
+        // Persis seperti `canvas::pakustad`.
         let http = Stub::offline();
         let r = run(http.clone(), "love");
         assert_eq!(
@@ -444,7 +439,7 @@ mod tests {
 
     #[test]
     fn a_missing_results_key_flattens_to_nothing() {
-        // `data.results` ada tapi bukan objek dengan `komik` — `flatMap` JS
+        // `data.results` ada tapi bukan objek dengan `komik` — `flatMap` versi awal
         // menolak `entry?.items` yang bukan array.
         let data = serde_json::json!({ "results": { "komik": "bukan array" } });
         assert!(flat_items(&data).is_empty());

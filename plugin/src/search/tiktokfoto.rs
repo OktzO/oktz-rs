@@ -1,9 +1,5 @@
-//! `plugins/search/tiktokfoto.js` — cari foto TikTok dan kirim album gambar.
-//!
-//! `NOTE (mod.rs):` `search/mod.rs` sudah memuat banyak plugin (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak menambahkan `pub mod`.
-//! Tambahkan baris berikut secara manual ke `src/search/mod.rs`:
-//!   pub mod tiktokfoto;
+//! Cari foto TikTok dan kirim album gambar.
+
 //
 //! Pemanggilan API lewat `ctx.http.get`. Hasil gambar dikirim sebagai
 //! `Reply::Sequence` agar terkirim berurutan, mirip `albumMessage` di JS.
@@ -146,7 +142,7 @@ pub fn tiktokfoto(ctx: Ctx) -> Reply {
     Reply::sequence(replies)
 }
 
-/// `encodeURIComponent` — sama dengan JS (`tiktokfoto.js:40`).
+/// `encodeURIComponent` — sama dengan versi awal.
 fn url_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {

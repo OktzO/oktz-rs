@@ -1,31 +1,27 @@
-//! `plugins/search/spotplay.js` — putar musik dari Spotify.
+//! Putar musik dari Spotify.
 //!
-//! `ponytail:` JS memakai dua resolutions berurutan:
+//! `Keterbatasan:` versi awal memakai dua resolutions berurutan:
 //! 1. `resolver.resolve("spotify", { q })` — cari track, ambil yang tautannya
-//!    `open.spotify.com/track/` (`spotplay.js:30`).
+//! `open.spotify.com/track/`.
 //! 2. `resolver.resolve("spotify", { url })` — ambil link unduhan.
 //!
-//! Backend lokal (spotyloader) sudah ada di crate scraper: `oktz_scraper::spotify::download_spotify`
-//! (`src/scraper/spotify.js`). Backend pencarian tidak punya padanan lokal —
-//! sama seperti `search/spotify.rs`, pencarian memakai agregator `nexray`.
-//!
-//! `ponytail:` `sock.sendMedia(..., { type: "audio", mimetype: "audio/mpeg",
-//! ptt: false, fileName })` — `Reply::Audio` tidak punya field nama berkas,
-//! jadi nama berkas `Artis - Judul.mp3` tidak ikut (dicatat di laporan).
+//! `Keterbatasan:` `sock.sendMedia(..., { type: "audio", mimetype: "audio/mpeg", ptt:
+//! false, fileName })` — `Reply::Audio` tidak punya field nama berkas, jadi nama berkas
+//! `Artis - Judul.mp3` tidak ikut (dicatat di laporan).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use super::spotify::{cari_lagu, tautan_track_spotify};
 
-/// `spotplay.js:19` — kartu pakai.
+/// Kartu pakai.
 fn help(prefix: &str) -> String {
     format!("⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{prefix}spotplay <query>`")
 }
 
-/// `spotplay.js:34` — tidak ada track yang cocok.
+/// Tidak ada track yang cocok.
 const TIDAK_DITEMUKAN: &str = "❌ Lagu Spotify tidak ditemukan.";
 
-/// `spotplay.js:41` — unduhan gagal.
+/// Unduhan gagal.
 const GAGAL_UNDUH: &str = "❌ Gagal mengambil link download lagu Spotify.";
 
 #[plugin(
@@ -53,18 +49,18 @@ pub fn spotplay(ctx: Ctx) -> Reply {
     let tracks = match cari_lagu(ctx.http.as_ref(), &query) {
         Ok(t) => t,
         Err(_) => {
-            // `spotplay.js:52-56` — ☢ lalu template error.
+            // ☢ lalu template error.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
-    // `spotplay.js:30` — hanya track Spotify yang bisa diputar.
+    // Hanya track Spotify yang bisa diputar.
     let first = tracks
         .iter()
         .find(|t| tautan_track_spotify(&t.url))
         .cloned();
     let Some(first) = first else {
-        // `spotplay.js:32-35` — ❌ lalu pesan tidak ditemukan.
+        // ❌ lalu pesan tidak ditemukan.
         return Reply::text(TIDAK_DITEMUKAN).with_reaction("❌");
     };
 
@@ -72,7 +68,7 @@ pub fn spotplay(ctx: Ctx) -> Reply {
         match oktz_scraper::spotify::download_spotify(ctx.http.as_ref(), &first.url) {
             Ok(v) => v,
             Err(_) => {
-                // `spotplay.js:52-56` — catch → ☢ + template error.
+                // Catch → ☢ + template error.
                 return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
             }
         };
@@ -82,11 +78,11 @@ pub fn spotplay(ctx: Ctx) -> Reply {
         .and_then(|v| v.as_str())
         .filter(|u| !u.is_empty())
     else {
-        // `spotplay.js:39-42` — ❌ lalu pesan gagal unduh.
+        // ❌ lalu pesan gagal unduh.
         return Reply::text(GAGAL_UNDUH).with_reaction("❌");
     };
 
-    // `spotplay.js:44-49` — kirim audio.
+    // Kirim audio.
     Reply::audio(MediaSource::url(url).with_mimetype("audio/mpeg")).with_reaction("✅")
 }
 
@@ -197,12 +193,12 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `spotplay.js:19` — kartu pakai: `ᴄᴀʀᴀ ᴘᴀᴋᴀɪ` (bukan `ᴘᴀᴋᴜɪ`).
+        // Kartu pakai: `ᴄᴀʀᴀ ᴘᴀᴋᴀɪ` (bukan `ᴘᴀᴋᴜɪ`).
         assert_eq!(
             help("."),
             "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.spotplay <query>`"
         );
-        // `spotplay.js:34` — track tidak ditemukan.
+        // Track tidak ditemukan.
         let http = Stub::baru(vec![r#"{"status":true,"result":[]}"#]);
         let r = run(http, "x");
         assert_eq!(text_of(&r), TIDAK_DITEMUKAN);

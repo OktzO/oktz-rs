@@ -1,20 +1,16 @@
-//! `plugins/search/soundcloud.js` — cari lagu di SoundCloud lewat m.soundcloud.com.
+//! Cari lagu di SoundCloud lewat m.soundcloud.com.
 //!
-//! `ponytail:` JS memakai `cheerio` untuk ambil teks `#__NEXT_DATA__` lalu
-//! `JSON.parse`. `oktz-plugins` tidak punya parser HTML, jadi elemen
-//! `#__NEXT_DATA__` dicari manual dan isi teksnya di-parse sebagai JSON.
+//! `Keterbatasan:` versi awal memakai `cheerio` untuk ambil teks `#__NEXT_DATA__` lalu
+//! `JSON.parse`. `oktz-plugins` tidak punya parser HTML, jadi elemen `#__NEXT_DATA__`
+//! dicari manual dan isi teksnya di-parse sebagai JSON.
 //!
-//! `ponytail:` `new URL(image, url).href` untuk resolve gambar — di sini
-//! URL relatif diselesaikan terhadap base.
+//! `Keterbatasan:` `new URL(image, url).href` untuk resolve gambar — di sini URL relatif
+//! diselesaikan terhadap base.
 //!
-//! `ponytail:` `sock.sendMedia(..., { type: 'image' })` menjadi
+//! `Keterbatasan:` `sock.sendMedia(..., { type: 'image' })` menjadi
 //! `Reply::image(MediaSource::Url)` dengan caption.
 //!
-//! `ponytail:` `m.react` dua kali (`🕕` lalu `✅`) — hanya reaksi akhir.
-//!
-//! Catatan: baris `pub mod soundcloud;` perlu ditambahkan ke
-//! `rust/crates/oktz-plugins/src/search/mod.rs` oleh orchestrator (tidak boleh
-//! disentuh agent porting per aturan PORT-BRIEF #2).
+//! `Keterbatasan:` `m.react` dua kali (`🕕` lalu `✅`) — hanya reaksi akhir.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -62,7 +58,7 @@ fn sc_search(http: &dyn oktz_plugin_api::HttpGet, query: &str) -> Result<Vec<Tra
 /// Ekstraksi isi teks dari elemen `#__NEXT_DATA__`.
 fn extract_next_data(html: &str) -> String {
     let pola = r#"id="__NEXT_DATA__""#;
-    // Kemunculan pertama saja — JS `cheerio` mengambil elemen pertama.
+    // Kemunculan pertama saja — versi awal `cheerio` mengambil elemen pertama.
     if let Some(abs) = html.find(pola) {
         // Cari `>` setelah atribut
         let after = &html[abs + pola.len()..];
@@ -82,7 +78,7 @@ fn extract_next_data(html: &str) -> String {
 
 /// Map satu objek track JSON ke struct Track.
 ///
-/// `soundcloud.js:37` — `.filter((v) => v && v.data && v.data.title)`: item
+/// `.filter((v) => v && v.data && v.data.title)`: item
 /// tanpa `data.title` yang truthy dibuang SEBELUM pemetaan, jadi track tanpa
 /// judul tidak pernah sampai ke teks hasil.
 fn track_from_value(v: &Value) -> Option<Track> {
@@ -102,7 +98,7 @@ fn track_from_value(v: &Value) -> Option<Track> {
     Some(Track { title, url, artwork, plays, likes, comments, reposts })
 }
 
-/// Encode query parameter seperti `encodeURIComponent` JS.
+/// Encode query parameter seperti `encodeURIComponent` versi awal.
 fn encode_query(q: &str) -> String {
     let mut out = String::with_capacity(q.len());
     for b in q.bytes() {
@@ -167,7 +163,7 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
     let tracks = match sc_search(ctx.http.as_ref(), &query) {
         Ok(t) => t,
         Err(e) => {
-            // `soundcloud.js:99` — `❌ Maaf kak, terjadi kesalahan sistem!` +
+            // `❌ Maaf kak, terjadi kesalahan sistem!` +
             // baris `Error: ${e.message}`.
             return Reply::text(format!("❌ Maaf kak, terjadi kesalahan sistem!\nError: {e}"));
         }
@@ -192,7 +188,7 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
             content_txt.push_str("\n\n");
         }
     }
-    // `soundcloud.js:89` — `.trim().split("\n").map(line => line.trim() ? line : "")`
+    // `.trim().split("\n").map(line => line.trim() ? line: "")`
     // MEMPERTAHANKAN jumlah baris: baris kosong jadi string kosong, bukan
     // dihapus. Menghapus baris akan mengubah tinggi blok hasil.
     let lines: Vec<String> = content_txt
@@ -203,7 +199,7 @@ pub fn soundcloud(ctx: Ctx) -> Reply {
     let content_txt = lines.join("\n");
     txt.push_str(&content_txt);
     txt.push_str("\n\n");
-    // `soundcloud.js:91` — backtick menutup setelah `playsc`.
+    // Backtick menutup setelah `playsc`.
     txt.push_str(&format!(
         "Kalo mau download lagunya, pake fitur `{}playsc` aja kak! 😉",
         ctx.prefix
@@ -308,19 +304,19 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `soundcloud.js:60-66` — kartu penggunaan.
+        // Kartu penggunaan.
         assert_eq!(
             help("."),
             "🎵 *SOUNDCLOUD SEARCH* 🎵\n\nHalo kak! Mau cari lagu apa hari ini?\n\n\
              *Cara Pakai:*\n👉 `.soundcloud <judul lagu>`\n\n\
              *Contoh:*\n`.soundcloud Only We Know`"
         );
-        // `soundcloud.js:74` — tidak ketemu.
+        // Tidak ketemu.
         assert_eq!(
             text_of(&run(StubHttp::body(HTML_WITHOUT_DATA), "tidakada")),
             "❌ Aduh kak, lagunya nggak ketemu nih! Coba cari dengan judul yang beda ya. 😭"
         );
-        // `soundcloud.js:99` — error sistem + `Error: <pesan>`.
+        // Error sistem + `Error: <pesan>`.
         assert_eq!(
             text_of(&run(StubHttp::offline(), "jazz")),
             "❌ Maaf kak, terjadi kesalahan sistem!\nError: Gagal mencari: offline"
@@ -329,7 +325,7 @@ mod tests {
 
     #[test]
     fn track_tanpa_judul_dibuang_seperti_filter_js() {
-        // `soundcloud.js:37` — `.filter((v) => v && v.data && v.data.title)`.
+        // `.filter((v) => v && v.data && v.data.title)`.
         let json = serde_json::json!({
             "props": {"pageProps": {"initialStoreState": {"entities": {"tracks": {
                 "1": {"data": {"title": "", "permalink_url": "u1"}},
@@ -344,7 +340,7 @@ mod tests {
 
     #[test]
     fn baris_kosong_pertahankan_jumlah_baris() {
-        // `soundcloud.js:89` — baris kosong jadi string kosong, bukan hilang.
+        // Baris kosong jadi string kosong, bukan hilang.
         let http = StubHttp::body(HTML_WITH_DATA);
         let r = run(http, "jazz");
         let t = text_of(&r);

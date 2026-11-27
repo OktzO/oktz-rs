@@ -1,29 +1,20 @@
-//! `plugins/search/google.js` — cari berita di Google News.
+//! Cari berita di Google News.
 //!
-//! `ponytail:` JS memakai cheerio untuk mem-parse RSS. Di sini dokumen XML
-//! dibaca dengan pencarian tag sederhana — RSS Google News punya bentuk yang
-//! tetap (`<item>` dengan `<title>`, `<link>`, `<pubDate>`, `<source>`), jadi
-//! parser HTML tidak perlu dan menambah dependency baru dilarang.
-//!
-//! Dua header JS (`User-Agent` dan `X-Engine-Context`) belum bisa dikirim:
-//! `HttpGet` tidak punya setter header per-request. Keduanya dicatat di sini
-//! supaya tidak hilang saat mekanismenya ditambahkan.
-//!
-//! Host tidak ditulis langsung: `ENGINE_CONFIG.TARGET_HOST` di
-//! `src/scraper/google.js` disimpan sebagai base64 lalu di-decode sekali di
-//! konstruktor. Hasilnya sama, dan QString base64 ikut dipakai untuk
-//! `compileBinaryPayload`, jadi tidak ada kode base64 yang bisa insulting.
+//! `Keterbatasan:` versi awal memakai cheerio untuk mem-parse RSS. Di sini dokumen XML
+//! dibaca dengan pencarian tag sederhana — RSS Google News punya bentuk yang tetap
+//! (`<item>` dengan `<title>`, `<link>`, `<pubDate>`, `<source>`), jadi parser HTML tidak
+//! perlu dan menambah dependency baru dilarang.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `ENGINE_CONFIG` (`src/scraper/google.js:4-12`).
+/// `ENGINE_CONFIG`.
 const TARGET_HOST_B64: &str = "bmV3cy5nb29nbGUuY29t";
 const DEFAULT_LANG: &str = "id";
 const DEFAULT_REGION: &str = "ID";
 
-/// `ITEM_COUNT` = `result.results.slice(0, 10)` (`google.js:45`).
+/// `ITEM_COUNT` = `result.results.slice(0, 10)`.
 const MAX_ITEM: usize = 10;
 
 fn resolver_host() -> String {
@@ -32,8 +23,8 @@ fn resolver_host() -> String {
         .unwrap_or_else(|| "news.google.com".to_string())
 }
 
-/// Satu `<item>` — urutan field mengikuti `Object.defineProperties` di
-/// `google.js:74-95`.
+/// Satu `<item>` — urutan field mengikuti `Object.defineProperties`
+///
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct Item {
     /// `index_node` = `index + 1`, jadi mulai dari 1.
@@ -44,7 +35,7 @@ pub(crate) struct Item {
     pub(crate) origin_node: String,
 }
 
-/// `google.js:64-65` — teks daftar hasil.
+/// Teks daftar hasil.
 pub(crate) fn format_items(items: &[Item], query: &str) -> String {
     let mut txt = String::from("🔍 *Google News*\n\n");
     txt.push_str(&format!("> Pencarian: *{query}*\n\n"));
@@ -61,7 +52,7 @@ pub(crate) fn format_items(items: &[Item], query: &str) -> String {
     txt.trim().to_string()
 }
 
-/// `google.js:22-32`.
+///
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🔍 *Google News*\n\n\
@@ -71,7 +62,7 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `executeQueryPipeline` — URL RSS persis seperti di JS.
+/// `executeQueryPipeline` — URL RSS persis seperti di versi awal.
 pub(crate) fn search_url(query: &str) -> String {
     format!(
         "https://{}/rss/search?q={}&hl={}&gl={}&ceid={}:{}",
@@ -84,7 +75,7 @@ pub(crate) fn search_url(query: &str) -> String {
     )
 }
 
-/// `$extractCipherPayload` (`google.js:33-37`) — bagian setelah `articles/`,
+/// `$extractCipherPayload` — bagian setelah `articles/`,
 /// tanpa query string.
 fn extract_cipher_payload(source_url: &str) -> Option<&str> {
     let pointer = source_url.find("articles/")?;
@@ -93,7 +84,7 @@ fn extract_cipher_payload(source_url: &str) -> Option<&str> {
     Some(&tail[..end])
 }
 
-/// `$transformSerialization` (`google.js:39-46`) — base64url -> base64.
+/// `$transformSerialization` — base64url -> base64.
 fn transform_serialization(cipher: &str) -> String {
     let mut s: String = cipher.replace('-', "+").replace('_', "/");
     let pad = s.len() % 4;
@@ -103,9 +94,9 @@ fn transform_serialization(cipher: &str) -> String {
     s
 }
 
-/// `compileBinaryPayload` (`google.js:48-62`): token base64 di URL artikel
+/// `compileBinaryPayload`: token base64 di URL artikel
 /// concealing sebenarnya URL asli. Kalau decode atau pencocokan gagal, URL
-/// mentah dikembalikan — persis `catch` di JS.
+/// mentah dikembalikan — persis `catch` di versi awal.
 pub(crate) fn compile_binary_payload(raw_url: &str) -> String {
     let Some(token) = extract_cipher_payload(raw_url) else {
         return raw_url.to_string();
@@ -154,7 +145,7 @@ fn tag_text(inner: &str, tag: &str) -> String {
     }
 }
 
-/// `documentContext("item").each(...)` (`google.js:70-95`).
+/// `documentContext("item").each(...)`.
 pub(crate) fn parse_items(xml: &str) -> Vec<Item> {
     let mut out = Vec::new();
     let mut from = 0usize;
@@ -208,10 +199,10 @@ fn decode_base64(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// `executeQueryPipeline(searchToken)` (`src/scraper/google.js:62-122`).
+/// `executeQueryPipeline(searchToken)`.
 ///
 /// Mengembalikan `Err(pesan)` untuk cabang `status: false` — teksnya adalah
-/// `pipelineError.message` di JS, jadi pesan axios apa adanya. Plugin
+/// `pipelineError.message` di versi awal, jadi pesan axios apa adanya. Plugin
 /// membungkusnya jadi `❌ *Google Gagal*`.
 pub(crate) fn jalankan_pipeline(
     http: &dyn oktz_plugin_api::HttpGet,
@@ -255,7 +246,7 @@ pub fn google(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix)).with_reaction("❌");
     }
 
-    // `google.js:37-43` — `GoogleSearch` tidak pernah melempar; kegagalan
+    // `GoogleSearch` tidak pernah melempar; kegagalan
     // jaringan dikembalikan sebagai `{ status: false, error }`.
     let items = match jalankan_pipeline(ctx.http.as_ref(), &query) {
         Ok(v) => v,
@@ -265,11 +256,11 @@ pub fn google(ctx: Ctx) -> Reply {
     };
 
     if items.is_empty() {
-        // `google.js:47-50`.
+        //
         return Reply::text(format!("❌ Nggak nemu hasil buat: *{query}*")).with_reaction("☢");
     }
 
-    // `google.js:62` — `m.reply(txt.trim())`.
+    // `m.reply(txt.trim())`.
     Reply::text(format_items(&items, &query).trim().to_string()).with_reaction("✅")
 }
 
@@ -376,7 +367,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `google.js:24-32` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "🔍 *Google News*\n\n\
@@ -387,19 +378,19 @@ mod tests {
              > *.google gempa hari ini*\n\
              > *.google teknologi terbaru*"
         );
-        // `google.js:42` — Google gagal.
+        // Google gagal.
         let r = run(stub_gagal("offline"), "x");
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
             "❌ *Google Gagal*\n\n> offline"
         );
-        // `google.js:49` — tidak ada hasil.
+        // Tidak ada hasil.
         let r = run(stub("<rss><channel></channel></rss>"), "tidak ada");
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
             "❌ Nggak nemu hasil buat: *tidak ada*"
         );
-        // `google.js:52-60` — daftar hasil.
+        // Daftar hasil.
         let r = run(stub(FEED), "gempa");
         let t = r.without_mutations().text_body().unwrap();
         assert!(

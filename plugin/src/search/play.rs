@@ -1,12 +1,8 @@
-//! `plugins/search/play.js` — putar musik dari YouTube.
+//! Putar musik dari YouTube.
 //!
-//! Jalur utama: sistem baru `play.js` (akar repo) lewat
-//! [`oktz_scraper::playytmp3::ytmp3`] — pencarian halaman `results`
-//! (`ytInitialData`) + backend savetube → ytmp3.ing.
-//!
-//! ponytail: fallback = jalur ourin (`play.js` produksi): `yt-search` +
-//! nexray ([`crate::download::ytmp3::unduh_audio_nexray`]), dipakai hanya
-//! bila sistem baru gagal semua.
+//! Keterbatasan: fallback = `yt-search` + nexray
+//! ([`crate::download::ytmp3::unduh_audio_nexray`]), dipakai hanya bila sistem baru gagal
+//! semua.
 
 #![allow(clippy::too_many_arguments)]
 
@@ -16,18 +12,18 @@ use crate::download::ytmp3::{AudioDownload, mimetype_for, unduh_audio_nexray};
 
 use super::ytsearch;
 
-/// `play.js:26` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!("🎵 *ᴘʟᴀʏ*\n\n> Contoh:\n`{prefix}play komang`")
 }
 
-/// `play.js:91` — pesan kegagalan, tanpa template `te()`.
+/// Pesan kegagalan, tanpa template `te()`.
 pub(crate) const GAGAL: &str =
     "Wahhh, fitur putar musiknya lagi ada kendala kak, coba lagi nanti yak, jangan spam";
 
-/// `play.js:16-21` — `formatViews`.
+/// `formatViews`.
 ///
-/// `n` datang dari `yt-search` sebagai angka; `!n` menangkap `0`, `NaN`, dan
+/// `n` datang dari `yt-search` sebagai angka; `!n` menangkap `0`, `NaN`,
 /// `undefined`, semuanya jadi `"0"`.
 pub(crate) fn format_views(n: f64) -> String {
     if !n.is_finite() || n == 0.0 {
@@ -50,7 +46,7 @@ fn satu_desimal(n: f64) -> String {
     format!("{:.1}", (bawah + naik) / 10.0)
 }
 
-/// `play.js:42-55` — kartu `NOW PLAYING`. `desc` = deskripsi video.
+/// Kartu `NOW PLAYING`. `desc` = deskripsi video.
 pub(crate) fn now_playing(
     title: &str,
     author: &str,
@@ -84,12 +80,12 @@ pub(crate) fn now_playing(
     info
 }
 
-/// Jalur utama: sistem baru `play.js` (`oktz_scraper::playytmp3`) —
+/// Jalur utama: sistem baru (`oktz_scraper::playytmp3`) —
 /// pencarian `results` + savetube → ytmp3ing. Gagal semua → fallback
-/// ourin: `yt-search` + nexray.
+/// Fallback: `yt-search` + nexray.
 ///
-/// Kartu balik `(info, url, title, thumbnail)` — `thumbnail` untuk
-/// `Reply::preview` (`play.js:57-66`, `image: video.thumbnail`).
+/// Kartu balik `(info, url, title, thumbnail)` — `thumbnail`
+/// `Reply::preview`.
 fn cari_dan_unduh(
     ctx: &Ctx,
     query: &str,
@@ -121,7 +117,7 @@ fn cari_dan_unduh(
             return Ok((kartu, audio));
         }
     }
-    // --- Fallback ourin (`play.js` produksi): yt-search + nexray -------
+    // -- Fallback: yt-search + nexray -------
     let video = ytsearch::search(ctx.http.as_ref(), query)
         .map_err(|_| ())?
         .into_iter()
@@ -153,7 +149,7 @@ fn cari_dan_unduh(
     is_enabled = true,
     is_group = false,
     is_private = false,
-    // Tidak ada di pluginConfig JS.
+    // Tidak ada di pluginConfig versi awal.
     is_owner = false,
     is_premium = false,
     is_admin = false,
@@ -167,12 +163,12 @@ pub fn play(ctx: Ctx) -> Reply {
     }
 
     match cari_dan_unduh(&ctx, query) {
-        // `play.js:42-86` — kartu NOW PLAYING (preview-link ber-thumbnail,
-        // `play.js:57-70`), lalu audio, lalu ✅. Reaksi tidak boleh membungkus
+        // Kartu NOW PLAYING (preview-link ber-thumbnail,
+        // ), lalu audio, lalu ✅. Reaksi tidak boleh membungkus
         // `Reply::Sequence`, jadi 🕐/✅ jadi elemen urutan (pola `sticker.rs`).
         Ok((kartu, audio)) => Reply::sequence(vec![
             Reply::reaction("🕐"),
-            // `socket.js:1216` — `if (preview.image)`: thumbnail kosong/falsy
+            // `if (preview.image)`: thumbnail kosong/falsy
             // = kartu tanpa gambar.
             Reply::preview(
                 kartu.0,
@@ -184,7 +180,7 @@ pub fn play(ctx: Ctx) -> Reply {
             Reply::audio(Ms::url(audio.url).with_mimetype(mimetype_for(&audio.format))),
             Reply::reaction("✅"),
         ]),
-        // `play.js:87-93` — 😭 lalu pesan kegagalan.
+        // 😭 lalu pesan kegagalan.
         Err(()) => Reply::text(GAGAL).with_reaction("😭"),
     }
 }
@@ -313,7 +309,7 @@ mod tests {
       ]}}
     ]}}}}]}}"#;
 
-    /// `play.js:31-40` — `yt-search` lalu nexray.
+    /// `yt-search` lalu nexray.
     fn stub_sukses() -> Arc<Stub> {
         Stub::per_url(vec![
             (
@@ -346,7 +342,7 @@ mod tests {
         assert_eq!(p.meta.cooldown, 15);
         assert_eq!(p.meta.energi, 1);
         assert!(p.meta.is_enabled);
-        // Tidak ada di pluginConfig JS.
+        // Tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
     }
@@ -381,7 +377,7 @@ mod tests {
         };
         assert_eq!(list.len(), 4);
         assert!(matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🕐"));
-        // `play.js:57-70` — kartu preview-link: caption/info, URL video,
+        // Kartu preview-link: caption/info, URL video,
         // judul, deskripsi "YouTube Video", thumbnail `video.thumbnail`.
         let (info, url, judul) = match &list[1] {
             Reply::Preview { text, url, title, description, preview_type, thumbnail } => {
@@ -439,7 +435,7 @@ mod tests {
 
     #[test]
     fn a_backend_failure_falls_into_the_catch_branch() {
-        // nexray satu-satunya backend `.play`; status false → catch JS.
+        // nexray satu-satunya backend `.play`; status false → catch versi awal.
         let http = Stub::per_url(vec![
             (
                 "youtubei/v1/search",
@@ -454,7 +450,7 @@ mod tests {
 
     #[test]
     fn query_url_youtube_tetap_lewat_search_dan_nexray() {
-        // `yts(url)` juga mengembalikan video (`play.js:31`); jalur sama.
+        // `yts(url)` juga mengembalikan video; jalur sama.
         let http = stub_sukses();
         let r = run_http(http.clone(), "https://youtu.be/dQw4w9WgXcQ");
         let Reply::Sequence(_) = r.without_mutations() else {

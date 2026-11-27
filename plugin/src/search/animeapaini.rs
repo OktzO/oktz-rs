@@ -1,17 +1,12 @@
-//! `plugins/search/animeapaini.js` — tebak judul anime dari gambar.
+//! Tebak judul anime dari gambar.
 //!
-//! Media diambil lewat `m.download()` / `m.quoted.download()`, yang di `Ctx`
-//! adalah `ctx.download_media()` / `ctx.download_quoted_media()`; unggahan
-//! `form.append("image", buffer, { filename, contentType })` jadi
-//! `MultipartPart::file`.
+//! `Keterbatasan:` `sock.sendMessage({ image: { url }, caption })` dipetakan ke
+//! `Reply::image(MediaSource::Url, caption)`. `Reply::Image` tidak menyimpan status kutipan
+//! seperti `{ quoted: m }` di versi awal.
 //!
-//! `ponytail:` `sock.sendMessage({ image: { url }, caption })` dipetakan ke
-//! `Reply::image(MediaSource::Url, caption)`. `Reply::Image` tidak menyimpan
-//! status kutipan seperti `{ quoted: m }` di JS.
-//!
-//! `ponytail:` `full_matches` kosong tetap lolos guard (`![]` falsy di JS),
-//! lalu `full_matches[0].anilist` melempar TypeError dan masuk `catch` —
-//! hasilnya template error, bukan "tidak ditemukan".
+//! `Keterbatasan:` `full_matches` kosong tetap lolos guard (`![]` falsy di versi awal),
+//! lalu `full_matches[0].anilist` melempar TypeError dan masuk `catch` — hasilnya template
+//! error, bukan "tidak ditemukan".
 
 use oktz_plugin_api::{
     Ctx, HttpCall, IncomingKind, MediaSource, MultipartPart, QuotedKind, QuotedMessage, Reply,
@@ -21,16 +16,16 @@ use serde_json::Value;
 
 use crate::common::{js_truthy};
 
-/// `animeapaini.js:52` — endpoint cek anime.
+/// Endpoint cek anime.
 const ENDPOINT: &str = "https://my.izuka-api.xyz/api/anime/anime-checker";
 
-/// `animeapaini.js:46` — unduhan gambar gagal.
+/// Unduhan gambar gagal.
 const DOWNLOAD_FAILED: &str = "Maaf, sistem gagal mengunduh gambar yang kamu berikan. Silakan coba kirim ulang gambarnya!";
 
-/// `animeapaini.js:60` — judul tidak ketemu.
+/// Judul tidak ketemu.
 const NOT_FOUND: &str = "Maaf, judul anime tidak ditemukan. Coba dengan screenshot adegan yang lebih jelas atau karakter yang lebih spesifik.";
 
-/// `animeapaini.js:25-30` — kartu bantuan.
+/// Kartu bantuan.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🔍 *ANIME APA INI?*\n\n\
@@ -51,7 +46,7 @@ pub(crate) fn is_image(ctx: &Ctx) -> bool {
 }
 
 /// Ambil byte gambar sesuai urutan `if (m.quoted && m.quoted.isMedia) … else if
-/// (m.isMedia) …` di `animeapaini.js:38-42`.
+/// (m.isMedia) …`.
 fn unduh_gambar(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(QuotedMessage::is_media) {
         return ctx.download_quoted_media().ok();
@@ -96,7 +91,7 @@ pub(crate) fn parse_float(raw: &str) -> Option<f64> {
     t[..end].parse::<f64>().ok()
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -110,10 +105,10 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `resObj.similarity ? parseFloat(resObj.similarity) : match.similarity * 100`
-/// lalu `isNaN(x) ? resObj.similarity : x.toFixed(2)`.
+/// `resObj.similarity ? parseFloat(resObj.similarity): match.similarity * 100`
+/// lalu `isNaN(x) ? resObj.similarity: x.toFixed(2)`.
 ///
-/// `ponytail:` `toFixed(2)` JS membulatkan setengah ke arah luar sedangkan
+/// `Keterbatasan:` `toFixed(2)` versi awal membulatkan setengah ke arah luar sedangkan
 /// `{:.2}` Rust memakai pembulatan ke genap; angka tepat di tengah bisa
 /// berbeda satu digit terakhir. Teks asal (`"92.5%"`) tidak pernah terpengaruh.
 pub(crate) fn similarity_of(result: &Value, matched: &Value) -> String {
@@ -129,7 +124,7 @@ pub(crate) fn similarity_of(result: &Value, matched: &Value) -> String {
     }
 }
 
-/// `animeapaini.js:71-77` — teks hasil. Semua fallback diambil dari `match`.
+/// Teks hasil. Semua fallback diambil dari `match`.
 pub(crate) fn format_text(result: &Value, matched: &Value) -> String {
     let mut txt = String::from("🔍 *ANIME DITEMUKAN!*\n\n");
     txt.push_str(&format!(
@@ -178,16 +173,16 @@ pub(crate) fn image_of(result: &Value, matched: &Value) -> Option<String> {
 }
 
 /// `!data || !data.status || !data.result || !data.result.full_matches`
-/// (`animeapaini.js:58`) — `false` = cabang "tidak ditemukan".
+/// `false` = cabang "tidak ditemukan".
 pub(crate) fn guard_ok(data: &Value) -> bool {
     js_truthy(data.get("status"))
         && js_truthy(data.get("result"))
         && js_truthy(data.get("result").and_then(|r| r.get("full_matches")))
 }
 
-/// `full_matches[0]` (`animeapaini.js:66`).
+/// `full_matches[0]`.
 ///
-/// Array kosong (lolos guard di JS) dan bentuk non-array — yang di JS membuat
+/// Array kosong (lolos guard di versi awal) dan bentuk non-array — yang di versi awal membuat
 /// `matches[0].anilist` melempar TypeError dan masuk `catch` — keduanya
 /// `None` di sini.
 pub(crate) fn first_match(data: &Value) -> Option<&Value> {
@@ -384,9 +379,9 @@ mod tests {
         }
     }
 
-    // Fixture memakai judul berbahasa Rusia, bukan CJK: `title_native` di
-    // AniList memang berkode non-Latin, tapi huruf CJK tidak boleh bocor ke
-    // file .rs (aturan repo). Sifat multi-byte yang sedang diuji tetap sama.
+    // Fixture memakai judul berbahasa Rusia, bukan CJK: `title_native`
+    // AniList memang berkode non-Latin, tapi huruf CJK tidak boleh bocor
+    // file.rs (aturan repo). Sifat multi-byte yang sedang diuji tetap sama.
     const COCOK: &str = r#"{
         "status": true,
         "result": {
@@ -635,7 +630,7 @@ mod tests {
 
     #[test]
     fn without_an_image_source_the_answer_is_plain_text() {
-        // Bagian pertama: `match.image` dipakai kalau preview kosong (JS
+        // Bagian pertama: `match.image` dipakai kalau preview kosong (versi awal
         // `resObj.image_preview || match.image`).
         let data = serde_json::json!({
             "status": true,
@@ -649,7 +644,7 @@ mod tests {
             "preview kosong -> pakai `match.image`"
         );
         let r = run(Api::new(&data.to_string()), true, None);
-        // JS: `if (resObj.image_preview || match.image)` -> kirim sebagai
+        // versi awal: `if (resObj.image_preview || match.image)` -> kirim sebagai
         // gambar meski preview kosong; `match.image` yang dipakai.
         assert_eq!(
             r.media_source(),

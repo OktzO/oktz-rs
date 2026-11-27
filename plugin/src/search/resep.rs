@@ -1,12 +1,11 @@
-//! `plugins/search/resep.js` — pencarian resep makanan lewat Neoxr dengan sesi.
+//! Pencarian resep makanan lewat Neoxr dengan sesi.
 //!
-//! `ponytail:` `getDatabase()` (`db.getUser`/`db.save`) dan `resepAnswerHandler`
-//! (`answer_handler`) butuh store + pendaftaran answer handler yang tidak tersedia
-//! di `Ctx`; handler pencarian untuk teks tidak kosong diakhiri dengan
-//! `error_template` + `☢`. Fungsi URL dan rendering daftar/detail di-port agar
-//! bisa diuji. Saat store + answer handler tersedia, tambahkan
-//! `pub mod resep;` di `src/search/mod.rs` secara manual (mod.rs milik plugin
-//! lain — dilarang menyentuh per brief).
+//! `Keterbatasan:` `getDatabase()` (`db.getUser`/`db.save`) dan `resepAnswerHandler`
+//! (`answer_handler`) butuh store + pendaftaran answer handler yang tidak tersedia di
+//! `Ctx`; handler pencarian untuk teks tidak kosong diakhiri dengan `error_template` + `☢`.
+//! Fungsi URL dan rendering daftar/detail diimplementasikan agar bisa diuji. Saat store +
+//! answer handler tersedia, tambahkan `pub mod resep;` di `src/search/mod.rs` secara manual
+//! (mod.rs milik plugin lain — dilarang menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 #[cfg(test)]
@@ -15,14 +14,14 @@ use serde_json::Value;
 #[cfg(test)]
 const API: &str = "https://api.neoxr.eu/api";
 
-/// Hasil satu pencarian resep (`resep.js:51-54`).
+/// Hasil satu pencarian resep.
 #[cfg(test)]
 pub(crate) struct ResepHasil {
     pub name: String,
     pub url: String,
 }
 
-/// `searchUrl` (`resep.js:33`).
+/// `searchUrl`.
 #[cfg(test)]
 pub(crate) fn search_url(query: &str, apikey: &str) -> String {
     format!(
@@ -32,7 +31,7 @@ pub(crate) fn search_url(query: &str, apikey: &str) -> String {
     )
 }
 
-/// `detailUrl` (`resep.js:115`).
+/// `detailUrl`.
 #[cfg(test)]
 pub(crate) fn detail_url(resep_url: &str, apikey: &str) -> String {
     format!(
@@ -42,7 +41,7 @@ pub(crate) fn detail_url(resep_url: &str, apikey: &str) -> String {
     )
 }
 
-/// Apakah respons pencarian valid (`resep.js:38`).
+/// Apakah respons pencarian valid.
 #[cfg(test)]
 pub(crate) fn pencarian_valid(data: &Value) -> bool {
     crate::common::js_truthy(data.get("status"))
@@ -51,7 +50,7 @@ pub(crate) fn pencarian_valid(data: &Value) -> bool {
             .is_some_and(|d| d.is_array() && !d.as_array().unwrap().is_empty())
 }
 
-/// `listTxt` daftar hasil (`resep.js:44-58`).
+/// `listTxt` daftar hasil.
 #[cfg(test)]
 pub(crate) fn render_daftar(text: &str, hasil: &[ResepHasil]) -> String {
     let mut out = format!(
@@ -67,13 +66,13 @@ pub(crate) fn render_daftar(text: &str, hasil: &[ResepHasil]) -> String {
     out
 }
 
-/// Teks tidak ditemukan (`resep.js:40`).
+/// Teks tidak ditemukan.
 #[cfg(test)]
 pub(crate) fn tidak_ditemukan(text: &str) -> String {
     format!("Maaf, resep untuk \"{text}\" tidak ditemukan. Coba kata kunci lain.")
 }
 
-/// `renderDetail` resep (`resep.js:125-142`).
+/// `renderDetail` resep.
 #[cfg(test)]
 pub(crate) fn render_detail(recipe: &Value) -> String {
     let mut out = format!(
@@ -110,7 +109,7 @@ pub(crate) fn render_detail(recipe: &Value) -> String {
     out
 }
 
-/// Kartu pakai (`resep.js:25-27`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🍳 *PENCARIAN RESEP*\n\nKetik nama makanan yang mau dicari resepnya.\n*Contoh:* {prefix}resep Nasi Goreng"

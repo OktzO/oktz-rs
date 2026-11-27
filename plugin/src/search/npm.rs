@@ -1,20 +1,15 @@
-//! `plugins/search/npm.js` — cari package di registry NPM.
+//! Cari package di registry NPM.
 //!
-//! JS memakai `fetch` global, bukan `axios`: `fetch` hanya melempar untuk
-//! error jaringan, TIDAK untuk status 4xx/5xx. Di API plugin `ctx.http.get`
-//! mengembalikan `Err` untuk keduanya, jadi status 4xx/5px ikut masuk `catch`.
-//! Bedanya dicatat di sini, bukan ditutup.
-//!
-//! `ponytail:` `data.objects.slice(0, 8).forEach` tidak menambah baris baru di
-//! akhir tiap paket (`> ⭐ Score: …` tanpa `\n`), jadi paket berikutnya menempel
-//! ke baris yang sama. Anomali itu ikut dipertahankan.
+//! `Keterbatasan:` `data.objects.slice(0, 8).forEach` tidak menambah baris baru di akhir
+//! tiap paket (`> ⭐ Score: …` tanpa `\n`), jadi paket berikutnya menempel ke baris yang
+//! sama. Anomali itu ikut dipertahankan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{js_truthy};
 
-/// `npm.js:34` — `size=10`, meski hanya 8 yang ditampilkan.
+/// `size=10`, meski hanya 8 yang ditampilkan.
 pub(crate) fn api_url(query: &str) -> String {
     format!(
         "https://registry.npmjs.com/-/v1/search?text={}&size=10",
@@ -22,7 +17,7 @@ pub(crate) fn api_url(query: &str) -> String {
     )
 }
 
-/// `npm.js:22-27` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -32,10 +27,10 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `npm.js:39-43` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) const TIDAK_ADA: &str = "❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Package \"{query}\" tidak ditemukan";
 
-/// `npm.js:51` — `Math.round((item.score?.final || 0) * 100)`.
+/// `Math.round((item.score?.final || 0) * 100)`.
 ///
 /// `Math.round` V8 membulatkan ke atas untuk tepat `.5`, sedangkan
 /// `f64::round` Rust setengah ke arah nol, jadi pembulatan ditulis eksplisit.
@@ -55,7 +50,7 @@ pub(crate) fn score_persen(item: &Value) -> i64 {
     (bawah as i64) + naik
 }
 
-/// `npm.js:45-63` — teks hasil; 8 paket pertama saja.
+/// Teks hasil; 8 paket pertama saja.
 pub(crate) fn build_text(objects: &[Value], query: &str, total: Option<&Value>) -> String {
     let total = match total {
         Some(Value::Number(n)) => n.to_string(),
@@ -93,13 +88,13 @@ pub(crate) fn build_text(objects: &[Value], query: &str, total: Option<&Value>) 
         {
             text.push_str(&format!("> 👤 {author}\n"));
         }
-        // Tanpa `\n` di akhir — persis seperti di JS.
+        // Tanpa `\n` di akhir — persis seperti di versi awal.
         text.push_str(&format!("> ⭐ Score: {}%", score_persen(item)));
     }
     text
 }
 
-/// `!data.objects || data.objects.length === 0` (`npm.js:38`).
+/// `!data.objects || data.objects.length === 0`.
 pub(crate) fn objects_of(data: &Value) -> Vec<Value> {
     data.get("objects")
         .and_then(Value::as_array)

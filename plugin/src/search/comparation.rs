@@ -1,15 +1,14 @@
-//! `plugins/search/comparation.js` (`advance-comparation`) — cari perangkat
-//! lalu simpan daftar kandidat di `user.compare_session`.
+//! (`advance-comparation`) — cari perangkat
 //!
-//! `ponytail:` file JS punya DUA handler. `handler` (yang ada di sini)
-//! memulai pencarian dan menulis sesi; `comparationAnswerHandler` adalah hook
-//! pesan biasa (`if (!m.body || m.isCommand) return false`) yang membaca angka
-//! pilihan, kelanjutannya, lalu hasil perbandingan. Hook pesan biasa tidak ada
-//! di `oktz-plugin-api` — satu plugin satu command — jadi handler kedua itu
-//! tidak ikut, dan sesi yang ditulis di sini tidak punya tahap lanjutan.
+//! `Keterbatasan:` file versi awal punya DUA handler. `handler` (yang ada di sini) memulai
+//! pencarian dan menulis sesi; `comparationAnswerHandler` adalah hook pesan biasa (`if
+//! (!m.body || m.isCommand) return false`) yang membaca angka pilihan, kelanjutannya, lalu
+//! hasil perbandingan. Hook pesan biasa tidak ada di `oktz-plugin-api` — satu plugin satu
+//! command — jadi handler kedua itu tidak ikut, dan sesi yang ditulis di sini tidak punya
+//! tahap lanjutan.
 //!
-//! `ponytail:` `db.getUser(m.sender)` lalu `user.compare_session = {…}` +
-//! `db.save()` dipetakan ke `Mutation::SetUser` yang menimpa satu field.
+//! `Keterbatasan:` `db.getUser(m.sender)` lalu `user.compare_session = {…}` + `db.save()`
+//! dipetakan ke `Mutation::SetUser` yang menimpa satu field.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -17,14 +16,14 @@ use serde_json::Value;
 use crate::common::{js_truthy, now_ms};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `comparation.js:24` — tipe yang boleh jadi argumen pertama.
+/// Tipe yang boleh jadi argumen pertama.
 pub(crate) const VALID_TYPES: [&str; 6] = ["phone", "tablet", "laptop", "cpu", "gpu", "soc"];
 
-/// `comparation.js:50` dan `:147` — endpoint pencarian perangkat.
+/// dan `:147` — endpoint pencarian perangkat.
 pub(crate) fn search_url(query: &str, device_type: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/compare-search?q={}&type={device_type}&apikey={NEOXR_APIKEY}",
@@ -32,7 +31,7 @@ pub(crate) fn search_url(query: &str, device_type: &str) -> String {
     )
 }
 
-/// `comparation.js:28-33` — kartu saat `m.args` kosong.
+/// Kartu saat `m.args` kosong.
 pub(crate) fn help() -> String {
     let types = VALID_TYPES
         .iter()
@@ -49,16 +48,16 @@ pub(crate) fn help() -> String {
     )
 }
 
-/// `comparation.js:45` — `query` kosong setelah tipe diambil.
+/// `query` kosong setelah tipe diambil.
 pub(crate) const NO_QUERY: &str =
     "Ketik nama perangkat yang mau dicari!\nContoh: .bandingkan-device phone samsung s24";
 
-/// `comparation.js:56` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(query: &str) -> String {
     format!("Perangkat \"{query}\" tidak ditemukan.")
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -74,7 +73,7 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
 
 /// `data.data` yang lolos guard `!resData.data || resData.data.length === 0`.
 ///
-/// Bentuk selain array lolos guard di JS (`.length` bukan nol), lalu
+/// Bentuk selain array lolos guard di versi awal (`.length` bukan nol), lalu
 /// `resData.data[i].label` melempar TypeError di dalam `try` — jadi hasilnya
 /// tetap sama: pesan "tidak ditemukan" untuk yang tidak bisa diindeks.
 pub(crate) fn items_of(res: &Value) -> Option<Vec<Value>> {
@@ -108,7 +107,7 @@ pub(crate) fn render_list(query: &str, items: &[Value]) -> String {
     txt
 }
 
-/// Sesi yang ditulis ke `user.compare_session` (`comparation.js:76-83`).
+/// Sesi yang ditulis ke `user.compare_session`.
 pub(crate) fn session_value(device_type: &str, items: &[Value], time_ms: i64) -> Value {
     serde_json::json!({
         "step": 1,

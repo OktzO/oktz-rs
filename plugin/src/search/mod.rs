@@ -2,7 +2,7 @@ pub mod applemusic;
 pub mod google;
 pub mod gsmarena;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 #[path = "android1-get.rs"]
 pub mod android1_get;
 pub mod android1;
@@ -51,5 +51,5 @@ pub mod ytplay;
 pub mod ytmusic;
 pub mod ytsearch;
 
-// Port batch paritas: ttsearch.
+// Port batch perilaku: ttsearch.
 pub mod ttsearch;

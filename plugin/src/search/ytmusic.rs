@@ -1,16 +1,14 @@
 //! Pencarian YT Music (katalog musik) untuk `play`/`play2`.
 //!
-//! `ponytail:` pengganti `ytmusic-api` (npm) — InnerTube `WEB_REMIX`
-//! langsung, tanpa dependensi baru. Padanan `ytmusicapi` python:
-//! `POST music.youtube.com/youtubei/v1/search` dengan `params` filter
-//! songs, parse `musicResponsiveListItemRenderer`. Ini fokus musik:
-//! tidak ada vlog/podcast/episode. Bila YT Music gagal/kosong, pemanggil
-//! jatuh ke `ytsearch` dengan filter durasi lagu.
+//! `Keterbatasan:` pengganti `ytmusic-api` (npm) — InnerTube `WEB_REMIX` langsung, tanpa
+//! dependensi baru. Padanan `ytmusicapi` python: `POST
+//! music.youtube.com/youtubei/v1/search` dengan `params` filter songs, parse
+//! `musicResponsiveListItemRenderer`. Ini fokus musik: tidak ada vlog/podcast/episode. Bila
+//! YT Music gagal/kosong, pemanggil jatuh ke `ytsearch` dengan filter durasi lagu.
 //!
-//! `ponytail:` `X-Goog-Visitor-Id` dicache dengan TTL 24 jam + batas
-//! pakai 100x per ID; fetch kosong/tak-sahih tidak mengisi cache (cache
-//! basi yang sahih tetap dipakai). Upgrade path: refresh proaktif bila
-//! Google mulai menolak ID basi.
+//! `Keterbatasan:` `X-Goog-Visitor-Id` dicache dengan TTL 24 jam + batas pakai 100x per ID;
+//! fetch kosong/tak-sahih tidak mengisi cache (cache basi yang sahih tetap dipakai).
+//! Upgrade path: refresh proaktif bila Google mulai menolak ID basi.
 
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
@@ -25,7 +23,7 @@ const YTM_KEY: &str = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30";
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0";
 /// `get_search_params("songs")` — `EgWKAQ` + `II` + `AWoKEAkQBRAKEAM`.
-/// `ponytail:` params baru ytmusicapi `AWoMEA4QChADEAQQCRAF` deprecated
+/// `Keterbatasan:` params baru ytmusicapi `AWoMEA4QChADEAQQCRAF` deprecated
 /// 2026-11 (Google balas "No results" HTTP 200); params lama masih hidup.
 const PARAMS_SONGS: &str = "EgWKAQIIAWoKEAkQBRAKEAM";
 /// `initialize_context()` — versi tetap, tanpa tanggal dinamis.
@@ -363,7 +361,7 @@ fn runs_teks(runs: Vec<Option<&Value>>) -> String {
         .to_string()
 }
 
-/// Cari `videoId` di `watchEndpoint` dalam item (overlay play button atau
+/// Cari `videoId` di `watchEndpoint` dalam item (overlay play button
 /// navigationEndpoint run).
 fn video_id_dari_item(item: &Value) -> Option<String> {
     // overlay.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint.videoId

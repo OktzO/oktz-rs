@@ -1,18 +1,17 @@
-//! `plugins/search/android1-get.js` — unduh satu APK dari URL halaman an1.com.
+//! Unduh satu APK dari URL halaman an1.com.
 //!
-//! `ponytail:` JS mengirim dokumen lewat `sock.sendMessage` dengan
-//! `contextInfo: { forwardingScore: 99, isForwarded: true }`. `Reply::Document`
-//! tidak punya context info, jadi dokumen terkirim tanpa penanda forwarded —
-//! nama berkas, mimetype, dan URL tetap sama.
+//! `Keterbatasan:` versi awal mengirim dokumen lewat `sock.sendMessage` dengan
+//! `contextInfo: { forwardingScore: 99, isForwarded: true }`. `Reply::Document` tidak punya
+//! context info, jadi dokumen terkirim tanpa penanda forwarded — nama berkas, mimetype, dan
+//! URL tetap sama.
 //!
-//! `ponytail:` cabang "URL tidak tersedia" mengirim
-//! `forwardedNewsletterMessageInfo` (butuh `config.saluran`/`config.bot.name`)
-//! plus `interactiveButtons` cta_url. `Reply::Interactive` hanya membawa teksnya,
-//! jadi yang terkirim cuma `> ⚠️ Download URL tidak tersedia`.
+//! `Keterbatasan:` cabang "URL tidak tersedia" mengirim `forwardedNewsletterMessageInfo`
+//! (butuh `config.saluran`/`config.bot.name`) plus `interactiveButtons` cta_url.
+//! `Reply::Interactive` hanya membawa teksnya, jadi yang terkirim cuma `> ⚠️ Download URL
+//! tidak tersedia`.
 //!
-//! `ponytail:` reaksi pertama (`🕕`) tidak ikut: `Reply::Reaction` hanya satu
-//! emoji, dan reaksi terakhir yang menandai hasil akhir — sama seperti
-//! `search/android1.rs`.
+//! `Keterbatasan:` reaksi pertama (`🕕`) tidak ikut: `Reply::Reaction` hanya satu emoji, dan
+//! reaksi terakhir yang menandai hasil akhir — sama seperti `search/android1.rs`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -20,13 +19,13 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` (`config.js`) = `process.env.APIKEY_NEOXR || ""`.
+/// `config.APIkey?.neoxr || ''` = `process.env.APIKEY_NEOXR || ""`.
 ///
-/// `ponytail:` `Ctx` tidak membawa config, jadi kunci ikut `config.js` yang
+/// `Keterbatasan:` `Ctx` tidak membawa config, jadi kunci ikut
 /// di-hardcode — sama seperti `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `android1-get.js:33` — endpoint detail + unduhan.
+/// Endpoint detail + unduhan.
 pub(crate) fn api_url(url: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/an1-get?url={}&apikey={NEOXR_APIKEY}",
@@ -34,16 +33,16 @@ pub(crate) fn api_url(url: &str) -> String {
     )
 }
 
-/// `android1-get.js:26` — guard URL.
+/// Guard URL.
 pub(crate) const INVALID_URL: &str = "❌ URL tidak valid! Harus URL dari an1.com";
 
-/// `android1-get.js:63` — caption saat `app.url` tidak ada.
+/// Caption saat `app.url` tidak ada.
 pub(crate) const NO_DOWNLOAD_URL: &str = "> ⚠️ Download URL tidak tersedia";
 
 /// `app.url` yang lolos `if (app.url)` DAN bisa dipakai sebagai sumber media.
 ///
 /// Nilai selain string yang truthy (mis. angka) tidak bisa jadi URL, jadi
-/// jatuh ke cabang "tidak tersedia" — sedikit lebih longgar dari JS yang
+/// jatuh ke cabang "tidak tersedia" — sedikit lebih longgar dari versi awal
 /// meneruskannya apa adanya ke Baileys.
 pub(crate) fn app_url(app: &Value) -> Option<&str> {
     app.get("url")

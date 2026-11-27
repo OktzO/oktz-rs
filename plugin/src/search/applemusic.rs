@@ -1,13 +1,12 @@
-//! `plugins/search/applemusic.js` — cari lagu di Apple Music (backend YT Music).
+//! Cari lagu di Apple Music (backend YT Music).
 //!
-//! `ponytail:` JS memakai `resolver.resolve('ytmusic', …)` — lapisan backend
-//! berlapis: scraper lokal `ytmusic-api` dulu, baru agregator. Backend lokal
-//! itu modul npm dengan state internal, dan `src/lib/resolve.js` belum
-//! di-port, jadi yang dipakai di sini hanya backend agregator yang sudah
-//! menjadi cadangan di JS (`api.nexray.eu.cc/search/applemusic`, path tanpa
-//! prefix `/api` — menambahkannya membuatnya 404). Bentuk field sudah
-//! dinormalkan di `normalize` (`src/capabilities/ytmusic.js`), jadi yang dibaca
-//! di sini bentuk yang sama dengan yang dibaca plugin JS.
+//! `Keterbatasan:` versi awal memakai `resolver.resolve('ytmusic', …)` — lapisan backend
+//! berlapis: scraper lokal `ytmusic-api` dulu, baru agregator. Backend lokal itu modul npm
+//! dengan state internal, dan belum diimplementasikan, jadi yang dipakai di sini hanya
+//! backend agregator yang sudah menjadi cadangan di versi awal
+//! (`api.nexray.eu.cc/search/applemusic`, path tanpa prefix `/api` — menambahkannya
+//! membuatnya 404). Bentuk field sudah dinormalkan di `normalize`, jadi yang dibaca di sini
+//! bentuk yang sama dengan yang dibaca plugin versi awal.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -26,8 +25,8 @@ pub(crate) fn not_found(query: &str) -> String {
     format!("❌ Tidak ditemukan hasil untuk: {query}")
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
-/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di JS.
+/// `te(prefix, command, pushName)`.
+/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di versi awal.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> String {
     crate::common::error_template_bawaan(prefix, command)
 }
@@ -41,7 +40,7 @@ pub(crate) fn artist(track: &Value) -> String {
     }
 }
 
-/// Lima hasil teratas, persis format `applemusic.js:46-51`. `m.reply(txt.trim())`
+/// Lima hasil teratas, persis format. `m.reply(txt.trim())`
 /// membuang spasi akhir, jadi `render` juga.
 pub(crate) fn render(query: &str, tracks: &[Value]) -> String {
     let mut txt = format!("🍎 *ᴀᴘᴘʟᴇ ᴍᴜsɪᴄ sᴇᴀʀᴄʜ*\n\n> Query: *{query}*\n\n");
@@ -193,7 +192,7 @@ mod tests {
             ..Default::default()
         };
         // `find("applemusic")` menunjuk plugin canvas (aliasnya `applemusic`,
-        // `plugins/canvas/applemusic.js:6`), jadi handler berkas ini dipanggil
+        // ), jadi handler berkas ini dipanggil
         // langsung seperti test plugin lain.
         applemusic(ctx)
     }
@@ -221,16 +220,16 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `applemusic.js:24-28` — kartu penggunaan persis, termasuk huruf
+        // Kartu penggunaan persis, termasuk huruf
         // kecil-kecil `ᴄᴀʀᴀ ᴘᴀᴋᴀɪ` (bukan `ᴄᴀʀʀᴀ`).
         assert_eq!(
             help("."),
             "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `.applemusic <query>`\n\n\
              > Contoh:\n> `.applemusic Best Friend`"
         );
-        // `applemusic.js:40` — pesan tidak ditemukan.
+        // Pesan tidak ditemukan.
         assert_eq!(not_found("x"), "❌ Tidak ditemukan hasil untuk: x");
-        // `applemusic.js:44-51` — daftar hasil.
+        // Daftar hasil.
         let t = render("q", &tracks(2));
         assert_eq!(
             t,
@@ -242,9 +241,9 @@ mod tests {
 
     #[test]
     fn registers_with_the_js_plugin_config() {
-        // Key `applemusic` di JS bentrok dengan alias `canvas/applemusic.js:6`
+        // Key `applemusic` di versi awal bentrok dengan alias
         // (name `applemusic-canvas`); tetap dipertahankan. Biar tidak ambigu,
-        // plugin dicari lewat alias uniknya (`plugins/search/applemusic.js:5`).
+        // plugin dicari lewat alias uniknya.
         let p = oktz_plugin_api::find("amusic").unwrap();
         assert_eq!(p.meta.name, "applemusic");
         assert_eq!(p.meta.alias, ["amusic", "am"]);

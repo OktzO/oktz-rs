@@ -1,11 +1,9 @@
-//! `plugins/search/lyrics.js` (`lirik`) — cari lirik lewat
-//! `api.nexray.eu.cc`.
+//! (`lirik`) — cari lirik lewat
 //!
-//! `ponytail:` `fetchLyrics` menelan semua error axios dan mengembalikan `null`,
-//! jadi kegagalan jaringan berakhir di cabang "tidak ditemukan", bukan di
-//! `catch` handler. Cabang `catch` handler karena itu tidak bisa dicapai dari
-//! `Ctx` mana pun — sama seperti di JS — dan tetap ditulis supaya tidak hilang
-//! tanpa jejak.
+//! `Keterbatasan:` `fetchLyrics` menelan semua error axios dan mengembalikan `null`, jadi
+//! kegagalan jaringan berakhir di cabang "tidak ditemukan", bukan di `catch` handler.
+//! Cabang `catch` handler karena itu tidak bisa dicapai dari `Ctx` mana pun — sama seperti
+//! di versi awal — dan tetap ditulis supaya tidak hilang tanpa jejak.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -13,7 +11,7 @@ use serde_json::Value;
 use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `lyrics.js:5` — endpoint lirik.
+/// Endpoint lirik.
 pub(crate) fn api_url(judul: &str) -> String {
     format!(
         "https://api.nexray.eu.cc/search/lyrics?q={}",
@@ -21,7 +19,7 @@ pub(crate) fn api_url(judul: &str) -> String {
     )
 }
 
-/// `lyrics.js:36-39` — kartu saat judul kosong.
+/// Kartu saat judul kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "Hai kak! ✨ Lupa masukin judul lagunya ya? 😅\n\n\
@@ -30,12 +28,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `lyrics.js:49` — lirik tidak ketemu.
+/// Lirik tidak ketemu.
 pub(crate) fn not_found(query: &str) -> String {
     format!("Waduh, maaf banget kak 🥺 lirik lagu *{query}* nggak ketemu nih di database. Coba pakai kata kunci atau judul yang lebih spesifik ya! 💔")
 }
 
-/// `lyrics.js:76` — pesan server tidak merespons.
+/// Pesan server tidak merespons.
 pub(crate) const SERVER_DOWN: &str = "Yah, server liriknya lagi ngambek nih kak 😭 Coba lagi nanti ya! 🛠️✨";
 
 /// Ambil nilai di jalur titik — padanan `a?.b?.c`.
@@ -47,7 +45,7 @@ fn dig<'a>(v: &'a Value, path: &str) -> Option<&'a Value> {
     Some(cur)
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -62,7 +60,7 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
 }
 
 /// `!data || !data.lyrics || !data.lyrics.plain_lyrics` + teks jawaban
-/// (`lyrics.js:47-61`). `None` berarti cabang "tidak ditemukan".
+/// . `None` berarti cabang "tidak ditemukan".
 pub(crate) fn lyrics_text(data: &Value, query: &str) -> Option<String> {
     if !js_truthy(dig(data, "lyrics")) {
         return None;
@@ -96,7 +94,7 @@ pub(crate) fn lyrics_text(data: &Value, query: &str) -> Option<String> {
     ))
 }
 
-/// `data.thumbnail && data.thumbnail !== '-'` (`lyrics.js:63`).
+/// `data.thumbnail && data.thumbnail !== '-'`.
 pub(crate) fn thumbnail_of(data: &Value) -> Option<String> {
     let thumb = data.get("thumbnail").and_then(Value::as_str)?;
     if thumb.is_empty() || thumb == "-" {
@@ -134,7 +132,7 @@ pub fn lirik(ctx: Ctx) -> Reply {
         return Reply::text(not_found(query)).with_reaction("❌");
     };
     let root = resp.json().unwrap_or(Value::Null);
-    // `fetchLyrics` (`lyrics.js:6-9`): hanya `result` yang dipakai, dan hanya
+    // `fetchLyrics`: hanya `result` yang dipakai, dan hanya
     // kalau `status` truthy. Tanpa `status`, hasilnya `null` seperti gagal.
     let data = match root.get("result") {
         Some(v) if js_truthy(root.get("status")) && js_truthy(Some(v)) => v.clone(),
@@ -151,9 +149,9 @@ pub fn lirik(ctx: Ctx) -> Reply {
     }
 }
 
-/// Cabang `catch` handler (`lyrics.js:74-77`).
+/// Cabang `catch` handler.
 ///
-/// `ponytail:` tidak bisa dicapai: satu-satunya pemanggilan jaringan dibungkus
+/// `Keterbatasan:` tidak bisa dicapai: satu-satunya pemanggilan jaringan dibungkus
 /// `try {} catch { return null }` di `fetchLyrics`, dan setelah itu tidak ada
 /// lagi yang bisa melempar. Ditulis supaya teks aslinya tidak hilang.
 #[allow(dead_code)]

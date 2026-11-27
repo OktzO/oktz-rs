@@ -1,19 +1,15 @@
-//! `plugins/search/pap.js` — kirim foto dari Pinterest sesuai tipe.
+//! Kirim foto dari Pinterest sesuai tipe.
 //!
-//! Daftar pin diambil lewat `rinn::pinterest`; provider lama (`resolver`
-//! bersama) sudah mati.
-//!
-//! `ponytail:` tombol `nativeFlowMessage`, `viewOnceMessage`,
-//! `prepareWAMessageMedia`, dan `sock.relayMessage` dari JS tidak punya
-//! padanan di `Reply` — jadi yang dikirim cuma gambarnya, tanpa kartu
-//! interaktif.
+//! `Keterbatasan:` tombol `nativeFlowMessage`, `viewOnceMessage`, `prepareWAMessageMedia`,
+//! dan `sock.relayMessage` dari versi awal tidak punya padanan di `Reply` — jadi yang
+//! dikirim cuma gambarnya, tanpa kartu interaktif.
 
 #![allow(dead_code)] // `GAGAL_MENYIAPKAN` cuma dipakai test (tak ada prepare media)
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin};
 use oktz_scraper::rinn;
 
-/// `QUERIES` (`pap.js:31-35`) — urutan query per tipe; yang pertama yang
+/// `QUERIES` — urutan query per tipe; yang pertama
 /// menjawab dengan pin dipakai.
 pub(crate) const QUERIES_CEWE: [&str; 3] = [
     "cewe cantik indonesia",
@@ -27,7 +23,7 @@ pub(crate) const QUERIES_COWO: [&str; 3] = [
 ];
 pub(crate) const QUERIES_FEMBOY: [&str; 3] = ["femboy", "femboy anime", "femboy aesthetic"];
 
-/// `VALID_TYPES = Object.keys(QUERIES)` (`pap.js:37`) — urutan itu penting
+/// `VALID_TYPES = Object.keys(QUERIES)` — urutan itu penting
 /// karena juga menjadi daftar yang dicetak di pesan error.
 pub(crate) const VALID_TYPES: [&str; 3] = ["cewe", "cowo", "femboy"];
 
@@ -41,28 +37,28 @@ pub(crate) fn queries_for(tipe: &str) -> &'static [&'static str] {
     }
 }
 
-/// `pap.js:146-149` — guard argumen. `m.args?.[0]` di-`trim().toLowerCase()`,
+/// Guard argumen. `m.args?.[0]` di-`trim().toLowerCase()`,
 /// jadi spasi excess dan huruf besar tidak menggagalkan.
 pub(crate) fn pesan_tipe_invalid() -> String {
     "❌ Pilih salah satu tipe pap yang tersedia: `cewe`, `cowo`, atau `femboy`.\n\nContoh: `.pap cewe`".to_string()
 }
 
-/// `pap.js:164` — hasil kosong yang sah.
+/// Hasil kosong yang sah.
 pub(crate) fn kosong(arg: &str) -> String {
     format!("❌ Waduh, pap {arg} lagi kosong nih. Coba lagi nanti.")
 }
 
-/// `pap.js:190` — tidak ada satu pun URL yang bisa diunduh.
+/// Tidak ada satu pun URL yang bisa diunduh.
 pub(crate) const GAMBAR_TIDAK_TERSEDIA: &str = "⚠️ Gambar tidak tersedia. Coba lagi nanti.";
 
-/// `pap.js:201` — `prepareWAMessageMedia` tidak mengembalikan `imageMessage`.
+/// `prepareWAMessageMedia` tidak mengembalikan `imageMessage`.
 pub(crate) const GAGAL_MENYIAPKAN: &str = "⚠️ Gagal menyiapkan gambar. Coba lagi nanti.";
 
-/// `pap.js:179` — ambang ukuran minimum, terpisah dari magic number supaya
+/// Ambang ukuran minimum, terpisah dari magic number supaya
 /// both bisa diuji tanpa buffer sungguhan.
 pub(crate) const MIN_BYTES: usize = 1000;
 
-/// `isImage(buf)` (`pap.js:43-62`) — magic number JPEG/PNG/WebP.
+/// `isImage(buf)` — magic number JPEG/PNG/WebP.
 pub(crate) fn is_image(buf: &[u8]) -> bool {
     if buf.len() < 4 {
         return false;
@@ -75,27 +71,27 @@ pub(crate) fn is_image(buf: &[u8]) -> bool {
     if buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4e && buf[3] == 0x47 {
         return true;
     }
-    // WebP: "RIFF" .... "WEBP"
+    // WebP: "RIFF".... "WEBP"
     if buf.len() >= 12 && &buf[0..4] == b"RIFF" && &buf[8..12] == b"WEBP" {
         return true;
     }
     false
 }
 
-/// Gabungan kedua syarat di `pap.js:179`.
+/// Gabungan kedua syarat.
 pub(crate) fn buffer_terima(buf: &[u8]) -> bool {
     buf.len() > MIN_BYTES && is_image(buf)
 }
 
-/// `fetchImageBuffer` (`pap.js:65-72`) — Pinterest menolak tanpa `Referer`.
+/// `fetchImageBuffer` — Pinterest menolak tanpa `Referer`.
 pub(crate) fn download_request(url: &str) -> HttpCall {
     HttpCall::get(url).header("Referer", "https://www.pinterest.com/")
 }
 
-/// `fetchImageUrls` (`pap.js:93-117`) — loop query per tipe lewat
+/// `fetchImageUrls` — loop query per tipe lewat
 /// `rinn::pinterest`; query pertama yang mengembalikan pin dipakai.
 ///
-/// `Err` hanya kalau tidak ada satu pun query yang menjawab. Query yang
+/// `Err` hanya kalau tidak ada satu pun query yang menjawab. Query
 /// menjawab tapi kosong tetap dianggap hasil kosong yang sah (`:115-116`),
 /// supaya user tidak disuruh retry ke host yang baru saja gagal.
 fn fetch_urls(tipe: &str, http: &dyn HttpGet) -> Result<Vec<String>, ()> {
@@ -115,7 +111,7 @@ fn fetch_urls(tipe: &str, http: &dyn HttpGet) -> Result<Vec<String>, ()> {
     }
 }
 
-/// `pap.js:169-186` — acak urutan, unduh satu per satu, terima buffer pertama
+/// Acak urutan, unduh satu per satu, terima buffer pertama
 /// yang lolos [`buffer_terima`]. Pinterest butuh `Referer` ([`download_request`]).
 fn ambil_gambar(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
     for url in acak(urls) {
@@ -130,7 +126,7 @@ fn ambil_gambar(http: &dyn HttpGet, urls: &[String]) -> Option<Vec<u8>> {
     None
 }
 
-/// Fisher-Yates untuk `sort(() => Math.random() - 0.5)` (`pap.js:171`).
+/// Fisher-Yates untuk `sort(() => Math.random() - 0.5)`.
 fn acak(urls: &[String]) -> Vec<&str> {
     use rand::Rng as _;
     let mut out: Vec<&str> = urls.iter().map(String::as_str).collect();
@@ -160,7 +156,7 @@ fn acak(urls: &[String]) -> Vec<&str> {
     is_bot_admin = false
 )]
 pub fn pap(ctx: Ctx) -> Reply {
-    // `typeof raw === "string" ? raw.trim().toLowerCase() : ""` (`:143-144`).
+    // `typeof raw === "string" ? raw.trim().toLowerCase(): ""` (`:143-144`).
     // `m.args` di `Ctx` selalu `Vec<String>`, jadi non-string tidak mungkin.
     let arg = ctx.args.first().map(|a| a.trim().to_lowercase()).unwrap_or_default();
 
@@ -172,9 +168,9 @@ pub fn pap(ctx: Ctx) -> Reply {
     // `safeReact(m, "🕕")` di `:153` — `Reply` cuma menyimpan satu reaksi,
     // jadi yang dikirim reaksi penutup (❌/✅/☢).
     match fetch_urls(&arg, ctx.http.as_ref()) {
-        // `pap.js:161-169` — hasil kosong yang sah.
+        // Hasil kosong yang sah.
         Ok(urls) if urls.is_empty() => Reply::text(kosong(&arg)).with_reaction("❌"),
-        // `pap.js:171-186` — unduh satu per satu sampai ada buffer valid.
+        // Unduh satu per satu sampai ada buffer valid.
         Ok(urls) => match ambil_gambar(ctx.http.as_ref(), &urls) {
             Some(buf) => Reply::image(
                 MediaSource::bytes(buf).with_mimetype("image/jpeg"),
@@ -183,7 +179,7 @@ pub fn pap(ctx: Ctx) -> Reply {
             .with_reaction("✅"),
             None => Reply::text(GAMBAR_TIDAK_TERSEDIA).with_reaction("❌"),
         },
-        // `pap.js:266-273` — `CapabilityError` jadi template error biasa;
+        // `CapabilityError` jadi template error biasa;
         // `m.pushName` tidak ada di `Ctx` sehingga tetap "User".
         Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }

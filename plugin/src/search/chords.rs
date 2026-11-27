@@ -1,12 +1,10 @@
-//! `plugins/search/chords.js` — cari chord gitar lewat `api.neoxr.eu`.
+//! Cari chord gitar lewat `api.neoxr.eu`.
 //!
-//! `ponytail:` kunci API ada di `config.APIkey?.neoxr`, dan `Ctx` tidak
-//! membawa config, jadi nilainya ikut `config.js` yang di-hardcode — persis
-//! `search/android1.rs`. Selama router belum menyediakan config, cabang
-//! "API key belum diset" (`explainFailure` + `MissingApiKeyError` dari
-//! `src/lib/stalker-fallback.js`) yang jadi jalur utama; itu alasan jalur HTTP
-//! ditutup dengan satu fungsi murni [`chord_text`] yang bisa diuji tanpa
-//! jaringan dan tanpa key.
+//! `Keterbatasan:` kunci API ada di `config.APIkey?.neoxr`, dan `Ctx` tidak membawa config,
+//! jadi nilainya ikut yang di-hardcode — persis `search/android1.rs`. Selama router belum
+//! menyediakan config, cabang "API key belum diset" yang jadi jalur utama; itu alasan jalur
+//! HTTP ditutup dengan satu fungsi murni [`chord_text`] yang bisa diuji tanpa jaringan dan
+//! tanpa key.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -14,12 +12,12 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
 /// `explainFailure(new MissingApiKeyError('neoxr', 'APIKEY_NEOXR'), …)`
-/// (`src/lib/stalker-fallback.js:29-36`) — cabang `MissingApiKeyError`.
+/// Cabang `MissingApiKeyError`.
 pub(crate) fn missing_key(env_name: &str, command: &str) -> String {
     format!(
         "❌ *API Key belum diset!*\n\n\
@@ -28,7 +26,7 @@ pub(crate) fn missing_key(env_name: &str, command: &str) -> String {
     )
 }
 
-/// `chords.js:45` — endpoint chord.
+/// Endpoint chord.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/chord?q={}&apikey={NEOXR_APIKEY}",
@@ -36,7 +34,7 @@ pub(crate) fn api_url(text: &str) -> String {
     )
 }
 
-/// `chords.js:27-33` — kartu saat `m.text` kosong.
+/// Kartu saat `m.text` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎸 *ᴄʜᴏʀᴅs sᴇᴀʀᴄʜ*\n\n\
@@ -47,12 +45,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `chords.js:51` — chord tidak ada.
+/// Chord tidak ada.
 pub(crate) fn not_found(text: &str) -> String {
     format!("❌ Chord tidak ditemukan untuk: `{text}`")
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -66,10 +64,10 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `!data?.status || !data?.data?.chord` (`chords.js:49`) — `None` berarti
+/// `!data?.status || !data?.data?.chord` — `None` berarti
 /// cabang "tidak ditemukan".
 ///
-/// `chord` yang bukan string jadi JSON, bukan `[object Object]` seperti di JS.
+/// `chord` yang bukan string jadi JSON, bukan `[object Object]` seperti di versi awal.
 /// Teks string — satu-satunya bentuk yang dipakai API — tidak terpengaruh.
 pub(crate) fn chord_text(data: &Value) -> Option<String> {
     if !js_truthy(data.get("status")) {
@@ -105,7 +103,7 @@ pub fn chords(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // Nexray tidak punya endpoint chord (dicek live di `chords.js:38`), jadi
+    // Nexray tidak punya endpoint chord, jadi
     // tidak ada fallback: tanpa key plugin berhenti di sini.
     if NEOXR_APIKEY.is_empty() {
         return Reply::text(missing_key("APIKEY_NEOXR", &format!("{}chords", ctx.prefix)))

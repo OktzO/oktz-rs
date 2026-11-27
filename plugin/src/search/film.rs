@@ -1,9 +1,9 @@
-//! `plugins/search/film.js` — cari film lewat `api.neoxr.eu`.
+//! Cari film lewat `api.neoxr.eu`.
 //!
-//! `ponytail:` JS mengirim daftar lewat `sock.sendButton` dengan picker
-//! `single_select` dan thumbnail `getAssetBuffer("foto")`. `Reply::Interactive`
-//! hanya membawa teksnya, jadi tombol (judul, deskripsi, `id` untuk `filmget`)
-//! dan thumbnail tidak ikut — persis teks `film.js:49-57`.
+//! `Keterbatasan:` versi awal mengirim daftar lewat `sock.sendButton` dengan picker
+//! `single_select` dan thumbnail `getAssetBuffer("foto")`. `Reply::Interactive` hanya
+//! membawa teksnya, jadi tombol (judul, deskripsi, `id` untuk `filmget`) dan thumbnail
+//! tidak ikut — persis teks.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{CardList, CardRow, CardSection, InteractiveButton};
@@ -12,11 +12,11 @@ use serde_json::Value;
 use crate::common::{js_truthy};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `config.APIkey?.neoxr || ''` — lihat catatan `ponytail:` di
+/// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
 /// `search/android1.rs`.
 const NEOXR_APIKEY: &str = "";
 
-/// `film.js:37` — endpoint pencarian film.
+/// Endpoint pencarian film.
 pub(crate) fn api_url(query: &str) -> String {
     format!(
         "https://api.neoxr.eu/api/film?q={}&apikey={NEOXR_APIKEY}",
@@ -24,7 +24,7 @@ pub(crate) fn api_url(query: &str) -> String {
     )
 }
 
-/// `film.js:24-31` — kartu saat query kosong.
+/// Kartu saat query kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎬 *ꜰɪʟᴍ sᴇᴀʀᴄʜ*\n\n\
@@ -36,12 +36,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `film.js:42-44` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(query: &str) -> String {
     format!("❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Film \"{query}\" tidak ditemukan")
 }
 
-/// `${value}` di JS — `undefined` untuk field yang hilang, `null` untuk
+/// `${value}` di versi awal — `undefined` untuk field yang hilang, `null`
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 ///
 /// Sama dengan `search/apkmod.rs` dan `search/android1.rs`; kandidat
@@ -55,7 +55,7 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
     }
 }
 
-/// `film.js:49-57` — daftar film. Dipanggil dengan `films` yang sudah di-`slice(0, 10)`.
+/// Daftar film. Dipanggil dengan `films` yang sudah di-`slice(0, 10)`.
 pub(crate) fn format_list(films: &[Value], query: &str) -> String {
     let mut text = String::from("🎬 *ʜᴀsɪʟ ᴘᴇɴᴄᴀʀɪᴀɴ*\n\n");
     text.push_str(&format!(
@@ -75,7 +75,7 @@ pub(crate) fn format_list(films: &[Value], query: &str) -> String {
     text
 }
 
-/// `!data?.data?.length` (`film.js:40`) — array/string tak kosong lolos.
+/// `!data?.data?.length` — array/string tak kosong lolos.
 pub(crate) fn has_items(data: Option<&Value>) -> bool {
     match data {
         Some(Value::Array(a)) => !a.is_empty(),
@@ -117,13 +117,13 @@ pub fn film(ctx: Ctx) -> Reply {
         return Reply::text(not_found(&query)).with_reaction("❌");
     }
     // String non-kosong lolos guard lalu `films.forEach` melempar TypeError
-    // di JS -> `catch` -> template error.
+    // di versi awal -> `catch` -> template error.
     let Some(films) = data.get("data").and_then(Value::as_array) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let films = &films[..films.len().min(10)];
 
-    // `film.js:59-88` — picker `single_select` dengan judul "🎬 Pilih Film",
+    // Picker `single_select` dengan judul "🎬 Pilih Film",
     // section "Hasil Pencarian", dan footer "🎬 Film Search".
     let rows: Vec<CardRow> = films
         .iter()
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `film.js:24-31` — kartu pakai.
+        // Kartu pakai.
         assert_eq!(
             help("."),
             "🎬 *ꜰɪʟᴍ sᴇᴀʀᴄʜ*\n\n\
@@ -254,12 +254,12 @@ mod tests {
              *Contoh:*\n\
              > `.film civil war`"
         );
-        // `film.js:42-44` — tidak ditemukan.
+        // Tidak ditemukan.
         assert_eq!(
             not_found("civil war"),
             "❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Film \"civil war\" tidak ditemukan"
         );
-        // `film.js:49-57` — daftar film.
+        // Daftar film.
         let films = vec![
             serde_json::json!({"title": "Civil War", "rating": "8.1", "quality": "HD", "release": "2024", "url": "u1"}),
             serde_json::json!({"title": "Dune", "rating": "8.5", "quality": "FHD", "release": "2021", "url": "u2"}),
@@ -286,7 +286,7 @@ mod tests {
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);
         assert!(p.meta.is_enabled);
-        // `pluginConfig` JS tidak menyebut flag permission sama sekali.
+        // `pluginConfig` versi awal tidak menyebut flag permission sama sekali.
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_premium && !p.meta.is_admin);
     }

@@ -1,29 +1,29 @@
-//! `plugins/search/carisinyal.js` (`spekhp`) — cari spesifikasi HP di
-//! carisinyal.com.
+//! (`spekhp`) — cari spesifikasi HP
 //!
-//! `ponytail:` JS memakai `cheerio` (paket npm). `oktz-plugins` tidak punya
-//! parser HTML dan menambah dependency baru dilarang, jadi markup yang dibaca
-//! plugin — `.oxy-post`, `.oxy-post-title`, `.oxy-post-meta`,
-//! `table.box-info tr.box-baris`, `td.kolom-satu`, `td.kolom-dua`, `h1`, dan
-//! dua `<meta>` — diparse manual, sama seperti `search/gsmarena.rs`.
+//! `Keterbatasan:` versi awal memakai `cheerio` (paket npm). `oktz-plugins` tidak punya
+//! parser HTML dan menambah dependency baru dilarang, jadi markup yang dibaca plugin —
+//! `.oxy-post`, `.oxy-post-title`, `.oxy-post-meta`, `table.box-info tr.box-baris`,
+//! `td.kolom-satu`, `td.kolom-dua`, `h1`, dan dua `<meta>` — diparse manual, sama seperti
+//! `search/gsmarena.rs`.
 //!
-//! `ponytail:` `.text()` di cheerio membaca teks turunan dan membuang markup;
-//! `text_content` di bawah melakukan hal yang sama. Entitas HTML yang lazim
-//! (`&amp;`, `&nbsp;`, dst) diterjemahkan, sisanya dibiarkan apa adanya.
+//! `Keterbatasan:` `.text()` di cheerio membaca teks turunan dan membuang markup;
+//! `text_content` di bawah melakukan hal yang sama. Entitas HTML yang lazim (`&amp;`,
+//! `&nbsp;`, dst) diterjemahkan, sisanya dibiarkan apa adanya.
 //!
-//! `ponytail:` `sock.sendMessage({ image: { url }, caption })` tidak punya
-//! masalah apa pun di sini — `Reply::image` membawa URL sebagai
-//! `MediaSource::Url`, sama seperti wire-nya.
+//! `Keterbatasan:` `sock.sendMessage({ image: { url }, caption })` tidak punya masalah apa
+//! pun di sini — `Reply::image` membawa URL sebagai `MediaSource::Url`, sama seperti
+//! wire-nya.
+
 #![allow(clippy::needless_lifetimes)]
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `carisinyal.js:22` — `User-Agent` yang dikirim `request()`.
+/// `User-Agent` yang dikirim `request()`.
 pub(crate) const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
-/// `carisinyal.js:28` — endpoint pencarian.
+/// Endpoint pencarian.
 pub(crate) fn search_url(keyword: &str) -> String {
     format!(
         "https://carisinyal.com/?s={}",
@@ -31,7 +31,7 @@ pub(crate) fn search_url(keyword: &str) -> String {
     )
 }
 
-/// `carisinyal.js:133-140` — kartu saat `text` kosong.
+/// Kartu saat `text` kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📱 *FITUR PENCARIAN SPESIFIKASI HP*\n\n\
@@ -43,14 +43,14 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `carisinyal.js:149` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn not_found(text: &str) -> String {
     format!(
         "❌ *TIDAK DITEMUKAN*\n\nMaaf, sistem tidak dapat menemukan ponsel dengan kata kunci *{text}*. Cobalah menggunakan nama merk atau seri yang lebih spesifik."
     )
 }
 
-/// `carisinyal.js:205` — semua error jaringan/parsing berakhir di sini.
+/// Semua error jaringan/parsing berakhir di sini.
 pub(crate) const FETCH_FAILED: &str = "❌ *GAGAL MENGAMBIL DATA*\n\nMaaf, sistem mengalami gangguan saat mencoba mengambil data dari *Carisinyal*. Silakan coba lagi nanti.";
 
 // ── SCANNER HTML MINIMAL ─────────────────────────────────────────────────────
@@ -137,8 +137,8 @@ fn has_class(attrs: &str, class: &str) -> bool {
         .is_some_and(|v| v.split_whitespace().any(|c| c == class))
 }
 
-/// Rentang isi elemen: dari ujung tag pembuka sampai `<` tag penutup yang
-/// sepadan. Tanpa tag penupun -> sampai akhir dokumen, sama seperti
+/// Rentang isi elemen: dari ujung tag pembuka sampai `<` tag penutup
+/// sepadan. Tanpa tag penupun -> sampai akhir dokumen, sama
 /// `$(el).html()` untuk elemen yang tidak tertutup.
 fn element_span(html: &str, tags: &[Tag], idx: usize) -> (usize, usize) {
     let name = tags[idx].name.as_str();
@@ -237,7 +237,7 @@ pub(crate) struct Hit {
     pub url: Option<String>,
 }
 
-/// `search(keyword)` (`carisinyal.js:27-44`): tiap `.oxy-post` jadi satu
+/// `search(keyword)`: tiap `.oxy-post` jadi satu
 /// `Hit`; judul kosong dilewati, jadi `url` boleh `None`.
 pub(crate) fn parse_search(html: &str) -> Vec<Hit> {
     let tags = scan_tags(html);
@@ -262,7 +262,7 @@ pub(crate) fn parse_search(html: &str) -> Vec<Hit> {
 }
 
 /// `specs` hasil `detail(url)` — urutan kemunculan baris, nilai duplikat menimpa
-/// baris sebelumnya seperti penugasan objek di JS.
+/// baris sebelumnya seperti penugasan objek di versi awal.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct Specs {
     pairs: Vec<(String, String)>,
@@ -276,7 +276,7 @@ impl Specs {
         }
     }
 
-    /// `get(...keys)` (`carisinyal.js:57-60`) — kunci pertama yang punya nilai
+    /// `get(...keys)` — kunci pertama yang punya nilai
     /// tidak kosong; `None` kalau tidak ada.
     pub(crate) fn get(&self, keys: &[&str]) -> Option<&str> {
         keys.iter().find_map(|k| {
@@ -288,7 +288,7 @@ impl Specs {
     }
 }
 
-/// `detail(url)` (`carisinyal.js:46-129`) — `table.box-info tr.box-baris`.
+/// `detail(url)` — `table.box-info tr.box-baris`.
 pub(crate) fn parse_specs(html: &str) -> Specs {
     let tags = scan_tags(html);
     let mut specs = Specs::default();
@@ -311,7 +311,7 @@ pub(crate) fn parse_specs(html: &str) -> Specs {
 }
 
 /// `results.find(r => (r.type || "").toLowerCase().includes("ponsel")) ||
-/// results[0]` (`carisinyal.js:152`).
+/// results[0]`.
 pub(crate) fn pick_phone<'a>(hits: &'a [Hit]) -> &'a Hit {
     hits.iter()
         .find(|h| h.kind.to_lowercase().contains("ponsel"))
@@ -325,7 +325,7 @@ fn spec_line(specs: &Specs, label: &str, keys: &[&str], out: &mut String) {
     }
 }
 
-/// `carisinyal.js:156-193` — caption spesifikasi. Baris yang tidak punya nilai
+/// Caption spesifikasi. Baris yang tidak punya nilai
 /// dilewati persis seperti `if (data.x) caption += …`.
 pub(crate) fn format_caption(title: &str, specs: &Specs) -> String {
     let mut c = format!("📱 *SPESIFIKASI {}*\n\n", title.to_uppercase());
@@ -403,8 +403,8 @@ pub fn spekhp(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `axios.get` di JS melempar untuk status 4xx/5xx, jadi `terima_semua_status`
-    // sengaja tidak dipakai: halaman 404 harus masuk `catch` seperti di JS.
+    // `axios.get` di versi awal melempar untuk status 4xx/5xx, jadi `terima_semua_status`
+    // sengaja tidak dipakai: halaman 404 harus masuk `catch` seperti di versi awal.
     let get = |url: &str| {
         ctx.http
             .call(&HttpCall::get(url).header("User-Agent", USER_AGENT))
@@ -670,7 +670,7 @@ mod tests {
     #[test]
     fn an_empty_spec_table_still_renders_every_heading() {
         let c = format_caption("HP Tanpa Data", &Specs::default());
-        // JS `carisinyal.js:156` men-uppercase judul, dan baris 159 menambah
+        // versi awal men-uppercase judul, dan baris 159 menambah
         // satu `\n` kosong sebelum heading LAYAR meski data kosong.
         assert_eq!(c, format!("📱 *SPESIFIKASI {}*\n\n\n🖥️ *LAYAR*\n\n⚙️ *PERFORMA & MEMORI*\n\n📸 *KAMERA UTAMA*\n\n🔋 *BATERAI*\n\n📡 *KONEKTIVITAS & LAINNYA*\n\n🔗 *Sumber:* Carisinyal", "HP TANPA DATA"));
     }

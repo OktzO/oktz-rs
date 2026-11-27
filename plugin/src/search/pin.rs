@@ -1,32 +1,20 @@
-//! `plugins/search/pin.js` — cari gambar Pinterest dan kirimnya sebagai album.
+//! Cari gambar Pinterest dan kirimnya sebagai album.
 //!
-//! Resolver `pinterest` JS (`src/capabilities/pinterest.js`) untuk query
-//! search hanya punya satu backend yang berlaku: `nexrayWeb`
-//! `GET /api/search/pinterest?q=…` (`ilovepin` hanya berlaku untuk argumen
-//! `url`). Dipindah sebagai HTTP langsung di [`resolve_pinterest`],
-//! mengikuti pola agregator di `facebookdl.rs` / `applemusic.rs`.
-//! Normalisasi mengikuti `normalize` JS: amplop `{status, result}` — `status`
-//! bukan `true` melempar (→ cabang `catch`); `result` berupa array atau
-//! `{pins: [...]}` dipetakan lewat `pinCari` (`image || images_url` yang
-//! diawali `https?://`).
-//!
-//! `ponytail:` album `albumMessage` + `messageContextInfo.messageSecret` +
-//! `sock.relayMessage` + `sock.waUploadToServer` tidak punya padanan di
-//! `Reply`, jadi yang dikirim adalah fallback JS-nya sendiri (kirim
-//! satu-satu, `pin.js:114-125`) lewat `Reply::sequence` berisi `Reply::image`
-//! ber-URL. Tiap gambar tetap diunduh dulu dengan header `Referer` dan
-//! ambang 1000 byte (`pin.js:54-69`), persis JS: yang lolos ambanglah yang
-//! masuk daftar kirim.
+//! `Keterbatasan:` album `albumMessage` + `messageContextInfo.messageSecret` +
+//! `sock.relayMessage` + `sock.waUploadToServer` tidak punya padanan di `Reply`, jadi yang
+//! dikirim adalah fallback versi awal-nya sendiri lewat `Reply::sequence` berisi
+//! `Reply::image` ber-URL. Tiap gambar tetap diunduh dulu dengan header `Referer` dan
+//! ambang 1000 byte, persis versi awal: yang lolos ambanglah yang masuk daftar kirim.
 
 use oktz_plugin_api::{Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin};
 
-/// `src/capabilities/pinterest.js:47-78` — backend `nexray`
-/// (`aggregator.hit("nexrayWeb", "/api/search/pinterest", …)`; base di
-/// `src/lib/aggregator.js:30`).
+/// Backend `nexray`
+/// (`aggregator.hit("nexrayWeb", "/api/search/pinterest", …)`; base
+///
 pub(crate) const ENDPOINT: &str = "https://api.nexray.web.id/api/search/pinterest";
 
 
-/// `pin.js:30-35` — kartu pakai.
+/// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🔍 *ᴘɪɴᴛᴇʀᴇsᴛ sᴇᴀʀᴄʜ*\n\n\
@@ -35,18 +23,18 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `pin.js:49` — resolver menjawab tapi tidak ada pin.
+/// Resolver menjawab tapi tidak ada pin.
 pub(crate) fn tidak_ditemukan(query: &str) -> String {
     format!("❌ Tidak ditemukan hasil untuk: {query}")
 }
 
-/// `pin.js:73` — ada pin tapi tidak satu pun buffer yang lolos unduhan.
+/// Ada pin tapi tidak satu pun buffer yang lolos unduhan.
 pub(crate) const GAGAL_MEMUAT: &str = "❌ Gagal memuat gambar";
 
-/// `pin.js:63` — ambang ukuran; di bawah itu buffer diabaikan diam-diam.
+/// Ambang ukuran; di bawah itu buffer diabaikan diam-diam.
 pub(crate) const MIN_BYTES: usize = 1000;
 
-/// `axios.get(imageUrl, { timeout: 15000, headers: { Referer } })` (`pin.js:56-59`).
+/// `axios.get(imageUrl, { timeout: 15000, headers: { Referer } })`.
 pub(crate) fn download_request(url: &str) -> HttpCall {
     HttpCall::get(url)
         .header("Referer", "https://www.pinterest.com/")
@@ -54,7 +42,7 @@ pub(crate) fn download_request(url: &str) -> HttpCall {
 }
 
 /// `data?.pins ?? []` → `pin?.image` → `filter(Boolean)` → `slice(0, 10)`
-/// (`pin.js:43-46`).
+///
 pub(crate) fn pick_images(pins: &[serde_json::Value]) -> Vec<String> {
     pins.iter()
         .filter_map(|p| p.get("image"))
@@ -65,7 +53,7 @@ pub(crate) fn pick_images(pins: &[serde_json::Value]) -> Vec<String> {
         .collect()
 }
 
-/// `pinCari` (`src/capabilities/pinterest.js:140-153`) — `image || images_url`
+/// `pinCari` — `image || images_url`
 /// yang diawali `https?://`; yang lain dibuang menjadi `None`.
 fn pin_cari(entri: &serde_json::Value) -> Option<serde_json::Value> {
     fn teks<'a>(v: Option<&'a serde_json::Value>) -> &'a str {
@@ -83,10 +71,10 @@ fn pin_cari(entri: &serde_json::Value) -> Option<serde_json::Value> {
     Some(serde_json::json!({ "image": image }))
 }
 
-/// `normalize` cabang pencarian (`pinterest.js:173-184`) + `isiAmplop`
-/// (`:160-171`): `status: false` melempar; `result` array atau
+/// `normalize` cabang pencarian + `isiAmplop`
+/// (`:160-171`): `status: false` melempar; `result` array
 /// `result.pins` array dipetakan lewat [`pin_cari`]. Bentuk lain (unduhan)
-/// tidak punya `pins`, jadi `Err` — persis `normalize` yang melempar untuk
+/// tidak punya `pins`, jadi `Err` — persis `normalize` yang melempar
 /// bentuk tak dikenal.
 pub(crate) fn normalize(body: &serde_json::Value) -> Result<Vec<serde_json::Value>, ()> {
     if body.get("status").and_then(serde_json::Value::as_bool) != Some(true) {
@@ -104,7 +92,7 @@ pub(crate) fn normalize(body: &serde_json::Value) -> Result<Vec<serde_json::Valu
 }
 
 /// `resolver.resolve("pinterest", { q })` lewat backend `nexray`
-/// (`pinterest.js:47-78`): `GET {ENDPOINT}?q=…`. `Err` = melempar, sama
+/// : `GET {ENDPOINT}?q=…`. `Err` = melempar,
 /// seperti `normalize` yang melempar sebelum plugin menyentuh hasilnya.
 /// Param di-encode seperti `axios` (`URLSearchParams`): spasi jadi `+`,
 /// byte non-ASCII jadi `%XX` uppercase.
@@ -167,7 +155,7 @@ pub fn pin(ctx: Ctx) -> Reply {
             if results.is_empty() {
                 return Reply::text(tidak_ditemukan(query)).with_reaction("❌");
             }
-            // `pin.js:54-69` — tiap URL diunduh lewat `download_request`
+            // Tiap URL diunduh lewat `download_request`
             // (header `Referer`, timeout 15 s); yang gagal atau `<= 1000`
             // byte dilewati satu per satu, persis `try/catch { continue }`.
             let mut media: Vec<String> = Vec::new();
@@ -180,19 +168,19 @@ pub fn pin(ctx: Ctx) -> Reply {
                 }
             }
             if media.is_empty() {
-                // `pin.js:71-74` — ada pin tapi tidak satu pun lolos unduhan.
+                // Ada pin tapi tidak satu pun lolos unduhan.
                 return Reply::text(GAGAL_MEMUAT).with_reaction("❌");
             }
-            // `pin.js:114-125` fallback album: kirim satu-satu. `Reply::image`
+            // fallback album: kirim satu-satu. `Reply::image`
             // ber-URL (`MediaSource::Url`) — pipeline yang mengunduh byte saat
-            // kirim, sama seperti `sendMessage({ image: buffer })` di JS.
+            // kirim, sama seperti `sendMessage({ image: buffer })` di versi awal.
             let kirim: Vec<Reply> = media
                 .iter()
                 .map(|u| Reply::image(MediaSource::url(u.clone()), ""))
                 .collect();
             Reply::sequence(kirim).with_reaction("✅")
         }
-        // `pin.js:127-131` — `m.pushName` tidak ada di `Ctx`, jadi "User".
+        // `m.pushName` tidak ada di `Ctx`, jadi "User".
         Err(()) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }
@@ -406,7 +394,7 @@ mod tests {
                 .iter()
                 .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/")
         );
-        // Fallback album JS: gambar dikirim satu-satu (`pin.js:118-124`).
+        // Fallback album versi awal: gambar dikirim satu-satu.
         let isi = r.without_mutations();
         let inner = match isi {
             Reply::Reaction { reply, .. } => reply.as_ref(),
@@ -442,7 +430,7 @@ mod tests {
         assert_eq!(text_of(&r), "❌ Tidak ditemukan hasil untuk: x");
         assert_eq!(reaction_of(&r), Some("❌"));
 
-        // Ada pin, unduhan mati semua → `GAGAL_MEMUAT` (`pin.js:71-74`).
+        // Ada pin, unduhan mati semua → `GAGAL_MEMUAT`.
         let http = Arc::new(Stub {
             cari: Some(
                 serde_json::json!({

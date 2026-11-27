@@ -1,13 +1,13 @@
-//! `plugins/search/yts.js` — mencari video di YouTube.
+//! Mencari video di YouTube.
 //!
-//! `ponytail:` JS memakai paket npm `yt-search`; padanannya ada di
+//! `Keterbatasan:` versi awal memakai paket npm `yt-search`; padanannya ada di
 //! `search/ytsearch.rs` (data sumbernya sama: `ytInitialData`).
 //!
-//! `ponytail:` kartu yang dikirim adalah `buttonsMessage` (headerType 6) dengan
-//! `locationMessage` berisi thumbnail 300×170, judul, dan alamat
-//! `📺 Channel: … | ⏱️ Durasi: …`. Rust memakai `CardHeader::location`.
+//! `Keterbatasan:` kartu yang dikirim adalah `buttonsMessage` (headerType 6) dengan
+//! `locationMessage` berisi thumbnail 300×170, judul, dan alamat `📺 Channel: … | ⏱️ Durasi:
+//! …`. Rust memakai `CardHeader::location`.
 //!
-//! `ponytail:` `config.bot.name` jadi footer kartu.
+//! `Keterbatasan:` `config.bot.name` jadi footer kartu.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{
@@ -16,22 +16,22 @@ use oktz_plugin_api::registry::{
 
 use super::ytsearch::{self, Video};
 
-/// `yts.js:25` — kata kunci kosong.
+/// Kata kunci kosong.
 pub(crate) fn tanpa_kunci() -> String {
     "❌ *Waduh, kata kuncinya kosong!*\n\nKamu harus memasukkan kata kunci judul video yang ingin dicari ya. \n\nContoh penggunaan: `.yts lagu galau indonesia`".to_string()
 }
 
-/// `yts.js:36` — tidak ada hasil.
+/// Tidak ada hasil.
 pub(crate) fn tidak_ada_hasil() -> String {
     "⚠️ *Maaf banget, pencarian tidak menemukan hasil apa pun.* \n\nMungkin kata kuncinya terlalu spesifik. Coba gunakan kata kunci lain yang lebih umum ya!".to_string()
 }
 
-/// `yts.js:95` — error sistem.
+/// Error sistem.
 pub(crate) fn ada_masalah() -> String {
     "😔 *Aduh, sepertinya ada masalah di sistemku.* \n\nTerjadi kesalahan saat mencoba mencari video tersebut di YouTube. Mohon tunggu beberapa saat dan coba lagi nanti ya!".to_string()
 }
 
-/// `yts.js:44-58` — isi kartu.
+/// Isi kartu.
 pub(crate) fn isi_kartu(text: &str, v: &Video) -> String {
     format!(
         "✨ *HASIL PENCARIAN YOUTUBE* ✨\n\n\
@@ -50,7 +50,7 @@ pub(crate) fn isi_kartu(text: &str, v: &Video) -> String {
 }
 
 /// Ambil thumbnail 300×170 seperti `sharp(...).resize(300, 170).jpeg()`
-/// (`yts.js:41-42`).
+///
 fn thumbnail(http: &dyn oktz_plugin_api::HttpGet, url: &str) -> Option<Vec<u8>> {
     if url.is_empty() {
         return None;
@@ -88,13 +88,13 @@ pub fn yts(ctx: Ctx) -> Reply {
     let videos = match ytsearch::search(ctx.http.as_ref(), &text) {
         Ok(v) => v,
         Err(_) => {
-            // `yts.js:92-96` — ❌ lalu pesan sistem.
+            // ❌ lalu pesan sistem.
             return Reply::text(ada_masalah()).with_reaction("❌");
         }
     };
 
     let Some(first) = videos.first() else {
-        // `yts.js:34-37` — ❌ lalu pesan tidak ada hasil.
+        // ❌ lalu pesan tidak ada hasil.
         return Reply::text(tidak_ada_hasil()).with_reaction("❌");
     };
 
@@ -245,19 +245,19 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `yts.js:25` — kata kunci kosong.
+        // Kata kunci kosong.
         assert_eq!(
             text_of(&run(Stub::body("{}"), "")),
             "❌ *Waduh, kata kuncinya kosong!*\n\nKamu harus memasukkan kata kunci judul video yang ingin dicari ya. \n\nContoh penggunaan: `.yts lagu galau indonesia`"
         );
-        // `yts.js:36` — tidak ada hasil.
+        // Tidak ada hasil.
         let r = run(Stub::body(r#"{"contents":{"tabs":[]}}"#), "x");
         assert_eq!(
             text_of(&r),
             "⚠️ *Maaf banget, pencarian tidak menemukan hasil apa pun.* \n\nMungkin kata kuncinya terlalu spesifik. Coba gunakan kata kunci lain yang lebih umum ya!"
         );
         assert_eq!(reaction_of(&r), Some("❌"));
-        // `yts.js:44-58` — isi kartu.
+        // Isi kartu.
         let r = run(Stub::body(HASIL), "lagu uji");
         let t = text_of(&r);
         assert!(
