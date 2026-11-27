@@ -1,11 +1,11 @@
-//! `plugins/islamic/quran.js` — ayat Al-Quran dari quran.nu.or.id.
+//! Ayat Al-Quran dari quran.nu.or.id.
 //!
-//! `ponytail:` JS memakai `cheerio` untuk parse `h1`, `h1 + span`, dan
+//! `Keterbatasan:` versi awal memakai `cheerio` untuk parse `h1`, `h1 + span`, dan
 //! `div[id]` dengan id numerik, lalu ambil `[dir="rtl"]`, `.text-primary-500`,
-//! `.text-neutral-700`. `oktz-plugins` tidak punya parser HTML, jadi semua
-//! dipakai manual di bawah.
+//! `.text-neutral-700`. `oktz-plugins` tidak punya parser HTML, jadi semua dipakai manual
+//! di bawah.
 //!
-//! `ponytail:` Balasan di-chunk jika lebih dari 60000 karakter (JS).
+//! `Keterbatasan:` Balasan di-chunk jika lebih dari 60000 karakter (versi awal).
 //! `Reply::sequence` digunakan untuk beberapa pesan berurutan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -237,7 +237,7 @@ fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn quran(ctx: Ctx) -> Reply {
-    // `m.args?.join(" ")?.trim()` (`quran.js:64`).
+    // `m.args?.join(" ")?.trim()`.
     let gabung = ctx.args.join(" ");
     let query = gabung.trim();
     if query.is_empty() {
@@ -248,19 +248,19 @@ pub fn quran(ctx: Ctx) -> Reply {
     let data = match fetch_quran(ctx.http.as_ref(), &slug) {
         Ok(d) => d,
         Err(_) => {
-            // `m.react("☢")` lalu `m.reply(te(...))` (`quran.js:114-115`).
+            // `m.react("☢")` lalu `m.reply(te(...))`.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
 
     if data.ayat.is_empty() {
-        // `m.react("❌")` (`quran.js:81`).
+        // `m.react("❌")`.
         return Reply::text(format!("❌ Surah *{query}* tidak ditemukan")).with_reaction("❌");
     }
 
     let chunks = format_surah(&data);
     let mut replies: Vec<Reply> = chunks.into_iter().map(Reply::text).collect();
-    // `m.react("✅")` (`quran.js:90`) — reaksi menempel pada balasan terakhir.
+    // `m.react("✅")` — reaksi menempel pada balasan terakhir.
     if let Some(last) = replies.last_mut() {
         let baru = last.clone().with_reaction("✅");
         *last = baru;

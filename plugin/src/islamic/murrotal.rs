@@ -1,15 +1,15 @@
-//! `plugins/islamic/murrotal.js` — audio murottal Al-Quran dari islamipedia.id.
+//! Audio murottal Al-Quran dari islamipedia.id.
 //!
-//! `ponytail:` JS memakai `cheerio` untuk parse `.surah-item` dan atribut
-//! `data-title`/`data-audio`. `oktz-plugins` tidak punya parser HTML, jadi
-//! markup — `.surah-item`, `h5`, `p`, atribut — dipakai manual di bawah.
+//! `Keterbatasan:` versi awal memakai `cheerio` untuk parse `.surah-item` dan atribut
+//! `data-title`/`data-audio`. `oktz-plugins` tidak punya parser HTML, jadi markup —
+//! `.surah-item`, `h5`, `p`, atribut — dipakai manual di bawah.
 //!
-//! `ponytail:` `sock.sendMedia(..., { type: 'audio' })` menjadi
-//! `Reply::audio(MediaSource::Url)`; URL di-fetch oleh pipeline pada saat
-//! kirim, tidak di-download plugin terlebih dahulu.
+//! `Keterbatasan:` `sock.sendMedia(..., { type: 'audio' })` menjadi
+//! `Reply::audio(MediaSource::Url)`; URL di-fetch oleh pipeline pada saat kirim, tidak
+//! di-download plugin terlebih dahulu.
 //!
-//! `ponytail:` `m.react` dua kali (`🔍` lalu `✅`/`❌`) — `Reply::with_reaction`
-//! hanya membawa satu emoji, jadi reaksi akhir saja yang terkirim.
+//! `Keterbatasan:` `m.react` dua kali (`🔍` lalu `✅`/`❌`) — `Reply::with_reaction` hanya
+//! membawa satu emoji, jadi reaksi akhir saja yang terkirim.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -101,7 +101,7 @@ fn tag_text(html: &str, nama: &str) -> Option<String> {
     None
 }
 
-/// Normalisasi query seperti JS: lowercase, hapus non-alphanumeric.
+/// Normalisasi query seperti versi awal: lowercase, hapus non-alphanumeric.
 fn normalisasi(q: &str) -> String {
     q.to_ascii_lowercase()
         .chars()
@@ -132,7 +132,7 @@ fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn murrotal(ctx: Ctx) -> Reply {
-    // `m.args?.join(" ")?.trim()` (`murrotal.js:21`) — `join` menghasilkan
+    // `m.args?.join(" ")?.trim()` — `join` menghasilkan
     // `String` baru, jadi hasil `trim()` harus menyimpan string itu dulu
     // (kalau langsung, temporer-nya jatuh sebelum dipakai).
     let gabung = ctx.args.join(" ");
@@ -144,7 +144,7 @@ pub fn murrotal(ctx: Ctx) -> Reply {
     let daftar = match fetch_surah_list(ctx.http.as_ref()) {
         Ok(d) => d,
         Err(_) => {
-            // `m.react("☢")` lalu `m.reply(te(...))` (`murrotal.js:65-66`).
+            // `m.react("☢")` lalu `m.reply(te(...))`.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
@@ -155,7 +155,7 @@ pub fn murrotal(ctx: Ctx) -> Reply {
     });
 
     let Some(s) = found.filter(|v| !v.audio.is_empty()) else {
-        // `m.react("❌")` (`murrotal.js:55`).
+        // `m.react("❌")`.
         return Reply::text(format!("❌ Surah *{query}* tidak ditemukan")).with_reaction("❌");
     };
 
