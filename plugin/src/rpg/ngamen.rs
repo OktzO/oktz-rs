@@ -1,6 +1,4 @@
-//! `plugins/rpg/ngamen.js` — ngamen di jalanan untuk mencari koin.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Ngamen di jalanan untuk mencari koin.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -13,7 +11,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 10;
 
-/// `locations` (`ngamen.js:37-43`) — `(nama, tarif minimum, tarif maksimum)`;
+/// `locations` — `(nama, tarif minimum, tarif maksimum)`;
 /// urutan object literal = urutan tabel.
 pub(crate) const LOCATIONS: [(&str, i64, i64); 5] = [
     ("Perempatan Lampu Merah", 3000, 10000),

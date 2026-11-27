@@ -1,9 +1,4 @@
-//! `plugins/rpg/leveluprpg.js` — `users[sender].settings.rpgLevelupNotif`.
-//!
-//! Kloning dari `user/levelup.js` dengan nama field, ikon, dan teks berbeda.
-//! Keduanya tetap file terpisah: `pluginConfig` JS-nya terpisah dan KEDUA
-//! plugin menulis ke objek `settings` yang sama, jadi mereka tidak boleh
-//! saling menimpa field satu sama lain.
+//! `users[sender].settings.rpgLevelupNotif`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

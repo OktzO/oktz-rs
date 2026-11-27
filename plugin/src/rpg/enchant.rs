@@ -1,8 +1,4 @@
-//! `plugins/rpg/enchant.js` — naikkan level enchant sebuah barang.
-//!
-//! Kursor: biaya naik per level (`cost * (currentLevel + 1)`) dan tingkat
-//! keberhasilan turun 5 poin per level dengan lantai 20%. Uang hilang baik
-//! berhasil atau gagal — `user.koin -= cost` jalan SEBELUM lemparan.
+//! Naikkan level enchant sebuah barang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -50,7 +46,7 @@ fn adjusted_rate(rate: i64, level: i64) -> i64 {
 }
 
 /// `Math.random() * 100 < adjustedRate` — sumber acak tunggal plugin ini.
-/// `rate` dalam persen, `roll` dalam 0..1. `<` ketat, sama seperti JS.
+/// `rate` dalam persen, `roll` dalam 0..1. `<` ketat, sama seperti versi awal.
 fn roll_succeeds(rate: i64, roll: f64) -> bool {
     roll * 100.0 < rate as f64
 }
@@ -318,7 +314,7 @@ mod tests {
         assert!(won > 0, "dalam 600 percobaan harus ada setidaknya satu sukses");
     }
 
-    /// Batas lemparannya deterministik: `<` ketat, jadi roll tepat sama dengan
+    /// Batas lemparannya deterministik: `<` ketat, jadi roll tepat sama
     /// rate/100 masih gagal.
     #[test]
     fn the_roll_is_strictly_below_the_rate() {

@@ -1,4 +1,4 @@
-//! `plugins/rpg/petshop.js` — beli pet dari toko.
+//! Beli pet dari toko.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -6,7 +6,7 @@ use serde_json::{Value};
 use crate::common::int_field;
 use crate::rpg::jualan::{rpg_map, thousands_en};
 
-/// `PETS_FOR_SALE` (`petshop.js:19-25`) — `(kunci, nama, harga, sifat)`.
+/// `PETS_FOR_SALE` — `(kunci, nama, harga, sifat)`.
 pub(crate) const PETS: [(&str, &str, i64, &str); 5] = [
     (
         "cat",
@@ -122,7 +122,7 @@ pub fn petshop(ctx: Ctx) -> Reply {
             "stats": Value::Null,
         }),
     );
-    // `if (!user.inventory) user.inventory = {}` ada di JS tapi tak pernah
+    // `if (!user.inventory) user.inventory = {}` ada di versi awal tapi tak pernah
     // dibaca atau ditulis setelahnya, jadi tidak ikut dibawa ke mutasi.
     Reply::text(format!(
         "SELAMAT! 🎉🎉\n\n\

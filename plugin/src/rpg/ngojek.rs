@@ -1,6 +1,4 @@
-//! `plugins/rpg/ngojek.js` — narik ojek untuk mendapat uang.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Narik ojek untuk mendapat uang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -13,7 +11,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 15;
 
-/// `orders` (`ngojek.js:37-43`) — `(tipe, jarak, tarif min, tarif max)`.
+/// `orders` — `(tipe, jarak, tarif min, tarif max)`.
 pub(crate) const ORDERS: [(&str, &str, i64, i64); 5] = [
     ("🍔 GoFood", "2km", 5000, 15000),
     ("👤 GoRide", "5km", 10000, 25000),

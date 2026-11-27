@@ -1,16 +1,11 @@
-//! `plugins/rpg/bank.js` — pindah uang antara dompet (`koin`) dan tabungan
-//! (`rpg.bank`).
-//!
-//! JS membaca `db.db.data.users[cleanJid]` langsung, bukan `db.getUser`, jadi
-//! bank tidak ikut efek samping `setUser`. Yang ditulis tetap dua field yang
-//! sama: `koin` dan `rpg.bank`.
+//! Pindah uang antara dompet (`koin`) dan tabungan
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::rpg::heal::{or_default, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `amountStr === "all"` → saldo sumber; selain itu `parseInt`, dan
+/// `amountStr === "all"` → saldo sumber; selain itu `parseInt`,
 /// `if (!amount || amount <= 0)` menolak `NaN` maupun 0.
 fn amount_of(raw: Option<&String>, balance: i64) -> Option<i64> {
     let raw = raw?;

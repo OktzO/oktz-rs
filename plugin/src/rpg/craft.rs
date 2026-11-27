@@ -1,15 +1,4 @@
-//! `plugins/rpg/craft.js` — rakit alat; sebagian resep memberi bonus stat.
-//!
-//! Dua kursor: bahan tidak dihapus dari tas (`-= qty` saja, bahkan kalau
-//! habis), dan `db.save()` TIDAK dipanggil — perubahan tetap masuk mutasi di
-//! sini karena `Reply` ditulis pipeline sebelum pesan dikirim.
-//!
-//! `craft.js:97` — pesan "Tok tok tok... Krek..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "🛠️" (`craft.js:96`) dan "✅" (`craft.js:113`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Rakit alat; sebagian resep memberi bonus stat.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -128,7 +117,7 @@ pub fn craft(ctx: Ctx) -> Reply {
     }
 
     Reply::sequence_text([
-        // `craft.js:97` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         format!(
             "Tok tok tok... Krek... 🛠️🔩\n\
              Sedang serius merakit *{name}*... Bentar lagi jadi!"

@@ -1,9 +1,8 @@
-//! `plugins/rpg/hourly.js` — klaim hadiah sekali per jam.
+//! Klaim hadiah sekali per jam.
 //!
-//! `ponytail:` `config.isPremium(m.sender)` adalah fungsi server; `Ctx` hanya
-//! membawa satu flag owner dan field `isPremium` milik pengirim —
-//! partner tier tidak terlihat, jadi premium yang berasal dari luar store
-//! user tidak terdeteksi di sini.
+//! `Keterbatasan:` `config.isPremium(m.sender)` adalah fungsi server; `Ctx` hanya membawa
+//! satu flag owner dan field `isPremium` milik pengirim — partner tier tidak terlihat, jadi
+//! premium yang berasal dari luar store user tidak terdeteksi di sini.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -17,7 +16,7 @@ const NORMAL_MONEY: i64 = 1_000;
 const PREMIUM_EXP: i64 = 1_000;
 const PREMIUM_MONEY: i64 = 5_000;
 
-/// `msToTime` (`hourly.js:21`) — menit + detik, tanpa jam.
+/// `msToTime` — menit + detik, tanpa jam.
 fn ms_to_time(ms: i64) -> String {
     let ms = ms.max(0);
     let minutes = (ms / 1000 / 60) % 60;
@@ -138,7 +137,7 @@ mod tests {
         assert_eq!(ms_to_time(0), "0 menit 0 detik");
         assert_eq!(ms_to_time(1_000), "0 menit 1 detik");
         assert_eq!(ms_to_time(90_000), "1 menit 30 detik");
-        // `% 60` di JS: satu jam penuh jadi 0 menit — quirk itu ikut apa adanya.
+        // `% 60` di versi awal: satu jam penuh jadi 0 menit — quirk itu ikut apa adanya.
         assert_eq!(ms_to_time(COOLDOWN_MS), "0 menit 0 detik");
         assert_eq!(ms_to_time(-5), "0 menit 0 detik");
     }

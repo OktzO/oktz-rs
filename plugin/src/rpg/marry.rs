@@ -1,11 +1,8 @@
-//! `plugins/rpg/marry.js` — menikahi player lain.
+//! Menikahi player lain.
 //!
-//! Plugin ini menulis DUA row sekaligus (pengirim dan pasangan), jadi reply-nya
-//! membawa dua mutasi `SetUser`.
-//!
-//! `ponytail:` bar pasangan dibaca lewat `crate::rpg::jualan::roster_row`, yang
-//! hanya melihat anggota grup. Di private chat pasangan yang sudah punya
-//! `rpg.spouse` bisa terlewat — lihat catatan helper itu.
+//! `Keterbatasan:` bar pasangan dibaca lewat `crate::rpg::jualan::roster_row`, yang hanya
+//! melihat anggota grup. Di private chat pasangan yang sudah punya `rpg.spouse` bisa
+//! terlewat — lihat catatan helper itu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

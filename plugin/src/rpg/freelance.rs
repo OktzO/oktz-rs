@@ -1,15 +1,4 @@
-//! `plugins/rpg/freelance.js` — projects klien: 20% di-ghosting, 15% dibayar
-//! dolar, sisanya lokal.
-//!
-//! Kursor: `staminaCost` dipotong SEBELUM lemparan, jadi cabang rugi pun
-//! tetap Bahn. Harga dolar tetap 16.000 (kurs beku di source).
-//!
-//! `freelance.js:35` — pesan "Ngetik kode / nggambar di laptop..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "💻" (`freelance.js:34`), "📉" (`:41`), "💸" (`:52`), dan "✅" (`:61`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Projects klien: 20% di-ghosting, 15% dibayar
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -49,7 +38,7 @@ pub fn freelance(ctx: Ctx) -> Reply {
     let koin = crate::common::int_field(&ctx, "koin");
     let gacha = math_random();
 
-    // `freelance.js:35` — pesan sebelum jeda `setTimeout`.
+    // Pesan sebelum jeda `setTimeout`.
     let ngetik = "Ngetik kode / nggambar di laptop... ⌨️\n\
                   Semoga klien nggak minta revisi! 🙏"
         .to_string();

@@ -1,9 +1,4 @@
-//! `plugins/rpg/garden.js` — beli bibit, tanam, panen. Waktu tumbuh memakai
-//! `Date.now()` absolut per petak.
-//!
-//! Kursor: `qty = Math.max(1, parseInt(args[2]) || 1)` — jumlah beli minimal
-//! satu dan `NaN`/`0` menjadi 1; EFEK panenya cuma tambah `crop.exp` SEKALI
-//! per petak, bukan dikali qty.
+//! Beli bibit, tanam, panen. Waktu tumbuh memakai
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -37,7 +32,7 @@ fn crop(key: &str) -> Option<&'static Crop> {
     CROPS.iter().find(|(k, ..)| *k == key)
 }
 
-/// `formatTime` (`garden.js:31`) — hanya menit dan detik.
+/// `formatTime` — hanya menit dan detik.
 fn format_time(ms: i64) -> String {
     let ms = ms.max(0);
     let minutes = ms / 60_000;

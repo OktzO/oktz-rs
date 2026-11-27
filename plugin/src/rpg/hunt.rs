@@ -1,13 +1,4 @@
-//! `plugins/rpg/hunt.js` — satu hewan per lemparan.
-//!
-//! Kursor: `animals.sort((a, b) => a.chance - b.chance)` mengurutkan dari
-//! chance TERENDAH, jadi tier paling sulit diburu diperiksa lebih dulu
-//! dan paling mungkin tembus. Karena `Math.random() * 100` selalu < 100 dan
-//! tier tertinggi hanya punya chance 50, cabang fallback
-//! `animals.find(a => a.item === "rabbit")` praktis tak pernah tercapai.
-//!
-//! Alias `berburu` bentrok dengan plugin `berburu.js` — sama seperti di JS,
-//! di mana kedua file mengklaim command itu.
+//! Satu hewan per lemparan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -18,7 +9,7 @@ use crate::rpg::heal::{
 
 const STAMINA_COST: i64 = 25;
 
-/// `(name, item, chance, exp)` — sudah urut naik seperti `sort()` di JS.
+/// `(name, item, chance, exp)` — sudah urut naik seperti `sort()` di versi awal.
 const ANIMALS: [(&str, &str, i64, i64); 6] = [
     ("🐉 Anak Naga Kuno", "dragon", 1, 2000),
     ("🦁 Singa Padang Rumput", "lion", 5, 800),
@@ -144,8 +135,8 @@ mod tests {
     #[test]
     fn the_hunting_alias_resolves_and_the_collision_is_inherited_from_js() {
         assert_eq!(oktz_plugin_api::find("hunting").unwrap().meta.name, "hunt");
-        // `berburu` juga alias plugin `berburu.js` — pertikaian yang sama ada
-        // di JS, jadi `find` mengembalikan siapa saja yang terdaftar dulu.
+        // `berburu` juga alias plugin — pertikaian yang sama ada
+        // di versi awal, jadi `find` mengembalikan siapa saja yang terdaftar dulu.
         let owner = oktz_plugin_api::find("berburu").unwrap().meta.name.clone();
         assert!(owner == "hunt" || owner == "berburu", "pemilik {owner}");
     }

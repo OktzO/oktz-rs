@@ -1,10 +1,4 @@
-//! `plugins/rpg/merchant.js` — jual beli item ke NPC merchant.
-//!
-//! `toLocaleString()` tanpa locale memakai koma (locale default Node `en-US`).
-//! `handler` di JS bukan `async` dan TIDAK selalu return: kalau `action` bukan
-//! buy/sell/list, cabang fall-through mengembalikan `undefined` — tidak ada
-//! pesan. Di sini semua jalur tetap punya balasan karena setiap jalur yang bisa
-//! dicapai sudah Dixplicit `return m.reply(...)` di JS.
+//! Jual beli item ke NPC merchant.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -12,7 +6,7 @@ use serde_json::{Value};
 use crate::common::int_field;
 use crate::rpg::jualan::{inventory_map, thousands_en};
 
-/// `SHOP_ITEMS` (`merchant.js:18-33`) — `(kunci, nama, beli, jual, deskripsi)`;
+/// `SHOP_ITEMS` — `(kunci, nama, beli, jual, deskripsi)`;
 /// urutan object literal = urutan tampil di `list`.
 pub(crate) const SHOP_ITEMS: [(&str, &str, i64, i64, &str); 14] = [
     ("potion", "🧪 Potion", 100, 50, "Pulihkan 50 HP"),
@@ -152,7 +146,7 @@ pub fn merchant(ctx: Ctx) -> Reply {
     }
     let total = sell * qty;
     let left = have - qty;
-    // `if (user.inventory[itemKey] <= 0) delete ...`
+    // `if (user.inventory[itemKey] <= 0) delete...`
     if left <= 0 {
         inv.remove(key.as_str());
     } else {

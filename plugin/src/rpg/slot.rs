@@ -1,11 +1,9 @@
-//! `plugins/rpg/slot.js` — mesin slot: tiga simbol berbobot, bayaran
-//! 10x (777), 5x (diamond), 3x (tiga sama), 1.5x (dua sama).
+//! Mesin slot: tiga simbol berbobot, bayaran
 //!
-//! `ponytail:` JS mengirim DUA pesan: preview "TREK TREK TREK..." lewat
-//! `sock.sendPreview`, `setTimeout(2500)`, lalu preview hasil lewat
-//! `sock.sendPreview` yang sama. `Ctx` tidak punya `sock` dan `Reply` hanya
-//! membawa satu payload, jadi hanya pesan hasil yang terkirim — teksnya sama
-//! persis dengan `slot.js:79-88`.
+//! `Keterbatasan:` versi awal mengirim DUA pesan: preview "TREK TREK TREK..." lewat
+//! `sock.sendPreview`, `setTimeout(2500)`, lalu preview hasil lewat `sock.sendPreview` yang
+//! sama. `Ctx` tidak punya `sock` dan `Reply` hanya membawa satu payload, jadi hanya pesan
+//! hasil yang terkirim — teksnya sama persis dengan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -13,17 +11,17 @@ use serde_json::{Value};
 use crate::rpg::heal::{math_random, or_default};
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `bet < 1000` (`slot.js:27`) — `!bet` ikut tertutup karena 0 < 1000.
+/// `bet < 1000` — `!bet` ikut tertutup karena 0 < 1000.
 const MIN_BET: i64 = 1_000;
 
-/// `slot.js:37` — urutan menentukan batas kumulatif.
+/// Urutan menentukan batas kumulatif.
 const SYMBOLS: [&str; 6] = ["🍒", "🍋", "🍊", "🍇", "💎", "7️⃣"];
 
-/// `slot.js:38` — jumlahnya 100, jadi `Math.random() * 100` tidak pernah
+/// Jumlahnya 100, jadi `Math.random() * 100` tidak pernah
 /// melewati batas terakhir.
 const WEIGHTS: [f64; 6] = [30.0, 25.0, 20.0, 15.0, 7.0, 3.0];
 
-/// `spin()` (`slot.js:40-48`) — `rand <= cumulative`, bukan `<`.
+/// `spin()` — `rand <= cumulative`, bukan `<`.
 fn spin() -> &'static str {
     let rand = math_random() * 100.0;
     let mut cumulative = 0.0;
@@ -33,18 +31,18 @@ fn spin() -> &'static str {
             return SYMBOLS[i];
         }
     }
-    // JS: `return symbols[0]` untuk rantai yang tidak pernah cocok.
+    // versi awal: `return symbols[0]` untuk rantai yang tidak pernah cocok.
     SYMBOLS[0]
 }
 
-/// `Math.floor(bet * multiplier)` (`slot.js:76`) — dipotong, bukan dibulatkan.
+/// `Math.floor(bet * multiplier)` — dipotong, bukan dibulatkan.
 fn winnings_of(bet: i64, multiplier: f64) -> i64 {
     (bet as f64 * multiplier).floor() as i64
 }
 
-/// Pengali + teks kemenangan dari tiga simbol (`slot.js:57-74`).
+/// Pengali + teks kemenangan dari tiga simbol.
 ///
-/// `None` = `multiplier` tetap 0, yaitu cabang "ZONK" di JS.
+/// `None` = `multiplier` tetap 0, yaitu cabang "ZONK" di versi awal.
 fn payout(result: &[&'static str; 3]) -> (f64, Option<&'static str>) {
     let [a, b, c] = *result;
     if a == b && b == c {
@@ -107,10 +105,10 @@ pub fn slot(ctx: Ctx) -> Reply {
     let result = [spin(), spin(), spin()];
     let (multiplier, win_text) = payout(&result);
     let winnings = winnings_of(bet, multiplier);
-    // JS memakai Number (f64) sehingga `koin + winnings` tidak pernah
+    // versi awal memakai Number (f64) sehingga `koin + winnings` tidak pernah
     // meluap; i64 bisa. Saturasi dipakai supaya saldo raksasa tidak berbalik
-    // jadi negatif — `ponytail:` nilai di atas i64::MAX tidak bisa mewakili
-    // perilaku f64 JS, naik kelas kalau saldo sebesar itu benar-benar dipakai.
+    // jadi negatif — `Keterbatasan:` nilai di atas i64::MAX tidak bisa mewakili
+    // perilaku f64 versi awal, naik kelas kalau saldo sebesar itu benar-benar dipakai.
     let new_koin = (koin - bet).saturating_add(winnings);
 
     let mut txt = format!(
@@ -255,7 +253,7 @@ mod tests {
             (["💎", "💎", "💎"], 5.0, "MANTAP! SUPER DIAMOND!! 💎✨ (5x Lipat)"),
             (["🍒", "🍒", "🍒"], 3.0, "ASIK! TRIPLE COMBO!! 🍒🎰 (3x Lipat)"),
             (["🍋", "🍋", "🍊"], 1.5, "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)"),
-            // JS memakai `||` untuk pasangan, jadi cermin (`a == c`) juga
+            // versi awal memakai `||` untuk pasangan, jadi cermin (`a == c`) juga
             // dihitung DOUBLE — bukan ZONK seperti dugaan awal test ini.
             (["7️⃣", "💎", "7️⃣"], 1.5, "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)"),
         ] {

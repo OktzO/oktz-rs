@@ -1,14 +1,4 @@
-//! `plugins/rpg/kurir.js` — nganter paket orang, awas anjing galak.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`; yang
-//! dikirim adalah hasil akhir beserta reaksi terakhir.
-//!
-//! `kurir.js:35` — pesan "Pakettt!!! 📦" dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "📦" (`kurir.js:34`), "🐕" (`:47`), dan "✅" (`:65`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Nganter paket orang, awas anjing galak.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -19,7 +9,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 15;
 
-/// `items[...]` (`kurir.js:51`) — paket yang diantar.
+/// `items[...]` — paket yang diantar.
 pub(crate) const ITEMS: [&str; 4] = [
     "Dokumen Rahasia",
     "Baju Online",
@@ -55,7 +45,7 @@ pub fn kurir(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let gacha = math_random();
 
-    // `kurir.js:35` — pesan sebelum jeda `setTimeout`.
+    // Pesan sebelum jeda `setTimeout`.
     let paket = "Pakettt!!! 📦\nMencari alamat yang sesuai di maps... 🗺️".to_string();
 
     if gacha < 0.2 {

@@ -1,10 +1,10 @@
-//! `plugins/rpg/breeding.js` — kawin silang peliharaan dua pemain.
+//! Kawin silang peliharaan dua pemain.
 //!
-//! `ponytail:` `db.getUser(mentioned)` hanya terbaca lewat roster grup
-//! (`other_user`), dan `isGroup: true` di JS — jadi di private chat plugin ini
-//! selalu menjawab "nggak punya peliharaan" karena pasangan tidak ada di
-//! store yang bisa dibaca. `PET_NAMES[type]` juga bisa `undefined` untuk tipe
-//! tak dikenal; `?.split(" ")[1] || "Baby"` menutupnya di `nama` bayi.
+//! `Keterbatasan:` `db.getUser(mentioned)` hanya terbaca lewat roster grup (`other_user`),
+//! dan `isGroup: true` di versi awal — jadi di private chat plugin ini selalu menjawab
+//! "nggak punya peliharaan" karena pasangan tidak ada di store yang bisa dibaca.
+//! `PET_NAMES[type]` juga bisa `undefined` untuk tipe tak dikenal; `?.split(" ")[1] ||
+//! "Baby"` menutupnya di `nama` bayi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -207,7 +207,7 @@ pub fn breeding(ctx: Ctx) -> Reply {
         thousands_en(BREEDING_COST)
     ));
 
-    // `breeding.js:98` — pesan sebelum jeda `setTimeout(4000)`.
+    // Pesan sebelum jeda `setTimeout(4000)`.
     let pembicaraan = format!(
         "Cieee, {} kamu sama {} temenmu lagi berduaan nih... 💕✨\n\
          Tunggu bentar ya, dokternya lagi meriksa persalinan!",
@@ -262,7 +262,7 @@ mod tests {
         (oktz_plugin_api::find("breeding").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `breeding.js:98` mengirim satu
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu
     /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn the_caller_must_own_a_pet_first() {
-        // `{}` truthy di JS — pet tanpa `level` tetap "punya pet".
+        // `{}` truthy di versi awal — pet tanpa `level` tetap "punya pet".
         let pet = serde_json::json!(null);
         let r = run(ctx_for(
             &["628222@s.whatsapp.net"],
@@ -354,7 +354,7 @@ mod tests {
         }
     }
 
-    /// `if (!user.rpg.pet)` — `{}` di JS itu TRUTHY, jadi pet tanpa `level`
+    /// `if (!user.rpg.pet)` — `{}` di versi awal itu TRUTHY, jadi pet tanpa `level`
     /// tetap dianggap ada (dan `level || 1` jadi 1).
     #[test]
     fn both_pets_must_reach_level_five() {
@@ -456,8 +456,8 @@ mod tests {
         assert_eq!(baby_name("naga"), "Baby");
     }
 
-    /// `breeding.js:98` dan `:136` — pesan sebelum jeda dan biaya persalinan
-    /// persis sama dengan JS (`toLocaleString()` tanpa locale memakai koma).
+    /// dan `:136` — pesan sebelum jeda dan biaya persalinan
+    /// persis sama dengan versi awal (`toLocaleString()` tanpa locale memakai koma).
     #[test]
     fn output_sama_dengan_js() {
         let r = run(ctx_for(

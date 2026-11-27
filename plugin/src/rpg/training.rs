@@ -1,6 +1,4 @@
-//! `plugins/rpg/training.js` — latihan untuk meningkatkan stats.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Latihan untuk meningkatkan stats.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -9,7 +7,7 @@ use crate::rpg::jualan::{
     apply_exp, coalesce, or_default, roll_incl, rpg_int, rpg_map,
 };
 
-/// `TRAINING_TYPES` (`training.js:19-25`) — `(kunci, nama, stat, bonus min,
+/// `TRAINING_TYPES` — `(kunci, nama, stat, bonus min,
 /// bonus max, exp, biaya stamina)`.
 pub(crate) const TRAINING: [(&str, &str, &str, i64, i64, i64, i64); 5] = [
     ("attack", "⚔️ Attack Training", "attack", 1, 3, 80, 20),
@@ -23,7 +21,7 @@ pub(crate) fn find_training(key: &str) -> Option<&'static (&'static str, &'stati
     TRAINING.iter().find(|t| t.0 == key)
 }
 
-/// Nilai stat di papan Thermal — literal `|| x` per baris di `training.js:41-46`.
+/// Nilai stat di papan Thermal — literal `|| x` per baris.
 /// BEDA dari [`base_stat`]: speed di papan 10, tapi jadi 5 kalau belum pernah
 /// dilatih (`currentStat`).
 pub(crate) fn board_stat(stat: &str) -> i64 {
@@ -36,7 +34,7 @@ pub(crate) fn board_stat(stat: &str) -> i64 {
 }
 
 /// Nilai awal stat saat belum pernah dilatih — `training.stat === "health"
-/// ? 100 : stat === "attack" ? 10 : 5`. `|| 0` juga ikut memperlakukan
+/// ? 100: stat === "attack" ? 10: 5`. `|| 0` juga ikut memperlakukan
 /// `0` sebagai belum ada, jadi zeroes ikut di-backfill.
 pub(crate) fn base_stat(stat: &str) -> i64 {
     match stat {

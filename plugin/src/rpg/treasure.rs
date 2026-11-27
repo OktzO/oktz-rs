@@ -1,7 +1,4 @@
-//! `plugins/rpg/treasure.js` — buka treasure chest untuk hadiah random.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//! `toLocaleString()` tanpa locale memakai koma (default Node `en-US`).
+//! Buka treasure chest untuk hadiah random.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -11,7 +8,7 @@ use crate::rpg::jualan::{
     apply_exp, inventory_map, math_random, or_default, roll_excl, roll_incl, rpg_map, thousands_en,
 };
 
-/// `CHEST_TYPES` (`treasure.js:20-26`) — `(kunci, nama, emas min, emas max,
+/// `CHEST_TYPES` — `(kunci, nama, emas min, emas max,
 /// exp min, exp max, rarity)`.
 pub(crate) const CHESTS: [(&str, &str, i64, i64, i64, i64, &str); 5] = [
     ("woodenchest", "📦 Wooden Chest", 50, 200, 30, 80, "common"),
@@ -24,7 +21,7 @@ pub(crate) const CHESTS: [(&str, &str, i64, i64, i64, i64, &str); 5] = [
 /// `(item, qty min, qty max, chance persen)`.
 pub(crate) type LootEntry = (&'static str, i64, i64, f64);
 
-/// `LOOT_TABLE` (`treasure.js:28-60`) — per rarity.
+/// `LOOT_TABLE` — per rarity.
 pub(crate) const LOOT: [(&str, &[LootEntry]); 5] = [
     (
         "common",
@@ -143,7 +140,7 @@ pub fn treasure(ctx: Ctx) -> Reply {
         inv.insert(key.clone(), serde_json::json!(left));
     }
 
-    // Dua undian punya ujung atas EKSKLUSIF di JS (`(max - min)`), bukan inklusif.
+    // Dua undian punya ujung atas EKSKLUSIF di versi awal (`(max - min)`), bukan inklusif.
     let gold = roll_excl(min_gold, max_gold);
     let exp_reward = roll_excl(min_exp, max_exp);
 

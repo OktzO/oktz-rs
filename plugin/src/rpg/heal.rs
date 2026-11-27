@@ -1,20 +1,12 @@
-//! `plugins/rpg/heal.js` — istirahat gratis untuk memulihkan HP + stamina.
-//!
-//! Berkas ini sekaligus jadi tempat helper RPG untuk 27 plugin lain di batch
-//! ini (`crate::rpg::heal::*`), karena `common.rs` milik agent lain tidak
-//! boleh disentuh.
-//!
-//! Yang tidak ikut ke port: reaksi 🛌 dan pesan "Tidur dulu ah..." sebelum
-//! jeda `setTimeout` (`Reply` hanya bisa satu pesan), dan kartu level-up dari
-//! `checkAndNotifyLevelUp` yang butuh canvas + `sock.sendMedia`.
+//! Istirahat gratis untuk memulihkan HP + stamina.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
-/// `MAX_EXP` (`level.js:226`, `database.js:668`).
+/// `MAX_EXP`.
 pub(crate) const MAX_EXP: i64 = 9_000_000_000;
 
-/// `MAX_KOIN` (`database.js:650`) — hanya `gacha` yang lewat `db.updateKoin`.
+/// `MAX_KOIN` — hanya `gacha` yang lewat `db.updateKoin`.
 pub(crate) const MAX_KOIN: i64 = 9_000_000_000_000;
 
 /// `Math.random()` — `[0, 1)`.
@@ -50,7 +42,7 @@ pub(crate) fn rpg_int(rpg: &Map<String, Value>, key: &str) -> Option<i64> {
     rpg.get(key).and_then(Value::as_i64)
 }
 
-/// `x || d` — `0` falsy di JS, jadi nol ikut diganti `d`.
+/// `x || d` — `0` falsy di versi awal, jadi nol ikut diganti `d`.
 pub(crate) fn or_default(v: Option<i64>, d: i64) -> i64 {
     match v {
         Some(x) if x != 0 => x,
@@ -72,7 +64,7 @@ pub(crate) fn thousands_en(n: i64) -> String {
     crate::tools::kalkulatormbg::thousands_id(n as f64).replace('.', ",")
 }
 
-/// `db.updateExp` (`database.js:664`) — tanpa cek level, jadi `rpg` tidak ikut
+/// `db.updateExp` — tanpa cek level, jadi `rpg` tidak ikut
 /// disentuh meski level naik.
 pub(crate) fn exp_gain_only(old_exp: i64, gain: i64) -> i64 {
     if old_exp == -1 {
@@ -82,7 +74,7 @@ pub(crate) fn exp_gain_only(old_exp: i64, gain: i64) -> i64 {
     }
 }
 
-/// `addExpWithLevelCheck` (`level.js:217`) minus kartu level-up (canvas).
+/// `addExpWithLevelCheck` minus kartu level-up (canvas).
 ///
 /// Panggil SESUDAH plugin mengurangi stamina: `checkAndNotifyLevelUp`
 /// menimpa `health`/`mana`/`stamina` ke maksimum baru kalau level naik.
@@ -105,8 +97,8 @@ pub(crate) fn apply_exp(rpg: &mut Map<String, Value>, old_exp: i64, gain: i64) -
     new_exp
 }
 
-/// `user.level || 1` — field level ATAS (`database.js:570`), bukan
-/// `rpg.level` yang ditulis `level.js:136`.
+/// `user.level || 1` — field level ATAS, bukan
+/// `rpg.level` yang ditulis.
 pub(crate) fn user_level(ctx: &Ctx) -> i64 {
     or_default(ctx.user_field("level").and_then(Value::as_i64), 1)
 }
@@ -143,14 +135,14 @@ pub(crate) fn roll_percent() -> i64 {
     crate::common::roll(100) as i64
 }
 
-/// `createGachaAnimation` (`gacha.js:132`) — satu frame acak dari daftar.
+/// `createGachaAnimation` — satu frame acak dari daftar.
 pub(crate) fn random_rare_frame() -> &'static str {
     const FRAMES: [&str; 5] = ["🎰", "💫", "✨", "🌟", "💥"];
     FRAMES[crate::common::random_index(FRAMES.len())]
 }
 
 /// `Number.prototype.toLocaleString("id-ID")` — pemisah ribuan titik, tanda
-/// minus ikut (JS: `(-1000).toLocaleString("id-ID")` → `"-1.000"`).
+/// minus ikut (versi awal: `(-1000).toLocaleString("id-ID")` → `"-1.000"`).
 ///
 /// `thousands_id` di `tools::kalkulatormbg` memakai `abs()`, jadi angka
 /// negatif kehilangan tanda minus; helper ini menutup celah itu.
@@ -170,7 +162,7 @@ pub(crate) fn idr(n: i64) -> String {
     out
 }
 
-/// Caption pesan preview RPG: `sendRpgPreview` (`context.js:119-133`) memakai
+/// Caption pesan preview RPG: `sendRpgPreview` memakai
 /// `caption: \`${config.info.website} ${text}\``.
 ///
 /// Yang tidak ikut: `title`, `description`, dan `jpegThumbnail` — Rust tidak
@@ -339,7 +331,7 @@ mod tests {
     #[test]
     fn zero_valued_stats_fall_back_to_one_hundred_because_of_or() {
         // `user.rpg.health || 100` — 0 bukan berarti habis, tapi belum pernah
-        // diisi juga bukan; JS menimpanya dengan 100.
+        // diisi juga bukan; versi awal menimpanya dengan 100.
         let r = run(serde_json::json!({"rpg": {"health": 0, "stamina": 0}}));
         assert!(
             r.mutations().is_empty(),
@@ -356,7 +348,7 @@ mod tests {
         assert_eq!(rpg["pet"], serde_json::json!({"type": "dog"}));
     }
 
-    // -- helper bersama batch ini ------------------------------------------
+    // - helper bersama batch ini ------------------------------------------
 
     #[test]
     fn apply_exp_only_rewrites_stats_when_the_level_actually_moves() {

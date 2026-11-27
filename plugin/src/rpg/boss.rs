@@ -1,21 +1,4 @@
-//! `plugins/rpg/boss.js` — raid boss, 15 ronde, crit 10%.
-//!
-//! Kursor yang dipertahankan:
-//!
-//! 1. `availableBosses` disaring `user.level` (field ATAS, bukan `rpg.level`),
-//!    jadi pemain baru benar-benar terkunci dari SELURUH boss.
-//! 2. `Math.max(1, health - 50)` saat kalah — HP tidak pernah menyentuh 0,
-//!    tidak seperti `adventure`.
-//! 3. `toLocaleString()` tanpa locale memakai koma (`5,000`), bukan titik.
-//!
-//! `boss.js:123` mengirim perkenalan boss dulu, lalu `setTimeout(2500)`
-//! (`boss.js:124`), lalu `boss.js:156` mengirim cuplikan pertarungan, lalu
-//! `setTimeout(1500)` (`boss.js:162`), lalu hasil akhir (`boss.js:211`).
-//! Empat pesan itu dikirim berurutan lewat [`Reply::sequence_text`].
-//!
-//! Reaksi `⚔️`/`🏆`/`💀` (`boss.js:116`, `:194`, `:207`) tidak ikut: reaksi
-//! tidak bisa dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa
-//! merender satu pesan), jadi teks beberapa pesan lebih dipilih.
+//! Raid boss, 15 ronde, crit 10%.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -54,7 +37,7 @@ fn available(level: i64) -> Vec<&'static Boss> {
     BOSSES.iter().filter(|(_, _, _, min, ..)| level >= *min).collect()
 }
 
-/// `BOSSES.reduce((a, b) => (a.minLevel < b.minLevel ? a : b))` — tabel sudah
+/// `BOSSES.reduce((a, b) => (a.minLevel < b.minLevel ? a: b))` — tabel sudah
 /// urut, jadi `min_by_key` memberi hasil yang sama.
 fn lowest() -> &'static Boss {
     BOSSES
@@ -162,7 +145,7 @@ pub fn boss(ctx: Ctx) -> Reply {
 
     let f = fight(user_attack, user_defense, max_hp, chosen);
 
-    // `boss.js:117-123` — perkenalan boss sebelum jeda `setTimeout`.
+    // Perkenalan boss sebelum jeda `setTimeout`.
     let intro = format!(
         "⚠️ *PERINGATAN BAHAYA!* ⚠️\n\n\
          Aura kegelapan menyelimuti arena... *{}* telah muncul di hadapan kamu!\n\n\
@@ -172,7 +155,7 @@ pub fn boss(ctx: Ctx) -> Reply {
         chosen.0, chosen.1, chosen.2
     );
 
-    // `boss.js:156-161` — cuplikan pertarungan sebelum jeda kedua.
+    // Cuplikan pertarungan sebelum jeda kedua.
     let cuplikan = format!("⚔️ *Sengitnya Pertarungan...*\n\n{}", log_block(&f));
 
     if f.boss_hp <= 0 {
@@ -264,7 +247,7 @@ mod tests {
         (oktz_plugin_api::find("boss").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `boss.js` mengirim tiga pesan
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim tiga pesan
     /// (perkenalan, cuplikan, hasil), jadi `Reply::Sequence` berisi tiga teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -381,7 +364,7 @@ mod tests {
         assert!(data.get("inventory").is_none(), "kalah tak melepas loot");
     }
 
-    /// `Math.max(1, ...)` — HP 0 masih naik ke 1, bukan 0.
+    /// `Math.max(1...)` — HP 0 masih naik ke 1, bukan 0.
     #[test]
     fn the_loss_floor_is_one_hp_not_zero() {
         assert_eq!(loss_health(1), 1, "1 - 50 -> max(1, -49)");
@@ -417,8 +400,8 @@ mod tests {
         assert_eq!(lowest().3, 8, "Undead King adalah minLevel paling rendah");
     }
 
-    /// `boss.js:117-123`, `:156-161`, `:184-192` — tiga pesan berurutan dengan
-    /// teks persis sama seperti JS.
+    /// , `:156-161`, `:184-192` — tiga pesan berurutan
+    /// teks persis sama seperti versi awal.
     #[test]
     fn output_sama_dengan_js() {
         let r = run(serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }));

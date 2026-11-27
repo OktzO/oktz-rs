@@ -1,7 +1,4 @@
-//! `plugins/rpg/quest.js` — papan bounty misi harian.
-//!
-//! Hadiah quest lewat `db.updateExp`, BUKAN `addExpWithLevelCheck` — jadi exp
-//! naik tanpa stats `rpg` ikut terisi ulang walau level naik.
+//! Papan bounty misi harian.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -10,7 +7,7 @@ use crate::common::{int_field, now_ms};
 use crate::rpg::jualan::{exp_gain_only, or_default};
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `QUESTS` (`quest.js:19-55`) — `(id, nama, deskripsi, target, uang, exp)`.
+/// `QUESTS` — `(id, nama, deskripsi, target, uang, exp)`.
 pub(crate) const QUESTS: [(&str, &str, &str, i64, i64, i64); 5] = [
     ("mining5", "Penambang Pemula", "Mining 5 kali", 5, 10000, 1000),
     ("fishing5", "Pemancing Handal", "Fishing 5 kali", 5, 8000, 800),

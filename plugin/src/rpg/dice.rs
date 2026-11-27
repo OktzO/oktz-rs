@@ -1,12 +1,8 @@
-//! `plugins/rpg/dice.js` — lempar dadu untuk gambling.
+//! Lempar dadu untuk gambling.
 //!
-//! `ponytail:` `sendRpgPreview` + `setTimeout(2500)` butuh `sock` dan tidur
-//! async, yang tidak ada di `Ctx` API (sinkron). Animasi "mengocok dadu"
-//! dilewati; validasi, undian, perhitungan kemenang/kehilangan, dan mutasi
-//! koin lewat `Mutation::SetUser` dipindah.
-//!
-//! Catatan: baris `pub mod dice;` perlu ditambah ke `rpg/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `sendRpgPreview` + `setTimeout(2500)` butuh `sock` dan tidur async, yang
+//! tidak ada di `Ctx` API (sinkron). Animasi "mengocok dadu" dilewati; validasi, undian,
+//! perhitungan kemenang/kehilangan, dan mutasi koin lewat `Mutation::SetUser` dipindah.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -106,7 +102,7 @@ pub fn dice(ctx: Ctx) -> Reply {
     let mut new_user = user;
     let final_koin = if is_win { after_bet + bet * 5 } else { after_bet };
     // `user.koin -= bet` / `user.koin = (user.koin || 0) + winnings`
-    // (`dice.js:47`, `:63`) — objek user dari store disalin lalu `koin` diganti.
+    // Objek user dari store disalin lalu `koin` diganti.
     if new_user.is_object() {
         new_user["koin"] = serde_json::json!(final_koin);
     } else {

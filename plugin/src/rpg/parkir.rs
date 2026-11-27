@@ -1,6 +1,4 @@
-//! `plugins/rpg/parkir.js` — tukang parkir minimarket, waspada satpol PP.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Tukang parkir minimarket, waspada satpol PP.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

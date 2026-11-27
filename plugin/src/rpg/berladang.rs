@@ -1,17 +1,4 @@
-//! `plugins/rpg/berladang.js` — panen hasil kebun. Semua tanaman punya
-//! peluangnya sendiri-sendiri (bukan satu lemparan untuk seluruh ladang),
-//! dan kalau gagal panen sama sekali tetap dapat 1 padi.
-//!
-//! Kursor: `user.rpg.stamina ?? 100` memakai `??`, dan `results.length === 0`
-//! memberi 1 padi dengan nilai 100 — bukan 0.
-//!
-//! `berladang.js:37` mengirim pesan "Menyiapkan cangkul..." lebih dulu, lalu
-//! `setTimeout(3000)` (`berladang.js:38`), baru pesan hasil. Dua pesan itu
-//! dikirim berurutan lewat [`Reply::sequence_text`].
-//!
-//! Reaksi `🌾`/`✅` (`berladang.js:36`, `:73`) tidak ikut: reaksi tidak bisa
-//! dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa merender
-//! satu pesan), jadi teks dua pesan lebih dipilih.
+//! Panen hasil kebun. Semua tanaman punya
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -101,7 +88,7 @@ pub fn berladang(ctx: Ctx) -> Reply {
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
     Reply::sequence_text([
-        // `berladang.js:37` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         "Menyiapkan cangkul dan menyiram tanah... 🌱💧\nSemoga hari ini panen berlimpah!"
             .to_string(),
         format!(
@@ -138,7 +125,7 @@ mod tests {
         (oktz_plugin_api::find("berladang").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `berladang.js:37` mengirim satu
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu
     /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -260,7 +247,7 @@ mod tests {
         assert_eq!(CROPS[5], ("melon", "🍈 Melon", 10, 1, 1, 1000));
     }
 
-    /// `berladang.js:37` — pesan sebelum jeda persis sama dengan JS dan
+    /// Pesan sebelum jeda persis sama dengan versi awal
     /// selalu mendahului pesan hasil.
     #[test]
     fn output_sama_dengan_js() {

@@ -1,15 +1,4 @@
-//! `plugins/rpg/crime.js` — bobol ATM, 50% berhasil.
-//!
-//! Kursor: denda dibatasi saldo yang ada (`Math.min(fine, user.koin || 0)`)
-//! dan `Math.max(0, ...)` lagi diftykai setelahnya, jadi koin tak pernah
-//! negatif; HP juga dijepit di 0 (berbeda dari `boss` yang minimal 1).
-//!
-//! `crime.js:27` — pesan "Memasang alat peretas di ATM..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "💣" (`crime.js:26`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Bobol ATM, 50% berhasil.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -42,7 +31,7 @@ pub fn crime(ctx: Ctx) -> Reply {
         let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
         return Reply::sequence_text([
-            // `crime.js:27` — pesan sebelum jeda `setTimeout`.
+            // Pesan sebelum jeda `setTimeout`.
             "Memasang alat peretas di ATM seberang jalan... 💣💻".to_string(),
             format!(
                 "HACKING SUKSES!! 💻💵\n\n\
@@ -63,7 +52,7 @@ pub fn crime(ctx: Ctx) -> Reply {
     rpg.insert("health".into(), serde_json::json!(left_hp));
 
     Reply::sequence_text([
-        // `crime.js:27` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         "Memasang alat peretas di ATM seberang jalan... 💣💻".to_string(),
         format!(
             "NGIIING NGIING!! ALARM BUNYI!! 🚨🚓\n\n\
@@ -160,7 +149,7 @@ mod tests {
         assert!(win > 0 && caught > 0, "win={win} caught={caught}");
     }
 
-    /// `Math.min(fine, user.koin || 0)` lalu `Math.max(0, ...)` — dompet
+    /// `Math.min(fine, user.koin || 0)` lalu `Math.max(0...)` — dompet
     /// tipis hanya kena denda sebesar yang ada.
     #[test]
     fn the_fine_never_exceeds_the_purse_and_never_goes_negative() {

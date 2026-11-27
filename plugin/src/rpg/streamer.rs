@@ -1,12 +1,4 @@
-//! `plugins/rpg/streamer.js` — live streaming, donasi besar tapi bisa kena ban.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! Catatan kursor: cabang ban menulis `db.db.data.users[nomor].lastStreamer`
-//! langsung ke objek store, bukan lewat `db.setUser`. Karena `getUser` juga
-//! mengembalikan objek live yang sama, ini identik dengan menulis field
-//! `lastStreamer` pada row itu — begitu juga pengurangan stamina yang terjadi
-//! beberapa baris sebelumnya.
+//! Live streaming, donasi besar tapi bisa kena ban.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

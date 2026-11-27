@@ -1,12 +1,4 @@
-//! `plugins/rpg/maling.js` — mencopet orang di pasar.
-//!
-//! Catatan: `mod.rs` kategori `rpg` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod maling;` perlu ditambahkan manual
-//! di `rust/crates/oktz-plugins/src/rpg/mod.rs`.
-//!
-//! `getDatabase()`, `addExpWithLevelCheck()`, dan `sendRpgPreview()` tidak
-//! punya padanan di `Ctx`. State dibaca dari `ctx.user_data` dan ditulis
-//! kembali lewat `Mutation::SetUser`. Preview dan jeda 2,5 detik diabaikan.
+//! Mencopet orang di pasar.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;

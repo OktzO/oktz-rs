@@ -1,22 +1,22 @@
-//! `plugins/rpg/stamina.js` — cek stamina, dan isi ulang dengan 5.000 koin.
+//! Cek stamina, dan isi ulang dengan 5.000 koin.
 //!
-//! `ponytail:` JS mengirim lewat `sendRpgPreview` (`sock.sendPreview`) yang
+//! `Keterbatasan:` versi awal mengirim lewat `sendRpgPreview` (`sock.sendPreview`) yang
 //! menempelkan thumbnail RPG + `config.info.website` ke caption dan menyetel
-//! judul/deskripsi kartu. `Ctx` tidak punya `sock`, jadi teksnya sama persis
-//! tapi terkirim sebagai balasan biasa tanpa kartu preview.
+//! judul/deskripsi kartu. `Ctx` tidak punya `sock`, jadi teksnya sama persis tapi terkirim
+//! sebagai balasan biasa tanpa kartu preview.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
 use crate::rpg::heal::{coalesce, or_default, rpg_map};
 
-/// `const potionCost = 5000` (`stamina.js:37`).
+/// `const potionCost = 5000`.
 pub(crate) const POTION_COST: i64 = 5_000;
 
-/// `createStaminaBar` (`stamina.js:19-23`) — 10 sel,
+/// `createStaminaBar` — 10 sel,
 /// `Math.round(current / max * 10)` terisi.
 ///
-/// `ponytail:` `Math.round(Infinity)` / `NaN` di JS membuat `repeat` melempar
+/// `Keterbatasan:` `Math.round(Infinity)` / `NaN` di versi awal membuat `repeat` melempar
 /// `RangeError` (tidak ada `try/catch` di handler), sedangkan `repeat` Rust
 /// panik. Hasilnya dijepit ke `0..=10` supaya data rusak tidak menjatuhkan
 /// proses — `maxStamina` sendiri selalu terisi `|| 100` sebelum ini dipanggil.
@@ -30,12 +30,12 @@ pub(crate) fn stamina_bar(current: i64, max: i64) -> String {
     format!("{}{}", "█".repeat(filled), "░".repeat(10 - filled))
 }
 
-/// `user.rpg.stamina ?? 100` (`stamina.js:31`).
+/// `user.rpg.stamina ?? 100`.
 fn stamina_of(rpg: &Map<String, Value>) -> i64 {
     coalesce(rpg.get("stamina").and_then(Value::as_i64), 100)
 }
 
-/// `user.rpg.maxStamina || 100` (`stamina.js:32`) — nol ikut jadi 100.
+/// `user.rpg.maxStamina || 100` — nol ikut jadi 100.
 fn max_stamina_of(rpg: &Map<String, Value>) -> i64 {
     or_default(rpg.get("maxStamina").and_then(Value::as_i64), 100)
 }

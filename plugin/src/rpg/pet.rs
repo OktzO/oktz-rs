@@ -1,8 +1,4 @@
-//! `plugins/rpg/pet.js` — kelola pet / hewan peliharaan.
-//!
-//! Catatan kursor: `newName.length` di JS menghitung UNIT UTF-16, sedangkan
-//! `chars().count()` menghitung SKALA. Untuk nama ASCII keduanya sama; nama
-//! ber-emoji bisa beda satu poin. Limit 2..=15 dipakai apa adanya.
+//! Kelola pet / hewan peliharaan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -12,7 +8,7 @@ use crate::rpg::jualan::{inventory_map, roll_incl, rpg_map};
 /// `(kunci, nama, attack, defense, luck, evolusi)`; `None` = bentuk sempurna.
 pub(crate) type PetType = (&'static str, &'static str, i64, i64, i64, Option<&'static str>);
 
-/// `PET_TYPES` (`pet.js:19-30`).
+/// `PET_TYPES`.
 pub(crate) const PET_TYPES: [PetType; 10] = [
     ("cat", "🐱 Kucing", 5, 3, 5, Some("lion")),
     ("dog", "🐕 Anjing", 8, 5, 2, Some("wolf")),
@@ -26,7 +22,7 @@ pub(crate) const PET_TYPES: [PetType; 10] = [
     ("thunderbunny", "⚡ Thunder Bunny", 10, 12, 18, None),
 ];
 
-/// `FOOD_ITEMS` (`pet.js:32-38`) — `(kunci, nama, hunger, exp)`.
+/// `FOOD_ITEMS` — `(kunci, nama, hunger, exp)`.
 pub(crate) const FOODS: [(&str, &str, i64, i64); 5] = [
     ("bread", "🍞 Roti", 10, 5),
     ("fish", "🐟 Ikan", 20, 10),
@@ -54,8 +50,8 @@ fn num_or(pet: &Map<String, Value>, key: &str, default: i64) -> i64 {
 }
 
 /// `expNeeded = (pet.level || 1) * 100` + blok naik level. Mengembalikan
-/// pesan level-up (bisa kosong). Satu kali naik per panggilan — sama seperti
-/// JS yang hanya memeriksa sekali tanpa `while`.
+/// pesan level-up (bisa kosong). Satu kali naik per panggilan — sama
+/// versi awal yang hanya memeriksa sekali tanpa `while`.
 pub(crate) fn level_up(pet: &mut Map<String, Value>, base: (i64, i64, i64), shout: &str) -> String {
     let needed = num_or(pet, "level", 1) * 100;
     if num(pet, "exp") < needed {
@@ -111,7 +107,7 @@ pub fn pet(ctx: Ctx) -> Reply {
     };
     let mut pet = raw_pet.as_object().cloned().unwrap_or_default();
 
-    // `PET_TYPES[pet.type]` di JS adalah `undefined` kalau jenis asing, dan
+    // `PET_TYPES[pet.type]` di versi awal adalah `undefined` kalau jenis asing,
     // baris berikutnya langsung accessing `.name` — TypeError. Di sini jenis
     // asing ditolak eksplisit supaya tidak menggagalkan seluruh handler.
     let kind = pet
@@ -421,7 +417,7 @@ mod tests {
 
     #[test]
     fn an_unknown_action_prints_the_card_instead_of_falling_silent() {
-        // `handler` di JS mengembalikan `undefined` untuk aksi tak dikenal yang
+        // `handler` di versi awal mengembalikan `undefined` untuk aksi tak dikenal
         // lolos daftar aksi — sama seperti tanpa-balas. Di sini tetap kartu.
         let r = run(&["terbang"], with_pet(serde_json::json!({})));
         assert!(text_of(&r).starts_with("🐾 *Buku Identitas Peliharaan*"));

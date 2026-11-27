@@ -1,6 +1,4 @@
-//! `plugins/rpg/mulung.js` — memulung untuk mengumpulkan barang.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Memulung untuk mengumpulkan barang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -13,7 +11,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 15;
 
-/// `drops` (`mulung.js:40-46`) — `(item, nama, min, max)`. `koran` boleh 0,
+/// `drops` — `(item, nama, min, max)`. `koran` boleh 0,
 /// dan qty 0 berarti dilewati: tidak masuk tas, tidak dihitung pendapatan.
 pub(crate) const DROPS: [(&str, &str, i64, i64); 5] = [
     ("botol", "🍶 Botol", 1, 10),

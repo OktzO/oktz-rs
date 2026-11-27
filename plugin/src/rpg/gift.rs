@@ -1,10 +1,9 @@
-//! `plugins/rpg/gift.js` — beri item ke pasangan; love naik 10 per unit.
+//! Beri item ke pasangan; love naik 10 per unit.
 //!
-//! `ponytail:` `db.getUser(spouseJid)` hanya terbaca lewat roster grup, dan
-//! plugin ini `isGroup: false` — jadi di private chat pasangan tidak pernah
-//! ditemukan dan baris partner tidak pernah ditulis. Capacitas hilang
-//! satu-directional: item keluar dari tas pengirim tapi tidak masuk ke
-//! pasangan.
+//! `Keterbatasan:` `db.getUser(spouseJid)` hanya terbaca lewat roster grup, dan plugin ini
+//! `isGroup: false` — jadi di private chat pasangan tidak pernah ditemukan dan baris
+//! partner tidak pernah ditulis. Capacitas hilang satu-directional: item keluar dari tas
+//! pengirim tapi tidak masuk ke pasangan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -49,7 +48,7 @@ pub fn gift(ctx: Ctx) -> Reply {
         );
     };
 
-    // Cek urutan mengikuti JS: jumlah dulu, baru nama item.
+    // Cek urutan mengikuti versi awal: jumlah dulu, baru nama item.
     let amount = amount_of(ctx.args.get(1));
     if amount <= 0 {
         return Reply::text("❌ Jumlah item tidak valid. Gunakan angka positif!");

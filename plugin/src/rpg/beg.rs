@@ -1,13 +1,4 @@
-//! `plugins/rpg/beg.js` — mengemis: 4 dari 7 hasil memberi uang, satu
-//! merampok balik.
-//!
-//! Cabang rugi (`money < 0`) TIDAK memanggil `addExpWithLevelCheck`, jadi exp
-//! sama sekali tak tersentuh — hanya `koin` yang dijepit di 0. Cabang nihil
-//! (`money === 0`) memanggil `db.save()` tanpa perubahan apa pun.
-//!
-//! `beg.js:25` mengirim pesan "🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*" lebih dulu, lalu
-//! `setTimeout(2000)` (`beg.js:26`), baru pesan hasil. Dua pesan itu dikirim
-//! berurutan lewat [`Reply::sequence_text`].
+//! Mengemis: 4 dari 7 hasil memberi uang, satu
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -97,7 +88,7 @@ mod tests {
         (oktz_plugin_api::find("beg").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `beg.js:25` mengirim satu pesan
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu pesan
     /// lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -134,8 +125,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `ngemis` juga nama `plugins/rpg/ngemis.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `ngemis` bukan milik beg.
+        // `ngemis` juga nama; nama didahulukan
+        // , jadi alias `ngemis` bukan milik beg.
         assert_eq!(oktz_plugin_api::find("ngemis").unwrap().meta.name, "ngemis");
     }
 
@@ -224,7 +215,7 @@ mod tests {
         }
     }
 
-    /// `beg.js:25` — pesan sebelum jeda persis sama dengan JS dan selalu
+    /// Pesan sebelum jeda persis sama dengan versi awal dan selalu
     /// mendahului pesan hasil.
     #[test]
     fn output_sama_dengan_js() {

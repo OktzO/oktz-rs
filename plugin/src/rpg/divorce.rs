@@ -1,10 +1,9 @@
-//! `plugins/rpg/divorce.js` — cerai dari pasangan, biaya 25.000.
+//! Cerai dari pasangan, biaya 25.000.
 //!
-//! `ponytail:` `db.getUser(spouseJid)` hanya terbaca lewat roster grup, dan
-//! plugin ini `isGroup: false` — jadi di private chat pasangan tidak pernah
-//! ditemukan dan hanya sisi pemanggil yang dibersihkan. `spouse` dan
-//! `marriedAt` ditulis `null`, bukan `delete`, jadi tetap terbaca sebagai
-//! "tidak punya pasangan" (`!user.rpg.spouse`).
+//! `Keterbatasan:` `db.getUser(spouseJid)` hanya terbaca lewat roster grup, dan plugin ini
+//! `isGroup: false` — jadi di private chat pasangan tidak pernah ditemukan dan hanya sisi
+//! pemanggil yang dibersihkan. `spouse` dan `marriedAt` ditulis `null`, bukan `delete`,
+//! jadi tetap terbaca sebagai "tidak punya pasangan" (`!user.rpg.spouse`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -246,7 +245,7 @@ mod tests {
     #[test]
     fn both_sides_are_mentioned_in_the_reply() {
         let r = run(married(50_000), None);
-        // JS: `m.react("💔")` lalu `m.reply(txt, { mentions })` — reaksi
+        // versi awal: `m.react("💔")` lalu `m.reply(txt, { mentions })` — reaksi
         // membungkus balasan, jadi mentions ada di `Text` di dalam `Reaction`.
         let Reply::Reaction { emoji, reply } = r.without_mutations() else {
             panic!("harus Reaction, dapat {:?}", r.without_mutations());

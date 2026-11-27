@@ -1,11 +1,4 @@
-//! `plugins/rpg/lottery.js` — gacha berbayar 1..10 tarikan.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//! Kartu level-up (`checkAndNotifyLevelUp`) juga tidak — lihat
-//! [`crate::rpg::jualan::apply_exp`].
-//!
-//! Catatan kursor: `toLocaleString()` tanpa locale memakai koma (locale
-//! default Node `en-US`), bukan titik seperti `toLocaleString("id-ID")`.
+//! Gacha berbayar 1..10 tarikan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -17,8 +10,8 @@ use crate::rpg::jualan::{
 
 pub(crate) const GACHA_COST: i64 = 500;
 
-/// `GACHA_POOL` (`lottery.js:20-33`) — `(item, nama, chance, qty min, qty max,
-/// rarity)`. `trash` tidak punya `qty` di JS, jadi kolomnya diisi 0/0 dan
+/// `GACHA_POOL` — `(item, nama, chance, qty min, qty max,
+/// rarity)`. `trash` tidak punya `qty` di versi awal, jadi kolomnya diisi 0/0
 /// `draw_one` selalu memberi 1.
 pub(crate) const POOL: [(&str, &str, f64, i64, i64, &str); 12] = [
     ("trash", "🗑️ Sampah Busuk", 30.0, 0, 0, "common"),
@@ -138,7 +131,7 @@ pub fn lottery(ctx: Ctx) -> Reply {
     let mut rpg = rpg_map(&ctx);
 
     // `grouped` menjaga urutan kemunculan pertama — sama dengan urutan iterasi
-    // `Object.entries` pada objek yang diisi berurutan di JS.
+    // `Object.entries` pada objek yang diisi berurutan di versi awal.
     let mut grouped: Vec<(&'static str, &'static str, &'static str, i64, i64)> = Vec::new();
     let mut total_exp = 0i64;
     for _ in 0..pulls {

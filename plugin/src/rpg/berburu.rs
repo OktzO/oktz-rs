@@ -1,18 +1,4 @@
-//! `plugins/rpg/berburu.js` — berburu enam hewan, hasilnya langsung dijual jadi
-//! koin.
-//!
-//! Kursor yang dipertahankan: `user.rpg.stamina = user.rpg.stamina ?? 100`
-//! memakai `??` (nol tetap nol), dan `caught.slice(0, 3)` membatasi tiga
-//! hewan PERTAMA yang lolos — sisanya tetap menambah exp ke tabel tapi tidak
-//! masuk tas maupun ke teks.
-//!
-//! `berburu.js:37` mengirim pesan "Mengendap-endap masuk ke hutan..." lebih
-//! dulu, lalu `setTimeout(3000)` (`berburu.js:38`), baru pesan hasil.
-//! Dua pesan itu dikirim berurutan lewat [`Reply::sequence_text`].
-//!
-//! Reaksi `🏹`/`😢`/`✅` (`berburu.js:36`, `:52`, `:74`) tidak ikut: reaksi
-//! tidak bisa dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya
-//! bisa merender satu pesan), jadi teks dua pesan lebih dipilih.
+//! Berburu enam hewan, hasilnya langsung dijual jadi
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -74,7 +60,7 @@ pub fn berburu(ctx: Ctx) -> Reply {
     }
     rpg.insert("stamina".into(), serde_json::json!(stamina - STAMINA_COST));
 
-    // `berburu.js:37` — pesan sebelum jeda `setTimeout`.
+    // Pesan sebelum jeda `setTimeout`.
     let berburu = "Mengendap-endap masuk ke hutan... 🤫🌳\n\
                   Siapin panah dan bidik dengan teliti! 🏹👀"
         .to_string();
@@ -138,7 +124,7 @@ pub fn berburu(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    /// `alias` plugin `hunt.js` juga memuat "berburu", jadi `find("berburu")`
+    /// `alias` plugin juga memuat "berburu", jadi `find("berburu")`
     /// bisa mengembalikan plugin yang salah — cari lewat `meta.name`.
     fn plugin() -> &'static oktz_plugin_api::registry::PluginEntry {
         oktz_plugin_api::all_plugins()
@@ -160,7 +146,7 @@ mod tests {
         (plugin().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `berburu.js:37` mengirim satu
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu
     /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -292,7 +278,7 @@ mod tests {
         assert_eq!(ANIMALS[5], ("🦁 Singa", "taring_singa", 5, 1, 1, 1000, 25000));
     }
 
-    /// `berburu.js:37` — pesan sebelum jeda persis sama dengan JS, dan
+    /// Pesan sebelum jeda persis sama dengan versi awal,
     /// selalu mendahului pesan hasil.
     #[test]
     fn output_sama_dengan_js() {

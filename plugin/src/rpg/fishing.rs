@@ -1,20 +1,4 @@
-//! `plugins/rpg/fishing.js` — mancing satu ikan per lemparan.
-//!
-//! Kursor penting: `drops.sort((a, b) => a.chance - b.chance)` MUTASI array
-//! modul di JS, jadi `let caught = drops[0]` — yang dievaluasi SEBELUM sort —
-//! bernilai `trash` pada panggilan pertama dan `whale` pada semua panggilan
-//! berikutnya (setelah sort, indeks 0 = chance terkecil). Perilaku
-//! berurutan itu tidak bisa direproduksi dari handler murni, jadi di sini
-//! `caught` selalu mulai dari `whale` — keadaan tunak yang berlaku setelah
-//! pemanggilan pertama. Cases where no drop matches its chance threshold
-//! (rand > 50, ~50% peluang) memakai nilai fallback ini.
-//!
-//! `fishing.js:37` — pesan "Melempar kail ke air yang tenang..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "🎣" (`fishing.js:36`) dan "✅" (`fishing.js:67`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Mancing satu ikan per lemparan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -25,7 +9,7 @@ use crate::rpg::heal::{
 
 const STAMINA_COST: i64 = 15;
 
-/// `(item, chance, name, exp)` — setelah `drops.sort(chance)` di JS.
+/// `(item, chance, name, exp)` — setelah `drops.sort(chance)` di versi awal.
 const DROPS: [(&str, i64, &str, i64); 6] = [
     ("whale", 1, "🐳 Paus", 2000),
     ("shark", 5, "🦈 Hiu", 800),
@@ -91,7 +75,7 @@ pub fn fishing(ctx: Ctx) -> Reply {
     };
 
     Reply::sequence_text([
-        // `fishing.js:37` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         "Melempar kail ke air yang tenang... 🌊🎣\n\
          Sssttt, jangan berisik biar ikannya makan umpan! 🤫👀"
             .to_string(),
@@ -180,7 +164,7 @@ mod tests {
 
     #[test]
     fn the_drop_table_is_stored_in_the_order_the_sort_produces() {
-        // `drops.sort((a, b) => a.chance - b.chance)` di JS.
+        // `drops.sort((a, b) => a.chance - b.chance)` di versi awal.
         assert_eq!(DROPS[0], ("whale", 1, "🐳 Paus", 2000));
         assert_eq!(DROPS[5], ("fish", 50, "🐟 Ikan", 100));
         assert!(DROPS.windows(2).all(|w| w[0].1 < w[1].1), "harus terurut naik");

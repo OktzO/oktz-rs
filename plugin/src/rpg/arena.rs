@@ -1,10 +1,9 @@
-//! `plugins/rpg/arena.js` — duel PvP di grup sampai 10 ronde.
+//! Duel PvP di grup sampai 10 ronde.
 //!
-//! `ponytail:` `db.getUser(mentioned)` tidak ada di `Ctx` untuk private chat
-//! dan roster yang tidak memuat target — `other_user` mengembalikan `None`
-//! dan plugin membalas "belum terdaftar" untuk row yang memang belum ada
-//! (`db.getUser` juga `null` di sana). Di private chat (`isGroup: false`)
-//! roster selalu kosong, jadi duel hanya jalan di grup.
+//! `Keterbatasan:` `db.getUser(mentioned)` tidak ada di `Ctx` untuk private chat dan roster
+//! yang tidak memuat target — `other_user` mengembalikan `None` dan plugin membalas "belum
+//! terdaftar" untuk row yang memang belum ada (`db.getUser` juga `null` di sana). Di
+//! private chat (`isGroup: false`) roster selalu kosong, jadi duel hanya jalan di grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};

@@ -1,8 +1,8 @@
-//! `plugins/rpg/transfer.js` — kirim koin atau item ke user lain.
+//! Kirim koin atau item ke user lain.
 //!
-//! Dua bar ditulis (pengirim dan penerima) dalam satu reply. Bar penerima dibaca
-//! lewat `crate::rpg::jualan::roster_inventory` — lihat catatan `ponytail:` di
-//! sana: di luar grup bar itu tidak terbaca dan dianggap kosong.
+//! Dua bar ditulis (pengirim dan penerima) dalam satu reply. Bar penerima dibaca lewat
+//! `crate::rpg::jualan::roster_inventory` — lihat catatan `Keterbatasan:` di sana: di luar
+//! grup bar itu tidak terbaca dan dianggap kosong.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

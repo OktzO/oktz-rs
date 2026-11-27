@@ -1,19 +1,4 @@
-//! `plugins/rpg/jualan.js` — dagang asongan keliling.
-//!
-//! Berkas ini sekaligus jadi tempat helper RPG untuk 27 plugin lain di batch
-//! ini (`crate::rpg::jualan::*`), karena `common.rs` milik agent lain tidak
-//! boleh disentuh.
-//!
-//! Yang tidak ikut ke port: reaksi + pesan antara sebelum jeda `setTimeout`
-//! (`Reply` hanya bisa satu pesan, jadi yang dikirim hasil akhir beserta reaksi
-//! TERAKHIR), dan kartu level-up dari `checkAndNotifyLevelUp` yang butuh canvas.
-//!
-//! `jualan.js:35` — pesan "Cangcimen cangcimen!..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "🛒" (`jualan.js:34`), "🌧️" (`:43`), "🤑" (`:50`), dan "✅" (`:59`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Dagang asongan keliling.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -21,7 +6,7 @@ use serde_json::{Map, Value};
 use crate::common::int_field;
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `MAX_EXP` (`level.js:226`, `database.js:668`).
+/// `MAX_EXP`.
 pub(crate) const MAX_EXP: i64 = 9_000_000_000;
 
 /// `Math.random()` — `[0, 1)`.
@@ -36,19 +21,19 @@ pub(crate) fn roll_incl(min: i64, max: i64) -> i64 {
 }
 
 /// `Math.floor(Math.random() * (max - min)) + min` — ujung atas eksklusif:
-/// `max` tidak akan keluar (`steal.js:84`, `treasure.js:110`, `use.js`).
+/// `max` tidak akan keluar.
 pub(crate) fn roll_excl(min: i64, max: i64) -> i64 {
     min + crate::common::roll((max - min) as u32) as i64
 }
 
-/// `x ?? d` — `0` tetap `0`; hanya null/undefined (dan bukan angka) yang
+/// `x ?? d` — `0` tetap `0`; hanya null/undefined (dan bukan angka)
 /// jatuh ke `d`.
 pub(crate) fn coalesce(v: Option<i64>, d: i64) -> i64 {
     v.unwrap_or(d)
 }
 
-/// `x || d` — `0` falsy di JS, jadi nol ikut diganti `d`. `mining.js`,
-/// `work.js`, dan `woodcut.js` memakainya untuk stamina: nol berarti "belum
+/// `x || d` — `0` falsy di versi awal, jadi nol ikut diganti `d`.,
+/// , dan memakainya untuk stamina: nol berarti "belum
 /// pernah pakai", bukan "kehabisan".
 pub(crate) fn or_default(v: Option<i64>, d: i64) -> i64 {
     match v {
@@ -80,7 +65,7 @@ pub(crate) fn thousands_en(n: i64) -> String {
     thousands_id(n as f64).replace('.', ",")
 }
 
-/// `db.updateExp` (`database.js:664-672`) — TANPA cek level, jadi `rpg` tidak
+/// `db.updateExp` — TANPA cek level, jadi `rpg` tidak
 /// ikut disentuh meski level naik.
 pub(crate) fn exp_gain_only(old_exp: i64, gain: i64) -> i64 {
     if old_exp == -1 {
@@ -90,9 +75,9 @@ pub(crate) fn exp_gain_only(old_exp: i64, gain: i64) -> i64 {
     }
 }
 
-/// `addExpWithLevelCheck` (`level.js:217-240`) minus kartu level-up (canvas +
+/// `addExpWithLevelCheck` minus kartu level-up (canvas +
 /// `sock.sendMedia`, tidak tersedia). Panggil SESUDAH plugin mengurangi
-/// stamina: `checkAndNotifyLevelUp` menimpa `stamina`/`health`/`mana` ke
+/// stamina: `checkAndNotifyLevelUp` menimpa `stamina`/`health`/`mana`
 /// maksimum baru kalau level naik.
 pub(crate) fn apply_exp(rpg: &mut Map<String, Value>, old_exp: i64, gain: i64) -> i64 {
     let new_exp = exp_gain_only(old_exp, gain);
@@ -117,7 +102,7 @@ pub(crate) fn rpg_int(rpg: &Map<String, Value>, key: &str) -> Option<i64> {
 /// `db.getUser(jid)` untuk JID orang lain, di luar `sender` — satu-satunya
 /// bar yang tersedia adalah `Participant.data` dari roster grup.
 ///
-/// `ponytail:` `Ctx` tidak punya pembacaan store untuk JID sembarang, jadi di
+/// `Keterbatasan:` `Ctx` tidak punya pembacaan store untuk JID sembarang, jadi
 /// private chat (atau mention ke non-anggota) bar selalu `None` walau row-nya
 /// ada. Tambahkan `user_entry(jid)` ke `Ctx` kalau router mau menutup celah ini;
 /// sementara ini plugin yang butuh row target (`marry`, `transfer`) treating
@@ -188,7 +173,7 @@ pub fn jualan(ctx: Ctx) -> Reply {
         let rugi = roll_incl(5000, 14999);
         let koin = (koin - rugi).max(0);
         return Reply::sequence_text([
-            // `jualan.js:35` — pesan sebelum jeda `setTimeout`.
+            // Pesan sebelum jeda `setTimeout`.
             "Cangcimen cangcimen! Kacang kuaci permen! 🍬\n\
              Nawarin dagangan ke orang lewat... 🗣️"
                 .to_string(),
@@ -215,7 +200,7 @@ pub fn jualan(ctx: Ctx) -> Reply {
     let exp_gain = earning / 20;
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    // `jualan.js:51` (cabang laku keras) dan `jualan.js:60` (cabang biasa)
+    // (cabang laku keras) dan (cabang biasa)
     // punya judul, baris omzet, dan penutup yang BERBEDA.
     let txt = if gacha > 0.85 {
         format!(
@@ -239,7 +224,7 @@ pub fn jualan(ctx: Ctx) -> Reply {
     };
 
     Reply::sequence_text([
-        // `jualan.js:35` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         "Cangcimen cangcimen! Kacang kuaci permen! 🍬\n\
          Nawarin dagangan ke orang lewat... 🗣️"
             .to_string(),

@@ -1,10 +1,4 @@
-//! `plugins/rpg/expedition.js` — kirim rombongan ekspedisi, klaim hasil
-//! setelah durasi lewat.
-//!
-//! Kursor: waktu pakai `Date.now()` absolut per implode (`startedAt`), jadi
-//! handler ini NON-deterministik terhadap jam — testnya menyuntikkan
-//! `startedAt` relatif ke `now_ms()`, bukan meng froze clock. Kapasitas juga
-//! naik per 10 level: `min(5, 1 + floor(level / 10))`.
+//! Kirim rombongan ekspedisi, klaim hasil
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -33,7 +27,7 @@ fn area_info(key: &str) -> Option<&'static Expedition> {
     EXPEDITIONS.iter().find(|(k, ..)| *k == key)
 }
 
-/// `formatTime` (`expedition.js:28`) — jam > 0 menang atas menit.
+/// `formatTime` — jam > 0 menang atas menit.
 fn format_time(ms: i64) -> String {
     let ms = ms.max(0);
     let hours = ms / 3_600_000;
@@ -412,7 +406,7 @@ mod tests {
         assert!(t.contains("🗺️ *Rombongan 1* -> 🌲 Hutan Laba-laba"), "{t}");
         assert!(t.contains("✅ SELESAI! (Siap Claim)"), "{t}");
         assert!(t.contains("🗺️ *Rombongan 2* -> 🌲 Hutan Laba-laba"), "{t}");
-        // `format_time` sudah dikunci persis di test sendiri. Di sini yang
+        // `format_time` sudah dikunci persis di test sendiri. Di sini
         // dikunci cuma sisa ~30 menit, karena handler membaca `now_ms()`
         // sendiri beberapa ms setelah test — 1 ms cukup mengubah "30m 0s"
         // jadi "29m 59s".

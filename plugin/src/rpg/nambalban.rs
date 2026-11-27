@@ -1,6 +1,4 @@
-//! `plugins/rpg/nambalban.js` — jasa tambal ban, awas ban meledak.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Jasa tambal ban, awas ban meledak.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

@@ -1,7 +1,4 @@
-//! `plugins/rpg/nulis.js` — nulis cerpen buat royalti. Command-nya `cerpen`,
-//! bukan `nulis` — nama plugin ikut apa yang tertulis di `pluginConfig`.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Nulis cerpen buat royalti. Command-nya `cerpen`,
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -145,8 +142,8 @@ mod tests {
         assert_eq!(p.meta.energi, 0);
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_owner && !p.meta.is_admin);
-        // `nulis` adalah plugin tools (`plugins/tools/nulis.js:7`), bukan
-        // plugin ini; plugin ini bernama `cerpen` (`plugins/rpg/nulis.js:5`).
+        // `nulis` adalah plugin tools, bukan
+        // plugin ini; plugin ini bernama `cerpen`.
         assert_ne!(
             oktz_plugin_api::find("nulis").map(|e| e.meta.name.as_str()),
             Some("cerpen"),

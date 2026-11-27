@@ -1,15 +1,14 @@
-//! `plugins/rpg/sellall.js` — jual SEMUA item yang punya harga jual.
+//! Jual SEMUA item yang punya harga jual.
 //!
-//! `ponytail:` `SELL_PRICES` di JS hanya 22 kunci dan TIDAK memuat
-//! `potion`/`mpotion`/`stamina`/`kunai`/`shuriken`/`chakra`/`scroll`
-//! (meski ada di `inventory.js`). Item yang tidak punya harga jual di sini
-//! tidak terjual dan TIDAK dikosongkan — persis seperti di JS.
+//! `Keterbatasan:` `SELL_PRICES` di versi awal hanya 22 kunci dan TIDAK memuat
+//! `potion`/`mpotion`/`stamina`/`kunai`/`shuriken`/`chakra`/`scroll`. Item yang tidak punya
+//! harga jual di sini tidak terjual dan TIDAK dikosongkan — persis seperti di versi awal.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `SELL_PRICES` (`sellall.js:19-42`) — urutan object literal = urutan tampil
+/// `SELL_PRICES` — urutan object literal = urutan tampil
 /// di balasan.
 pub(crate) const SELL_PRICES: [(&str, i64); 22] = [
     ("rock", 20),
@@ -91,8 +90,8 @@ pub fn sellall(ctx: Ctx) -> Reply {
     let total: i64 = items.iter().map(|(_, _, e)| e).sum();
     let koin = crate::common::int_field(&ctx, "koin") + total;
 
-    // Hanya item yang TERJUAL yang dikosongkan; `inventory.potion` dan
-    // walau ada di inventory.js — jadi seluruh `inventory` ditulis ulang
+    // Hanya item yang TERJUAL yang dikosongkan; `inventory.potion`
+    // walau ada di — jadi seluruh `inventory` ditulis ulang
     // dari salinan dengan entri terjual di-nolkan.
     let mut inv = ctx
         .user_field("inventory")

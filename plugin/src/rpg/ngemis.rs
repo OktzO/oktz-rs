@@ -1,6 +1,4 @@
-//! `plugins/rpg/ngemis.js` — ngemis di jalanan, ada peluang dapat nasi bungkus.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Ngemis di jalanan, ada peluang dapat nasi bungkus.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -100,8 +98,8 @@ mod tests {
 
     const SENDER: &str = "628111@s.whatsapp.net";
 
-    /// `find("ngemis")` ambigu: `ngemis` juga alias plugin `beg.js`, dan
-    /// `find` mengembalikan siapa pun yang terdaftar lebih dulu di
+    /// `find("ngemis")` ambigu: `ngemis` juga alias plugin,
+    /// `find` mengembalikan siapa pun yang terdaftar lebih dulu
     /// `distributed_slice`. Cari lewat `meta.name` supaya test ini selalu
     /// menguji plugin yang namanya `ngemis`.
     fn plugin() -> &'static oktz_plugin_api::registry::PluginEntry {

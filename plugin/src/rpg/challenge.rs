@@ -1,14 +1,4 @@
-//! `plugins/rpg/challenge.js` — satu tantangan harian per user, diacak ulang
-//! setiap `toDateString()` berubah.
-//!
-//! Kursor: `new Date().toDateString()` memakai zona waktu LOKAL proses Node
-//! (bukan `src/lib/time.js` yang dipaksa Asia/Jakarta), dan bentuknya
-//! `"Mon Oct 12 2026"`. Di sini tetap Asia/Jakarta — satu-satunya zona yang
-//! dipakai repo ini — dan bentuknya dipertahankan supaya challenge yang
-//! tersimpan di store tidak ikut berubah format.
-//!
-//! Progres HANYA bertambah lewat plugin lain (`fishing`, `mining`, ...)
-//! yang menulis `rpg.dailyChallenge.progress`; plugin ini hanya membacanya.
+//! Satu tantangan harian per user, diacak ulang
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -17,7 +7,7 @@ use crate::rpg::heal::{apply_exp, or_default, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 /// `(name, type, target, gold, exp)` — `type` tidak pernah dibaca plugin ini,
-/// tapi dipertahankan agar tabel tetap identik dengan JS.
+/// tapi dipertahankan agar tabel tetap identik dengan versi awal.
 type Challenge = (&'static str, &'static str, i64, i64, i64);
 
 const CHALLENGES: [Challenge; 7] = [
@@ -49,7 +39,7 @@ fn today_string(ms: i64) -> String {
     )
 }
 
-/// `getNewDailyChallenge()` (`challenge.js:30`) — challenges acak + progres 0.
+/// `getNewDailyChallenge()` — challenges acak + progres 0.
 fn new_challenge(ms: i64) -> Value {
     let (name, kind, target, gold, exp) = CHALLENGES[crate::common::random_index(CHALLENGES.len())];
     serde_json::json!({

@@ -1,8 +1,4 @@
-//! `plugins/rpg/weekly.js` — klaim hadiah mingguan.
-//!
-//! Cooldown dibaca dari `user.cooldowns.weekly` (epoch ms), bukan dari counter
-//! router — `cooldown: 0` di `pluginConfig` hanya karena router tidak ikut
-//! menghitungnya sendiri.
+//! Klaim hadiah mingguan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};

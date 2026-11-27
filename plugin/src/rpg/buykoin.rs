@@ -1,8 +1,4 @@
-//! `plugins/rpg/buykoin.js` — tukar EXP menjadi Koin.
-//!
-//! Kursor penting: biaya EXP dibaca dari `user.exp` SEBELUM ditulis, dan
-//! `parseInt` menerima awalan angka (`"10abc"` → 10). `Math.floor(exp / 2)`
-//! untuk `all` dibulatkan ke bawah, tidak ke atas.
+//! Tukar EXP menjadi Koin.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -252,7 +248,7 @@ mod tests {
     #[test]
     fn no_argument_at_all_shows_info_because_args_is_empty() {
         // `amountStr = args[0]` undefined -> cabang info. Token whitespace
-        // bukan "tanpa argumen" di JS karena router sudah memecahnya.
+        // bukan "tanpa argumen" di versi awal karena router sudah memecahnya.
         let r = run(serde_json::json!({"exp": 100000}), "");
         assert!(text_of(&r).starts_with("💱 *Buy Koin*"));
         assert!(r.mutations().is_empty());
@@ -281,7 +277,7 @@ mod tests {
 
     #[test]
     fn parse_int_accepts_a_numeric_prefix_but_stops_at_the_first_letter() {
-        // `parseInt("1000abc")` = 1000 di JS.
+        // `parseInt("1000abc")` = 1000 di versi awal.
         let r = run(serde_json::json!({"exp": 100000, "koin": 0}), "1000abc");
         let data = write_of(&r);
         assert_eq!(data["exp"], serde_json::json!(98000));
@@ -326,7 +322,7 @@ mod tests {
         assert_eq!(koin_amount("abc", 100), None);
     }
 
-    /// `buykoin.js:58-63` — balasan "EXP tidak cukup" persis sama dengan JS:
+    /// Balasan "EXP tidak cukup" persis sama dengan versi awal:
     /// satuan EXP/Koin DI DALAM bold.
     #[test]
     fn output_sama_dengan_js() {

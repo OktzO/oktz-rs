@@ -1,6 +1,4 @@
-//! `plugins/rpg/nyapu.js` — nyapu jalan, siapa tau nemu barang jatuh.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
+//! Nyapu jalan, siapa tau nemu barang jatuh.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};

@@ -1,13 +1,4 @@
-//! `plugins/rpg/rob.js` — rampok koin member grup lain.
-//!
-//! Yang tidak ikut ke port: preview `*Sssstttt...* Bersembunyi` sebelum jeda
-//! `setTimeout`, dan kartu level-up dari `addExpWithLevelCheck` yang butuh
-//! canvas + `sock.sendMedia` — EXP-nya sendiri tetap lewat
-//! [`crate::rpg::jualan::apply_exp`].
-//!
-//! `db.getUser(target)` untuk member lain dibaca dari
-//! [`crate::rpg::heal::other_user`], jadi target yang row-nya belum pernah ada
-//! di store jatuh ke cabang "nggak ketemu".
+//! Rampok koin member grup lain.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -35,10 +26,10 @@ fn target_of(ctx: &Ctx) -> Option<String> {
 
 /// `maxSteal = Math.floor(koin * 0.3)`, `stolen = Math.floor(Math.random() * maxSteal) + 1000`.
 ///
-/// `Math.random()` ada di `[0, 1)`, jadi bagian acaknya di `0..maxSteal` dan
-/// jumlah curian di `1000 ..= maxSteal + 999` — bukan sampai `maxSteal`.
+/// `Math.random()` ada di `[0, 1)`, jadi bagian acaknya di `0..maxSteal`
+/// jumlah curian di `1000..= maxSteal + 999` — bukan sampai `maxSteal`.
 /// `maxSteal` bisa 0 (korban miskin) — `roll(0)` akan panic, jadi nol
-/// ditangani eksplisit seperti `Math.random() * 0` di JS.
+/// ditangani eksplisit seperti `Math.random() * 0` di versi awal.
 fn stolen_of(victim_koin: i64) -> i64 {
     let max_steal = victim_koin * 3 / 10;
     let hasil = if max_steal > 0 {
@@ -327,8 +318,8 @@ mod tests {
         }
     }
 
-    /// `Math.floor(Math.random() * Math.floor(koin * 0.3)) + 1000` — curian di
-    /// `1000 ..= floor(koin * 0.3) + 999`, jadi bisa sedikit di atas 30% dompet.
+    /// `Math.floor(Math.random() * Math.floor(koin * 0.3)) + 1000` — curian
+    /// `1000..= floor(koin * 0.3) + 999`, jadi bisa sedikit di atas 30% dompet.
     #[test]
     fn a_successful_rob_moves_between_1000_and_thirty_percent_of_the_purse() {
         let koin = 500_000;
@@ -367,7 +358,7 @@ mod tests {
     }
 
     /// `m.reply(txt, { mentions: [target] })` — mention-nya JID penuh target,
-    /// dan sender TIDAK ikut (JS override `mentionedJid`).
+    /// dan sender TIDAK ikut (versi awal override `mentionedJid`).
     #[test]
     fn the_success_reply_names_the_target_number_and_mentions_only_them() {
         let mut checked = false;

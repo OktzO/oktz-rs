@@ -1,4 +1,4 @@
-//! `plugins/rpg/inventory.js` — baca `users[sender].inventory`, tanpa tulis.
+//! Baca `users[sender].inventory`, tanpa tulis.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::common::int_field;
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `ITEMS` (`inventory.js:11-44`) — cukup `(kunci, emote, nama)`; `emote` dan
+/// `ITEMS` — cukup `(kunci, emote, nama)`; `emote`
 /// `name` di plugin dipakai persis begini.
 pub(crate) const ITEMS: [(&str, &str, &str); 27] = [
     ("common", "📦", "Common Crate"),
@@ -38,7 +38,7 @@ pub(crate) const ITEMS: [(&str, &str, &str); 27] = [
     ("bowlramen", "🍜", "Ramen"),
 ];
 
-/// `categories` (`inventory.js:57-64`), urutan object literal = urutan tampil.
+/// `categories`, urutan object literal = urutan tampil.
 pub(crate) const CATEGORIES: [(&str, &[&str]); 6] = [
     ("📦 *Koleksi Crates*", &["common", "uncommon", "mythic", "legendary"]),
     (
@@ -165,7 +165,7 @@ mod tests {
         }
     }
 
-    // -- cabang state tersimpan -------------------------------------------
+    // - cabang state tersimpan -------------------------------------------
 
     #[test]
     fn an_absent_user_row_shows_defaults_and_an_empty_bag() {

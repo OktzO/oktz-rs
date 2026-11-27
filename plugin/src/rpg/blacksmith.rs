@@ -1,16 +1,4 @@
-//! `plugins/rpg/blacksmith.js` — tempa senjata/armor dari material.
-//!
-//! Bedanya dari `alchemy`: bahan HABIS dihapus dari tas (kalau `<= 0`), dan
-//! satu resep (`arrow`) menghasilkan 10 buah sekaligus lewat `recipe.qty`.
-//! `recipe.price` tidak pernah dipakai plugin ini — harga jual tetap milik
-//! `sellall`.
-//!
-//! `blacksmith.js:79` — pesan "Ting! Ting! Cshhh..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "🔨" (`blacksmith.js:78`) dan "✅" (`blacksmith.js:93`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Tempa senjata/armor dari material.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -131,7 +119,7 @@ pub fn blacksmith(ctx: Ctx) -> Reply {
     let new_exp = apply_exp(&mut rpg, old_exp, exp);
 
     Reply::sequence_text([
-        // `blacksmith.js:79` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         format!(
             "Ting! Ting! Cshhh... 🔥🔨\n\
              Menempa logam untuk membuat *{name}*... Prosesnya bakal sedikit makan waktu!"

@@ -1,16 +1,4 @@
-//! `plugins/rpg/cooking.js` — masak resep yang DIMINTA (berbeda dari `cook`
-//! yang otomatis memilih).
-//!
-//! Batas efek mengikuti level: `maxHealth = 100 + level * 5` dan
-//! `maxMana = 50 + level * 3` — bukan `+ (level - 1)` seperti `level.js`.
-//! Itu tidak konsisten, tapi itu yang ditulis plugin ini.
-//!
-//! `cooking.js:81` — pesan "Srengg... Srenggg..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "👨‍🍳" (`cooking.js:80`) dan "✅" (`cooking.js:107`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Masak resep yang DIMINTA (berbeda dari `cook`
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -58,7 +46,7 @@ fn materials_line(materials: &[(&'static str, i64)]) -> String {
         .join(", ")
 }
 
-/// `Object.entries(recipe.effect)` — urutan pasangan = urutan field di JS.
+/// `Object.entries(recipe.effect)` — urutan pasangan = urutan field di versi awal.
 fn effect_lines(effect: Effect) -> Vec<(&'static str, i64)> {
     [("STAMINA", effect.0), ("HEALTH", effect.1), ("MANA", effect.2)]
         .into_iter()
@@ -166,7 +154,7 @@ pub fn cooking(ctx: Ctx) -> Reply {
         .join("\n");
 
     Reply::sequence_text([
-        // `cooking.js:81` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         format!(
             "Srengg... Srenggg... 🔥🍳\n\
              Lagi masak *{name}* nih, wanginya nyebar sekampung! 🤤"
@@ -306,7 +294,7 @@ mod tests {
     }
 
     /// `maxHealth = 100 + userLevel * 5` — BUKAN `100 + (level - 1) * 10`
-    /// seperti `level.js`. Level 1 → 105, bukan 100.
+    /// seperti. Level 1 → 105, bukan 100.
     #[test]
     fn the_health_ceiling_scales_with_level() {
         let r = run(

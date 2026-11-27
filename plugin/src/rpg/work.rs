@@ -1,16 +1,4 @@
-//! `plugins/rpg/work.js` — bekerja untuk mendapatkan uang.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! `work.js:48` mengirim pesan "Otw berangkat kerja jadi *…* dulu kak!" lebih
-//! dulu, lalu `setTimeout(3000)` (`work.js:49`), baru pesan hasil. Dua pesan
-//! itu dikirim berurutan lewat [`Reply::sequence_text`].
-//!
-//! Catatan kursor: guard stamina pakai `user.rpg.stamina || 100` (nol falsy),
-//! dan `job.name.substring(3)` memotong 3 UNIT UTF-16 — bukan 3 karakter Rust.
-//! Untuk `👨‍🌾 Petani` itu berarti emote terakhir ikut tertinggal
-//! (`🌾 Petani`), sedangkan `🧹 Cleaning Service` menjadi `Cleaning Service`.
-//! Hasil potongnya sudah dihitung di tabel JOB agar tidak salah baca emoji.
+//! Bekerja untuk mendapatkan uang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -23,7 +11,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 10;
 
-/// `jobs` (`work.js:35-42`) — `(nama tampil, nama tanpa 3 unit UTF-16 pertama,
+/// `jobs` — `(nama tampil, nama tanpa 3 unit UTF-16 pertama,
 /// gaji min, gaji max)`. Kolom kedua cuma dipakai pesan antara
 /// `Otw berangkat kerja jadi *…* dulu kak!` yang tidak bisa dikirim di port ini;
 /// isinya tetap dihitung supaya tidak ada yang salah mengira `chars().skip(3)`
@@ -67,7 +55,7 @@ pub fn work(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    // `work.js:48` — pesan sebelum jeda `setTimeout`.
+    // Pesan sebelum jeda `setTimeout`.
     let berangkat = format!("Otw berangkat kerja jadi *{bare}* dulu kak! 🏃💼💨");
 
     Reply::sequence_text([
@@ -107,7 +95,7 @@ mod tests {
         (oktz_plugin_api::find("work").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `work.js:48` mengirim satu pesan
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu pesan
     /// lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -202,7 +190,7 @@ mod tests {
         assert!(written(&r)["koin"].as_i64().unwrap() > 250_000);
     }
 
-    /// `work.js:48` — pesan sebelum jeda persis sama dengan JS, memakai
+    /// Pesan sebelum jeda persis sama dengan versi awal, memakai
     /// `job.name.substring(3)` (potong 3 unit UTF-16).
     #[test]
     fn output_sama_dengan_js() {

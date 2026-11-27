@@ -1,10 +1,9 @@
-//! `plugins/rpg/guild.js` — buat/gabung/keluar guild, donasi kas.
+//! Buat/gabung/keluar guild, donasi kas.
 //!
-//! `ponytail:` tabel guild ada di `db.db.data.guilds` — key TOP-LEVEL store,
-//! bukan `settings` dan bukan milik user. `Mutation` hanya punya SetUser /
-//! SetGroup / SetSetting, jadi di sini guild disimpan sebagai setting
-//! `guilds` (`ctx.setting("guilds")` untuk baca). Perilaku plugin tetap sama
-//! karena hanya satu writer.
+//! `Keterbatasan:` tabel guild ada di `db.db.data.guilds` — key TOP-LEVEL store, bukan
+//! `settings` dan bukan milik user. `Mutation` hanya punya SetUser / SetGroup / SetSetting,
+//! jadi di sini guild disimpan sebagai setting `guilds` (`ctx.setting("guilds")` untuk
+//! baca). Perilaku plugin tetap sama karena hanya satu writer.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -154,7 +153,7 @@ pub fn guild(ctx: Ctx) -> Reply {
             if my_id.is_some() {
                 return Reply::text("Rakus lu! Kan udah punya guild. Leave dulu sana kalau mau bikin baru!");
             }
-            // `guildName.length` di JS = jumlah UTF-16 unit, bukan byte.
+            // `guildName.length` di versi awal = jumlah UTF-16 unit, bukan byte.
             let len = name.chars().count() as i64;
             if name.is_empty() || len < 3 {
                 return Reply::text("Nama guild minimal *3 huruf* bos!");
@@ -233,7 +232,7 @@ pub fn guild(ctx: Ctx) -> Reply {
                 obj.insert("members".into(), serde_json::json!(members));
             }
             all.insert(id.clone(), target);
-            // JS: `user.rpg.guildId = targetGuild.id`, bukan nama yang diketik.
+            // versi awal: `user.rpg.guildId = targetGuild.id`, bukan nama yang diketik.
             rpg.insert("guildId".into(), serde_json::json!(id));
 
             let target_name = all

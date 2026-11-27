@@ -1,15 +1,4 @@
-//! `plugins/rpg/cook.js` — masak resep PERTAMA yang bahannya cukup, bukan
-//! yang diminta.
-//!
-//! Kursor: bahan TIDAK dihapus dari tas kalau habis (berbeda dari `alchemy`
-//! yang `delete`), dan `user.rpg.health || 100` memakai `||` — nol jadi 100.
-//!
-//! `cook.js:77` — pesan "Srengg... Srenggg..." dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "🍳" (`cook.js:76`) dan "✅" (`cook.js:85`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Masak resep PERTAMA yang bahannya cukup, bukan
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -100,7 +89,7 @@ pub fn cook(ctx: Ctx) -> Reply {
     rpg.insert("health".into(), serde_json::json!(healed));
 
     Reply::sequence_text([
-        // `cook.js:77` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         format!(
             "Srengg... Srenggg... 🔥🍳\n\
              Lagi masak *{name}* nih, wanginya enak banget! 🤤"

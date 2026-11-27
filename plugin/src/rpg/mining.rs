@@ -1,10 +1,4 @@
-//! `plugins/rpg/mining.js` — menambang untuk mendapatkan ores dan gems.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! Catatan kursor: guard stamina memakai `user.rpg.stamina || 100`, BUKAN `??`.
-//! Artinya stamina 0 diganti 100 dan penambang tetap boleh masuk — bug JS yang
-//! sengaja dipertahankan karena `woodcut.js`/`work.js` memakai pola yang sama.
+//! Menambang untuk mendapatkan ores dan gems.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -15,7 +9,7 @@ use crate::rpg::jualan::{
 
 pub(crate) const STAMINA_COST: i64 = 20;
 
-/// `drops` (`mining.js:40-47`) — `(item, nama, chance persen, min, max)`.
+/// `drops` — `(item, nama, chance persen, min, max)`.
 pub(crate) const DROPS: [(&str, &str, f64, i64, i64); 6] = [
     ("rock", "🪨 Batu", 80.0, 2, 5),
     ("coal", "⚫ Batubara", 50.0, 1, 3),
@@ -52,7 +46,7 @@ pub fn mining(ctx: Ctx) -> Reply {
     let mut inv = inventory_map(&ctx);
     let mut results: Vec<(&'static str, i64)> = Vec::new();
     for &(item, name, chance, min, max) in DROPS.iter() {
-        // `<=` di JS, bukan `<` — peluang 80 berarti praktis 80%.
+        // `<=` di versi awal, bukan `<` — peluang 80 berarti praktis 80%.
         if math_random() * 100.0 <= chance {
             let qty = roll_incl(min, max);
             let slot = inv.entry(item.to_string()).or_insert(serde_json::json!(0));

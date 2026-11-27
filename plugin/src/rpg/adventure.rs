@@ -1,14 +1,4 @@
-//! `plugins/rpg/adventure.js` — petualangan acak: menang dapat koin + exp,
-//! kalah kehilangan HP (dan kalau habis, exp dipotong setengah).
-//!
-//! `adventure.js:35` mengirim pesan "Mengepak ransel..." lebih dulu, lalu
-//! `setTimeout(2500)` (`adventure.js:36`), baru pesan hasil. Dua pesan itu
-//! dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Yang tidak ikut ke port: `m.react("🗺️")` (`adventure.js:34`) dan kartu
-//! level-up yang butuh canvas. Reaksi tidak bisa dibarengkan `Reply::sequence`
-//! (jalur reaksi pipeline hanya bisa merender satu pesan), jadi teks dua
-//! pesan lebih dipilih daripada reaksi.
+//! Petualangan acak: menang dapat koin + exp,
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -59,7 +49,7 @@ pub fn adventure(ctx: Ctx) -> Reply {
 
     let location = LOCATIONS[crate::common::random_index(LOCATIONS.len())];
 
-    // `adventure.js:35` — pesan sebelum jeda `setTimeout`.
+    // Pesan sebelum jeda `setTimeout`.
     let persiapan = format!(
         "Mengepak ransel dan menyalakan obor... Memasuki *{location}*... ⚔️🗺️\n\
          Hati-hati ya kak, auranya lumayan mencekam!"
@@ -140,7 +130,7 @@ mod tests {
         (oktz_plugin_api::find("adventure").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `adventure.js:35` mengirim satu
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu
     /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -304,8 +294,8 @@ mod tests {
         }
     }
 
-    /// `adventure.js:35` — pesan sebelum jeda dan teks hasil harus persis
-    /// sama dengan JS.
+    /// Pesan sebelum jeda dan teks hasil harus persis
+    /// sama dengan versi awal.
     #[test]
     fn output_sama_dengan_js() {
         for _ in 0..400 {
@@ -329,7 +319,7 @@ mod tests {
         }
     }
 
-    /// `adventure.js:69` — kalimat kematian persis seperti JS.
+    /// Kalimat kematian persis seperti versi awal.
     #[test]
     fn kalimat_kematian_sama_dengan_js() {
         for _ in 0..600 {

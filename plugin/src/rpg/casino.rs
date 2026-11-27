@@ -1,8 +1,4 @@
-//! `plugins/rpg/casino.js` —jeu dua angka 0..99, seri berarti balik modal.
-//!
-//! `all` dibaca dengan `/^all$/i` (case-insensitive, whole-string), dan
-//! `parseInt` dipakai SEBELUM cek minimum — jadi `.casino 500abc` tetap
-//! Bets 500, bukan ditolak.
+//! Jeu dua angka 0..99, seri berarti balik modal.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -241,7 +237,7 @@ mod tests {
             } else if t.contains("💸 KALAH TELAK!") {
                 loss += 1;
                 assert_eq!(after, 9_000);
-                // `moneyChange > 0 ? "+" : ""` — kalah TIDAK diberi minus.
+                // `moneyChange > 0 ? "+": ""` — kalah TIDAK diberi minus.
                 assert!(t.contains("Uang Bandar: *Rp 1.000*"), "{t}");
                 assert!(!t.contains("*-Rp"), "tanda minus hanya untuk jumlah positif: {t}");
             } else {

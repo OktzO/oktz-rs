@@ -1,9 +1,4 @@
-//! `plugins/rpg/use.js` — pakai item consumable atau buka crate.
-//!
-//! Semua setter yang menginisialisasi row pakai `||` (nol ikut di-backfill ke
-//! default), bukan `??` — jadi `rpg.health = 0` jadi 100 sebelum pemakaian. Ada
-//! dua jalur exp di sini: `db.updateExp` (crate, mysterybox, scroll) yang TIDAK
-//! mengisi stats `rpg`, dan jalur tanpa exp sama sekali untuk potion biasa.
+//! Pakai item consumable atau buka crate.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -12,7 +7,7 @@ use crate::common::int_field;
 use crate::rpg::jualan::{exp_gain_only, inventory_map, or_default, roll_excl, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// Bar `rpg` setelah baris inisialisasi `use.js:37-42`.
+/// Bar `rpg` setelah baris inisialisasi.
 struct Stats {
     health: i64,
     max_health: i64,
@@ -48,7 +43,7 @@ impl Stats {
 }
 
 /// `user.inventory[itemKey]--` — sisa nol tetap TERSIMPAN di objek, bukan
-/// dihapus. JS hanya mengurangi angka; guard `count <= 0` di atasnya yang
+/// dihapus. versi awal hanya mengurangi angka; guard `count <= 0` di atasnya
 /// membuat nilai negatif tidak pernah terjadi.
 fn consume(inv: &mut Map<String, Value>, key: &str) {
     let left = inv.get(key).and_then(Value::as_i64).unwrap_or(0) - 1;
@@ -239,7 +234,7 @@ pub fn use_item(ctx: Ctx) -> Reply {
         "common" | "uncommon" | "mythic" | "legendary" => {
             consume(&mut inv, &item_key);
             let legendary = item_key == "legendary";
-            // `Math.floor(Math.random() * (legendary ? 100000 : 10000)) + 1000`
+            // `Math.floor(Math.random() * (legendary ? 100000: 10000)) + 1000`
             let money = roll_excl(1000, if legendary { 101_000 } else { 11_000 });
             let exp = roll_excl(100, if legendary { 5100 } else { 600 });
             koin_gain = money;
@@ -449,7 +444,7 @@ mod tests {
         ] {
             let r = run(&[item], bag(item, 2));
             assert!(text_of(&r).contains(expected), "{item}");
-            // Judul kecil-kecil harus persis `ᴘᴇɴᴜʜ` seperti `use.js:68,77,141`.
+            // Judul kecil-kecil harus persis `ᴘᴇɴᴜʜ` seperti `,77,141`.
             assert!(text_of(&r).contains("ᴘᴇɴᴜʜ"), "{item}: {r:?}");
             assert!(r.mutations().is_empty(), "{item}");
         }
@@ -594,7 +589,7 @@ mod tests {
 
     #[test]
     fn stats_are_written_back_even_when_the_item_does_not_touch_them() {
-        // `user.rpg.* = ... || default` dijalankan sebelum switch, jadi baris
+        // `user.rpg.* =... || default` dijalankan sebelum switch, jadi baris
         // `rpg` selalu berisi enam field setelah pemakaian item apa pun.
         let r = run(&["leather"], bag("leather", 1));
         let rpg = written(&r)["rpg"].as_object().unwrap().clone();

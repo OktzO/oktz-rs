@@ -1,14 +1,4 @@
-//! `plugins/rpg/duel.js` — duel PvP dengan player lain.
-//!
-//! Catatan: `mod.rs` kategori `rpg` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod duel;` perlu ditambahkan manual
-//! di `rust/crates/oktz-plugins/src/rpg/mod.rs`.
-//!
-//! `getDatabase()`, `addExpWithLevelCheck()`, `sendRpgPreview()`, dan
-//! `setTimeout` tidak punya padanan di `Ctx`. State player1 dibaca dari
-//! `ctx.user_data`, state player2 dari roster grup (`db.getUser(target)`
-//! digantikan [`crate::rpg::heal::other_user`]). Preview dan jeda 2 detik
-//! diabaikan.
+//! Duel PvP dengan player lain.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value, json};
@@ -16,7 +6,7 @@ use serde_json::{Value, json};
 use crate::common::parse_int;
 use crate::rpg::heal::other_user;
 
-/// `db.getUser(target) || db.setUser(target)` (`duel.js:46`) — data lawan dari
+/// `db.getUser(target) || db.setUser(target)` — data lawan
 /// store; row yang belum ada dibuat dengan default `setUser` (`koin` 0,
 /// `rpg` {}).
 fn opponent(ctx: &Ctx, target: &str) -> Value {
@@ -74,7 +64,7 @@ fn rpg_koin(user: &Value) -> i64 {
     is_bot_admin = false
 )]
 pub fn duel(ctx: Ctx) -> Reply {
-    // `m.mentionedJid?.[0] || m.quoted?.sender` (`duel.js:25`).
+    // `m.mentionedJid?.[0] || m.quoted?.sender`.
     let target = ctx
         .mentioned
         .first()
@@ -100,8 +90,8 @@ pub fn duel(ctx: Ctx) -> Reply {
         );
     }
 
-    // `args[1] ? parseInt(args[1]) : 1000` (`duel.js:26`) — `parseInt` yang
-    // gagal berarti `NaN`, dan `isNaN(bet)` menolaknya (`duel.js:41`); di sini
+    // `args[1] ? parseInt(args[1]): 1000` — `parseInt`
+    // gagal berarti `NaN`, dan `isNaN(bet)` menolaknya; di sini
     // `NaN` jatuh ke 0 supaya gerbang `< 1000` yang sama menolak.
     let bet = ctx
         .args
@@ -284,9 +274,9 @@ mod tests {
         let mut c = ctx();
         c.user_data = serde_json::json!({ "koin": 5000, "rpg": { "level": 5, "health": 20 } });
         c.args = vec!["@628999".into(), "1000".into()];
-        // `db.getUser(target) || db.setUser(target)` (`duel.js:46`): row lawan
+        // `db.getUser(target) || db.setUser(target)`: row lawan
         // yang belum ada dibuat default `koin` 0, jadi gerbang saldo lawan
-        // (`duel.js:52`) menangkap lebih dulu. Data user lain hanya terbaca
+        // menangkap lebih dulu. Data user lain hanya terbaca
         // dari roster, jadi lawan harus punya row di situ.
         c.roster.participants.push(Participant {
             jid: "628999@s.whatsapp.net".into(),

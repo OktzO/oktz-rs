@@ -1,17 +1,4 @@
-//! `plugins/rpg/meditation.js` — istirahat untuk pulihkan HP, stamina, mana.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! Catatan kursor: `maxHealth`/`maxMana` dihitung dari `user.level` (level di
-//! akar row, bukan `user.rpg.level`) —-default 1, jadi 105 HP dan 53 mana.
-//! Polanya berbeda dari `addexp.js` yang menulis `user.rpg.level`.
-//!
-//! `meditation.js:43` — pesan "💤 *ʙᴇʀɪsᴛɪʀᴀʜᴀᴛ...*" dikirim lebih dulu, lalu `setTimeout`, baru pesan hasil —
-//! dua pesan itu dikirim berurutan lewat [`Reply::sequence`].
-//!
-//! Reaksi "💤" (`meditation.js:42`) dan "✨" (`:56`) tidak ikut: reaksi tidak bisa dibarengkan
-//! `Reply::sequence` (jalur reaksi pipeline hanya bisa merender satu pesan),
-//! jadi teks dua pesan lebih dipilih daripada reaksi.
+//! Istirahat untuk pulihkan HP, stamina, mana.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -35,7 +22,7 @@ pub(crate) const MAX_STAMINA: i64 = 100;
 pub fn meditation(ctx: Ctx) -> Reply {
     let mut rpg = rpg_map(&ctx);
 
-    // Tiga operator berbeda di JS: `?? 100` untuk stamina (nol tetap nol),
+    // Tiga operator berbeda di versi awal: `?? 100` untuk stamina (nol tetap nol),
     // `|| 100` dan `|| 50` untuk health/mana (nol jadi default).
     let cur_stamina = coalesce(rpg_int(&rpg, "stamina"), MAX_STAMINA);
     let cur_health = or_default(rpg_int(&rpg, "health"), 100);
@@ -68,7 +55,7 @@ pub fn meditation(ctx: Ctx) -> Reply {
     rpg.insert("mana".into(), serde_json::json!(new_mana));
 
     Reply::sequence_text([
-        // `meditation.js:43` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         "💤 *ʙᴇʀɪsᴛɪʀᴀʜᴀᴛ...*\n\n> Memulihkan energi...".to_string(),
         format!(
             "✨ *ɪsᴛɪʀᴀʜᴀᴛ sᴇʟᴇsᴀɪ!*\n\n\

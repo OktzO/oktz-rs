@@ -1,9 +1,4 @@
-//! `plugins/rpg/woodcut.js` — menebang pohon untuk mendapatkan kayu.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! Catatan kursor: guard stamina memakai `user.rpg.stamina || 100`, bukan `??` —
-//! nol dianggap falsy, jadi penebang dengan bar kosong tetap boleh masuk.
+//! Menebang pohon untuk mendapatkan kayu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -14,7 +9,7 @@ use crate::rpg::jualan::{
 
 pub(crate) const STAMINA_COST: i64 = 15;
 
-/// `drops` (`woodcut.js:40-45`) — `(item, nama, chance persen, min, max)`.
+/// `drops` — `(item, nama, chance persen, min, max)`.
 pub(crate) const DROPS: [(&str, &str, f64, i64, i64); 4] = [
     ("wood", "🪵 Kayu", 70.0, 2, 5),
     ("stick", "🥢 Ranting", 50.0, 1, 3),
@@ -167,8 +162,8 @@ mod tests {
                     "{item} = {got} tapi barisnya beda"
                 );
             }
-            //noletiap item bisa gagal drop — yang pasti ada kayu, entah dari
-            //drop 2..=5 atau dari fallback 1.
+            // noletiap item bisa gagal drop — yang pasti ada kayu, entah
+            // drop 2..=5 atau dari fallback 1.
             assert!(lines > 0, "tidak boleh nol drop sama sekali: {t}");
         }
     }

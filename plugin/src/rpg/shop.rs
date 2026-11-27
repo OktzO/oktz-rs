@@ -1,4 +1,4 @@
-//! `plugins/rpg/shop.js` — beli dan jual item RPG.
+//! Beli dan jual item RPG.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -10,7 +10,7 @@ use crate::tools::kalkulatormbg::thousands_id;
 pub(crate) const BUYABLE: u8 = 0;
 pub(crate) const SELLABLE: u8 = 1;
 
-/// `ITEMS` (`shop.js:19-61`) — `(kunci, harga, tipe, nama)`. Urutan object
+/// `ITEMS` — `(kunci, harga, tipe, nama)`. Urutan object
 /// literal = urutan dua daftar di balasan pembuka.
 pub(crate) const ITEMS: [(&str, i64, u8, &str); 36] = [
     ("potion", 500, BUYABLE, "🥤 Health Potion"),
@@ -160,7 +160,7 @@ pub fn shop(ctx: Ctx) -> Reply {
         ));
     }
     let total = price * amount;
-    // Tidak ada `delete` di JS untuk jalur jual, jadi sisa 0 tetap ditulis.
+    // Tidak ada `delete` di versi awal untuk jalur jual, jadi sisa 0 tetap ditulis.
     inv.insert(key.clone(), serde_json::json!(stock - amount));
     Reply::text(format!(
         "CINGG! UANG MASUK! 💰✨\n\n\
@@ -232,8 +232,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `beli` juga nama `plugins/store/beli.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `beli` bukan milik shop.
+        // `beli` juga nama; nama didahulukan
+        // , jadi alias `beli` bukan milik shop.
         assert_eq!(oktz_plugin_api::find("beli").unwrap().meta.name, "beli");
         for a in ["jual", "toko", "store", "sell"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "shop", "alias {a}");
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn selling_the_whole_stack_writes_zero_instead_of_deleting_the_key() {
-        // Tidak seperti `merchant.js`, `shop.js` tidak pernah `delete`.
+        // Tidak seperti, tidak pernah `delete`.
         let r = run(&["sell", "trash", "3"], serde_json::json!({"inventory": {"trash": 3}}));
         let d = written(&r);
         assert_eq!(d["inventory"]["trash"], serde_json::json!(0));

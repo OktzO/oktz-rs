@@ -1,10 +1,4 @@
-//! `plugins/rpg/steal.js` — mencuri dari NPC demi emas.
-//!
-//! Reaksi + pesan antara sebelum jeda `setTimeout` tidak masuk `Reply`.
-//!
-//! Catatan kursor: tingkat kesalahan target disaring dari `user.level` (level di
-//! akar row, bukan `user.rpg.level`) — default 1, jadi tanpa level yang tersimpan
-//! tidak ada target yang boleh dibobol.
+//! Mencuri dari NPC demi emas.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -17,7 +11,7 @@ use crate::rpg::jualan::{
 
 pub(crate) const STAMINA_COST: i64 = 15;
 
-/// `TARGETS` (`steal.js:20-27`) — `(nama, kesulitan, emas min, emas max,
+/// `TARGETS` — `(nama, kesulitan, emas min, emas max,
 /// peluang ketahuan)`. Syarat lolos: `userLevel >= difficulty * 3`.
 pub(crate) const TARGETS: [(&str, i64, i64, i64, i64); 6] = [
     ("👨‍🌾 Petani Lengah", 1, 50, 150, 10),
@@ -28,11 +22,11 @@ pub(crate) const TARGETS: [(&str, i64, i64, i64, i64); 6] = [
     ("🏰 Raja Tiran", 6, 1000, 3000, 60),
 ];
 
-/// `items` untuk bonus jarahan (`steal.js:93`).
+/// `items` untuk bonus jarahan.
 pub(crate) const BONUS_ITEMS: [&str; 4] = ["potion", "key", "gem", "ring"];
 
 /// Target yang boleh approached user pada level tertentu — urutan `TARGETS`
-/// utuh, jadi `random_index` di atasnya sama dengan `filter` di JS.
+/// utuh, jadi `random_index` di atasnya sama dengan `filter` di versi awal.
 pub(crate) fn targets_for(level: i64) -> Vec<&'static (&'static str, i64, i64, i64, i64)> {
     TARGETS.iter().filter(|t| level >= t.1 * 3).collect()
 }

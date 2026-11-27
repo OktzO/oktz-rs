@@ -59,19 +59,19 @@ pub mod weekly;
 pub mod woodcut;
 pub mod work;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod slot;
 pub mod stamina;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod coinflip;
 pub mod maling;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod duel;
 pub mod nulis;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod dice;

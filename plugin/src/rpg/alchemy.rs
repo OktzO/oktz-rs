@@ -1,17 +1,8 @@
-//! `plugins/rpg/alchemy.js` — meracik ramuan dari bahan di `inventory`.
+//! Meracik ramuan dari bahan di `inventory`.
 //!
-//! `ponytail:` `user.inventory[material] -= needed` lalu `delete` kalau
-//! `<= 0`, jadi bahan habis HILANG dari tas — bukan disimpan sebagai 0 seperti
-//! `sellall`. Itu yang bikin `sellall` dan `alchemy` tidak bisa saling
-//! menimpa.
-//!
-//! `alchemy.js:132` mengirim pesan "Blubuk blubuk..." lebih dulu, lalu
-//! `setTimeout(3000)` (`alchemy.js:133`), baru pesan hasil. Dua pesan itu
-//! dikirim berurutan lewat [`Reply::sequence_text`].
-//!
-//! Reaksi `🧪`/`✅` (`alchemy.js:131`, `:145`) tidak ikut: reaksi tidak bisa
-//! dibarengkan `Reply::sequence` (jalur reaksi pipeline hanya bisa merender
-//! satu pesan), jadi teks dua pesan lebih dipilih.
+//! `Keterbatasan:` `user.inventory[material] -= needed` lalu `delete` kalau `<= 0`, jadi
+//! bahan habis HILANG dari tas — bukan disimpan sebagai 0 seperti `sellall`. Itu yang bikin
+//! `sellall` dan `alchemy` tidak bisa saling menimpa.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -73,7 +64,7 @@ fn book() -> String {
     txt
 }
 
-/// `missingMaterials` (`alchemy.js:119-125`) — bahan yang masih kurang,
+/// `missingMaterials` — bahan yang masih kurang,
 /// dalam urutan object literal.
 fn missing(inv: &Map<String, Value>, materials: &[(&'static str, i64)]) -> Vec<String> {
     materials
@@ -134,7 +125,7 @@ pub fn alchemy(ctx: Ctx) -> Reply {
     let new_exp = apply_exp(&mut rpg, old_exp, exp);
 
     Reply::sequence_text([
-        // `alchemy.js:132` — pesan sebelum jeda `setTimeout`.
+        // Pesan sebelum jeda `setTimeout`.
         format!(
             "Blubuk blubuk... BZZZZ! 🧪✨\n\
              Mencampur bahan kimia untuk meracik *{name}*... Awas meledak! 💥"
@@ -172,7 +163,7 @@ mod tests {
         (oktz_plugin_api::find("alchemy").unwrap().handler)(ctx)
     }
 
-    /// Teks balasan TERAKHIR — pesan hasil. `alchemy.js:132` mengirim satu
+    /// Teks balasan TERAKHIR — pesan hasil. mengirim satu
     /// pesan lagi sebelum jeda, jadi `Reply::Sequence` berisi dua teks.
     fn text_of(r: &Reply) -> String {
         let semua = crate::rpg::heal::reply_texts(r);
@@ -296,7 +287,7 @@ mod tests {
         assert!(potion("tidak-ada").is_none());
     }
 
-    /// `alchemy.js:132` — pesan sebelum jeda persis sama dengan JS dan
+    /// Pesan sebelum jeda persis sama dengan versi awal
     /// selalu mendahului pesan hasil.
     #[test]
     fn output_sama_dengan_js() {

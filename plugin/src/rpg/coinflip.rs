@@ -1,13 +1,4 @@
-//! `plugins/rpg/coinflip.js` — gambling coin flip.
-//!
-//! Catatan: `mod.rs` kategori `rpg` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod coinflip;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/rpg/mod.rs`.
-//!
-//! `getDatabase()`, `sendRpgPreview()`, dan `setTimeout` tidak punya padanan
-//! di `Ctx`. State user dibaca dari `ctx.user_data` dan ditulis kembali
-//! lewat `Mutation::SetUser`. Preview dan jeda 2,5 detik di JS diabaikan
-//! (tidak ada I/O sock / penundaan di konteks plugin).
+//! Gambling coin flip.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
