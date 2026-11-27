@@ -1,14 +1,8 @@
-//! `plugins/media/music.js` — koleksi musik 1-65.
-//!
-//! Alias `music1`..`music52` diambil apa adanya dari `MUSIC_LIST`
-//! (`music.js:1-4`): JS membangunnya dengan loop `for (let i = 1; i <= 52; i++)`,
-//! jadi urutannya naik dan tidak ada `music53`..`music65` — padahal
-//! `handler` menerima angka sampai 65 (`music.js:26`). Perbedaan itu ikut
-//! ditiru: `.music60` tidak pernah sampai ke plugin karena tidak ada aliasnya.
+//! Koleksi musik 1-65.
 
 pub mod music;
 
-/// Semua alias `music1`..`music52` (`music.js:1-4`).
+/// Semua alias `music1`..`music52`.
 #[cfg(test)]
 pub(crate) const ALIAS: [&str; 52] = [
     "music1", "music2", "music3", "music4", "music5", "music6", "music7", "music8",

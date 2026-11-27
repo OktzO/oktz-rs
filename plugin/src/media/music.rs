@@ -1,36 +1,29 @@
-//! `plugins/media/music.js` — kirim lagu dari koleksi `Rez4-3yz/Music-rd`.
+//! Kirim lagu dari koleksi `Rez4-3yz/Music-rd`.
 //!
-//! Perilaku yang ikut diport apa adanya:
-//! - Guard angka: `m.command.replace('music','')` lalu `parseInt`; di luar
-//!   1..65 plugin membalas kartu "Tersedia" (`music.js:23-28`).
-//! - URL audio `https://raw.githubusercontent.com/Rez4-3yz/Music-rd/master/music/music<N>.mp3`
-//!   (`music.js:32`) dikirim sebagai audio (bukan voice note).
-//!
-//! `ponytail:` `sock.sendMedia(..., { type: 'audio' })` di JS menerima URL dan
-//! mengunduhnya sendiri. Di Rust `Reply::audio(MediaSource::url(..))` juga
-//! menampilkan URL, jadi bentuknya sama — bedanya hanya file_name: JS tidak
-//! menentukan nama berkas untuk audio ini, dan `Reply::Audio` juga tidak punya
-//! kolom itu.
+//! `Keterbatasan:` `sock.sendMedia(..., { type: 'audio' })` di versi awal menerima URL dan
+//! mengunduhnya sendiri. Di Rust `Reply::audio(MediaSource::url(..))` juga menampilkan URL,
+//! jadi bentuknya sama — bedanya hanya file_name: versi awal tidak menentukan nama berkas
+//! untuk audio ini, dan `Reply::Audio` juga tidak punya kolom itu.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 
-/// `music.js:27` — kartu saat nomor lagu di luar 1..65.
+/// Kartu saat nomor lagu di luar 1..65.
 pub(crate) const DAFTAR: &str =
     "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
 
-/// `music.js:44` — gagal mengambil lagu.
+/// Gagal mengambil lagu.
 #[cfg(test)]
 pub(crate) const GAGAL: &str = "❌ *ᴇʀʀᴏʀ*\n\n> Musik tidak ditemukan atau gagal diambil.";
 
-/// `music.js:32` — URL lagu ke-`n`.
+/// URL lagu ke-`n`.
 pub(crate) fn url_lagu(nomor: i64) -> String {
     format!("https://raw.githubusercontent.com/Rez4-3yz/Music-rd/master/music/music{nomor}.mp3")
 }
 
-/// `music.js:23-26` — `m.command.replace('music','')` lalu `parseInt`.
+/// `m.command.replace('music','')` lalu `parseInt`.
 ///
-/// `replace` JS hanya mengganti kemunculan PERTAMA, jadi command
+/// `replace` versi awal hanya mengganti kemunculan PERTAMA, jadi command
 /// `music1music2` jadi `1music2` — `parseInt` membaca `1` saja. Nomor di luar
 /// 1..65 ditolak.
 pub(crate) fn nomor_lagu(command: &str) -> Option<i64> {
@@ -75,8 +68,8 @@ pub fn music(ctx: Ctx) -> Reply {
         return Reply::text(DAFTAR);
     };
 
-    // `m.react('🕕')` (`music.js:30`) lalu media lalu `m.react('✅')`
-    // (`music.js:40`) — `Reply::Reaction` hanya membawa satu reaksi, jadi yang
+    // `m.react('🕕')` lalu media lalu `m.react('✅')`
+    // `Reply::Reaction` hanya membawa satu reaksi, jadi
     // ikut adalah reaksi penutup (konvensi repo).
     Reply::audio(MediaSource::url(url_lagu(nomor))).with_reaction("✅")
 }
@@ -112,12 +105,12 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        // `music.js:27` — kartu "Tersedia" persis seperti JS.
+        // Kartu "Tersedia" persis seperti versi awal.
         assert_eq!(
             DAFTAR,
             "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65"
         );
-        // `music.js:44` — pesan gagal persis seperti JS.
+        // Pesan gagal persis seperti versi awal.
         assert_eq!(
             GAGAL,
             "❌ *ᴇʀʀᴏʀ*\n\n> Musik tidak ditemukan atau gagal diambil."
