@@ -1,8 +1,4 @@
-//! `plugins/owner/payment.js` — menampilkan info payment.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod payment;` perlu ditambahkan manual
-//! di `rust/crates/oktz-plugins/src/owner/mod.rs`.
+//! Menampilkan info payment.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -35,7 +31,7 @@ fn pemilik_atau_nama(m: &serde_json::Value) -> String {
         .to_string()
 }
 
-/// `buildPaymentText` dari payment.js.
+/// `buildPaymentText`.
 fn build_payment_text(
     payment: &serde_json::Value,
     custom_text: &str,

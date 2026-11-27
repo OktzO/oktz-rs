@@ -1,21 +1,13 @@
-//! `plugins/owner/swgc.js` — post Group Status/Story ke grup pilihan.
+//! Post Group Status/Story ke grup pilihan.
 //!
-//! Port dari nol. Yang dipindah:
-//! - branch `--confirm <grup>` dan pesan "tidak ada data pending"
-//!   (`swgc.js:106-116`).
-//! - volunteer media (quoted / pemicu) dan storinya ke folder `temp/`
-//!   (`:193-257`, `:273-277`).
-//! - kartu pemilih grup dengan `single_select` + tombol batal (`:291-358`).
-//! - pesan bantuan (`:260-271`).
+//! `Keterbatasan:` `sock.sendMessage(jid, { groupStatusMessage })` — pesan status grup
+//! dengan border hijau — tidak punya padanan di `Reply` (tidak ada varian
+//! `groupStatusMessage`). Karena itu branch `--confirm` berakhir di bentuk `catch` versi
+//! awal: `❌ *ᴇʀʀᴏʀ*` dengan pesan gagalnya.
 //!
-//! `ponytail:` `sock.sendMessage(jid, { groupStatusMessage })` — pesan status
-//! grup dengan border hijau — tidak punya padanan di `Reply` (tidak ada varian
-//! `groupStatusMessage`). Karena itu branch `--confirm` berakhir di bentuk
-//! `catch` JS: `❌ *ᴇʀʀᴏʀ*` dengan pesan gagalnya.
-//!
-//! `ponytail:` `pendingSwgc` (Map di memori) dipetakan ke `ctx.sessions` dengan
-//! key `swgc:pending:<sender>`; media disimpan ke `temp/swgc_<ts>.<ext>` —
-//! padanan persis dari `tempFile` JS (`swgc.js:205`).
+//! `Keterbatasan:` `pendingSwgc` (Map di memori) dipetakan ke `ctx.sessions` dengan key
+//! `swgc:pending:<sender>`; media disimpan ke `temp/swgc_<ts>.<ext>` — padanan persis dari
+//! `tempFile` versi awal.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{
@@ -25,14 +17,14 @@ use serde_json::Value;
 
 /// Prefix key session pending (`pendingSwgc`).
 const PENDING_PREFIX: &str = "swgc:pending:";
-/// Folder berkas temp (`swgc.js:182`).
+/// Folder berkas temp.
 const TEMP_DIR: &str = "temp";
 
 fn pending_key(ctx: &Ctx) -> String {
     format!("{PENDING_PREFIX}{}", ctx.sender)
 }
 
-/// `Object.entries(groups)` (`swgc.js:295`) — daftar (jid, metadata).
+/// `Object.entries(groups)` — daftar (jid, metadata).
 fn daftar_grup(ctx: &Ctx) -> Vec<(String, Value)> {
     let Ok(all) = ctx.sock().semua_grup() else {
         return Vec::new();
@@ -43,7 +35,7 @@ fn daftar_grup(ctx: &Ctx) -> Vec<(String, Value)> {
     obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
 }
 
-/// `mediaType` (`swgc.js:309-317`).
+/// `mediaType`.
 fn label_media(jenis: &str) -> &'static str {
     match jenis {
         "text" => "Teks",
@@ -54,7 +46,7 @@ fn label_media(jenis: &str) -> &'static str {
     }
 }
 
-/// Teks bantuan (`swgc.js:261-268`).
+/// Teks bantuan.
 fn bantuan(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -108,7 +100,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
         ctx.session_take(&pending_key(&ctx));
 
         // `sock.sendMessage(jid, { groupStatusMessage })` tidak ada padanannya,
-        // jadi hasilnya sama dengan `catch` JS.
+        // jadi hasilnya sama dengan `catch` versi awal.
         return Reply::text(
             "❌ *ᴇʀʀᴏʀ*\n\n\
              > Gagal posting story.\n\
@@ -116,7 +108,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
         );
     }
 
-    // Deteksi media (quoted dulu, lalu pemicu) — `swgc.js:193-258`.
+    // Deteksi media (quoted dulu, lalu pemicu) —.
     let (jenis, buffer) = if ctx
         .quoted()
         .is_some_and(|q| q.kind.is_media())
@@ -145,7 +137,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
     }
 
     // Simpan media ke `temp/` supaya bisa dipakai ulang saat `--confirm`
-    // (`swgc.js:205`, `:218`).
+    //
     let mut temp_file = String::new();
     if let Some(buffer) = buffer {
         let ext = match jenis.as_str() {
@@ -218,7 +210,7 @@ pub fn swgc(ctx: Ctx) -> Reply {
         .with_context(CardContext::new().quote_trigger())
 }
 
-/// `m.quoted.isImage / isVideo / isAudio` (`swgc.js:208-222`).
+/// `m.quoted.isImage / isVideo / isAudio`.
 fn jenis_dari_quoted(ctx: &Ctx) -> String {
     let Some(q) = ctx.quoted() else {
         return "text".to_string();
@@ -234,7 +226,7 @@ fn jenis_dari_quoted(ctx: &Ctx) -> String {
     }
 }
 
-/// `m.isImage / m.isVideo / m.isAudio` (`swgc.js:228-258`).
+/// `m.isImage / m.isVideo / m.isAudio`.
 fn jenis_dari_trigger(ctx: &Ctx) -> String {
     if ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image) {
         "image".into()

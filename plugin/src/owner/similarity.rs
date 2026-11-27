@@ -1,4 +1,4 @@
-//! `plugins/owner/similarity.js` — flag `similarity`.
+//! Flag `similarity`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -42,7 +42,7 @@ pub fn similarity(ctx: Ctx) -> Reply {
                 value: serde_json::Value::Bool(false),
             }),
         // Tanpa argumen DAN argumen tak dikenal memakai teks yang sama persis
-        // di JS — bukan dua cabang berbeda.
+        // di versi awal — bukan dua cabang berbeda.
         _ => Reply::text(HELP),
     }
 }
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn the_help_branch_ignores_the_stored_value() {
-        // JS tidak pernah membaca `db.setting('similarity')` di plugin ini —
+        // versi awal tidak pernah membaca `db.setting('similarity')` di plugin ini —
         // hanya menulis. Menyimpan `true` tidak boleh mengubah balasannya.
         let ctx = Ctx {
             prefix: ".".into(),

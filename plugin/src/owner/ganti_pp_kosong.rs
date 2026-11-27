@@ -1,15 +1,4 @@
-//! `plugins/owner/ganti-pp-kosong.js` — ganti gambar pp-kosong.jpg.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod ganti_pp_kosong;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/owner/mod.rs`.
-//!
-//! `updateAssetUrl` dari `src/lib/uploader.js` tidak punya padanan di `Ctx`,
-//! dan `m.download()` / `m.quoted.download()` dipadukan ke
-//! `Ctx::download_media()` / `Ctx::download_quoted_media()`. Handler memeriksa
-//! apakah pesan pemicu atau quoted adalah gambar; jika iya, mencoba unduh
-//! media dan melaporkan keberhasilan (tanpa URL nyata karena fungsi unggah
-//! eksternal tidak tersedia di konteks plugin).
+//! Ganti gambar pp-kosong.jpg.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

@@ -1,4 +1,4 @@
-//! `plugins/owner/botmode.js` — mode bot global atau per grup.
+//! Mode bot global atau per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -6,7 +6,7 @@ use crate::common::js_truthy;
 
 pub(crate) const VALID_MODES: [&str; 6] = ["md", "cpanel", "store", "pushkontak", "otp", "all"];
 
-/// `MODE_DESCRIPTIONS` (`botmode.js:19-25`) dalam urutan deklarasi — JS
+/// `MODE_DESCRIPTIONS` dalam urutan deklarasi — versi awal
 /// mengiterasi `Object.entries`, jadi urutan ini yang tampil.
 pub(crate) const MODE_DESCRIPTIONS: [(&str, &str); 6] = [
     ("md", "Mode default, semua fitur kecuali panel/store/pushkontak"),

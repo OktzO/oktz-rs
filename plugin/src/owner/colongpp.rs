@@ -1,27 +1,14 @@
-//! `plugins/owner/colongpp.js` — ambil & pakai foto profil target sebagai PP bot.
-//!
-//! ## Penyimpangan
-//!
-//! - JS memakai `@napi-rs/canvas` (`createCanvas(640, 640)` + `drawImage`).
-//!   Di Rust yang dipakai `oktz_plugin_api::gambar::sharp` dengan
-//!   `ubah_ukuran(640, 640)` (fit cover, sama seperti `drawImage` yang
-//!   meregangkan ke kotak penuh) lalu `ke_jpeg`.
-//! - `sock.updateProfilePicture(botJid, ...)` butuh JID bot sendiri, yang
-//!   tidak ada di `Ctx`. Yang dikirim adalah JID non-grup (dipakai bot
-//!   sendiri), karena implementasi `Sock::set_foto_profil` untuk JID
-//!   non-grup selalu mengubah foto profil bot sendiri.
-//! - `axios.get(..., { responseType: "arraybuffer" })` dipetakan ke
-//!   `ctx.http.get(url)` + `.body.bytes()`.
+//! Ambil & pakai foto profil target sebagai PP bot.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// PP cadangan kalau target tidak punya foto profil (`colongpp.js:21`).
+/// PP cadangan kalau target tidak punya foto profil.
 const FALLBACK_PP: &str = "https://telegra.ph/file/1ecdb5a0aee62ef17d7fc.jpg";
 
-/// Ukuran PP bot (`colongpp.js:22`).
+/// Ukuran PP bot.
 const PP_SIZE: u32 = 640;
 
-/// Teks bantuan `colongpp.js:36-40`.
+/// Teks bantuan.
 pub(crate) fn tanpa_target(prefix: &str) -> String {
     format!(
         "🕵️ *ᴄᴏʟᴏɴɢ ᴘᴘ*\n\n\
@@ -31,7 +18,7 @@ pub(crate) fn tanpa_target(prefix: &str) -> String {
     )
 }
 
-/// Pesan sukses `colongpp.js:66-70`.
+/// Pesan sukses.
 pub(crate) fn sukses(target_number: &str, sumber: &str) -> String {
     format!(
         "✅ *ᴘᴘ ʙᴇʀʜᴀsɪʟ ᴅɪᴄᴏʟᴏɴɢ!*\n\n\
@@ -40,11 +27,11 @@ pub(crate) fn sukses(target_number: &str, sumber: &str) -> String {
     )
 }
 
-/// Label sumber PP (`colongpp.js:35` / `:59`).
+/// Label sumber PP.
 pub(crate) const SUMBER_PROFIL: &str = "profil";
 pub(crate) const SUMBER_DEFAULT: &str = "default (target tidak punya PP)";
 
-/// Resize ke 640x640 JPEG — `resizeForPP` (`colongpp.js:23-30`).
+/// Resize ke 640x640 JPEG — `resizeForPP`.
 fn resize_untuk_pp(buffer: &[u8]) -> Result<Vec<u8>, String> {
     oktz_plugin_api::gambar::sharp(buffer)?
         .ubah_ukuran(PP_SIZE, PP_SIZE)
@@ -68,7 +55,7 @@ fn resize_untuk_pp(buffer: &[u8]) -> Result<Vec<u8>, String> {
     is_bot_admin = false
 )]
 pub fn colongpp(ctx: Ctx) -> Reply {
-    // `m.quoted?.sender || m.mentions?.[0]` (`colongpp.js:32`).
+    // `m.quoted?.sender || m.mentions?.[0]`.
     let target = ctx
         .quoted()
         .map(|q| q.sender.clone())
@@ -78,7 +65,7 @@ pub fn colongpp(ctx: Ctx) -> Reply {
         return Reply::text(tanpa_target(&ctx.prefix));
     };
 
-    // `await m.react("🕵️")` (`colongpp.js:42`).
+    // `await m.react("🕵️")`.
     let mut pp_buffer: Option<Vec<u8>> = None;
     let mut source = SUMBER_PROFIL;
 
@@ -91,7 +78,7 @@ pub fn colongpp(ctx: Ctx) -> Reply {
         }
 
     if pp_buffer.is_none() {
-        // Fallback PP default (`colongpp.js:53-60`).
+        // Fallback PP default.
         if let Ok(res) = ctx.http.get(FALLBACK_PP) {
             let byte = res.body.bytes().to_vec();
             if !byte.is_empty() {

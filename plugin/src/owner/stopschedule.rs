@@ -1,16 +1,15 @@
-//! `plugins/owner/stopschedule.js` — hentikan scheduler tertentu atau semua.
+//! Hentikan scheduler tertentu atau semua.
 //!
-//! `ponytail:` `stopSchedulerByName`, `stopSholatScheduler` (`src/lib/scheduler.js`,
-//! `src/lib/sholat-scheduler.js`) dan `getDatabase()`/`db.setting` tidak tersedia
-//! di `Ctx`; handler diakhiri `error_template` + `☢` (pola `swm.rs`). Teks
-//! bantuan dan daftar scheduler di-port agar bisa diuji.
-//! Saat scheduler + store tersedia, tambahkan `pub mod stopscheduler;` di
-//! `src/owner/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! `Keterbatasan:` `stopSchedulerByName`, `stopSholatScheduler` dan
+//! `getDatabase()`/`db.setting` tidak tersedia di `Ctx`; handler diakhiri `error_template`
+//! + `☢` (pola `swm.rs`). Teks bantuan dan daftar scheduler diimplementasikan agar bisa
+//! diuji. Saat scheduler + store tersedia, tambahkan `pub mod stopscheduler;` di
+//! `src/owner/mod.rs` secara manual (mod.rs milik plugin lain — dilarang menyentuh per
+//! brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Daftar scheduler yang dikenal (`stopschedule.js:32-37`).
+/// Daftar scheduler yang dikenal.
 #[cfg(test)]
 pub(crate) const JADWAL: [(&str, &str); 6] = [
     ("limitreset", "Daily Limit Reset"),
@@ -21,7 +20,7 @@ pub(crate) const JADWAL: [(&str, &str); 6] = [
     ("all", "Semua scheduler"),
 ];
 
-/// Teks bantuan (`stopschedule.js:26-44`).
+/// Teks bantuan.
 #[cfg(test)]
 pub(crate) fn bantuan(_prefix: &str) -> String {
     let mut out = String::from(
@@ -42,19 +41,19 @@ pub(crate) fn bantuan(_prefix: &str) -> String {
     out
 }
 
-/// Apakah target adalah 'sholat' (`stopschedule.js:47`).
+/// Apakah target adalah 'sholat'.
 #[cfg(test)]
 pub(crate) fn is_sholat(target: &str) -> bool {
     target == "sholat"
 }
 
-/// Apakah target adalah 'all' (`stopschedule.js:68`).
+/// Apakah target adalah 'all'.
 #[cfg(test)]
 pub(crate) fn is_all(target: &str) -> bool {
     target == "all"
 }
 
-/// Teks scheduler dihentikan (`stopschedule.js:59-64` / `77-82`).
+/// Teks scheduler dihentikan.
 #[cfg(test)]
 pub(crate) fn dihentikan(nama: &str) -> String {
     format!(
@@ -80,7 +79,7 @@ pub(crate) fn dihentikan(nama: &str) -> String {
 )]
 pub fn stopscheduler(ctx: Ctx) -> Reply {
     // `stopSchedulerByName` / `stopSholatScheduler` / `getDatabase` /
-    // `db.setting` tidak tersedia di Ctx — diakhiri error_template seperti
+    // `db.setting` tidak tersedia di Ctx — diakhiri error_template
     // swm.rs.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }

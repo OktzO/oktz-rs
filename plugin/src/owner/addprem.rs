@@ -1,19 +1,19 @@
-//! `plugins/owner/addprem.js` — kelola premium users (tambah / hapus / daftar).
+//! Kelola premium users (tambah / hapus / daftar).
 //!
-//! `ponytail:` JS tulis state lewat `getDatabase()` (`db.data.premium`,
+//! `Keterbatasan:` versi awal tulis state lewat `getDatabase()` (`db.data.premium`,
 //! `db.getUser`/`db.setUser`, `db.updateExp`, `db.updateKoin`, `db.save()`) serta
-//! `jadibotId`/`isJadibot` — tidak ada di `Ctx`, dan tidak ada `Mutation` untuk
-//! array `db.data.premium`. Oleh karena itu hanya cabang validasi + teks help
-//! yang di-port; operasi tulis (add/del/list jadibot maupun reguler) diakhiri
-//! dengan `error_template` dan reaksi `☢`, pola yang sama seperti `swm.rs` /
-//! `delpanel.rs`. Saat store premium + jadibot tersedia di `Ctx`, tambahkan
-//! `pub mod addprem;` di `src/owner/mod.rs` secara manual (mod.rs milik plugin
-//! lain — dilarang menyentuh per brief).
+//! `jadibotId`/`isJadibot` — tidak ada di `Ctx`, dan tidak ada `Mutation` untuk array
+//! `db.data.premium`. Oleh karena itu hanya cabang validasi + teks help yang
+//! diimplementasikan; operasi tulis (add/del/list jadibot maupun reguler) diakhiri dengan
+//! `error_template` dan reaksi `☢`, pola yang sama seperti `swm.rs` / `delpanel.rs`. Saat
+//! store premium + jadibot tersedia di `Ctx`, tambahkan `pub mod addprem;` di
+//! `src/owner/mod.rs` secara manual (mod.rs milik plugin lain — dilarang menyentuh per
+//! brief).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-/// Energi default yang dipakai JS saat mempromosikan user ke premium
+/// Energi default yang dipakai versi awal saat mempromosikan user ke premium
 /// (`config.energi?.premium || 999999`).
 const PREMIUM_ENERGI_DEFAULT: i64 = 999999;
 
@@ -21,14 +21,14 @@ const PREMIUM_ENERGI_DEFAULT: i64 = 999999;
 const DURASI_DEFAULT_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 const DURASI_DEFAULT_LABEL: &str = "30 hari";
 
-/// `formatDate(ts)` (`addprem.js:32-38`) — `id-ID`, hari numerik, bulan panjang,
+/// `formatDate(ts)` — `id-ID`, hari numerik, bulan panjang,
 /// tahun numerik. Padanan [`crate::common::date_long`].
 #[allow(dead_code)] // padanan JS `formatDate`; dipakai dari test saja
 pub(crate) fn format_tanggal(ms: i64) -> String {
     crate::common::date_long(ms)
 }
 
-/// `extractTarget(m)` (`addprem.js:40-46`) — quoted.sender, mentioned[0],
+/// `extractTarget(m)` — quoted.sender, mentioned[0],
 /// args[0]; ambil digit saja, kosong kalau tidak ada.
 pub(crate) fn ekstrak_target(
     quoted_sender: Option<&str>,
@@ -48,7 +48,7 @@ pub(crate) fn ekstrak_target(
     String::new()
 }
 
-/// `toMentionJid(value)` (`addprem.js:48-51`) — digit → `628xxx@s.whatsapp.net`.
+/// `toMentionJid(value)` — digit → `628xxx@s.whatsapp.net`.
 pub(crate) fn to_mention_jid(value: &str) -> Option<String> {
     let number: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
     if number.is_empty() {
@@ -58,7 +58,7 @@ pub(crate) fn to_mention_jid(value: &str) -> Option<String> {
     }
 }
 
-/// Hasil pemrosesan argumen durasi (`addprem.js:160-180`).
+/// Hasil pemrosesan argumen durasi.
 pub(crate) struct Durasi {
     #[allow(dead_code)] // durasi ms hanya dibaca test; produksi butuh `label`
     pub ms: i64,
@@ -91,7 +91,7 @@ pub(crate) fn is_arg_waktu(s: &str) -> bool {
         || unit == "detik"
 }
 
-/// `parseInt(match[1])` + pemilihan unit (`addprem.js:162-179`).
+/// `parseInt(match[1])` + pemilihan unit.
 pub(crate) fn parse_durasi(args: &[String]) -> Durasi {
     let time_arg = args.iter().find(|a| is_arg_waktu(a));
     let Some(teks) = time_arg else {
@@ -111,7 +111,7 @@ pub(crate) fn parse_durasi(args: &[String]) -> Durasi {
     }
     let angka: i64 = lowercase[..digit_len].parse().unwrap_or(0);
     let unit = &lowercase[digit_len..];
-    // JS Number = double, tak pernah overflow; i64 iya. saturating = perilaku
+    // versi awal Number = double, tak pernah overflow; i64 iya. saturating = perilaku
     // "durasi hampir permanen" tetap, tanpa panic.
     let (ms, label) = if unit == "d" || unit == "detik" {
         (angka.saturating_mul(1000), format!("{angka} detik"))
@@ -126,7 +126,7 @@ pub(crate) fn parse_durasi(args: &[String]) -> Durasi {
     Durasi { ms, label }
 }
 
-/// Teks help tanpa argumen (`addprem.js:115-119`).
+/// Teks help tanpa argumen.
 pub(crate) fn help_kerja(prefix: &str, tambah: bool) -> String {
     let kata = if tambah { "ADD" } else { "DEL" };
     format!(
@@ -135,11 +135,11 @@ pub(crate) fn help_kerja(prefix: &str, tambah: bool) -> String {
     )
 }
 
-/// Teks daftar premium kosong (`addprem.js:85-87`).
+/// Teks daftar premium kosong.
 pub(crate) const DAFTAR_KOSONG: &str = "💎 Belum ada premium terdaftar";
 
-/// Teks daftar premium jadibot kosong (`addprem.js:66-69`).
-#[allow(dead_code)] // helper JS `addprem.js:66-69`; jalur jadibot belum ada
+/// Teks daftar premium jadibot kosong.
+#[allow(dead_code)] // helper `formatDate`; jalur jadibot belum ada
 pub(crate) fn daftar_jadibot_kosong(_jadibot_id: &str) -> String {
     format!(
         "💎 Belum ada premium di jadibot ini\nGunakan `{prefix}addprem` untuk menambah",
@@ -201,7 +201,7 @@ pub fn addprem(ctx: Ctx) -> Reply {
     }
 }
 
-/// `.addprem` (`addprem.js:152-232`) — tulis daftar premium + flag user.
+/// `.addprem` — tulis daftar premium + flag user.
 fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
     let mut daftar = baca_daftar(ctx);
     let sudah_ada = daftar.iter().any(|p| p == target_number);
@@ -209,7 +209,7 @@ fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
         daftar.push(target_number.to_string());
     }
 
-    // `user.energi === -1` tidak ditimpa (addprem.js:218).
+    // `user.energi === -1` tidak ditimpa.
     let energi_sekarang = ctx
         .berkas()
         .baca_teks("database/main/settings.json")
@@ -241,7 +241,7 @@ fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
     ])
 }
 
-/// `.delprem` (`addprem.js:233-253`).
+/// `.delprem`.
 fn hapus_premium(ctx: &Ctx, target_number: &str) -> Reply {
     let daftar = baca_daftar(ctx);
     if !daftar.iter().any(|p| p == target_number) {
@@ -263,7 +263,7 @@ fn hapus_premium(ctx: &Ctx, target_number: &str) -> Reply {
 }
 
 /// Sumber daftar premium: `settings.premiumUsers` — salah satu sumber
-/// `config.isPremium` (`config.js:455`) dan dibaca `load_identity`.
+/// `config.isPremium` dan dibaca `load_identity`.
 fn baca_daftar(ctx: &Ctx) -> Vec<String> {
     ctx.setting_list("premiumUsers")
         .iter()
@@ -271,7 +271,7 @@ fn baca_daftar(ctx: &Ctx) -> Vec<String> {
         .collect()
 }
 
-/// `.listprem` (`addprem.js:85-110`).
+/// `.listprem`.
 fn daftar_premium(ctx: &Ctx) -> Reply {
     let daftar = baca_daftar(ctx);
     if daftar.is_empty() {

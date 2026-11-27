@@ -1,33 +1,23 @@
-//! `plugins/owner/gantiscraper.js` — ganti code scraper yang sudah ada di
-//! `src/scraper`.
+//! Ganti code scraper yang sudah ada
 //!
-//! Port dari nol. Yang dipindah:
-//! - daftar scraper (`gantiscraper.js:109-127`) — dibaca lewat
-//!   `ctx.berkas().daftar("src/scraper")` + `ukuran()`.
-//! - teks bantuan (`:130-138`).
-//! - guard kode terlalu pendek / bukan scraper / nama tak terdeteksi / nama
-//!   tidak valid (`:154-196`).
-//! - penulisan + backup berkas (`:203-230`).
-//!
-//! `ponytail:` hot reload (`import()` dinamis + `hotReloadPlugin`,
-//! `gantiscraper.js:82-101`) MUSTAHIL di Rust: registry plugin/scraper
-//! didaftarkan saat compile (linkme), tidak ada evaluasi JS saat runtime.
-//! Jadi berkas scraper tetap ditulis dan di-backup, tapi bagian "Hot Reload"
+//! `Keterbatasan:` hot reload (`import()` dinamis + `hotReloadPlugin`,) MUSTAHIL di Rust:
+//! registry plugin/scraper didaftarkan saat compile (linkme), tidak ada evaluasi versi awal
+//! saat runtime. Jadi berkas scraper tetap ditulis dan di-backup, tapi bagian "Hot Reload"
 //! diganti pemberitahuan bahwa bot perlu restart.
 //!
-//! `ponytail:` `ctx.berkas()` berakar ke direktori kerja (cwd) — sama dengan
-//! `process.cwd()` di JS, jadi `./src/scraper` dan `./backup/scraper` punya
-//! padanan persis.
+//! `Keterbatasan:` `ctx.berkas()` berakar ke direktori kerja (cwd) — sama dengan
+//! `process.cwd()` di versi awal, jadi `./src/scraper` dan `./backup/scraper` punya padanan
+//! persis.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Folder scraper (`gantiscraper.js:23`).
+/// Folder scraper.
 const SCRAPER_DIR: &str = "src/scraper";
-/// Folder backup (`gantiscraper.js:217`).
+/// Folder backup.
 const BACKUP_DIR: &str = "backup/scraper";
 
-/// `fs.readdirSync(SCRAPER_DIR).filter(f => f.endsWith(".js"))`
-/// (`gantiscraper.js:27-31`) — urutan `readdirSync` dipertahankan.
+/// `fs.readdirSync(SCRAPER_DIR).filter)`
+/// Urutan `readdirSync` dipertahankan.
 fn daftar_scraper(ctx: &Ctx) -> Vec<String> {
     ctx.berkas()
         .daftar(SCRAPER_DIR)
@@ -37,7 +27,7 @@ fn daftar_scraper(ctx: &Ctx) -> Vec<String> {
         .collect()
 }
 
-/// Teks bantuan (`gantiscraper.js:131-138`).
+/// Teks bantuan.
 fn bantuan(prefix: &str) -> String {
     format!(
         "🔄 *GANTI SCRAPER*\n\n\
@@ -52,7 +42,7 @@ fn bantuan(prefix: &str) -> String {
 }
 
 /// `code.match(/export\s+default\s+(?:async\s+)?function\s+(\w+)|export\s+default\s+(\w+)/)`
-/// (`gantiscraper.js:173-176`) — diganti parser sederhana tanpa regex crate.
+/// Diganti parser sederhana tanpa regex crate.
 fn nama_default_export(code: &str) -> Option<String> {
     let idx = code.find("export")?;
     let rest = &code[idx + "export".len()..];
@@ -65,7 +55,7 @@ fn nama_default_export(code: &str) -> Option<String> {
 }
 
 /// `code.match(/export\s+(?:async\s+)?function\s+(\w+)|export\s+const\s+(\w+)\s*=/)`
-/// (`gantiscraper.js:179-182`).
+///
 fn nama_named_export(code: &str) -> Option<String> {
     let mut dari = 0usize;
     while let Some(rel) = code[dari..].find("export") {
@@ -99,7 +89,7 @@ fn ident_awal(s: &str) -> Option<&str> {
 
 /// `code.includes("module.exports") || code.includes("export ") ||
 /// code.includes("export default") || code.includes("export {")`
-/// (`gantiscraper.js:158-162`).
+///
 fn punya_export(code: &str) -> bool {
     code.contains("module.exports")
         || code.contains("export ")
@@ -108,7 +98,7 @@ fn punya_export(code: &str) -> bool {
 }
 
 /// `fileName.toLowerCase().replace(/[^a-z0-9\-_]/g, "")`
-/// (`gantiscraper.js:194`).
+///
 fn bersihkan_nama(nama: &str) -> String {
     nama.to_lowercase()
         .chars()
@@ -117,7 +107,7 @@ fn bersihkan_nama(nama: &str) -> String {
 }
 
 /// `new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)`
-/// (`gantiscraper.js:222-224`) — timestamp UTC `YYYY-MM-DDTHH-MM-SS`.
+/// Timestamp UTC `YYYY-MM-DDTHH-MM-SS`.
 fn stempel() -> String {
     let ms = crate::common::now_ms();
     // ISO = UTC; helper lokal memakai Asia/Jakarta (+7), jadi dikurangi 7 jam.

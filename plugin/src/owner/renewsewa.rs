@@ -1,17 +1,16 @@
-//! `plugins/owner/renewsewa.js` — perpanjang durasi sewa grup.
+//! Perpanjang durasi sewa grup.
 //!
-//! `ponytail:` Tidak ada API database (`db.db.data.sewa`, `db.db.write()`) dan
-//! API grup (`sock.groupGetInviteInfo`, `sock.sendText`) yang diekspos ke
-//! plugin di registry Rust. Bagian penyimpanan dan pengiriman pesan ke grup
-//! tidak dapat dicerminkan. Handler di bawah hanya mem-port parsing argumen,
-//! validasi durasi, dan pemformatan, lalu jatuh ke error saat operasi DB/grup
-//! harus dieksekusi.
+//! `Keterbatasan:` Tidak ada API database (`db.db.data.sewa`, `db.db.write()`) dan API grup
+//! (`sock.groupGetInviteInfo`, `sock.sendText`) yang diekspos ke plugin di registry Rust.
+//! Bagian penyimpanan dan pengiriman pesan ke grup tidak dapat dicerminkan. Handler di
+//! bawah hanya mem-port parsing argumen, validasi durasi, dan pemformatan, lalu jatuh ke
+//! error saat operasi DB/grup harus dieksekusi.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const LIFETIME_KATA: &[&str] = &["lifetime", "permanent", "forever", "unlimited"];
 
-/// `parseDurationMs(str)` (`renewsewa.js:21-40`).
+/// `parseDurationMs(str)`.
 pub(crate) fn parse_duration_ms(s: &str) -> Option<i64> {
     if LIFETIME_KATA.iter().any(|k| s.to_lowercase() == *k) {
         return Some(i64::MAX);
@@ -38,7 +37,7 @@ pub(crate) fn parse_duration_ms(s: &str) -> Option<i64> {
     Some(value * multiplier)
 }
 
-/// `formatDuration(str)` (`renewsewa.js:42-53`).
+/// `formatDuration(str)`.
 #[cfg(test)]
 pub(crate) fn format_duration(s: &str) -> String {
     if LIFETIME_KATA.iter().any(|k| s.to_lowercase() == *k) {
@@ -52,7 +51,7 @@ pub(crate) fn format_duration(s: &str) -> String {
         return s.to_string();
     };
     if idx == 0 {
-        // `^(\d+)…` di JS butuh minimal satu digit.
+        // `^(\d+)…` di versi awal butuh minimal satu digit.
         return s.to_string();
     }
     let angka: &str = &s[..idx];
@@ -65,8 +64,8 @@ pub(crate) fn format_duration(s: &str) -> String {
         ("y", "tahun"),
     ];
     let unit_lc = unit.to_ascii_lowercase();
-    // Regex JS `^(\d+)([iIdDmMyYhH])$` — unit asing berarti tidak cocok, dan
-    // JS `return str` apa adanya (`renewsewa.js:50`), bukan `<angka> <unit>`.
+    // Regex versi awal `^(\d+)([iIdDmMyYhH])$` — unit asing berarti tidak cocok,
+    // versi awal `return str` apa adanya, bukan `<angka> <unit>`.
     let Some(nama) = units.iter().find(|(u, _)| unit_lc == *u).map(|(_, n)| *n) else {
         return s.to_string();
     };
@@ -107,7 +106,7 @@ pub fn renewsewa(ctx: Ctx) -> Reply {
         return Reply::text("❌ Format durasi tidak valid\nContoh: 7d, 1m, 1y, lifetime");
     }
 
-    // `ponytail:` `resolveGroupId` (butuh `sock.groupGetInviteInfo`) dan
+    // `Keterbatasan:` `resolveGroupId` (butuh `sock.groupGetInviteInfo`)
     // operasi `db.db.data.sewa` / `db.db.write()` tidak tersedia di registry,
     // jadi penyimpanan sewa dan pengiriman notifikasi ke grup tidak dapat
     // dieksekusi.

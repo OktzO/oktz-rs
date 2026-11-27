@@ -1,30 +1,11 @@
-//! `plugins/owner/addplugin.js` — tambah plugin baru dari code yang di-reply.
-//!
-//! ## Yang dip-port
-//!
-//! Semua validasi dan semua teks balasan: Absence quote, kode terlalu
-//! pendek, kode bukan format plugin, nama tidak terdeteksi, nama file
-//! tidak valid, file sudah ada, dan pesan sukses.
-//!
-//! ## Penyimpangan
-//!
-//! 1. `hotReloadPlugin(filePath)` (`src/lib/plugins.js`) tidak ada di Rust —
-//!    plugin Rust dikompilasi ke dalam binari, jadi berkas yang ditulis
-//!    saat runtime baru aktif setelah bot dibangun ulang. Karena itu
-//!    "Status Reload" selalu `Pending`, bukan `Berhasil`.
-//! 2. Lokasi berkas mengikuti JS persis (`<cwd>/plugins/<folder>/<file>.js`)
-//!    supaya path yang dilaporkan sama, tetapi router Rust memuat plugin
-//!    dari `plugin/src/`, bukan dari folder itu.
-//!
-//! `m.react("🕕")` sebelum menulis dan `m.react("✅")` setelahnya ikut
-//! sebagai reaksi pada pesan pemicu.
+//! Tambah plugin baru dari code yang di-reply.
 
 use oktz_plugin_api::{Ctx, QuotedKind, Reply, plugin};
 
-/// Batas panjang kode JS (`addplugin.js:58`).
+/// Batas panjang kode versi awal.
 const MIN_KODE: usize = 50;
 
-/// `m.pushName` selalu string di JS (`serialize.js:760`): `"Unknown"` kalau
+/// `m.pushName` selalu string di versi awal: `"Unknown"` kalau
 /// kosong. `Ctx::push_name` boleh kosong, jadi fallback-nya dipasang di sini.
 pub(crate) fn push_name(ctx: &Ctx) -> &str {
     if ctx.push_name.is_empty() {
@@ -34,7 +15,7 @@ pub(crate) fn push_name(ctx: &Ctx) -> &str {
     }
 }
 
-/// `extractPluginInfo` (`addplugin.js:22-29`) — cari label `name:` atau
+/// `extractPluginInfo` — cari label `name:`
 /// `category:` lalu ambil string di dalam kutip pertama.
 pub(crate) fn ambil_label(code: &str, label: &str) -> Option<String> {
     let lower = code.to_lowercase();
@@ -62,7 +43,7 @@ pub(crate) fn ambil_label(code: &str, label: &str) -> Option<String> {
     None
 }
 
-/// `fileName.toLowerCase().replace(/[^a-z0-9\-_]/g, "")` (`addplugin.js:84`).
+/// `fileName.toLowerCase().replace(/[^a-z0-9\-_]/g, "")`.
 pub(crate) fn bersihkan_nama(nama: &str) -> String {
     nama.to_lowercase()
         .chars()
@@ -70,7 +51,7 @@ pub(crate) fn bersihkan_nama(nama: &str) -> String {
         .collect()
 }
 
-/// Teks bantuan `addplugin.js:35-41`.
+/// Teks bantuan.
 pub(crate) fn tanpa_quote(nama: &str) -> String {
     format!(
         "Halo *{nama}*, sepertinya kamu belum mereply kode pluginnya.\n\n\
@@ -81,33 +62,33 @@ pub(crate) fn tanpa_quote(nama: &str) -> String {
     )
 }
 
-/// `addplugin.js:59`.
+///
 pub(crate) fn terlalu_pendek(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid."
     )
 }
 
-/// `addplugin.js:66`.
+///
 pub(crate) fn bukan_format_valid(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, proses gagal karena kode bukan format plugin yang valid. Pastikan ada export dan config di dalamnya."
     )
 }
 
-/// `addplugin.js:78`.
+///
 pub(crate) fn nama_tidak_terdeteksi(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, aku tidak bisa mendeteksi nama pluginnya. Silakan gunakan perintah dengan format .addplugin <nama file>."
     )
 }
 
-/// `addplugin.js:88`.
+///
 pub(crate) fn nama_file_tidak_valid(nama: &str) -> String {
     format!("Maaf *{nama}*, proses gagal karena nama file tidak valid.")
 }
 
-/// `addplugin.js:105-106`.
+///
 pub(crate) fn sudah_ada(nama: &str, file: &str, folder: &str) -> String {
     format!(
         "Maaf *{nama}*, file {file}.js sudah ada di folder {folder}.\n\n\
@@ -115,7 +96,7 @@ pub(crate) fn sudah_ada(nama: &str, file: &str, folder: &str) -> String {
     )
 }
 
-/// Pesan sukses `addplugin.js:118-124`.
+/// Pesan sukses.
 pub(crate) fn sukses(file: &str, folder: &str, ukuran: usize) -> String {
     format!(
         "Proses selesai! Plugin berhasil ditambahkan ke dalam sistem.\n\n\
@@ -127,8 +108,8 @@ pub(crate) fn sukses(file: &str, folder: &str, ukuran: usize) -> String {
     )
 }
 
-/// Isi balasan: `quoted.text || quoted.body`, atau isi berkas media yang
-/// di-reply (`addplugin.js:44-56`).
+/// Isi balasan: `quoted.text || quoted.body`, atau isi berkas media
+/// di-reply.
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         if q.kind.is_media()
@@ -171,8 +152,8 @@ pub fn addplugin(ctx: Ctx) -> Reply {
 
     let kode = kode_dari_ctx(&ctx);
     if quoted_adalah_media(&ctx) && kode.trim().is_empty() {
-        // Berkas media gagal diunduh — JS menangkap error dan membalas
-        // pesan unduhan gagal (`addplugin.js:54`).
+        // Berkas media gagal diunduh — versi awal menangkap error dan membalas
+        // pesan unduhan gagal.
         if ctx.download_quoted_media().is_err() {
             return Reply::text(format!(
                 "Maaf *{nama}*, proses gagal karena file tidak dapat diunduh."
@@ -217,7 +198,7 @@ pub fn addplugin(ctx: Ctx) -> Reply {
         return Reply::text(nama_file_tidak_valid(nama));
     }
 
-    // `plugins/<folder>/<file>.js` — path sama dengan JS.
+    // Path sama dengan versi awal.
     let folder_path = format!("plugins/{folder_name}");
     let file_path = format!("{folder_path}/{file_name}.js");
 

@@ -1,17 +1,11 @@
-//! `plugins/owner/clearsessions.js` — hapus isi `storage/sessions/` kecuali
-//! `creds.json`.
-//!
-//! JS menghapus folder secara rekursif (`fs.rmSync(..., { recursive: true })`);
-//! `Berkas::hapus` hanya bisa menghapus berkas, jadi subfolder di dalam
-//! `storage/sessions/` dilewati diam-diam — persis `catch {}` kosong di JS,
-//! hanya saja tidak ikut terhitung sebagai `deleted`.
+//! Hapus isi `storage/sessions/` kecuali
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const FOLDER: &str = "storage/sessions";
 const CREDS: &str = "creds.json";
 
-/// `clearsessions.js:48-58`.
+///
 pub(crate) fn ringkasan(dihapus: usize, dilewati: usize) -> String {
     format!(
         "╭┈┈⬡「 🗑️ *ᴄʟᴇᴀʀ sᴇssɪᴏɴs* 」\n\

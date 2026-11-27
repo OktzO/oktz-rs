@@ -1,17 +1,12 @@
-//! `plugins/owner/savekontak.js` — menyimpan kontak dari grup menjadi file VCF.
+//! Menyimpan kontak dari grup menjadi file VCF.
 //!
-//! Port dari nol. Yang dipindah:
-//! - cabang `get` (`:18-80`) — ekstraksi vCard + pengiriman dokumen.
-//! - kartu pilihan grup (`:82-130`) — `single_select` + tombol "Semua Grup".
+//! `Keterbatasan:` daftar grup diambil dari `sock.groupFetchAllParticipating()` yang
+//! tersedia sebagai `Sock::semua_grup()`.
 //!
-//! `ponytail:` daftar grup diambil dari `sock.groupFetchAllParticipating()`
-//! (`savekontak.js:22`) yang tersedia sebagai `Sock::semua_grup()`.
+//! `Keterbatasan:` nomor bot sendiri tidak bisa disaring — `sock.user.id` tidak ada di
+//! `Ctx` — jadi semua peserta grup ikut masuk ke VCF.
 //!
-//! `ponytail:` nomor bot sendiri tidak bisa disaring — `sock.user.id` tidak
-//! ada di `Ctx` — jadi semua peserta grup ikut masuk ke VCF.
-//!
-//! `ponytail:` pesan kedua JS (`{ contacts: { displayName, contacts } }`,
-//! `savekontak.js:72-77`) adalah `contactsMessage` WA; `Reply` tidak punya
+//! `Keterbatasan:` pesan kedua versi awal adalah `contactsMessage` WA; `Reply` tidak punya
 //! varian itu, jadi hanya dokumen VCF yang dikirim.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
@@ -20,10 +15,10 @@ use oktz_plugin_api::registry::{
 };
 use serde_json::Value;
 
-/// Footer kartu (`savekontak.js:113`).
+/// Footer kartu.
 const FOOTER: &str = "Powered by ReviewBot";
 
-/// `Object.values(chats)` (`savekontak.js:24,84`) — daftar metadata grup.
+/// `Object.values(chats)` — daftar metadata grup.
 fn daftar_grup(ctx: &Ctx) -> Vec<(String, Value)> {
     let Ok(all) = ctx.sock().semua_grup() else {
         return Vec::new();
@@ -34,7 +29,7 @@ fn daftar_grup(ctx: &Ctx) -> Vec<(String, Value)> {
     obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
 }
 
-/// `group.participants` → daftar id (`savekontak.js:47`).
+/// `group.participants` → daftar id.
 fn peserta(metadata: &Value) -> Vec<String> {
     metadata
         .get("participants")
@@ -52,12 +47,12 @@ fn peserta(metadata: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `participant.id.split("@")[0]` (`savekontak.js:50`).
+/// `participant.id.split("@")[0]`.
 fn nomor(jid: &str) -> String {
     jid.split('@').next().unwrap_or(jid).to_string()
 }
 
-/// Satu vCard (`savekontak.js:52`).
+/// Satu vCard.
 fn vcard(nama: &str, nomor_peserta: &str) -> String {
     format!(
         "BEGIN:VCARD\nVERSION:3.0\nFN:{nama}\nTEL;type=CELL;type=VOICE;waid={nomor_peserta}:+{nomor_peserta}\nEND:VCARD"

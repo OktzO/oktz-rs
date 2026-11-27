@@ -1,11 +1,11 @@
-//! `plugins/owner/delenergi.js` — kurangi energi user.
+//! Kurangi energi user.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::{jid_number, parse_int};
 
 /// `user.energi === -1` — hasil `updateEnergi` juga `-1` tanpa mengubah apa
-/// pun kalau user sudah unlimited (`database.js:630`).
+/// pun kalau user sudah unlimited.
 const UNLIMITED: i64 = -1;
 
 /// Ribuan bertitik, tanda minus ikut (`-1234` → `-1.234`).
@@ -17,7 +17,7 @@ fn thousands(n: i64) -> String {
     }
 }
 
-/// `formatNumber` (`delenergi.js:11-13`).
+/// `formatNumber`.
 fn format_number(n: i64) -> String {
     if n == UNLIMITED {
         "∞ Unlimited".to_string()
@@ -46,7 +46,7 @@ fn help(prefix: &str) -> String {
 
 /// Energi tersimpan untuk `jid`.
 ///
-/// `ponytail:` `Ctx` hanya mengisi `user_data` untuk `sender` dan
+/// `Keterbatasan:` `Ctx` hanya mengisi `user_data` untuk `sender`
 /// `participants[i].data` untuk roster grup. JID di luar keduanya dianggap
 /// "tidak ada di database" — sama dengan `db.getUser(jid)` yang `null`.
 fn stored_energi(ctx: &Ctx, jid: &str) -> Option<i64> {
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn an_unlimited_user_first_drops_to_twenty_five() {
-        // JS: `energi === -1` → `setUser(..., {energi: 25})` sebelum pengurangan.
+        // versi awal: `energi === -1` → `setUser(..., {energi: 25})` sebelum pengurangan.
         let r = run("50", serde_json::json!({ "energi": -1 }), None);
         assert_eq!(written(&r).1, 0, "25 - 50 dijepit ke 0");
     }
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn a_user_absent_from_the_store_is_refused_and_writes_nothing() {
         // `db.getUser(targetJid)` null → guard "tidak ditemukan". Baris `{}`
-        // ADA di store (object JS truthy), jadi bukan kasus ini.
+        // ADA di store (object versi awal truthy), jadi bukan kasus ini.
         let r = run("50", serde_json::json!(null), None);
         assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
         assert!(r.mutations().is_empty());
@@ -255,8 +255,8 @@ mod tests {
 
     #[test]
     fn a_mention_becomes_the_target_but_its_row_is_unreadable() {
-        // `ponytail:` target mention di luar roster tidak punya row di `Ctx`,
-        // jadi guard "user tidak ditemukan" dulu yang kena — sama seperti
+        // `Keterbatasan:` target mention di luar roster tidak punya row di `Ctx`,
+        // jadi guard "user tidak ditemukan" dulu yang kena — sama
         // `db.getUser(targetJid)` yang `null` untuk user yang tak pernah
         // terdaftar. Barisnya ditulis ke JID target, bukan ke sender.
         let r = run("50", serde_json::json!({ "energi": 200 }), Some(OTHER));

@@ -1,7 +1,4 @@
-//! `plugins/owner/setaudioallmenu.js` — pilih varian audio All Menu (1-4).
-//!
-//! `db.setting("allmenuAudioStyle") || 1` dipakai untuk MENAMPILKAN varian
-//! yang aktif; nilai `0`/`false` di store ikut jadi `1` karena `||` di JS.
+//! Pilih varian audio All Menu (1-4).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -191,7 +188,7 @@ mod tests {
 
     #[test]
     fn non_numeric_input_is_rejected() {
-        // `parseInt` JS: hanya yang benar-benar bukan angka yang ditolak —
+        // `parseInt` versi awal: hanya yang benar-benar bukan angka yang ditolak —
         // `"1-4"` bukan salah satunya, dia mulai dari `1`.
         for input in ["abc", "x2", "--3", "e4", "+"] {
             let r = run(input, serde_json::json!({}));
@@ -202,7 +199,7 @@ mod tests {
 
     #[test]
     fn a_leading_number_wins_like_parse_int_does() {
-        // `parseInt("2 apa pun")` = 2 di JS, bukan NaN.
+        // `parseInt("2 apa pun")` = 2 di versi awal, bukan NaN.
         let r = run("2 apa pun", serde_json::json!({}));
         assert!(body(&r).contains("*Varian 2*"), "{}", body(&r));
         assert_eq!(written(&r), serde_json::json!(2));

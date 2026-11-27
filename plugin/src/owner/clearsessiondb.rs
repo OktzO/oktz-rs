@@ -1,10 +1,4 @@
 //! Plugin `.clearsessiondb` — bersihkan session basi saat membeludak:
-//! karantina `*.broken-*` lokal + snapshot backup/legacy di Turso.
-//!
-//! Yang TIDAK PERNAH disentuh (sesi aktif tetap hidup, bot tidak mati):
-//! - `database/wa/oktz-run.db` + sidecar + `.ident`
-//! - `creds.json` aktif
-//! - Turso `session_state` scope `main`
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

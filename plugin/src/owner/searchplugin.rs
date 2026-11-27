@@ -1,19 +1,11 @@
-//! `plugins/owner/searchplugin.js` — cari dan tampilkan info plugin.
-//!
-//! Di JS, `getAllPlugins()` mengembalikan peta plugin yang sudah dimuat
-//! (nama + alias + config yang sudah digabung dengan `defaultConfig`).
-//! Di Rust padanannya `oktz_plugin_api::find()` yang mencari nama dulu lalu
-//! alias — urutan yang sama dengan `findPluginInfo` (`searchplugin.js:21-49`).
-//!
-//! `info.limit` tidak ada di `PluginMeta` Rust, jadi nilainya diambil dari
-//! `defaultConfig` JS (`limit: 1`, `plugins.js:71`) agar angkanya sama.
+//! Cari dan tampilkan info plugin.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `defaultConfig.limit` (`src/lib/plugins.js:71`).
+/// `defaultConfig.limit`.
 const LIMIT_DEFAULT: i32 = 1;
 
-/// Teks bantuan `searchplugin.js:87-93`.
+/// Teks bantuan.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "🔍 *sᴇᴀʀᴄʜ ᴘʟᴜɢɪɴ*\n\n\
@@ -24,12 +16,12 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// Plugin tidak ditemukan `searchplugin.js:107-110`.
+/// Plugin tidak ditemukan.
 pub(crate) fn tidak_ditemukan(nama: &str) -> String {
     format!("❌ *ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n> Plugin `{nama}` tidak ditemukan")
 }
 
-/// `aliases` — `info.alias.join(", ")` atau `"-"` (`searchplugin.js:123-125`).
+/// `aliases` — `info.alias.join(", ")` atau `"-"`.
 pub(crate) fn daftar_alias(alias: &[String]) -> String {
     if alias.is_empty() {
         "-".to_string()
@@ -38,13 +30,13 @@ pub(crate) fn daftar_alias(alias: &[String]) -> String {
     }
 }
 
-/// `ya_tidak` — `info.isX ? "✅ Ya" : "❌ Tidak"`.
+/// `ya_tidak` — `info.isX ? "✅ Ya": "❌ Tidak"`.
 fn ya_tidak(v: bool) -> &'static str {
     if v { "✅ Ya" } else { "❌ Tidak" }
 }
 
-/// Kartu info plugin `searchplugin.js:133-151`.
-// Parameter mengikuti field metadata plugin di JS; kartu tetap mirroring `plugin.info`.
+/// Kartu info plugin.
+// Parameter mengikuti field metadata plugin di versi awal; kartu tetap mirroring `plugin.info`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn kartu_info(
     nama: &str,
@@ -106,7 +98,7 @@ pub(crate) fn kartu_info(
     is_bot_admin = false
 )]
 pub fn searchplugin(ctx: Ctx) -> Reply {
-    // `m.text?.trim()` (`searchplugin.js:84`).
+    // `m.text?.trim()`.
     let name = ctx.text.trim();
     if name.is_empty() {
         return Reply::text(bantuan(&ctx.prefix));

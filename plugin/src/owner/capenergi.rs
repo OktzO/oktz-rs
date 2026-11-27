@@ -1,10 +1,4 @@
-//! `plugins/owner/capenergi.js` — override biaya energi beberapa plugin.
-//!
-//! `pub(crate) fn apply_cap` di sini juga dipakai `capfree`/`capprem`: ketiga
-//! plugin JS punya tubuh yang sama persis (loop argumen → `getPlugin` → tulis
-//! override → balas daftar berhasil/gagal), hanya nama setting, nilai yang
-//! ditulis, dan teksnya yang berbeda. Helper-nya diletakkan di file plugin
-//! sendiri, bukan `common.rs`, karena `common.rs` milik batch lain.
+//! Override biaya energi beberapa plugin.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -265,7 +259,7 @@ mod tests {
 
     #[test]
     fn a_non_object_setting_is_replaced_rather_than_merged() {
-        // `db.setting("capenergi") || {}` tidak dijamin objek di JS; Rust
+        // `db.setting("capenergi") || {}` tidak dijamin objek di versi awal; Rust
         // memakai objek kosong supaya tidak menimpa data lain diam-diam.
         let r = run("baik 5", serde_json::json!({ "capenergi": 5 }));
         assert_eq!(stored(&r), serde_json::json!({ "cekbaik": 5 }));

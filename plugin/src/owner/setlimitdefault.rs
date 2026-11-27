@@ -1,4 +1,4 @@
-//! `plugins/owner/setlimitdefault.js` — set `defaultLimit` untuk user baru.
+//! Set `defaultLimit` untuk user baru.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -9,7 +9,7 @@ pub(crate) const MAX_LIMIT: i64 = 1000;
 pub(crate) const RANGE_ERR: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Limit harus antara 1 - 1000";
 
 /// `db.setting('defaultLimit') || config.limits?.default || 25` — nilai 0
-/// falsy di JS, jadi ikut jatuh ke default; `as_i64` meniru itu lewat
+/// falsy di versi awal, jadi ikut jatuh ke default; `as_i64` meniru itu lewat
 /// `Option`, bukan lewat `unwrap_or`.
 pub(crate) fn current_limit(ctx: &Ctx) -> i64 {
     match ctx.setting("defaultLimit") {

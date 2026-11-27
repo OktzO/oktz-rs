@@ -1,7 +1,4 @@
-//! `plugins/owner/capprem.js` — jadikan fitur premium-only.
-//!
-//! Loop dan balasannya identik dengan `capenergi`/`capfree`, jadi keduanya
-//! dipakai lewat `capenergi::apply_cap`.
+//! Jadikan fitur premium-only.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

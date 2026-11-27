@@ -1,10 +1,9 @@
-//! `plugins/owner/stop.js` — balas "bot dimatikan", lalu `process.exit(1)`.
+//! Balas "bot dimatikan", lalu `process.exit(1)`.
 //!
-//! `ponytail:` langkah kedua TIDAK di-port. `process.exit` butuh menghentikan
-//! proses dari dalam handler, dan `Ctx` sengaja tidak punya akses ke itu —
-//! plugin pure tidak boleh mematikan host. Yang dipindah adalah gate owner
-//! dan teks balasan. Kalau shutdown dari command memang dibutuhkan, itu
-//! keputusan router/pipeline, bukan plugin.
+//! `Keterbatasan:` langkah kedua TIDAK diimplementasikan. `process.exit` butuh menghentikan
+//! proses dari dalam handler, dan `Ctx` sengaja tidak punya akses ke itu — plugin pure
+//! tidak boleh mematikan host. Yang dipindah adalah gate owner dan teks balasan. Kalau
+//! shutdown dari command memang dibutuhkan, itu keputusan router/pipeline, bukan plugin.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -29,7 +28,7 @@ pub(crate) const STOPPING: &str =
     is_bot_admin = false
 )]
 pub fn stop(ctx: Ctx) -> Reply {
-    // JS memanggil `config.isOwner(m.sender)` secara eksplisit, terpisah dari
+    // versi awal memanggil `config.isOwner(m.sender)` secara eksplisit, terpisah
     // flag `m.isOwner`; keduanya sumber yang sama, jadi `ctx.is_owner` dipakai.
     if !ctx.is_owner {
         return Reply::text(NOT_OWNER);
@@ -73,8 +72,8 @@ mod tests {
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
         assert_eq!(find("shutdown").unwrap().meta.name, "stop");
-        // JS: command `kill` milik random/anime.js menang atas alias stop.js
-        // (lookup map commands dulu, baru alias — plugins.js:539-544).
+        // versi awal: command `kill` milik menang atas alias
+        //
         assert_eq!(find("kill").unwrap().meta.name, "loli");
     }
 

@@ -1,16 +1,15 @@
-//! `plugins/owner/listban.js` — daftar `bannedUsers`.
+//! Daftar `bannedUsers`.
 //!
-//! `ponytail:` JS membaca `config.bannedUsers` dulu dan baru jatuh ke
-//! `db.setting('bannedUsers')` kalau cache itu kosong. `config.bannedUsers`
-//! adalah cache in-memory milik `config.js` (`config.js:521`), tidak ada di
-//! `Ctx`, jadi yang dipakai selalu setting.
+//! `Keterbatasan:` versi awal membaca `config.bannedUsers` dulu dan baru jatuh ke
+//! `db.setting('bannedUsers')` kalau cache itu kosong. `config.bannedUsers` adalah cache
+//! in-memory milik, tidak ada di `Ctx`, jadi yang dipakai selalu setting.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::joined_strings;
 
-/// `(i + 1). `${bannedUsers[i]}`` — `${el}` di JS, jadi elemen non-string
-/// dirender sebagai teksnya, bukan `[object Object]` gaya JS yang sebenarnya.
+/// `(i + 1). `${bannedUsers[i]}`` — `${el}` di versi awal, jadi elemen non-string
+/// dirender sebagai teksnya, bukan `[object Object]` gaya versi awal yang sebenarnya.
 pub(crate) fn numbered(items: &[String]) -> Vec<String> {
     items
         .iter()

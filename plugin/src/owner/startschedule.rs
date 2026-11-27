@@ -1,19 +1,8 @@
-//! `plugins/owner/startschedule.js` — mulai ulang scheduler tertentu atau semua.
-//!
-//! ## Penyimpangan
-//!
-//! - `startSchedulerByName` / `initSholatScheduler` (`src/lib/scheduler.js`,
-//!   `src/lib/sholat-scheduler.js`) membuat cron job di dalam proses Node.
-//!   Di Rust tidak ada penjadwal di API plugin, jadi scheduler yang "aktif"
-//!   dicatat di `ctx.sessions` (memori proses, seperti `activeCronJobs` di JS)
-//!   dan penandaan `autoSholat` tetap ditulis ke store lewat
-//!   `Mutation::SetSetting`.
-//! - Nama scheduler untuk "all" adalah `All Schedulers` (`scheduler.js:435`),
-//!   sedangkan "sholat" punya blok balasan sendiri.
+//! Mulai ulang scheduler tertentu atau semua.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// Nama scheduler yang dikenal dan label tampilnya (`scheduler.js:389-441`).
+/// Nama scheduler yang dikenal dan label tampilnya.
 const SCHEDULER: [(&str, &str); 5] = [
     ("limitreset", "Daily Limit Reset"),
     ("groupschedule", "Group Schedule"),
@@ -22,7 +11,7 @@ const SCHEDULER: [(&str, &str); 5] = [
     ("sholat", "Sholat Scheduler"),
 ];
 
-/// Teks bantuan `startschedule.js:26-41`.
+/// Teks bantuan.
 pub(crate) fn bantuan() -> String {
     String::from(
         "▶️ *sᴛᴀʀᴛ sᴄʜᴇᴅᴜʟᴇʀ*\n\n\
@@ -41,7 +30,7 @@ pub(crate) fn bantuan() -> String {
     )
 }
 
-/// Blok "dimulai" `startschedule.js:77-82`.
+/// Blok "dimulai".
 pub(crate) fn dimulai(nama: &str) -> String {
     format!(
         "▶️ *sᴄʜᴇᴅᴜʟᴇʀ ᴅɪᴍᴜʟᴀɪ*\n\n\
@@ -51,7 +40,7 @@ pub(crate) fn dimulai(nama: &str) -> String {
     )
 }
 
-/// Blok khusus sholat `startschedule.js:59-64`.
+/// Blok khusus sholat.
 pub(crate) fn dimulai_sholat() -> String {
     String::from(
         "▶️ *sᴄʜᴇᴅᴜʟᴇʀ ᴅɪᴍᴜʟᴀɪ*\n\n\
@@ -61,11 +50,11 @@ pub(crate) fn dimulai_sholat() -> String {
     )
 }
 
-/// `startschedule.js:84-86`.
+///
 pub(crate) const TIDAK_ADA: &str =
     "❌ Scheduler tidak ditemukan atau sudah aktif\n\nGunakan `.startschedule` untuk melihat daftar scheduler";
 
-/// `startschedule.js:52`.
+///
 pub(crate) const SHOLAT_AKTIF: &str = "ℹ️ Sholat Scheduler sudah dalam keadaan aktif";
 
 /// Kunci session untuk menandai scheduler yang aktif.

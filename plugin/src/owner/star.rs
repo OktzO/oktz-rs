@@ -1,13 +1,9 @@
-//! `plugins/owner/star.js` — beri/hapus bintang pada pesan.
+//! Beri/hapus bintang pada pesan.
 //!
-//! `ponytail:` `sock.chatModify` dengan field `star` tidak ada di `Ctx` API,
-//! dan `m.react('⭐')` tidak bisa digabung dengan teks balasan karena
-//! `Reply::with_reaction` hanya satu emoji. Yang dipindah: deteksi quoted,
-//! penanganan argumen `hapus`/`unstar`, dan teks balasan. Perubahan state
-//! bintang tidak dapat dilakukan di sini.
-//!
-//! Catatan: baris `pub mod star;` perlu ditambah ke `owner/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `sock.chatModify` dengan field `star` tidak ada di `Ctx` API, dan
+//! `m.react('⭐')` tidak bisa digabung dengan teks balasan karena `Reply::with_reaction`
+//! hanya satu emoji. Yang dipindah: deteksi quoted, penanganan argumen `hapus`/`unstar`,
+//! dan teks balasan. Perubahan state bintang tidak dapat dilakukan di sini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

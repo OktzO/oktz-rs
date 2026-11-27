@@ -1,12 +1,11 @@
-//! `plugins/owner/resetlimitdefault.js` — `defaultLimit` kembali ke config.
+//! `defaultLimit` kembali ke config.
 //!
-//! `ponytail:` `config.limits` tidak ada di `config.js`, jadi
-//! `config.limits?.default || 25` selalu `25` — angka itu hasil runtime
-//! JS, bukan tebakan.
+//! `Keterbatasan:` `config.limits` tidak ada, jadi `config.limits?.default || 25` selalu
+//! `25` — angka itu hasil runtime versi awal, bukan tebakan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `config.limits?.default || 25` (`config.js` tidak punya `limits`).
+/// `config.limits?.default || 25`.
 pub(crate) const CONFIG_DEFAULT_LIMIT: i64 = 25;
 
 pub(crate) fn confirm() -> String {

@@ -1,14 +1,8 @@
-//! `plugins/owner/block.js` — blokir nomor WhatsApp.
+//! Blokir nomor WhatsApp.
 //!
-//! Port penuh: `sock.updateBlockStatus(targetJid, 'block')` →
-//! `ctx.sock().blokir(target, true)`, lalu reaksi 🚫 + kartu sukses yang
-//! men-mention target. Kegagalan `sock` → template error (`te`).
-//!
-//! `ponytail:` guard JS "jangan blokir bot sendiri" butuh `sock.user?.id`
-//! (JID bot) yang tidak ada di `Ctx` — guard tidak di-port, blokir nomor
-//! bot sendiri tetap mungkin. Upgrade path: ekspos `bot_id` di `Ctx`.
-//!
-//! `unblock.rs` memakai `resolve_target` dari file ini.
+//! `Keterbatasan:` guard versi awal "jangan blokir bot sendiri" butuh `sock.user?.id` (JID
+//! bot) yang tidak ada di `Ctx` — guard tidak diimplementasikan, blokir nomor bot sendiri
+//! tetap mungkin. Upgrade path: ekspos `bot_id` di `Ctx`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -20,7 +14,7 @@ pub(crate) const USAGE: &str = "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
      > `.block @mention` — Blokir yang di-mention\n\
      > `.block` (di private chat) — Blokir user ini";
 
-/// Hasil resolusi target, memetakan tiga cabang `else if` di JS.
+/// Hasil resolusi target, memetakan tiga cabang `else if` di versi awal.
 pub(crate) enum Target {
     /// Punya JID — akan diblokir.
     Jid(String),
@@ -38,8 +32,8 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> Target {
         return Target::Jid(first.clone());
     }
     if let Some(quoted) = ctx.quoted() {
-        // JS: `m.quoted.sender || m.quoted.participant`. `QuotedMessage` hanya
-        // punya `sender`; string kosong = falsy di JS, jadi hasil ""
+        // versi awal: `m.quoted.sender || m.quoted.participant`. `QuotedMessage` hanya
+        // punya `sender`; string kosong = falsy di versi awal, jadi hasil ""
         // sama dengan tidak kena dan jatuh ke guard `!targetJid`.
         if quoted.sender.is_empty() {
             return Target::None;
@@ -59,7 +53,7 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> Target {
     Target::None
 }
 
-/// Kartu sukses JS (`block.js:44-49`): reaksi 🚫 + teks yang men-mention target.
+/// Kartu sukses versi awal: reaksi 🚫 + teks yang men-mention target.
 pub(crate) fn sukses_blokir(number: &str) -> String {
     format!(
         "🚫 *ɴᴏᴍᴏʀ ᴅɪʙʟᴏᴋɪʀ*\n\n\
@@ -211,8 +205,8 @@ mod tests {
         }
     }
 
-    /// `find("block")` tidak bisa dipakai di test: `ban.js` juga mendaftarkan
-    /// `block` sebagai alias (`plugins/owner/ban.js:6`), jadi lookup itu
+    /// `find("block")` tidak bisa dipakai di test: juga mendaftarkan
+    /// `block` sebagai alias, jadi lookup itu
     /// mengembalikan siapa saja yang menang di distributed slice. `blokir`
     /// milik plugin ini saja.
     fn entry() -> &'static PluginEntry {
@@ -279,7 +273,7 @@ mod tests {
             r.without_mutations().text_body(),
             Some(sukses_blokir("628777").as_str())
         );
-        // JS `{ mentions: [targetJid] }` — target di-tag supaya muncul di notif.
+        // versi awal `{ mentions: [targetJid] }` — target di-tag supaya muncul di notif.
         match r.without_mutations() {
             oktz_plugin_api::Reply::Reaction { reply, .. } => match reply.as_ref() {
                 oktz_plugin_api::Reply::Text { mentions, .. } => {

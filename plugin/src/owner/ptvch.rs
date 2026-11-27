@@ -1,16 +1,7 @@
-//! `plugins/owner/ptvch.js` — kirim video sebagai PTV ke channel.
+//! Kirim video sebagai PTV ke channel.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `m.download()` / `m.quoted.download()` (media intake yang
-//! tidak ada di `Ctx`), dan `sock.sendMessage(channelId, { video, mimetype,
-//! gifPlayback: true, ptv: true })` — tidak ada variant `Reply` untuk video
-//! PTV dan tidak ada `download()` di `Ctx`. Channel ID dari
-//! `config.saluran?.id` dengan fallback hardcode.
-//!
-//! `ponytail:` kalau `download_media` dan variant video PTV tersedia di
-//! `Ctx`/`Reply` nanti, port ulang dari `plugins/owner/ptvch.js` (reaksi
-//! `🕕` lalu `✅`, pesan konfirmasi ke pemilik).
+//! `Keterbatasan:` kalau `download_media` dan variant video PTV tersedia di `Ctx`/`Reply`
+//! nanti, tambahkan (reaksi `🕕` lalu `✅`, pesan konfirmasi ke pemilik).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

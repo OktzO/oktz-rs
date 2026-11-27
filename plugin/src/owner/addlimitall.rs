@@ -1,13 +1,10 @@
-//! `plugins/owner/addlimitall.js` — tambah energi ke semua member grup.
-//!
-//! Nama plugin di JS adalah `addenergiall`, bukan nama file — dicerminkan di
-//! `#[plugin(name = ...)]` supaya router tetap menemukan command yang sama.
+//! Tambah energi ke semua member grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::parse_int;
 
-/// `config.energi.default` (`config.js:114`).
+/// `config.energi.default`.
 const DEFAULT_ENERGI: i64 = 99_999;
 
 fn bad_input(prefix: &str) -> String {
@@ -21,7 +18,7 @@ pub(crate) const NO_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada member di 
 
 /// Energi member = `max(0, lama + amount)`, dengan `-1` (unlimited) tidak
 /// pernah disentuh — `db.updateEnergi` mengembalikan `-1` sebelum mengubah
-/// apa pun (`database.js:630`).
+/// apa pun.
 fn next_energy(current: i64, amount: i64) -> i64 {
     if current == -1 {
         -1
@@ -83,8 +80,8 @@ pub fn addlimitall(ctx: Ctx) -> Reply {
 
     Reply::text(format!(
         "✅ Berhasil menambahkan limit ke semua member ( Total *{success}* Member ) di grup *{}*",
-        // `ponytail:` `gb?.subject` diambil dari metadata grup yang tidak ada
-        // di `Ctx` (lihat `group/intro.rs`), jadi nama grup dari
+        // `Keterbatasan:` `gb?.subject` diambil dari metadata grup yang tidak ada
+        // di `Ctx` (lihat `group/intro.rs`), jadi nama grup
         // `group_data.subject` — atau teks cadangan kalau tidak ada.
         ctx.group_field("subject")
             .and_then(|v| v.as_str())

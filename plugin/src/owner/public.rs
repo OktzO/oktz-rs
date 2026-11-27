@@ -1,19 +1,17 @@
-//! `plugins/owner/public.js` — set mode bot ke `public`.
+//! Set mode bot ke `public`.
 //!
-//! `ponytail:` dua sumber runtime tidak ada di `Ctx`:
-//! 1. `config.mode` — variabel mutable di `config.js`. Yang dipakai adalah
-//!    `db.setting('botMode')`, cermin durable-nya yang juga dibaca router
-//!    (`mode_settings_from`, `pipeline.rs:250`).
+//! `Keterbatasan:` dua sumber runtime tidak ada di `Ctx`:
+//! 1. `config.mode` — variabel mutable. Yang dipakai adalah
+//! `db.setting('botMode')`, cermin durable-nya yang juga dibaca router
+//! (`mode_settings_from`, `pipeline.rs:250`).
 //! 2. `m.fromMe` — tidak ada di `Ctx`, jadi jalur `if (m.fromMe) return true`
-//!    hilang; owner tetap harus lolos cek nomor di bawah.
-//!
-//! `OWNER_NUMBERS` ikut dipakai `self.rs`.
+//! hilang; owner tetap harus lolos cek nomor di bawah.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use serde_json::Value;
 
-/// `config.owner.number` (`config.js:16`) — cek kedua setelah `isOwner`.
+/// `config.owner.number` — cek kedua setelah `isOwner`.
 pub(crate) const OWNER_NUMBERS: [&str; 1] = ["6285608953677"];
 
 pub(crate) const DENIED: &str = "🚫 *ᴀᴋsᴇs ᴅɪᴛᴏʟᴀᴋ*\n\n> Hanya owner yang bisa mengubah mode bot!";
@@ -30,7 +28,7 @@ pub(crate) fn current_mode(ctx: &Ctx) -> String {
         .to_string()
 }
 
-/// `validateOwner` (`public.js:57-70`) — `m.fromMe` tidak ada di `Ctx`.
+/// `validateOwner` — `m.fromMe` tidak ada di `Ctx`.
 pub(crate) fn is_real_owner(ctx: &Ctx) -> bool {
     if !ctx.is_owner {
         return false;
@@ -160,7 +158,7 @@ mod tests {
 
     #[test]
     fn an_owner_flagged_sender_outside_the_number_list_is_rejected() {
-        // `isOwner` di JS sudah berarti cfg, tapi `validateOwner` cek ulang —
+        // `isOwner` di versi awal sudah berarti cfg, tapi `validateOwner` cek ulang —
         // dua-duanya harus benar.
         let r = run("628999999999@s.whatsapp.net", true, serde_json::json!({}));
         assert_eq!(text_of(&r), DENIED);

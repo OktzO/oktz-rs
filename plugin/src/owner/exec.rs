@@ -1,12 +1,9 @@
-//! `plugins/owner/exec.js` — jalankan kode JS dari pesan yang di-reply (Owner Only).
+//! Jalankan kode versi awal dari pesan yang di-reply (Owner Only).
 //!
-//! `ponytail:` `eval()` kode JavaScript dan `config.isOwner(m.sender)` tidak
-//! dapat di-replikasi di Rust (tidak ada mesin JS, dan `config.isOwner`
-//! bukan bagian dari `Ctx`). Yang dipindah: deteksi kode dari quoted / teks,
-//! dan teks penjelasan. Eksekusi kode sendiri tidak dapat dilakukan.
-//!
-//! Catatan: baris `pub mod exec;` perlu ditambah ke `owner/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `eval()` kode JavaScript dan `config.isOwner(m.sender)` tidak dapat
+//! di-replikasi di Rust (tidak ada mesin versi awal, dan `config.isOwner` bukan bagian dari
+//! `Ctx`). Yang dipindah: deteksi kode dari quoted / teks, dan teks penjelasan. Eksekusi
+//! kode sendiri tidak dapat dilakukan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

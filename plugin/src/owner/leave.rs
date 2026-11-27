@@ -1,16 +1,15 @@
-//! `plugins/owner/leave.js` — bot keluar dari grup, via link atau chat aktif.
+//! Bot keluar dari grup, via link atau chat aktif.
 //!
-//! `ponytail:` Tidak ada API grup (`sock.groupLeave`, `sock.groupGetInviteInfo`,
-//! `m.groupMetadata`) yang diekspos ke plugin di registry Rust. Bagian grup
-//! tidak dapat dicerminkan; handler di bawah hanya menangani parsing argumen
-//! dan kasus "tidak ada grup yang ditargetkan", lalu jatuh ke error saat
-//! operasi grup harus dieksekusi.
+//! `Keterbatasan:` Tidak ada API grup (`sock.groupLeave`, `sock.groupGetInviteInfo`,
+//! `m.groupMetadata`) yang diekspos ke plugin di registry Rust. Bagian grup tidak dapat
+//! dicerminkan; handler di bawah hanya menangani parsing argumen dan kasus "tidak ada grup
+//! yang ditargetkan", lalu jatuh ke error saat operasi grup harus dieksekusi.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Ekstrak kode undangan dari teks, sama urutan pola dengan JS.
+/// Ekstrak kode undangan dari teks, sama urutan pola dengan versi awal.
 fn extract_invite_code(text: &str) -> Option<String> {
-    // Tanpa crate regex, pemindaian manual: cari `chat.whatsapp.com/` atau
+    // Tanpa crate regex, pemindaian manual: cari `chat.whatsapp.com/`
     // `wa.me/` diikuti minimal 20 karakter alfanumerik.
     for (pat, prefix_len) in [
         ("chat.whatsapp.com/", "chat.whatsapp.com/".len()),
@@ -63,7 +62,7 @@ pub fn leave(ctx: Ctx) -> Reply {
 
     if input.is_empty() {
         if ctx.is_group {
-            // `ponytail:` `m.groupMetadata` dan `sock.groupLeave` tidak tersedia
+            // `Keterbatasan:` `m.groupMetadata` dan `sock.groupLeave` tidak tersedia
             // di registry; grup aktif tidak dapat ditargetkan.
             return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
@@ -74,7 +73,7 @@ pub fn leave(ctx: Ctx) -> Reply {
         return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Link invite tidak valid");
     };
 
-    // `ponytail:` `sock.groupGetInviteInfo` dan `sock.groupLeave` tidak tersedia
+    // `Keterbatasan:` `sock.groupGetInviteInfo` dan `sock.groupLeave` tidak tersedia
     // di registry, jadi operasi grup tidak dapat dieksekusi.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }

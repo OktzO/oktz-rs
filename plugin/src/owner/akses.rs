@@ -1,14 +1,11 @@
-//! `plugins/owner/akses.js` — grant temporary/permanent command access to users.
+//! Grant temporary/permanent command access to users.
 //!
-//! `ponytail:` `db.getUser` / `db.setUser` dipindah ke `ctx.user_field` +
-//! `Mutation::SetUser`. Library `ms` untuk durasi tidak ada di Rust; parser
-//! durasi sederhana (`1h`, `1d`, `30d`, `1y`, `permanent`/`perm`) ditulis
-//! sendiri. `sock.parseMention` dan daftar interaktif `delakses` tidak ada di
-//! `Ctx`; del tanpa command spesifik menampilkan teks daftar akses aktif.
-//! Reaksi JS (`m.reply` tanpa reaksi eksplisit di akses) tidak dibawa.
-//!
-//! Catatan: baris `pub mod akses;` perlu ditambah ke `owner/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `db.getUser` / `db.setUser` dipindah ke `ctx.user_field` +
+//! `Mutation::SetUser`. Library `ms` untuk durasi tidak ada di Rust; parser durasi
+//! sederhana (`1h`, `1d`, `30d`, `1y`, `permanent`/`perm`) ditulis sendiri.
+//! `sock.parseMention` dan daftar interaktif `delakses` tidak ada di `Ctx`; del tanpa
+//! command spesifik menampilkan teks daftar akses aktif. Reaksi versi awal (`m.reply` tanpa
+//! reaksi eksplisit di akses) tidak dibawa.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -16,7 +13,7 @@ use serde_json::Value;
 const PERMANENT_KEYS: [&str; 2] = ["permanent", "perm"];
 
 /// `ms("30d")` — milidetik. Mengembalikan `None` untuk format tak dikenal
-// (padanan `NaN` yang falsy di JS).
+// (padanan `NaN` yang falsy di versi awal).
 fn parse_duration(s: &str) -> Option<i64> {
     let s = s.trim();
     if s.is_empty() {
@@ -41,7 +38,7 @@ fn parse_duration(s: &str) -> Option<i64> {
 }
 
 
-/// `acc.expired ? ms(acc.expired - now) : "Permanent"` (bentuk pendek).
+/// `acc.expired ? ms(acc.expired - now): "Permanent"` (bentuk pendek).
 fn format_expired(expired: Option<i64>, now: i64) -> String {
     match expired {
         Some(e) => {

@@ -1,4 +1,4 @@
-//! `plugins/owner/bcpcjeda.js` — setelan jeda broadcast private chat.
+//! Setelan jeda broadcast private chat.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -22,7 +22,7 @@ pub(crate) fn parse_delay(input: &str) -> Option<i64> {
 }
 
 /// `formatDelay` — satuan terbesar yang masih muat, `toFixed(0)` jadi
-/// `round-half-up` di JS.
+/// `round-half-up` di versi awal.
 pub(crate) fn format_delay(ms: i64) -> String {
     let n = ms as f64;
     if ms >= 86_400_000 {
@@ -84,7 +84,7 @@ pub fn bcpcjeda(ctx: Ctx) -> Reply {
     }
 
     let ms = match parse_delay(input) {
-        // `!ms || ms < 1000` — `!ms` juga menangkap `0`, yang mustahil dari
+        // `!ms || ms < 1000` — `!ms` juga menangkap `0`, yang mustahil
         // `parseDelay` karena `\d+` minimal satu digit.
         Some(ms) if ms >= 1000 => ms,
         _ => return Reply::text(BAD_FORMAT),
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Atur jeda broadcast private chat");
         assert_eq!(p.meta.usage, ".bcpcjeda <waktu> (contoh: 5s, 2m, 1h)");
-        // `pluginConfig` JS tidak punya `example`, jadi default router yang
+        // `pluginConfig` versi awal tidak punya `example`, jadi default router
         // dipakai — bukan tebakan.
         assert_eq!(p.meta.example, "");
         assert_eq!(p.meta.cooldown, 5);

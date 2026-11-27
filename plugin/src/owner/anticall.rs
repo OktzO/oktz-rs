@@ -1,21 +1,19 @@
-//! `plugins/owner/anticall.js` — toggle global `settings.antiCall`.
+//! Toggle global `settings.antiCall`.
 //!
-//! `ponytail:` status tanpa argumen membaca `config.features.antiCall`
-//! (`config.js`, `false`) sebagai fallback terakhir. `Ctx` tidak membawa
-//! config, jadi nilainya ikut `config.js` yang di-hardcode — persis seperti
-//! `panel/cpanel.rs` melakukan untuk `config.pterodactyl.*`. Begitu
-//! `config.js` diisi, baris ini ikut stale sampai router menyediakannya lewat
-//! `Ctx`.
+//! `Keterbatasan:` status tanpa argumen membaca `config.features.antiCall` sebagai fallback
+//! terakhir. `Ctx` tidak membawa config, jadi nilainya ikut yang di-hardcode — persis
+//! seperti `panel/cpanel.rs` melakukan untuk `config.pterodactyl.*`. Begitu diisi, baris
+//! ini ikut stale sampai router menyediakannya lewat `Ctx`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{js_truthy, text_keyword};
 
-/// Kunci `db.setting` yang dibaca dan ditulis (`anticall.js:24,44,53`).
+/// Kunci `db.setting` yang dibaca dan ditulis.
 pub(crate) const KEY: &str = "antiCall";
 
-/// `config.features.antiCall` (`config.js`) — nilai untuk `??` terakhir.
+/// `config.features.antiCall` — nilai untuk `??` terakhir.
 pub(crate) const CONFIG_DEFAULT: bool = false;
 
 pub(crate) const STATUS: &str = "📞 *Anti Call*\n\n\
@@ -167,7 +165,7 @@ mod tests {
 
     #[test]
     fn anything_else_falls_to_the_invalid_option_branch() {
-        // JS membandingkan `m.text` utuh tanpa parsing per kata, jadi
+        // versi awal membandingkan `m.text` utuh tanpa parsing per kata, jadi
         // "on off" bukan "on" — ia jatuh ke cabang invalid dan tidak menulis.
         for text in ["on off", "enable", "1", "on.", "-", "😔"] {
             let r = run("!", text, Value::Null);
@@ -200,7 +198,7 @@ mod tests {
 
     #[test]
     fn a_missing_setting_falls_back_to_the_config_value() {
-        // `config.features.antiCall` = false di config.js.
+        // `config.features.antiCall` = false.
         let r = run(".", "", Value::Null);
         assert!(
             text_of(&r).contains("Status: *Nonaktif ❌*"),
@@ -226,7 +224,7 @@ mod tests {
 
     #[test]
     fn the_branch_selector_is_exactly_on_and_off() {
-        // Tanpa guard `includes`, `text_keyword` sudah trim + lowercase; yang
+        // Tanpa guard `includes`, `text_keyword` sudah trim + lowercase;
         // tersisa adalah memastikan tidak ada nilai lain yang dianggap sah.
         // Spasi di DALAM teks tidak dihapus trim, jadi "o n" ≠ "on".
         for text in ["anti call", "aktif", "true", "o n", "on on"] {

@@ -1,21 +1,8 @@
-//! `plugins/owner/get.js` — advanced HTTP request tool (Owner Only).
-//!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `sock.sendMessage` dengan banyak varian (image/video/audio/
-//! document/gif `gifPlayback` + `mimetype`, dan document sebagai file saat
-//! respons besar), `axios` dengan konfigurasi penuh (method sembarang,
-//! `--auth` basic auth, `--header`, `validateStatus: () => true`,
-//! `responseType: "arraybuffer"`), `new URL()` validasi, dan daftar blocked
-//! URL (localhost/metadata). Tidak ada padanan lengkapnya di `Ctx`.
-//!
-//! Fungsi murni di bawah (`detect_extension`, `format_size`,
-//! `get_mime_category`, `is_blocked_url`) disalin dari JS untuk dijaga agar
-//! tidak hilang, dan diuji.
+//! Advanced HTTP request tool (Owner Only).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `get.js:23-45` — deteksi ekstensi dari `content-type`.
+/// Deteksi ekstensi dari `content-type`.
 #[cfg(test)]
 pub(crate) fn detect_extension(content_type: &str) -> &str {
     let ct = content_type.to_ascii_lowercase();
@@ -64,7 +51,7 @@ pub(crate) fn detect_extension(content_type: &str) -> &str {
     }
 }
 
-/// `get.js:70-75` — format ukuran byte.
+/// Format ukuran byte.
 #[cfg(test)]
 pub(crate) fn format_size(bytes: u64) -> String {
     if bytes == 0 {
@@ -81,7 +68,7 @@ pub(crate) fn format_size(bytes: u64) -> String {
     format!("{size:.decimals$} {}", units[i])
 }
 
-/// `get.js:47-54` — kategori MIME.
+/// Kategori MIME.
 #[cfg(test)]
 pub(crate) fn get_mime_category(mime_type: &str) -> &str {
     let mt = mime_type.to_ascii_lowercase();
@@ -100,7 +87,7 @@ pub(crate) fn get_mime_category(mime_type: &str) -> &str {
     }
 }
 
-/// `get.js:56-68` — URL blokir (localhost/internal/metadata).
+/// URL blokir (localhost/internal/metadata).
 #[cfg(test)]
 pub(crate) fn is_blocked_url(url: &str) -> bool {
     let blocked = [

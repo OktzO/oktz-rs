@@ -1,19 +1,7 @@
-//! `plugins/owner/schedule.js` — command untuk mengelola scheduled messages.
+//! Command untuk mengelola scheduled messages.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: mengimpor enam fungsi dari `../../src/lib/scheduler.js`
-//! (`scheduleMessage`, `cancelScheduledMessage`, `getScheduledMessages`,
-//! `getSchedulerStatus`, `formatTimeRemaining`, `getMsUntilTime`), yang bukan
-//! bagian dari `Ctx` API. Tidak ada kapasitas jadwal/pengingat di handler
-//! plugin, jadi tidak dapat meniru perilaku JS apa adanya.
-//!
-//! `ponytail:` kalau `scheduler` diekspose lewat `Ctx` nanti, port ulang seluruh
-//! logika `add`/`edit`/`list`/`kategori`/`preset`/`detail`/`del`/`status` dari
-//! `plugins/owner/schedule.js`.
-//!
-//! NOTE: baris `pub mod schedule;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs dilarang disentuh karena sudah milik plugin lain).
+//! `Keterbatasan:` kalau `scheduler` diekspose lewat `Ctx` nanti, tambahkan seluruh logika
+//! `add`/`edit`/`list`/`kategori`/`preset`/`detail`/`del`/`status`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

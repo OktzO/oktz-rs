@@ -1,28 +1,11 @@
-//! `plugins/owner/eval.js` — REPL JavaScript milik owner.
-//!
-//! ## PENYIMPANGAN (tidak bisa ditiru)
-//!
-//! JS menjalankan `eval("(async () => { ... })()")` — artinya kode
-//! JavaScript sembarang dieksekusi di dalam proses Node, dengan akses
-//! penuh ke `sock`, `db`, `fs`, `axios`, dan `config`. Di Rust tidak ada
-//! interpreter JavaScript, dan menambahkannya berarti memasukkan mesin
-//! eksekusi skrip ke dalam bot WhatsApp — tidak Equivalent, dan tidak
-//! aman. Karena itu perintah ini TIDAK menjalankan kode apa pun; ia
-//! hanya menjelaskan bahwa fiturnya tidak tersedia di versi Rust.
-//!
-//! Semua cabang lain (`Owner Only!`, teks bantuan `⚙️ *ᴇᴠᴀʟ*`) tetap
-//! disalin persis supaya perilakunya tidak berubah di luar batas yang
-//! memang mustahil.
-//!
-//! `noPrefix: ['=>']` / `customTrigger` (`eval.js:23-24`) tidak punya
-//! padanan di router Rust — perintah tetap dipanggil dengan prefix.
+//! REPL JavaScript milik owner.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `config.isOwner(m.sender)` gagal → `eval.js:32`.
+/// `config.isOwner(m.sender)` gagal →.
 pub(crate) const BUKAN_OWNER: &str = "❌ *Owner Only!*";
 
-/// Teks bantuan `eval.js:37-45`.
+/// Teks bantuan.
 pub(crate) fn bantuan() -> String {
     String::from(
         "⚙️ *ᴇᴠᴀʟ*\n\n\
@@ -69,7 +52,7 @@ pub fn eval(ctx: Ctx) -> Reply {
         return Reply::text(BUKAN_OWNER);
     }
 
-    // `m.fullArgs?.trim() || m.text?.trim()` (`eval.js:35`).
+    // `m.fullArgs?.trim() || m.text?.trim()`.
     let code = ctx.text.trim();
     if code.is_empty() {
         return Reply::text(bantuan());

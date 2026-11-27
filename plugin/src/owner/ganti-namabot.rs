@@ -1,24 +1,17 @@
-//! `plugins/owner/ganti-namabot.js` — ganti nama bot di config.js.
+//! Ganti nama bot.
 //!
-//! Port dari nol. Yang dipindah:
-//! - bantuan saat nama kosong (`ganti-namabot.js:24-26`).
-//! - penulisan `config.js` (`:30-38`).
-//! - teks sukses (`:40`).
+//! `Keterbatasan:` objek config live (`config.bot.name = newName`) tidak bisa dimutasi di
+//! `Ctx` (`config` berupa `Arc`), sama seperti `ganti-namadev`. Yang ditulis hanya berkas.
 //!
-//! `ponytail:` objek config live (`config.bot.name = newName`) tidak bisa
-//! dimutasi di `Ctx` (`config` berupa `Arc`), sama seperti `ganti-namadev`.
-//! Yang ditulis hanya berkas `config.js`.
-//!
-//! `ponytail:` regex JS `/bot:\s*\{[\s\S]*?name:\s*['"]([^'"]*)['"]/`
-//! (`ganti-namabot.js:32-36`) digantikan pemindai sederhana — crate `regex`
-//! tidak ada di `oktz-plugins`.
+//! `Keterbatasan:` regex versi awal `/bot:\s*\{[\s\S]*?name:\s*['"]([^'"]*)['"]/`
+//! digantikan pemindai sederhana — crate `regex` tidak ada di `oktz-plugins`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Jalur berkas konfigurasi (`ganti-namabot.js:30`).
+/// Jalur berkas konfigurasi.
 const CONFIG_PATH: &str = "config.js";
 
-/// Bantuan saat nama kosong (`ganti-namabot.js:24-26`).
+/// Bantuan saat nama kosong.
 pub(crate) fn bantuan(prefix: &str, nama_saat_ini: &str) -> String {
     format!(
         "🤖 *ɢᴀɴᴛɪ ɴᴀᴍᴀ ʙᴏᴛ*\n\n\
@@ -28,7 +21,7 @@ pub(crate) fn bantuan(prefix: &str, nama_saat_ini: &str) -> String {
     )
 }
 
-/// Teks sukses (`ganti-namabot.js:40`).
+/// Teks sukses.
 pub(crate) fn sukses(nama_baru: &str) -> String {
     format!("✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama bot diganti ke: *{nama_baru}*")
 }
@@ -36,7 +29,7 @@ pub(crate) fn sukses(nama_baru: &str) -> String {
 /// Ganti nilai `name` di dalam blok `bot: { … }`.
 ///
 /// Padanan `/bot:\s*\{[\s\S]*?name:\s*['"]([^'"]*)['"]/` +
-/// penggantian dengan `'nama baru'` (`ganti-namabot.js:32-36`).
+/// penggantian dengan `'nama baru'`.
 fn ganti_nama_bot(content: &str, nama_baru: &str) -> Option<String> {
     let bot_idx = content.find("bot:")?;
     let colon_end = bot_idx + "bot:".len();

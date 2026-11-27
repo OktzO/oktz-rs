@@ -1,17 +1,9 @@
-//! `plugins/owner/setallmenu.js` — atur variant tampilan allmenu.
-//!
-//! ## Penyimpangan
-//!
-//! - `sock.sendButton(chat, bufferFoto, body, m, { buttons })` dipetakan ke
-//!   `Reply::interactive(..)` dengan header gambar dari `config.assets.foto`
-//!   dan satu tombol `single_select`.
-//! - `db.setting("allmenuVariant", id)` + `db.save()` dipetakan ke
-//!   `Mutation::SetSetting`.
+//! Atur variant tampilan allmenu.
 
 use oktz_plugin_api::registry::{CardHeader, CardList, CardRow, CardSection, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 
-/// Satu variant allmenu (`setallmenu.js:19-44`).
+/// Satu variant allmenu.
 pub(crate) struct Variant {
     id: i64,
     key: &'static str,
@@ -57,11 +49,11 @@ const SETTING_KEY: &str = "allmenuVariant";
 /// `config.ui?.allmenuVariant || 2` — `config.ui` tidak ada di `Runtime`.
 const DEFAULT_VARIANT: i64 = 2;
 
-/// `❌ *VARIANT TIDAK VALID*` (`setallmenu.js:53`).
+/// `❌ *VARIANT TIDAK VALID*`.
 pub(crate) const TIDAK_VALID: &str =
     "❌ *VARIANT TIDAK VALID*\n\nGunakan: *v1*, *v2*, *v5*, atau *v6*";
 
-/// Pesan sukses `setallmenu.js:61-64`.
+/// Pesan sukses.
 pub(crate) fn pesan_diubah(v: &Variant) -> String {
     format!(
         "✅ *ALLMENU VARIANT DIUBAH*\n\n\
@@ -80,7 +72,7 @@ pub(crate) fn nama_variant(id: i64) -> &'static str {
         .unwrap_or("Unknown")
 }
 
-/// Teks body kartu `setallmenu.js:90-100`.
+/// Teks body kartu.
 pub(crate) fn body_teks(current: i64) -> String {
     format!(
         "📋📑 *ALLMENU VARIANT*\n\n\
@@ -97,7 +89,7 @@ pub(crate) fn body_teks(current: i64) -> String {
     )
 }
 
-/// Baris tombol `single_select` (`setallmenu.js:72-79`).
+/// Baris tombol `single_select`.
 pub(crate) fn baris(prefix: &str, current: i64) -> Vec<CardRow> {
     VARIANTS
         .iter()

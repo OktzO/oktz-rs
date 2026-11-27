@@ -1,13 +1,9 @@
-//! `plugins/owner/mutechat.js` — mute/unmute chat.
+//! Mute/unmute chat.
 //!
-//! `ponytail:` `sock.chatModify({ mute: 1 | null }, targetJid)` dan
-//! `m.react('✅')` tidak ada di `Ctx` API, jadi tidak dapat meniru perilaku
-//! JS apa adanya. Yang dipindah: resolusi target (mention / quoted / nomor
-//! argumen / chat saat private) dan teks balasan. Aksi chatModify sendiri
-//! tidak dapat dilakukan di sini.
-//!
-//! Catatan: baris `pub mod mutechat;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `sock.chatModify({ mute: 1 | null }, targetJid)` dan `m.react('✅')`
+//! tidak ada di `Ctx` API, jadi tidak dapat meniru perilaku versi awal apa adanya. Yang
+//! dipindah: resolusi target (mention / quoted / nomor argumen / chat saat private) dan
+//! teks balasan. Aksi chatModify sendiri tidak dapat dilakukan di sini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -127,7 +123,7 @@ mod tests {
 
     #[test]
     fn without_target_and_in_group_shows_help() {
-        // JS: tanpa mention/quote/argumen, target hanya terisi saat `!m.isGroup`.
+        // versi awal: tanpa mention/quote/argumen, target hanya terisi saat `!m.isGroup`.
         // Di grup tanpa target, `targetJid` tetap null → kartu bantuan.
         let r = run(&[], None, false, true);
         assert!(body(&r).starts_with("🔇 *ᴍᴜᴛᴇ ᴄʜᴀᴛ*"));
@@ -135,7 +131,7 @@ mod tests {
 
     #[test]
     fn private_chat_without_target_mutes_the_chat_itself() {
-        // JS: `else if (!m.isGroup) targetJid = m.chat`.
+        // versi awal: `else if (!m.isGroup) targetJid = m.chat`.
         let r = run(&[], None, false, false);
         assert_eq!(body(&r), "🔇 *ᴄʜᴀᴛ ᴅɪᴍᴜᴛᴇ*\n\n> Target: 628111");
     }

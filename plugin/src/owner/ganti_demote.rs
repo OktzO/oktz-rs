@@ -1,9 +1,8 @@
-//! `plugins/owner/ganti-demote.js` — ganti gambar demote.jpeg via `updateAssetUrl`.
+//! Ganti gambar demote.jpeg via `updateAssetUrl`.
 //!
-//! `ponytail:` `updateAssetUrl` dari `src/lib/uploader.js` (unggah ke asset /
-//! config realtime) tidak diekspos ke plugin di registry Rust. Unduhan media
-//! (`ctx.download_quoted_media()` / `ctx.download_media()`) tersedia, tetapi
-//! unggahan hasilnya tidak dapat dieksekusi.
+//! `Keterbatasan:` `updateAssetUrl` (unggah ke asset / config realtime) tidak diekspos ke
+//! plugin di registry Rust. Unduhan media (`ctx.download_quoted_media()` /
+//! `ctx.download_media()`) tersedia, tetapi unggahan hasilnya tidak dapat dieksekusi.
 
 use oktz_plugin_api::{Ctx, IncomingKind, QuotedKind, Reply, plugin};
 
@@ -13,7 +12,7 @@ pub(crate) fn help() -> String {
         .to_string()
 }
 
-/// Cek apakah pemicu atau quoted adalah image, sama urutan dengan JS.
+/// Cek apakah pemicu atau quoted adalah image, sama urutan dengan versi awal.
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -59,7 +58,7 @@ pub fn ganti_demote(ctx: Ctx) -> Reply {
 
     let _ = buffer; // buffer didapat, tapi `updateAssetUrl` tidak tersedia.
 
-    // `ponytail:` `updateAssetUrl('demote', buffer, 'demote.jpeg')` dan
+    // `Keterbatasan:` `updateAssetUrl('demote', buffer, 'demote.jpeg')`
     // pembaruan config realtime tidak tersedia di registry Rust.
     Reply::text(crate::common::error_template(&ctx))
 }

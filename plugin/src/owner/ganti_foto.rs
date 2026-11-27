@@ -1,25 +1,20 @@
-//! `plugins/owner/ganti-foto.js` — ganti gambar foto.jpg (thumbnail menu).
+//! Ganti gambar foto.jpg (thumbnail menu).
 //!
-//! `ponytail:` `updateAssetUrl` (`src/lib/uploader.js`) untuk unggah dan
-//! mendapatkan URL baru tidak tersedia di `Ctx`/`Reply`; setelah unduh media
-//! berhasil, handler diakhiri `error_template` + `☢` (pola `swm.rs`).
-//! Unduh media itu sendiri (`m.download` / `m.quoted.download`) di-port
-//! melalui `Ctx::download_media` / `download_quoted_media`.
-//!
-//! Saat `updateAssetUrl` tersedia, tambahkan `pub mod ganti_foto;` di
-//! `src/owner/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! `Keterbatasan:` `updateAssetUrl` untuk unggah dan mendapatkan URL baru tidak tersedia di
+//! `Ctx`/`Reply`; setelah unduh media berhasil, handler diakhiri `error_template` + `☢`
+//! (pola `swm.rs`). Unduh media itu sendiri (`m.download` / `m.quoted.download`)
+//! diimplementasikan melalui `Ctx::download_media` / `download_quoted_media`.
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// Kartu pakai / penolakan bukan gambar (`ganti-foto.js:22-24`).
+/// Kartu pakai / penolakan bukan gambar.
 pub(crate) fn pakai(file: &str, _prefix: &str) -> String {
     format!(
         "🖼️ *ɢᴀɴᴛɪ ꜰᴏᴛᴏ.ᴊᴘɢ*\n\n> Kirim/reply gambar untuk mengganti\n> File: assets/image/{file}"
     )
 }
 
-/// `isImage` (`ganti-foto.js:20`).
+/// `isImage`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx
@@ -27,7 +22,7 @@ pub(crate) fn is_image(ctx: &Ctx) -> bool {
             .is_some_and(|q| q.kind.is_image())
 }
 
-/// Unduh buffer: quoted dulu, baru trigger (`ganti-foto.js:28-32`).
+/// Unduh buffer: quoted dulu, baru trigger.
 pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some() {
         ctx.download_quoted_media().ok()

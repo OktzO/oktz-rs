@@ -1,4 +1,4 @@
-//! `plugins/owner/pinchat.js` — pin/unpin chat.
+//! Pin/unpin chat.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,12 +26,12 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn pinchat(ctx: Ctx) -> Reply {
-    // `pinchat.js` butuh `sock.chatModify({ pin }, targetJid)` — operasi WA
+    // butuh `sock.chatModify({ pin }, targetJid)` — operasi WA
     // langsung yang belum ada di `Ctx` class A. Juga butuh `m.mentionedJid`,
     // `m.quoted.sender/participant`, `m.args` — sebagian ada, tapi kiriman
     // ke WA tidak tersedia.
     //
-    // `ponytail:` sediakan operasi chatModify lewat `Ctx` (atau router),
+    // `Keterbatasan:` sediakan operasi chatModify lewat `Ctx` (atau router),
     // lalu replikasikan logika targetJid (mention → quoted → args → chat).
     Reply::text(help(&ctx.prefix))
 }

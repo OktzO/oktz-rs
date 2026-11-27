@@ -1,10 +1,9 @@
-//! `plugins/owner/ban.js` — masukkan nomor ke `setting('bannedUsers')`.
+//! Masukkan nomor ke `setting('bannedUsers')`.
 //!
-//! `ponytail:` `config.bannedUsers = bannedList` di JS hanya mengisi objek
-//! config in-memory (dipakai `config.isBanned`), bukan store — jadi tidak ada
-//! mutasi untuk itu. `config.isOwner(target)` juga tidak ikut: `Ctx` hanya
-//! membawa satu flag untuk pengirim, bukan untuk sembarang nomor, sehingga
-//! ban owner tidak dicegah di port ini.
+//! `Keterbatasan:` `config.bannedUsers = bannedList` di versi awal hanya mengisi objek
+//! config in-memory (dipakai `config.isBanned`), bukan store — jadi tidak ada mutasi untuk
+//! itu. `config.isOwner(target)` juga tidak ikut: `Ctx` hanya membawa satu flag untuk
+//! pengirim, bukan untuk sembarang nomor, sehingga ban owner tidak dicegah di port ini.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -17,7 +16,7 @@ fn bad_input(prefix: &str) -> String {
 
 /// `m.quoted` → `mentionedJid[0]` → `args[0]`; lalu `lidToJid` kalau berakhiran
 /// `@lid` — tanpa cache, `lidToJid` hanya mengganti suffix itu
-/// (`src/lib/lid.js:178-190`), jadi cukup mengganti akhirannya.
+/// , jadi cukup mengganti akhirannya.
 fn raw_target(ctx: &Ctx) -> String {
     let raw = if let Some(q) = ctx.quoted() {
         q.sender.clone()
@@ -167,8 +166,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `block` juga nama `plugins/owner/block.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `block` bukan milik ban.
+        // `block` juga nama; nama didahulukan
+        // , jadi alias `block` bukan milik ban.
         assert_eq!(oktz_plugin_api::find("addban").unwrap().meta.name, "ban");
         assert_eq!(oktz_plugin_api::find("block").unwrap().meta.name, "block");
     }
@@ -240,7 +239,7 @@ mod tests {
     #[test]
     fn a_prefix_overlap_that_is_not_a_real_suffix_does_not_block_the_ban() {
         // Guard batas: "081234567890" share digit AWAL dengan target tapi bukan
-        // suffix, jadi JS tetap memban. Menahan ini menjaga `endsWith` dari
+        // suffix, jadi versi awal tetap memban. Menahan ini menjaga `endsWith`
         // berubah jadi `startsWith` atau normalisasi diam-diam.
         let settings = serde_json::json!({ "bannedUsers": ["081234567890"] });
         let r = run("6281234567890", None, settings);

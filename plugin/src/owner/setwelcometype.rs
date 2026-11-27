@@ -1,24 +1,13 @@
-//! `plugins/owner/setwelcometype.js` — atur variant tampilan welcome message.
+//! Atur variant tampilan welcome message.
 //!
-//! `ponytail:` tombol `single_select` + `sock.sendButton` tidak punya padanan
-//! di `Ctx`/`Reply`. Body JS dikirim apa adanya (`setwelcometype.js:72-85`,
-//! termasuk blok `*PENJELASAN TIPE:*` yang sudah memuat semua keterangan),
-//! lalu baris tombol (`:54-61`) dirender jadi daftar teks — pola yang sama
-//! dengan `owner/setgoodbyetype.rs`.
-//!
-//! Quirk yang disalin: argumen di-lowercase (`:41`) dan wajib cocok
-//! `/^v?[1-8]$/` (`:43`); `"v3 extra"` tetap sukses karena hanya argumen
-//! pertama yang dibaca. `VARIANTS[current].name` melempar `TypeError` kalau
-//! `welcomeType` tersimpan bukan 1–8 (`:75`), jadi cabang itu berakhir di
-//! `error_template` seperti jalur catch framework JS.
-//!
-//! Catatan: `mod.rs` kategori `owner` dimiliki plugin lain (tidak boleh
-//! disentuh), jadi baris `pub mod setwelcometype;` perlu ditambahkan manual.
+//! `Keterbatasan:` tombol `single_select` + `sock.sendButton` tidak punya padanan di
+//! `Ctx`/`Reply`. Body versi awal dikirim apa adanya, lalu baris tombol (`:54-61`) dirender
+//! jadi daftar teks — pola yang sama dengan `owner/setgoodbyetype.rs`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-/// `VARIANTS` (`setwelcometype.js:17-38`) — `(id, name, desc, emoji)`.
+/// `VARIANTS` — `(id, name, desc, emoji)`.
 const VARIANTS: &[(&str, &str, &str, &str)] = &[
     ("1", "Canvas Image", "Gambar canvas dengan foto profil", "🎨"),
     ("2", "Carousel Cards", "Kartu carousel interaktif dengan tombol", "🃏"),
@@ -30,12 +19,12 @@ const VARIANTS: &[(&str, &str, &str, &str)] = &[
     ("8", "Super Simple", "Pesan teks sangat singkat tanpa hiasan", "👋"),
 ];
 
-/// `VARIANTS[id]` — pencarian key persis (`id` sudah di-string-kan JS).
+/// `VARIANTS[id]` — pencarian key persis (`id` sudah di-string-kan versi awal).
 fn cari(id: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {
     VARIANTS.iter().find(|(i, ..)| *i == id).copied()
 }
 
-/// `${v}` JS untuk satu nilai JSON — string apa adanya, angka tanpa `.0`.
+/// `${v}` versi awal untuk satu nilai JSON — string apa adanya, angka tanpa `.0`.
 fn teks(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -47,21 +36,21 @@ fn teks(v: &Value) -> String {
     }
 }
 
-/// `parseInt(id) === current` (`setwelcometype.js:56`) — strict: hanya angka
+/// `parseInt(id) === current` — strict: hanya angka
 /// yang sama.
 fn id_sama(id: &str, current: &Value) -> bool {
     let id = id.parse::<i64>().unwrap_or_default();
     current.as_f64().is_some_and(|c| c == id as f64)
 }
 
-/// `/^v?[1-8]$/` (`setwelcometype.js:43`), argumen sudah lowercase.
+/// `/^v?[1-8]$/`, argumen sudah lowercase.
 fn cocok(variant: &str) -> bool {
     let bersih = variant.strip_prefix('v').unwrap_or(variant);
     matches!(bersih, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8")
 }
 
 /// Body daftar, `None` kalau `VARIANTS[current]` tidak ada — padanan
-/// `TypeError` JS pada `VARIANTS[current].name` (`:75`).
+/// `TypeError` versi awal pada `VARIANTS[current].name` (`:75`).
 fn daftar(prefix: &str, current: &Value) -> Option<String> {
     let (_, nama, ..) = cari(&teks(current))?;
     let mut body = format!(
@@ -286,7 +275,7 @@ mod tests {
 
     #[test]
     fn tipe_tersimpan_di_luar_1_sampai_8_berakhir_error_template() {
-        // JS: `VARIANTS[current].name` melempar TypeError (`:75`).
+        // versi awal: `VARIANTS[current].name` melempar TypeError (`:75`).
         for rusak in [serde_json::json!(99), serde_json::json!("x"), serde_json::json!(true)] {
             let r = run(&[], serde_json::json!({ "welcomeType": rusak }));
             assert_eq!(

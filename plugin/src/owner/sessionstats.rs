@@ -1,20 +1,13 @@
-//! `plugins/owner/sessionstats.js` — menampilkan ukuran session_keys per
-//! kategori.
+//! Menampilkan ukuran session_keys per
 //!
-//! Port dari nol. Yang dipindah:
-//! - `fmtSize` (`sessionstats.js:22-27`) — B / KB / MB.
-//! - cabang "tidak ada key" (`:40-48`) dengan alasan
-//!   "Turso tidak aktif atau belum ada key.".
-//!
-//! `ponytail:` `sessionKeyStats()` (`src/lib/turso-session.js`) membaca tabel
-//! `session_keys` Turso — tabel auth state Baileys. `Ctx` hanya membawa
-//! `sessions` (peta in-memory untuk state antarm plugin), bukan auth state,
-//! dan tidak ada API Turso di `oktz-plugin-api`. Jadi cabang "ada key" tidak
-//! punya padanan dan yang bisa ditampilkan adalah cabang "tidak ada key".
+//! `Keterbatasan:` `sessionKeyStats()` membaca tabel `session_keys` Turso — tabel auth
+//! state Baileys. `Ctx` hanya membawa `sessions` (peta in-memory untuk state antarm
+//! plugin), bukan auth state, dan tidak ada API Turso di `oktz-plugin-api`. Jadi cabang
+//! "ada key" tidak punya padanan dan yang bisa ditampilkan adalah cabang "tidak ada key".
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `fmtSize(bytes)` (`sessionstats.js:22-27`).
+/// `fmtSize(bytes)`.
 #[allow(dead_code)] // padanan JS `fmtSize`; dipakai dari test saja
 pub(crate) fn fmt_size(bytes: u64) -> String {
     if bytes == 0 {
@@ -29,7 +22,7 @@ pub(crate) fn fmt_size(bytes: u64) -> String {
     format!("{:.2} MB", bytes as f64 / 1024.0 / 1024.0)
 }
 
-/// Teks "tidak ada key" (`sessionstats.js:41-46`).
+/// Teks "tidak ada key".
 fn tanpa_key() -> String {
     "╭┈┈⬡「 📊 *sᴇssɪᴏɴ sᴛᴀᴛs* 」\n┃\n┃ ɴᴏ ᴋᴇʏ ᴛᴇʀsɪᴍᴘᴀɴ\n> _Turso tidak aktif atau belum ada key._\n╰┈┈⬡".to_string()
 }

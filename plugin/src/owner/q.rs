@@ -1,8 +1,4 @@
-//! `plugins/owner/q.js` — balas JSON pesan yang sedang di-reply.
-//!
-//! Catatan meta: `q.js` menulis `category: 'tools'` padahal berkasnya ada di
-//! `plugins/owner/`. Nilai `pluginConfig` tetap disalin apa adanya (JS acuan),
-//! jadi kategorinya `"tools"` — bukan ikut direktori berkas.
+//! Balas JSON pesan yang sedang di-reply.
 
 use oktz_plugin_api::{Ctx, QuotedMessage, Reply, plugin};
 use serde_json::{Map, Value};
@@ -106,8 +102,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
-        // `inspect` juga nama `plugins/utility/inspect.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `inspect` bukan milik q.
+        // `inspect` juga nama; nama didahulukan
+        // , jadi alias `inspect` bukan milik q.
         assert_eq!(find("quoted").unwrap().meta.name, "q");
         assert_eq!(find("inspect").unwrap().meta.name, "inspect");
     }

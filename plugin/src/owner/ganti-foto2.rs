@@ -1,21 +1,10 @@
-//! `plugins/owner/ganti-foto2.js` — ganti gambar foto2.jpg.
-//!
-//! Port dari nol. Yang dipindah:
-//! - guard "bukan gambar" + teks kartu (`ganti-foto2.js:20-24`).
-//! - unduh media (`:27-36`).
-//! - penulisan aset + teks sukses (`:38-44`).
-//!
-//! `updateAssetUrl` (`src/lib/uploader.js`) menulis berkas aset ke
-//! `path.resolve(process.cwd(), localPath)` dan mengembalikan `localPath`.
-//! Di Rust `ctx.berkas()` berakar ke direktori kerja, jadi langkah itu
-//! ditiru persis lewat [`crate::owner::aset::tulis_aset`]; yang hilang hanya
-//! penulisan ulang `config.js` dan unggah ke CDN (lihat modul `aset`).
+//! Ganti gambar foto2.jpg.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Judul kartu (`ganti-foto2.js:23`).
+/// Judul kartu.
 const JUDUL: &str = "🖼️ *ɢᴀɴᴛɪ ꜰᴏᴛᴏ2.ᴊᴘɢ*";
-/// Path aset (`ganti-foto2.js:23`).
+/// Path aset.
 const FILE: &str = "assets/image/foto2.jpeg";
 
 #[plugin(

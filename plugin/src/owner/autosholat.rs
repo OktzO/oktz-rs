@@ -1,20 +1,6 @@
-//! `plugins/owner/autosholat.js` — handler pengingat waktu sholat.
+//! Handler pengingat waktu sholat.
 //!
-//! Yang dip-port hanya `handler`. Ekspor kedua `runAutoSholat`
-//! (`autosholat.js:181`) adalah penjadwal sisi server — `activeCronJobs`,
-//! `sock.groupSettingUpdate`, `setTimeout` — bukan handler plugin, dan tidak
-//! punya padanan di API plugin.
-//!
-//! `ponytail:`
-//!
-//! 1. `saluranCtx()` tidak ada di `Reply`; tidak dipakai handler ini.
-//! 2. Reaksi hilang sebagian di cabang `kota`: JS bereaksi `🔍` sebelum
-//!    request lalu `📍` sesudahnya (`autosholat.js:158,168`), sedangkan
-//!    `Reply::Reaction` hanya bisa membawa satu emoji. Yang dipasang adalah
-//!    reaksi terakhir — satu-satunya yang masih terlihat setelah request
-//!    selesai, karena bereaksi dua kali pada pesan yang sama menimpa.
-//! 3. Cache `NodeCache` 24 jam di `sholat-api.js` tidak ikut; `ctx.http` tidak
-//!    punya lapisan cache dan itu tidak mengubah balasannya.
+//! `Keterbatasan:`
 
 use oktz_plugin_api::{Ctx, HttpError, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -24,11 +10,11 @@ use crate::common::{
 };
 use crate::download::pixeldraindl::encode_uri_component;
 
-/// `sholat-api.js:3`.
+///
 const BASE_URL: &str = "https://api.myquran.com/v2/sholat";
 
-/// `extractPrayerTimes` (`sholat-api.js:50-62`). Urutannya penting: loop
-/// status memakai `Object.entries(times)` (`autosholat.js:61`), jadi baris
+/// `extractPrayerTimes`. Urutannya penting: loop
+/// status memakai `Object.entries(times)`, jadi baris
 /// jadwal harus keluar dalam urutan objek itu, bukan alphabetic.
 ///
 /// Key hasil dan field sumber sama-sama nama yang sama untuk kedelapan
@@ -37,9 +23,9 @@ const WAKTU: [&str; 8] = [
     "imsak", "subuh", "terbit", "dhuha", "dzuhur", "ashar", "maghrib", "isya",
 ];
 
-/// `${value}` di JS untuk nilai yang datang dari store atau API.
+/// `${value}` di versi awal untuk nilai yang datang dari store atau API.
 ///
-/// Beda dari `Display` Rust untuk `null` (`"null"`, bukan string kosong) dan
+/// Beda dari `Display` Rust untuk `null` (`"null"`, bukan string kosong)
 /// untuk field yang benar-benar tidak ada (`"undefined"`), dan `extractPrayerTimes`
 /// bisa menyimpan waktu `"-"` yang perlu melewati utuh.
 fn interp(value: Option<&Value>) -> String {
@@ -50,7 +36,7 @@ fn interp(value: Option<&Value>) -> String {
     }
 }
 
-/// `groupSetting(key, fallback)` (`autosholat.js:32-33`).
+/// `groupSetting(key, fallback)`.
 ///
 /// Di grup nilai grup menang kalau field-nya ADA (`!== undefined`) — termasuk
 /// `null`, yang tetap falsy nanti. Di private selalu jatuh ke fallback.
@@ -67,7 +53,7 @@ fn setting_or_group<'a>(ctx: &'a Ctx, key: &str) -> Option<&'a Value> {
     group_setting(ctx, key).or_else(|| ctx.setting(key))
 }
 
-/// `writeSetting` (`autosholat.js:87-95`): di grup tulis ke store grup, di
+/// `writeSetting`: di grup tulis ke store grup,
 /// private ke settings global.
 fn write_setting(ctx: &Ctx, key: &str, value: Value) -> Mutation {
     if ctx.is_group {
@@ -83,12 +69,12 @@ fn write_setting(ctx: &Ctx, key: &str, value: Value) -> Mutation {
     }
 }
 
-/// `|| { id: "1301", nama: "KOTA JAKARTA" }` (`autosholat.js:55`).
+/// `|| { id: "1301", nama: "KOTA JAKARTA" }`.
 fn default_kota() -> Value {
     serde_json::json!({ "id": "1301", "nama": "KOTA JAKARTA" })
 }
 
-/// Fallback cabang `on` (`autosholat.js:103`) TIDAK punya `id` — objeknya
+/// Fallback cabang `on` TIDAK punya `id` — objeknya
 /// terpisah dari [`default_kota`], jadi tidak boleh dipakai di sini.
 fn kota_for_on(ctx: &Ctx) -> Value {
     match setting_or_group(ctx, "autoSholatKota") {
@@ -104,7 +90,7 @@ fn kota_for_status(ctx: &Ctx) -> Value {
     }
 }
 
-/// `getTodaySchedule` (`sholat-api.js:32-42`) memakai tanggal Asia/Jakarta,
+/// `getTodaySchedule` memakai tanggal Asia/Jakarta,
 /// bukan tanggal lokal mesin.
 fn jadwal_url(kota_id: &str, (year, month, day): (i64, u32, u32)) -> String {
     format!("{BASE_URL}/jadwal/{kota_id}/{year}/{}/{}", pad2(month), pad2(day))
@@ -119,8 +105,8 @@ fn capitalize(s: &str) -> String {
     }
 }
 
-/// Loop `Object.entries(times)` (`autosholat.js:61-63`) dengan
-/// `j.jadwal || j` dan `j.<waktu> || '-'` (`sholat-api.js:50-62`).
+/// Loop `Object.entries(times)`
+/// `j.jadwal || j` dan `j.<waktu> || '-'`.
 fn render_jadwal(jadwal_data: &Value) -> String {
     let j = match jadwal_data.get("jadwal") {
         Some(v) if js_truthy_value(v) => v,
@@ -142,8 +128,8 @@ fn render_jadwal(jadwal_data: &Value) -> String {
 
 /// `getTodaySchedule` + `extractPrayerTimes` digabung.
 ///
-/// `None` = cabang `throw` di `sholat-api.js:47` (request gagal, atau
-/// `status`/`data` kosong), yang ditangkap `catch` di `autosholat.js:64`.
+/// `None` = cabang `throw` (request gagal,
+/// `status`/`data` kosong), yang ditangkap `catch`.
 fn jadwal_hari_ini(ctx: &Ctx, kota_id: &str) -> Option<String> {
     let (year, month, day, ..) = jakarta_parts(now_ms());
     let body = ctx.http.get(&jadwal_url(kota_id, (year, month, day))).ok()?.json()?;
@@ -154,10 +140,10 @@ fn jadwal_hari_ini(ctx: &Ctx, kota_id: &str) -> Option<String> {
     Some(render_jadwal(jadwal))
 }
 
-/// `searchKota` (`sholat-api.js:6-18`).
+/// `searchKota`.
 ///
-/// `Err` = axios melempar (timeout, 4xx/5xx) → ditangkap `catch` di
-/// `autosholat.js:173`. `Ok(None)` = 200 tapi `status` falsy atau `data`
+/// `Err` = axios melempar (timeout, 4xx/5xx) → ditangkap `catch`
+/// . `Ok(None)` = 200 tapi `status` falsy atau `data`
 /// kosong → cabang "tidak dapat kutemukan".
 fn search_kota(ctx: &Ctx, query: &str) -> Result<Option<Value>, HttpError> {
     let url = format!("{BASE_URL}/kota/cari/{}", encode_uri_component(query));
@@ -278,7 +264,7 @@ pub fn autosholat(ctx: Ctx) -> Reply {
         },
 
         "duration" => {
-            // `parseInt(m.args[1])` — argumen yang bukan angka jadi `NaN` dan
+            // `parseInt(m.args[1])` — argumen yang bukan angka jadi `NaN`
             // ditolak, `parseInt` juga berhenti di karakter non-digit pertama.
             let minutes = ctx.args.get(1).and_then(|a| parse_int(a));
             match minutes {
@@ -295,7 +281,7 @@ pub fn autosholat(ctx: Ctx) -> Reply {
         }
 
         "kota" => {
-            // `m.args.slice(1).join(' ').trim()` — slicing harus aman untuk
+            // `m.args.slice(1).join(' ').trim()` — slicing harus aman
             // args kosong, jadi bukan `ctx.args[1..]`.
             let tail: &[String] = if ctx.args.len() > 1 { &ctx.args[1..] } else { &[] };
             let nama = tail.join(" ").trim().to_string();
@@ -679,7 +665,7 @@ mod tests {
         assert!(t.contains("- **Durasi Penutupan**: 45 menit"), "{t}");
     }
 
-    // ---- helper murni ----
+    // --- helper murni ----
 
     #[test]
     fn the_schedule_url_pads_the_month_and_keeps_the_id_as_given() {

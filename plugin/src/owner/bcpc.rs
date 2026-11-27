@@ -1,36 +1,29 @@
-//! `plugins/owner/bcpc.js` — broadcast pesan ke semua kontak private chat.
+//! Broadcast pesan ke semua kontak private chat.
 //!
-//! Port dari nol. Yang dipindah:
-//! - teks panduan (`bcpc.js:44-51`).
-//! - guard `global.statusBcpc` (`:54-58`) memakai key session yang sama
-//!   dengan `owner/stopbcpc.rs` (`statusBcpc` / `stopBcpc`).
-//! - jalur "tidak ada kontak" (`:115-120`).
+//! `Keterbatasan:` versi awal collects kontak dari `sock.store.chats`,
+//! `sock.store.messages`, dan `sock.store.contacts` (`:79-113`). `Ctx` tidak punya daftar
+//! kontak global — `ctx.user_data` hanya memuat data pengirim, dan `sock` hanya bisa
+//! melihat grup. Karena itu daftar kontak selalu kosong dan handler berakhir di balasan
+//! "Tidak ada kontak ditemukan" — persis seperti versi awal ketika tidak ada kontak yang
+//! terdeteksi. Broadcast sungguhan (yang butuh `sock.sendMedia`/`sock.sendText` ke JID
+//! lain) juga tidak bisa jalan: `Reply` hanya sampai ke `caller.chat`.
 //!
-//! `ponytail:` JS collects kontak dari `sock.store.chats`,
-//! `sock.store.messages`, dan `sock.store.contacts` (`:79-113`). `Ctx` tidak
-//! punya daftar kontak global — `ctx.user_data` hanya memuat data pengirim,
-//! dan `sock` hanya bisa melihat grup. Karena itu daftar kontak selalu kosong
-//! dan handler berakhir di balasan "Tidak ada kontak ditemukan" — persis
-//! seperti JS ketika tidak ada kontak yang terdeteksi. Broadcast sungguhan
-//! (yang butuh `sock.sendMedia`/`sock.sendText` ke JID lain) juga tidak bisa
-//! jalan: `Reply` hanya sampai ke `caller.chat`.
-//!
-//! `ponytail:` `jedaBcpc` dibaca dari `db.setting("jedaBcpc") || 5000`
-//! (`:42`) — dipetakan ke key setting `jedaBcpc`.
+//! `Keterbatasan:` `jedaBcpc` dibaca dari `db.setting("jedaBcpc") || 5000` (`:42`) —
+//! dipetakan ke key setting `jedaBcpc`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// `global.statusBcpc` — key yang sama dipakai `owner/stopbcpc.rs`.
 const STATUS_KEY: &str = "statusBcpc";
 
-/// `db.setting("jedaBcpc") || 5000` (`bcpc.js:42`).
+/// `db.setting("jedaBcpc") || 5000`.
 fn jeda(ctx: &Ctx) -> i64 {
     ctx.setting_i64("jedaBcpc")
         .filter(|v| *v != 0)
         .unwrap_or(5000)
 }
 
-/// Panduan (`bcpc.js:44-51`).
+/// Panduan.
 fn panduan(ctx: &Ctx) -> String {
     let jeda = jeda(ctx);
     format!(
@@ -47,7 +40,7 @@ fn panduan(ctx: &Ctx) -> String {
     )
 }
 
-/// `(jeda / 1000).toFixed(1)` (`bcpc.js:43`).
+/// `(jeda / 1000).toFixed(1)`.
 fn format_jeda_detik(jeda: i64) -> String {
     let detik = jeda as f64 / 1000.0;
     format!("{detik:.1}")
@@ -88,7 +81,7 @@ pub fn bcpc(ctx: Ctx) -> Reply {
 
     // `m.react("📱")` (`:60`) — reaksi jadi satu-satunya reaksi balasan.
     // Tidak ada kontak yang bisa dikumpulkan (lihat catatan modul), jadi
-    // jalurnya sama dengan JS saat daftar kontak kosong.
+    // jalurnya sama dengan versi awal saat daftar kontak kosong.
     Reply::text(
         "❌ Tidak ada kontak ditemukan.\n\n\
          Pastikan bot sudah pernah menerima pesan dari kontak tersebut.",

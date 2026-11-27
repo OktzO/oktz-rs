@@ -1,21 +1,14 @@
-//! `plugins/owner/enableplugin.js` — mengaktifkan kembali plugin yang
-//! dinonaktifkan.
+//! Mengaktifkan kembali plugin
 //!
-//! Port dari nol. Semua cabang yang bisa dicapai di Rust sudah identik dengan
-//! JS:
-//! - teks bantuan tanpa nama plugin (`enableplugin.js:57-65`).
-//! - "tidak ditemukan" (`:70`).
-//! - "sudah aktif" (`:76`).
-//!
-//! `ponytail:` cabang terakhir JS menulis `isEnabled: false` → `true` di
-//! berkas plugin lalu meminta restart. Di Rust registry bersifat statis
-//! (linkme) dan semua plugin bawaan `is_enabled = true`, jadi cabang itu tidak
-//! punya padanan yang berguna — plugin yang ada di registry memang sudah
-//! aktif, dan hasilnya sama persis dengan balasan "sudah aktif".
+//! `Keterbatasan:` cabang terakhir versi awal menulis `isEnabled: false` → `true` di berkas
+//! plugin lalu meminta restart. Di Rust registry bersifat statis (linkme) dan semua plugin
+//! bawaan `is_enabled = true`, jadi cabang itu tidak punya padanan yang berguna — plugin
+//! yang ada di registry memang sudah aktif, dan hasilnya sama persis dengan balasan "sudah
+//! aktif".
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan (`enableplugin.js:57-65`).
+/// Teks bantuan.
 fn bantuan(prefix: &str) -> String {
     format!(
         "🔌 *ᴇɴᴀʙʟᴇ ᴘʟᴜɢɪɴ*\n\n\
@@ -55,7 +48,7 @@ pub fn enableplugin(ctx: Ctx) -> Reply {
         return Reply::text(format!("❌ Plugin *{plugin_name}* tidak ditemukan!"));
     }
 
-    // `plugin.config.isEnabled !== false` (`enableplugin.js:75`) — semua
+    // `plugin.config.isEnabled !== false` — semua
     // plugin di registry Rust aktif, jadi cabang ini yang selalu terjadi.
     Reply::text(format!("⚠️ Plugin *{plugin_name}* sudah aktif!"))
 }

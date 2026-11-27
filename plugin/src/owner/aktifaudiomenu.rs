@@ -1,4 +1,4 @@
-//! `plugins/owner/aktifaudiomenu.js` — flag `audioMenu`.
+//! Flag `audioMenu`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -58,7 +58,7 @@ pub fn aktifaudiomenu(ctx: Ctx) -> Reply {
         return Reply::text(status_text(&ctx));
     }
 
-    // `if (current) return ...sudah aktif` — men-toggle ke nilai yang sama
+    // `if (current) return...sudah aktif` — men-toggle ke nilai yang
     // ditolak, bukan diam-diam menulis ulang nilai yang memang sudah ada.
     if wants_on == current {
         return Reply::text(if current {

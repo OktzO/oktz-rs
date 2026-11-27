@@ -1,23 +1,17 @@
-//! `plugins/owner/disableplugin.js` — menonaktifkan plugin tertentu.
+//! Menonaktifkan plugin tertentu.
 //!
-//! Yang dipindah ke sini:
-//! - teks bantuan tanpa nama plugin (`disableplugin.js:57-65`).
-//! - balasan "tidak ditemukan" (`:70`).
-//! - balasan "sudah dinonaktifkan" (`:76`).
+//! `Keterbatasan:` cabang terakhir versi awal menulis `isEnabled: true` → `false` di berkas
+//! plugin sumber, lalu meminta restart/hot reload. Di Rust registry plugin bersifat statis
+//! (linkme) — plugin didaftarkan saat compile dan `PluginMeta::is_enabled` tidak dibaca
+//! router saat dispatch. Jadi plugin tidak bisa dimatikan saat runtime; balasannya
+//! menjelaskan itu.
 //!
-//! `ponytail:` cabang terakhir JS menulis `isEnabled: true` → `false` di
-//! berkas plugin sumber, lalu meminta restart/hot reload. Di Rust registry
-//! plugin bersifat statis (linkme) — plugin didaftarkan saat compile dan
-//! `PluginMeta::is_enabled` tidak dibaca router saat dispatch. Jadi plugin
-//! tidak bisa dimatikan saat runtime; balasannya menjelaskan itu.
-//!
-//! `ponytail:` `ctx.berkas()` berakar ke direktori kerja, bukan folder
-//! `plugins/` — jadi penulisan berkas plugin sumber juga tidak tersedia di
-//! sini.
+//! `Keterbatasan:` `ctx.berkas()` berakar ke direktori kerja, bukan folder `plugins/` —
+//! jadi penulisan berkas plugin sumber juga tidak tersedia di sini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan (`disableplugin.js:57-65`).
+/// Teks bantuan.
 fn bantuan(prefix: &str) -> String {
     format!(
         "🔌 *ᴅɪsᴀʙʟᴇ ᴘʟᴜɢɪɴ*\n\n\
@@ -62,7 +56,7 @@ pub fn disableplugin(ctx: Ctx) -> Reply {
         ));
     }
 
-    // `ponytail:` registry statis — plugin tidak bisa dimatikan saat runtime.
+    // `Keterbatasan:` registry statis — plugin tidak bisa dimatikan saat runtime.
     Reply::text(
         "⚠️ *PENONAKTIFAN PLUGIN TIDAK TERSEDIA*\n\n\
          Registry plugin pada versi Rust bersifat statis (didaftarkan saat \

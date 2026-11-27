@@ -1,14 +1,9 @@
-//! `plugins/owner/setownertype.js` — atur variant tampilan owner message.
-//!
-//! Tombol interaktif (`interactiveButtons`) tidak ada di `Reply`, jadi
-//! pilihan varian dikirim sebagai teks + perintah balik (`v1`/`v2`).
-//! Setidaknya `.setownertype v1|v2` menulis setting `ownerType` yang dibaca
-//! `main/owner.rs`, supaya tampilan owner tidak "berubah sendiri".
+//! Atur variant tampilan owner message.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::json;
 
-/// `VARIANTS` (`setownertype.js:18-21`).
+/// `VARIANTS`.
 pub(crate) const VARIANTS: [(&str, &str, &str); 2] = [
     ("1", "Current Design", "Tampilan default saat ini"),
     ("2", "Multiple Contact", "Kirim contact card semua owner"),
@@ -21,7 +16,7 @@ pub(crate) fn owner_type_saat_ini(ctx: &Ctx) -> i64 {
         .unwrap_or(1)
 }
 
-/// `/^v?[1-3]$/` → id (`setownertype.js:28-29`).
+/// `/^v?[1-3]$/` → id.
 pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
     let bersih = variant.trim_start_matches('v');
     if bersih.len() == 1 && bersih.chars().next().is_some_and(|c| matches!(c, '1' | '2' | '3')) {
@@ -31,7 +26,7 @@ pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
     }
 }
 
-/// Teks saat pilihan variant (`setownertype.js:53-54`).
+/// Teks saat pilihan variant.
 pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
     let varian = VARIANTS.iter().find(|(id, _, _)| id == &current.to_string());
     let (nama, _) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("Current Design", "Tampilan default saat ini"));
@@ -41,7 +36,7 @@ pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
     )
 }
 
-/// Daftar tombol variant (`setownertype.js:42-51`), tanpa markup tombol WA.
+/// Daftar tombol variant, tanpa markup tombol WA.
 pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
     let mut out = Vec::new();
     for (id, nama, _) in VARIANTS {
@@ -51,7 +46,7 @@ pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
     out
 }
 
-/// Sukses ganti variant (`setownertype.js:33-38`).
+/// Sukses ganti variant.
 pub(crate) fn berhasil_ganti(id: i64) -> String {
     let varian = VARIANTS.iter().find(|(i, _, _)| *i == id.to_string());
     let (nama, desc) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("", ""));
@@ -79,7 +74,7 @@ pub(crate) fn berhasil_ganti(id: i64) -> String {
 pub fn setownertype(ctx: Ctx) -> Reply {
     let current = owner_type_saat_ini(&ctx);
 
-    // `if (variant && /^v?[1-3]$/.test(variant))` (`setownertype.js:28-29`).
+    // `if (variant && /^v?[1-3]$/.test(variant))`.
     if let Some(id) = ctx.args.first().and_then(|a| parse_varian(a)) {
         return Reply::text(berhasil_ganti(id)).with_mutation(Mutation::SetSetting {
             key: "ownerType".into(),

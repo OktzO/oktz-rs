@@ -1,30 +1,16 @@
-//! `plugins/owner/ganticode.js` — ganti code plugin yang sudah ada.
-//!
-//! ## Yang dip-port
-//!
-//! Semua validasi dan teks balasan: quote kosong, kode terlalu pendek,
-//! kode bukan format plugin, nama tidak terdeteksi, nama file tidak valid,
-//! dan pesan selesai (ditambahkan / diperbarui, ukuran lama, lokasi backup).
-//!
-//! ## Penyimpangan
-//!
-//! 1. `hotReloadPlugin(filePath)` tidak ada di Rust — plugin dikompilasi ke
-//!    dalam binari, jadi "Status Reload" selalu `Pending`.
-//! 2. Pencarian file plugin memakai `ctx.berkas()` yang berakar ke direktori
-//!    kerja, sama seperti `process.cwd()` di JS.
-//! 3. `fs.copyFileSync` untuk backup memakai `ctx.berkas().salin()`.
+//! Ganti code plugin yang sudah ada.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use super::addplugin::{ambil_label, bersihkan_nama, push_name};
 
-/// Batas panjang kode JS (`ganticode.js:79`).
+/// Batas panjang kode versi awal.
 const MIN_KODE: usize = 50;
 
 /// Root folder plugin, sama seperti `path.join(process.cwd(), "plugins")`.
 const PLUGINS_DIR: &str = "plugins";
 
-/// `ganticode.js:56-63`.
+///
 pub(crate) fn tanpa_quote(nama: &str) -> String {
     format!(
         "Halo *{nama}*, sepertinya kamu belum mereply kode plugin barunya.\n\n\
@@ -36,33 +22,33 @@ pub(crate) fn tanpa_quote(nama: &str) -> String {
     )
 }
 
-/// `ganticode.js:80`.
+///
 pub(crate) fn terlalu_pendek(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid."
     )
 }
 
-/// `ganticode.js:87`.
+///
 pub(crate) fn bukan_format_valid(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, proses gagal karena kode bukan format plugin yang valid. Pastikan ada export dan config di dalamnya."
     )
 }
 
-/// `ganticode.js:99`.
+///
 pub(crate) fn nama_tidak_terdeteksi(nama: &str) -> String {
     format!(
         "Maaf *{nama}*, aku tidak bisa mendeteksi nama pluginnya. Silakan gunakan perintah dengan format .ganticode <nama file>."
     )
 }
 
-/// `ganticode.js:107`.
+///
 pub(crate) fn nama_file_tidak_valid(nama: &str) -> String {
     format!("Maaf *{nama}*, proses gagal karena nama file tidak valid.")
 }
 
-/// `ganticode.js:161-179` — pesan selesai.
+/// Pesan selesai.
 pub(crate) fn sukses(
     file: &str,
     folder: &str,
@@ -123,9 +109,9 @@ fn civil_dari_hari(hari: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-/// Cari file plugin yang namanya cocok — `findPluginFile` (`ganticode.js:31-50`).
+/// Cari file plugin yang namanya cocok — `findPluginFile`.
 ///
-/// Mengembalikan `(folder, file)`; `file` masih memakai ekstensi `.js`.
+/// Mengembalikan `(folder, file)`; `file` masih memakai ekstensi.
 pub(crate) fn cari_file_plugin(ctx: &Ctx, nama: &str) -> Option<(String, String)> {
     let folder_terdaftar = ctx.berkas().daftar(PLUGINS_DIR).ok()?;
     let target = nama.to_lowercase();
@@ -146,7 +132,7 @@ pub(crate) fn cari_file_plugin(ctx: &Ctx, nama: &str) -> Option<(String, String)
     None
 }
 
-/// Kode yang diambil dari pesan yang di-reply (`ganticode.js:66-77`).
+/// Kode yang diambil dari pesan yang di-reply.
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         if q.kind.is_media()
@@ -158,7 +144,7 @@ fn kode_dari_ctx(ctx: &Ctx) -> String {
     String::new()
 }
 
-/// `quoted.mimetype === "application/javascript" || quoted.filename?.endsWith(".js")`.
+/// `quoted.mimetype === "application/javascript" || quoted.filename?.endsWith`.
 fn quoted_adalah_js(ctx: &Ctx) -> bool {
     ctx.quoted().is_some_and(|q| {
         q.mimetype.as_deref() == Some("application/javascript")
@@ -237,7 +223,7 @@ pub fn ganticode(ctx: Ctx) -> Reply {
         Some((folder, file)) => {
             let path = format!("{PLUGINS_DIR}/{folder}/{file}");
             let lama = ctx.berkas().ukuran(&path).unwrap_or(0);
-            // `backup/plugins/<file>_<timestamp>.js` (`ganticode.js:126-136`).
+            //
             let stamp = cap_waktu(crate::common::now_ms());
             let backup_path = format!("backup/plugins/{file_name}_{stamp}.js");
             let _ = ctx.berkas().buat_folder("backup/plugins");

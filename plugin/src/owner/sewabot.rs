@@ -1,29 +1,19 @@
-//! `plugins/owner/sewabot.js` — toggle dan kelola sistem sewa bot.
+//! Toggle dan kelola sistem sewa bot.
 //!
-//! `ponytail:` JS menyimpan data sewa di `db.db.data.sewa`, tabel top-level
-//! yang bukan milik user maupun grup. `Mutation` hanya punya `SetUser` /
-//! `SetGroup` / `SetSetting`, jadi tabel itu dipetakan ke key global `sewa` di
-//! `settings` — persis `group/checksewa.rs:18` dan `owner/listsewa.rs`.
+//! `Keterbatasan:` versi awal menyimpan data sewa di `db.db.data.sewa`, tabel top-level
+//! yang bukan milik user maupun grup. `Mutation` hanya punya `SetUser` / `SetGroup` /
+//! `SetSetting`, jadi tabel itu dipetakan ke key global `sewa` di `settings` — persis
+//! `group/checksewa.rs:18` dan `owner/listsewa.rs`.
 //!
-//! `ponytail:` cabang `confirm` dan `leave` di JS menyapu semua grup
-//! (`sock.groupFetchAllParticipating`, `sock.sendText` per grup, lalu
-//! `sock.groupLeave`). Pengiriman ke JID lain tidak punya padanan: `Reply`
-//! hanya sampai ke `caller.chat` (`pipeline.rs:3058`). Karena itu jalur `try`
-//! diperlakukan seperti gagal di JS dan handler mengirim jalur `catch`-nya:
-//! `confirm` → reaksi `✅` + `te(...)` (`sewabot.js:142-145`), `leave` →
-//! reaksi `☢` + `te(...)` (`:199-203`). Cabang `confirm` tetap menulis
-//! `enabled: true` karena JS menulis SEBELUM `try` (`:98-99`).
-//! `ponytail:` reaksi pembuka JS (`🕕`, `:100` dan `:150`) hilang — `Reply`
-//! hanya mengirim reaksi sebagai pembungkus level atas (`pipeline.rs:2999`),
-//! tidak ada dua reaksi berurutan.
-//!
-//! `pendingConfirmations` (`:19`) dipetakan ke `ctx.sessions` key
-//! `sewabot:pending:<sender>`. TTL 60000 ms yang di JS memakai `setTimeout`
-//! (`:77-80`) diperiksa saat dibaca: entri kedaluwarsa dibuang, jadi `confirm`
-//! dan `cancel` melihat kondisi "sudah dihapus timer" yang sama.
-//!
-//! Catatan: `mod.rs` kategori `owner` dimiliki plugin lain (tidak boleh
-//! disentuh), jadi baris `pub mod sewabot;` perlu ditambahkan manual.
+//! `Keterbatasan:` cabang `confirm` dan `leave` di versi awal menyapu semua grup
+//! (`sock.groupFetchAllParticipating`, `sock.sendText` per grup, lalu `sock.groupLeave`).
+//! Pengiriman ke JID lain tidak punya padanan: `Reply` hanya sampai ke `caller.chat`
+//! (`pipeline.rs:3058`). Karena itu jalur `try` diperlakukan seperti gagal di versi awal
+//! dan handler mengirim jalur `catch`-nya: `confirm` → reaksi `✅` + `te(...)`, `leave` →
+//! reaksi `☢` + `te(...)` (`:199-203`). Cabang `confirm` tetap menulis `enabled: true`
+//! karena versi awal menulis SEBELUM `try` (`:98-99`). `Keterbatasan:` reaksi pembuka versi
+//! awal (`🕕`, `:100` dan `:150`) hilang — `Reply` hanya mengirim reaksi sebagai pembungkus
+//! level atas (`pipeline.rs:2999`), tidak ada dua reaksi berurutan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -31,15 +21,15 @@ use serde_json::Value;
 /// Key global tempat `db.db.data.sewa` dipetakan.
 const SEWA_KEY: &str = "sewa";
 
-/// `pendingConfirmations` keyed `m.sender` (`sewabot.js:19,63`).
+/// `pendingConfirmations` keyed `m.sender`.
 const PENDING_PREFIX: &str = "sewabot:pending:";
-/// `Date.now() - pending.timestamp < 60000` (`sewabot.js:67,80`).
+/// `Date.now() - pending.timestamp < 60000`.
 const PENDING_TTL_MS: i64 = 60_000;
-/// `pending.type === "sewabot_on"` (`sewabot.js:66,78,92,207`).
+/// `pending.type === "sewabot_on"`.
 const PENDING_TYPE: &str = "sewabot_on";
 
 /// `if (!db.db.data.sewa) { db.db.data.sewa = {...}; db.db.write() }`
-/// (`sewabot.js:23-26`).
+///
 fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
     crate::common::js_falsy(ctx.setting(SEWA_KEY)).then(|| Mutation::SetSetting {
         key: SEWA_KEY.to_string(),
@@ -47,7 +37,7 @@ fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
     })
 }
 
-/// Tabel `sewa` sebagaimana terlihat cabang-cabang di bawah: JS menginisialisasi
+/// Tabel `sewa` sebagaimana terlihat cabang-cabang di bawah: versi awal menginisialisasi
 /// lebih dulu (`:23-26`), jadi tabel yang belum ada dibaca sebagai bentuk init.
 fn tabel_setelah_init(ctx: &Ctx) -> Value {
     match ctx.setting(SEWA_KEY) {
@@ -57,7 +47,7 @@ fn tabel_setelah_init(ctx: &Ctx) -> Value {
 }
 
 /// `db.db.data.sewa.enabled` + `Object.keys(db.db.data.sewa.groups || {})`
-/// (`sewabot.js:27-28`).
+///
 fn aktif_dan_grup(tabel: &Value) -> (bool, Vec<String>) {
     let aktif = crate::common::js_truthy(tabel.get("enabled"));
     let grup = tabel
@@ -68,7 +58,7 @@ fn aktif_dan_grup(tabel: &Value) -> (bool, Vec<String>) {
     (aktif, grup)
 }
 
-/// `db.db.data.sewa.enabled = X; db.db.write()` (`sewabot.js:55-56,98-99`) —
+/// `db.db.data.sewa.enabled = X; db.db.write()` —
 /// key lain tabel (termasuk `groups`) tidak disentuh.
 fn set_enabled(tabel: &Value, enabled: bool) -> Mutation {
     let mut baru = tabel.as_object().cloned().unwrap_or_default();
@@ -88,8 +78,8 @@ fn pending_sewabot_on(v: &Value) -> bool {
 }
 
 /// `pendingConfirmations.get(m.sender)` + efek `setTimeout` 60000 ms
-/// (`sewabot.js:77-80`). `Ctx` tidak punya timer latar, jadi entri yang sudah
-/// lewat 60 detik dibuang saat dibaca — sama seperti callback JS yang
+/// . `Ctx` tidak punya timer latar, jadi entri yang sudah
+/// lewat 60 detik dibuang saat dibaca — sama seperti callback versi awal
 /// menghapusnya tepat setelah 60 detik.
 fn pending(ctx: &Ctx) -> Option<Value> {
     let key = pending_key(ctx);
@@ -103,7 +93,7 @@ fn pending(ctx: &Ctx) -> Option<Value> {
 }
 
 /// `pendingConfirmations.set(m.sender, { type: "sewabot_on", timestamp: Date.now() })`
-/// (`sewabot.js:73-76`).
+///
 fn set_pending(ctx: &Ctx) {
     ctx.session_set(
         &pending_key(ctx),
@@ -111,12 +101,12 @@ fn set_pending(ctx: &Ctx) {
     );
 }
 
-/// `te(m.prefix, m.command, m.pushName)` — `src/lib/error.js`.
+/// `te(m.prefix, m.command, m.pushName)` —.
 fn te(ctx: &Ctx) -> String {
     crate::common::error_template(ctx)
 }
 
-/// Panduan + status (`sewabot.js:30-52`).
+/// Panduan + status.
 fn status_text(prefix: &str, aktif: bool, jumlah: usize) -> String {
     format!(
         "🔧 *SISTEM SEWA BOT*\n\n\
@@ -231,10 +221,10 @@ pub fn sewabot(ctx: Ctx) -> Reply {
             );
         }
         ctx.session_take(&pending_key(&ctx));
-        // ponytail: sapu grup (`sendText` + `groupLeave` per grup non-whitelist)
+        // Keterbatasan: sapu grup (`sendText` + `groupLeave` per grup non-whitelist)
         // butuh pengiriman ke JID lain — `Reply` berhenti di `caller.chat`
         // (`pipeline.rs:3058`). Jalur `try` dianggap gagal, jadi hasilnya
-        // `catch` JS: reaksi ✅ + `te(...)` (`sewabot.js:142-145`). Tambahkan
+        // `catch` versi awal: reaksi ✅ + `te(...)`. Tambahkan
         // begitu pipeline punya API kirim/keluar grup.
         return Reply::text(te(&ctx))
             .with_reaction("✅")
@@ -251,8 +241,8 @@ pub fn sewabot(ctx: Ctx) -> Reply {
                 init,
             );
         }
-        // ponytail: sama seperti `confirm` — sapu grup tidak bisa dari `Reply`;
-        // hasilnya `catch` JS: reaksi ☢ + `te(...)` (`sewabot.js:199-203`).
+        // Keterbatasan: sama seperti `confirm` — sapu grup tidak bisa dari `Reply`;
+        // hasilnya `catch` versi awal: reaksi ☢ + `te(...)`.
         return dengan_init(Reply::text(te(&ctx)).with_reaction("☢"), init);
     }
 

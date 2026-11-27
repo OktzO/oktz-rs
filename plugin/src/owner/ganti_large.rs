@@ -1,18 +1,14 @@
-//! `plugins/owner/ganti-large.js` — ganti tiga aset gambar besar sekaligus.
-//!
-//! Satu-satunya dari keluarga `ganti-*.jpg` yang TIDAK memakai
-//! `updateAssetUrl`: JS menulis byte ke `assets/images/` langsung, jadi port
-//! ini utuh lewat `ctx.berkas`.
+//! Ganti tiga aset gambar besar sekaligus.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Folder tujuan (`ganti-large.js:49`).
+/// Folder tujuan.
 pub(crate) const FOLDER: &str = "assets/images";
 
-/// Nama berkas yang ditimpa (`ganti-large.js:43-47`).
+/// Nama berkas yang ditimpa.
 pub(crate) const TARGET: [&str; 3] = ["foto.jpeg", "v8.jpeg", "v10.jpeg"];
 
-/// Kartu pakai / penolakan bukan gambar (`ganti-large.js:22-24`).
+/// Kartu pakai / penolakan bukan gambar.
 pub(crate) fn pakai() -> String {
     "🖼️ *ɢᴀɴᴛɪ ʟᴀʀɢᴇ.ᴊᴘɢ*\n\n\
      > Kirim/reply gambar untuk mengganti kumpulan foto besar (foto.jpeg, v8.jpeg, v10.jpeg) sekaligus.\n\
@@ -20,7 +16,7 @@ pub(crate) fn pakai() -> String {
         .to_string()
 }
 
-/// `isImage` (`ganti-large.js:20`).
+/// `isImage`.
 fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image)
         || ctx
@@ -28,7 +24,7 @@ fn is_image(ctx: &Ctx) -> bool {
             .is_some_and(|q| q.kind.is_image())
 }
 
-/// Unduh buffer: quoted dulu, baru trigger (`ganti-large.js:28-32`).
+/// Unduh buffer: quoted dulu, baru trigger.
 fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some_and(|q| q.is_media()) {
         return ctx.download_quoted_media().ok();

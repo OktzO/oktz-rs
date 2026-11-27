@@ -1,21 +1,13 @@
-//! `plugins/owner/swgcv2all.js` — post Group Status V2 ke SEMUA grup.
+//! Post Group Status V2 ke SEMUA grup.
 //!
-//! Port dari nol. Yang dipindah:
-//! - deteksi media + pesan "gagal mengunduh" dan "format tidak didukung"
-//!   (`swgcv2all.js:44-71`).
-//! - teks bantuan (`:75-82`).
-//! - pesan "memulai broadcast" (`:96`).
-//! - ringkasan hasil (`:167-175`).
-//!
-//! `ponytail:` pesan `groupStatusMessageV2` (ring pink) tidak ada padanannya
-//! di `Reply` — tidak ada varian yang bisa mengirim status grup ke JID lain.
-//! Karena itu tidak ada grup yang berhasil dikirimi; jumlahnya dilaporkan
-//! apa adanya (Sukses 0, Gagal = jumlah grup), dan alasannya dijelaskan di
-//! doc-comment modul ini.
+//! `Keterbatasan:` pesan `groupStatusMessageV2` (ring pink) tidak ada padanannya di `Reply`
+//! — tidak ada varian yang bisa mengirim status grup ke JID lain. Karena itu tidak ada grup
+//! yang berhasil dikirimi; jumlahnya dilaporkan apa adanya (Sukses 0, Gagal = jumlah grup),
+//! dan alasannya dijelaskan di doc-comment modul ini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan (`swgcv2all.js:75-82`).
+/// Teks bantuan.
 fn bantuan(prefix: &str) -> String {
     format!(
         "👋 *sᴡɢᴄᴠ2 ᴀʟʠ ɢʟᴏʙᴀʟ*\n\n\
@@ -27,7 +19,7 @@ fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// Jumlah grup yang diikuti bot (`swgcv2all.js:88-89`).
+/// Jumlah grup yang diikuti bot.
 fn jumlah_grup(ctx: &Ctx) -> usize {
     ctx.sock()
         .semua_grup()
@@ -36,7 +28,7 @@ fn jumlah_grup(ctx: &Ctx) -> usize {
         .unwrap_or(0)
 }
 
-/// MIME dari buffer — `fileTypeFromBuffer` (`swgcv2all.js:56`).
+/// MIME dari buffer — `fileTypeFromBuffer`.
 ///
 /// Crate `file-type` tidak tersedia; jenis media diambil dari `Ctx` (jenis
 /// media pesan) yang setara untuk keperluan upload.
@@ -117,7 +109,7 @@ pub fn swgcv2all(ctx: Ctx) -> Reply {
     ])
 }
 
-/// Ringkasan hasil broadcast (`swgcv2all.js:167-175`).
+/// Ringkasan hasil broadcast.
 fn ringkasan(total: usize, sukses: usize, gagal: usize) -> String {
     format!(
         "✅ *sᴡɢᴄᴠ2 ᴀʟʠ sᴇʟᴇsᴀɪ*\n\n\

@@ -1,22 +1,16 @@
-//! `plugins/owner/delplugin.js` — hapus plugin berdasarkan nama.
+//! Hapus plugin berdasarkan nama.
 //!
-//! Port dari nol. Yang dipindah:
-//! - teks bantuan saat nama tidak diberikan (`delplugin.js:48-54`).
-//! - balasan "tidak ditemukan" (`:64`).
-//! - balasan "berhasil dihapus" (`:75-80`).
-//!
-//! `ponytail:` registry plugin Rust bersifat STATIS — mendaftarkan plugin lewat
-//! `linkme::distributed_slice` saat compile, dan tidak ada `import()` dinamis
-//! seperti di JS. Karena itu plugin yang sudah terdaftar tidak bisa dilepas
-//! saat runtime. Balasan_success replaced dengan penjelasan bahwa penghapusan
-//! butuh build/restart atau versi JS. Pencarian plugin memakai registry
-//! (`oktz_plugin_api::find`) — padanan paling dekat dari `findPluginFile` JS
-//! yang mencocokkan nama/alias plugin.
+//! `Keterbatasan:` registry plugin Rust bersifat STATIS — mendaftarkan plugin lewat
+//! `linkme::distributed_slice` saat compile, dan tidak ada `import()` dinamis seperti di
+//! versi awal. Karena itu plugin yang sudah terdaftar tidak bisa dilepas saat runtime.
+//! Balasan_success replaced dengan penjelasan bahwa penghapusan butuh build/restart atau
+//! versi versi awal. Pencarian plugin memakai registry (`oktz_plugin_api::find`) — padanan
+//! paling dekat dari `findPluginFile` versi awal yang mencocokkan nama/alias plugin.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan (`delplugin.js:48-54`) — prefiks `.` di sini ditulis keras di
-/// JS, bukan `m.prefix`.
+/// Teks bantuan — prefiks `.` di sini ditulis keras
+/// versi awal, bukan `m.prefix`.
 fn bantuan(push_name: &str) -> String {
     format!(
         "Halo *{push_name}*, sepertinya kamu lupa memasukkan nama plugin yang ingin dihapus.\n\n\
@@ -27,7 +21,7 @@ fn bantuan(push_name: &str) -> String {
     )
 }
 
-/// `m.pushName` — kalau kosong, JS tetap menulis string kosong; di sini
+/// `m.pushName` — kalau kosong, versi awal tetap menulis string kosong; di sini
 /// dipakai apa adanya supaya teksnya sama.
 fn push_name(ctx: &Ctx) -> String {
     ctx.push_name.clone()
@@ -50,7 +44,7 @@ fn push_name(ctx: &Ctx) -> String {
     is_bot_admin = false
 )]
 pub fn delplugin(ctx: Ctx) -> Reply {
-    // `m.fullArgs?.trim() || m.args?.[0]` (`delplugin.js:44`).
+    // `m.fullArgs?.trim() || m.args?.[0]`.
     let name = {
         let full = ctx.text.trim();
         if full.is_empty() {
@@ -74,7 +68,7 @@ pub fn delplugin(ctx: Ctx) -> Reply {
         .with_reaction("❌");
     }
 
-    // `ponytail:` unload + `fs.unlinkSync` tidak bisa dari `Reply` — registry
+    // `Keterbatasan:` unload + `fs.unlinkSync` tidak bisa dari `Reply` — registry
     // plugin Rust di-link saat compile (linkme), tidak ada pemuatan runtime.
     Reply::text(
         "⚠️ *PENGHAPUSAN PLUGIN TIDAK TERSEDIA*\n\n\

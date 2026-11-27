@@ -1,25 +1,15 @@
-//! `plugins/owner/join.js` — bot join ke grup lewat link invite.
-//!
-//! ## Penyimpangan
-//!
-//! - Cek "bot sudah jadi member" sebelum_accept invite memakai
-//!   `sock.user.id` (JID bot sendiri) yang tidak ada di `Ctx`. Karena itu
-//!   pemeriksaan itu dilewati; bila grup sudah diikuti, error dari
-//!   `groupAcceptInvite` dipetakan dengan aturan yang sama seperti
-//!   `catch` di JS (`join.js:69-73`).
-//! - `contextInfo` surat berita pada balasan sukses tidak ada di `Reply`
-//!   teks biasa.
+//! Bot join ke grup lewat link invite.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// Prefix link invite yang dikenali (`join.js:24-27`).
+/// Prefix link invite yang dikenali.
 const PREFIX: [&str; 2] = ["chat.whatsapp.com/", "invite.whatsapp.com/"];
 
 /// Panjang minimum kode invite (`{20,}`).
 const MIN_KODE: usize = 20;
 
-/// Teks bantuan `join.js:87-97`.
+/// Teks bantuan.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "🔗 *Join Grup*\n\n\
@@ -34,7 +24,7 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `join.js:102-109`.
+///
 pub(crate) fn tanpa_link() -> String {
     String::from(
         "❌ *Tidak Ada Link Grup*\n\n\
@@ -45,18 +35,18 @@ pub(crate) fn tanpa_link() -> String {
     )
 }
 
-/// `join.js:120-121`.
-#[allow(dead_code)] // helper JS `join.js:120-121`; cek member belum ada
+///
+#[allow(dead_code)] // helper cek member; belum ada di `Ctx`
 pub(crate) fn sudah_member(subjek: &str) -> String {
     format!("❌ *Sudah Menjadi Member*\n\n> Bot sudah join di grup *{subjek}*")
 }
 
-/// `join.js:126`.
+///
 pub(crate) fn gagal_join(pesan: &str) -> String {
     format!("❌ *Gagal Join*\n\n> {pesan}")
 }
 
-/// `join.js:131-136`.
+///
 pub(crate) fn berhasil(subjek: &str, member: i64, owner: &str) -> String {
     format!(
         "✅ *Berhasil Join!*\n\n\
@@ -66,7 +56,7 @@ pub(crate) fn berhasil(subjek: &str, member: i64, owner: &str) -> String {
     )
 }
 
-/// `extractAllInviteCodes` (`join.js:19-41`) — semua kode invite yang
+/// `extractAllInviteCodes` — semua kode invite
 /// ditemukan, unik dan berurutan kemunculan.
 pub(crate) fn kode_invite(teks: &str) -> Vec<String> {
     let lower = teks.to_lowercase();
@@ -92,7 +82,7 @@ pub(crate) fn kode_invite(teks: &str) -> Vec<String> {
     hasil
 }
 
-/// Petakan pesan error BAileys ke teks yang sama dengan JS (`join.js:69-73`).
+/// Petakan pesan error BAileys ke teks yang sama dengan versi awal.
 pub(crate) fn petakan_error(pesan: &str) -> String {
     if pesan.contains("not-authorized") {
         "Link sudah tidak valid atau expired".to_string()
@@ -117,7 +107,7 @@ struct HasilJoin {
     error: String,
 }
 
-/// `joinGroup` (`join.js:43-76`).
+/// `joinGroup`.
 fn join_grup(ctx: &Ctx, kode: &str) -> HasilJoin {
     let Ok(info) = ctx.sock().info_undangan(kode) else {
         return HasilJoin {
@@ -183,7 +173,7 @@ fn join_grup(ctx: &Ctx, kode: &str) -> HasilJoin {
     is_bot_admin = false
 )]
 pub fn join(ctx: Ctx) -> Reply {
-    // `m.args.join(" ").trim()` (`join.js:79`).
+    // `m.args.join(" ").trim()`.
     let input = ctx.args.join(" ").trim().to_string();
     let mut sumber = input;
     if sumber.is_empty()

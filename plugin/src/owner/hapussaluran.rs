@@ -1,12 +1,8 @@
-//! `plugins/owner/hapussaluran.js` — hapus saluran/newsletter.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod hapussaluran;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/owner/mod.rs`.
+//! Hapus saluran/newsletter.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan, sama persis dengan JS.
+/// Teks bantuan, sama persis dengan versi awal.
 fn bantuan() -> String {
     "🗑️ *ʜᴀᴘᴜs sᴀʟᴜʀᴀɴ*\n\n\
      > `.hapussaluran <id_saluran>` — Hapus saluran\n\n\
@@ -46,8 +42,8 @@ pub fn hapussaluran(ctx: Ctx) -> Reply {
         target_jid.push_str("@newsletter");
     }
 
-    // JS: `sock.newsletterDelete(targetJid)` — tidak ada padanannya di Ctx,
-    // jadi mengembalikan teks hasil dan mengabaikan pemanggilan nyata, seperti
+    // versi awal: `sock.newsletterDelete(targetJid)` — tidak ada padanannya di Ctx,
+    // jadi mengembalikan teks hasil dan mengabaikan pemanggilan nyata,
     // pola plugin owner lain yang membutuhkan I/O sock.
     Reply::text(format!(
         "🗑️ *Saluran dihapus*\n\n> ID: {target_jid}"

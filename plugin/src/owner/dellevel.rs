@@ -1,9 +1,9 @@
-//! `plugins/owner/dellevel.js` — kurangi level user lewat exp.
+//! Kurangi level user lewat exp.
 //!
-//! `ponytail:` JS baca `db.getUser(targetJid)` untuk JID yang bukan sender.
+//! `Keterbatasan:` versi awal baca `db.getUser(targetJid)` untuk JID yang bukan sender.
 //! `Ctx` hanyabringakan data sender, jadi user lain diambil dari roster
-//! (`ctx.roster.participants[].data`) — entry yang tidak ada di sana dianggap
-//! user baru (`exp = 0`), sama seperti `db.getUser(x) || db.setUser(x)`.
+//! (`ctx.roster.participants[].data`) — entry yang tidak ada di sana dianggap user baru
+//! (`exp = 0`), sama seperti `db.getUser(x) || db.setUser(x)`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -11,7 +11,7 @@ use crate::common::jid_number;
 use crate::tools::kalkulatormbg::thousands_id;
 use crate::user::exp::{EXP_PER_LEVEL, calculate_level, role_of};
 
-/// Dua baris "Cara pakai" di-hardcode `.dellevel` di JS; hanya baris contoh
+/// Dua baris "Cara pakai" di-hardcode `.dellevel` di versi awal; hanya baris contoh
 /// yang memakai `m.prefix`.
 pub(crate) fn usage(prefix: &str) -> String {
     format!(
@@ -24,8 +24,8 @@ pub(crate) fn usage(prefix: &str) -> String {
     )
 }
 
-/// `args.find(a => !isNaN(a) && !a.startsWith('@'))` — `isNaN` dipakai pada
-/// string, jadi bentuk `"5px"` TIDAK lolos (Number("5px") = NaN), berbeda dari
+/// `args.find(a => !isNaN(a) && !a.startsWith('@'))` — `isNaN` dipakai
+/// string, jadi bentuk `"5px"` TIDAK lolos (Number("5px") = NaN), berbeda
 /// `parseInt` yang memotong di karakter non-digit pertama.
 pub(crate) fn levels_from(args: &[String]) -> Option<i64> {
     args.iter().find(|a| {
@@ -33,7 +33,7 @@ pub(crate) fn levels_from(args: &[String]) -> Option<i64> {
             return false;
         }
         let t = a.trim();
-        // `Number("inf")` = NaN di JS; `f64::from_str` justru menerimanya,
+        // `Number("inf")` = NaN di versi awal; `f64::from_str` justru menerimanya,
         // jadi nama non-numerik harus dikunci sebelum parse.
         let numeric_start =
             matches!(t.chars().next(), Some(c) if c.is_ascii_digit() || c == '+' || c == '-' || c == '.');
@@ -42,7 +42,7 @@ pub(crate) fn levels_from(args: &[String]) -> Option<i64> {
     .and_then(|a| crate::common::parse_int(a))
 }
 
-/// `extractTarget` — reply lebih dulu dari mention, tapi keduanya kalah dari
+/// `extractTarget` — reply lebih dulu dari mention, tapi keduanya kalah
 /// `levels > 0` yang membuat target mundur ke sender.
 pub(crate) fn target_of(ctx: &Ctx) -> Option<String> {
     if let Some(q) = ctx.quoted() {
@@ -52,7 +52,7 @@ pub(crate) fn target_of(ctx: &Ctx) -> Option<String> {
 }
 
 /// `db.getUser(targetJid)` — data user lain hanya ada di roster; di luar
-/// situ JS akan membuat user baru dengan exp 0.
+/// situ versi awal akan membuat user baru dengan exp 0.
 pub(crate) fn user_exp(ctx: &Ctx, target: &str) -> i64 {
     if target == ctx.sender {
         return crate::common::int_field(ctx, "exp");

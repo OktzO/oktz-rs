@@ -1,25 +1,10 @@
-//! `plugins/owner/listsewa.js` — lihat daftar grup yang terdaftar sewa.
+//! Lihat daftar grup yang terdaftar sewa.
 //!
-//! `ponytail:` JS menyimpan data sewa di `db.db.data.sewa`, tabel top-level
-//! yang bukan milik user maupun grup. `Mutation` hanya punya `SetUser` /
-//! `SetGroup` / `SetSetting`, jadi tabel itu dipetakan ke key global `sewa` di
-//! `settings` — persis yang dilakukan `group/checksewa.rs:18` untuk plugin
-//! yang sama. Bentuk isinya sama dengan JS, hanya lokasinya yang berbeda.
-//!
-//! Semantik yang disalin dari JS:
-//! - `db.db.data.sewa` yang falsy dibuat `{ enabled: false, groups: {} }`
-//!   (`listsewa.js:43-46`); tabel yang sudah ada tidak pernah ditulis ulang.
-//! - Urutan `Object.keys` — `serde_json` di workspace memakai
-//!   `preserve_order`, jadi urutan key sama dengan urutan di file.
-//! - Sort lifetime di belakang lalu `expiredAt` menaik (`:60-66`);
-//!   `Array#sort` stabil, `sort_by` Rust juga.
-//! - `timeHelper.fromTimestamp(addedAt, 'DD/MM/YYYY')` → `common::date_dmy`
-//!   (zona Asia/Jakarta); `addedAt` falsy jadi `'-'` (`:80`).
-//! - Ambang ⚠️ `diff <= 259200000` (`:37`), pembagian integer `Math.floor`
-//!   (`:24-26`).
-//! - `new Date(non-angka)` = Invalid Date → `formatToParts` melempar
-//!   `RangeError` sebelum teks terkirim; `Reply::None` + mutasi init adalah
-//!   padanan terdekat, sama seperti `group/checksewa.rs:185`.
+//! `Keterbatasan:` versi awal menyimpan data sewa di `db.db.data.sewa`, tabel top-level
+//! yang bukan milik user maupun grup. `Mutation` hanya punya `SetUser` / `SetGroup` /
+//! `SetSetting`, jadi tabel itu dipetakan ke key global `sewa` di `settings` — persis yang
+//! dilakukan `group/checksewa.rs:18` untuk plugin yang sama. Bentuk isinya sama dengan
+//! versi awal, hanya lokasinya yang berbeda.
 
 use std::cmp::Ordering;
 
@@ -32,7 +17,7 @@ const SEWA_KEY: &str = "sewa";
 const DAY_MS: f64 = 86_400_000.0;
 const HOUR_MS: f64 = 3_600_000.0;
 const MINUTE_MS: f64 = 60_000.0;
-/// `diff <= 259200000` (`listsewa.js:37`) — tiga hari.
+/// `diff <= 259200000` — tiga hari.
 const ALMOST_MS: f64 = 259_200_000.0;
 
 /// `db.db.data.sewa` — `Value::Null` kalau tabel belum pernah dibuat.
@@ -40,7 +25,7 @@ fn sewa(ctx: &Ctx) -> Value {
     ctx.setting(SEWA_KEY).cloned().unwrap_or(Value::Null)
 }
 
-/// `if (!db.db.data.sewa) { ...; db.db.write() }` (`listsewa.js:43-46`).
+/// `if (!db.db.data.sewa) {...; db.db.write() }`.
 fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
     crate::common::js_falsy(ctx.setting(SEWA_KEY)).then(|| Mutation::SetSetting {
         key: SEWA_KEY.to_string(),
@@ -48,18 +33,18 @@ fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
     })
 }
 
-/// `ToNumber(v)` JS — `NaN` untuk nilai yang tidak bisa jadi angka.
+/// `ToNumber(v)` versi awal — `NaN` untuk nilai yang tidak bisa jadi angka.
 fn angka_js(v: Option<&Value>) -> f64 {
     match v {
         Some(Value::Number(n)) => n.as_f64().unwrap_or(f64::NAN),
-        // `Number(" 5 ")` = 5 — trim dulu, sama seperti JS.
+        // `Number(" 5 ")` = 5 — trim dulu, sama seperti versi awal.
         Some(Value::String(s)) => s.trim().parse::<f64>().unwrap_or(f64::NAN),
-        // `true`/`[]` punya nilai ToNumber di JS, tapi bukan bentuk data sewa.
+        // `true`/`[]` punya nilai ToNumber di versi awal, tapi bukan bentuk data sewa.
         _ => f64::NAN,
     }
 }
 
-/// `data.expiredAt || 0` (`listsewa.js:65`) — semua nilai falsy jadi 0.
+/// `data.expiredAt || 0` — semua nilai falsy jadi 0.
 fn expired_at_urut(data: &Value) -> f64 {
     let v = data.get("expiredAt");
     if crate::common::js_truthy(v) {
@@ -74,17 +59,17 @@ fn expired_raw(data: &Value) -> f64 {
     angka_js(data.get("expiredAt"))
 }
 
-/// `data.status === 'expired'` (`listsewa.js:20,33`).
+/// `data.status === 'expired'`.
 fn status_expired(data: &Value) -> bool {
     data.get("status").and_then(Value::as_str) == Some("expired")
 }
 
-/// `data.isLifetime` sebagai kebenaran JS (`listsewa.js:21,34,63-64`).
+/// `data.isLifetime` sebagai kebenaran versi awal.
 fn lifetime(data: &Value) -> bool {
     crate::common::js_truthy(data.get("isLifetime"))
 }
 
-/// `formatCountdown(data)` (`listsewa.js:19-30`).
+/// `formatCountdown(data)`.
 fn hitung_mundur(data: &Value, now: i64) -> String {
     if status_expired(data) {
         return "🚫 EXPIRED (left)".to_string();
@@ -105,12 +90,12 @@ fn hitung_mundur(data: &Value, now: i64) -> String {
     if hours > 0.0 {
         return format!("{hours}h {minutes}m");
     }
-    // `NaN > 0` false di JS, jadi `expiredAt` yang bukan angka berakhir di
+    // `NaN > 0` false di versi awal, jadi `expiredAt` yang bukan angka berakhir
     // `"NaNm"` — Rust juga menulis `f64::NAN` sebagai "NaN".
     format!("{minutes}m")
 }
 
-/// `getStatusEmoji(data)` (`listsewa.js:32-39`).
+/// `getStatusEmoji(data)`.
 fn emoji_status(data: &Value, now: i64) -> &'static str {
     if status_expired(data) {
         return "🚫";
@@ -128,19 +113,19 @@ fn emoji_status(data: &Value, now: i64) -> &'static str {
     "✅"
 }
 
-/// `data.name || 'Unknown'` (`listsewa.js:82`).
+/// `data.name || 'Unknown'`.
 fn nama_grup(data: &Value) -> String {
     match data.get("name") {
         Some(v) if crate::common::js_truthy_value(v) => match v.as_str() {
             Some(s) => s.to_string(),
-            // `${v}` JS untuk angka/boolean: serde_json juga menulis apa adanya.
+            // `${v}` versi awal untuk angka/boolean: serde_json juga menulis apa adanya.
             None => v.to_string(),
         },
         _ => "Unknown".to_string(),
     }
 }
 
-/// `groupIds.sort(...)` (`listsewa.js:60-66`).
+/// `groupIds.sort(...)`.
 fn urutkan(groups: &serde_json::Map<String, Value>) -> Vec<(String, Value)> {
     let mut daftar: Vec<(String, Value)> = groups
         .iter()
@@ -163,7 +148,7 @@ fn urutkan(groups: &serde_json::Map<String, Value>) -> Vec<(String, Value)> {
     daftar
 }
 
-/// `new Date(x)` -> epoch ms. `None` berarti `Invalid Date` di JS, dan
+/// `new Date(x)` -> epoch ms. `None` berarti `Invalid Date` di versi awal,
 /// `Intl.DateTimeFormat.formatToParts` melempar `RangeError` atasnya.
 fn epoch_ms(v: Option<&Value>) -> Option<i64> {
     let v = v?;
@@ -200,7 +185,7 @@ fn dengan_init(reply: Reply, init: Option<Mutation>) -> Reply {
 pub fn listsewa(ctx: Ctx) -> Reply {
     let init = init_if_missing(&ctx);
     let tabel = sewa(&ctx);
-    // `db.db.data.sewa.groups || {}` (`listsewa.js:48`).
+    // `db.db.data.sewa.groups || {}`.
     let groups = tabel
         .get("groups")
         .and_then(Value::as_object)
@@ -489,7 +474,7 @@ mod tests {
         let t = text_of(&r);
         assert!(t.contains("🚫 *1. Habis*"), "{t}");
         assert!(t.contains("Sisa: 🚫 EXPIRED (left)"), "{t}");
-        // `isLifetime` tetap ikut filter aktif JS (`listsewa.js:68`).
+        // `isLifetime` tetap ikut filter aktif versi awal.
         assert!(t.contains("Total: *1* grup (1 aktif, 0 expired)"), "{t}");
     }
 
@@ -518,7 +503,7 @@ mod tests {
 
     #[test]
     fn added_at_yang_tidak_bisa_jadi_tanggal_tidak_membalas() {
-        // JS: `new Date("bukan angka")` = Invalid Date -> `formatToParts`
+        // versi awal: `new Date("bukan angka")` = Invalid Date -> `formatToParts`
         // melempar RangeError sebelum `m.reply` mana pun.
         let r = run(tenant(serde_json::json!({ "addedAt": "bukan angka" })));
         assert!(r.is_none(), "tidak ada teks yang boleh dikirim");
@@ -573,7 +558,7 @@ mod tests {
         assert_eq!(emoji_status(&d(now), now), "❌");
         assert_eq!(emoji_status(&d(now + 259_200_000), now), "⚠️", "batas inklusif");
         assert_eq!(emoji_status(&d(now + 259_200_001), now), "✅");
-        // `NaN <= 259200000` false -> ✅, sama seperti JS.
+        // `NaN <= 259200000` false -> ✅, sama seperti versi awal.
         assert_eq!(emoji_status(&serde_json::json!({}), now), "✅");
     }
 }

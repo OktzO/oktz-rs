@@ -1,13 +1,9 @@
-//! `plugins/owner/cekschedule.js` — melihat status semua scheduler bot.
+//! Melihat status semua scheduler bot.
 //!
-//! `ponytail:` `getFullSchedulerStatus()`, `getTodaySchedule()`,
-//! `extractPrayerTimes()`, dan `db.setting('autoSholatKota')` berasal dari
-//! `src/lib/scheduler.js` dan `src/lib/sholat-api.js`, yang bukan bagian dari
-//! `Ctx` API. Hanya `db.setting('autoSholat')` (lewat `ctx.setting`) yang
-//! tersedia. Sisa tidak dapat di-port saat ini.
-//!
-//! Catatan: baris `pub mod cekschedule;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `getFullSchedulerStatus()`, `getTodaySchedule()`,
+//! `extractPrayerTimes()`, dan `db.setting('autoSholatKota')` berasal dan, yang bukan
+//! bagian dari `Ctx` API. Hanya `db.setting('autoSholat')` (lewat `ctx.setting`) yang
+//! tersedia. Sisa tidak dapat diimplementasikan saat ini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

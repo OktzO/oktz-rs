@@ -1,4 +1,4 @@
-//! `plugins/owner/setrules.js` — simpan `botRules` dari teks atau reply.
+//! Simpan `botRules` dari teks atau reply.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

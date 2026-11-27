@@ -1,19 +1,18 @@
-//! `plugins/owner/autoread.js` — toggle global `settings.autoRead`.
+//! Toggle global `settings.autoRead`.
 //!
-//! `ponytail:` status tanpa argumen membaca `config.features.autoRead`
-//! (`config.js`, `true`) sebagai fallback terakhir. `Ctx` tidak membawa
-//! config, jadi nilainya ikut `config.js` yang di-hardcode — persis seperti
-//! `panel/cpanel.rs` melakukan untuk `config.pterodactyl.*`.
+//! `Keterbatasan:` status tanpa argumen membaca `config.features.autoRead` sebagai fallback
+//! terakhir. `Ctx` tidak membawa config, jadi nilainya ikut yang di-hardcode — persis
+//! seperti `panel/cpanel.rs` melakukan untuk `config.pterodactyl.*`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{js_truthy, text_keyword};
 
-/// Kunci `db.setting` yang dibaca dan ditulis (`autoread.js:24,44,53`).
+/// Kunci `db.setting` yang dibaca dan ditulis.
 pub(crate) const KEY: &str = "autoRead";
 
-/// `config.features.autoRead` (`config.js`) — nilai untuk `??` terakhir.
+/// `config.features.autoRead` — nilai untuk `??` terakhir.
 pub(crate) const CONFIG_DEFAULT: bool = true;
 
 pub(crate) const STATUS: &str = "📖 *Auto Read*\n\n\
@@ -44,7 +43,7 @@ pub(crate) fn invalid(prefix: &str) -> String {
 
 /// `db.setting("autoRead") ?? config.features?.autoRead ?? false`.
 ///
-/// `??` hanya jatuh ke default pada `null`/`undefined`, jadi `false` yang
+/// `??` hanya jatuh ke default pada `null`/`undefined`, jadi `false`
 /// tersimpan tetap dipakai dan hanya menentukan teks status lewat `!m0`.
 pub(crate) fn current(settings: &Value) -> bool {
     match settings.get(KEY) {
@@ -163,7 +162,7 @@ mod tests {
 
     #[test]
     fn anything_else_falls_to_the_invalid_option_branch() {
-        // JS membandingkan `m.text` utuh tanpa parsing per kata, jadi
+        // versi awal membandingkan `m.text` utuh tanpa parsing per kata, jadi
         // "on off" bukan "on" — ia jatuh ke cabang invalid dan tidak menulis.
         for text in ["on off", "enable", "1", "on.", "-", "😔"] {
             let r = run("!", text, Value::Null);
@@ -196,7 +195,7 @@ mod tests {
 
     #[test]
     fn a_missing_setting_falls_back_to_the_config_value() {
-        // `config.features.autoRead` = true di config.js — kebalikan dari
+        // `config.features.autoRead` = true di — kebalikan
         // anticall, jadi keduanya harus punya default sendiri.
         let r = run(".", "", Value::Null);
         assert!(

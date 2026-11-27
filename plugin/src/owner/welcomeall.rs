@@ -1,8 +1,8 @@
-//! `plugins/owner/welcomeall.js` — nyalakan/matikan welcome di semua grup.
+//! Nyalakan/matikan welcome di semua grup.
 //!
-//! `ponytail:` sama seperti `goodbyeall.js`: `sock.groupFetchAllParticipating()`
-//! tidak di-port, jadi daftar grup tidak bisa diambil dan `db.setGroup(..,
-//! { welcome })` tidak punya target. Lihat catatan di `goodbyeall.rs`.
+//! `Keterbatasan:` sama seperti: `sock.groupFetchAllParticipating()` tidak
+//! diimplementasikan, jadi daftar grup tidak bisa diambil dan `db.setGroup(.., { welcome
+//! })` tidak punya target. Lihat catatan di `goodbyeall.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -108,7 +108,7 @@ mod tests {
         assert!(usage(".").contains("┃ .welcomeall off"));
     }
 
-    /// JS memakai `${m.prefix}welcomeall on`, bukan titik literal.
+    /// versi awal memakai `${m.prefix}welcomeall on`, bukan titik literal.
     #[test]
     fn the_usage_box_carries_the_live_prefix() {
         let out = run_with("!", &[]).text_body().unwrap().to_string();

@@ -1,26 +1,13 @@
-//! `plugins/owner/getplugin.js` — kirim source code plugin sebagai dokumen.
-//!
-//! ## Penyimpangan
-//!
-//! JS mencari berkas `.js` di `process.cwd()/plugins/<kategori>/`. Di Rust
-//! bot, plugin yang benar-benar dimuat berada di `plugin/src/<kategori>/*.rs`,
-//! sedangkan `oktz-md/plugins/<kategori>/*.js` adalah pohon sumber JS
-//! referensi. Port ini mencari KEDUA pohon, lebih dulu yang Rust, lalu
-//! yang JS — jadi permintaan "kirim source plugin" tetap dijawab dengan
-//! berkas yang benar.
-//!
-//! `sock.sendMessage({ document, mimetype, fileName, caption })` dipetakan
-//! ke `Reply::document(..).with_caption(..)`; `contextInfo` newsletter tidak
-//! ada di `Reply` teks biasa.
+//! Kirim source code plugin sebagai dokumen.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use super::addplugin::push_name;
 
-/// Pohon plugin Rust dan pohon plugin JS.
-const AKAR: [(&str, &str); 2] = [("plugin/src", "rs"), ("oktz-md/plugins", "js")];
+/// Akar pohon plugin Rust.
+const AKAR: [(&str, &str); 1] = [("plugin/src", "rs")];
 
-/// `getplugin.js:104-113` — teks bantuan.
+/// Teks bantuan.
 pub(crate) fn bantuan(nama: &str) -> String {
     format!(
         "Halo *{nama}*, sepertinya kamu lupa memasukkan nama plugin yang ingin dicari.\n\n\
@@ -33,10 +20,10 @@ pub(crate) fn bantuan(nama: &str) -> String {
     )
 }
 
-/// `getplugin.js:132` — nama plugin tidak valid.
+/// Nama plugin tidak valid.
 pub(crate) const NAMA_INVALID: &str = "❌ Nama plugin tidak valid.";
 
-/// `getplugin.js:146-155` — plugin tidak ditemukan + daftar mirip.
+/// Plugin tidak ditemukan + daftar mirip.
 pub(crate) fn tidak_ditemukan(nama: &str, push: &str, mirip: &[String]) -> String {
     let mut out = format!(
         "Maaf ya *{push}*, plugin dengan nama *{nama}* tidak dapat ditemukan.\n\n"
@@ -51,7 +38,7 @@ pub(crate) fn tidak_ditemukan(nama: &str, push: &str, mirip: &[String]) -> Strin
 }
 
 /// `^[\w-]+$` untuk kategori dan `^[\w.-]+$` untuk nama berkas
-/// (`getplugin.js:127-128`).
+///
 fn nama_valid(kategori: &str, berkas: &str) -> bool {
     let kategori_ok = kategori
         .chars()
@@ -69,7 +56,7 @@ struct Hasil {
     jalur: String,
 }
 
-/// `searchPlugin` (`getplugin.js:20-70`) — cari nama berkas persis, lalu
+/// `searchPlugin` — cari nama berkas persis, lalu
 /// alias yang tertulis di dalam berkas.
 fn cari_plugin(ctx: &Ctx, nama: &str) -> Option<Hasil> {
     let target = nama.to_lowercase();
@@ -128,7 +115,7 @@ fn cari_plugin(ctx: &Ctx, nama: &str) -> Option<Hasil> {
     None
 }
 
-/// `getSimilarPlugins` (`getplugin.js:72-94`) — base name yang saling
+/// `getSimilarPlugins` — base name yang saling
 /// memuat, maksimal 5.
 fn plugin_mirip(ctx: &Ctx, nama: &str) -> Vec<String> {
     let target = nama.to_lowercase();
@@ -179,7 +166,7 @@ fn isi_has_alias(isi: &str, target: &str) -> bool {
     false
 }
 
-/// `getplugin.js:166` — caption dokumen.
+/// Caption dokumen.
 pub(crate) fn caption(kategori: &str, berkas: &str, ukuran: usize) -> String {
     format!("📁 *{kategori}/{berkas}*\n{ukuran} bytes")
 }
@@ -205,7 +192,7 @@ pub fn getplugin(ctx: Ctx) -> Reply {
         return Reply::text("❌ *Owner Only!*");
     }
 
-    // `m.args?.[0]?.trim()` (`getplugin.js:101`).
+    // `m.args?.[0]?.trim()`.
     let plugin_name = ctx
         .args
         .first()
@@ -223,23 +210,12 @@ pub fn getplugin(ctx: Ctx) -> Reply {
         if !nama_valid(&kategori, &berkas) {
             return Reply::text(NAMA_INVALID);
         }
-        // `.js` ditambahkan kalau belum ada ekstensi (`getplugin.js:121-125`).
-        let kandidat = [
-            (
-                format!("plugin/src/{kategori}/{berkas}"),
-                "application/javascript",
-            ),
-            (
-                format!("oktz-md/plugins/{kategori}/{berkas}"),
-                "application/javascript",
-            ),
-        ];
-        for (jalur, _) in &kandidat {
-            if ctx.berkas().ada(jalur) {
-                return kirim_dokumen(&ctx, &kategori, berkas.as_str(), jalur);
-            }
+        // ditambahkan kalau belum ada ekstensi.
+        let jalur = format!("plugin/src/{kategori}/{berkas}");
+        if ctx.berkas().ada(&jalur) {
+            return kirim_dokumen(&ctx, &kategori, berkas.as_str(), &jalur);
         }
-        // Tanpa ekstensi: coba tambahkan `.rs` / `.js`.
+        // Tanpa ekstensi: coba tambahkan `.rs` /.
         for (akar, ekstensi) in AKAR {
             let jalur = format!("{akar}/{kategori}/{berkas}.{ekstensi}");
             if ctx.berkas().ada(&jalur) {
@@ -272,13 +248,8 @@ fn kirim_dokumen(ctx: &Ctx, kategori: &str, berkas: &str, jalur: &str) -> Reply 
             return Reply::text(format!("❌ Gagal membaca plugin: {e}"));
         }
     };
-    let mimetype = if berkas.ends_with(".js") {
-        "application/javascript"
-    } else {
-        "text/plain"
-    };
     Reply::document(
-        MediaSource::bytes(byte.clone()).with_mimetype(mimetype),
+        MediaSource::bytes(byte.clone()).with_mimetype("text/plain"),
         berkas.to_string(),
     )
     .with_caption(caption(kategori, berkas, byte.len()))

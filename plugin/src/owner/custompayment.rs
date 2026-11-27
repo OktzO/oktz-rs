@@ -1,4 +1,4 @@
-//! `plugins/owner/custompayment.js` — teks custom untuk `.payment`.
+//! Teks custom untuk `.payment`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -117,7 +117,7 @@ mod tests {
             p.meta.usage,
             ".custompayment <teks> / .custompayment reset"
         );
-        // `pluginConfig` JS tidak punya `example`.
+        // `pluginConfig` versi awal tidak punya `example`.
         assert_eq!(p.meta.example, "");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);

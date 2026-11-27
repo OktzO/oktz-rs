@@ -1,11 +1,4 @@
-//! `plugins/owner/addpartner.js` — satu file untuk tiga command
-//! (`addpartner` / `delpartner` / `listpartner`), dipilih dari `m.command`.
-//!
-//! `db.data.partner` adalah store terpisah (`partner.json`), bukan
-//! `db.setting`, dan `Mutation` tidak punya operasi untuk menuliskannya —
-//! jadi daftar partner TIDAK bisa diubah dari plugin ini (lihat catatan
-//! modul `addpremall`). Yang bisa: baca daftar, dan tulis status partner
-//! per user lewat `isPartner`.
+//! Satu file untuk tiga command
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -14,7 +7,7 @@ use crate::common::{now_ms, parse_int};
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const DEFAULT_DAYS: i64 = 30;
 
-/// `text.match(/(\d{10,15})/)` — digit run sepanjang 10..=15, dimulai dari
+/// `text.match(/(\d{10,15})/)` — digit run sepanjang 10..=15, dimulai
 /// posisi mana pun di teks gabungan argumen.
 fn digits_10_to_15(text: &str) -> Option<String> {
     let chars: Vec<char> = text.chars().collect();
@@ -84,7 +77,7 @@ pub(crate) const EMPTY: &str = "🤝 *ᴅᴀꜰᴛᴀʀ ᴘᴀʀᴛɴᴇʀ*\n\n>
 
 /// Daftar partner tersimpan: `settings.partnerList` — bentuk `{id, expired}`
 /// yang sama dengan entri `db.data.partner`, dipindah ke `settings` karena
-/// store terpisah tidak terjangkau dari plugin (`ponytail:`, lihat modul).
+/// store terpisah tidak terjangkau dari plugin (`Keterbatasan:`, lihat modul).
 pub(crate) fn partners(ctx: &Ctx) -> Vec<(String, i64)> {
     ctx.setting_list("partnerList")
         .iter()
@@ -179,7 +172,7 @@ pub fn addpartner(ctx: Ctx) -> Reply {
             let days = days_arg(&ctx);
             let existing = partners(&ctx);
 
-            // `baseTime = currentExpired > now ? currentExpired : now`
+            // `baseTime = currentExpired > now ? currentExpired: now`
             let base = existing
                 .iter()
                 .find(|(id, _)| *id == number)

@@ -1,7 +1,4 @@
-//! `plugins/owner/capfree.js` — kembalikan fitur menjadi gratis untuk semua.
-//!
-//! Loop dan balasannya identik dengan `capenergi`/`capprem`, jadi keduanya
-//! dipakai lewat `capenergi::apply_cap`.
+//! Kembalikan fitur menjadi gratis untuk semua.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

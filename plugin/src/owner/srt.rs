@@ -1,44 +1,33 @@
-//! `plugins/owner/srt.js` — Sistem Shuffle Reply Thumb (SRT).
+//! Sistem Shuffle Reply Thumb (SRT).
 //!
-//! Port dari nol. Yang dipindah:
-//! - semua sub-perintah `on` / `off` / `c` / `d` / `list` / `del`
-//!   (`srt.js:47-171`).
-//! - session tangkapan gambar per-chat dengan TTL 10 menit (`:24-38`).
-//! - hitung gambar di `assets/image/shuffle` (`:41-45`).
-//! - penyimpanan gambar tangkapan dengan nama `srt_<md5[0..10]>.jpeg` dan
-//!   resize `1280x720 fit:inside` + JPEG kualitas 85 (`:190-208`).
-//! - penghapusan gambar (`:131-162`).
+//! `Keterbatasan:` MD5 (`crypto.createHash("md5")`) tidak punya crate yang tersedia di
+//! `oktz-plugins`, jadi implementasinya diletakkan di berkas ini (lihat [`md5_hex`]).
+//! Hasilnya identik dengan MD5 standar, sehingga nama berkas `srt_<hash>.jpeg` sama dengan
+//! yang dipakai versi awal.
 //!
-//! `ponytail:` MD5 (`crypto.createHash("md5")`) tidak punya crate yang
-//! tersedia di `oktz-plugins`, jadi implementasinya diletakkan di berkas ini
-//! (lihat [`md5_hex`]). Hasilnya identik dengan MD5 standar, sehingga nama
-//! berkas `srt_<hash>.jpeg` sama dengan yang dipakai JS.
+//! `Keterbatasan:` album gambar tidak ada di `Reply`; jadi gambarnya dikirim berurutan
+//! sebagai pesan terpisah lewat `Reply::sequence`.
 //!
-//! `ponytail:` album gambar (`albumMessage`, `srt.js:86-125`) tidak ada di
-//! `Reply`; jadi gambarnya dikirim berurutan sebagai pesan terpisah lewat
-//! `Reply::sequence`.
-//!
-//! `ponytail:` `global.srtSession` dipetakan ke `ctx.sessions` dengan key
-//! `srt:session:<chat>`; `srtEnabled` dipetakan ke setting global
-//! `srtEnabled`.
+//! `Keterbatasan:` `global.srtSession` dipetakan ke `ctx.sessions` dengan key
+//! `srt:session:<chat>`; `srtEnabled` dipetakan ke setting global `srtEnabled`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, answer_handler, plugin};
 use serde_json::Value;
 
-/// Folder koleksi gambar (`srt.js:28`).
+/// Folder koleksi gambar.
 const SHUFFLE_DIR: &str = "assets/image/shuffle";
-/// TTL idle 10 menit (`srt.js:29`).
+/// TTL idle 10 menit.
 const TTL_MS: i64 = 10 * 60 * 1000;
 /// Prefix key session (`global.srtSession`).
 const SESSION_PREFIX: &str = "srt:session:";
-/// Key setting penentu `srtEnabled` (`srt.js:57`).
+/// Key setting penentu `srtEnabled`.
 const KEY_ENABLED: &str = "srtEnabled";
 
 fn session_key(chat: &str) -> String {
     format!("{SESSION_PREFIX}{chat}")
 }
 
-/// `getSrtSession(chat)` (`srt.js:31-38`) — entri kedaluwarsa dibuang.
+/// `getSrtSession(chat)` — entri kedaluwarsa dibuang.
 fn sesi(ctx: &Ctx) -> Option<Value> {
     let key = session_key(&ctx.chat);
     let v = ctx.session_get(&key)?;
@@ -50,7 +39,7 @@ fn sesi(ctx: &Ctx) -> Option<Value> {
     Some(v)
 }
 
-/// Simpan sesi tangkapan (`srt.js:65`).
+/// Simpan sesi tangkapan.
 fn simpan_sesi(ctx: &Ctx, count: i64) {
     ctx.session_set(
         &session_key(&ctx.chat),
@@ -62,7 +51,7 @@ fn simpan_sesi(ctx: &Ctx, count: i64) {
     );
 }
 
-/// Ekstensi gambar yang dihitung (`srt.js:44`).
+/// Ekstensi gambar yang dihitung.
 fn adalah_gambar(nama: &str) -> bool {
     nama.ends_with(".webp")
         || nama.ends_with(".jpg")
@@ -70,7 +59,7 @@ fn adalah_gambar(nama: &str) -> bool {
         || nama.ends_with(".jpeg")
 }
 
-/// `countShuffleImages()` (`srt.js:41-45`).
+/// `countShuffleImages()`.
 fn hitung_gambar(ctx: &Ctx) -> usize {
     ctx.berkas()
         .daftar(SHUFFLE_DIR)
@@ -80,7 +69,7 @@ fn hitung_gambar(ctx: &Ctx) -> usize {
         .count()
 }
 
-/// Daftar file gambar yang tersimpan (`srt.js:80`).
+/// Daftar file gambar yang tersimpan.
 fn daftar_gambar(ctx: &Ctx) -> Vec<String> {
     ctx.berkas()
         .daftar(SHUFFLE_DIR)
@@ -91,15 +80,15 @@ fn daftar_gambar(ctx: &Ctx) -> Vec<String> {
 }
 
 /// `crypto.createHash("md5").update(buffer).digest("hex").substring(0, 10)`
-/// (`srt.js:150`).
+///
 fn hash10(buffer: &[u8]) -> String {
     md5_hex(buffer)[..10].to_string()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // MD5 — implementasi RFC 1321 ringkas (crate `md5` tidak tersedia di crate
 // `oktz-plugins`).
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// Tabel konstanta `K[i] = floor(abs(sin(i + 1)) * 2^32)`.
 const MD5_K: [u32; 64] = [
@@ -345,7 +334,7 @@ pub fn srt(ctx: Ctx) -> Reply {
     ))
 }
 
-/// `srtAnswerHandler` (`srt.js:173-217`) — menangkap gambar selama sesi aktif.
+/// `srtAnswerHandler` — menangkap gambar selama sesi aktif.
 #[answer_handler]
 pub fn srt_answer(ctx: &Ctx) -> Option<Reply> {
     if !ctx.command.is_empty() {
@@ -383,7 +372,7 @@ pub fn srt_answer(ctx: &Ctx) -> Option<Reply> {
     }
 
     // `sharp(buffer).resize(1280, 720, { fit: 'inside', withoutEnlargement: false })
-    // .jpeg({ quality: 85 })` (`srt.js:202`).
+    // .jpeg({ quality: 85 })`.
     let bytes = match oktz_plugin_api::gambar::sharp(&buffer)
         .ok()
         .map(|g| g.ubah_ukuran(1280, 720).pas_di_dalam().ke_jpeg(85))

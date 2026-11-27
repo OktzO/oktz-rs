@@ -1,22 +1,8 @@
-//! `plugins/owner/addowner.js` — kelola owner bot (mode-aware).
+//! Kelola owner bot (mode-aware).
 //!
-//! `//! BLOKIRAN:` plugin ini tidak dapat di-port sepenuhnya karena:
-//!   1. `getDatabase()` / `db.data.owner` / `db.setting("ownerNames")` / `db.save()`
-//!      — Rust hanya punya `Mutation::SetSetting` (tidak ada baca `db.data` mentah).
-//!   2. `config.pterodactyl.ownerPanels` / `.sellers` — tidak ada di `Runtime`.
-//!   3. `jadibot-database` (`addJadibotOwner`, `removeJadibotOwner`, `getJadibotOwners`)
-//!      — tidak ada di `Ctx`.
-//!   4. `resolveAnyLidToJid` / `isLid` / `lidToJid` — resolusi LID tidak tersedia.
-//!   5. `getGroupMode(m.chat, db)` — mode grup tidak tersedia lewat `Ctx`.
-//!
-//! Bagian yang *bisa* di-port (set/get `ownerNames` via `Mutation::SetSetting`,
-//! daftar owner dari `config.owner.number`) tertunda sampai kapasitas di atas
-//! tersedia. Berkas ini dibuat agar nama file terdaftar; implementasi ditunda.
-//!
-//! `ponytail:` saat DB baca-tulis, `config.pterodactyl`, dan resolusi LID
-//! tersedia, implementasikan ulang dan tambahkan `pub mod addowner;`
-//! di `src/owner/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
-//! menyentuh per brief).
+//! `Keterbatasan:` saat DB baca-tulis, `config.pterodactyl`, dan resolusi LID tersedia,
+//! implementasikan ulang dan tambahkan `pub mod addowner;` di `src/owner/mod.rs` secara
+//! manual (mod.rs milik plugin lain — dilarang menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

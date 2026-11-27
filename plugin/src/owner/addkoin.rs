@@ -1,4 +1,4 @@
-//! `plugins/owner/addkoin.js` — tambah koin user (plafon 9 triliun).
+//! Tambah koin user (plafon 9 triliun).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -6,7 +6,7 @@ use crate::common::{jid_number, parse_int};
 
 const MAX_KOIN: i64 = 9_000_000_000_000;
 
-/// `formatKoin` (`addkoin.js:16-22`) — `-1` jadi `∞ Unlimited`, lalu T/B/M/K.
+/// `formatKoin` — `-1` jadi `∞ Unlimited`, lalu T/B/M/K.
 fn format_koin(num: i64) -> String {
     let n = num as f64;
     if num == -1 {
@@ -46,8 +46,8 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `ponytail:` `Ctx` hanya membawa row pengirim (lihat `oktz-wa` pipeline);
-/// koin user lain tidak terbaca, jadi `db.updateKoin` di sini dijumlahkan dari
+/// `Keterbatasan:` `Ctx` hanya membawa row pengirim (lihat `oktz-wa` pipeline);
+/// koin user lain tidak terbaca, jadi `db.updateKoin` di sini dijumlahkan
 /// `0` — sama seperti user yang belum punya koin. Tambahkan
 /// `user_entry(jid)` ke `Ctx` kalau router mau membaca row sembarang.
 fn stored_koin(ctx: &Ctx) -> i64 {

@@ -1,4 +1,4 @@
-//! `plugins/owner/cmdvn.js` — flag `cmdVn`.
+//! Flag `cmdVn`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -174,7 +174,7 @@ mod tests {
         });
         assert!(t.contains("#cmdvn on"), "prefix substitusi: {t}");
         assert!(t.contains("#cmdvn off"));
-        // `VN "menu" → trigger .menu` — literal di JS, bukan `{prefix}menu`.
+        // `VN "menu" → trigger.menu` — literal di versi awal, bukan `{prefix}menu`.
         // Menempelkan prefix di sini akan mengubah teks yang ditampilkan.
         assert!(t.contains("VN \"menu\" → trigger .menu"), "{t}");
         assert!(!t.contains("trigger #menu"));

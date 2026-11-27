@@ -1,9 +1,4 @@
-//! `plugins/owner/energitoggle.js` — toggle global `settings.energi`.
-//!
-//! `name` di JS berupa array `['disableenergi', 'enableenergi']`: keduanya
-//! terdaftar sebagai command, jadi yang kedua masuk ke command tambahan
-//! (`PluginMeta::commands`, cerminan `normalizePluginNames` di
-//! `plugins.js:76-85`).
+//! Toggle global `settings.energi`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -126,7 +121,7 @@ mod tests {
 
     #[test]
     fn an_unlisted_command_defaults_to_the_disable_branch() {
-        // JS tidak punya guard: `isEnable` false untuk semua command lain,
+        // versi awal tidak punya guard: `isEnable` false untuk semua command lain,
         // jadi plugin ini HANYA aktif lewat empat nama terdaftar saja.
         assert!(!is_enable_command("energi"));
         assert!(!is_enable_command("enable"));

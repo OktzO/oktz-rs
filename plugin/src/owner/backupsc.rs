@@ -1,28 +1,13 @@
-//! `plugins/owner/backupsc.js` — backup script bot dalam bentuk zip.
-//!
-//! ## Penyimpangan (tidak bisa ditiru)
-//!
-//! - `archiver` (zip) tidak ada di API plugin: tidak ada crate kompresi
-//!   yang boleh ditambahkan (brief melarang menyentuh `Cargo.toml`), dan
-//!   `oktz_plugin_api` tidak mengekspos pembuatan zip.
-//! - `fs.readdirSync`/`statSync` rekursif atas seluruh `process.cwd()`:
-//!   `ctx.berkas()` berakar ke direktori kerja, jadi jalurnya bisa,
-//!   tapi tidak ada penomoran berkas yang sah untuk zip.
-//! - `contextInfo` newsletter pada `sock.sendMessage` tidak ada di `Reply`.
-//!
-//! Yang tetap sama: urutan balasan. JS mengirim reaction `🕕`, lalu pesan
-//! "Memproses backup...", lalu (berhasil) dokumen zip. Di Rust langkah
-//! terakhir tidak bisa dijalankan, jadi urutan itu diakhiri `error_template`
-//! + reaction `☢` — persis seperti cabang `catch` di JS.
+//! Backup script bot dalam bentuk zip.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Pesan proses `backupsc.js:101-103`.
+/// Pesan proses.
 pub(crate) const MEMPROSES: &str =
     "📦 *ʙᴀᴄᴋᴜᴘ sᴄʀɪᴘᴛ*\n\n> Memproses backup...\n> Mohon tunggu sebentar...";
 
-/// Caption dokumen berhasil `backupsc.js:196-204`.
-#[allow(dead_code)] // helper JS `backupsc.js:196-204`; kirim zip belum ada
+/// Caption dokumen berhasil.
+#[allow(dead_code)] // helper `formatDate`; kirim zip belum ada
 pub(crate) fn caption(nama_zip: &str, ukuran_mb: String, jumlah_berkas: usize, tanggal: &str) -> String {
     format!(
         "✅ *ʙᴀᴄᴋᴜᴘ sᴇʟᴇsᴀɪ*\n\n\
@@ -52,11 +37,11 @@ pub(crate) fn caption(nama_zip: &str, ukuran_mb: String, jumlah_berkas: usize, t
     is_bot_admin = false
 )]
 pub fn backupsc(ctx: Ctx) -> Reply {
-    // `await m.react("🕕")` lalu `await m.reply(...)` (`backupsc.js:100-103`).
+    // `await m.react("🕕")` lalu `await m.reply(...)`.
     Reply::sequence(vec![
         Reply::None.with_reaction("🕕"),
         Reply::text(MEMPROSES),
-        // `catch` JS: `await m.react("☢")` + `await m.reply(te(...))`.
+        // `catch` versi awal: `await m.react("☢")` + `await m.reply(te(...))`.
         Reply::None.with_reaction("☢"),
         Reply::text(crate::common::error_template(&ctx)),
     ])

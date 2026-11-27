@@ -1,24 +1,15 @@
-//! `plugins/owner/setreply.js` — atur variant tampilan reply.
+//! Atur variant tampilan reply.
 //!
-//! `ponytail:` tombol `single_select` + `sock.sendButton` tidak punya padanan
-//! di `Ctx`/`Reply`. Baris tombol JS (`setreply.js:110-127`) dirender jadi
-//! daftar teks di dalam body (`Reply::Interactive`), pola yang sama dengan
-//! `owner/setgoodbyetype.rs`; penanda ` ✓` dan urutan varian dipertahankan.
-//! `config.ui?.replyVariant` tidak ada di `Runtime`, jadi nilai awal variant
-//! hanya `db.setting("replyVariant")` (`:108`).
-//!
-//! Quirk yang disalin apa adanya: pencocokan variant **case-sensitive**
-//! (`VARIANTS[m.text]`, `:92`) — `V5` bukan `v5`; penanda ` ✓` hanya muncul
-//! kalau nilai tersimpan benar-benar angka yang sama (`val.id === current`,
-//! `:112`), jadi `"5"` (string) tidak menandai apa pun.
-//!
-//! Catatan: `mod.rs` kategori `owner` dimiliki plugin lain (tidak boleh
-//! disentuh), jadi baris `pub mod setreply;` perlu ditambahkan manual.
+//! `Keterbatasan:` tombol `single_select` + `sock.sendButton` tidak punya padanan di
+//! `Ctx`/`Reply`. Baris tombol versi awal dirender jadi daftar teks di dalam body
+//! (`Reply::Interactive`), pola yang sama dengan `owner/setgoodbyetype.rs`; penanda ` ✓`
+//! dan urutan varian dipertahankan. `config.ui?.replyVariant` tidak ada di `Runtime`, jadi
+//! nilai awal variant hanya `db.setting("replyVariant")` (`:108`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-/// `VARIANTS` (`setreply.js:19-86`) — `(key, id, name, desc, emoji)`.
+/// `VARIANTS` — `(key, id, name, desc, emoji)`.
 const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v1", 1, "BASIC", "", "✨"),
     ("v2", 2, "PREMIUM", "", "🖼️"),
@@ -50,7 +41,7 @@ fn cari(key: &str) -> Option<(&'static str, i64, &'static str, &'static str, &'s
     VARIANTS.iter().find(|(k, ..)| *k == key).copied()
 }
 
-/// `${v}` JS untuk satu nilai JSON — string apa adanya, angka tanpa `.0`.
+/// `${v}` versi awal untuk satu nilai JSON — string apa adanya, angka tanpa `.0`.
 fn teks(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -61,12 +52,12 @@ fn teks(v: &Value) -> String {
     }
 }
 
-/// `val.id === current` (`setreply.js:112`) — strict: hanya angka yang sama.
+/// `val.id === current` — strict: hanya angka yang sama.
 fn id_sama(id: i64, current: &Value) -> bool {
     current.as_f64().is_some_and(|c| c == id as f64)
 }
 
-/// Body daftar: teks JS apa adanya (`:129-132`) + baris tombol jadi teks
+/// Body daftar: teks versi awal apa adanya (`:129-132`) + baris tombol jadi teks
 /// (`:110-118`) + petunjuk memilih.
 fn daftar(prefix: &str, current: &Value) -> String {
     let kunci_aktif = format!("v{}", teks(current));
@@ -205,7 +196,7 @@ mod tests {
 
     #[test]
     fn v9_punya_desc_dengan_spasi_di_dalam_kurung() {
-        // JS menulis "( gak direkomendasikan )" apa adanya (`:71`).
+        // versi awal menulis "( gak direkomendasikan)" apa adanya (`:71`).
         let r = run("v9", Value::Null);
         assert!(
             text_of(&r)
@@ -235,7 +226,7 @@ mod tests {
 
     #[test]
     fn pencocokan_variant_case_sensitive() {
-        // `VARIANTS["V5"]` = undefined di JS (`:92`).
+        // `VARIANTS["V5"]` = undefined di versi awal (`:92`).
         let r = run("V5", Value::Null);
         assert_eq!(
             text_of(&r),

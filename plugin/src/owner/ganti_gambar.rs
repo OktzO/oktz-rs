@@ -1,19 +1,8 @@
 //! Helper bersama untuk plugin `ganti-*.jpg` / `ganti-mp4.mp4`.
 //!
-//! Seluruh plugin itu punya bentuk yang sama: cek jenis media, unduh
-//! buffer, balas "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas
-//! aset dan laporkan jalurnya.
-//!
-//! `updateAssetUrl` (`src/lib/uploader.js`) menulis buffer ke
-//! `config.assets[key]` setelah di-resize ke JPEG 1280x720 (`fit: inside`,
-//! kualitas 80) dan mengembalikan jalurnya. Di Rust penulisan berkas
-//! dilakukan lewat `ctx.berkas()` (berakar ke direktori kerja bot, sama
-//! seperti `process.cwd()` di JS), dan resize memakai
-//! `oktz_plugin_api::gambar::sharp`.
-//!
-//! `ponytail:` `fit: inside` murni belum ada di `gambar` — `ubah_ukuran`
-//! memotong (cover) lebih dulu, lalu `pas_di_dalam()` mengecilkan ke dalam
-//! 1280x720. Hasil gambarnya sedikit berbeda dari JS, teks balasannya tidak.
+//! `Keterbatasan:` `fit: inside` murni belum ada di `gambar` — `ubah_ukuran` memotong
+//! (cover) lebih dulu, lalu `pas_di_dalam()` mengecilkan ke dalam 1280x720. Hasil gambarnya
+//! sedikit berbeda dari versi awal, teks balasannya tidak.
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply};
 
@@ -71,11 +60,11 @@ pub(crate) fn gagal_unduh(a: &Aset) -> String {
     )
 }
 
-/// Pesan "sedang mengupload" — di JS teksnya selalu "gambar", termasuk
-/// untuk plugin video (`ganti-mp4.js:38`).
+/// Pesan "sedang mengupload" — di versi awal teksnya selalu "gambar", termasuk
+/// untuk plugin video.
 pub(crate) const SEDANG_UPLOAD: &str = "⏳ Sedang mengupload gambar...";
 
-/// Pesan sukses `ganti-*.js`.
+/// Pesan sukses.
 pub(crate) fn sukses(a: &Aset, jalur: &str) -> String {
     format!(
         "✅ *ʙᴇʀʜᴀsɪʟ*\n\n> {} {} telah diganti ke URL baru:\n> {}\n> Config telah diupdate secara realtime!",
@@ -113,7 +102,7 @@ fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
     None
 }
 
-/// Jalur aset tujuan: `config.assets[key]`, atau fallback JS
+/// Jalur aset tujuan: `config.assets[key]`, atau fallback versi awal
 /// (`./assets/<folder>/<file>`).
 pub(crate) fn jalur_aset(ctx: &Ctx, a: &Aset) -> String {
     if let Some(p) = ctx.config().assets.get(a.key)
@@ -132,7 +121,7 @@ pub(crate) fn jalur_aset(ctx: &Ctx, a: &Aset) -> String {
 
 /// Resize ke JPEG 1280x720 (`sharp(buffer).resize(1280, 720, { fit: 'inside' })`).
 ///
-/// Kalau gagal, buffer asli dipakai — sama seperti `catch` di JS.
+/// Kalau gagal, buffer asli dipakai — sama seperti `catch` di versi awal.
 fn perkecil_jpeg(buffer: &[u8]) -> Vec<u8> {
     match oktz_plugin_api::gambar::sharp(buffer) {
         Ok(gambar) => gambar

@@ -1,9 +1,5 @@
-//! `plugins/owner/hapusgrup.js` — keluar dari grup / hapus grup.
-//!
-//! `NOTE (mod.rs):` `owner/mod.rs` sudah memuat banyak plugin (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak menambahkan `pub mod`.
-//! Tambahkan baris berikut secara manual ke `src/owner/mod.rs`:
-//!   pub mod hapusgrup;
+//! Keluar dari grup / hapus grup.
+
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// Kartu pakai saat tidak ada argumen dan bukan di grup, atau JID tidak valid.
@@ -15,7 +11,7 @@ fn help() -> String {
         .to_string()
 }
 
-/// Membersihkan JID: hanya menyimpan digit, `@`, dan titik (mirip `/[^0-9@.]/g` di JS).
+/// Membersihkan JID: hanya menyimpan digit, `@`, dan titik (mirip `/[^0-9@.]/g` di versi awal).
 fn bersihkan_jid(raw: &str) -> String {
     raw.chars()
         .filter(|c| c.is_ascii_digit() || *c == '@' || *c == '.')
@@ -23,7 +19,7 @@ fn bersihkan_jid(raw: &str) -> String {
 }
 
 /// `m.args[0].replace(/[^0-9@.]/g, '')` lalu `if (!x.endsWith('@g.us')) x += '@g.us'`.
-/// Argumen yang tersaring habis jadi `"@g.us"` — JS tidak menolaknya, jadi
+/// Argumen yang tersaring habis jadi `"@g.us"` — versi awal tidak menolaknya, jadi
 /// penolakan hanya terjadi saat guard `!targetJid || !endsWith('@g.us')`.
 fn target_jid_dari_arg(raw: &str) -> String {
     let cleaned = bersihkan_jid(raw);
@@ -116,7 +112,7 @@ mod tests {
         let ctx = ctx_sock_ok(vec!["1234567890".into()], false, "x");
         let r = hapusgrup(ctx);
         // SockMati: `groupMetadata` gagal → `groupName = targetJid`, lalu
-        // `groupLeave` gagal → cabang catch JS `❌ Gagal keluar dari grup: ...`
+        // `groupLeave` gagal → cabang catch versi awal `❌ Gagal keluar dari grup:...`
         assert_eq!(
             r.text_body().unwrap(),
             "❌ Gagal keluar dari grup: sock tidak tersedia"
@@ -126,10 +122,10 @@ mod tests {
     #[test]
     fn argumen_dibersihkan_dan_ditambahi_gus() {
         // `replace(/[^0-9@.]/g, '')` membuang huruf, jadi `123-456@g.us` jadi
-        // `123456@.` lalu ditambahi `@g.us` — kuirk JS, bukan bug port.
+        // `123456@.` lalu ditambahi `@g.us` — kuirk versi awal, bukan bug port.
         assert_eq!(target_jid_dari_arg("123-456@g.us"), "123456@.@g.us");
         assert_eq!(target_jid_dari_arg("1234567890"), "1234567890@g.us");
-        // Argumen yang tersaring habis jadi "@g.us" (mirip JS), bukan kartu bantuan.
+        // Argumen yang tersaring habis jadi "@g.us" (mirip versi awal), bukan kartu bantuan.
         assert_eq!(target_jid_dari_arg("abc"), "@g.us");
     }
 
@@ -155,8 +151,8 @@ mod tests {
 
     #[test]
     fn terdaftar_dengan_semua_kunci_js() {
-        // JS `name: ['hapusgrup', 'deletegrup', 'delgrup']` — entri kedua dan
-        // ketiga masuk `commands`, `alias` JS kosong.
+        // versi awal `name: ['hapusgrup', 'deletegrup', 'delgrup']` — entri kedua
+        // ketiga masuk `commands`, `alias` versi awal kosong.
         let p = oktz_plugin_api::find("hapusgrup").expect("hapusgrup terdaftar");
         assert_eq!(p.meta.name, "hapusgrup");
         assert_eq!(p.meta.commands, ["deletegrup", "delgrup"]);

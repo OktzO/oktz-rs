@@ -1,8 +1,4 @@
-//! `plugins/owner/savedb.js` — kirim `database/db.json` sebagai dokumen.
-//!
-//! Jalur berkasnya mengikuti JS apa adanya (`database/db.json`), bukan letak
-//! store Rust (`database/settings.json`) — permintaan owner yang men-download
-//! database hasil backup tetap file yang sama dengan produksi JS.
+//! Kirim `database/db.json` sebagai dokumen.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -28,7 +24,7 @@ fn ukuran_kb(bytes: usize) -> String {
     format!("{:.2}", bytes as f64 / 1024.0)
 }
 
-/// Caption `savedb.js:35-43`.
+/// Caption.
 fn caption(ms: i64, kb: &str) -> String {
     let (y, bln, hari, jam, menit, detik) = jakarta_parts(ms);
     format!(
@@ -64,7 +60,7 @@ fn caption(ms: i64, kb: &str) -> String {
     is_bot_admin = false
 )]
 pub fn savedb(ctx: Ctx) -> Reply {
-    // `savedb.js:17-19` — gate di dalam handler; router sudah menolak
+    // Gate di dalam handler; router sudah menolak
     // non-owner lebih dulu lewat `isOwner: true` di metadata.
     if !ctx.is_owner {
         return Reply::text("❌ *Owner Only!*");
@@ -160,8 +156,8 @@ mod tests {
 
     #[test]
     fn nama_menang_atas_alias_saat_kunci_sama() {
-        // `savedb` memakai alias `backupdb`; `plugins.js:539` mendahulukan
-        // nama, jadi `.backupdb` tetap milik `plugins/owner/backupdb.js`.
+        // `savedb` memakai alias `backupdb`; mendahulukan
+        // nama, jadi `.backupdb` tetap milik.
         assert_eq!(
             oktz_plugin_api::find("backupdb").unwrap().meta.name,
             "backupdb"

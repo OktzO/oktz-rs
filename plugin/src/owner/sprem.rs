@@ -1,20 +1,8 @@
-//! `plugins/owner/sprem.js` — kirim ulang sticker sebagai premium (AI).
-//!
-//! ## Penyimpangan
-//!
-//! JS membangun `proto.Message.StickerMessage` dengan flag premium
-//! (`isAiSticker: true`, `premium: 1`, `isLottie: false`, `isAnimated: true`)
-//! lalu mengirimnya lewat `sock.relayMessage`. `Reply::Sticker` di API Rust
-//! hanya bisa mengirim sticker biasa — flag premium/AI tidak ada di sana.
-//! Yang dip-port: pengenalan stiker, penerusan byte stiker yang di-reply,
-//! dan reaksi `✅`.
-//!
-//! `m.args[0]` di JS bisa mengarahkan sticker ke nomor lain; di Rust
-//! `Reply` selalu dikirim ke chat pemicu, jadi itu tidak ikut.
+//! Kirim ulang sticker sebagai premium (AI).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-/// Teks bantuan `sprem.js:18-22`.
+/// Teks bantuan.
 pub(crate) fn tanpa_sticker(prefix: &str) -> String {
     format!(
         "⭐ *sᴛɪᴄᴋᴇʀ ᴘʀᴇᴍɪᴜᴍ*\n\n\
@@ -23,7 +11,7 @@ pub(crate) fn tanpa_sticker(prefix: &str) -> String {
     )
 }
 
-/// `sprem.js:29` — sticker tidak bisa dibaca.
+/// Sticker tidak bisa dibaca.
 pub(crate) const GAGAL_BACA: &str = "❌ Gagal membaca data sticker";
 
 #[plugin(

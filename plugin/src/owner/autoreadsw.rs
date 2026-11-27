@@ -1,10 +1,10 @@
-//! `plugins/owner/autoreadsw.js` — flag `autoReadSW`.
+//! Flag `autoReadSW`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::first_keyword;
 
-/// `db.setting('autoReadSW') || { enabled: false }` — default-nya objek dengan
+/// `db.setting('autoReadSW') || { enabled: false }` — default-nya objek
 /// `enabled: false`, BUKAN `false`. Jadi `current.enabled` selalu ada begitu
 /// key ini pernah ditulis dengan bentuk apa pun.
 pub(crate) fn current_enabled(ctx: &Ctx) -> bool {

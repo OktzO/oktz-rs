@@ -1,12 +1,4 @@
-//! `plugins/owner/unblock.js` — buka blokir nomor WhatsApp.
-//!
-//! Port penuh: `sock.updateBlockStatus(targetJid, 'unblock')` →
-//! `ctx.sock().blokir(target, false)`, lalu reaksi ✅ + kartu sukses.
-//! `unblock.js` TIDAK punya guard "jangan buka blokir bot sendiri" seperti
-//! `block.js`, jadi file ini tidak menambahkannya.
-//!
-//! Resolusi target diambil dari `block.rs` (urutan mention → quote → angka →
-//! chat private harus identik di kedua plugin).
+//! Buka blokir nomor WhatsApp.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -175,8 +167,8 @@ mod tests {
         }
     }
 
-    /// `find("unblock")` tidak bisa dipakai di test: `unban.js` juga
-    /// mendaftarkan `unblock` sebagai alias (`plugins/owner/unban.js:6`).
+    /// `find("unblock")` tidak bisa dipakai di test: juga
+    /// mendaftarkan `unblock` sebagai alias.
     /// `unblocknomor` milik plugin ini saja.
     fn entry() -> &'static PluginEntry {
         find("unblocknomor").expect("unblock harus terdaftar lewat alias unblocknomor")
@@ -208,8 +200,8 @@ mod tests {
         assert_eq!(find("unblocknomor").unwrap().meta.name, "unblock");
     }
 
-    /// Tabrakan warisan JS: `unban.js` mendaftarkan `unblock` sebagai alias,
-    /// `unblock.js` mendaftarkannya sebagai nama. `find("unblock")` mengembalikan
+    /// Tabrakan warisan versi awal: mendaftarkan `unblock` sebagai alias,
+    /// mendaftarkannya sebagai nama. `find("unblock")` mengembalikan
     /// salah satu dari keduanya. Tidak dirapikan diam-diam; lihat laporan batch.
     #[test]
     fn the_unblock_command_is_shared_with_unban_just_like_in_javascript() {

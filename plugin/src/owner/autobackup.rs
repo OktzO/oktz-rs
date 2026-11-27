@@ -1,11 +1,10 @@
-//! `plugins/owner/autobackup.js` — kelola sistem auto backup.
+//! Kelola sistem auto backup.
 //!
-//! `ponytail:` modul `src/lib/auto-backup.js` TIDAK di-port. Ia menyimpan
-//! state di berkas sendiri, menjadwalkan timer, dan mengirim zip lewat `sock`
-//! — tidak ada padanannya di `Ctx`, dan mengarang tempatnya akan membuat
-//! `.autobackup status` melaporkan angka palsu. Yang dipindah: parsing aksi,
-//! validasi interval (`parseInterval`, murni dan punya batas angka), serta
-//! seluruh teks statis. Status/jadwal/win/lokal yang butuh modul itu berhenti
+//! `Keterbatasan:` modul TIDAK diimplementasikan. Ia menyimpan state di berkas sendiri,
+//! menjadwalkan timer, dan mengirim zip lewat `sock` — tidak ada padanannya di `Ctx`, dan
+//! mengarang tempatnya akan membuat `.autobackup status` melaporkan angka palsu. Yang
+//! dipindah: parsing aksi, validasi interval (`parseInterval`, murni dan punya batas
+//! angka), serta seluruh teks statis. Status/jadwal/win/lokal yang butuh modul itu berhenti
 //! di balasan "tidak tersedia".
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -17,8 +16,8 @@ pub(crate) const BAD_INTERVAL: &str =
     "❌ *ɢᴀɢᴀʟ*\n\n> Format interval tidak valid. Contoh: 5m, 1h, 2d";
 
 /// `parseInterval(str)` — `/^(\d+)(m|h|d)$/i`, lalu ditolak kalau di bawah
-/// 1 menit atau di atas 7 hari. Mengembalikan `(ms, str)` seperti JS.
-/// Regex JS tidak meng-trim, jadi `" 5h"` juga ditolak.
+/// 1 menit atau di atas 7 hari. Mengembalikan `(ms, str)` seperti versi awal.
+/// Regex versi awal tidak meng-trim, jadi `" 5h"` juga ditolak.
 pub(crate) fn parse_interval(raw: &str) -> Option<(i64, String)> {
     let digits_end = raw
         .char_indices()
@@ -111,7 +110,7 @@ pub fn autobackup(ctx: Ctx) -> Reply {
     let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
     match action.as_str() {
         "" => Reply::text(help(&ctx.prefix)),
-        // JS: `enableAutoBackup` menolak interval buruk dengan `{success:false}`
+        // versi awal: `enableAutoBackup` menolak interval buruk dengan `{success:false}`
         // dan handler membalas `❌ *ɢᴀɢᴀʟ*`. Cabang ini benar-benar hidup.
         "on" | "enable" | "start" => match ctx.args.get(1) {
             None => Reply::text(interval_required(&ctx.prefix)),

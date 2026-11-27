@@ -1,7 +1,4 @@
-//! `plugins/owner/autoreactsw.js` — flag `autoReactSW` (objek ber-`emoji`).
-//!
-//! Berbeda dari `autoreadsw`: objeknya punya dua field dan cabang `off`
-//! memakai `current.emoji` yang sudah tersimpan, bukan emoji default.
+//! Flag `autoReactSW` (objek ber-`emoji`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -14,7 +11,7 @@ pub(crate) fn current_enabled(ctx: &Ctx) -> bool {
         .is_some_and(crate::common::js_truthy_value)
 }
 
-/// `current.emoji` — nilai yang sudah tersimpan. Kalau key `emoji` hilang dari
+/// `current.emoji` — nilai yang sudah tersimpan. Kalau key `emoji` hilang
 /// objek, `current.emoji` jadi `undefined` dan `*undefined*` ikut tampil;
 /// `or_default` mengembalikan `""`, jadi nilai kosong yang sama-sama tidak
 /// berguna dibedakan lewat tests, bukan lewat tebakan emoji.
@@ -172,7 +169,7 @@ mod tests {
     #[test]
     fn off_preserves_the_previously_stored_emoji() {
         // `db.setting('autoReactSW', { enabled: false, emoji: current.emoji })`
-        // — emoji lama ikut ditulis, bukan dikosongkan.
+        // Emoji lama ikut ditulis, bukan dikosongkan.
         let r = run(serde_json::json!({"autoReactSW": {"enabled": true, "emoji": "😍"}}), "off");
         assert_eq!(
             stored(&r),
@@ -185,7 +182,7 @@ mod tests {
     fn off_with_no_stored_value_writes_an_empty_emoji() {
         // `current` = default `{ enabled: false, emoji: '🔥' }`, jadi
         // `current.emoji` sebenarnya '🔥'. Menulis string kosong di sini akan
-        // berbeda dari JS — test ini mengunci apa yang sebenarnya terjadi.
+        // berbeda dari versi awal — test ini mengunci apa yang sebenarnya terjadi.
         let r = run(serde_json::json!({}), "off");
         let v = stored(&r);
         assert_eq!(v["enabled"], serde_json::json!(false));

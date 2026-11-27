@@ -1,4 +1,4 @@
-//! `plugins/owner/addlevel.js` — tambah level user lewat exp.
+//! Tambah level user lewat exp.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -6,7 +6,7 @@ use crate::common::{jid_number, parse_int};
 use crate::user::exp::{EXP_PER_LEVEL, calculate_level, role_of};
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `db.updateExp` juga punya plafon 9 miliar (`database.js:668`).
+/// `db.updateExp` juga punya plafon 9 miliar.
 const MAX_EXP: i64 = 9_000_000_000;
 
 /// `args.find(a => !isNaN(a) && !a.startsWith('@'))`.
@@ -31,9 +31,9 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `ponytail:` hanya row pengirim yang terbaca di `Ctx`, dan kartu level-up
+/// `Keterbatasan:` hanya row pengirim yang terbaca di `Ctx`, dan kartu level-up
 /// (canvas + `sock.sendMedia`) tidak ada di port ini — yang ditulis di sini
-/// persis `db.updateExp` + `db.setUser(targetJid, user)` dari JS.
+/// persis `db.updateExp` + `db.setUser(targetJid, user)` dari versi awal.
 fn applied(target: &str, levels: i64, new_exp: i64) -> String {
     let level = calculate_level(new_exp);
     format!(
@@ -92,7 +92,7 @@ pub fn addlevel(ctx: Ctx) -> Reply {
     } else {
         (old_exp + levels * EXP_PER_LEVEL).clamp(0, MAX_EXP)
     };
-    // `exp === -1` berarti tak terbatas; `calculateLevel(-1)` = 0 di JS dan
+    // `exp === -1` berarti tak terbatas; `calculateLevel(-1)` = 0 di versi awal
     // teks pun menampilkan 0, bukan error.
     let reported_exp = new_exp.max(0);
 
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn the_role_follows_the_new_level_not_the_added_amount() {
         // 9.999 exp = level 1; +10 level (100.000) → 109.999 = level 11 (Elite).
-        // Yang menentukan role adalah level SESUDAH, bukan `levels` yang
+        // Yang menentukan role adalah level SESUDAH, bukan `levels`
         // ditambahkan: 10 level di sini, role-nya Elite bukan Master.
         let r = run("10", serde_json::json!({ "exp": 9_999 }), None);
         let t = text_of(&r);

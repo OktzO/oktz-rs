@@ -1,9 +1,5 @@
-//! `plugins/owner/sampah.js` — menghapus semua sampah di folder `temp`.
-//!
-//! `NOTE (mod.rs):` `owner/mod.rs` sudah memuat banyak plugin (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak menambahkan `pub mod`.
-//! Tambahkan baris berikut secara manual ke `src/owner/mod.rs`:
-//!   pub mod sampah;
+//! Menghapus semua sampah di folder `temp`.
+
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[plugin(

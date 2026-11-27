@@ -1,8 +1,8 @@
-//! `plugins/owner/autotyping.js` — flag `autoTyping`.
+//! Flag `autoTyping`.
 //!
-//! `ponytail:` `saluranCtx()` (`autotyping.js:39`) ditempel sebagai
-//! `contextInfo` forwarded-newsletter; `Reply` tidak punya field context, jadi
-//! yang hilang hanya metadata itu. Teks balasannya utuh.
+//! `Keterbatasan:` `saluranCtx()` ditempel sebagai `contextInfo` forwarded-newsletter;
+//! `Reply` tidak punya field context, jadi yang hilang hanya metadata itu. Teks balasannya
+//! utuh.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -12,7 +12,7 @@ use crate::common::js_truthy_value;
 ///
 /// Rantai `??` hanya jatuh ke ruas berikutnya saat nilainya `null`/`undefined`,
 /// jadi nilai `false` yang tersimpan tetap terbaca `false`. Ruas terakhir
-/// selalu `true`: `config.js:159` `features.autoTyping = true` dan `Ctx`
+/// selalu `true`: `features.autoTyping = true` dan `Ctx`
 /// tidak membawa `config`, jadi konstantanya memang tidak bisa berubah.
 fn current(ctx: &Ctx) -> bool {
     match ctx.setting("autoTyping") {
@@ -38,8 +38,8 @@ fn current(ctx: &Ctx) -> bool {
     is_bot_admin = false
 )]
 pub fn autotyping(ctx: Ctx) -> Reply {
-    // `m.text?.toLowerCase()?.trim()` (`autotyping.js:23`) — lowercase dulu,
-    // baru trim. Urutannya tidak bisa dibalik tanpa mengubah hasil untuk
+    // `m.text?.toLowerCase()?.trim()` — lowercase dulu,
+    // baru trim. Urutannya tidak bisa dibalik tanpa mengubah hasil
     // input berisi huruf besar non-ASCII.
     let lowered = ctx.text.to_lowercase();
     let option = lowered.trim();
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn a_missing_setting_falls_through_to_the_config_default() {
         // `?? config.features?.autoTyping ?? true` dengan `autoTyping: true`
-        // di `config.js:159` — key yang belum pernah ditulis tetap AKTIF.
+        // Key yang belum pernah ditulis tetap AKTIF.
         assert!(text_of(&run("", serde_json::json!({}))).contains("*Aktif ✅*"));
         assert!(
             text_of(&run("", serde_json::json!({ "autoTyping": null })))
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn switching_does_not_react() {
-        // JS tidak memanggil `m.react` di kedua cabang; `saluranCtx()` pun
+        // versi awal tidak memanggil `m.react` di kedua cabang; `saluranCtx()` pun
         // bukan reaksi. Reply harus polos.
         for text in ["on", "off"] {
             match run(text, serde_json::json!({})).without_mutations() {
@@ -250,8 +250,8 @@ mod tests {
 
     #[test]
     fn a_non_boolean_stored_value_keeps_the_js_truthiness() {
-        // `${current ? ...}` memakai operator ternary, bukan perbandingan
-        // `=== true` — string non-kosong tetap truthy seperti di JS.
+        // `${current ?...}` memakai operator ternary, bukan perbandingan
+        // `=== true` — string non-kosong tetap truthy seperti di versi awal.
         assert!(js_truthy(Some(&serde_json::json!("ya"))));
         assert!(text_of(&run("", serde_json::json!({"autoTyping": "ya"}))).contains("*Aktif ✅*"));
         assert!(text_of(&run("", serde_json::json!({"autoTyping": ""}))).contains("*Nonaktif ❌*"));

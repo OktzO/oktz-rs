@@ -1,23 +1,16 @@
-//! `plugins/owner/addsewa.js` — tambah grup ke whitelist sewa + auto join.
+//! Tambah grup ke whitelist sewa + auto join.
 //!
-//! Port dari nol. Yang dipindah:
-//! - parsing durasi (`parseDuration` / `formatDuration`, `addsewa.js:22-54`).
-//! - resolusi grup dari link undangan atau `@g.us` (`resolveGroupId`, `:56-84`).
-//! - penyimpanan entri whitelist (`db.db.data.sewa.groups[groupId]`, `:159-166`).
-//! - teks hasil (`📝 *TAMBAH SEWA*` sampai `✅ *SEWA BERHASIL DITAMBAHKAN*`).
+//! `Keterbatasan:` tabel `db.db.data.sewa` adalah tabel top-level, bukan milik user/grup —
+//! dipetakan ke key global `sewa` di `settings`, sama seperti `owner/sewabot.rs` dan
+//! `owner/listsewa.rs`.
 //!
-//! `ponytail:` tabel `db.db.data.sewa` adalah tabel top-level, bukan milik
-//! user/grup — dipetakan ke key global `sewa` di `settings`, sama seperti
-//! `owner/sewabot.rs` dan `owner/listsewa.rs`.
+//! `Keterbatasan:` `sock.sendText(groupId...)` tidak punya padanan: `Reply` hanya sampai ke
+//! `caller.chat`. Teks balasan tetap utuh karena `sendText` dibungkus `try {} catch {}`
+//! yang tidak mengubah teks.
 //!
-//! `ponytail:` `sock.sendText(groupId, ...)` (pesan perkenalan ke grup,
-//! `addsewa.js:184-191`) tidak punya padanan: `Reply` hanya sampai ke
-//! `caller.chat`. Teks balasan tetap utuh karena `sendText` dibungkus
-//! `try {} catch {}` yang tidak mengubah teks.
-//!
-//! `ponytail:` cek "bot sudah ada di grup" (`tryJoinGroup`, `:96-101`) butuh
-//! JID bot sendiri yang tidak ada di `Ctx`; jadi `terima_undangan` selalu
-//! dicoba dan hasilnya dilaporkan apa adanya.
+//! `Keterbatasan:` cek "bot sudah ada di grup" (`tryJoinGroup`, `:96-101`) butuh JID bot
+//! sendiri yang tidak ada di `Ctx`; jadi `terima_undangan` selalu dicoba dan hasilnya
+//! dilaporkan apa adanya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -25,11 +18,11 @@ use serde_json::{Map, Value};
 /// Key global tempat `db.db.data.sewa` dipetakan.
 const SEWA_KEY: &str = "sewa";
 
-/// `["lifetime","permanent","forever","unlimited"]` (`addsewa.js:24-28`).
+/// `["lifetime","permanent","forever","unlimited"]`.
 const LIFETIME: [&str; 4] = ["lifetime", "permanent", "forever", "unlimited"];
 
 /// `const multiplier = { i: 60000, h: 3600000, d: 86400000, m: 2592000000,
-/// y: 31536000000 }` (`addsewa.js:33-38`) dalam milidetik.
+/// y: 31536000000 }` dalam milidetik.
 fn multiplier(unit: char) -> Option<i64> {
     match unit {
         'i' => Some(60_000),
@@ -41,7 +34,7 @@ fn multiplier(unit: char) -> Option<i64> {
     }
 }
 
-/// `str.match(/^(\d+)([iIdDmMyYhH])$/)` (`addsewa.js:29`).
+/// `str.match(/^(\d+)([iIdDmMyYhH])$/)`.
 ///
 /// Balikin `(angka, satuan kecil)`.
 fn cocok_durasi(s: &str) -> Option<(i64, char)> {
@@ -61,10 +54,10 @@ fn cocok_durasi(s: &str) -> Option<(i64, char)> {
     Some((value, unit))
 }
 
-/// `parseDuration(str)` (`addsewa.js:22-41`).
+/// `parseDuration(str)`.
 ///
 /// `Ok(Some(ms))` = durasi normal, `Ok(None)` = `Infinity` (lifetime),
-/// `Err(())` = format tidak valid (`null` di JS).
+/// `Err(())` = format tidak valid (`null` di versi awal).
 fn parse_durasi(s: &str) -> Result<Option<i64>, ()> {
     let lower = s.to_lowercase();
     if LIFETIME.contains(&lower.as_str()) {
@@ -79,7 +72,7 @@ fn parse_durasi(s: &str) -> Result<Option<i64>, ()> {
     Ok(Some(crate::common::now_ms() + value * mult))
 }
 
-/// `formatDuration(str)` (`addsewa.js:43-54`).
+/// `formatDuration(str)`.
 fn format_durasi(s: &str) -> String {
     let lower = s.to_lowercase();
     if LIFETIME.contains(&lower.as_str()) {
@@ -99,7 +92,7 @@ fn format_durasi(s: &str) -> String {
     format!("{value} {satuan}")
 }
 
-/// `timeHelper.fromTimestamp(expiredAt, "D MMMM YYYY HH:mm")` (`addsewa.js:170`).
+/// `timeHelper.fromTimestamp(expiredAt, "D MMMM YYYY HH:mm")`.
 fn expired_str(ms: i64) -> String {
     format!(
         "{} {}",
@@ -108,7 +101,7 @@ fn expired_str(ms: i64) -> String {
     )
 }
 
-/// Tabel `sewa` setelah init (`addsewa.js:111-114`).
+/// Tabel `sewa` setelah init.
 fn tabel_sewa(ctx: &Ctx) -> Value {
     match ctx.setting(SEWA_KEY) {
         Some(v) if crate::common::js_truthy_value(v) => v.clone(),
@@ -142,7 +135,7 @@ fn simpan_grup(ctx: &Ctx, group_id: &str, nama: &str, expired_at: i64, lifetime:
     }
 }
 
-/// Mutasi init tabel `sewa` kalau belum ada (`addsewa.js:111-114`).
+/// Mutasi init tabel `sewa` kalau belum ada.
 fn init_kalau_kosong(ctx: &Ctx) -> Option<Mutation> {
     crate::common::js_falsy(ctx.setting(SEWA_KEY)).then(|| Mutation::SetSetting {
         key: SEWA_KEY.to_string(),
@@ -158,7 +151,7 @@ fn dengan_init(reply: Reply, init: Option<Mutation>) -> Reply {
     }
 }
 
-/// `resolveGroupId(sock, input)` (`addsewa.js:56-84`).
+/// `resolveGroupId(sock, input)`.
 ///
 /// Balikin `Some((id, nama, invite_code))` atau `None` (hanya untuk link
 /// undangan yang gagal dibaca).
@@ -203,7 +196,7 @@ fn resolve_grup(ctx: &Ctx, input: &str) -> Option<(String, String, Option<String
     }
 }
 
-/// `tryJoinGroup(sock, inviteCode, groupId)` (`addsewa.js:86-107`).
+/// `tryJoinGroup(sock, inviteCode, groupId)`.
 ///
 /// Balikin `(joined, alasan)`.
 fn try_join(ctx: &Ctx, invite_code: Option<&String>) -> (bool, String) {
@@ -219,7 +212,7 @@ fn try_join(ctx: &Ctx, invite_code: Option<&String>) -> (bool, String) {
     }
 }
 
-/// Panduan lengkap (`addsewa.js:118-135`).
+/// Panduan lengkap.
 fn panduan(prefix: &str) -> String {
     format!(
         "📝 *TAMBAH SEWA*\n\n\

@@ -1,32 +1,25 @@
-//! `plugins/owner/resetdb.js` — reset semua data database.
+//! Reset semua data database.
 //!
-//! Port dari nol. Yang dipindah:
-//! - guard owner (`resetdb.js:25-27`).
-//! - alur dua langkah dengan TTL 60 detik (`:29-55`).
-//! - teks peringatan (`:34-46`) dan teks timeout (`:52`).
-//! - teks hasil reset (`:88-97`).
-//!
-//! `ponytail:` JS menyalin `database/db.json` ke `database/db_backup_<ts>.json`
-//! lalu mengosongkan tabel `users`, `groups`, dan `clans`
-//! (`resetdb.js:57-86`). Store Rust adalah satu basis data (SQLite/JSON)
-//! dengan tabel terpisah dan `Mutation` hanya punya `SetUser`/`SetGroup`/
-//! `SetSetting` — tidak ada "kosongkan tabel" maupun "hapus semua user".
-//! Karena itu jumlah user/group/clan yang dilaporkan selalu `0` dan hanya
-//! key `settings`/`sewa` yang bisa disetel ulang ke default JS.
+//! `Keterbatasan:` versi awal menyalin `database/db.json` ke `database/db_backup_<ts>.json`
+//! lalu mengosongkan tabel `users`, `groups`, dan `clans`. Store Rust adalah satu basis
+//! data (SQLite/JSON) dengan tabel terpisah dan `Mutation` hanya punya
+//! `SetUser`/`SetGroup`/ `SetSetting` — tidak ada "kosongkan tabel" maupun "hapus semua
+//! user". Karena itu jumlah user/group/clan yang dilaporkan selalu `0` dan hanya key
+//! `settings`/`sewa` yang bisa disetel ulang ke default versi awal.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-/// Prefix key session penunggu konfirmasi (`resetdb.js:22`).
+/// Prefix key session penunggu konfirmasi.
 const PENDING_PREFIX: &str = "resetdb:pending:";
-/// TTL 60 detik (`resetdb.js:50`).
+/// TTL 60 detik.
 const TTL_MS: i64 = 60_000;
 
 fn pending_key(ctx: &Ctx) -> String {
     format!("{PENDING_PREFIX}{}", ctx.sender)
 }
 
-/// `global.resetDbPending[m.sender]` + TTL 60 detik (`resetdb.js:49-53`).
+/// `global.resetDbPending[m.sender]` + TTL 60 detik.
 fn pending(ctx: &Ctx) -> bool {
     let key = pending_key(ctx);
     let Some(v) = ctx.session_get(&key) else {
@@ -40,7 +33,7 @@ fn pending(ctx: &Ctx) -> bool {
     true
 }
 
-/// Teks peringatan (`resetdb.js:34-46`).
+/// Teks peringatan.
 fn peringatan() -> String {
     "⚠️ *ᴘᴇʀɪɴɢᴀᴛᴀɴ!*\n\n\
      > Ini akan menghapus SEMUA data:\n\
@@ -96,7 +89,7 @@ pub fn resetdb(ctx: Ctx) -> Reply {
     }
     ctx.session_take(&pending_key(&ctx));
 
-    // `ponytail:` tabel `users`/`groups`/`clans` tidak bisa dikosongkan dari
+    // `Keterbatasan:` tabel `users`/`groups`/`clans` tidak bisa dikosongkan
     // API plugin; hanya key settings/sewa yang bisa disetel ulang.
     let mut mutasi: Vec<Mutation> = Vec::new();
     if ctx.setting("selfMode").is_some() {

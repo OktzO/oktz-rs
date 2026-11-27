@@ -1,15 +1,15 @@
-//! `plugins/owner/backupdb.js` — backup database/store dan kirim ke owner.
+//! Backup database/store dan kirim ke owner.
 //!
-//! `ponytail:` `sendStoreBackup(sock)` TIDAK di-port: ia membaca `database/`,
-//! `db.json`, `storage/database.json` dari disk dan mengirimkannya lewat
-//! `sock`, dan tidak satu pun ada di `Ctx`. `Reply` hanya bisa satu pesan,
-//! sedangkan JS mengirim dua (progres lalu hasil), jadi yang dipindah adalah
-//! pesan progres — satu-satunya bagian yang murni string. Balasan kedua
-//! (size/files/schema) butuh hasil `sendStoreBackup` yang tidak ada.
+//! `Keterbatasan:` `sendStoreBackup(sock)` TIDAK diimplementasikan: ia membaca `database/`,
+//! `db.json`, `storage/database.json` dari disk dan mengirimkannya lewat `sock`, dan tidak
+//! satu pun ada di `Ctx`. `Reply` hanya bisa satu pesan, sedangkan versi awal mengirim dua
+//! (progres lalu hasil), jadi yang dipindah adalah pesan progres — satu-satunya bagian yang
+//! murni string. Balasan kedua (size/files/schema) butuh hasil `sendStoreBackup` yang tidak
+//! ada.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Isi backup yang-git, urutan persis seperti di `backupdb.js`.
+/// Isi backup yang-git, urutan persis seperti.
 pub(crate) const BACKUP_CONTENTS: [&str; 6] = [
     "📁 database/*.json (semua file JSON)",
     "📁 database/cpanel/* (data cPanel)",

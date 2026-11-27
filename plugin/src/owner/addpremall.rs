@@ -1,14 +1,8 @@
-//! `plugins/owner/addpremall.js` — jadikan semua member grup premium.
-//!
-//! `db.data.premium` adalah store terpisah (`premium.json`), bukan
-//! `db.setting`. `Ctx` tidak membawanya dan `Mutation` tidak punya operasi
-//! untuk menuliskannya — jadi daftar premium global TIDAK bisa diubah dari
-//! plugin ini. Yang ditulis: flag `isPremium` + energi per user, persis
-//! bagian `db.setUser`/`updateExp`/`updateKoin` di JS.
+//! Jadikan semua member grup premium.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `config.limits?.premium || 100` — `config.limits` tidak ada di `config.js`.
+/// `config.limits?.premium || 100` — `config.limits` tidak ada.
 const PREMIUM_LIMIT: i64 = 100;
 
 pub(crate) const NO_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada member di grup ini";

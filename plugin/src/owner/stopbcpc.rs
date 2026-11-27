@@ -1,10 +1,10 @@
-//! `plugins/owner/stopbcpc.js` — set flag berhenti untuk broadcast private.
+//! Set flag berhenti untuk broadcast private.
 //!
-//! `ponytail:` JS memakai global mutable `global.statusBcpc` /
-//! `global.stopBcpc`. `Ctx` hanya membawa `sessions`, jadi keduanya dipindah ke
-//! sana DENGAN KEY YANG SAMA — `bcpc.js` yang di-port harus memakai
-//! `session_set("statusBcpc", ..)` dan `session_take("stopBcpc")`, kalau tidak
-//! kedua plugin tidak pernah melihat satu sama lain.
+//! `Keterbatasan:` versi awal memakai global mutable `global.statusBcpc` /
+//! `global.stopBcpc`. `Ctx` hanya membawa `sessions`, jadi keduanya dipindah ke sana DENGAN
+//! KEY YANG SAMA — yang diimplementasikan harus memakai `session_set("statusBcpc"..)` dan
+//! `session_take("stopBcpc")`, kalau tidak kedua plugin tidak pernah melihat satu sama
+//! lain.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;

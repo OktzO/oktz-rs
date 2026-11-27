@@ -1,12 +1,12 @@
-//! `plugins/owner/unban.js` — keluarkan satu nomor dari `bannedUsers`.
+//! Keluarkan satu nomor dari `bannedUsers`.
 //!
-//! `ponytail:` dua hal tidak ada di `Ctx` dan sengaja tidak ditebak:
-//! 1. `isLid`/`lidToJid` (`src/lib/lid.js`) butuh cache di disk. Tanpa cache,
-//!    `lidToJid` tinggal mengganti sufiks `@lid` — dan karena `resolveTarget`
-//!    membuang semua non-digit sesudahnya, digit hasilnya tetap sama.
-//! 2. `config.bannedUsers = bannedList` menulis cache in-memory `config.js`;
-//!    sumber yang dibaca `config.isBanned` adalah `db.setting('bannedUsers')`,
-//!    jadi mutasi setting sudah cukup.
+//! `Keterbatasan:` dua hal tidak ada di `Ctx` dan sengaja tidak ditebak:
+//! 1. `isLid`/`lidToJid` butuh cache di disk. Tanpa cache,
+//! `lidToJid` tinggal mengganti sufiks `@lid` — dan karena `resolveTarget`
+//! membuang semua non-digit sesudahnya, digit hasilnya tetap sama.
+//! 2. `config.bannedUsers = bannedList` menulis cache in-memory;
+//! sumber yang dibaca `config.isBanned` adalah `db.setting('bannedUsers')`,
+//! jadi mutasi setting sudah cukup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -14,13 +14,13 @@ use serde_json::Value;
 pub(crate) const NO_TARGET: &str = "✅ *ᴜɴʃᴀɴ ᴅsᴇʀ*\n\n> Masukkan nomor atau tag user";
 pub(crate) const NOT_BANNED: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Nomor `";
 
-/// `raw.replace(/[^0-9]/g, '')` — semua non-digit dibuang, `@lid` dan
+/// `raw.replace(/[^0-9]/g, '')` — semua non-digit dibuang, `@lid`
 /// `@s.whatsapp.net` lenyap tanpa sisa.
 pub(crate) fn digits_of(raw: &str) -> String {
     raw.chars().filter(char::is_ascii_digit).collect()
 }
 
-/// `isLid(raw) ? lidToJid(raw) : raw` tanpa cache disk — hanya ganti sufiks,
+/// `isLid(raw) ? lidToJid(raw): raw` tanpa cache disk — hanya ganti sufiks,
 /// dan hasilnya belum dipakai sampai `digits_of` membuang semua non-digit.
 pub(crate) fn strip_lid(raw: &str) -> &str {
     raw.strip_suffix("@lid").unwrap_or(raw)
@@ -55,7 +55,7 @@ pub(crate) fn resolve_target(ctx: &Ctx) -> String {
     normalize(digits_of(strip_lid(&raw)))
 }
 
-/// `String(b)` — elemen non-string dirender sebagai teksnya (`${el}` di JS).
+/// `String(b)` — elemen non-string dirender sebagai teksnya (`${el}` di versi awal).
 fn stringify(v: &Value) -> String {
     match v.as_str() {
         Some(s) => s.to_string(),
@@ -63,7 +63,7 @@ fn stringify(v: &Value) -> String {
     }
 }
 
-/// `findIndex` JS: cocok kalau sama persis, atau salah satunya sufiks yang lain.
+/// `findIndex` versi awal: cocok kalau sama persis, atau salah satunya sufiks yang lain.
 pub(crate) fn matches(entry: &Value, target: &str) -> bool {
     let c = digits_of(&stringify(entry));
     c == target || (!c.is_empty() && c.ends_with(target)) || (!target.is_empty() && target.ends_with(&c))
@@ -110,7 +110,7 @@ pub fn unban(ctx: Ctx) -> Reply {
         return Reply::text(format!("{NOT_BANNED}{target}` tidak dalam daftar banned"));
     };
 
-    // JS `bannedList.splice(index, 1)` lalu tulis ulang seluruh list.
+    // versi awal `bannedList.splice(index, 1)` lalu tulis ulang seluruh list.
     let mut stored = banned.to_vec();
     stored.remove(index);
 
@@ -192,8 +192,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_to_this_plugin() {
-        // `unblock` juga nama `plugins/owner/unblock.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `unblock` bukan milik unban.
+        // `unblock` juga nama; nama didahulukan
+        // , jadi alias `unblock` bukan milik unban.
         assert_eq!(oktz_plugin_api::find("delban").unwrap().meta.name, "unban");
         assert_eq!(oktz_plugin_api::find("unblock").unwrap().meta.name, "unblock");
     }
@@ -299,16 +299,16 @@ mod tests {
     fn suffix_matching_is_bidirectional() {
         assert!(matches(&serde_json::json!("6281234567890"), "6281234567890"));
         // nomor tersimpan boleh punya awalan/akhiran lain; yang dicari adalah
-        // salah satunya sufiks yang lain, persis `findIndex` di JS.
+        // salah satunya sufiks yang lain, persis `findIndex` di versi awal.
         assert!(matches(&serde_json::json!("126281234567890"), "6281234567890"));
         assert!(matches(&serde_json::json!("234567890"), "6281234567890"));
         assert!(matches(&serde_json::json!("+62 812-3456-7890"), "6281234567890"));
         assert!(!matches(&serde_json::json!("6289999999999"), "6281234567890"));
     }
 
-    // `"6281…".endsWith("")` = true di JS, jadi entri kosong di daftar banned
+    // `"6281…".endsWith("")` = true di versi awal, jadi entri kosong di daftar banned
     // akan mencocoki semua nomor. Bukan bug port — `findIndex` memang begitu.
-    // Dikunci di sini supaya tidak "dibetulkan" diam-diam; `ban.js` tidak
+    // Dikunci di sini supaya tidak "dibetulkan" diam-diam; tidak
     // pernah menulis entri kosong.
     #[test]
     fn an_empty_entry_matches_everything_just_like_in_javascript() {

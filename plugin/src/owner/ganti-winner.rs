@@ -1,12 +1,4 @@
-//! `plugins/owner/ganti-winner.jpg.js` — ganti aset winner.jpeg.
-//!
-//! Alur sama dengan JS: cek jenis media, unduh buffer, balas
-//! "⏳ Sedang mengupload gambar...", lalu tulis ulang berkas aset dan
-//! laporkan jalurnya. Helper-nya ada di `ganti_gambar.rs`.
-//!
-//! Catatan: `updateAssetUrl` di JS juga menulis ulang `config.js`; di Rust
-//! jalur aset sudah ada di `config.assets`, jadi cukup berkas asetnya yang
-//! ditulis.
+//! Ganti aset winner.jpeg.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

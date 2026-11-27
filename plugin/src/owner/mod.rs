@@ -59,12 +59,12 @@ pub mod unban;
 pub mod unblock;
 pub mod welcomeall;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod akses;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod exec;
 #[path = "ganti-asset.rs"]
 pub mod ganti_asset;
@@ -90,14 +90,14 @@ pub mod star;
 pub mod stopdandeletejadibot;
 pub mod stopschedule;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod hapusgrup;
 pub mod mutechat;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod renewsewa;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod ganti_namadev;
 pub mod leave;
 pub mod payment;
@@ -105,27 +105,27 @@ pub mod prefix;
 pub mod sampah;
 pub mod setgoodbyetype;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod listsewa;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 #[path = "ganti-namaowner.rs"]
 pub mod ganti_namaowner;
 pub mod setreply;
 pub mod setwelcometype;
 pub mod sewabot;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod savedb;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod clearsessiondb;
 pub mod clearsessions;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod ganti_large;
 
-// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner).
+// Ditambahkan untuk perilaku 1:1 dengan bot versi awal (kategori owner).
 pub mod addplugin;
 pub mod backupsc;
 pub mod bcgc;
@@ -159,7 +159,7 @@ pub mod ganti_v8;
 #[path = "ganti-winner.rs"]
 pub mod ganti_winner;
 
-// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 2).
+// Ditambahkan untuk perilaku 1:1 dengan bot versi awal (kategori owner, bagian 2).
 pub mod addsewa;
 pub mod aset;
 pub mod bcpc;
@@ -185,7 +185,7 @@ pub mod ganti_namabot;
 #[path = "ganti-welcome.rs"]
 pub mod ganti_welcome;
 
-// Ditambahkan untuk paritas 1:1 dengan bot JS (kategori owner, bagian 3):
+// Ditambahkan untuk perilaku 1:1 dengan bot versi awal (kategori owner, bagian 3):
 // file yang sudah ada di disk tapi belum dideklarasikan (orphan).
 pub mod addowner;
 pub mod addprem;

@@ -1,13 +1,4 @@
-//! `plugins/owner/setgoodbyetype.js` — mengatur variant tampilan goodbye message.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod setgoodbyetype;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/owner/mod.rs`.
-//!
-//! `getAssetBuffer("foto")` dan `sock.sendButton` tidak punya padanan di
-//! `Ctx` / `Reply`. Tombol interaktif diabaikan; handler mengembalikan teks
-//! yang berisi daftar varian. `db.setting` ditulis lewat
-//! `Mutation::SetSetting`.
+//! Mengatur variant tampilan goodbye message.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

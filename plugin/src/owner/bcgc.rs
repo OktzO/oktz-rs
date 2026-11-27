@@ -1,24 +1,12 @@
-//! `plugins/owner/bcgc.js` — broadcast pesan ke semua grup dengan media dan jeda.
+//! Broadcast pesan ke semua grup dengan media dan jeda.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `sock` (`fetchGroupsSafe(sock)` + per-grup
-//! `sock.sendMessage(..., { quoted: m })` dengan media audio/video/dokumen/sticker),
-//! `getDatabase()` (`db.setting`/`db.setUser` untuk `bcgcEnabled` dan
-//! `jedaBcgc`), state global `statusBcgc`/`stopBcgc`, dan `saluranCtx()`
-//! (`src/lib/context.js`). Tidak ada satupun di `Ctx`.
-//!
-//! `ponytail:` kalau `sock`, `db`, dan state global tersedia di `Ctx` nanti,
-//! port ulang dari `plugins/owner/bcgc.js` (guard `stopbcgc`/`jedabcgc`/`on`/
-//! `off`, deteksi media quoted, loop grup dengan jeda, dan reaksi
-//! `📢`/`❌`/`✅`/`☢`).
-//!
-//! Fungsi murni di bawah (`parseDelay`, `formatDelay`) disalin dari JS untuk
-//! dijaga agar tidak hilang, dan diuji.
+//! `Keterbatasan:` kalau `sock`, `db`, dan state global tersedia di `Ctx` nanti, tambahkan
+//! (guard `stopbcgc`/`jedabcgc`/`on`/ `off`, deteksi media quoted, loop grup dengan jeda,
+//! dan reaksi `📢`/`❌`/`✅`/`☢`).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `bcgc.js:30-48` — `5s`/`2m`/`1h`/`1d` ke milidetik (case-insensitive,
+/// `5s`/`2m`/`1h`/`1d` ke milidetik (case-insensitive,
 /// mirip `/^(\d+)(s|m|h|d)$/i`); satuan gabung seperti `15ms` → `None`.
 #[allow(dead_code)] // disalin dari JS `bcgc.js`; dipakai dari test saja
 pub(crate) fn parse_delay(input: &str) -> Option<i64> {
@@ -45,8 +33,8 @@ pub(crate) fn parse_delay(input: &str) -> Option<i64> {
     Some(ms)
 }
 
-/// `bcgc.js:50-55` — format milidetik ke teks bahasa Indonesia.
-/// `toFixed(0)` di JS membulatkan (1,5 menit → "2"), bukan memotong.
+/// Format milidetik ke teks bahasa Indonesia.
+/// `toFixed(0)` di versi awal membulatkan (1,5 menit → "2"), bukan memotong.
 #[allow(dead_code)] // disalin dari JS `bcgc.js`; dipakai dari test saja
 pub(crate) fn format_delay(ms: i64) -> String {
     if ms >= 86_400_000 {
@@ -60,7 +48,7 @@ pub(crate) fn format_delay(ms: i64) -> String {
     }
 }
 
-/// `bcgc.js:62-71` / `216-227` — stop broadcast.
+/// / `216-227` — stop broadcast.
 const STOP_TEXT: &str = "⏹️ *Broadcast Grup Dihentikan*\n\n> Proses broadcast sedang dihentikan...";
 
 #[plugin(
@@ -142,7 +130,7 @@ mod tests {
     #[test]
     fn handler_tidak_beri_reaksi_stim() {
         // `Reply::None` dikemas reaksi `⏹️` sebagai catatan sinyal stop;
-        // aslinya `m.react("⏹️")` lalu teks stop di JS.
+        // aslinya `m.react("⏹️")` lalu teks stop di versi awal.
         let r = bcgc(Ctx::default());
         assert!(!r.is_none());
     }

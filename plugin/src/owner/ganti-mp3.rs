@@ -1,21 +1,10 @@
-//! `plugins/owner/ganti-mp3.js` — ganti audio foto.mp3.
-//!
-//! Port dari nol. Yang dipindah:
-//! - guard "bukan audio" + teks kartu (`ganti-mp3.js:20-24`).
-//! - unduh media (`:27-36`).
-//! - penulisan aset + teks sukses (`:38-44`).
-//!
-//! `updateAssetUrl` menulis berkas aset ke
-//! `path.resolve(process.cwd(), localPath)`; `ctx.berkas()` berakar ke
-//! direktori kerja sehingga langkah itu ditiru persis lewat
-//! [`crate::owner::aset::tulis_aset`]. Yang hilang hanya penulisan ulang
-//! `config.js` dan unggah ke CDN (lihat modul `aset`).
+//! Ganti audio foto.mp3.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Judul kartu (`ganti-mp3.js:23`).
+/// Judul kartu.
 const JUDUL: &str = "🎵 *ɢᴀɴᴛɪ ᴍᴘ3.ᴍᴘ3*";
-/// Path aset (`ganti-mp3.js:23`).
+/// Path aset.
 const FILE: &str = "assets/audio/foto.mp3";
 
 #[plugin(

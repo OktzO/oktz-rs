@@ -1,21 +1,16 @@
-//! `plugins/owner/buatsaluran.js` — buat saluran/newsletter baru.
+//! Buat saluran/newsletter baru.
 //!
-//! Port dari nol. Yang dipindah:
-//! - pemecahan `nama|deskripsi` (`buatsaluran.js:16-25`).
-//! - guard nama terlalu pendek + teks contoh (`:27-36`).
-//! - teks sukses (`:43-50`) dan teks gagal (`:52`).
-//!
-//! `ponytail:` `sock.newsletterCreate(name, description)` tidak ada di
-//! `oktz_plugin_api::sock::Sock` — API itu hanya punya operasi grup dan
-//! kontak. Jadi pembuatan saluran selalu jatuh ke cabang `catch` JS, dan
-//! pesannya menjelaskan alasannya.
+//! `Keterbatasan:` `sock.newsletterCreate(name, description)` tidak ada di
+//! `oktz_plugin_api::sock::Sock` — API itu hanya punya operasi grup dan kontak. Jadi
+//! pembuatan saluran selalu jatuh ke cabang `catch` versi awal, dan pesannya menjelaskan
+//! alasannya.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// Nama minimal (`:27`).
 const MIN_NAMA: usize = 2;
 
-/// Teks contoh saat nama kurang dari 2 karakter (`buatsaluran.js:28-35`).
+/// Teks contoh saat nama kurang dari 2 karakter.
 fn contoh(prefix: &str) -> String {
     format!(
         "📢 *ʙᴜᴀᴛ sᴀʟᴜʀᴀɴ*\n\n\
@@ -60,8 +55,8 @@ pub fn buatsaluran(ctx: Ctx) -> Reply {
         return Reply::text(contoh(&ctx.prefix));
     }
 
-    // `sock.newsletterCreate(...)` tidak tersedia — cabang `catch` JS
-    // (`buatsaluran.js:51-53`).
+    // `sock.newsletterCreate(...)` tidak tersedia — cabang `catch` versi awal
+    //
     Reply::text(format!(
         "❌ Gagal membuat saluran: \
          fitur pembuatan saluran belum tersedia di versi Rust \

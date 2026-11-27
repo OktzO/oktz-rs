@@ -1,18 +1,10 @@
-//! `plugins/owner/swgcv2.js` — post Group Status V2 ke grup pilihan.
-//!
-//! ## Penyimpangan
-//!
-//! - Posting story grup butuh `sock.relayMessage(jid, { groupStatusMessageV2 })`.
-//!   Trait `Sock` tidak punya API group status, jadi tahap konfirmasi
-//!   (`--confirm <id grup>`) berakhir di cabang error JS.
-//! - Daftar grup tetap bisa ditampilkan: `sock.groupFetchAllParticipating()`
-//!   ada padanannya di `Sock::semua_grup`.
+//! Post Group Status V2 ke grup pilihan.
 
 use oktz_plugin_api::registry::{CardList, CardRow, CardSection, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// Teks bantuan `swgcv2.js:237-242`.
+/// Teks bantuan.
 pub(crate) fn cara_pakai(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -22,25 +14,25 @@ pub(crate) fn cara_pakai(prefix: &str) -> String {
     )
 }
 
-/// `swgcv2.js:271`.
+///
 pub(crate) const TANPA_GRUP: &str = "⚠️ *Bot tidak berada di grup manapun.*";
 
-/// `swgcv2.js:58-60`.
+///
 pub(crate) const TANPA_PENDING: &str =
     "⚠️ *Tidak ada data pending. Silakan kirim ulang media + .swgcv2*";
 
-/// `swgcv2.js:146-148` — gagal posting.
+/// Gagal posting.
 pub(crate) fn gagal_posting(pesan: &str) -> String {
     format!("❌ *ᴇʀʀᴏʀ*\n\n> Gagal posting story V2.\n> _{pesan}_")
 }
 
-/// `swgcv2.js:133`.
-#[allow(dead_code)] // helper JS `swgcv2.js:133`; relayMessage belum ada
+///
+#[allow(dead_code)] // helper `relayMessage`; belum ada di `Ctx`
 pub(crate) fn berhasil(nama_grup: &str) -> String {
     format!("✅ Berhasil up sw (V2) ke grup {nama_grup}")
 }
 
-/// Body kartu `swgcv2.js:297-301`.
+/// Body kartu.
 pub(crate) fn body_kartu(jenis_media: &str, jumlah_grup: usize) -> String {
     format!(
         "📋 *ᴘɪʟɪʄ ɢʀᴜᴘ ᴜɴᴛᴜᴋ ᴘᴏsᴛ sᴛᴏʀʏ ᴠ2*\n\n\
@@ -50,7 +42,7 @@ pub(crate) fn body_kartu(jenis_media: &str, jumlah_grup: usize) -> String {
     )
 }
 
-/// Jenis media `swgcv2.js:282-290`.
+/// Jenis media.
 pub(crate) fn jenis_media(teks: bool, gambar: bool, video: bool, audio: bool) -> &'static str {
     if teks {
         "Teks"
@@ -106,7 +98,7 @@ pub fn swgcv2(ctx: Ctx) -> Reply {
     let args = &ctx.args;
     let text = ctx.text.trim();
 
-    // `--confirm <id grup>` (`swgcv2.js:53-151`).
+    // `--confirm <id grup>`.
     if args.first().map(|a| a.as_str()) == Some("--confirm")
         && args.len() > 1
     {

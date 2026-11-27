@@ -1,12 +1,8 @@
-//! `plugins/owner/listjadibot.js` — lihat semua session jadibot yang tersimpan.
+//! Lihat semua session jadibot yang tersimpan.
 //!
-//! `ponytail:` `getAllJadibotSessions()` / `getActiveJadibots()` berasal dari
-//! `src/lib/jadibot-manager.js`, dan `sock.sendMessage` dengan
-//! `interactiveButtons` tidak ada di `Ctx` API. Tidak dapat di-port saat
-//! ini. Yang dipindah: teks penjelasan ketersediaan.
-//!
-//! Catatan: baris `pub mod listjadibot;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `getAllJadibotSessions()` / `getActiveJadibots()` berasal, dan
+//! `sock.sendMessage` dengan `interactiveButtons` tidak ada di `Ctx` API. Tidak dapat
+//! diimplementasikan saat ini. Yang dipindah: teks penjelasan ketersediaan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

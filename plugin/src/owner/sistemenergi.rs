@@ -1,10 +1,10 @@
-//! `plugins/owner/sistemenergi.js` — flag global `energi`.
+//! Flag global `energi`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::{first_keyword, js_truthy};
 
-/// `db.setting("energi") !== undefined ? db.setting("energi") : true` —
+/// `db.setting("energi") !== undefined ? db.setting("energi"): true` —
 /// default-nya `true`, bukan `false`. Bedanya penting: energi yang belum pernah
 /// di-set berarti bot masih memotong energi, persis default pipeline.
 pub(crate) fn current_enabled(ctx: &Ctx) -> bool {
@@ -57,7 +57,7 @@ pub(crate) fn applied(is_enabled: bool) -> String {
 )]
 pub fn sistemenergi(ctx: Ctx) -> Reply {
     let current = current_enabled(&ctx);
-    // `!mode || (mode !== 'on' && mode !== 'off')` — satu cabang untuk
+    // `!mode || (mode !== 'on' && mode !== 'off')` — satu cabang
     // ketiadaan argumen DAN untuk nilai yang bukan on/off.
     let is_enabled = match first_keyword(&ctx).as_deref() {
         Some("on") => true,
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn the_default_when_the_setting_is_absent_is_enabled_not_disabled() {
-        // `db.setting("energi") !== undefined ? ... : true` — sudah tidak
+        // `db.setting("energi") !== undefined ?...: true` — sudah tidak
         // pernah di-set berarti AKTIF. Default `false` di sini akan
         // mengarang "unlimited" untuk instalasi yang tidak pernah menyetel.
         assert!(current_enabled(&Ctx::default()));
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn an_unrecognised_mode_shows_status_instead_of_writing() {
-        // `m.args[0]?.toLowerCase()` sudah ada di JS, jadi huruf besar TIDAK
+        // `m.args[0]?.toLowerCase()` sudah ada di versi awal, jadi huruf besar TIDAK
         // termasuk di sini — `ON` sah. Yang tidak sah adalah kata lain.
         for bad in ["aktif", "1", "yes", "enable", "onn"] {
             let r = run(serde_json::json!({}), bad);

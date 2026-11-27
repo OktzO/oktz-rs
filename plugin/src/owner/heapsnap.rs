@@ -1,18 +1,15 @@
-//! `plugins/owner/heapsnap.js` — ambil heap snapshot dengan guard RSS.
+//! Ambil heap snapshot dengan guard RSS.
 //!
-//! `ponytail:` `takeHeapSnapshot` (v8 `writeHeapSnapshot`) dan
+//! `Keterbatasan:` `takeHeapSnapshot` (v8 `writeHeapSnapshot`) dan
 //! `heapSnapshotEligibility` (yang membaca `process.memoryUsage()`) tidak
-//! di-port: keduanya butuh V8/heap dan tidak ada di `Ctx`. Yang dipindah:
+//! diimplementasikan: keduanya butuh V8/heap dan tidak ada di `Ctx`. Yang dipindah:
 //! konstanta ceiling, `formatMB`, dan parsing label — semua murni.
-//!
-//! Catatan meta: alias JS memuat `"heapsnap"` — sama dengan `name`. Dibiarkan
-//! apa adanya (lihat laporan batch), bukan dirapikan diam-diam.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `HEAP_SNAP_RSS_CEILING = 400 * 1024 * 1024` (`profiler.js:181`).
+/// `HEAP_SNAP_RSS_CEILING = 400 * 1024 * 1024`.
 pub(crate) const RSS_CEILING: f64 = 400.0 * 1024.0 * 1024.0;
-/// `HEAP_SNAP_PROJECTED_CEILING = 800 * 1024 * 1024` (`profiler.js:182`).
+/// `HEAP_SNAP_PROJECTED_CEILING = 800 * 1024 * 1024`.
 pub(crate) const PROJECTED_CEILING: f64 = 800.0 * 1024.0 * 1024.0;
 
 /// `(bytes / 1024 / 1024).toFixed(1) + "MB"` — `toFixed` mengambil integer

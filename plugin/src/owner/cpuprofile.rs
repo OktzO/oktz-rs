@@ -1,15 +1,14 @@
-//! `plugins/owner/cpuprofile.js` — CPU profiling via node:inspector.
+//! CPU profiling via node:inspector.
 //!
-//! `ponytail:` `src/lib/profiler.js` TIDAK di-port. `startCpuProfile`/
-//! `stopCpuProfile` butuh `node:inspector` dan menulis berkas `.cpuprofile`;
-//! `process.memoryUsage()` juga tidak punya padanan di `Ctx`. Jadi tidak ada
-//! profil yang benar-benar dibuat. Yang dipindah: parsing sub-perintah,
-//! penghitungan durasi (termasuk batas atasnya), nama profil, dan teks help —
-//! semuanya murni aritmetika dan string.
+//! `Keterbatasan:` TIDAK diimplementasikan. `startCpuProfile`/ `stopCpuProfile` butuh
+//! `node:inspector` dan menulis berkas `.cpuprofile`; `process.memoryUsage()` juga tidak
+//! punya padanan di `Ctx`. Jadi tidak ada profil yang benar-benar dibuat. Yang dipindah:
+//! parsing sub-perintah, penghitungan durasi (termasuk batas atasnya), nama profil, dan
+//! teks help — semuanya murni aritmetika dan string.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `CPU_MAX_DURATION_MS = 10 * 60 * 1000` (`profiler.js:188`) → 10 menit.
+/// `CPU_MAX_DURATION_MS = 10 * 60 * 1000` → 10 menit.
 pub(crate) const MAX_DURATION_MS: i64 = 10 * 60 * 1000;
 pub(crate) const MAX_MINUTES: f64 = 10.0;
 

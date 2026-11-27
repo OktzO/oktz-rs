@@ -1,25 +1,12 @@
-//! `plugins/owner/setmenu.js` — mengatur variant tampilan menu.
-//!
-//! ## Penyimpangan
-//!
-//! - `sock.sendButton(chat, bufferFoto, bodyText, m, { buttons })` dipetakan ke
-//!   `Reply::interactive(..)` dengan header gambar dari `config.assets.foto`
-//!   dan satu tombol `single_select`.
-//! - `db.setting("menuVariant", id)` + `db.save()` dipetakan ke
-//!   `Mutation::SetSetting`.
-//!
-//! Quirk JS yang disalin apa adanya: teks error menyebut `*v1* s/d *v7*`
-//! walau `VARIANTS` punya `v8` (`setmenu.js:76`), dan default variant diambil
-//! dari `config.ui.menuVariant` = 3 (`config.js:190`) — bukan literal `|| 2`
-//! di `setmenu.js:89` yang cuma berlaku kalau `config.ui` tidak ada.
+//! Mengatur variant tampilan menu.
 
 use oktz_plugin_api::registry::{CardHeader, CardList, CardRow, CardSection, InteractiveButton};
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 
-/// `VARIANTS` (`setmenu.js:19-68`) — `(key, id, name, desc, emoji)`.
+/// `VARIANTS` — `(key, id, name, desc, emoji)`.
 ///
 /// `v16` tambahan dari sesi ini: varian Rubby (menu utama ala
-/// `Rubby-MD/plugins/main/menu.js`) yang tata letaknya ditulis di
+/// ) yang tata letaknya ditulis
 /// `plugin/src/main/menu.rs` `varian_rubby`.
 const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ("v1", 1, "BASIC", "", "🖼️"),
@@ -39,18 +26,18 @@ const VARIANTS: &[(&str, i64, &str, &str, &str)] = &[
     ),
 ];
 
-/// Kunci setting untuk variant menu (`setmenu.js:79`).
+/// Kunci setting untuk variant menu.
 const SETTING_KEY: &str = "menuVariant";
 
-/// `config.ui.menuVariant` (`config.js:190`) = 3.
+/// `config.ui.menuVariant` = 3.
 const DEFAULT_VARIANT: i64 = 3;
 
-/// `❌ *VARIANT TIDAK VALID*` (`setmenu.js:76`) — teks JS menyebut `v7`
+/// `❌ *VARIANT TIDAK VALID*` — teks versi awal menyebut `v7`
 /// padahal `v8` ada; quirk itu dibiarkan.
 pub(crate) const TIDAK_VALID: &str =
     "❌ *VARIANT TIDAK VALID*\n\nGunakan: *v1* s/d *v7*";
 
-/// Pesan sukses `setmenu.js:81-85`.
+/// Pesan sukses.
 pub(crate) fn pesan_diubah(emoji: &str, id: i64, name: &str, desc: &str) -> String {
     format!("✅ *MENU VARIANT DIUBAH*\n\n{emoji} *V{id} — {name}*\n_{desc}_")
 }
@@ -64,7 +51,7 @@ pub(crate) fn nama_variant(id: i64) -> &'static str {
         .unwrap_or("Unknown")
 }
 
-/// Teks body kartu `setmenu.js:110-114` — gaya `setallmenu.js` (penjelasan
+/// Teks body kartu — gaya (penjelasan
 /// per variant, supaya tampilan kartu mirip allmenu).
 pub(crate) fn body_teks(current: i64) -> String {
     format!(
@@ -86,7 +73,7 @@ Variant aktif saat ini: *V{current} — {nama}* 🎯\n\n\
     )
 }
 
-/// Baris tombol `single_select` (`setmenu.js:91-99`).
+/// Baris tombol `single_select`.
 pub(crate) fn baris(prefix: &str, current: i64) -> Vec<CardRow> {
     VARIANTS
         .iter()
@@ -129,7 +116,7 @@ fn variant_aktif(ctx: &Ctx) -> i64 {
     is_bot_admin = false
 )]
 pub fn setmenu(ctx: Ctx) -> Reply {
-    // `const variant = args[0]?.toLowerCase()` (`setmenu.js:71-72`).
+    // `const variant = args[0]?.toLowerCase()`.
     let variant = ctx.args.first().map(|s| s.to_lowercase());
 
     if let Some(key) = variant.as_deref() {

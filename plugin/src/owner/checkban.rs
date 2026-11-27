@@ -1,20 +1,19 @@
-//! `plugins/owner/checkban.js` — perintah debug yang mencetak keadaan ban
-//! untuk satu nomor hardcode.
+//! Perintah debug yang mencetak keadaan ban
 //!
-//! `ponytail:` `config.isOwner(target)` hanya bisa dijawab untuk pengirim di
-//! `Ctx`, jadi baris `isOwner()` pada balasannya dicetak sebagai `?`. Selain
-//! itu `config.bannedUsers` di JS adalah cache in-memory yang diisi oleh
-//! `config.isBanned()`; di sini hanya sumber `db.setting('bannedUsers')` yang
-//! dibaca, karena itu satu-satunya yang benar-benar persisten.
+//! `Keterbatasan:` `config.isOwner(target)` hanya bisa dijawab untuk pengirim di `Ctx`,
+//! jadi baris `isOwner()` pada balasannya dicetak sebagai `?`. Selain itu
+//! `config.bannedUsers` di versi awal adalah cache in-memory yang diisi oleh
+//! `config.isBanned()`; di sini hanya sumber `db.setting('bannedUsers')` yang dibaca,
+//! karena itu satu-satunya yang benar-benar persisten.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::joined_strings;
 
-/// Nomor yang sama dengan di `checkban.js`.
+/// Nomor yang sama dengan.
 const TARGET: &str = "628979985621@s.whatsapp.net";
 
-/// `normalizeNumber` (`config.js:344-351`).
+/// `normalizeNumber`.
 fn normalize_number(value: &str) -> String {
     value
         .split(':')
@@ -28,7 +27,7 @@ fn normalize_number(value: &str) -> String {
         .collect()
 }
 
-/// `c === n || c.endsWith(n) || n.endsWith(c)` — dipakai `checkban.js`, bukan
+/// `c === n || c.endsWith(n) || n.endsWith(c)` — dipakai, bukan
 /// `matchesNumber` yang dipakai `config.isBanned`.
 fn loose_match(clean: &str, clean_banned: &str) -> bool {
     clean == clean_banned
@@ -60,7 +59,7 @@ pub fn checkban(ctx: Ctx) -> Reply {
         .flat_map(|v| joined_strings(std::slice::from_ref(v)))
         .collect();
 
-    // `new Set([...configList, ...savedList])` — dupe pertama yang menang,
+    // `new Set([...configList...savedList])` — dupe pertama yang menang,
     // jadi urutan gabungan = config dulu, baru yang baru dari db.
     let mut combined: Vec<String> = Vec::new();
     for v in saved.iter().cloned() {
@@ -118,7 +117,7 @@ mod tests {
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Check actual ban state");
         assert_eq!(p.meta.usage, ".checkban");
-        // `pluginConfig` JS tidak punya `example` maupun `cooldown`, jadi
+        // `pluginConfig` versi awal tidak punya `example` maupun `cooldown`, jadi
         // keduanya memakai default router (`example: ""`, `cooldown: 3`).
         assert_eq!(p.meta.example, "");
         assert_eq!(p.meta.cooldown, 3);

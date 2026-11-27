@@ -1,9 +1,8 @@
-//! `plugins/owner/self.js` — set mode bot ke `self`.
+//! Set mode bot ke `self`.
 //!
-//! `ponytail:` sama seperti `public.rs`: `config.mode` dibaca lewat
-//! `db.setting('botMode')` dan `m.fromMe` tidak ada di `Ctx`. Cek owner dan
-//! pembacaan mode dipinjam dari `public.rs` supaya kedua plugin tidak
-//! menyimpang diam-diam.
+//! `Keterbatasan:` sama seperti `public.rs`: `config.mode` dibaca lewat
+//! `db.setting('botMode')` dan `m.fromMe` tidak ada di `Ctx`. Cek owner dan pembacaan mode
+//! dipinjam dari `public.rs` supaya kedua plugin tidak menyimpang diam-diam.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

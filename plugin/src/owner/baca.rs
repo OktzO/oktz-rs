@@ -1,10 +1,4 @@
-//! `plugins/owner/baca.js` — tandai pesan sebagai sudah dibaca.
-//!
-//! `//! BLOKIRAN:` JS memanggil `sock.readMessages([m.key])`, tetapi `Ctx`
-//! tidak exposes `key` pesan pemicu (hanya `chat`, `sender`, dll.), sehingga
-//! `tandai_dibaca` tidak dapat dipanggil dengan key yang benar. Implementasi
-//! di bawah memanggil `tandai_dibaca(&[])` sebagai pendekat, lalu reaksi ✅
-//! dan balasan — teks balasan sama persis dengan JS.
+//! Tandai pesan sebagai sudah dibaca.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

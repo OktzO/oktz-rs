@@ -1,10 +1,4 @@
-//! `plugins/owner/onlyadmin.js` — flag `onlyAdmin` per-grup atau global.
-//!
-//! Tiga command berbagi satu handler: `onlyadmin` (on/off/status),
-//! `selfadmin`, dan `publicadmin`. Alias/selfAdmin/publicAdmin hanya melayani
-//! pem nutritious cek router — `mode_settings_from` di `pipeline.rs:250`
-//! membaca ketiganya dari `settings`, dan `group_overrides_from` dari
-//! `groups[chat]`.
+//! Flag `onlyAdmin` per-grup atau global.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -25,7 +19,7 @@ pub(crate) fn read_admin_flag(ctx: &Ctx, key: &str) -> bool {
 }
 
 /// `writeAdminFlags` — grup dapat satu `setGroup` (Object.assign), private
-///-chat dapat satu `db.setting` per key.
+/// Chat dapat satu `db.setting` per key.
 pub(crate) fn flag_mutations(ctx: &Ctx, flags: &[(&str, bool)]) -> Vec<Mutation> {
     if ctx.is_group {
         let data = flags
@@ -46,7 +40,7 @@ pub(crate) fn flag_mutations(ctx: &Ctx, flags: &[(&str, bool)]) -> Vec<Mutation>
         .collect()
 }
 
-/// Tiga flag yang selalu ditulis bersama saat menyalakan — `selfAdmin` dan
+/// Tiga flag yang selalu ditulis bersama saat menyalakan — `selfAdmin`
 /// `publicAdmin` harus ikut mati kalau tidak, kalau tidak router masih
 /// melihat mode lama.
 pub(crate) const ON_FLAGS: [(&str, bool); 3] =

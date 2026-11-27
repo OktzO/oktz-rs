@@ -1,21 +1,10 @@
-//! `plugins/owner/ganti-welcome.js` — ganti gambar welcome.jpg.
-//!
-//! Port dari nol. Yang dipindah:
-//! - guard "bukan gambar" + teks kartu (`ganti-welcome.js:20-24`).
-//! - unduh media (`:27-36`).
-//! - penulisan aset + teks sukses (`:38-44`).
-//!
-//! `updateAssetUrl` menulis berkas aset ke
-//! `path.resolve(process.cwd(), localPath)`; `ctx.berkas()` berakar ke
-//! direktori kerja sehingga langkah itu ditiru persis lewat
-//! [`crate::owner::aset::tulis_aset`]. Yang hilang hanya penulisan ulang
-//! `config.js` dan unggah ke CDN (lihat modul `aset`).
+//! Ganti gambar welcome.jpg.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Judul kartu (`ganti-welcome.js:23`).
+/// Judul kartu.
 const JUDUL: &str = "🖼️ *ɢᴀɴᴛɪ ᴡᴇʟᴄᴏᴍᴇ.ᴊᴘɢ*";
-/// Path aset (`ganti-welcome.js:23`).
+/// Path aset.
 const FILE: &str = "assets/image/welcome.jpeg";
 
 #[plugin(

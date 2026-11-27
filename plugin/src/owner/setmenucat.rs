@@ -1,10 +1,9 @@
-//! `plugins/owner/setmenucat.js` — atur variant tampilan menucat.
+//! Atur variant tampilan menucat.
 //!
-//! `ponytail:` `db.setting(key, value)` + `db.save()` (penulisan) dan
-//! `sock.sendButton` tidak diekspos ke plugin di registry Rust. Hanya baca
-//! `ctx.setting("menucatVariant")` yang tersedia. Cabang tulis (dengan
-//! argumen) dan kirim tombol interaktif (tanpa argumen) jatuh ke error /
-//! placeholder.
+//! `Keterbatasan:` `db.setting(key, value)` + `db.save()` (penulisan) dan `sock.sendButton`
+//! tidak diekspos ke plugin di registry Rust. Hanya baca `ctx.setting("menucatVariant")`
+//! yang tersedia. Cabang tulis (dengan argumen) dan kirim tombol interaktif (tanpa argumen)
+//! jatuh ke error / placeholder.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -99,7 +98,7 @@ pub fn setmenucat(ctx: Ctx) -> Reply {
         return Reply::text("❌ *VARIANT TIDAK VALID*\n\nGunakan: *v1*, *v2*, *v5*, atau *v6*");
     }
 
-    // `ponytail:` `db.setting("menucatVariant", selected.id)` + `db.save()`
+    // `Keterbatasan:` `db.setting("menucatVariant", selected.id)` + `db.save()`
     // (penulisan database) tidak tersedia di registry Rust, jadi perubahan
     // tidak dapat disimpan.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")

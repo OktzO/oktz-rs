@@ -1,23 +1,21 @@
-//! `plugins/owner/ganti-namadev.js` — ganti nama developer di config.js.
+//! Ganti nama developer.
 //!
-//! `ponytail:` objek config live (`config.bot.developer = newName`) tidak
-//! dapat dimutasi di `Ctx` — hanya berkas `config.js` yang ditulis, sama
-//! seperti JS yang menimpa berkas lalu memuat ulang.
-//! `fs.readFileSync`/`writeFileSync` → `ctx.berkas().baca_teks()` /
-//! `tulis_teks()` jalur `"config.js"` (relatif ke akar aset = CWD).
-//! Regex tanpa crate `regex` (tidak ada di Cargo.toml): cari `developer:`,
-//! lewati spasi, ambil antiko cutip, ganti isinya.
-//! `te(...)` → `crate::common::error_template(&ctx)`.
+//! `Keterbatasan:` objek config live (`config.bot.developer = newName`) tidak dapat
+//! dimutasi di `Ctx` — hanya berkas yang ditulis, sama seperti versi awal yang menimpa
+//! berkas lalu memuat ulang. `fs.readFileSync`/`writeFileSync` → `ctx.berkas().baca_teks()`
+//! / `tulis_teks()` jalur `""` (relatif ke akar aset = CWD). Regex tanpa crate `regex`
+//! (tidak ada di Cargo.toml): cari `developer:`, lewati spasi, ambil antiko cutip, ganti
+//! isinya. `te(...)` → `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Jalur berkas konfigurasi (`ganti-namadev.js:28`).
+/// Jalur berkas konfigurasi.
 const CONFIG_PATH: &str = "config.js";
 
-/// Kunci yang diganti (`ganti-namadev.js:31`).
+/// Kunci yang diganti.
 const KUNCI: &str = "developer:";
 
-/// Bantuan saat nama kosong (`ganti-namadev.js:23-25`).
+/// Bantuan saat nama kosong.
 pub(crate) fn bantuan(prefix: &str, developer_saat_ini: &str) -> String {
     format!(
         "👨‍💻 *ɢᴀɴᴛɪ ɴᴀᴍᴀ ᴅᴇᴠᴇʟᴏᴘᴇʀ*\n\n\
@@ -27,7 +25,7 @@ pub(crate) fn bantuan(prefix: &str, developer_saat_ini: &str) -> String {
     )
 }
 
-/// Sukses (`ganti-namadev.js:40`).
+/// Sukses.
 pub(crate) fn sukses(nama_baru: &str) -> String {
     format!(
         "✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Nama developer diganti ke: *{nama_baru}*"
@@ -35,7 +33,7 @@ pub(crate) fn sukses(nama_baru: &str) -> String {
 }
 
 /// Ganti nilai di dalam `developer: '...'` / `developer: "..."` (pertama
-/// saja, mirip `String.replace` tanpa flag `g` di JS).
+/// saja, mirip `String.replace` tanpa flag `g` di versi awal).
 fn ganti_developer(content: &str, nama_baru: &str) -> String {
     let prefix = KUNCI;
     let Some(idx) = content.find(prefix) else {
@@ -109,9 +107,9 @@ pub fn ganti_namadev(ctx: Ctx) -> Reply {
     Reply::text(sukses(&nama_baru))
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -150,8 +148,8 @@ mod tests {
 
     #[test]
     fn nama_kosong_menghasilkan_bantuan() {
-        // `config.bot?.developer` (`ganti-namadev.js:24`) = objek config live;
-        // di port ini `ctx.config()`, bukan isi berkas config.js.
+        // `config.bot?.developer` = objek config live;
+        // di port ini `ctx.config()`, bukan isi berkas.
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
@@ -198,8 +196,8 @@ mod tests {
 
     #[test]
     fn spasi_di_sekitar_colon_dipertahankan() {
-        // Regex JS `developer:\s*` (`ganti-namadev.js:31-34`) menuntut titik dua
-        // tepat setelah `developer:`; "developer  :" tidak cocok, jadi isi
+        // Regex versi awal `developer:\s*` menuntut titik dua
+        // tepat setelah `developer:`; "developer:" tidak cocok, jadi isi
         // berkas TIDAK berubah (hanya config live yang berganti).
         let b = berkas_dengan("developer  :  'Zann'");
         let r = run(&b, &["Budi"]);

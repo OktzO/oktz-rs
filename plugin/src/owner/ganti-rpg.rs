@@ -1,4 +1,4 @@
-//! `plugins/owner/ganti-rpg.js` — ganti gambar rpg.jpg (thumbnail rpg).
+//! Ganti gambar rpg.jpg (thumbnail rpg).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,14 +26,14 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn ganti_rpg(ctx: Ctx) -> Reply {
-    // `ganti-rpg.js` butuh:
-    //   1. `m.isImage` / `m.quoted` — cek media, sebagian ada di `Ctx`.
-    //   2. `m.download()` / `m.quoted.download()` — byte gambar, tersedia via
-    //      `ctx.media_fetch.download(...)`.
-    //   3. `updateAssetUrl('rpg', buffer, 'rpg.jpeg')` — tulis file + rewrite
-    //      `config.js`. I/O filesystem yang tidak ada di `Ctx`.
+    // butuh:
+    // 1. `m.isImage` / `m.quoted` — cek media, sebagian ada di `Ctx`.
+    // 2. `m.download()` / `m.quoted.download()` — byte gambar, tersedia via
+    // `ctx.media_fetch.download(...)`.
+    // 3. `updateAssetUrl('rpg', buffer, 'rpg.jpeg')` — tulis file + rewrite
+    // . I/O filesystem yang tidak ada di `Ctx`.
     //
-    // `ponytail:` tambahkan akses tulis asset/file ke `Ctx`, lalu unduh byte
+    // `Keterbatasan:` tambahkan akses tulis asset/file ke `Ctx`, lalu unduh byte
     // gambar dan simpan ke `assets/image/rpg.jpeg`.
     Reply::text(help(&ctx.prefix))
 }

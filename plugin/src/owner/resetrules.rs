@@ -1,4 +1,4 @@
-//! `plugins/owner/resetrules.js` — `botRules` kembali ke default router.
+//! `botRules` kembali ke default router.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

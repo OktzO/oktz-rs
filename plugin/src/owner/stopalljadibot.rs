@@ -1,13 +1,4 @@
-//! `plugins/owner/stopalljadibot.js` — hentikan semua jadibot yang aktif.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod stopalljadibot;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/owner/mod.rs`.
-//!
-//! `getActiveJadibots()` / `stopAllJadibots()` dari `src/lib/jadibot-manager.js`
-//! tidak punya padanan di `Ctx`, jadi handler selalu melaporkan tidak ada
-//! jadibot aktif — pola yang sama dengan plugin owner lain yang butuh I/O
-//! sock/store yang belum tersedia di konteks plugin.
+//! Hentikan semua jadibot yang aktif.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

@@ -1,11 +1,10 @@
-//! `plugins/owner/goodbyeall.js` — nyalakan/matikan goodbye di semua grup.
+//! Nyalakan/matikan goodbye di semua grup.
 //!
-//! `ponytail:` `sock.groupFetchAllParticipating()` TIDAK di-port. Daftarnya
-//! grup hanya ada di Baileys, dan `Ctx` tidak menyediakannya: `ctx.group_data`
-//! adalah baris store milik SATU grup, bukan peta semua grup. Tanpa daftar itu
-//! `db.setGroup(.., { leave })` tidak punya target, jadi plugin berhenti di
-//! balasan "tidak tersedia" dan TIDAK menulis store apa pun. Yang dipindah:
-//! parsing aksi dan teks usage.
+//! `Keterbatasan:` `sock.groupFetchAllParticipating()` TIDAK diimplementasikan. Daftarnya
+//! grup hanya ada di Baileys, dan `Ctx` tidak menyediakannya: `ctx.group_data` adalah baris
+//! store milik SATU grup, bukan peta semua grup. Tanpa daftar itu `db.setGroup(.., { leave
+//! })` tidak punya target, jadi plugin berhenti di balasan "tidak tersedia" dan TIDAK
+//! menulis store apa pun. Yang dipindah: parsing aksi dan teks usage.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -114,7 +113,7 @@ mod tests {
         assert!(usage(".").contains("┃ .goodbyeall off"));
     }
 
-    /// JS memakai `${m.prefix}goodbyeall on`, bukan titik literal.
+    /// versi awal memakai `${m.prefix}goodbyeall on`, bukan titik literal.
     #[test]
     fn the_usage_box_carries_the_live_prefix() {
         let out = run_with("!", &[]).text_body().unwrap().to_string();

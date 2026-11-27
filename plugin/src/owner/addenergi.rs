@@ -1,13 +1,13 @@
-//! `plugins/owner/addenergi.js` — tambah energi (bisa `--unlimited`).
+//! Tambah energi (bisa `--unlimited`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `config.energi.default` (`config.js:114`) — nilai yang dipakai `setUser`
+/// `config.energi.default` — nilai yang dipakai `setUser`
 /// untuk user yang belum pernah ada.
 const DEFAULT_ENERGI: i64 = 99_999;
 
 /// `user.energi === -1`. `db.updateEnergi` juga mengembalikan `-1` tanpa
-/// mengubah apa pun kalau user sudah unlimited (`database.js:630`).
+/// mengubah apa pun kalau user sudah unlimited.
 const UNLIMITED: i64 = -1;
 
 /// Ribuan bertitik, tanda minus ikut (`-1234` → `-1.234`).
@@ -19,7 +19,7 @@ fn thousands(n: i64) -> String {
     }
 }
 
-/// `formatNumber` (`addenergi.js:17-20`).
+/// `formatNumber`.
 fn format_number(n: i64) -> String {
     if n == UNLIMITED {
         "∞ Unlimited".to_string()
@@ -29,7 +29,7 @@ fn format_number(n: i64) -> String {
 }
 
 /// `args.find(a => !isNaN(a) && !a.includes('@') && !a.startsWith('-'))` —
-/// `isNaN` JS itu koersi penuh, jadi token harus benar-benar angka
+/// `isNaN` versi awal itu koersi penuh, jadi token harus benar-benar angka
 /// (`12abc` → `NaN`, ditolak; `12.5` → diterima lalu `parseInt` jadi `12`).
 fn numeric_arg(ctx: &Ctx) -> Option<&str> {
     ctx.args
@@ -68,9 +68,9 @@ fn phone_arg(ctx: &Ctx, num_arg: Option<&str>) -> Option<String> {
 
 /// Energi tersimpan untuk `jid`.
 ///
-/// `ponytail:` `Ctx` hanya mengisi `user_data` untuk `sender` dan
+/// `Keterbatasan:` `Ctx` hanya mengisi `user_data` untuk `sender`
 /// `participants[i].data` untuk roster grup. JID di luar keduanya dianggap
-/// user baru — sama dengan `db.getUser(jid) || db.setUser(jid)`, yang
+/// user baru — sama dengan `db.getUser(jid) || db.setUser(jid)`,
 /// memberi `config.energi.default`. Tambahkan `user_entry(jid)` ke `Ctx`
 /// kalau router mau membaca state user mana pun.
 fn stored_energi(ctx: &Ctx, jid: &str) -> i64 {
@@ -148,7 +148,7 @@ pub fn addenergi(ctx: Ctx) -> Reply {
     let current = stored_energi(&ctx, &target);
     // `config.isOwner(target) && config.energi.owner === -1`. Cabang premium
     // mati di config ini (`energi.premium = 99999999`), dan `isOwner` hanya
-    // bisa dijawab untuk pengirim — `ponytail:` tambahkan `owner_numbers`
+    // bisa dijawab untuk pengirim — `Keterbatasan:` tambahkan `owner_numbers`
     // ke `Ctx` kalau router mau mengecek JID target.
     let effective_unlimited = current == UNLIMITED || (target == ctx.sender && ctx.is_owner);
 
@@ -343,10 +343,10 @@ mod tests {
 
     #[test]
     fn a_bare_phone_number_is_consumed_as_the_amount_just_like_in_js() {
-        // `args.find(a => !isNaN(a) && ...)` — "628999123456" lolos `isNaN`,
+        // `args.find(a => !isNaN(a) &&...)` — "628999123456" lolos `isNaN`,
         // jadi ia yang jadi numArg, bukan nomor tujuan. Branch phone hanya
         // kena kalau token itu DILEWATI numArg, jadi mustahil untuk angka
-        // murni: keep the test honest about what the JS actually does.
+        // murni: keep the test honest about what the versi awal actually does.
         let r = run("628999123456 50", serde_json::json!({ "energi": 0 }));
         let (jid, value) = written_energi(&r);
         assert_eq!(jid, SENDER, "tidak ada target, jadi jatuh ke sender");
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn an_unlimited_target_reached_through_the_roster_is_never_topped_up() {
-        // Energi target dibaca dari `participants[i].data` saat target ada di
+        // Energi target dibaca dari `participants[i].data` saat target ada
         // roster grup — jalur yang membuat guard "sudah unlimited" hidup.
         let ctx = Ctx {
             sender: SENDER.into(),

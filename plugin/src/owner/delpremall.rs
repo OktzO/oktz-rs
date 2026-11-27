@@ -1,9 +1,4 @@
-//! `plugins/owner/delpremall.js` — lepas premium semua member grup.
-//!
-//! `db.data.premium` adalah store terpisah (`premium.json`), bukan `db.setting`,
-//! dan `Ctx` tidak membawanya — sama seperti pada `addpremall.rs`. Yang dipakai
-//! di sini adalah flag `isPremium` per user (`premium-db.js:isPremium` +
-//! `database.js:202`), jadi "sudah premium" = record user-nya punya flag itu.
+//! Lepas premium semua member grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -56,7 +51,7 @@ pub fn delpremall(ctx: Ctx) -> Reply {
             not_prem += 1;
             continue;
         }
-        // `db.getUser(jid)` = `null` kalau user belum pernah ada — JS tetap
+        // `db.getUser(jid)` = `null` kalau user belum pernah ada — versi awal tetap
         // menaikkan `removedCount`, hanya penulisan flag-nya yang dilewati.
         if !p.data.is_null() {
             writes.push(Mutation::SetUser {
@@ -201,7 +196,7 @@ mod tests {
 
     #[test]
     fn a_member_with_no_stored_record_counts_as_not_premium() {
-        // JS bisa punya nomor di `premium.json` tanpa record di `users.json`
+        // versi awal bisa punya nomor di `premium.json` tanpa record di `users.json`
         // dan tetap menghitungnya terhapus; dengan flag `isPremium` sebagai
         // pengganti, record yang tidak ada otomatis berarti bukan premium.
         let r = run(roster(vec![member(

@@ -1,10 +1,8 @@
-//! `plugins/owner/autobio.js` — setelan bio WhatsApp bot yang diperbarui
-//! otomatis.
+//! Setelan bio WhatsApp bot yang diperbarui
 //!
-//! `ponytail:` scheduler `startAutoBioChecker` (yang benar-benar memanggil
-//! `sock.updateProfileStatus`) tidak ikut — plugin ini hanya menulis tiga
-//! setting yang dibaca scheduler itu. Tambahkan scheduler bio ke router kalau
-//! capability-nya tersedia.
+//! `Keterbatasan:` scheduler `startAutoBioChecker` (yang benar-benar memanggil
+//! `sock.updateProfileStatus`) tidak ikut — plugin ini hanya menulis tiga setting yang
+//! dibaca scheduler itu. Tambahkan scheduler bio ke router kalau capability-nya tersedia.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -53,7 +51,7 @@ pub(crate) const BAD_FORMAT: &str =
 
 /// `parseInt(timeStr)` + pilihan satuan. Semua cek `"d"`/`"detik"` dilakukan
 /// pada string lowercase, jadi `"30 Detik"` (huruf besar) tidak kena cabang
-/// detik dan jatuh ke default menit — sama seperti JS.
+/// detik dan jatuh ke default menit — sama seperti versi awal.
 pub(crate) fn interval_from(time_str: &str) -> Option<i64> {
     let value = crate::common::parse_int(time_str)?;
     let has = |needle: &str| time_str.contains(needle);
@@ -269,13 +267,13 @@ mod tests {
         assert_eq!(interval_from("2 menit"), Some(120_000));
         // "1d" mengandung huruf "d", jadi cabang HARI yang menang lebih dulu
         // dan hasilnya `value * 1000` — bukan 86.400.000. Persis `if/else`
-        // di `autobio.js:70-75`; bukan bug port.
+        // ; bukan bug port.
         assert_eq!(interval_from("1d"), Some(1_000), "huruf d tidak di-anchor");
         // "1 hari" tidak mengandung d/menit/jam, jadi jatuh ke default menit
-        // — `else ms = value * 60000` di JS.
+        // `else ms = value * 60000` di versi awal.
         assert_eq!(interval_from("1 hari"), Some(60_000), "default menit");
         // "1 jam" mengandung huruf "m" (dari "jam" sendiri), jadi cabang
-        // menit menang lebih dulu persis seperti `includes("m")` di JS.
+        // menit menang lebih dulu persis seperti `includes("m")` di versi awal.
         assert_eq!(interval_from("1 jam"), Some(60_000), "huruf m di 'jam'");
         assert_eq!(interval_from("abc"), None, "parseInt NaN");
     }

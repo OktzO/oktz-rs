@@ -1,22 +1,11 @@
-//! `plugins/owner/ganti-namaowner.js` — ganti nama owner (utama atau tambahan).
+//! Ganti nama owner (utama atau tambahan).
 //!
-//! Yang dipindah: daftar nama (`ownerNames`) + set nama per nomor + prompt
-//! `main` tanpa nama. Nama/nomor owner utama dibaca dari `ctx.config()`
-//! (`config.owner.name` / `config.owner.number`), dan `getOwnerName`
-//! (`config.js:537-552`) yang menentukan nama tampil saat nomor belum pernah
-//! diberi nama baru.
-//!
-//! `ponytail:` cabang `main <nama>` di JS menulis berkas
-//! `path.join(process.cwd(), "config.js")` lalu memutasi objek config live.
-//! Di produksi `ctx.berkas` masih `BerkasPalsu` (memori) dan `ctx.config`
-//! bertipe `Arc` yang tidak bisa dimutasi, jadi penulisan itu tidak punya efek
-//! nyata; handler berhenti di jalur `catch` JS sendiri
-//! (`te(m.prefix, m.command, m.pushName)`, `ganti-namaowner.js:68-70`).
-//! Saat `ctx.berkas` jadi `BerkasNyata` dan ada mutasi config, cabang regex
-//! `owner: {...name: '...'}` bisa diisi penuh.
-//!
-//! Catatan: berkas ini bernama `ganti-namaowner.rs` (pakai dash), jadi mod.rs
-//! butuh `#[path = "ganti-namaowner.rs"] pub mod ganti_namaowner;`.
+//! `Keterbatasan:` cabang `main <nama>` di versi awal menulis berkas
+//! `path.join(process.cwd(), "")` lalu memutasi objek config live. Di produksi `ctx.berkas`
+//! masih `BerkasPalsu` (memori) dan `ctx.config` bertipe `Arc` yang tidak bisa dimutasi,
+//! jadi penulisan itu tidak punya efek nyata; handler berhenti di jalur `catch` versi awal
+//! sendiri (`te(m.prefix, m.command, m.pushName)`,). Saat `ctx.berkas` jadi `BerkasNyata`
+//! dan ada mutasi config, cabang regex `owner: {...name: '...'}` bisa diisi penuh.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -31,7 +20,7 @@ fn nama_utama(ctx: &Ctx) -> String {
     }
 }
 
-/// `${v}` JS untuk nilai peta nama — string apa adanya, angka apa adanya.
+/// `${v}` versi awal untuk nilai peta nama — string apa adanya, angka apa adanya.
 fn teks(v: &Value) -> String {
     match v.as_str() {
         Some(s) => s.to_string(),
@@ -39,7 +28,7 @@ fn teks(v: &Value) -> String {
     }
 }
 
-/// `normalizeNumber` (`config.js:345-352`).
+/// `normalizeNumber`.
 fn normalisasi(nomor: &str) -> String {
     nomor
         .split('@')
@@ -50,14 +39,14 @@ fn normalisasi(nomor: &str) -> String {
         .collect()
 }
 
-/// `matchesNumber` (`config.js:358-362`) — strict equality setelah normalisasi.
+/// `matchesNumber` — strict equality setelah normalisasi.
 fn nomor_sama(a: &str, b: &str) -> bool {
     let na = normalisasi(a);
     let nb = normalisasi(b);
     !na.is_empty() && !nb.is_empty() && na == nb
 }
 
-/// `getOwnerName(number)` (`config.js:537-552`).
+/// `getOwnerName(number)`.
 fn nama_owner(ctx: &Ctx, nomor: &str) -> String {
     if nomor.is_empty() {
         return nama_utama(ctx);
@@ -80,7 +69,7 @@ fn nama_owner(ctx: &Ctx, nomor: &str) -> String {
     "Owner".to_string()
 }
 
-/// `if (!input[0]) { ... }` (`ganti-namaowner.js:26-44`).
+/// `if (!input[0]) {... }`.
 fn daftar_owner(ctx: &Ctx) -> String {
     // `config.owner?.number?.[0] || ""`.
     let nomor_utama = ctx.config().owner.number.first().cloned().unwrap_or_default();
@@ -141,8 +130,8 @@ pub fn ganti_namaowner(ctx: Ctx) -> Reply {
                 ctx.prefix
             ));
         }
-        // ponytail: penulisan config.js tidak punya efek di produksi
-        // (`ctx.berkas` = `BerkasPalsu`, `ctx.config` Arc tak termutasi). JS
+        // Keterbatasan: penulisan tidak punya efek di produksi
+        // (`ctx.berkas` = `BerkasPalsu`, `ctx.config` Arc tak termutasi). versi awal
         // berakhir di `catch` saat penulisan gagal, dan itu yang dikirim.
         return Reply::text(crate::common::error_template(&ctx));
     }
@@ -320,8 +309,8 @@ mod tests {
 
     #[test]
     fn main_dengan_nama_berhenti_di_template_error() {
-        // JS menulis config.js; penulisan itu tidak punya efek di produksi,
-        // jadi jawabannya jalur `catch` JS (`ganti-namaowner.js:68-70`).
+        // versi awal menulis; penulisan itu tidak punya efek di produksi,
+        // jadi jawabannya jalur `catch` versi awal.
         let r = run(&["main", "Budi", "Santoso"], Value::Null);
         assert_eq!(
             text_of(&r),

@@ -1,22 +1,8 @@
-//! `plugins/owner/swgcall.js` — post Group Status/Story ke SEMUA grup.
+//! Post Group Status/Story ke SEMUA grup.
 //!
-//! `//! BLOKIRAN:` plugin ini tidak dapat di-port karena:
-//!   1. `sock.sendMessage(jid, { groupStatusMessage: content })` — tidak ada
-//!      di trait `Sock` (tidak ada API group status / story).
-//!   2. `sock.groupFetchAllParticipating()` — tidak ada di trait `Sock`
-//!      (hanya `semua_grup()` yang belum ada juga).
-//!   3. `file-type` (`fileTypeFromBuffer`) — tidak ada di `Ctx`.
-//!   4. `global._swgcallPending` / `global.statuspush` — state global antar
-//!      pesan tidak tersedia lewat `Ctx` (hanya `sessions` per-kunci).
-//!   5. `saluranCtx()` / `forwardedNewsletterMessageInfo` — tidak ada di `Ctx`.
-//!   6. `interactiveButtons` / `quick_reply` — tidak ada di `Reply`.
-//!
-//! Berkas ini dibuat sebagai catatan; implementasi ditunda sampai kapasitas
-//! di atas tersedia.
-//!
-//! `ponytail:` saat `Sock` mendukung group status + `semua_grup()`, dan
-//! `Reply` mendukung interactive buttons, implementasikan ulang dan tambahkan
-//! `pub mod swgcall;` di `src/owner/mod.rs` secara manual.
+//! `Keterbatasan:` saat `Sock` mendukung group status + `semua_grup()`, dan `Reply`
+//! mendukung interactive buttons, implementasikan ulang dan tambahkan `pub mod swgcall;` di
+//! `src/owner/mod.rs` secara manual.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

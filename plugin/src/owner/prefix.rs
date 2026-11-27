@@ -1,12 +1,6 @@
-//! `plugins/owner/prefix.js` — manajemen prefix bot (simpan ke database/prefix.json).
+//! Manajemen prefix bot (simpan ke database/prefix.json).
 //!
-//! JS satu handler menangani 6 command (`addprefix`, `gantiprefix`/`setprefix`,
-//! `delprefix`, `listprefix`, `resetprefix`). Di Rust satu `#[plugin]` = satu
-//! `name`, jadi daftarkan `name = "addprefix"` dan sisanya sebagai command
-//! tambahan (`PluginMeta::commands`); `oktz_plugin_api::find` mencocokkan
-//! nama, command tambahan, lalu alias.
-//!
-//! `ponytail:` `m.command?.toLowerCase()` di JS sudah lowercase lewat router,
+//! `Keterbatasan:` `m.command?.toLowerCase()` di versi awal sudah lowercase lewat router,
 //! jadi `ctx.command` dipakai langsung.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -15,7 +9,7 @@ use serde_json::{Map, Value};
 const PREF_DB_PATH: &str = "database/prefix.json";
 const CONFIG_PREFIX: &str = ".";
 
-/// `prefix.js:35-49` — pluginConfig. Nama pertama array JS = "addprefix";
+/// PluginConfig. Nama pertama array versi awal = "addprefix";
 /// sisanya alias (pencocokan nama/alias sama-sama lewat `PluginMeta::matches`).
 #[plugin(
     name = "addprefix",
@@ -49,7 +43,7 @@ pub fn prefix(ctx: Ctx) -> Reply {
     }
 }
 
-/// `prefix.js:6-13` — baca database/prefix.json, gagal diam-diam → default.
+/// Baca database/prefix.json, gagal diam-diam → default.
 fn muat_awalan(ctx: &Ctx) -> Value {
     match ctx.berkas().baca_teks(PREF_DB_PATH) {
         Ok(teks) => serde_json::from_str(&teks).unwrap_or(Value::Null),
@@ -64,7 +58,7 @@ fn json_default() -> Value {
     Value::Object(m)
 }
 
-/// `prefix.js:15-21` — tulis JSON, buat folder induk jika perlu.
+/// Tulis JSON, buat folder induk jika perlu.
 fn simpan_awalan(ctx: &Ctx, data: &Value) {
     let _ = ctx.berkas().buat_folder("database");
     let _ = ctx.berkas().tulis_teks(PREF_DB_PATH, &serde_json::to_string_pretty(data).unwrap_or_default());
@@ -85,7 +79,7 @@ fn noprefix_aktif(data: &Value) -> bool {
     data.get("noprefix").and_then(Value::as_bool).unwrap_or(false)
 }
 
-/// `prefix.js:23-28` — gabung config prefix + database, dedup.
+/// Gabung config prefix + database, dedup.
 fn semua_awalan(_ctx: &Ctx, data: &Value) -> Vec<String> {
     let mut gabung: Vec<String> = vec![CONFIG_PREFIX.to_string()];
     for p in prefixes_arr(data) {
@@ -96,7 +90,7 @@ fn semua_awalan(_ctx: &Ctx, data: &Value) -> Vec<String> {
     gabung
 }
 
-/// `prefix.js:60-105` — addprefix.
+/// Addprefix.
 fn cmd_addprefix(ctx: &Ctx, data: &Value) -> Reply {
     if ctx.args.is_empty() {
         return Reply::text(format!(
@@ -146,7 +140,7 @@ fn cmd_addprefix(ctx: &Ctx, data: &Value) -> Reply {
         ""
     };
     Reply::text(format!(
-        // "ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ" = U+029C (ʜ), persis `prefix.js:98`.
+        // "ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ" = U+029C (ʜ), persis.
         "✅ *ᴘʀᴇғɪx ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ*\n\n> Added: `{}`\n\n*Semua prefix aktif:*\n> `{}`{}",
         baru.join("` `"),
         all.join("` `"),
@@ -154,7 +148,7 @@ fn cmd_addprefix(ctx: &Ctx, data: &Value) -> Reply {
     ))
 }
 
-/// `prefix.js:107-151` — setprefix/gantiprefix.
+/// Setprefix/gantiprefix.
 fn cmd_ganti_awalan(ctx: &Ctx, data: &Value) -> Reply {
     if ctx.args.is_empty() {
         return Reply::text(format!(
@@ -195,7 +189,7 @@ fn cmd_ganti_awalan(ctx: &Ctx, data: &Value) -> Reply {
     Reply::text(reply_text)
 }
 
-/// `prefix.js:153-193` — delprefix.
+/// Delprefix.
 fn cmd_hapus_awalan(ctx: &Ctx, data: &Value) -> Reply {
     if ctx.args.is_empty() {
         return Reply::text(format!(
@@ -244,7 +238,7 @@ fn cmd_hapus_awalan(ctx: &Ctx, data: &Value) -> Reply {
     ))
 }
 
-/// `prefix.js:195-219` — listprefix.
+/// Listprefix.
 fn daftar_awalan(ctx: &Ctx, data: &Value) -> String {
     let all = semua_awalan(ctx, data);
     let mut text = format!(
@@ -270,7 +264,7 @@ fn daftar_awalan(ctx: &Ctx, data: &Value) -> String {
     text
 }
 
-/// `prefix.js:221-234` — resetprefix.
+/// Resetprefix.
 fn cmd_reset_awalan(ctx: &Ctx, data: &Value) -> Reply {
     let mut data = data.clone();
     if let Some(obj) = data.as_object_mut() {
@@ -310,7 +304,7 @@ mod tests {
 
     #[test]
     fn tambah_prefix_baru() {
-        // `prefix.js:61-64`: tanpa argumen handler hanya menampilkan bantuan.
+        // : tanpa argumen handler hanya menampilkan bantuan.
         let c = Ctx {
             args: vec!["!".into()],
             ..ctx()
@@ -330,7 +324,7 @@ mod tests {
 
     #[test]
     fn semua_kunci_js_resolve_di_registry() {
-        // JS `name: ['addprefix', 'gantiprefix', 'setprefix', 'delprefix',
+        // versi awal `name: ['addprefix', 'gantiprefix', 'setprefix', 'delprefix',
         // 'listprefix', 'resetprefix']` — satu plugin, enam pintu masuk.
         for kunci in [
             "addprefix",
@@ -356,7 +350,7 @@ mod tests {
 
     #[test]
     fn listprefix_baris_database_pakai_spasi_bukan_tab() {
-        // `prefix.js:208`: `┃ ${i + 1}. \`${p}\`` — satu spasi setelah titik.
+        // : `┃ ${i + 1}. \`${p}\`` — satu spasi setelah titik.
         let c = ctx();
         let mut data = muat_awalan(&c);
         if let Some(obj) = data.as_object_mut() {

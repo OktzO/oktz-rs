@@ -1,4 +1,4 @@
-//! `plugins/owner/stopdandeletejadibot.js` — stop dan hapus session jadibot user.
+//! Stop dan hapus session jadibot user.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,14 +26,14 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn stop_dan_delete_jadibot(ctx: Ctx) -> Reply {
-    // `stopdandeletejadibot.js` butuh:
-    //   1. `stopJadibot(target, true)` / `getAllJadibotSessions()` dari
-    //      `src/lib/jadibot-manager.js` — manajemen session jadibot (WebSocket,
-    //      auth folder, Turso) yang tidak ada di crate Rust.
-    //   2. `m.quoted.sender`, `m.mentionedJid`, `m.text` — sebagian ada di
-    //      `Ctx`, tapi operasi stop/hapus session tidak tersedia.
+    // butuh:
+    // 1. `stopJadibot(target, true)` / `getAllJadibotSessions()`
+    // Manajemen session jadibot (WebSocket,
+    // auth folder, Turso) yang tidak ada di crate Rust.
+    // 2. `m.quoted.sender`, `m.mentionedJid`, `m.text` — sebagian ada
+    // `Ctx`, tapi operasi stop/hapus session tidak tersedia.
     //
-    // `ponytail:` sediakan antarmuka stop/hapus session jadibot, lalu
+    // `Keterbatasan:` sediakan antarmuka stop/hapus session jadibot, lalu
     // replikasikan daftar sesi + pilihan target via mention/reply.
     Reply::text(help(&ctx.prefix))
 }

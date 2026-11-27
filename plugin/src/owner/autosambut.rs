@@ -1,11 +1,10 @@
-//! `plugins/owner/autosambut.js` — `groups[chat].autoSambut`
-//! (on/off/delay/add/del/list).
+//! `groups[chat].autoSambut`
 //!
-//! `ponytail:` flag `--global` tidak bisa diport: cabangnya menulis ke SETIAP
-//! grup hasil `sock.groupFetchAllParticipating()`, sedangkan `Ctx` tidak punya
-//! daftar grup dan satu `Mutation::SetGroup` hanya bisa satu JID. Perintah yang
-//! membawa `--global` di sini berlaku untuk grup ini saja. Tambahkan
-//! `all_group_jids: Vec<String>` ke `Ctx` kalau router mau keduanya.
+//! `Keterbatasan:` flag `--global` tidak bisa diport: cabangnya menulis ke SETIAP grup
+//! hasil `sock.groupFetchAllParticipating()`, sedangkan `Ctx` tidak punya daftar grup dan
+//! satu `Mutation::SetGroup` hanya bisa satu JID. Perintah yang membawa `--global` di sini
+//! berlaku untuk grup ini saja. Tambahkan `all_group_jids: Vec<String>` ke `Ctx` kalau
+//! router mau keduanya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -15,7 +14,7 @@ use crate::common::{js_truthy, js_truthy_value, parse_int, string_list};
 const DEFAULT_PESAN: &str = "Halo {user}! Selamat datang kembali 🙇‍♂️";
 const DEFAULT_DELAY_MS: i64 = 2 * 60 * 60 * 1000;
 
-/// `groupData.autoSambut` setelah blockade di JS di-normalisasi: object default
+/// `groupData.autoSambut` setelah blockade di versi awal di-normalisasi: object default
 /// kalau belum ada, `pesan` lama dimigrasi ke `pesanList`, dan `pesanList`
 /// dijamin tidak kosong.
 struct Auto {
@@ -24,7 +23,7 @@ struct Auto {
     pesan: Vec<String>,
 }
 
-/// `parseTime` (`autosambut.js:19-30`) — `^([\d.]+)([a-zA-Z]+)$`, satuan dari
+/// `parseTime` — `^([\d.]+)([a-zA-Z]+)$`, satuan
 /// huruf pertama saja (`minutes` tidak ada, `menit` juga ditolak).
 pub(crate) fn parse_time(raw: &str) -> Option<i64> {
     let split = raw
@@ -54,8 +53,8 @@ pub(crate) fn parse_time(raw: &str) -> Option<i64> {
     Some(ms as i64)
 }
 
-/// `formatTime` (`autosambut.js:32-38`) — cabang terakhir tetap "hari", bukan
-/// minggu: dua jalur `return` di JS sama-sama begitu.
+/// `formatTime` — cabang terakhir tetap "hari", bukan
+/// minggu: dua jalur `return` di versi awal sama-sama begitu.
 pub(crate) fn format_time(ms: i64) -> String {
     let ms = ms as f64;
     if ms < 60_000.0 {
@@ -71,7 +70,7 @@ pub(crate) fn format_time(ms: i64) -> String {
 
 /// Normalisasi `autoSambasut`. Nilai balik kedua adalah payload yang harus
 /// ditulis sebagai efek samping pemuatan (seed default atau migrasi `pesan`),
-/// persis dua `db.setGroup` di awal handler JS.
+/// persis dua `db.setGroup` di awal handler versi awal.
 fn load(ctx: &Ctx) -> (Auto, Option<Value>) {
     let mut write: Option<Value> = None;
     let mut root = match ctx.group_field("autoSambut") {
@@ -121,8 +120,8 @@ fn load(ctx: &Ctx) -> (Auto, Option<Value>) {
     )
 }
 
-/// Bentuk yang ditulis setiap kali status berubah: objek utuh dengan
-/// `lastChats` kosong, sama seperti `db.setGroup` di JS.
+/// Bentuk yang ditulis setiap kali status berubah: objek utuh
+/// `lastChats` kosong, sama seperti `db.setGroup` di versi awal.
 fn write_payload(auto: &Auto) -> Value {
     serde_json::json!({
         "enabled": auto.enabled,
@@ -180,7 +179,7 @@ fn usage(ctx: &Ctx, auto: &Auto) -> String {
 pub fn autosambut(ctx: Ctx) -> Reply {
     let action = ctx.args.first().map(|a| a.to_lowercase());
     let (mut auto, seed) = load(&ctx);
-    // JS menulis seed/migrasi dulu, apa pun aksi-nya; branch tanpa aksi
+    // versi awal menulis seed/migrasi dulu, apa pun aksi-nya; branch tanpa aksi
     // perubahan apa pun hanya bawa efek pemuatan itu.
     let mut writes: Vec<Mutation> = seed
         .map(|v| Mutation::SetGroup {
@@ -353,8 +352,8 @@ mod tests {
             .collect()
     }
 
-    /// Tulisan terakhir = keadaan akhir (tulis sebelumnya sudah tercakup di
-    /// dalamnya, persis seperti `db.setGroup` berurutan di JS).
+    /// Tulisan terakhir = keadaan akhir (tulis sebelumnya sudah tercakup
+    /// dalamnya, persis seperti `db.setGroup` berurutan di versi awal).
     fn final_write(r: &Reply) -> Value {
         writes(r).pop().expect("harus ada tulis")
     }
@@ -596,7 +595,7 @@ mod tests {
 
     #[test]
     fn an_empty_or_missing_pesan_list_falls_back_to_the_default_greeting() {
-        // Fallback JS hanya mengubah objek di memori — tidak ada `setGroup`,
+        // Fallback versi awal hanya mengubah objek di memori — tidak ada `setGroup`,
         // jadi balasan tampilannya benar sementara store tidak tersentuh.
         for g in [serde_json::json!({}), serde_json::json!({"autoSambut": {"delayMs": 1}})] {
             let r = run(g.clone(), &["list"]);

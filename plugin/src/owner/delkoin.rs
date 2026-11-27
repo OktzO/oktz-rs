@@ -1,4 +1,4 @@
-//! `plugins/owner/delkoin.js` — kurangi koin user.
+//! Kurangi koin user.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -7,9 +7,9 @@ use crate::common::{jid_number, parse_int};
 /// `db.updateKoin` menjepit antara 0 dan 9 triliun.
 const MAX_KOIN: i64 = 9_000_000_000_000;
 
-/// `formatKoin` (`delkoin.js:11-17`) — T/B/M/K dua desimal, lalu ribuan titik.
-/// Berbeda dari `addkoin.js`: tidak ada cabang `-1`, dan helper yang bernama
-/// `formatNumber` di file JS itu sama sekali tidak dipakai.
+/// `formatKoin` — T/B/M/K dua desimal, lalu ribuan titik.
+/// Berbeda: tidak ada cabang `-1`, dan helper yang bernama
+/// `formatNumber` di file versi awal itu sama sekali tidak dipakai.
 fn format_koin(num: i64) -> String {
     let n = num as f64;
     if n >= 1_000_000_000_000.0 {
@@ -47,7 +47,7 @@ fn help(prefix: &str) -> String {
 
 /// Koin tersimpan untuk `jid` — `None` kalau row-nya tidak ada.
 ///
-/// `ponytail:` hanya `sender` (dan anggota roster grup) yang row-nya terbaca
+/// `Keterbatasan:` hanya `sender` (dan anggota roster grup) yang row-nya terbaca
 /// lewat `Ctx`; lihat catatan modul `addenergi`.
 fn stored_koin(ctx: &Ctx, jid: &str) -> Option<i64> {
     let entry = if jid == ctx.sender {
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn a_mention_becomes_the_target_but_its_row_is_unreadable() {
-        // `ponytail:` row target di luar sender+roster tidak terbaca, jadi
+        // `Keterbatasan:` row target di luar sender+roster tidak terbaca, jadi
         // guard "tidak ditemukan" dulu yang kena — bukan menulis ke sender.
         let r = run("50000", serde_json::json!({ "koin": 1000 }), Some(OTHER));
         assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));

@@ -1,19 +1,8 @@
-//! `plugins/owner/upch.js` — upload gambar, audio, video, atau teks ke saluran.
-//!
-//! ## Penyimpangan
-//!
-//! - Mengirim ke newsletetter (`@newsletter`) memakai `sock.sendMessage(chId, …)`.
-//!   `Reply` di API Rust hanya mengirim ke chat tempat perintah berasal, dan
-//!   trait `Sock` tidak punya operasi kirim-ke-saluran. Karena itu tahap
-//!   pengiriman diakhiri `error_template` + reaction `☢` (padanan closest
-//!   dengan cabang `catch` di JS).
-//! - `toOggOpus` (konversi audio ke OGG/Opus lewat ffmpeg) dan
-//!   `generateWaveform` tidak punya padanan yang persis; keduanya berjalan
-//!   hanya pada jalur audio yang memang sudah tidak bisa dieksekusi.
+//! Upload gambar, audio, video, atau teks ke saluran.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan `upch.js:66-75`.
+/// Teks bantuan.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "📤 *UPLOAD SALURAN*\n\n\
@@ -23,27 +12,27 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `upch.js:84`.
+///
 #[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const TEKS_BERHASIL: &str = "✅ Teks berhasil dikirim ke saluran";
 
-/// `upch.js:96`.
+///
 #[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const GAMBAR_BERHASIL: &str = "✅ Gambar berhasil dikirim ke saluran";
 
-/// `upch.js:107`.
+///
 #[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const VIDEO_BERHASIL: &str = "✅ Video berhasil dikirim ke saluran";
 
-/// `upch.js:118`.
+///
 #[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const AUDIO_BERHASIL: &str = "✅ Audio berhasil dikirim ke saluran";
 
-/// `upch.js:122`.
+///
 #[allow(dead_code)] // teks sukses JS; kirim ke saluran belum ada di `Ctx`
 pub(crate) const TIPE_TIDAK_DIDUKUNG: &str = "❌ Tipe media tidak didukung";
 
-/// `m.text?.replace(/^\.upch\s+/i, '')` (`upch.js:55`).
+/// `m.text?.replace(/^\.upch\s+/i, '')`.
 pub(crate) fn buang_perintah(teks: &str) -> String {
     let lower = teks.to_lowercase();
     if lower.starts_with(".upch") {
@@ -78,8 +67,8 @@ pub fn upch(ctx: Ctx) -> Reply {
         teks.split_whitespace().map(str::to_string).collect()
     };
 
-    // `args[0]?.includes("@newsletter") ? args.shift() : config.saluran.id`
-    // (`upch.js:56`).
+    // `args[0]?.includes("@newsletter") ? args.shift(): config.saluran.id`
+    //
     let ch_id = if args
         .first()
         .is_some_and(|a| a.contains("@newsletter"))

@@ -1,15 +1,4 @@
-//! `plugins/owner/delsewa.js` — hapus grup dari whitelist sewa.
-//!
-//! `db.db.data.sewa` dipetakan ke key global `sewa` di `settings`, sama
-//! seperti `listsewa.rs` (lihat catatan di modul itu).
-//!
-//! ## Penyimpangan
-//!
-//! - `sock.groupGetInviteInfo(code)` untuk link `chat.whatsapp.com/...`
-//!   tersedia lewat `Sock::info_undangan`, jadi jalur ini ikut dip-port.
-//! - `sock.sendText(groupId, ...)` + `sock.groupLeave(groupId)` setelah
-//!   penghapusan tidak bisa dilakukan: `Reply` hanya kirim ke chat pemicu.
-//!   Karena itu bagian "bot keluar dari grup" tidak ada di port ini.
+//! Hapus grup dari whitelist sewa.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -17,7 +6,7 @@ use serde_json::Value;
 /// Key global tempat `db.db.data.sewa` dipetakan.
 const SEWA_KEY: &str = "sewa";
 
-/// Teks bantuan `delsewa.js:46-53`.
+/// Teks bantuan.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "📝 *HAPUS SEWA*\n\n\
@@ -30,25 +19,25 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `delsewa.js:59`.
+///
 pub(crate) const LINK_INVALID: &str = "❌ Link tidak valid atau grup tidak ditemukan";
 
-/// `delsewa.js:64`.
+///
 pub(crate) const TIDAK_BISA_TENTUKAN: &str = "❌ Tidak dapat menentukan grup";
 
-/// `delsewa.js:68-70`.
+///
 pub(crate) fn tidak_terdaftar(prefix: &str) -> String {
     format!(
         "❌ Grup tidak terdaftar dalam sistem sewa\n\nLihat daftar: *{prefix}listsewa*"
     )
 }
 
-/// `delsewa.js:79`.
+///
 pub(crate) fn dihapus(nama_grup: &str, id_grup: &str) -> String {
     format!("✅ *SEWA DIHAPUS*\n\nGrup: *{nama_grup}*\nID: {id_grup}")
 }
 
-/// `resolveGroupId` (`delsewa.js:19-29`) — link invite → id grup, kalau tidak
+/// `resolveGroupId` — link invite → id grup, kalau tidak
 /// ada maka id apa adanya.
 fn id_dari_masukan(ctx: &Ctx, input: &str) -> Option<(String, Option<String>)> {
     if input.contains("chat.whatsapp.com/") {
@@ -94,7 +83,7 @@ fn id_dari_masukan(ctx: &Ctx, input: &str) -> Option<(String, Option<String>)> {
 )]
 pub fn delsewa(ctx: Ctx) -> Reply {
     // `if (!db.db.data.sewa) { db.db.data.sewa = {...}; db.db.write() }`
-    // (`delsewa.js:35-38`).
+    //
     let init = crate::common::js_falsy(ctx.setting(SEWA_KEY)).then(|| Mutation::SetSetting {
         key: SEWA_KEY.to_string(),
         value: serde_json::json!({ "enabled": false, "groups": {} }),

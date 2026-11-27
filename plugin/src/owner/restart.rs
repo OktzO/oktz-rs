@@ -1,21 +1,4 @@
-//! `plugins/owner/restart.js` — restart proses bot.
-//!
-//! ## Penyimpangan (tidak bisa ditiru)
-//!
-//! JS melakukan `spawn("node", [...execArgv, "index.js"], { detached: true })`
-//! lalu `process.exit(0)` dua detik kemudian — proses Node barunya
-//! menggantikan proses lama. Di Rust tidak ada kontrol proses dari dalam
-//! plugin: `Ctx` tidak punya jalur untuk menjalankan proses baru, dan
-//! `process.exit` akan mematikan bot beserta sesi WhatsApp-nya tanpa
-//! opportunity reconnect.
-//!
-//! Karena itu port ini:
-//! 1. tetap membalas blok "info" yang sama persis dengan JS (waktu lokal
-//!    format `id-ID` dan PID proses aktif), dan
-//! 2. menutup dengan `error_template` + reaction `☢` — padanan closest
-//!    dengan cabang `catch` di JS, karena restart tidak benar-benar terjadi.
-//!
-//! `m.react('🔄')` tetap dipasang pada pesan pemicu.
+//! Restart proses bot.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,7 +9,7 @@ pub(crate) fn waktu_id(ms: i64) -> String {
     format!("{h:02}.{mi:02}.{s:02}")
 }
 
-/// Blok info `restart.js:30-37`.
+/// Blok info.
 pub(crate) fn blok_info(waktu: &str, pid: u32) -> String {
     format!(
         "🔄 *ʀᴇsᴛᴀʀᴛɪɴɢ ʙᴏᴛ...*\n\n\
@@ -67,7 +50,7 @@ pub fn restart(ctx: Ctx) -> Reply {
     Reply::sequence(vec![
         Reply::None.with_reaction("🔄"),
         Reply::text(blok_info(&waktu, pid)),
-        // `catch` JS: `await m.react('☢')` + `await m.reply(te(...))`.
+        // `catch` versi awal: `await m.react('☢')` + `await m.reply(te(...))`.
         Reply::None.with_reaction("☢"),
         Reply::text(crate::common::error_template(&ctx)),
     ])

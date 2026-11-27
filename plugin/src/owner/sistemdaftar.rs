@@ -1,29 +1,19 @@
-//! `plugins/owner/sistemdaftar.js` — kelola sistem wajib daftar dan statistik
-//! pendaftaran.
+//! Kelola sistem wajib daftar dan statistik
 //!
-//! Port dari nol. Yang dipindah:
-//! - pembacaan status (`db.setting("registrationRequired") ??
-//!   config.registration?.enabled ?? false`, `sistemdaftar.js:68-69`).
-//! - teks status + statistik (`:72-86`).
-//! - teks statistik (`:90-107`).
-//! - cabang `on` / `off` beserta teksnya (`:111-156`).
-//! - balasan opsi tidak valid (`:158-160`).
+//! `Keterbatasan:` statistik pendaftaran menghitung SELURUH user yang sudah daftar —
+//! `db.getAllUsers()` tidak tersedia di `Ctx` (hanya data pengirim yang diekspos). Jadi
+//! jumlahnya selalu `0`.
 //!
-//! `ponytail:` statistik pendaftaran (`getRegistrationStats`,
-//! `sistemdaftar.js:29-44`) menghitung SELURUH user yang sudah daftar —
-//! `db.getAllUsers()` tidak tersedia di `Ctx` (hanya data pengirim yang
-//! diekspos). Jadi jumlahnya selalu `0`.
-//!
-//! `ponytail:` `sock.sendMessage(..., { contextInfo: getRegistrationContextInfo() })`
-//! menandai pesan sebagai forwarded dari surat berita. `Reply::Text` tidak
-//! punya slot `contextInfo`, jadi penandaan itu tidak ikut.
+//! `Keterbatasan:` `sock.sendMessage(..., { contextInfo: getRegistrationContextInfo() })`
+//! menandai pesan sebagai forwarded dari surat berita. `Reply::Text` tidak punya slot
+//! `contextInfo`, jadi penandaan itu tidak ikut.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// Key setting untuk status wajib daftar (`sistemdaftar.js:116,141`).
+/// Key setting untuk status wajib daftar.
 const KEY: &str = "registrationRequired";
 
-/// Status saat ini (`sistemdaftar.js:68-69`).
+/// Status saat ini.
 fn status(ctx: &Ctx) -> bool {
     ctx.setting(KEY)
         .and_then(|v| v.as_bool())
@@ -35,7 +25,7 @@ fn statistik() -> (usize, usize, usize, usize) {
     (0, 0, 0, 0)
 }
 
-/// Teks status utama (`sistemdaftar.js:73-86`).
+/// Teks status utama.
 fn teks_status(ctx: &Ctx, on: bool) -> String {
     let (total, hari_ini, unreg, sesi) = statistik();
     format!(
@@ -59,7 +49,7 @@ fn teks_status(ctx: &Ctx, on: bool) -> String {
     )
 }
 
-/// Teks statistik (`sistemdaftar.js:91-101`).
+/// Teks statistik.
 fn teks_statistik(on: bool) -> String {
     let (total, hari_ini, unreg, sesi) = statistik();
     format!(

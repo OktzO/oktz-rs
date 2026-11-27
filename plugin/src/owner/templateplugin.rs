@@ -1,7 +1,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Template JS yang dibungkus ```` ``` ````. Diawali dan diakhiri newline
-/// persis seperti literal di `templateplugin.js`.
+/// Template versi awal yang dibungkus ```` ``` ````. Diawali dan diakhiri newline
+/// persis seperti literal.
 pub(crate) const TEMPLATE: &str = r#"
 const pluginConfig = {
     name: 'example',

@@ -1,18 +1,8 @@
-//! `plugins/owner/buatgrup.js` — buat grup baru.
-//!
-//! ## Penyimpangan
-//!
-//! - `sock.groupCreate(subject, participants)` ada padanannya di
-//!   `Sock::buat_grup`, jadi pembuatan grup ikut dip-port.
-//! - Penghapusan otomatis setelah durasi habis (`setTimeout` +
-//!   `groupParticipantsUpdate` + `groupLeave`, `buatgrup.js:79-99`) tidak
-//!   bisa ditiru: `Reply` hanya kirim ke chat pemicu dan tidak ada
-//!   penjadwal di API plugin. Balasan sukses tetap menyebut masa aktif,
-//!   seperti di JS.
+//! Buat grup baru.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan `buatgrup.js:19-32`.
+/// Teks bantuan.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "👥 *BUAT GRUP BARU* 👥\n\n\
@@ -31,20 +21,20 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `buatgrup.js:40`.
+///
 pub(crate) const NAMA_KEPENDEKAN: &str =
     "❌ Waduh kak, nama grupnya kependekan! Minimal 2 karakter ya.";
 
-/// `buatgrup.js:50`.
+///
 pub(crate) const TANPA_PESERTA: &str =
     "❌ Lho kak, nomor pesertanya mana? Masukkan minimal 1 nomor ya.";
 
-/// `buatgrup.js:104` — gagal membuat grup.
+/// Gagal membuat grup.
 pub(crate) fn gagal_gagal(pesan: &str) -> String {
     format!("❌ Maaf kak, gagal membuat grup! 😭\nError: {pesan}")
 }
 
-/// Pesan sukses `buatgrup.js:66-76`.
+/// Pesan sukses.
 pub(crate) fn sukses(nama: &str, id: &str, jumlah_peserta: usize, durasi_menit: Option<i64>) -> String {
     let mut out = format!(
         "👥 *GRUP BERHASIL DIBUAT* 👥\n\n\
@@ -63,7 +53,7 @@ pub(crate) fn sukses(nama: &str, id: &str, jumlah_peserta: usize, durasi_menit: 
 }
 
 /// `participantsStr.split(/[,;\s]+/)` lalu hanya angka ≥ 5 digit
-/// (`buatgrup.js:43-47`).
+///
 pub(crate) fn parse_peserta(teks: &str) -> Vec<String> {
     let mut hasil = Vec::new();
     for bagian in teks.split(|c: char| c == ',' || c == ';' || c.is_whitespace()) {
@@ -115,7 +105,7 @@ pub fn buatgrup(ctx: Ctx) -> Reply {
         return Reply::text(TANPA_PESERTA);
     }
 
-    // `parseInt(durationStr.replace(/[^0-9]/g, ''))` (`buatgrup.js:56`).
+    // `parseInt(durationStr.replace(/[^0-9]/g, ''))`.
     let durasi_menit = durasi_teks
         .chars()
         .filter(char::is_ascii_digit)

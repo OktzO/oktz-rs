@@ -1,8 +1,8 @@
-//! `plugins/owner/autojoingc.js` — toggle `setting('autoJoinGc')`.
+//! Toggle `setting('autoJoinGc')`.
 //!
-//! `ponytail:` hanya `handler` yang di-port. `autoJoinDetector` di JS ikut
-//! diekspor dan dipakai middleware untuk memanggil `sock.groupAcceptInvite` —
-//! butuh `sock`, jadi tidak ada di sini.
+//! `Keterbatasan:` hanya `handler` yang diimplementasikan. `autoJoinDetector` di versi awal
+//! ikut diekspor dan dipakai middleware untuk memanggil `sock.groupAcceptInvite` — butuh
+//! `sock`, jadi tidak ada di sini.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

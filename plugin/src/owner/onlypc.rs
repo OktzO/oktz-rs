@@ -1,8 +1,4 @@
-//! `plugins/owner/onlypc.js` — flag global `onlyPc` (+ `onlyGc` ikut dimatikan).
-//!
-//! Simetris dengan [`crate::owner::onlygc`]; bedanya hanya nama setting dan
-//! teks. Keduanya tetap file terpisah karena `pluginConfig` JS-nya terpisah dan
-//! alias-nya tidak tumpang tindih.
+//! Flag global `onlyPc` (+ `onlyGc` ikut dimatikan).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

@@ -1,4 +1,4 @@
-//! `plugins/owner/onlygc.js` — flag global `onlyGc` (+ `onlyPc` ikut dimatikan).
+//! Flag global `onlyGc` (+ `onlyPc` ikut dimatikan).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -6,7 +6,7 @@ use crate::common::first_keyword;
 
 /// `db.setting("onlyGc") || false` — nilai setting apa pun yang falsy (termasuk
 /// `undefined`) menjadi `false` untuk ditampilkan. Pelaporan TIDAK memakai
-/// `setting_bool(.., true)`: default di JS adalah `false`, bukan "belum
+/// `setting_bool(.., true)`: default di versi awal adalah `false`, bukan "belum
 /// diputuskan".
 pub(crate) fn current_enabled(ctx: &Ctx) -> bool {
     ctx.setting("onlyGc")
@@ -39,7 +39,7 @@ pub(crate) fn invalid(prefix: &str) -> String {
 }
 
 /// `db.setting("onlyGc", X)` + `db.setting("onlyGc", false)` pada cabang `on`
-/// — dua mutasi, dua key.
+/// Dua mutasi, dua key.
 pub(crate) fn set_only_gc(enabled: bool) -> Reply {
     let reply = if enabled { ON_MSG } else { OFF_MSG };
     let mut r = Reply::text(reply).with_reaction(if enabled { "✅" } else { "❌" });
@@ -126,7 +126,7 @@ mod tests {
         }
     }
 
-    // -- registrasi & meta ------------------------------------------------
+    // - registrasi & meta ------------------------------------------------
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -151,7 +151,7 @@ mod tests {
         }
     }
 
-    // -- cabang tanpa argumen: status --------------------------------------
+    // - cabang tanpa argumen: status --------------------------------------
 
     #[test]
     fn no_argument_reports_status_and_writes_nothing() {
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn a_non_boolean_setting_falls_back_to_the_js_default_false() {
-        // `db.setting("onlyGc") || false` — string apa pun yang truthy di JS
+        // `db.setting("onlyGc") || false` — string apa pun yang truthy di versi awal
         // sebenarnya akan tampil "Aktif", tapi `as_bool` tidak bisa meniru
         // kejujuran `||`; yang diuji adalah fallback tidak panic.
         let r = run(serde_json::json!({"onlyGc": "ya"}), "");
@@ -196,7 +196,7 @@ mod tests {
         assert!(out.contains("!onlygc off"));
     }
 
-    // -- cabang on / off ----------------------------------------------------
+    // - cabang on / off ----------------------------------------------------
 
     #[test]
     fn on_writes_onlygc_true_and_also_forces_onlypc_false() {
@@ -230,7 +230,7 @@ mod tests {
         assert!(!run(serde_json::json!({}), "off").mutations().is_empty());
     }
 
-    // -- cabang argumen tidak valid -----------------------------------------
+    // - cabang argumen tidak valid -----------------------------------------
 
     #[test]
     fn an_unknown_option_is_rejected_and_writes_nothing() {
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn matching_is_case_insensitive_because_the_command_is_lowercased() {
-        // JS: `m.text?.toLowerCase()` — jadi "ON" dan "on" sama.
+        // versi awal: `m.text?.toLowerCase()` — jadi "ON" dan "on" sama.
         assert_eq!(setting_of(&run(serde_json::json!({}), "ON"), "onlyGc"), Some(serde_json::json!(true)));
         assert_eq!(
             setting_of(&run(serde_json::json!({}), "Off"), "onlyGc"),

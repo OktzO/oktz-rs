@@ -1,9 +1,5 @@
-//! `plugins/owner/onlythisgrup.js` — bot hanya aktif di grup ini saja.
-//!
-//! `NOTE (mod.rs):` `owner/mod.rs` sudah memuat banyak plugin (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak menambahkan `pub mod`.
-//! Tambahkan baris berikut secara manual ke `src/owner/mod.rs`:
-//!   pub mod onlythisgrup;
+//! Bot hanya aktif di grup ini saja.
+
 //
 //! Perbedaan sengaja dari JS: JS mencari bot di `groupMetadata.participants`
 //! melalui `findParticipantByNumber` (penanganan LID). Di Rust,
@@ -63,7 +59,7 @@ pub fn onlythisgrup(ctx: Ctx) -> Reply {
 
     let invite_link = format!("https://chat.whatsapp.com/{invite_code}");
     // `group_metadata.subject` tidak tersedia lewak `roster`; gunakan `ctx.chat`
-    // sebagai nama pengganti, mirip perilaku JS saat metadata tidak terbaca.
+    // sebagai nama pengganti, mirip perilaku versi awal saat metadata tidak terbaca.
 
     let mut r = Reply::text(format!(
         "🔒 *LOCKED BERHASIL*\n\n\

@@ -1,13 +1,9 @@
-//! `plugins/owner/arsip.js` — arsipkan/buka arsip chat.
-//!
-//! Catatan: `mod.rs` kategori `owner` sudah memuat plugin lain yang bukan
-//! mili tugas ini, jadi baris `pub mod arsip;` perlu ditambahkan manual di
-//! `rust/crates/oktz-plugins/src/owner/mod.rs`.
+//! Arsipkan/buka arsip chat.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// Membuang karakter non-digit dari nomor telepon, seperti
-/// `num.replace(/[^0-9]/g, "")` di JS.
+/// Membuang karakter non-digit dari nomor telepon,
+/// `num.replace(/[^0-9]/g, "")` di versi awal.
 fn digits_only(s: &str) -> String {
     s.chars().filter(|c| c.is_ascii_digit()).collect()
 }
@@ -31,7 +27,7 @@ fn target_jid_dari_quoted(q: &oktz_plugin_api::QuotedMessage) -> Option<String> 
     }
 }
 
-/// Teks bantuan untuk cabang yang tidak menemukan target, sama persis dengan JS.
+/// Teks bantuan untuk cabang yang tidak menemukan target, sama persis dengan versi awal.
 fn bantuan(prefix: &str) -> String {
     format!(
         "📁 *ᴀʀsɪᴘ ᴄʜᴀᴛ*\n\n\

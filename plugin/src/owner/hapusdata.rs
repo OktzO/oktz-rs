@@ -1,46 +1,39 @@
-//! `plugins/owner/hapusdata.js` — reset semua data database ke default.
+//! Reset semua data database ke default.
 //!
-//! Port dari nol. Yang dipindah:
-//! - alur konfirmasi dua langkah dengan TTL 60 detik
-//!   (`hapusdata.js:18-31`, `:77`, `:110`).
-//! - daftar tabel + jumlah entri + ukuran (`:50-75`).
-//! - teks peringatan + tombol interaktif (`:79-108`).
-//! - teks hasil reset (`:38-45`).
-//!
-//! `ponytail:` `db.resetToDefaults()` (`hapusdata.js:34`) menulis ulang
+//! `Keterbatasan:` `db.resetToDefaults()` menulis ulang
 //! seluruh berkas database (`users.json`, `groups.json`, `settings.json`, …)
-//! dengan default. Store Rust adalah satu basis data SQLite/JSON dengan
+//! dengan default. Store Rust adalah satu basis data SQLite/JSON
 //! tabel terpisah, dan `Mutation` hanya punya `SetUser`/`SetGroup`/
 //! `SetSetting` — tidak ada "hapus semua tabel". Jadi:
-//!   - statistik hanya bisa dihitung untuk tabel yang terlihat lewat
-//!     `Ctx` (`settings` dan `sewa`); `users`/`groups`/`stats`/`premium`/
-//!     `owner`/`partner` tidak bisa dienumerasi dari API plugin.
-//!   - reset yang bisa dilakukan hanya menyetel ulang key `settings` dan
-//!     `sewa` ke default JS (`defaultSettings`, `defaultSewa`).
+//! - statistik hanya bisa dihitung untuk tabel yang terlihat lewat
+//! `Ctx` (`settings` dan `sewa`); `users`/`groups`/`stats`/`premium`/
+//! `owner`/`partner` tidak bisa dienumerasi dari API plugin.
+//! - reset yang bisa dilakukan hanya menyetel ulang key `settings`
+//! `sewa` ke default versi awal (`defaultSettings`, `defaultSewa`).
 //!
-//! `ponytail:` backup folder (`database/backups/pre-reset-<ts>`) tidak bisa
-//! dibuat karena lokasi berkas store Rust tidak diekspos ke plugin; path-nya
-//! tetap ditulis supaya teksnya sama dengan JS.
+//! `Keterbatasan:` backup folder (`database/backups/pre-reset-<ts>`) tidak bisa dibuat
+//! karena lokasi berkas store Rust tidak diekspos ke plugin; path-nya tetap ditulis supaya
+//! teksnya sama dengan versi awal.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use serde_json::Value;
 
-/// Prefix key session penunggu konfirmasi (`hapusdata.js:18`).
+/// Prefix key session penunggu konfirmasi.
 const PENDING_PREFIX: &str = "hapusdata:pending:";
-/// TTL 60 detik (`hapusdata.js:25`, `:110`).
+/// TTL 60 detik.
 const TTL_MS: i64 = 60_000;
 
-/// `defaultSettings` (`database.js:19`).
+/// `defaultSettings`.
 const DEFAULT_SETTINGS: &str = "selfMode";
-/// `defaultSewa` (`database.js:21`).
+/// `defaultSewa`.
 const DEFAULT_SEWA: &str = "sewa";
 
 fn pending_key(ctx: &Ctx) -> String {
     format!("{PENDING_PREFIX}{}", ctx.sender)
 }
 
-/// `pendingReset.get(m.sender)` +amp; TTL 60 detik (`hapusdata.js:24-27`).
+/// `pendingReset.get(m.sender)` +amp; TTL 60 detik.
 fn pending(ctx: &Ctx) -> bool {
     let key = pending_key(ctx);
     let Some(v) = ctx.session_get(&key) else {
@@ -54,7 +47,7 @@ fn pending(ctx: &Ctx) -> bool {
     true
 }
 
-/// Jumlah entri: array → panjang, objek → jumlah key (`hapusdata.js:67`).
+/// Jumlah entri: array → panjang, objek → jumlah key.
 fn jumlah_entri(v: &Value) -> usize {
     if let Some(a) = v.as_array() {
         a.len()
@@ -65,7 +58,7 @@ fn jumlah_entri(v: &Value) -> usize {
     }
 }
 
-/// `Buffer.byteLength(JSON.stringify(data))` (`hapusdata.js:68`).
+/// `Buffer.byteLength(JSON.stringify(data))`.
 fn ukuran_byte(v: &Value) -> usize {
     serde_json::to_string(v).map(|s| s.len()).unwrap_or(0)
 }
@@ -83,7 +76,7 @@ fn tabel_terlihat(ctx: &Ctx) -> Vec<(&'static str, Value)> {
     out
 }
 
-/// Mutasi reset: setel ulang `settings` dan `sewa` ke default JS.
+/// Mutasi reset: setel ulang `settings` dan `sewa` ke default versi awal.
 fn mutasi_reset(ctx: &Ctx) -> Vec<Mutation> {
     let mut out = Vec::new();
     let self_mode = ctx

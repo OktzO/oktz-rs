@@ -1,12 +1,8 @@
-//! `plugins/owner/ganti-goodbye.js` — ganti gambar goodbye.jpg (thumbnail goodbye).
+//! Ganti gambar goodbye.jpg (thumbnail goodbye).
 //!
-//! `ponytail:` `m.download()` / `m.quoted.download()` dan
-//! `updateAssetUrl('goodbye', buffer, ...)` dari `src/lib/uploader.js` tidak
-//! ada di `Ctx` API, jadi unduh + upload tidak dapat dijalankan. Yang
+//! `Keterbatasan:` `m.download()` / `m.quoted.download()` dan `updateAssetUrl('goodbye',
+//! buffer...)` tidak ada di `Ctx` API, jadi unduh + upload tidak dapat dijalankan. Yang
 //! dipindah: deteksi gambar (trigger atau quoted) dan teks balasan.
-//!
-//! Catatan: baris `pub mod ganti_goodbye;` perlu ditambah ke `owner/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

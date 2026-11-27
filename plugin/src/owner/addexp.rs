@@ -1,4 +1,4 @@
-//! `plugins/owner/addexp.js` — tambah exp user (plafon 9 miliar).
+//! Tambah exp user (plafon 9 miliar).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -7,7 +7,7 @@ use crate::user::exp::calculate_level;
 
 const MAX_EXP: i64 = 9_000_000_000;
 
-/// `formatNumber` (`addexp.js:22-27`) — B/M/K dua desimal, lalu ribuan titik.
+/// `formatNumber` — B/M/K dua desimal, lalu ribuan titik.
 fn format_exp(num: i64) -> String {
     let n = num as f64;
     if n >= 1_000_000_000.0 {
@@ -70,21 +70,21 @@ pub fn addexp(ctx: Ctx) -> Reply {
         _ => return Reply::text(help(&ctx.prefix)),
     };
 
-    // Guard JS: `!targetJid || amount <= 0` (OR) — jadi mention tanpa jumlah
-    // juga kena help, bukan lolos ke sender. Cabang `amount <= 0` kedua di
-    // JS (balasan `ɢᴀɢᴀʟ`) mati karena guard pertama, jadi tidak diport.
+    // Guard versi awal: `!targetJid || amount <= 0` (OR) — jadi mention tanpa jumlah
+    // juga kena help, bukan lolos ke sender. Cabang `amount <= 0` kedua
+    // versi awal (balasan `ɢᴀɢᴀʟ`) mati karena guard pertama, jadi tidak diport.
     if amount <= 0 {
         return Reply::text(help(&ctx.prefix));
     }
     let amount = amount.min(MAX_EXP);
 
     // `addExpWithLevelCheck` menulis ke `m.sender`, bukan `targetJid`
-    // (`level.js:234`) — bug di JS yang sengaja dibiarkan agar tidak
+    // Bug di versi awal yang sengaja dibiarkan agar tidak
     // "diperbaiki" diam-diam. Kartu level-up (canvas + `sock.sendMedia`)
     // tidak ada di port ini; `checkAndNotifyLevelUp` yang tersisa efeknya
     // cuma kolom `rpg` di bawah.
     //
-    // `ponytail:` `user` di JS adalah row TARGET, sedangkan `Ctx` hanya
+    // `Keterbatasan:` `user` di versi awal adalah row TARGET, sedangkan `Ctx` hanya
     // membawa row pengirim. Exp yang dijumlahkan dan ditulis di sini milik
     // pengirim; tambahkan `user_entry(jid)` ke `Ctx` kalau router mau
     // menghitung dari row target.
@@ -98,8 +98,8 @@ pub fn addexp(ctx: Ctx) -> Reply {
         (old + amount).clamp(0, MAX_EXP)
     };
 
-    // `user.rpg = {}` dulu (`level.js:220`), lalu `user.rpg.level` +
-    // empat stat turunan hanya kalau level benar-benar naik (`level.js:135`).
+    // `user.rpg = {}` dulu, lalu `user.rpg.level` +
+    // empat stat turunan hanya kalau level benar-benar naik.
     let mut rpg = ctx
         .user_field("rpg")
         .and_then(|v| v.as_object().cloned())
@@ -240,7 +240,7 @@ mod tests {
         };
         let r = (oktz_plugin_api::find("addexp").unwrap().handler)(ctx);
         assert!(text_of(&r).contains("ke *@628999*"), "{}", text_of(&r));
-        // JS tetap menulis ke `m.sender` (level.js:234) — dijaga supaya
+        // versi awal tetap menulis ke `m.sender` — dijaga supaya
         // tidak "dikoreksi" tanpa sengaja.
         assert_eq!(written(&r).0, SENDER);
     }

@@ -1,21 +1,11 @@
-//! `plugins/owner/listjadibotaktif.js` — daftar jadibot yang aktif.
+//! Daftar jadibot yang aktif.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `getActiveJadibots()` dari `src/lib/jadibot-manager.js`,
-//! `Date.now()` untuk uptime, dan `sock.sendMessage(..., { text, mentions,
-//! interactiveButtons })` dengan tombol `🛑 Stop Semua`. Tidak ada satupun di
-//! `Ctx`.
-//!
-//! `ponytail:` kalau entry point kedua jadibot dan `sock` tersedia di `Ctx`
-//! nanti, port ulang dari `plugins/owner/listjadibotaktif.js` (render
-//! `@id`, uptime, owner, daftar mention, dan tombol interaktif).
-//!
-//! `format_uptime` disalin dari JS untuk dijaga dan diuji.
+//! `Keterbatasan:` kalau entry point kedua jadibot dan `sock` tersedia di `Ctx` nanti,
+//! tambahkan (render `@id`, uptime, owner, daftar mention, dan tombol interaktif).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `listjadibotaktif.js:18-25` — format uptime milidetik ke teks.
+/// Format uptime milidetik ke teks.
 #[cfg(test)]
 pub(crate) fn format_uptime(ms: i64) -> String {
     let seconds = (ms / 1000).max(0);

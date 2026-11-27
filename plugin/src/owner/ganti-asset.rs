@@ -1,4 +1,4 @@
-//! `plugins/owner/ganti-asset.js` — ganti asset secara interaktif (image/video/audio/font/other).
+//! Ganti asset secara interaktif (image/video/audio/font/other).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,21 +26,21 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn ganti_asset(ctx: Ctx) -> Reply {
-    // `ganti-asset.js` butuh:
-    //   1. `config.assets` — daftar kunci asset, ada di `ctx.config().assets`.
-    //   2. `m.download()` / `m.quoted.download()` — byte media, tersedia via
-    //      `ctx.media_fetch.download(...)`.
-    //   3. `updateAssetUrl(key, buffer, filename)` — tulis file ke disk +
-    //      rewrite `config.js` (regex replace) + `fs.writeFileSync`. I/O
-    //      filesystem yang tidak ada di `Ctx`.
-    //   4. Sesi interaktif per chat (`global.gantiAssetSessions`) + timeout
-    //      120 detik, dan `gantiAssetAnswerHandler` untuk balasan nomor.
+    // butuh:
+    // 1. `config.assets` — daftar kunci asset, ada di `ctx.config().assets`.
+    // 2. `m.download()` / `m.quoted.download()` — byte media, tersedia via
+    // `ctx.media_fetch.download(...)`.
+    // 3. `updateAssetUrl(key, buffer, filename)` — tulis file ke disk +
+    // rewrite (regex replace) + `fs.writeFileSync`. I/O
+    // filesystem yang tidak ada di `Ctx`.
+    // 4. Sesi interaktif per chat (`global.gantiAssetSessions`) + timeout
+    // 120 detik, dan `gantiAssetAnswerHandler` untuk balasan nomor.
     //
     // `Ctx` tidak puny mekanisme sesi interaktif yang bertahan antar pesan,
-    // dan tidak bisa menulis `config.js`. Handler ini tidak bisa di-port
+    // dan tidak bisa menulis. Handler ini tidak bisa diimplementasikan
     // sepenuhnya tanpa menambah kemampuan tersebut.
     //
-    // `ponytail:` sediakan akses tulis config + filesystem, dan daftarkan
+    // `Keterbatasan:` sediakan akses tulis config + filesystem, dan daftarkan
     // `answer_handler` untuk nomor balasan asset.
     Reply::text(help(&ctx.prefix))
 }

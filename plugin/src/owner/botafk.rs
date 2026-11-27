@@ -1,9 +1,4 @@
-//! `plugins/owner/botafk.js` — toggle `setting('botAfk')`.
-//!
-//! Plugin ini adalah TOGGLE tanpa argumen: kalau bot sedang AFK, satu
-//! perintah apa pun akan mengembalikannya online dan melaporkan durasinya.
-//! Durasi dihitung dari `since` yang disimpan, jadi store adalah sumber kebenaran
-//! tunggal — tidak ada state in-memory terpisah seperti di JS.
+//! Toggle `setting('botAfk')`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -71,7 +66,7 @@ pub fn botafk(ctx: Ctx) -> Reply {
 
     if is_afk(&ctx) {
         // `Date.now() - currentAfk.since` — `since` yang tidak ada berarti
-        // NaN di JS; `unwrap_or(now)` supaya tidak jadi durasi gila.
+        // NaN di versi awal; `unwrap_or(now)` supaya tidak jadi durasi gila.
         let since = ctx
             .setting("botAfk")
             .and_then(|v| v.get("since"))
@@ -91,7 +86,7 @@ pub fn botafk(ctx: Ctx) -> Reply {
             });
     }
 
-    // `m.args.join(' ') || 'AFK'` — string kosong (atau whitespace-only yang
+    // `m.args.join(' ') || 'AFK'` — string kosong (atau whitespace-only
     // sudah jadi satu token) jatuh ke default.
     let reason = ctx.args.join(" ");
     let reason = if reason.is_empty() { "AFK".to_string() } else { reason };
@@ -202,7 +197,7 @@ mod tests {
 
     #[test]
     fn the_offline_reply_reports_the_stored_duration() {
-        // Durasi dihitung dari `since`, jadi reply berubah seiring waktu; yang
+        // Durasi dihitung dari `since`, jadi reply berubah seiring waktu;
         // dikunci adalah bentuknya dan sumber angkanya.
         let old = now_ms() - 90 * 60 * 1000;
         let r = run(

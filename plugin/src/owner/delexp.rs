@@ -1,4 +1,4 @@
-//! `plugins/owner/delexp.js` — kurangi exp user.
+//! Kurangi exp user.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -7,7 +7,7 @@ use crate::common::{jid_number, parse_int};
 /// `db.updateExp` menjepit di 9 miliar dan tidak pernah turun ke bawah 0.
 const MAX_EXP: i64 = 9_000_000_000;
 
-/// `formatNumber` (`delexp.js:11-16`) — B/M/K dua desimal, lalu ribuan titik.
+/// `formatNumber` — B/M/K dua desimal, lalu ribuan titik.
 fn format_exp(num: i64) -> String {
     let n = num as f64;
     if n >= 1_000_000_000.0 {
@@ -42,7 +42,7 @@ fn help(prefix: &str) -> String {
 
 /// Exp tersimpan untuk `jid` — `None` kalau row-nya tidak ada.
 ///
-/// `ponytail:` hanya `sender` (dan anggota roster grup) yang row-nya terbaca
+/// `Keterbatasan:` hanya `sender` (dan anggota roster grup) yang row-nya terbaca
 /// lewat `Ctx`; lihat catatan modul `addenergi`.
 fn stored_exp(ctx: &Ctx, jid: &str) -> Option<i64> {
     let entry = if jid == ctx.sender {
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn a_mention_becomes_the_target_but_its_row_is_unreadable() {
-        // `ponytail:` row target di luar sender+roster tidak terbaca, jadi
+        // `Keterbatasan:` row target di luar sender+roster tidak terbaca, jadi
         // guard "tidak ditemukan" dulu yang kena — bukan menulis ke sender.
         let r = run("5000", serde_json::json!({ "exp": 1000 }), Some(OTHER));
         assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
