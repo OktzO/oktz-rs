@@ -1,18 +1,13 @@
-//! `plugins/group/kick.js` — keluarkan member dari grup.
+//! Keluarkan member dari grup.
 //!
-//! Yang dipindah: seluruh gerbang (ambil target, cocokkan peserta, tolak
-//! admin) + pengeluaran `sock.groupParticipantsUpdate(m.chat, [id], 'remove')`
-//! (`kick.js:84`) via `ctx.sock().ubah_peserta(..., Keluar)`.
-//!
-//! `ponytail:` dua gerbang "tidak bisa kick bot sendiri" (`kick.js:46` dan
-//! `:71-77`) membandingkan target dengan `sock.user?.id` dan `sock.user?.lid`;
-//! `Ctx` tidak punya JID bot, jadi keduanya dilewati.
+//! `Keterbatasan:` dua gerbang "tidak bisa kick bot sendiri" membandingkan target dengan
+//! `sock.user?.id` dan `sock.user?.lid`; `Ctx` tidak punya JID bot, jadi keduanya dilewati.
 
 use oktz_plugin_api::{AksiPeserta, Ctx, Participant, Reply, plugin};
 
 use crate::group::delete::{is_same_group_member, is_same_participant};
 
-/// `findParticipantByNumber` (`lid.js:484-508`) — cocokkan nomor pada wire JID
+/// `findParticipantByNumber` — cocokkan nomor pada wire JID
 /// MAUPUN PN peserta, karena grup ber-addressing LID mengirim keduanya.
 pub(crate) fn find_participant<'a>(
     roster: &'a [Participant],
@@ -26,7 +21,7 @@ pub(crate) fn find_participant<'a>(
     })
 }
 
-/// `m.quoted ? m.quoted.sender : m.mentionedJid[0]` (`kick.js:28-32`).
+/// `m.quoted ? m.quoted.sender: m.mentionedJid[0]`.
 fn kick_target(ctx: &Ctx) -> Option<String> {
     if let Some(q) = ctx.quoted() {
         return Some(q.sender.clone());
@@ -34,7 +29,7 @@ fn kick_target(ctx: &Ctx) -> Option<String> {
     ctx.mentioned.first().cloned()
 }
 
-/// `kick.js:35-39`.
+///
 fn no_target(prefix: &str) -> String {
     format!(
         "❌ *ᴛᴀʀɢᴇᴛ ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n\
@@ -78,7 +73,7 @@ pub fn kick(ctx: Ctx) -> Reply {
     };
 
     // `isSameGroupMember` menutup kasus PN di satu sisi, LID di sisi lain
-    // (`kick.js:67-70`); daftar participant = kamusnya.
+    // ; daftar participant = kamusnya.
     if is_same_group_member(&ctx.roster.participants, &target, &ctx.sender) {
         return Reply::text(CANT_KICK_SELF);
     }
@@ -87,7 +82,7 @@ pub fn kick(ctx: Ctx) -> Reply {
         return Reply::text(CANT_KICK_ADMIN);
     }
 
-    // `kick.js:84-86` — keluarkan, lalu lapor dengan mention.
+    // Keluarkan, lalu lapor dengan mention.
     let target_number = crate::common::tampil_jid(&ctx, &target);
     match ctx
         .sock()

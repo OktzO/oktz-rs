@@ -1,11 +1,8 @@
-//! `plugins/group/mute.js` — `groups[chat].mute = true`.
+//! `groups[chat].mute = true`.
 //!
-//! Efeknya dibaca `handler.js:811` lewat `isMuted()` (function diekspor JS,
-//! bukan perintah), jadi yang ditulis di sini hanya flag-nya.
-//!
-//! `ponytail:` `m.groupMetadata.subject` diambil dari
-//! `groups[chat].name`, yang `handler.js:327` isi dari `meta.subject`.
-//! Kalau store belum pernah menyimpan nama, teksnya jatuh ke nilai cadangan.
+//! `Keterbatasan:` `m.groupMetadata.subject` diambil dari `groups[chat].name`, yang isi
+//! dari `meta.subject`. Kalau store belum pernah menyimpan nama, teksnya jatuh ke nilai
+//! cadangan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -147,7 +144,7 @@ mod tests {
 
     #[test]
     fn a_falsy_stored_flag_still_lets_the_mute_through() {
-        // `if (group.mute)` di JS = `!m0`, jadi `false`/`0`/`""`/`null` lolos.
+        // `if (group.mute)` di versi awal = `!m0`, jadi `false`/`0`/`""`/`null` lolos.
         for falsy in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
             let r = run(serde_json::json!({ "mute": falsy.clone() }));
             assert_eq!(group_write(&r), &serde_json::json!({"mute": true}), "input mute={falsy}");

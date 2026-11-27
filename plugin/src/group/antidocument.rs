@@ -1,9 +1,9 @@
-//! `plugins/group/antidocument.js` — sakelar antiblokir dokumen.
+//! Sakelar antiblokir dokumen.
 //!
-//! `ponytail:` hanya handler `.antidocument` yang dipindah. `checkAntidocument`
-//! (pemeriksaan per-pesan) butuh `sock.sendMessage` untuk menghapus pesan —
-//! `Ctx` tidak punya itu. `gpMsg` yang membaca `config.groupProtection` ikut
-//! tidak dipindah karena hanya dipakai `checkAntidocument`.
+//! `Keterbatasan:` hanya handler `.antidocument` yang dipindah. `checkAntidocument`
+//! (pemeriksaan per-pesan) butuh `sock.sendMessage` untuk menghapus pesan — `Ctx` tidak
+//! punya itu. `gpMsg` yang membaca `config.groupProtection` ikut tidak dipindah karena
+//! hanya dipakai `checkAntidocument`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -117,7 +117,7 @@ mod tests {
         for (group, want) in [
             (serde_json::json!({}), "❌ OFF"),
             (serde_json::json!({"antidocument": true}), "✅ ON"),
-            // Nilai non-boolean tetap dihitung sebagai aktif, seperti
+            // Nilai non-boolean tetap dihitung sebagai aktif,
             // `groupData.antidocument` yang dipakai sebagai operand `if`.
             (serde_json::json!({"antidocument": "ya"}), "✅ ON"),
         ] {

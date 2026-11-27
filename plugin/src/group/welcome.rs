@@ -1,27 +1,9 @@
-//! `plugins/group/welcome.js` — sakelar pesan sambutan per grup.
-//!
-//! Yang dipindah: seluruh `handler` (`on`, `off`, status, gerbang owner
-//! `on all`/`off all`).
-//!
-//! Yang tidak dipindah:
-//! - Aksi `on all`/`off all` butuh `sock.groupFetchAllParticipating()` (`:390`,
-//!   `:413`) untuk tahu grup mana saja. `Reply`/pipeline tidak punya daftar
-//!   grup, jadi cabang itu berhenti di jalur `catch` miliknya sendiri —
-//!   reaksi `☢` + template error — bukan mengarang "diaktifkan di N grup"
-//!   (pola `goodbye.rs`). Gerbang owner di depan `sock` tetap dipindah karena
-//!   itu yang dilihat user.
-//! - Dua reaksi berurutan (`🕕` lalu `✅`/`☢`) tidak bisa dibawa:
-//!   `Reply::Reaction` hanya menyimpan satu emoji, jadi yang terkirim adalah
-//!   reaksi terakhir.
-//! - `sendWelcomeMessage` (`:123`) bukan handler plugin: ia butuh
-//!   `sock.profilePictureUrl`, `prepareWAMessageMedia`/`relayMessage`,
-//!   `sock.sendPreview`/`sendText`, `getAssetBuffer`, `saluranCtx()`, dan
-//!   `welcomeType` 2..8.
+//! Sakelar pesan sambutan per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
 
-/// `config.messages.ownerOnly` (`config.js:198`) — literal statis di config,
+/// `config.messages.ownerOnly` — literal statis di config,
 /// sama seperti `CONFIG_PREFIX` di `common.rs`.
 const OWNER_ONLY: &str = "*Akses Ditolak!* Fitur ini khusus untuk Owner bot.";
 
@@ -74,7 +56,7 @@ fn settings_text(prefix: &str, on: bool) -> String {
     )
 }
 
-/// Cabang `* all`: gerbang owner, lalu jalur `catch` milik JS sendiri karena
+/// Cabang `* all`: gerbang owner, lalu jalur `catch` milik versi awal sendiri karena
 /// `groupFetchAllParticipating` tidak ada di `Ctx`.
 fn global_unavailable(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
@@ -96,7 +78,7 @@ fn global_unavailable(ctx: &Ctx) -> Reply {
 pub fn welcome(ctx: Ctx) -> Reply {
     let sub = ctx.args.first().map(|a| a.to_lowercase());
     let sub2 = ctx.args.get(1).map(|a| a.to_lowercase());
-    // `groupData.welcome === true` — perbandingan ketat, nilai `"true"` atau
+    // `groupData.welcome === true` — perbandingan ketat, nilai `"true"`
     // `1` di store tidak dihitung aktif.
     let current = ctx.group_field("welcome") == Some(&Value::Bool(true));
 

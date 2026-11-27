@@ -1,9 +1,4 @@
-//! `plugins/group/setgoodbye.js` — `goodbyeMsg` + `goodbye: true` + `leave: true`.
-//!
-//! Tiga flag ditulis bersama, bukan hanya `goodbyeMsg`: `leave` yang membuat
-//! bot kirim pesan perpisahan saat member keluar, dan `goodbye` yang
-//! mengaktifkannya. Melewatkan dua yang terakhir akan membuat reply "berhasil"
-//! while bot tetap diam.
+//! `goodbyeMsg` + `goodbye: true` + `leave: true`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

@@ -1,18 +1,10 @@
-//! `plugins/group/pinchat.js` — pin pesan yang di-reply.
-//!
-//! Nama plugin di JS adalah `gcpinchat` (`pinchat.js:2`) sementara nama
-//! filenya `pinchat.js`; yang terdaftar tetap `gcpinchat`.
-//!
-//! Yang dipindah: gerbang "wajib reply" dan perhitungan durasi pin. Pin
-//! sebenarnya `sock.sendMessage(m.chat, { pin: pinKey, type: 1, time })`
-//! (`pinchat.js:50-54`) tidak ada di API plugin, jadi setelah gerbang lolos
-//! plugin diam — bukan mengirim "Success pin pesan ini".
+//! Pin pesan yang di-reply.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::parse_int;
 
-/// `pinchat.js:31-37` — default satu hari, `args[0]` berupa jam 1..720.
+/// Default satu hari, `args[0]` berupa jam 1..720.
 pub(crate) fn pin_duration(args: &[String]) -> i64 {
     let mut duration = 86_400;
     if let Some(first) = args.first().filter(|a| !a.is_empty())
@@ -24,7 +16,7 @@ pub(crate) fn pin_duration(args: &[String]) -> i64 {
     duration
 }
 
-/// `pinchat.js:21-27`. Teksnya memakai `.pinchat` literal, bukan `m.prefix`.
+/// . Teksnya memakai `.pinchat` literal, bukan `m.prefix`.
 const NO_QUOTE: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n\
 > Reply pesan yang ingin di-pin!\n\n\
 *Cara penggunaan:*\n\
@@ -54,8 +46,8 @@ pub fn pinchat(ctx: Ctx) -> Reply {
     };
 
     // `quoted.key.id` tidak ada di `QuotedMessage`; `QuotedMessage::id` adalah
-    // padanannya. `ponytail:` `key.rawParticipant`/`key.participant` juga tidak
-    // terbawa — tidak masalah karena pin-nya sendiri tidak di-port.
+    // padanannya. `Keterbatasan:` `key.rawParticipant`/`key.participant` juga tidak
+    // terbawa — tidak masalah karena pin-nya sendiri tidak diimplementasikan.
     let _ = quoted;
     let _duration = pin_duration(&ctx.args);
 
@@ -128,8 +120,8 @@ mod tests {
                 "alias {a}"
             );
         }
-        // `pinchat` milik plugin owner (`plugins/owner/pinchat.js:2`), bukan
-        // plugin grup ini — grup menamai dirinya `gcpinchat` (`pinchat.js:2`).
+        // `pinchat` milik plugin owner, bukan
+        // plugin grup ini — grup menamai dirinya `gcpinchat`.
         assert_ne!(
             find("pinchat").map(|e| e.meta.name.as_str()),
             Some("gcpinchat"),

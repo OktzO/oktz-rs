@@ -1,7 +1,7 @@
-//! `plugins/group/antilinkgc.js` — sakelar anti link WhatsApp (grup, saluran, wa.me).
+//! Sakelar anti link WhatsApp (grup, saluran, wa.me).
 //!
-//! `ponytail:` hanya handler `.antilinkgc` yang dipindah; filter per-pesan ada
-//! di middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
+//! `Keterbatasan:` hanya handler `.antilinkgc` yang dipindah; filter per-pesan ada di
+//! middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};

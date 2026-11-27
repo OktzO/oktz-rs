@@ -1,17 +1,16 @@
-//! `plugins/group/clearchat.js` — bersihkan chat grup.
+//! Bersihkan chat grup.
 //!
-//! `ponytail:` seluruh badan plugin adalah operasi Baileys:
-//! `sock.chatModify({ delete, lastMessages })` (`clearchat.js:26-32`) dan,
-//! kalau itu gagal, `sock.chatModify({ clear, messages })` (`:38-46`). Keduanya
-//! tidak ada di API plugin, jadi tidak ada pesan yang dihapus dan tidak ada
-//! balasan sukses yang dikirim — plugin diam, bukan melapor chat sudah bersih.
+//! `Keterbatasan:` seluruh badan plugin adalah operasi Baileys: `sock.chatModify({ delete,
+//! lastMessages })` dan, kalau itu gagal, `sock.chatModify({ clear, messages })`
+//! (`:38-46`). Keduanya tidak ada di API plugin, jadi tidak ada pesan yang dihapus dan
+//! tidak ada balasan sukses yang dikirim — plugin diam, bukan melapor chat sudah bersih.
 //! `m.react('🗑️')`/`'☢'` ikut hilang karena menempel pada percakapan yang sama.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-// `pluginConfig.name` di JS adalah array 5 nama (`clearchat.js:3`).
-// Sisa array masuk `PluginMeta::commands` (`plugins.js:207-209`), bukan alias:
-// lookup JS mengecek map `commands` dulu (`plugins.js:539-544`), jadi `.cc`
+// `pluginConfig.name` di versi awal adalah array 5 nama.
+// Sisa array masuk `PluginMeta::commands`, bukan alias:
+// lookup versi awal mengecek map `commands` dulu, jadi `.cc`
 // membuka `clearchat`, bukan alias `cc` milik plugin lain.
 // `PluginMeta.name` hanya `String`, jadi elemen pertama jadi `name` dan sisanya
 // jadi `alias` — registry `matches()` tetap menerima kelima nama.
@@ -81,9 +80,9 @@ mod tests {
                 "nama {n}"
             );
         }
-        // JS menaruh kelima nama di `name` (array) dengan `alias` kosong.
+        // versi awal menaruh kelima nama di `name` (array) dengan `alias` kosong.
         // Rust hanya punya satu string `name`, jadi empat sisanya jadi
-        // command tambahan (`plugins.js:207-209`).
+        // command tambahan.
         assert_eq!(
             find("clearchat").unwrap().meta.commands,
             ["cc", "cleangc", "deletechat", "delchat"],

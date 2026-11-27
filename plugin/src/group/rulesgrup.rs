@@ -1,9 +1,9 @@
-//! `plugins/group/rulesgrup.js` — `groups[chat].groupRules` + teks default.
+//! `groups[chat].groupRules` + teks default.
 //!
-//! `ponytail:` JS mengirim gambar asset `rules` + caption kalau
-//! `getAssetBuffer('rules')` ada, dan teks polos kalau tidak. `Ctx` tidak punya
-//! jalur asset, jadi port ini selalu cabang teks. Naik ke
-//! `Reply::Image` + `MediaSource::path` begitu router punya asset store.
+//! `Keterbatasan:` versi awal mengirim gambar asset `rules` + caption kalau
+//! `getAssetBuffer('rules')` ada, dan teks polos kalau tidak. `Ctx` tidak punya jalur
+//! asset, jadi port ini selalu cabang teks. Naik ke `Reply::Image` + `MediaSource::path`
+//! begitu router punya asset store.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

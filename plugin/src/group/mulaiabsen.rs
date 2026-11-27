@@ -1,14 +1,9 @@
-//! `plugins/group/mulaiabsen.js` — buka sesi absen di `global.absensi[chat]`.
+//! Buka sesi absen di `global.absensi[chat]`.
 //!
-//! `global.absensi` adalah peta proses milik beberapa plugin (juga
-//! `plugins/group/absen.js` dan `cekabsen.js`), jadi di sini satu kunci session
-//! `absensi` yang isinya peta `chatId -> sesi`. Tidak ada `db.setGroup` di
-//! plugin ini — sesi hidup di memori saja, sama seperti di JS.
-//!
-//! `ponytail:` `pruneAbsensi()` membaca `createdAt` yang di JS berupa string
-//! ISO dari `new Date().toISOString()`. `Ctx` tidak punya parser tanggal,
-//! jadi string itu diurai dengan fungsi lokal di bawah (bentuknya tetap
-//! `Date#toISOString`, persis seperti yang ditulis JS).
+//! `Keterbatasan:` `pruneAbsensi()` membaca `createdAt` yang di versi awal berupa string
+//! ISO dari `new Date().toISOString()`. `Ctx` tidak punya parser tanggal, jadi string itu
+//! diurai dengan fungsi lokal di bawah (bentuknya tetap `Date#toISOString`, persis seperti
+//! yang ditulis versi awal).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};
@@ -18,9 +13,9 @@ use crate::common::{JAKARTA_OFFSET_SECS, days_from_civil, jakarta_parts, jid_num
 /// Kunci session untuk `global.absensi`.
 pub(crate) const ABSENSI: &str = "absensi";
 
-/// `ABSENSI_MAX_CHATS = 500` (`absen.js:15`).
+/// `ABSENSI_MAX_CHATS = 500`.
 const MAX_CHATS: usize = 500;
-/// `ABSENSI_TTL_MS = 24 * 60 * 60 * 1000` (`absen.js:16`).
+/// `ABSENSI_TTL_MS = 24 * 60 * 60 * 1000`.
 const TTL_MS: i64 = 24 * 60 * 60 * 1000;
 
 pub(crate) const DEFAULT_PESAN: &str = "Absen Harian";
@@ -30,8 +25,8 @@ pub(crate) const STILL_RUNNING: &str = "❌ *ᴍᴀsɪʜ ᴀᴅᴀ ᴀʙsᴇɴ*\
 > Ketik *.hapusabsen* untuk menghapus\n\
 > atau *.cekabsen* untuk melihat daftar";
 
-/// `new Date().toISOString()` untuk milidetik yang sama — bentuk yang sama
-/// persis dengan yang ditulis `mulaiabsen.js`, hanya tanpa milidetik (yang
+/// `new Date().toISOString()` untuk milidetik yang sama — bentuk yang
+/// persis dengan yang ditulis, hanya tanpa milidetik (
 /// tidak pernah dibaca: satu-satunya konsumennya `pruneAbsensi`).
 fn iso_utc(ms: i64) -> String {
     let (y, mo, d, h, mi, s) = jakarta_parts(ms - JAKARTA_OFFSET_SECS * 1000);
@@ -39,7 +34,7 @@ fn iso_utc(ms: i64) -> String {
 }
 
 /// `new Date(str).getTime()` untuk bentuk `Date#toISOString`. `None` kalau
-/// bentuknya bukan itu — `|| 0` di JS menutupi kasus yang sama.
+/// bentuknya bukan itu — `|| 0` di versi awal menutupi kasus yang sama.
 fn iso_ms(s: &str) -> Option<i64> {
     let (date, time) = s.split_once('T')?;
     let mut it = date.split('-');
@@ -63,7 +58,7 @@ fn iso_ms(s: &str) -> Option<i64> {
     )
 }
 
-/// `pruneAbsensi()` (`absen.js:21-31`) — buang entri yang sudah lebih tua
+/// `pruneAbsensi()` — buang entri yang sudah lebih tua
 /// dari TTL, tapi hanya kalau peta sudah melewati batas 500 chat.
 pub(crate) fn prune_absensi(ctx: &Ctx) {
     let cutoff = now_ms() - TTL_MS;

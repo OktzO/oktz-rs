@@ -1,4 +1,4 @@
-//! `plugins/group/deltoxic.js` — `groups[chat].toxicWords` hapus satu.
+//! `groups[chat].toxicWords` hapus satu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

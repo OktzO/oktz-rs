@@ -1,28 +1,11 @@
-//! `plugins/group/autoreply.js` — kelola trigger balasan otomatis per grup,
-//! global, dan mode private.
-//!
-//! Yang tidak dipindah:
-//! - Unduhan gambar (`m.quoted.download()` `:271`, `m.download()` `:277`) dan
-//!   deteksi gambar langsung (`m.isImage`/`m.type` `:267`) tidak ada di `Ctx`
-//!   (BLOKIR §1). JS sendiri menelan kegagalan unduh (`catch` →
-//!   `console.error`, `:272-274`) lalu lanjut menyimpan trigger tanpa gambar —
-//!   jalur gagal-unduh itulah yang selalu diambil di sini: `image` tetap
-//!   `null` dan baris `• Image: ✅ Tersimpan` tidak pernah muncul.
-//! - `fs`/`path` (`:23-27`, `:284-287`, `:309-313`, `:351-357`, `:411-417`)
-//!   tidak di-port (BLOKIR §4): berkas media tidak dibuat/dihapus. Tidak
-//!   mengubah balasan apa pun — JS membungkus semua `unlinkSync` dalam
-//!   `try/catch` kosong — hanya berkas lama yang tidak ikut terhapus.
-//! - `m.body` direkonstruksi lewat `common::body_stripped` (selisih satu
-//!   karakter, lihat doc helper-nya); ekstraksi trigger/reply tetap sama.
-//! - Fallback `config.features?.smartTriggers` (`:177`) = literal `false`
-//!   statis di `config.js`, jadi `?? false` di ujung sudah mencakupnya.
+//! Kelola trigger balasan otomatis per grup,
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
 
 use crate::common::{body_stripped, js_truthy, now_ms};
 
-/// `defaultTriggers` (`autoreply.js:373-378`).
+/// `defaultTriggers`.
 const DEFAULT_TRIGGERS: [(&str, &str); 4] = [
     ("@mention", "👋 Hai! Ada yang manggil bot?"),
     ("p", "💬 Budayakan salam sebelum percakapan!"),
@@ -47,8 +30,8 @@ fn potong_utf16(s: &str, n: usize) -> (String, bool) {
     (out, false)
 }
 
-/// `db.setting('autoreplyPrivate') ?? false` — kebenaran JS (`:34`, `:55`),
-/// bukan `as_bool`: string `"0"` tetap truthy di JS.
+/// `db.setting('autoreplyPrivate') ?? false` — kebenaran versi awal (`:34`, `:55`),
+/// bukan `as_bool`: string `"0"` tetap truthy di versi awal.
 fn setting_privat(ctx: &Ctx) -> bool {
     js_truthy(ctx.setting("autoreplyPrivate"))
 }
@@ -173,7 +156,7 @@ fn format_salah_grup(prefix: &str) -> String {
 pub fn autoreply(ctx: Ctx) -> Reply {
     let action = ctx.args.first().map(|a| a.to_lowercase());
 
-    // ---- cabang `private` (`:36-63`) — milik owner -------------------------
+    // --- cabang `private` (`:36-63`) — milik owner -------------------------
     if action.as_deref() == Some("private") {
         if !ctx.is_owner {
             return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Hanya owner yang bisa mengatur autoreply private!");
@@ -207,7 +190,7 @@ pub fn autoreply(ctx: Ctx) -> Reply {
         };
     }
 
-    // ---- cabang `global` (`:65-159`) — milik owner -------------------------
+    // --- cabang `global` (`:65-159`) — milik owner -------------------------
     if action.as_deref() == Some("global") {
         if !ctx.is_owner {
             return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Hanya owner yang bisa mengatur global autoreply!");
@@ -230,7 +213,7 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                     p = ctx.prefix,
                 ));
             };
-            // `indexOf('global add ') + 11` — `-1 + 11 = 10` di JS kalau tidak
+            // `indexOf('global add ') + 11` — `-1 + 11 = 10` di versi awal kalau tidak
             // ketemu; tidak ada jalur masuk yang menghasilkannya, tapi
             // aritmetikanya dipertahankan.
             let lower = body.to_lowercase();
@@ -338,21 +321,21 @@ pub fn autoreply(ctx: Ctx) -> Reply {
         ));
     }
 
-    // ---- di luar grup: info saja (`:161-170`) ------------------------------
+    // --- di luar grup: info saja (`:161-170`) ------------------------------
     if !ctx.is_group {
         return Reply::text(info_private(&ctx));
     }
 
-    // ---- sisanya perlu admin grup (`:172-174`) -----------------------------
+    // --- sisanya perlu admin grup (`:172-174`) -----------------------------
     if !ctx.roster.is_admin(&ctx.sender) && !ctx.is_owner {
         return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Hanya admin yang bisa mengatur autoreply di grup!");
     }
 
     let group_status = ctx.group_field("autoreply");
 
-    // ---- status (`:179-213`) ----------------------------------------------
+    // --- status (`:179-213`) ----------------------------------------------
     if action.is_none() || action.as_deref() == Some("status") {
-        // `groupStatus ?? globalSmartTriggers` — hanya undefined/null yang
+        // `groupStatus ?? globalSmartTriggers` — hanya undefined/null
         // jatuh ke global; `false` dan `0` tetap NONAKTIF.
         let efektif = match group_status {
             None | Some(Value::Null) => global_smart(&ctx),
@@ -362,7 +345,7 @@ pub fn autoreply(ctx: Ctx) -> Reply {
     }
 
     match action.as_deref() {
-        // ---- on / off (`:215-225`) ----------------------------------------
+        // --- on / off (`:215-225`) ----------------------------------------
         Some("on") => {
             Reply::text("✅ *ᴀᴜᴛᴏʀᴇᴘʟʏ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*\n\n> Bot akan merespon otomatis di grup ini")
                 .with_reaction("✅")
@@ -380,13 +363,13 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 })
         }
 
-        // ---- add (`:227-335`) ---------------------------------------------
+        // --- add (`:227-335`) ---------------------------------------------
         Some("add") => {
             let body = body_stripped(&ctx);
             let Some(pipe) = body.find('|') else {
                 return Reply::text(format_salah_grup(&ctx.prefix));
             };
-            // `indexOf('add ') + 4` — `-1 + 4 = 3` di JS kalau tidak ketemu.
+            // `indexOf('add ') + 4` — `-1 + 4 = 3` di versi awal kalau tidak ketemu.
             let lower = body.to_lowercase();
             let start = lower.find("add ").map_or(3, |i| i + 4);
             let trigger = body.get(start..pipe).unwrap_or("").trim().to_string();
@@ -403,11 +386,11 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                     .as_deref()
                     == Some(trigger.to_lowercase()).as_deref()
             });
-            // Unduhan gambar tidak di-port — `imagePath` selalu null (jalur
-            // gagal-unduh JS, `:272-281`). Entri lama DIGANTI DI TEMPAT
-            // (`customReplies[existingIndex] = replyData`, `:314`), dan
+            // Unduhan gambar tidak diimplementasikan — `imagePath` selalu null (jalur
+            // gagal-unduh versi awal, `:272-281`). Entri lama DIGANTI DI TEMPAT
+            // (`customReplies[existingIndex] = replyData`, `:314`),
             // `keepsOldImage = !imagePath && !!previousImage` berarti gambar
-            // lama (kalau ada, dari era JS) tetap dipakai.
+            // lama (kalau ada, dari era versi awal) tetap dipakai.
             let mut image = Value::Null;
             if let Some(i) = posisi {
                 let lama = list[i].get("image").cloned().unwrap_or(Value::Null);
@@ -441,7 +424,7 @@ pub fn autoreply(ctx: Ctx) -> Reply {
                 })
         }
 
-        // ---- del / rm / remove (`:337-368`) -------------------------------
+        // --- del / rm / remove (`:337-368`) -------------------------------
         Some("del") | Some("rm") | Some("remove") => {
             let trigger = ctx.args[1..].join(" ").to_lowercase().trim().to_string();
             if trigger.is_empty() {
@@ -457,8 +440,8 @@ pub fn autoreply(ctx: Ctx) -> Reply {
             let Some(i) = posisi else {
                 return Reply::text(format!("❌ *ɢᴀɢᴀʟ*\n\n> Trigger `{trigger}` tidak ditemukan!"));
             };
-            // `unlinkSync` pada berkas gambar (`:351-357`) tidak di-port —
-            // di JS dibungkus `try/catch` kosong, balasan tidak berubah.
+            // `unlinkSync` pada berkas gambar (`:351-357`) tidak diimplementasikan —
+            // di versi awal dibungkus `try/catch` kosong, balasan tidak berubah.
             list.remove(i);
             Reply::text(format!(
                 "🗑️ *AUTOREPLY DIHAPUS*\n\nTrigger *{trigger}* berhasil dihapus!\nSisa: *{}* replies",
@@ -471,7 +454,7 @@ pub fn autoreply(ctx: Ctx) -> Reply {
             })
         }
 
-        // ---- list (`:370-407`) --------------------------------------------
+        // --- list (`:370-407`) --------------------------------------------
         Some("list") => {
             let list = custom_replies(&ctx);
             let mut text = String::from("📋 *DAFTAR AUTOREPLY GRUP*\n\n*DEFAULT TRIGGERS:*\n");
@@ -504,9 +487,9 @@ pub fn autoreply(ctx: Ctx) -> Reply {
             Reply::text(text)
         }
 
-        // ---- reset / clear (`:409-422`) -----------------------------------
+        // --- reset / clear (`:409-422`) -----------------------------------
         Some("reset") | Some("clear") => {
-            // `unlinkSync` per entri (`:411-417`) tidak di-port.
+            // `unlinkSync` per entri (`:411-417`) tidak diimplementasikan.
             Reply::text("🗑️ *ᴀᴜᴛᴏʀᴇᴘʟʏ ᴅɪʀᴇsᴇᴛ*\n\n> Semua autoreply custom dihapus!")
                 .with_reaction("🗑️")
                 .with_mutation(Mutation::SetGroup {
@@ -596,7 +579,7 @@ mod tests {
         }
     }
 
-    // ---- private -----------------------------------------------------------
+    // --- private -----------------------------------------------------------
 
     #[test]
     fn private_on_writes_the_setting_and_reacts() {
@@ -633,7 +616,7 @@ mod tests {
         );
     }
 
-    // ---- global ------------------------------------------------------------
+    // --- global ------------------------------------------------------------
 
     #[test]
     fn global_add_stores_the_pair() {
@@ -673,7 +656,7 @@ mod tests {
             { "trigger": "lain", "reply": "x" }
         ] });
         let r = run(c);
-        // JS: `globalCustomReplies[existingIndex].reply = reply` — field lain
+        // versi awal: `globalCustomReplies[existingIndex].reply = reply` — field lain
         // dan urutan tetap.
         assert_eq!(
             r.mutations(),
@@ -708,11 +691,11 @@ mod tests {
         let mut c = ctx_owner(ctx_grup(&["global"], "global"));
         c.settings = serde_json::json!({ "globalCustomReplies": [{ "trigger": "halo", "reply": "a" }] });
         let t = text_of(&run(c));
-        // `m.reply(text.trim())` (`autoreply.js:150`) membuang newline terakhir,
+        // `m.reply(text.trim())` membuang newline terakhir,
 // tapi spasi setelah `*halo*` tetap ada karena `hasImage` kosong.
         assert!(t.contains("1. *halo* \n   ↳ a"), "{t}");
         assert!(t.contains("Total: *1* replies"), "{t}");
-        // `autoreply.js:145` memakai bentuk TUNGGAL — beda dari daftar grup.
+        // memakai bentuk TUNGGAL — beda dari daftar grup.
         assert!(t.contains("*DAFTAR TRIGGER:*\n"), "{t}");
     }
 
@@ -738,7 +721,7 @@ mod tests {
         assert!(t.starts_with("📱 *ɢʟᴏʙᴀʟ ᴀᴜᴛᴏʀᴇᴘʟʏ*"), "{t}");
     }
 
-    // ---- luar grup & gerbang admin ------------------------------------------
+    // --- luar grup & gerbang admin ------------------------------------------
 
     #[test]
     fn outside_a_group_it_shows_the_private_info() {
@@ -764,7 +747,7 @@ mod tests {
         );
     }
 
-    // ---- on / off / status --------------------------------------------------
+    // --- on / off / status --------------------------------------------------
 
     #[test]
     fn on_and_off_write_the_group_flag() {
@@ -841,7 +824,7 @@ mod tests {
         assert!(text_of(&run(c)).contains("*MANAJEMEN GLOBAL (OWNER):*"));
     }
 
-    // ---- add (grup) ---------------------------------------------------------
+    // --- add (grup) ---------------------------------------------------------
 
     #[test]
     fn group_add_stores_trigger_reply_and_created_at() {
@@ -913,7 +896,7 @@ mod tests {
         );
     }
 
-    // ---- del / list / reset --------------------------------------------------
+    // --- del / list / reset --------------------------------------------------
 
     #[test]
     fn group_del_removes_and_reports_the_remaining_count() {
@@ -997,7 +980,7 @@ mod tests {
         assert!(t.starts_with("❌ *ᴀᴄᴛɪᴏɴ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*"), "{t}");
     }
 
-    // ---- helper --------------------------------------------------------------
+    // --- helper --------------------------------------------------------------
 
     #[test]
     fn utf16_cutting_matches_javascript_units() {

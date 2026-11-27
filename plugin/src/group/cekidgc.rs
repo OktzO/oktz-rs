@@ -1,41 +1,28 @@
-//! `plugins/group/cekidgc.js` — cek ID dan info lengkap grup.
-//!
-//! Yang dipindah: seluruh cabang input (`cekidgc.js:43-87`), perakitan
-//! `infoText` (`:124-139`), tombol `cta_copy` (`:141-149`), dan `contextInfo`
-//! kartu (`:188-196`).
-//!
-//! Penyimpangan: JS membungkus kartu interaktifnya di `viewOnceMessage` dan
-//! menempelkan header foto profil grup yang sudah di-resize 300×300 dengan
-//! `sharp` (`cekidgc.js:151-162`). `Reply` di `oktz-plugin-api` tidak punya
-//! pembungkus view-once maupun header media, jadi kartu dikirim tanpa
-//! keduanya — isi body, footer, tombol, dan `contextInfo` tetap sama.
-//!
-//! `formatDate` JS memakai waktu lokal server; Rust memakai Asia/Jakarta
-//! (`UTC+7`) — sama dengan zona kerja bot.
+//! Cek ID dan info lengkap grup.
 
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{json, Value};
 
-/// `config.saluran?.id || "120363400911374213@newsletter"` (`cekidgc.js:121`).
+/// `config.saluran?.id || "120363400911374213@newsletter"`.
 const SALURAN_ID_DEFAULT: &str = "120363400911374213@newsletter";
 
-/// `config.bot?.name || "Bot"` (`cekidgc.js:139`).
+/// `config.bot?.name || "Bot"`.
 const BOT_NAMA_DEFAULT: &str = "Bot";
 
-/// `cekidgc.js:50` — link invite kosong.
+/// Link invite kosong.
 const LINK_TIDAK_VALID: &str = "── .✦ ──\n\n> Link grup tidak valid .☘︎ ݁˖";
 
-/// `cekidgc.js:59` — `groupGetInviteInfo` gagal.
+/// `groupGetInviteInfo` gagal.
 const LINK_EXPIRED: &str = "── .✦ ──\n\n> Link grup tidak valid atau sudah expired .☘︎ ݁˖";
 
-/// `cekidgc.js:69` — `groupMetadata` gagal untuk JID grup.
+/// `groupMetadata` gagal untuk JID grup.
 const TIDAK_BISA_AKSES: &str = "── .✦ ──\n\n> Tidak bisa mengakses grup tersebut .☘︎ ݁˖";
 
-/// `cekidgc.js:86` — metadata/JID kosong setelah semua percobaan.
+/// Metadata/JID kosong setelah semua percobaan.
 const TIDAK_DITEMUKAN: &str = "── .✦ ──\n\n> Tidak dapat menemukan info grup .☘︎ ݁˖";
 
-/// `cekidgc.js:76-81` — cara pakai, dipakai kalau bukan di grup dan tanpa
+/// Cara pakai, dipakai kalau bukan di grup dan tanpa
 /// input.
 fn cara_pakai(prefix: &str) -> String {
     format!(
@@ -46,18 +33,18 @@ fn cara_pakai(prefix: &str) -> String {
     )
 }
 
-/// `formatDate` (`cekidgc.js:24-33`) — asumsi zona Jakarta (UTC+7).
+/// `formatDate` — asumsi zona Jakarta (UTC+7).
 fn format_date(ms: i64) -> String {
     if ms == 0 {
         return "—".to_string();
     }
-    // `cekidgc.js:27-29` — timestamp < 1e12 dibaca sebagai detik.
+    // Timestamp < 1e12 dibaca sebagai detik.
     let ms = if ms < 1_000_000_000_000 { ms * 1000 } else { ms };
     let (y, m, d, h, mi, _s) = crate::common::jakarta_parts(ms);
     format!("{d:02}/{m:02}/{y} {h:02}:{mi:02}")
 }
 
-/// `groupDesc.slice(0, 120) + "..."` (`cekidgc.js:99-100`).
+/// `groupDesc.slice(0, 120) + "..."`.
 ///
 /// Tiga titik ASCII, bukan karakter `…`.
 fn potong_deskripsi(desc: &str) -> String {
@@ -69,9 +56,9 @@ fn potong_deskripsi(desc: &str) -> String {
     }
 }
 
-/// `participants.length || groupMeta.size || 0` (`cekidgc.js:91`).
+/// `participants.length || groupMeta.size || 0`.
 ///
-/// `||` JS: panjang 0 jatuh ke `size`, bukan mengambil yang lebih besar.
+/// `||` versi awal: panjang 0 jatuh ke `size`, bukan mengambil yang lebih besar.
 fn jumlah_member(participants: &[Value], meta: &Value) -> usize {
     if !participants.is_empty() {
         return participants.len();
@@ -82,7 +69,7 @@ fn jumlah_member(participants: &[Value], meta: &Value) -> usize {
         .unwrap_or(0)
 }
 
-/// `admins.length` (`cekidgc.js:92-95`).
+/// `admins.length`.
 fn jumlah_admin(participants: &[Value]) -> usize {
     participants
         .iter()
@@ -94,7 +81,7 @@ fn jumlah_admin(participants: &[Value]) -> usize {
         .count()
 }
 
-/// `groupOwner.replace(/@.+/g, "")` (`cekidgc.js:131`).
+/// `groupOwner.replace(/@.+/g, "")`.
 fn owner_tanpa_server(owner: &str) -> String {
     owner.split('@').next().unwrap_or(owner).to_string()
 }
@@ -118,17 +105,17 @@ fn owner_tanpa_server(owner: &str) -> String {
 pub fn cekidgc(ctx: Ctx) -> Reply {
     let input = ctx.text.trim().to_string();
 
-    // `cekidgc.js:43-82` — tentukan JID + metadata grup.
+    // Tentukan JID + metadata grup.
     let (group_jid, group_meta) = match cari_grup(&ctx, &input) {
         CariGrup::Found(jid, meta) => (jid, meta),
         CariGrup::Gagal(teks) => return Reply::text(teks).with_reaction("✘"),
         CariGrup::BukanGrup => {
-            // `cekidgc.js:76-81` — bukan grup dan tanpa input.
+            // Bukan grup dan tanpa input.
             return Reply::text(cara_pakai(&ctx.prefix));
         }
     };
 
-    // `cekidgc.js:89-104`.
+    //
     let group_name = group_meta
         .get("subject")
         .and_then(Value::as_str)
@@ -199,7 +186,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
         "Bebas"
     };
 
-    // `cekidgc.js:121-122`.
+    //
     let saluran_id = {
         let id = ctx.config().saluran.id.clone();
         if id.is_empty() {
@@ -225,7 +212,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
         }
     };
 
-    // `cekidgc.js:124-139`.
+    //
     let info_text = format!(
         "── .✦ 𝗚𝗥𝗢𝗨𝗣 𝗜𝗡𝗙𝗢 ✦. ── 𝜗ৎ\n\n\
          ╭─〔 {group_name} 〕───⬣\n\
@@ -245,7 +232,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
         owner = owner_tanpa_server(&group_owner),
     );
 
-    // `cekidgc.js:141-149` — tombol salin ID grup.
+    // Tombol salin ID grup.
     let tombol = InteractiveButton::new(
         "cta_copy",
         json!({
@@ -254,7 +241,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
         }),
     );
 
-    // `cekidgc.js:188-196` — `contextInfo` kartu.
+    // `contextInfo` kartu.
     let context = CardContext::new()
         .mention(ctx.sender.clone())
         .mention(group_owner.clone())
@@ -268,7 +255,7 @@ pub fn cekidgc(ctx: Ctx) -> Reply {
         .with_reaction("✓")
 }
 
-/// Hasil pencarian grup — dipisah supaya tiap cabang `return` di JS punya
+/// Hasil pencarian grup — dipisah supaya tiap cabang `return` di versi awal punya
 /// padanan yang jelas.
 enum CariGrup {
     /// JID + metadata grup.
@@ -279,10 +266,10 @@ enum CariGrup {
     BukanGrup,
 }
 
-/// `cekidgc.js:43-82` — tentukan JID + metadata dari input / chat saat ini.
+/// Tentukan JID + metadata dari input / chat saat ini.
 fn cari_grup(ctx: &Ctx, input: &str) -> CariGrup {
     if input.contains("chat.whatsapp.com/") {
-        // `cekidgc.js:45-46` — kode invite = bagian setelah `chat.whatsapp.com/`
+        // Kode invite = bagian setelah `chat.whatsapp.com/`
         // sampai spasi/`?`.
         let kode = input
             .split("chat.whatsapp.com/")
@@ -296,7 +283,7 @@ fn cari_grup(ctx: &Ctx, input: &str) -> CariGrup {
         return match ctx.sock().info_undangan(kode) {
             Ok(meta) => match meta.get("id").and_then(Value::as_str) {
                 Some(jid) => CariGrup::Found(jid.to_string(), meta),
-                // `cekidgc.js:84-87` — metadata tanpa `id` = tidak ditemukan.
+                // Metadata tanpa `id` = tidak ditemukan.
                 None => CariGrup::Gagal(TIDAK_DITEMUKAN),
             },
             Err(_) => CariGrup::Gagal(LINK_EXPIRED),

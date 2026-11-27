@@ -1,17 +1,13 @@
-//! `plugins/group/botmodegrup.js` — sakelar mode bot per grup.
+//! Sakelar mode bot per grup.
 //!
-//! Nama file JS adalah `botmode.js`, tapi `pluginConfig.name` di dalamnya
-//! `botmodegrup`; yang didaftarkan ke registry adalah nama itu.
-//!
-//! `ponytail:` hanya `handler` yang dipindah. `getGroupMode`,
-//! `getModeCategories`, dan `filterCategoriesByMode` (`botmode.js:117-137`)
-//! dipakai middleware untuk menyembunyikan command, bukan oleh handler ini,
-//! jadi tidak ikut — lihat laporan batch.
+//! `Keterbatasan:` hanya `handler` yang dipindah. `getGroupMode`, `getModeCategories`, dan
+//! `filterCategoriesByMode` dipakai middleware untuk menyembunyikan command, bukan oleh
+//! handler ini, jadi tidak ikut — lihat laporan batch.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `(key, nama, deskripsi)` — urutan `Object.entries(MODES)` di JS, yang
+/// `(key, nama, deskripsi)` — urutan `Object.entries(MODES)` di versi awal,
 /// menentukan urutan baris pada balasan tanpa argumen.
 pub(crate) const MODES: [(&str, &str, &str); 6] = [
     ("md", "Multi-Device", "Mode default dengan semua fitur standar"),
@@ -91,7 +87,7 @@ pub fn botmodegrup(ctx: Ctx) -> Reply {
     // `mode === 'store'` juga ensured `storeConfig.products` ada, supaya mode
     // toko tidak setengah jadi. `Mutation::SetGroup` adalah patch dangkal,
     // jadi `storeConfig` ikut ditulis utuh — field lain di dalamnya harus
-    // ikut disalin seperti `{ ...groupData.storeConfig }` di JS.
+    // ikut disalin seperti `{...groupData.storeConfig }` di versi awal.
     let product_count = if mode == "store" {
         let mut config = ctx
             .group_field("storeConfig")

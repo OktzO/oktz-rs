@@ -1,20 +1,13 @@
-//! `plugins/group/hidetag2.js` — hidetag dengan gaya `fakeQuoted`.
+//! Hidetag dengan gaya `fakeQuoted`.
 //!
-//! `pluginConfig.name` sudah string tunggal (`'hidetag2'`) dengan alias
-//! `['h2', 'ht2']`, jadi tidak perlu pemecahan array seperti di
-//! [`crate::group::ht`].
-//!
-//! `ponytail:` dua hal di JS tidak bisa di-port.
+//! `Keterbatasan:` dua hal di versi awal tidak bisa diimplementasikan.
 //! 1. Cabang media (gambar/video/sticker/audio/dokumen) butuh `q.download()`
-//!    (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi berhenti di
-//!    `Reply::None`.
+//! (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi berhenti
+//! `Reply::None`.
 //! 2. `fakeQuoted` (remoteJid `status@broadcast`, participant `0@s.whatsapp.net`,
-//!    conversation = `config.bot.name`) tidak punya padanan di `Reply`; teks
-//!    dikirim polos. Upgrade path: tambah varian quoted-message di
-//!    `oktz-plugin-api` kalau `fakeQuoted` benar-benar dipakai klien.
-//!
-//! JS membakar dua reaction: `📢` sebelum kirim lalu `✅` setelahnya pada mode
-//! teks saja. `Reply` hanya punya satu reaction, jadi mode teks memakai `✅`.
+//! conversation = `config.bot.name`) tidak punya padanan di `Reply`; teks
+//! dikirim polos. Upgrade path: tambah varian quoted-message
+//! `oktz-plugin-api` kalau `fakeQuoted` benar-benar dipakai klien.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -51,7 +44,7 @@ pub fn hidetag2(ctx: Ctx) -> Reply {
     }
 
     if let Some(quoted) = ctx.quoted() {
-        // Cabang media tidak bisa di-port (lihat `ponytail:` modul).
+        // Cabang media tidak bisa diimplementasikan (lihat `Keterbatasan:` modul).
         if quoted.is_media() {
             return Reply::None;
         }

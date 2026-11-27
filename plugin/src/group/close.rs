@@ -1,31 +1,20 @@
-//! `plugins/group/close.js` — tutup grup (hanya admin yang bisa chat).
-//!
-//! Yang dipindah: cek status `announce` (`close.js:22`), teks validasi
-//! (`:24-27`), dan teks sukses (`:35`).
-//!
-//! CATATAN: `sock.groupSettingUpdate(m.chat, 'announcement')` (`close.js:30`)
-//! tidak ada padanannya di trait `Sock` — kredensial grup tidak bisa diubah
-//! lewat API plugin. Jadi status `announce` hanya BACA (lewat
-//! `sock.metadata_grup`), dan BALASAN SUKSES tetap sama persis dengan JS
-//! walau sisi efektifnya belum dijalankan. Butuh `groupSettingUpdate` di
-//! `Sock` (atau `Reply::GroupSetting`) agar perintah benar-benar menutup
-//! grup.
+//! Tutup grup (hanya admin yang bisa chat).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// `close.js:24-27` — grup sudah tertutup.
+/// Grup sudah tertutup.
 const SUDAH_TERTUTUP: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\
      \n\
      > Grup sudah dalam keadaan `tertutup`.\n\
      > Hanya admin yang bisa mengirim pesan.";
 
-/// `close.js:48-51` — cabang `catch`.
+/// Cabang `catch`.
 fn gagal(pesan: &str) -> String {
     format!("❌ *ᴇʀʀᴏʀ*\n\n> Gagal menutup grup.\n> _{pesan}_")
 }
 
-/// `m.groupMetadata.announce` (`close.js:22`).
+/// `m.groupMetadata.announce`.
 fn sudah_tertutup(ctx: &Ctx) -> Option<bool> {
     let meta = ctx.sock().metadata_grup(&ctx.chat).ok()?;
     Some(
@@ -52,7 +41,7 @@ fn sudah_tertutup(ctx: &Ctx) -> Option<bool> {
     is_bot_admin = true
 )]
 pub fn close(ctx: Ctx) -> Reply {
-    // `close.js:22` — kalau metadata tidak terbaca, JS tetap memakai
+    // Kalau metadata tidak terbaca, versi awal tetap memakai
     // `groupMetadata` yang sudah menempel di pesan; di Rust sumbernya
     // `sock`, jadi kegagalan di sini sama dengan kegagalan `catch`.
     match sudah_tertutup(&ctx) {
@@ -63,10 +52,10 @@ pub fn close(ctx: Ctx) -> Reply {
         Some(false) => {}
     }
 
-    // `close.js:30` — `sock.groupSettingUpdate(m.chat, 'announcement')`.
+    // `sock.groupSettingUpdate(m.chat, 'announcement')`.
     // Lihat catatan modul: operasi ini belum ada di `Sock`.
 
-    // `close.js:33-37` — `const senderNum = m.sender.split('@')[0]`.
+    // `const senderNum = m.sender.split('@')[0]`.
     Reply::text_mention(
         format!("✅ @{} telah menutup grup ini", ctx.sender_number()),
         ctx.sender.clone(),

@@ -1,12 +1,9 @@
-//! `plugins/group/poll.js` — validasi format polling.
+//! Validasi format polling.
 //!
-//! `ponytail:` `sock.sendMessage(m.chat, { poll: {...} })` tidak ada di API
-//! plugin (poll native WA), jadi validasi dipindah penuh tetapi pembuatan
-//! poll-nya tidak. Plugin diam setelah validasi lolos — bukan menulis
-//! "✅ Success membuat poll" untuk poll yang tidak pernah dikirim.
-//!
-//! `question.length` di JS menghitung unit UTF-16; di sini `chars().count()`,
-//! yang sama untuk semua teks BMP dan hanya beda untuk emoji di luar BMP.
+//! `Keterbatasan:` `sock.sendMessage(m.chat, { poll: {...} })` tidak ada di API plugin
+//! (poll native WA), jadi validasi dipindah penuh tetapi pembuatan poll-nya tidak. Plugin
+//! diam setelah validasi lolos — bukan menulis "✅ Success membuat poll" untuk poll yang
+//! tidak pernah dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -32,7 +29,7 @@ pub(crate) const TOO_MANY: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n
 pub(crate) const QUESTION_TOO_LONG: &str =
     "⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n> Pertanyaan terlalu panjang!\n> Maksimal 255 karakter.";
 
-/// Hasil parsing `poll.js:35-52`.
+/// Hasil parsing.
 pub(crate) struct Parsed {
     /// `isMultiple` hanya dipakai untuk `selectableCount` di `sendMessage`
     /// yang tidak ada di `Ctx` — jadi hanya tes parser yang membacanya.
@@ -99,7 +96,7 @@ pub fn poll(ctx: Ctx) -> Reply {
         return Reply::text(QUESTION_TOO_LONG);
     }
 
-    // `sock.sendMessage({ poll })` tidak ada di `Ctx` (lihat `ponytail:`).
+    // `sock.sendMessage({ poll })` tidak ada di `Ctx` (lihat `Keterbatasan:`).
     let _ = parsed;
     Reply::None
 }
@@ -173,7 +170,7 @@ mod tests {
 
     #[test]
     fn the_multi_prefix_is_case_insensitive_and_stripped() {
-        // JS hanya membaca `parts[1]` sebagai sumber opsi, jadi segmen ketiga
+        // versi awal hanya membaca `parts[1]` sebagai sumber opsi, jadi segmen ketiga
         // ke bawah diabaikan meski teks usage menyebutnya.
         let p = parse("MULTI |mobil| ya, tidak | aba").unwrap();
         assert!(p.is_multiple);
@@ -184,7 +181,7 @@ mod tests {
         let p = parse("makan | ya, tidak").unwrap();
         assert!(!p.is_multiple);
         assert_eq!(p.question, "makan");
-        // Tapi `multi | ...` tanpa segmen kedua tetap BAD_FORMAT.
+        // Tapi `multi |...` tanpa segmen kedua tetap BAD_FORMAT.
         assert!(parse("multi | ya, tidak").is_none());
     }
 
@@ -224,7 +221,7 @@ mod tests {
 
     #[test]
     fn the_too_many_check_runs_before_the_question_length_check() {
-        // JS: amount > 12 dicek sebelum panjang pertanyaan.
+        // versi awal: amount > 12 dicek sebelum panjang pertanyaan.
         let long = "q".repeat(MAX_QUESTION_CHARS + 1);
         let many = (1..=13).map(|i| format!("o{i}")).collect::<Vec<_>>().join(", ");
         assert_eq!(body(&run(&format!("{long} | {many}"))), TOO_MANY);

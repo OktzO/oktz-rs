@@ -1,4 +1,4 @@
-//! `plugins/group/cekabsen.js` — daftar peserta yang sudah absen.
+//! Daftar peserta yang sudah absen.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn the_creator_is_not_mentioned_twice_when_also_absent() {
-        // `createdBy` ada di `peserta` — JS menambahkannya tanpa cek duplikat,
+        // `createdBy` ada di `peserta` — versi awal menambahkannya tanpa cek duplikat,
         // tapi mention ganda tidak merusak apa pun; daftar yang diuji tetap utuh.
         let r = run(Some(session(vec![OWNER])));
         assert!(text_of(&r).contains("┃ 1. @628999"));

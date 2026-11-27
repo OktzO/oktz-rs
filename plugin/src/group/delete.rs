@@ -1,31 +1,24 @@
-//! `plugins/group/delete.js` — hapus pesan yang di-reply.
+//! Hapus pesan yang di-reply.
 //!
-//! Yang dipindah: seluruh gerbang izin. `m.quoted.key.fromMe` →
-//! `QuotedMessage::from_me`, `m.isBotAdmin` → `ctx.roster.is_bot_admin`,
-//! `m.isAdmin` → `ctx.roster.is_admin(sender)`, dan
-//! `isSameGroupMember(groupMembers, quotedSender, sender)` → pencocokan
-//! roster (`lid.js:454-482`).
-//!
-//! `ponytail:` `botJids` (`sock.user.id`/`lid`, `delete.js:35,39-40`)
-//! tidak terbaca dari API plugin, jadi `isBotMessage` hanya bisa `true`
-//! lewat `fromMe`. Dampaknya hanya melonggarkan gerbang izin: pesan bot
-//! yang bukan `fromMe` diperlakukan seperti pesan orang lain (perlu admin).
+//! `Keterbatasan:` `botJids` tidak terbaca dari API plugin, jadi `isBotMessage` hanya bisa
+//! `true` lewat `fromMe`. Dampaknya hanya melonggarkan gerbang izin: pesan bot yang bukan
+//! `fromMe` diperlakukan seperti pesan orang lain (perlu admin).
 
 use oktz_plugin_api::{Ctx, Participant, Reply, plugin};
 
 pub(crate) const NO_QUOTE: &str = "⚠️ *Reply pesan yang ingin dihapus!*";
 pub(crate) const BOT_NOT_ADMIN: &str = "⚠️ *Bot harus jadi admin untuk hapus pesan orang lain!*";
 pub(crate) const NOT_ADMIN: &str = "⚠️ *Hanya admin yang bisa hapus pesan orang lain!*";
-/// `delete.js:58-60` — hapus gagal karena pesan hilang/terlalu lama.
+/// Hapus gagal karena pesan hilang/terlalu lama.
 pub(crate) const GAGAL_HILANG: &str =
     "❌ *Gagal menghapus!*\n> Pesan mungkin sudah dihapus atau terlalu lama.";
-/// `delete.js:59-60` — `err.message` menyebut `not found`/`forbidden`.
+/// `err.message` menyebut `not found`/`forbidden`.
 pub(crate) fn pesan_hilang(error: &str) -> bool {
     let e = error.to_lowercase();
     e.contains("not found") || e.contains("forbidden")
 }
 
-/// `normalizeComparableJid` (`lid.js:438-452`) — buang device `:N` hanya
+/// `normalizeComparableJid` — buang device `:N` hanya
 /// untuk JID `@s.whatsapp.net`.
 fn normalize(jid: &str) -> String {
     if let Some(base) = jid.trim().strip_suffix("@s.whatsapp.net")
@@ -40,7 +33,7 @@ fn digits(jid: &str) -> String {
     jid.chars().filter(char::is_ascii_digit).collect()
 }
 
-/// `isSameParticipant` (`lid.js:454-475`).
+/// `isSameParticipant`.
 pub(crate) fn is_same_participant(a: &str, b: &str) -> bool {
     let (a, b) = (normalize(a), normalize(b));
     if a.is_empty() || b.is_empty() {
@@ -56,7 +49,7 @@ pub(crate) fn is_same_participant(a: &str, b: &str) -> bool {
     na == nb || na.ends_with(&nb) || nb.ends_with(&na)
 }
 
-/// `findParticipantByNumber` (`lid.js:484-506`) — dicocokkan pada bagian
+/// `findParticipantByNumber` — dicocokkan pada bagian
 /// sebelum `@`; roster Rust hanya menyimpan satu JID per peserta.
 fn find_by_number<'a>(roster: &'a [Participant], target: &str) -> Option<&'a Participant> {
     let want = oktz_plugin_api::registry::jid_user(target);
@@ -67,7 +60,7 @@ fn find_by_number<'a>(roster: &'a [Participant], target: &str) -> Option<&'a Par
     })
 }
 
-/// `isSameGroupMember` (`lid.js:477-482`).
+/// `isSameGroupMember`.
 pub(crate) fn is_same_group_member(roster: &[Participant], a: &str, b: &str) -> bool {
     if a.is_empty() || b.is_empty() {
         return false;
@@ -101,7 +94,7 @@ pub fn delete(ctx: Ctx) -> Reply {
 
     let is_own_message =
         quoted.from_me || is_same_group_member(&ctx.roster.participants, &quoted.sender, &ctx.sender);
-    // `botJids.includes(...)` butuh `sock.user` — lihat `ponytail:` modul.
+    // `botJids.includes(...)` butuh `sock.user` — lihat `Keterbatasan:` modul.
     let is_bot_message = quoted.from_me;
 
     if !is_own_message && !is_bot_message {
@@ -113,14 +106,14 @@ pub fn delete(ctx: Ctx) -> Reply {
         }
     }
 
-    // `delete.js:40-53` — key `remoteJid/id/fromMe/participant` disusun sini:
+    // Key `remoteJid/id/fromMe/participant` disusun sini:
     // `participant` = `rawParticipant || quotedSender`; di Rust `sender`
     // sudah `ci.participant` (lihat `quoted_of` pipeline).
-    // `delete.js:54-56` — sukses: reaksi ✅.
+    // Sukses: reaksi ✅.
     match ctx.sock().hapus_pesan(&ctx.chat, &quoted.id, &quoted.sender, quoted.from_me) {
         Ok(()) => Reply::reaction("✅"),
         Err(e) if pesan_hilang(&e.pesan) => Reply::text(GAGAL_HILANG),
-        // `delete.js:58-61` — selain itu hanya reaksi ❌.
+        // Selain itu hanya reaksi ❌.
         Err(_) => Reply::reaction("❌"),
     }
 }
@@ -270,7 +263,7 @@ mod tests {
         r.without_mutations().text_body().expect("harus ada teks")
     }
 
-    /// Gerbang lolos + hapus berhasil: reaksi ✅ (`delete.js:54-56`).
+    /// Gerbang lolos + hapus berhasil: reaksi ✅.
     fn assert_pending(r: &Reply) {
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "✅"),
@@ -385,7 +378,7 @@ mod tests {
         assert!(is_same_group_member(&roster, "628999@s.whatsapp.net", "628999:3@s.whatsapp.net"));
         assert!(!is_same_group_member(&roster, "628999@s.whatsapp.net", "628111@s.whatsapp.net"));
         // Roster kosong tidak mengubah apa pun: `isSameParticipant` memutuskan
-        // lebih dulu, persis seperti JS sebelum menyentuh participants.
+        // lebih dulu, persis seperti versi awal sebelum menyentuh participants.
         assert!(is_same_group_member(&[], "628999@s.whatsapp.net", "628999@lid"));
         assert!(!is_same_group_member(&[], "628999@s.whatsapp.net", ""));
     }

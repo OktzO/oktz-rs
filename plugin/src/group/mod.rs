@@ -96,18 +96,18 @@ pub mod unmutemember;
 pub mod warn;
 pub mod welcome;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod pinchat;
 
 #[cfg(test)]
 pub(crate) mod test_sock;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod add;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod groupinfo;

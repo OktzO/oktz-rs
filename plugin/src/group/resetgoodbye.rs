@@ -1,7 +1,4 @@
-//! `plugins/group/resetgoodbye.js` — `groups[chat].goodbyeMsg = null`.
-//!
-//! Simetris dengan [`crate::group::resetwelcome`]: guard-nya `!groupData?.goodbyeMsg`,
-//! jadi falsy JS (`undefined`/`null`/`""`/`0`/`false`) sudah dianggap default.
+//! `groups[chat].goodbyeMsg = null`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

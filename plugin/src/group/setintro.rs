@@ -1,7 +1,4 @@
-//! `plugins/group/setintro.js` — `groups[chat].intro`.
-//!
-//! Reply konfirmasi menyebut `.intro`; perintah membacanya ada di
-//! `group/intro.rs` dan memakai field yang sama.
+//! `groups[chat].intro`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

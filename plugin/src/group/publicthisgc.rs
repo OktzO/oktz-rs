@@ -1,9 +1,4 @@
-//! `plugins/group/publicthisgc.js` — toggle `publicGroups`/`selfGroups`.
-//!
-//! Simetris dengan [`crate::group::selfthisgc`]. Perbedaannya pada cabangnya:
-//! mode public hanya ditolak kalau grup sudah public DAN tidak sekaligus
-//! self — kalau sudah public tapi masih self, plugin diam-diam mengeluarkan
-//! keluar dari `selfGroups` supaya mode public benar-benar berlaku.
+//! Toggle `publicGroups`/`selfGroups`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -42,7 +37,7 @@ pub(crate) fn public_groups_after(ctx: &Ctx) -> Vec<serde_json::Value> {
 }
 
 /// Daftar `selfGroups` dengan `chat` dibuang — SELALU, bahkan kalau grup ini
-/// tidak ada di sana (`filter` di JS berjalan pada array kosong dengan hasil
+/// tidak ada di sana (`filter` di versi awal berjalan pada array kosong dengan hasil
 /// kosong, dan hasilnya tetap ditulis).
 pub(crate) fn self_groups_after(ctx: &Ctx) -> Vec<serde_json::Value> {
     self_groups(ctx)

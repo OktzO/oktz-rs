@@ -1,11 +1,10 @@
-//! `plugins/group/listtoxic.js` — `groups[chat].toxicWords` + tabel default
-//! dari `antitoxic.js:20-24`.
+//! `groups[chat].toxicWords` + tabel default
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::joined_strings;
 
-/// `DEFAULT_TOXIC_WORDS` (`antitoxic.js:21-23`), urutan persis — 20 kata.
+/// `DEFAULT_TOXIC_WORDS`, urutan persis — 20 kata.
 pub(crate) const DEFAULT_TOXIC_WORDS: [&str; 20] = [
     "anjing",
     "bangsat",

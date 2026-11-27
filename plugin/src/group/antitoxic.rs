@@ -1,16 +1,4 @@
-//! `plugins/group/antitoxic.js` — sakelar anti-toxic per grup.
-//!
-//! Hanya handler `.antitoxic` yang dipindah. Tiga hal lain tidak:
-//! - `isToxic` (:26) membangun `RegExp` dari kata yang disimpan, jadi butuh
-//!   mesin regex. Dipakai `src/handler.js:863`, bukan handler ini.
-//! - `handleToxicMessage` (:62) butuh `sock.sendMessage({delete})` (:73),
-//!   `sock.groupParticipantsUpdate` (:81), dan `sock.sendMessage` (:88, :98).
-//! - `gpMsg` (:50) membaca `config.groupProtection` dan hanya dipakai
-//!   `handleToxicMessage`.
-//!
-//! `DEFAULT_TOXIC_WORDS` dipakai ulang dari
-//! [`crate::group::listtoxic`] — konstanta yang sama di `antitoxic.js:20-24`,
-//! supaya tidak ada dua salinan yang bisa melenceng diam-diam.
+//! Sakelar anti-toxic per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -173,7 +161,7 @@ mod tests {
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(p.meta.is_admin);
-        // `isBotAdmin` tidak ada di pluginConfig JS.
+        // `isBotAdmin` tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_bot_admin);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
     }

@@ -1,10 +1,10 @@
-//! `plugins/group/listantilink.js` — `groups[chat].antilinkList` + tabel default.
+//! `groups[chat].antilinkList` + tabel default.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::joined_strings;
 
-/// `DEFAULT_BLOCKED_LINKS` (`listantilink.js:9-17`), urutan persis.
+/// `DEFAULT_BLOCKED_LINKS`, urutan persis.
 pub(crate) const DEFAULT_BLOCKED_LINKS: [&str; 7] = [
     "chat.whatsapp.com",
     "wa.me",
@@ -130,7 +130,7 @@ mod tests {
 #[test]
     fn a_wrong_typed_antilink_list_falls_back_to_empty() {
         // `groupData.antilinkList || []`: string bukan array masih punya
-        // `.length > 0`, jadi JS masuk cabang custom lalu `.forEach` meledak.
+        // `.length > 0`, jadi versi awal masuk cabang custom lalu `.forEach` meledak.
         // `group_list` mengembalikan slice kosong — tidak panic.
         let out = run(serde_json::json!({"antilinkList": "bukan-array"}));
         assert!(!out.contains("➕ *ᴄᴜsᴛᴏᴍ*"));

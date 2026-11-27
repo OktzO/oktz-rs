@@ -1,14 +1,11 @@
-//! `plugins/group/tagall.js` — roster, tanpa state tersimpan.
-//!
-//! `getParticipantJid` (`src/lib/lid.js`) mengembalikan JID wire peserta apa
-//! adanya; `Participant::jid` sudah persis bentuk itu.
+//! Roster, tanpa state tersimpan.
 
 use oktz_plugin_api::registry::Participant;
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{mention_peserta, tag_peserta};
 
-/// `m.text || 'Tag All Members'` (`tagall.js:20`) — string kosong itu falsy.
+/// `m.text || 'Tag All Members'` — string kosong itu falsy.
 pub(crate) const DEFAULT_TEXT: &str = "Tag All Members";
 
 pub(crate) const NO_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada member di grup ini.";
@@ -120,7 +117,7 @@ mod tests {
         (oktz_plugin_api::find("tagall").unwrap().handler)(c)
     }
 
-    // -- registrasi & meta ------------------------------------------------
+    // - registrasi & meta ------------------------------------------------
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -151,7 +148,7 @@ mod tests {
         assert!(!oktz_plugin_api::find("tagall").unwrap().meta.matches("all2"));
     }
 
-    // -- cabang roster -----------------------------------------------------
+    // - cabang roster -----------------------------------------------------
 
     #[test]
     fn empty_roster_takes_the_no_member_branch() {
@@ -189,7 +186,7 @@ mod tests {
 
     #[test]
     fn admin_and_member_flags_do_not_change_who_gets_tagged() {
-        // JS tidak memfilter admin; yang penting bukan pengirim.
+        // versi awal tidak memfilter admin; yang penting bukan pengirim.
         let base = ctx(vec![
             p("628111@s.whatsapp.net", false, false),
             p("628222@s.whatsapp.net", false, false),
@@ -217,7 +214,7 @@ mod tests {
         assert_eq!(mentions_of(&r), &["628222@s.whatsapp.net"]);
     }
 
-    // -- cabang teks -------------------------------------------------------
+    // - cabang teks -------------------------------------------------------
 
     #[test]
     fn empty_text_falls_back_to_the_js_default() {

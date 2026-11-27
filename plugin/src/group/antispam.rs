@@ -1,10 +1,4 @@
-//! `plugins/group/antispam.js` — sakelar proteksi spam + pengaturan jeda/delay.
-//!
-//! Hanya handler `.antispam` yang dipindah. Dua export lain tidak:
-//! - `checkSpam` (:93) menghitung `Date.now()` per pesan dan membaca
-//!   `m.fromMe`/`m.isOwner`, yang tidak ada di `Ctx`.
-//! - `handleSpamAction` (:133) butuh `sock.groupParticipantsUpdate` (:171)
-//!   dan `sock.sendMessage({delete})` (:184).
+//! Sakelar proteksi spam + pengaturan jeda/delay.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -46,7 +40,7 @@ fn split_delay(action: &str) -> Option<(&str, &str)> {
 }
 
 /// `parseInt(digits)` dengan saturasi, supaya digit raksasa tidak `None`
-/// (JS menghasilkan angka besar yang lalu di-clamp, bukan `NaN`).
+/// (versi awal menghasilkan angka besar yang lalu di-clamp, bukan `NaN`).
 fn parse_delay_digits(digits: &str) -> i64 {
     digits.bytes().fold(0i64, |acc, b| {
         acc.saturating_mul(10).saturating_add(i64::from(b - b'0'))
@@ -55,7 +49,7 @@ fn parse_delay_digits(digits: &str) -> i64 {
 
 /// `(delayMs / 1000).toFixed(1)`.
 ///
-/// `toFixed` JS memilih n terbesar saat seri, jadi 1.25 jadi "1.3". Karena
+/// `toFixed` versi awal memilih n terbesar saat seri, jadi 1.25 jadi "1.3". Karena
 /// `delayMs` sudah di-clamp ke 500..=10000, pembagiannya cukup dihitung bulat:
 /// desimal pertama = `delayMs / 100`, naik satu saat sisa >= 50.
 fn one_decimal_second(delay_ms: i64) -> String {
@@ -92,7 +86,7 @@ pub fn antispam(ctx: Ctx) -> Reply {
 
     if let Some((digits, unit)) = delay {
         let mut delay_ms = parse_delay_digits(digits);
-        // Syarat dievaluasi terhadap nilai SEBELUM dikali, sama seperti JS.
+        // Syarat dievaluasi terhadap nilai SEBELUM dikali, sama seperti versi awal.
         if unit == "s" || (1..=10).contains(&delay_ms) {
             delay_ms = delay_ms.saturating_mul(1000);
         }
@@ -222,7 +216,7 @@ mod tests {
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(p.meta.is_admin);
-        // `isPrivate` dan `isBotAdmin` tidak ada di pluginConfig JS.
+        // `isPrivate` dan `isBotAdmin` tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_bot_admin);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
     }
@@ -298,7 +292,7 @@ mod tests {
 
     #[test]
     fn tofixed_one_rounds_half_up_like_js() {
-        // JS: (1.25).toFixed(1) === "1.3" — seri memilih n terbesar.
+        // versi awal: (1.25).toFixed(1) === "1.3" — seri memilih n terbesar.
         assert_eq!(one_decimal_second(500), "0.5");
         assert_eq!(one_decimal_second(750), "0.8");
         assert_eq!(one_decimal_second(1250), "1.3");
@@ -359,7 +353,7 @@ mod tests {
 
     #[test]
     fn a_non_boolean_stored_flag_is_not_equal_to_the_new_value() {
-        // `1 === true` false di JS, jadi angka tidak boleh dianggap "sudah on".
+        // `1 === true` false di versi awal, jadi angka tidak boleh dianggap "sudah on".
         let r = run(serde_json::json!({ "antispam": 1 }), "on");
         assert_eq!(written(&r), &serde_json::json!({ "antispam": true }));
 
@@ -387,10 +381,10 @@ mod tests {
             ),
         ] {
             let r = run(serde_json::json!({}), input);
-            // `antispam.js:20` mentohkan `args[0]` lebih dulu, jadi yang
+            // mentohkan `args[0]` lebih dulu, jadi
             // ditulis ke store adalah bentuk huruf kecil.
             assert_eq!(written(&r), &serde_json::json!({ "antispamAction": input.to_lowercase() }));
-            // JS `antispam.js:88` membungkus deskripsi di dalam asterisk,
+            // versi awal membungkus deskripsi di dalam asterisk,
             // jadi yang dibandingkan termasuk tandanya.
             assert!(
                 text_of(&r).contains(&format!("> Metode Hukuman: *{label}*")),

@@ -1,4 +1,4 @@
-//! `plugins/group/antitagsw.js` — sakelar anti tag status.
+//! Sakelar anti tag status.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};

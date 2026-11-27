@@ -1,15 +1,10 @@
-//! `plugins/group/ht.js` — hidetag dengan support reply pesan.
+//! Hidetag dengan support reply pesan.
 //!
-//! `pluginConfig.name` di JS adalah array `['ht', 'hidetag']`.
-//! `PluginMeta.name` hanya `String`, jadi elemen pertama jadi `name` dan sisanya
-//! jadi `alias` — `matches()` tetap menerima keduanya. Pola yang sama dipakai
-//! [`crate::group::autodl`].
-//!
-//! `ponytail:` cabang media (gambar/video/sticker/audio/dokumen) butuh
-//! `quoted.download()` (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi
-//! hanya mode teks yang hidup. Reply-mode teks memakai `sock.sendMessage` tanpa
-//! `{ quoted: m }` (polos), sedangkan mode teks murni memakai `{ quoted: m }`
-//! — perbedaan itu dipertahankan lewat `Reply::Text` vs `Reply::TextQuoted`.
+//! `Keterbatasan:` cabang media (gambar/video/sticker/audio/dokumen) butuh
+//! `quoted.download()` (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi hanya mode
+//! teks yang hidup. Reply-mode teks memakai `sock.sendMessage` tanpa `{ quoted: m }`
+//! (polos), sedangkan mode teks murni memakai `{ quoted: m }` — perbedaan itu dipertahankan
+//! lewat `Reply::Text` vs `Reply::TextQuoted`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -44,7 +39,7 @@ pub fn ht(ctx: Ctx) -> Reply {
     let mentions = roster_jids(&ctx);
 
     if let Some(quoted) = ctx.quoted() {
-        // Cabang media tidak bisa di-port (lihat `ponytail:` modul).
+        // Cabang media tidak bisa diimplementasikan (lihat `Keterbatasan:` modul).
         if quoted.is_media() {
             return Reply::None;
         }

@@ -1,12 +1,9 @@
-//! `plugins/group/autodl.js` — sakelar auto download link sosmed.
+//! Sakelar auto download link sosmed.
 //!
-//! `ponytail:` `pluginConfig.name` di JS adalah array
-//! `['autodl', 'autodownload']`. `PluginMeta.name` hanya `String`, jadi
-//! elemen pertama jadi `name` dan sisanya jadi command tambahan
-//! (`PluginMeta::commands`) — registry `find()` mengeceknya sebelum alias.
-//!
-//! Penegakan `m.text` dipindah tidak: filtering link dan unduhan berjalan di
-//! middleware/handler lain, bukan di `.autodl`.
+//! `Keterbatasan:` `pluginConfig.name` di versi awal adalah array `['autodl',
+//! 'autodownload']`. `PluginMeta.name` hanya `String`, jadi elemen pertama jadi `name` dan
+//! sisanya jadi command tambahan (`PluginMeta::commands`) — registry `find()` mengeceknya
+//! sebelum alias.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -108,7 +105,7 @@ mod tests {
     #[test]
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("autodl").unwrap();
-        // `name` di JS adalah array `['autodl', 'autodownload']`.
+        // `name` di versi awal adalah array `['autodl', 'autodownload']`.
         assert_eq!(p.meta.name, "autodl");
         assert_eq!(p.meta.commands, ["autodownload"]);
         assert!(p.meta.alias.is_empty(), "alias JS: []");

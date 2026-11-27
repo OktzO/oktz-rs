@@ -1,16 +1,16 @@
-//! `plugins/group/intro.js` — `groups[chat].intro` + placeholder parsing.
+//! `groups[chat].intro` + placeholder parsing.
 //!
-//! `ponytail:` `@group` dan `@desc` diambil dari `m.groupMetadata.subject` /
-//! `.desc` — metadata WA, bukan `groups[chat]`. `Ctx` tidak membawa keduanya,
-//! jadi kedua placeholder itu selalu jatuh ke nilai cadangan JS. Tambahkan
-//! `group_subject` / `group_desc` ke `Ctx` kalau router mau keduanya; sisanya
-//! (`@user`, `@count`, `@date`, `@time`, `@botname`) sudah tercermin.
+//! `Keterbatasan:` `@group` dan `@desc` diambil dari `m.groupMetadata.subject` / `.desc` —
+//! metadata WA, bukan `groups[chat]`. `Ctx` tidak membawa keduanya, jadi kedua placeholder
+//! itu selalu jatuh ke nilai cadangan versi awal. Tambahkan `group_subject` / `group_desc`
+//! ke `Ctx` kalau router mau keduanya; sisanya (`@user`, `@count`, `@date`, `@time`,
+//! `@botname`) sudah tercermin.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{date_long, jid_number, time_hm};
 
-/// `config.bot.name` (`config.js:39`).
+/// `config.bot.name`.
 pub(crate) const BOT_NAME: &str = "Oktz Bot";
 
 /// Nilai cadangan untuk `groupMeta?.subject` dan `groupMeta?.desc`.
@@ -19,8 +19,8 @@ pub(crate) const NO_DESC: &str = "Tidak ada deskripsi";
 
 pub(crate) const DEFAULT_INTRO: &str = "halo kak @user 🖐\n\nKenalan dulu yukk\n- Nama : \n- Umur : \n- Asal : \n- Hobi : \n- Status : \n\nSemoga betah yahh, di grup @group\n\n> Untuk Owner:\nganti intro bawaan dengan .setintro <text>";
 
-/// Urutan token harus sama dengan `parsePlaceholders` (`intro.js:18-25`) —
-/// JS menjalankan tujuh `.replace` berurutan, jadi `@user` ditulis sebelum
+/// Urutan token harus sama dengan `parsePlaceholders` —
+/// versi awal menjalankan tujuh `.replace` berurutan, jadi `@user` ditulis sebelum
 /// `@count`, dan nilai pengganti ikut bisa tersentuh pola berikutnya.
 const TOKENS: [&str; 7] = [
     "@user", "@group", "@count", "@date", "@time", "@desc", "@botname",
@@ -163,7 +163,7 @@ mod tests {
         }
     }
 
-    // -- cabang state tersimpan -------------------------------------------
+    // - cabang state tersimpan -------------------------------------------
 
     #[test]
     fn absent_group_intro_falls_back_to_the_default_template() {
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(text_of(&reply), "Halo @628111! Kamu member ke-7.");
     }
 
-    // -- cabang placeholder ------------------------------------------------
+    // - cabang placeholder ------------------------------------------------
 
     #[test]
     fn every_seven_placeholder_is_substituted() {

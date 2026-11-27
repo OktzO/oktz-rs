@@ -1,10 +1,10 @@
-//! `plugins/group/setrulesgrup.js` — `groups[chat].groupRules`.
+//! `groups[chat].groupRules`.
 //!
-//! `ponytail:` sumber teks di JS adalah `m.text?.trim() || (m.quoted?.body ||
-//! m.quoted?.text || '')`. `Ctx` tidak membawa pesan yang di-reply, jadi
-//! cabang kedua tidak bisa dipindah; plugin hanya menerima teks yang ikut
-//! diketik. Kalau quotes di Instrumentasikan nanti, tambahkan `quoted:
-//! Option<Quoted>` ke `Ctx` dan pulihkan cabang itu.
+//! `Keterbatasan:` sumber teks di versi awal adalah `m.text?.trim() || (m.quoted?.body ||
+//! m.quoted?.text || '')`. `Ctx` tidak membawa pesan yang di-reply, jadi cabang kedua tidak
+//! bisa dipindah; plugin hanya menerima teks yang ikut diketik. Kalau quotes di
+//! Instrumentasikan nanti, tambahkan `quoted: Option<Quoted>` ke `Ctx` dan pulihkan cabang
+//! itu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

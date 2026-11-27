@@ -1,11 +1,10 @@
-//! `plugins/group/setppgc.js` — `sock.updateProfilePicture(m.chat, buffer)`.
+//! `sock.updateProfilePicture(m.chat, buffer)`.
 //!
-//! `ponytail:` dua cabang bisa dipindah, dua tidak. Yang dipindah: guard
-//! "tidak ada gambar" (`m.quoted?.isImage` → `QuotedKind::is_image`) dan teks
-//! errors. Yang tidak: `m.quoted.download()`/`m.download()` (butuh
-//! `downloadContentMessage`) dan `sock.updateProfilePicture`. `Ctx` juga tidak
-//! membawa flag "pesan yang dipicu adalah gambar", jadi cabang `m.isImage`
-//! tidak punya sumber.
+//! `Keterbatasan:` dua cabang bisa dipindah, dua tidak. Yang dipindah: guard "tidak ada
+//! gambar" (`m.quoted?.isImage` → `QuotedKind::is_image`) dan teks errors. Yang tidak:
+//! `m.quoted.download()`/`m.download()` (butuh `downloadContentMessage`) dan
+//! `sock.updateProfilePicture`. `Ctx` juga tidak membawa flag "pesan yang dipicu adalah
+//! gambar", jadi cabang `m.isImage` tidak punya sumber.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -33,7 +32,7 @@ pub(crate) fn no_image(prefix: &str) -> String {
 )]
 pub fn setppgc(ctx: Ctx) -> Reply {
     match ctx.quoted() {
-        // Unduh + unggah tidak ada di `Ctx` (lihat `ponytail:` modul).
+        // Unduh + unggah tidak ada di `Ctx` (lihat `Keterbatasan:` modul).
         Some(_) => Reply::None,
         None => Reply::text(no_image(&ctx.prefix)),
     }

@@ -1,9 +1,9 @@
-//! `plugins/group/antimedia.js` — sakelar antiblokir gambar/video/audio/dokumen.
+//! Sakelar antiblokir gambar/video/audio/dokumen.
 //!
-//! `ponytail:` hanya handler `.antimedia` yang dipindah. `checkAntimedia`
-//! (pemeriksaan per-pesan) butuh `sock.sendMessage` untuk menghapus pesan —
-//! `Ctx` tidak punya itu. `gpMsg` yang membaca `config.groupProtection` ikut
-//! tidak dipindah karena hanya dipakai `checkAntimedia`.
+//! `Keterbatasan:` hanya handler `.antimedia` yang dipindah. `checkAntimedia` (pemeriksaan
+//! per-pesan) butuh `sock.sendMessage` untuk menghapus pesan — `Ctx` tidak punya itu.
+//! `gpMsg` yang membaca `config.groupProtection` ikut tidak dipindah karena hanya dipakai
+//! `checkAntimedia`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

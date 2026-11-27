@@ -1,16 +1,15 @@
-//! `plugins/group/automedia.js` — sakelar `groups[chat].automedia`.
+//! Sakelar `groups[chat].automedia`.
 //!
-//! `ponytail:` `autoMediaHandler` yang diekspor ke `handler.js` tidak ikut.
-//! Fungsi itu berjalan per-pesan dan butuh `m.download()` plus
-//! `sock.sendMedia` — keduanya tidak ada di `Ctx`. Yang dipindah hanya
-//! perintahnya.
+//! `Keterbatasan:` `autoMediaHandler` yang diekspor tidak ikut. Fungsi itu berjalan
+//! per-pesan dan butuh `m.download()` plus `sock.sendMedia` — keduanya tidak ada di `Ctx`.
+//! Yang dipindah hanya perintahnya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::js_truthy;
 
 /// `groupData.automedia ?? false` — `??` hanya menutup `null`/`undefined`, jadi
-/// `"off"` tetap truthy dan `if (current)` di JS ikut terbaca `true`.
+/// `"off"` tetap truthy dan `if (current)` di versi awal ikut terbaca `true`.
 pub(crate) fn enabled(ctx: &Ctx) -> bool {
     js_truthy(ctx.group_field("automedia"))
 }
@@ -145,7 +144,7 @@ mod tests {
         for (stored, label) in [
             (serde_json::json!(true), "✅ Aktif"),
             (serde_json::json!(false), "❌ Nonaktif"),
-            // `{}` truthy di JS — objek kosong bukan "tidak ada".
+            // `{}` truthy di versi awal — objek kosong bukan "tidak ada".
             (serde_json::json!({}), "✅ Aktif"),
         ] {
             let r = run(&[], serde_json::json!({ "automedia": stored }));
@@ -209,7 +208,7 @@ mod tests {
     #[test]
     fn a_non_boolean_stored_value_follows_js_truthiness() {
         // `?? false` hanya menutup null/undefined; `if (current)` tetap pakai
-        // kebenaran JS, jadi `"off"` dianggap aktif.
+        // kebenaran versi awal, jadi `"off"` dianggap aktif.
         assert!(!enabled(&Ctx {
             group_data: serde_json::json!({"automedia": false}),
             ..Default::default()

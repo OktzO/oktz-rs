@@ -1,9 +1,4 @@
-//! `plugins/group/selfthisgc.js` — toggle `selfGroups`/`publicGroups`.
-//!
-//! Kedua plugin ini menulis DUA setting sekaligus dan saling membatalkan:
-//! `selfthisgc` menambah chat ke `selfGroups` DAN membuangnya dari
-//! `publicGroups`. Melewatkan salah satu akan meninggalkan grup dalam dua
-//! mode sekaligus, dan router tidak punya aturan tie-break.
+//! Toggle `selfGroups`/`publicGroups`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -212,8 +207,8 @@ mod tests {
 
     #[test]
     fn a_non_array_setting_reads_as_an_empty_list() {
-        // `db.setting("selfGroups") || []` — string/object bukan array, dan
-        // `.includes` di JS akan berperilaku aneh. Yang aman: perlakukan sebagai kosong.
+        // `db.setting("selfGroups") || []` — string/object bukan array,
+        // `.includes` di versi awal akan berperilaku aneh. Yang aman: perlakukan sebagai kosong.
         let r = run(serde_json::json!({"selfGroups": "bukan-array", "publicGroups": 5}));
         assert_eq!(list_of(&setting_of(&r, "selfGroups")), ["120363@g.us"]);
         assert!(list_of(&setting_of(&r, "publicGroups")).is_empty());

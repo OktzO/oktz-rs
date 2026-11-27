@@ -1,15 +1,10 @@
-//! `plugins/group/demote.js` — turunkan admin menjadi member biasa.
-//!
-//! Gerbang (target, peserta, tolak yang bukan admin, tolak owner) + penurunan
-//! `sock.groupParticipantsUpdate(m.chat, [id], 'demote')` (`demote.js:63,360`)
-//! lewat `ctx.sock().ubah_peserta(.., Turunkan)`. Balasan memakai teks JS tanpa
-//! emoji awalan, mention `target`.
+//! Turunkan admin menjadi member biasa.
 
 use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 
 use crate::group::kick::find_participant;
 
-/// `m.quoted ? m.quoted.sender : m.mentionedJid[0]` (`demote.js:24-28`).
+/// `m.quoted ? m.quoted.sender: m.mentionedJid[0]`.
 fn demote_target(ctx: &Ctx) -> Option<String> {
     if let Some(q) = ctx.quoted() {
         return Some(q.sender.clone());
@@ -17,7 +12,7 @@ fn demote_target(ctx: &Ctx) -> Option<String> {
     ctx.mentioned.first().cloned()
 }
 
-/// `demote.js:31-35`.
+///
 fn no_target(prefix: &str) -> String {
     format!(
         "❌ *ᴛᴀʀɢᴇᴛ ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n\

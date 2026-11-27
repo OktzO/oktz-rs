@@ -1,4 +1,4 @@
-//! `plugins/group/antiremove.js` — sakelar anti hapus pesan.
+//! Sakelar anti hapus pesan.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
@@ -38,7 +38,7 @@ pub fn antiremove(ctx: Ctx) -> Reply {
         ));
     }
 
-    // `db.setGroup(m.chat, { ...group, antiremove })` di JS menyalin grup
+    // `db.setGroup(m.chat, {...group, antiremove })` di versi awal menyalin grup
     // utuh; `Mutation::SetGroup` sudah berupa patch sebagian, jadi field lain
     // tidak perlu ditulis ulang.
     let write = |message: &str, status: &str| {
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn only_the_exact_string_on_counts_as_active() {
-        // JS `status === 'on'` — nilai lain (termasuk boolean `true`) jatuh ke
+        // versi awal `status === 'on'` — nilai lain (termasuk boolean `true`) jatuh
         // cabang nonaktif, bukan dianggap aktif.
         assert!(
             text_of(&run(serde_json::json!({"antiremove": "on"}), "")).contains("✅ Aktif"),

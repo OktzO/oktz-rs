@@ -1,28 +1,19 @@
-//! `plugins/group/open.js` — buka grup (semua member bisa chat).
-//!
-//! Yang dipindah: cek status `announce` (`open.js:22`), teks validasi
-//! (`:24-27`), dan teks sukses (`:35-36`).
-//!
-//! CATATAN: `sock.groupSettingUpdate(m.chat, 'not_announcement')`
-//! (`open.js:30`) tidak ada padanannya di trait `Sock` — kredensial grup
-//! tidak bisa diubah lewat API plugin. Jadi status `announce` hanya BACA
-//! (lewat `sock.metadata_grup`), dan BALASAN SUKSES tetap sama persis dengan
-//! JS walau sisi efektifnya belum dijalankan.
+//! Buka grup (semua member bisa chat).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// `open.js:24-27` — grup sudah terbuka.
+/// Grup sudah terbuka.
 const SUDAH_TERBUKA: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n\
      > Grup sudah dalam keadaan `terbuka`.\n\
      > Semua member sudah bisa mengirim pesan.";
 
-/// `open.js:48-51` — cabang `catch`.
+/// Cabang `catch`.
 fn gagal(pesan: &str) -> String {
     format!("❌ *ᴇʀʀᴏʀ*\n\n> Gagal membuka grup.\n> _{pesan}_")
 }
 
-/// `m.groupMetadata.announce` (`open.js:22`).
+/// `m.groupMetadata.announce`.
 fn sudah_terbuka(ctx: &Ctx) -> Option<bool> {
     let meta = ctx.sock().metadata_grup(&ctx.chat).ok()?;
     Some(
@@ -57,10 +48,10 @@ pub fn open(ctx: Ctx) -> Reply {
         Some(true) => {}
     }
 
-    // `open.js:30` — `sock.groupSettingUpdate(m.chat, 'not_announcement')`.
+    // `sock.groupSettingUpdate(m.chat, 'not_announcement')`.
     // Lihat catatan modul: operasi ini belum ada di `Sock`.
 
-    // `open.js:33-37` — `const senderNum = m.sender.split('@')[0]`.
+    // `const senderNum = m.sender.split('@')[0]`.
     Reply::text_mention(
         format!(
             "✅ @{} telah membuka grup ini\n_Sekarang kalian bisa mengirim pesan_",

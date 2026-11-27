@@ -1,15 +1,10 @@
-//! `plugins/group/promote.js` — jadikan member sebagai admin.
-//!
-//! Gerbang (target, peserta, tolak yang sudah admin) + pengangkatan
-//! `sock.groupParticipantsUpdate(m.chat, [id], 'promote')` (`promote.js:58,286`)
-//! lewat `ctx.sock().ubah_peserta(.., Naikkan)`. Balasan sukses memakai teks JS
-//! dengan mention `target` (bukan `p.jid` — JS me-mention hasil resolve).
+//! Jadikan member sebagai admin.
 
 use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 
 use crate::group::kick::find_participant;
 
-/// `m.quoted ? m.quoted.sender : m.mentionedJid[0]` (`promote.js:24-28`).
+/// `m.quoted ? m.quoted.sender: m.mentionedJid[0]`.
 fn promote_target(ctx: &Ctx) -> Option<String> {
     if let Some(q) = ctx.quoted() {
         return Some(q.sender.clone());
@@ -17,7 +12,7 @@ fn promote_target(ctx: &Ctx) -> Option<String> {
     ctx.mentioned.first().cloned()
 }
 
-/// `promote.js:31-35`.
+///
 fn no_target(prefix: &str) -> String {
     format!(
         "❌ *ᴛᴀʀɢᴇᴛ ᴛɪᴅᴀᴋ ᴅɪᴛᴇᴍᴜᴋᴀɴ*\n\n\
@@ -174,7 +169,7 @@ mod tests {
 
     #[test]
     fn an_existing_admin_is_refused() {
-        // Owner juga admin — di JS `participant.admin` truthy juga, jadi
+        // Owner juga admin — di versi awal `participant.admin` truthy juga, jadi
         // cabang "sudah admin" yang capturing, bukan ada cabang owner.
         let r = run(ctx_with(Some("628999@s.whatsapp.net")));
         assert_eq!(body(&r), ALREADY_ADMIN);

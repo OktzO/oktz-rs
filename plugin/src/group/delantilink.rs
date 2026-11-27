@@ -1,7 +1,4 @@
-//! `plugins/group/delantilink.js` — `groups[chat].antilinkList` hapus satu.
-//!
-//! Tanpa argumen plugin ini BERBEDA dari `addantilink`: ia menampilkan
-//! daftar yang ada, bukan bantuan.
+//! `groups[chat].antilinkList` hapus satu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -188,7 +185,7 @@ mod tests {
 
     #[test]
     fn the_argument_is_joined_trimmed_and_lowercased() {
-        // `m.args.join(' ').trim().toLowerCase()` — tiga transformasi, dan
+        // `m.args.join(' ').trim().toLowerCase()` — tiga transformasi,
         // trim-nya TIDAK ada di `addantilink`.
         let r = run(serde_json::json!({"antilinkList": ["a.com", "b.com"]}), "  A.com  ");
         assert_eq!(list_write(&r), &vec![serde_json::json!("b.com")]);

@@ -1,4 +1,4 @@
-//! `plugins/group/resetintro.js` — hapus `groups[chat].intro` kembali ke default.
+//! Hapus `groups[chat].intro` kembali ke default.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

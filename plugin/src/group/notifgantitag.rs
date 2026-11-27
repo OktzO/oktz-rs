@@ -1,23 +1,15 @@
-//! `plugins/group/notifgantitag.js` — toggle `groups[chat].notifLabelChange`.
+//! Toggle `groups[chat].notifLabelChange`.
 //!
-//! Yang dipindah: cabang lokal `on`/`off` lengkap dengan tulis ke store
-//! (`Mutation::SetGroup`) dan seluruh teks tampilannya.
-//!
-//! `ponytail:` cabang `on all`/`off all` butuh
-//! `sock.groupFetchAllParticipating()` (`notifgantitag.js:34` dan `:57`) untuk
-//! tahu daftar grup. `Ctx` tidak punya daftar itu, jadi kedua cabang berhenti
-//! di balasan "tidak di-port" — penting: tanpa cabang ini `on all` akan jatuh
-//! ke `on` lokal dan diam-diam hanya mengubah satu grup.
-//!
-//! Ekspor kedua file ini, `handleLabelChange` (`:120`), adalah hook event
-//! `protocolMessage` type 30 yang mengirim lewat `sock.sendText` +
-//! `saluranCtx()`; keduanya tidak ada di API plugin dan tidak ikut di-port.
+//! `Keterbatasan:` cabang `on all`/`off all` butuh `sock.groupFetchAllParticipating()`
+//! untuk tahu daftar grup. `Ctx` tidak punya daftar itu, jadi kedua cabang berhenti di
+//! balasan "tidak diimplementasikan" — penting: tanpa cabang ini `on all` akan jatuh ke
+//! `on` lokal dan diam-diam hanya mengubah satu grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 const OWNER_ONLY: &str = "❌ Hanya owner yang bisa menggunakan fitur ini!";
 
-/// `notifgantitag.js:34` — daftar grup tidak bisa diambil, jadi tidak ada
+/// Daftar grup tidak bisa diambil, jadi tidak ada
 /// `setGroup` yang dijalankan untuk branch `all`.
 pub(crate) fn global_unavailable(action: &str) -> String {
     format!(
@@ -28,7 +20,7 @@ pub(crate) fn global_unavailable(action: &str) -> String {
     )
 }
 
-/// `notifgantitag.js:76-81`.
+///
 fn already_on(prefix: &str) -> String {
     format!(
         "⚠️ *ɴᴏᴛɪꜰ ʟᴀʙᴇʟ ᴀʟʀᴇᴀᴅʏ ᴀᴄᴛɪᴠᴇ*\n\n\
@@ -38,13 +30,13 @@ fn already_on(prefix: &str) -> String {
     )
 }
 
-/// `notifgantitag.js:84-89`.
+///
 const NOW_ON: &str = "✅ *ɴᴏᴛɪꜰ ʟᴀʙᴇʟ ᴀᴋᴛɪꜰ*\n\n\
 > Notifikasi perubahan label member berhasil diaktifkan!\n\
 > Bot akan memberitahu ketika ada member yang labelnya diganti.\n\n\
 _Contoh: Admin menambahkan tag \"VIP\" ke member_";
 
-/// `notifgantitag.js:93-98`.
+///
 fn already_off(prefix: &str) -> String {
     format!(
         "⚠️ *ɴᴏᴛɪꜰ ʟᴀʙᴇʟ ᴀʟʀᴇᴀᴅʏ ɪɴᴀᴄᴛɪᴠᴇ*\n\n\
@@ -54,11 +46,11 @@ fn already_off(prefix: &str) -> String {
     )
 }
 
-/// `notifgantitag.js:101-104`.
+///
 const NOW_OFF: &str = "❌ *ɴᴏᴛɪꜰ ʟᴀʙᴇʟ ɴᴏɴᴀᴋᴛɪꜰ*\n\n\
 > Notifikasi perubahan label member berhasil dinonaktifkan.";
 
-/// `notifgantitag.js:107-117`. Yang berubah per status hanya baris `Status:`.
+/// . Yang berubah per status hanya baris `Status:`.
 fn menu(prefix: &str, status: bool) -> String {
     format!(
         "🏷️ *ɴᴏᴛɪꜰ ɢᴀɴᴛɪ ᴛᴀɢ/ʟᴀʙᴇʟ*\n\n\
@@ -112,7 +104,7 @@ pub fn notifgantitag(ctx: Ctx) -> Reply {
     }
 
     // `groupData.notifLabelChange === true` — perbandingan ketat, bukan
-    // kebenaran JS: angka 1 atau string "on" di store tidak dihitung aktif.
+    // kebenaran versi awal: angka 1 atau string "on" di store tidak dihitung aktif.
     let current = ctx.group_field("notifLabelChange") == Some(&serde_json::json!(true));
 
     if sub.as_deref() == Some("on") {
@@ -193,7 +185,7 @@ mod tests {
         assert_eq!(e.meta.energi, 0);
         assert!(e.meta.is_enabled);
         assert!(e.meta.is_group && e.meta.is_admin);
-        // Field yang tidak ada di JS berarti false, bukan true.
+        // Field yang tidak ada di versi awal berarti false, bukan true.
         assert!(!e.meta.is_private && !e.meta.is_owner && !e.meta.is_premium);
         assert!(!e.meta.is_bot_admin);
     }
@@ -236,7 +228,7 @@ mod tests {
 
     #[test]
     fn only_the_literal_true_counts_as_on() {
-        // `=== true`, bukan kebenaran JS: 1 dan "on" tetap "nonaktif".
+        // `=== true`, bukan kebenaran versi awal: 1 dan "on" tetap "nonaktif".
         for stored in [serde_json::json!(1), serde_json::json!("on"), serde_json::json!("true"), serde_json::json!({})] {
             let r = run(
                 serde_json::json!({ "notifLabelChange": stored.clone() }),

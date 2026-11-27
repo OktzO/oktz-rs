@@ -1,15 +1,13 @@
-//! `plugins/group/game.js` — `groups[chat].game` on/off.
-//!
-//! Bentuknya identik dengan `plugins/group/rpg.js` (`rpg`), hanya nama field
-//! dan teksnya berbeda. Keduanya tetap file terpisah karena `pluginConfig`
-// JS-nya terpisah dan alias-nya berbeda.
+//! `groups[chat].game` on/off.
+
+// versi awal-nya terpisah dan alias-nya berbeda.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::text_keyword;
 
 /// `db.getGroup(chat) || db.setGroup(chat)` — `setGroup` mengisi default
-/// `game: true` (`database.js:736`), jadi grup yang belum pernah ada mulai
+/// `game: true`, jadi grup yang belum pernah ada mulai
 /// dari AKTIF, bukan `undefined`. Itu yang membuat cek "sudah dalam keadaan"
 /// langsung kena pada grup baru.
 pub(crate) fn current(ctx: &Ctx) -> bool {

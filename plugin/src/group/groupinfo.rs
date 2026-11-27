@@ -1,4 +1,4 @@
-//! `plugins/group/groupinfo.js` — informasi lengkap grup.
+//! Informasi lengkap grup.
 
 use oktz_plugin_api::MediaSource;
 use oktz_plugin_api::registry::{GroupRoster, Participant};
@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::common::{date_long, error_template, jid_number, js_truthy_value};
 
-/// `featureStatus` (`groupinfo.js:21-24`): hanya `true` atau string `"on"`.
+/// `featureStatus`: hanya `true` atau string `"on"`.
 fn feature_status(value: Option<&Value>) -> &'static str {
     match value {
         Some(Value::Bool(true)) => "✅",
@@ -20,7 +20,7 @@ fn teks(value: Option<&Value>) -> Option<&str> {
     value.and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty())
 }
 
-/// `getParticipantJid`/`resolveAnyLidToJid`: owner `@lid` dicari pasangannya di
+/// `getParticipantJid`/`resolveAnyLidToJid`: owner `@lid` dicari pasangannya
 /// daftar peserta metadata (`lid` → `id`/`phoneNumber`).
 fn resolve_jid(jid: &str, meta: &Value, roster: &GroupRoster) -> Option<String> {
     if !jid.ends_with("@lid") {
@@ -83,7 +83,7 @@ fn jumlah_peserta(meta: &Value, roster: &GroupRoster) -> (usize, usize) {
     }
 }
 
-/// Susun teks `INFO GRUP` (`groupinfo.js:44-96`).
+/// Susun teks `INFO GRUP`.
 fn susun_info(
     meta: &Value,
     roster: &GroupRoster,
@@ -162,7 +162,7 @@ fn susun_info(
             feature_status(group.get(key))
         ));
     }
-    // JS tidak menutup baris terakhir dengan newline.
+    // versi awal tidak menutup baris terakhir dengan newline.
     if text.ends_with('\n') {
         text.pop();
     }

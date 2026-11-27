@@ -1,7 +1,7 @@
-//! `plugins/group/unmute.js` — `groups[chat].mute = false`.
+//! `groups[chat].mute = false`.
 //!
-//! Simetris dengan [`crate::group::mute`]: nama grup diambil dari
-//! `groups[chat].name`, lihat catatan `ponytail:` di sana.
+//! Simetris dengan [`crate::group::mute`]: nama grup diambil dari `groups[chat].name`,
+//! lihat catatan `Keterbatasan:` di sana.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

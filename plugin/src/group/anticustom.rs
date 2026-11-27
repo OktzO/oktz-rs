@@ -1,24 +1,10 @@
-//! `plugins/group/anticustom.js` — pasang/pantau proteksi AntiCustom per grup.
-//!
-//! Yang dipindah: seluruh `handler` — status, guide, `on`/`off`, `metode`,
-//! `list`, `del`, `cancel`, dan penanda wizard yang sedang berjalan.
-//!
-//! Yang tidak dipindah:
-//! - `replyHandler` (`:307`) adalah entry point kedua (dijalankan untuk pesan
-//!   biasa yang me-quote prompt), dan `PluginEntry` cuma punya satu `handler`.
-//! - `sendPrompt` (`:127`) menyimpan `sent.key.id` ke `session.promptId`;
-//!   `Reply` tidak pernah mengembalikan id pesan yang terkirim, jadi
-//!   `promptId` selalu `null`. Tidak ada yang membacanya tanpa `replyHandler`.
-//! - `refreshSessionTimeout`/`clearSession` memakai `setTimeout` 10 menit;
-//!   `Ctx` tidak punya penjadwal, jadi sesi tidak kedaluwarsa sendiri.
-//! - `parsePatternAnswer` + `analyzeCustomPattern` hanya dipakai
-//!   `replyHandler`.
+//! Pasang/pantau proteksi AntiCustom per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use serde_json::{Value};
 
-/// Awalan key session — `global.anticustomSessions` punya peta sendiri di JS,
+/// Awalan key session — `global.anticustomSessions` punya peta sendiri di versi awal,
 /// sedangkan `Ctx::sessions` satu map global untuk semua plugin.
 const SESSION_PREFIX: &str = "anticustomSessions";
 
@@ -26,7 +12,7 @@ fn session_key(ctx: &Ctx) -> String {
     format!("{SESSION_PREFIX}:{}:{}", ctx.chat, ctx.sender)
 }
 
-/// `normalizeRules` (`anticustom.js:29`).
+/// `normalizeRules`.
 fn rules(group_data: &Value) -> Vec<Value> {
     group_data
         .get("anticustomRules")
@@ -40,7 +26,7 @@ fn rules(group_data: &Value) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-/// `normalizeAction(action, fallback)` (`anticustom.js:64`).
+/// `normalizeAction(action, fallback)`.
 ///
 /// `String(action || fallback)` berarti argumen kosong/null ikut `fallback`;
 /// `delete`/`hapus` diseragamkan jadi `remove`.
@@ -54,7 +40,7 @@ fn normalize_action(action: Option<&str>, fallback: &str) -> String {
     }
 }
 
-/// `formatRule(rule, index)` (`anticustom.js:35`).
+/// `formatRule(rule, index)`.
 fn format_rule(rule: &Value, index: usize) -> String {
     let title = ["groupName", "name"]
         .iter()
@@ -76,7 +62,7 @@ fn format_rule(rule: &Value, index: usize) -> String {
     )
 }
 
-/// `buildGuideMessage(m, status, mode, rules)` (`anticustom.js:182`).
+/// `buildGuideMessage(m, status, mode, rules)`.
 fn guide(prefix: &str, status: &str, mode: &str, total: usize) -> String {
     format!(
         "🛡️ *ᴀɴᴛɪᴄᴜsᴛᴏᴍ*\n\n\
@@ -99,7 +85,7 @@ fn guide(prefix: &str, status: &str, mode: &str, total: usize) -> String {
     )
 }
 
-/// `startWizard` (`anticustom.js:132`) — bagian yang belum punya sesi.
+/// `startWizard` — bagian yang belum punya sesi.
 fn wizard_prompt(first_setup: bool) -> String {
     let intro = if first_setup {
         "🛡️ *Selamat datang di setup AntiCustom*\n\n\

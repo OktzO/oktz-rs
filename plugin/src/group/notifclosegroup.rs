@@ -1,10 +1,6 @@
-//! `plugins/group/notifclosegroup.js` — toggle `groups[chat].notifCloseGroup`.
+//! Toggle `groups[chat].notifCloseGroup`.
 //!
-//! Empat plugin `notif*` punya tubuh yang sama persis (guard admin, status
-//! on/off, satu tulis ke grup) dan hanya berbeda di nama field, judul, dan
-//! ikon — jadi cabangnya hidup di sini dan tiga saudaranya memanggilnya.
-//!
-//! `ponytail:` `m.isAdmin` tidak ada di `Ctx`; guard memakainya
+//! `Keterbatasan:` `m.isAdmin` tidak ada di `Ctx`; guard memakainya
 //! `ctx.roster.is_admin(sender)`, roster grup untuk pesan yang sama.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
@@ -24,7 +20,7 @@ pub(crate) struct NotifToggle {
     pub emoji: &'static str,
 }
 
-/// `group[field] === true ? '✅ Aktif' : '❌ Nonaktif'` — `===`, bukan
+/// `group[field] === true ? '✅ Aktif': '❌ Nonaktif'` — `===`, bukan
 /// truthiness, jadi `1` atau `"true"` tetap tampil Nonaktif.
 fn status_text(enabled: bool) -> &'static str {
     if enabled { "✅ Aktif" } else { "❌ Nonaktif" }
@@ -150,7 +146,7 @@ mod tests {
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
-        // `isAdmin`/`isBotAdmin` tidak ada di pluginConfig JS.
+        // `isAdmin`/`isBotAdmin` tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
     }
 

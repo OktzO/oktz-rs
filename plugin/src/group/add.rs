@@ -1,18 +1,15 @@
-//! `plugins/group/add.js` — menambahkan member ke grup (dukungan multiple).
+//! Menambahkan member ke grup (dukungan multiple).
 //!
-//! `pub mod add;` perlu ditambah manual ke `src/group/mod.rs` (mod.rs berisi
-//! plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
-//!
-//! `ponytail:` `sock.groupParticipantsUpdate` di Rust mengembalikan `()`
-//! tanpa detail status per-nomor (JS: `res.status 200/408/lain`). Akibatnya
-//! cabang sukses/undang/gagal per-nomor dari JS disatukan: pada `Ok` semua
-//! nomor valid dilaporkan berhasil, pada `Err` dilaporkan gagal. Reaksi
-//! `🕕` dari JS dihilangkan karena `Reply::with_reaction` hanya membawa satu
-//! emoji — hanya reaksi penutup (`✅`/`❌`) yang dikirim.
+//! `Keterbatasan:` `sock.groupParticipantsUpdate` di Rust mengembalikan `()` tanpa detail
+//! status per-nomor (versi awal: `res.status 200/408/lain`). Akibatnya cabang
+//! sukses/undang/gagal per-nomor dari versi awal disatukan: pada `Ok` semua nomor valid
+//! dilaporkan berhasil, pada `Err` dilaporkan gagal. Reaksi `🕕` dari versi awal dihilangkan
+//! karena `Reply::with_reaction` hanya membawa satu emoji — hanya reaksi penutup (`✅`/`❌`)
+//! yang dikirim.
 
 use oktz_plugin_api::{AksiPeserta, Ctx, Reply, plugin};
 
-/// Kartu pakai saat tidak ada argumen — salinan `add.js:24-39`.
+/// Kartu pakai saat tidak ada argumen — salinan.
 fn help(prefix: &str) -> String {
     format!(
         "👥 *ᴀᴅᴅ ᴍᴇᴍʙᴇʀ*\n\n\
@@ -34,7 +31,7 @@ const ERR_NO_NUMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Masukkan nomor yang valid!"
 const ERR_ALL_IN_GROUP: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Semua nomor sudah ada di grup!";
 
 /// `arg.replace(/[^0-9]/g, '')` lalu awalan `0` diganti `62`; terima jika
-/// panjang >= 10 — persis `add.js:56-63`.
+/// panjang >= 10 — persis.
 fn bersihkan_nomor(arg: &str) -> Option<String> {
     let num: String = arg.chars().filter(|c| c.is_ascii_digit()).collect();
     let num = match num.strip_prefix('0') {
@@ -84,7 +81,7 @@ pub fn add(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `add.js:41` — `let targetGroup = m.isGroup ? m.chat : null`.
+    // `let targetGroup = m.isGroup ? m.chat: null`.
     let mut target_group: Option<String> = ctx.is_group.then(|| ctx.chat.clone());
     let mut target_numbers: Vec<String> = Vec::new();
 

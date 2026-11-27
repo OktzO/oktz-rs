@@ -1,18 +1,8 @@
-//! `plugins/group/resetlinkgc.js` — cabut link invite grup.
-//!
-//! Yang dipindah: teks sukses dan teks error (`resetlinkgc.js:27-28`,
-//! `:31-32`).
-//!
-//! CATATAN: `sock.groupRevokeInvite(m.chat)` (`resetlinkgc.js:24`) tidak ada
-//! padanannya di trait `Sock` — hanya `kode_undangan` (baca kode) dan
-//! `terima_undangan` (terima undangan) yang tersedia, tidak ada operasi
-//! mencabut. Jadi link lama TIDAK dicabut, dan balasan sukses tetap sama
-//! persis dengan JS. Butuh `groupRevokeInvite` di `Sock` agar perintah ini
-//! benar-benar mencabut link.
+//! Cabut link invite grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `resetlinkgc.js:27-28` — teks sukses.
+/// Teks sukses.
 fn sukses(prefix: &str) -> String {
     format!(
         "✅ *ʟɪɴᴋ ɢʀᴜᴘ ᴅɪʀᴇsᴇᴛ*\n\
@@ -39,9 +29,9 @@ fn sukses(prefix: &str) -> String {
     is_bot_admin = true
 )]
 pub fn resetlinkgc(ctx: Ctx) -> Reply {
-    // `resetlinkgc.js:22` — `m.react('🔄')`; hanya reaksi penutup yang
+    // `m.react('🔄')`; hanya reaksi penutup
     // benar-benar tersimpan di WA.
-    // `resetlinkgc.js:24` — `sock.groupRevokeInvite(m.chat)`.
+    // `sock.groupRevokeInvite(m.chat)`.
     // Lihat catatan modul: operasi pencabutan link belum ada di `Sock`.
     Reply::text(sukses(&ctx.prefix)).with_reaction("✅")
 }

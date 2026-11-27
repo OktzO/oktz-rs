@@ -1,4 +1,4 @@
-//! `plugins/group/listwarn.js` — `groups[chat].warnings` (peta jid → array).
+//! `groups[chat].warnings` (peta jid → array).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -21,7 +21,7 @@ pub(crate) fn warning_line(v: &Value, i: usize) -> String {
     let reason = v.get("reason").and_then(Value::as_str).unwrap_or("undefined");
     // `timeHelper.fromTimestamp(w.time, 'DD/MM/YYYY')` — `undefined` jadi
     // `new Date(undefined)` = Invalid Date, `formatPattern` apa adanya, tapi
-    // tidak pernah jadi crash di JS. Di sini timestamp rusak ditampilkan
+    // tidak pernah jadi crash di versi awal. Di sini timestamp rusak ditampilkan
     // sebagai epoch supaya barisnya tetap utuh.
     let ts = v.get("time").and_then(Value::as_i64).unwrap_or(0);
     format!("*{}.* {reason}\n   └ _{}_\n", i + 1, date_dmy(ts))
@@ -51,7 +51,7 @@ pub(crate) fn warnings_of<'a>(ctx: &'a Ctx, jid: &str) -> &'a [Value] {
 pub fn listwarn(ctx: Ctx) -> Reply {
     let max = max_warnings(&ctx);
 
-    // `ponytail:` JS memilih `m.quoted` sebelum `m.mentionedJid[0]`;
+    // `Keterbatasan:` versi awal memilih `m.quoted` sebelum `m.mentionedJid[0]`;
     // `Ctx` tidak membawa pesan yang di-reply, jadi reply-mode tidak
     // terjangkau. Tambahkan `quoted_sender: Option<String>` ke `Ctx` kalau
     // router menyediakannya.
@@ -150,7 +150,7 @@ mod tests {
         }
     }
 
-    // -- cabang "semua user" ----------------------------------------------
+    // - cabang "semua user" ----------------------------------------------
 
     #[test]
     fn absent_group_data_takes_the_empty_branch() {
@@ -211,7 +211,7 @@ mod tests {
         assert!(text_of(&run(group.clone(), vec!["628111@s.whatsapp.net"])).contains("> Total: *1/5*"));
     }
 
-    // -- cabang "@user" ----------------------------------------------------
+    // - cabang "@user" ----------------------------------------------------
 
     #[test]
     fn a_mention_for_someone_without_warnings_says_so() {
@@ -259,7 +259,7 @@ mod tests {
         assert!(!text_of(&r).contains("628222"));
     }
 
-    // -- format tanggal ----------------------------------------------------
+    // - format tanggal ----------------------------------------------------
 
     #[test]
     fn warning_dates_render_dd_mm_yyyy_in_jakarta() {

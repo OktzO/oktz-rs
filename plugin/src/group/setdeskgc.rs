@@ -1,17 +1,12 @@
-//! `plugins/group/setdeskgc.js` — ubah deskripsi grup.
-//!
-//! Yang dipindah: seluruh gerbang (tanpa argumen, kata `clear`, batas
-//! panjang). Penyuntingan sebenarnya `sock.groupUpdateDescription(m.chat,
-//! descToSet)` (`setdeskgc.js:40`) tidak ada di API plugin, jadi setelah
-//! gerbang lolos plugin diam — bukan mengirim "deskripsi berhasil diperbarui".
+//! Ubah deskripsi grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `setdeskgc.js:31` — `descToSet.length > 2048`.
+/// `descToSet.length > 2048`.
 pub(crate) const MAX_DESC: usize = 2048;
 
-/// `const descToSet = newDesc.toLowerCase() === 'clear' ? '' : newDesc`
-/// (`setdeskgc.js:29`).
+/// `const descToSet = newDesc.toLowerCase() === 'clear' ? '': newDesc`
+///
 pub(crate) fn desc_to_set(new_desc: &str) -> String {
     if new_desc.to_lowercase() == "clear" {
         String::new()
@@ -20,7 +15,7 @@ pub(crate) fn desc_to_set(new_desc: &str) -> String {
     }
 }
 
-/// `setdeskgc.js:22-26`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -29,7 +24,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `setdeskgc.js:32-35`.
+///
 const TOO_LONG: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ*\n\n> Deskripsi maksimal 2048 karakter.";
 
 #[plugin(
@@ -56,8 +51,8 @@ pub fn setdeskgc(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `ponytail:` JS menghitung `.length` sebagai unit UTF-16, Rust menghitung
-    // scalar; emoji di luar BMP terhitung 1 di sini dan 2 di JS. Ambang 2048
+    // `Keterbatasan:` versi awal menghitung `.length` sebagai unit UTF-16, Rust menghitung
+    // scalar; emoji di luar BMP terhitung 1 di sini dan 2 di versi awal. Ambang 2048
     // jauh dari batas itu untuk deskripsi biasa.
     let desc = desc_to_set(new_desc);
     if desc.chars().count() > MAX_DESC {
@@ -140,8 +135,8 @@ mod tests {
 
     #[test]
     fn whitespace_only_is_not_the_empty_command() {
-        // `!m.text` di JS: `"   "` itu truthy, jadi cabang cara pakai dilewati
-        // walau `m.text?.trim()` kosong. Kesenjangan itu bawaan JS.
+        // `!m.text` di versi awal: `" "` itu truthy, jadi cabang cara pakai dilewati
+        // walau `m.text?.trim()` kosong. Kesenjangan itu bawaan versi awal.
         assert!(run("   ").is_none(), "spasi saja bukan cabang cara pakai");
         assert_eq!(desc_to_set(""), "");
     }
@@ -157,7 +152,7 @@ mod tests {
             assert_eq!(desc_to_set(arg), "", "arg {arg:?}");
         }
         // `" Clear "` hanya jadi `""` kalau `trim()` jalan lebih dulu; itu
-        // tugas `setdeskgc.js:20`, bukan fungsi ini.
+        // tugas, bukan fungsi ini.
         assert_eq!(desc_to_set(" Clear "), " Clear ");
         assert_eq!(
             desc_to_set("clearan"),

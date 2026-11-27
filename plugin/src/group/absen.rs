@@ -1,4 +1,4 @@
-//! `plugins/group/absen.js` — tandai kehadiran di sesi absen grup.
+//! Tandai kehadiran di sesi absen grup.
 
 use serde_json::{Value};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -16,8 +16,8 @@ pub(crate) const ALREADY: &str = "❌ Kamu sudah absen!";
 
 /// `new Date(s).getTime()` untuk keluaran `Date#toISOString()` (UTC, `Z`).
 ///
-/// `ponytail:` milidetik dan offset diabaikan — satu-satunya penulisnya
-/// `new Date().toISOString()` (`mulaiabsen.js:41`), jadi bentuknya selalu
+/// `Keterbatasan:` milidetik dan offset diabaikan — satu-satunya penulisnya
+/// `new Date().toISOString()`, jadi bentuknya selalu
 /// `YYYY-MM-DDTHH:mm:ss.sssZ`. Naik ke parser penuh kalau ada sumber lain.
 pub(crate) fn iso_ms(raw: &str) -> Option<i64> {
     let (date, rest) = raw.split_once('T')?;
@@ -37,7 +37,7 @@ pub(crate) fn iso_ms(raw: &str) -> Option<i64> {
 }
 
 /// `createdAt` sebagai milidetik, dengan fallback `lastUpdate`/`lastActive`
-/// (`absen.js:22`). String diparse sebagai ISO, angka dipakai apa adanya.
+/// . String diparse sebagai ISO, angka dipakai apa adanya.
 pub(crate) fn entry_created_ms(entry: &Value) -> i64 {
     let raw = ["createdAt", "lastUpdate", "lastActive"]
         .iter()
@@ -75,7 +75,7 @@ pub(crate) fn session_for(ctx: &Ctx) -> Option<Value> {
     entry.is_object().then_some(entry)
 }
 
-/// Peserta sesi sebagai JID, urut seperti `absen.peserta` di JS.
+/// Peserta sesi sebagai JID, urut seperti `absen.peserta` di versi awal.
 pub(crate) fn peserta_of(entry: &Value) -> Vec<String> {
     entry
         .get("peserta")
@@ -85,7 +85,7 @@ pub(crate) fn peserta_of(entry: &Value) -> Vec<String> {
 }
 
 /// Simpan `peserta` terbaru ke `global.absensi[chatId]`, tanpa menyentuh field
-/// lain (`mulaiabsen.js` yang menulis `keterangan`/`createdBy`/`createdAt`).
+/// lain.
 pub(crate) fn store_peserta(ctx: &Ctx, peserta: &[String]) {
     let chat = ctx.chat.clone();
     let list: Vec<Value> = peserta.iter().cloned().map(Value::String).collect();
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn a_session_without_a_timestamp_survives_pruning() {
-        // `createdAt` 0 = belum pernah ada; `if (created && ...)` di JS
+        // `createdAt` 0 = belum pernah ada; `if (created &&...)` di versi awal
         // menyisakannya, jadi pencadangan tidak boleh ikut membuangnya.
         let mut sessions = serde_json::Map::new();
         for i in 0..ABSENSI_MAX_CHATS {

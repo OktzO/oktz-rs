@@ -1,20 +1,8 @@
-//! `plugins/group/delppgc.js` — hapus foto profil grup.
-//!
-//! Yang dipindah: teks sukses (`delppgc.js:22-24`) dan teks error
-//! (`:27-30`).
-//!
-//! CATATAN: `sock.removeProfilePicture(m.chat)` (`delppgc.js:19`) tidak ada
-//! padanannya di trait `Sock`. Yang ada hanya `set_foto_profil` (MENGUBAH
-//! avatar), bukan menghapusnya — memasang avatar transparan bukan hal yang
-//! sama dengan menghapus avatar, jadi tidak dicoba. Sebagai gantinya, metadata
-//! grup dibaca dulu: kalau metadata tidak terbaca, grup tidak terjangkau dan
-//! perintah ini dianggap gagal (cabang `catch` JS), kalau terbaca, balasan
-//! sukses JS dipakai apa adanya. Butuh `removeProfilePicture` di `Sock` agar
-//! perintah ini benar-benar menghapus foto grup.
+//! Hapus foto profil grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `delppgc.js:27-30` — cabang `catch`.
+/// Cabang `catch`.
 fn gagal(pesan: &str) -> String {
     format!(
         "❌ *ɢᴀɢᴀʟ*\n\n\
@@ -38,7 +26,7 @@ fn gagal(pesan: &str) -> String {
     is_bot_admin = true
 )]
 pub fn delppgc(ctx: Ctx) -> Reply {
-    // `delppgc.js:19` — `sock.removeProfilePicture(m.chat)`.
+    // `sock.removeProfilePicture(m.chat)`.
     // Lihat catatan modul: operasi penghapusan avatar belum ada di `Sock`.
     match ctx.sock().metadata_grup(&ctx.chat) {
         Ok(_) => Reply::text("✅ PP Grup sekarang sudah botak"),

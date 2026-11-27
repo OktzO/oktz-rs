@@ -1,5 +1,4 @@
 //! Stub `Sock` untuk test plugin grup — merekam `ubah_peserta`, sisanya gagal.
-//! Satu salinan untuk promote/demote (kick punya stub sendiri yang lebih tua).
 
 use oktz_plugin_api::{AdaWhatsapp, AksiPeserta, Sock, SockError};
 use serde_json::Value;

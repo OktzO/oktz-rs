@@ -1,34 +1,17 @@
-//! `plugins/group/tam.js` — top member paling aktif di grup.
-//!
-//! Yang dipindah: seluruh perhitungan peringkat dari `group.chatStats`
-//! (`tam.js:31-38`) dan isi snapshot poll (`tam.js:41-49`).
-//!
-//! Penyimpangan: JS mengirim `pollResultSnapshotMessage` lewat
-//! `sock.relayMessage` (`tam.js:59-60`) — pesan poll native. Varian `Reply` di
-//! `oktz-plugin-api` tidak punya poll, jadi isi poll yang sama dikirim sebagai
-//! teks biasa (baris nama + jumlah suara). Nama baris option poll
-//! (`1. Nama 🏆`) dan judul snapshot (`top N member active all time!`) tetap
-//! persis seperti JS. Pesan juga tidak mengutip pemicu, jadi dipakai
-//! `Reply::text_quoted` (tanpa quote), sama seperti `sock.relayMessage`.
-//!
-//! Penyimpangan kedua: `db.getUser(u.jid)` (`tam.js:43`) membaca store user
-//! milik PESERTA lain. `Ctx` hanya membawa store milik pengirim
-//! (`ctx.user_data`), jadi nama peserta yang tidak punya `chatStats.name`
-//! jatuh ke nomor JID — sama dengan cabang fallback JS
-//! (`u.jid.split("@")[0]`).
+//! Top member paling aktif di grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-/// `tam.js:29` — batas atas jumlahKANAN yang boleh diminta.
+/// Batas atas jumlahKANAN yang boleh diminta.
 const MAKS: i64 = 20;
 
-/// `tam.js:41-49` — judul snapshot poll.
+/// Judul snapshot poll.
 fn judul(limit: usize, nama_grup: &str) -> String {
     format!("top {limit} member active all time!\nat {nama_grup}")
 }
 
-/// `tam.js:42-47` — option poll: `${rank}. ${name}` + `🏆` untuk peringkat 1.
+/// Option poll: `${rank}. ${name}` + `🏆` untuk peringkat 1.
 fn option(rank: usize, name: &str, juara: bool) -> String {
     if juara {
         format!("{rank}. {name} 🏆")
@@ -37,16 +20,16 @@ fn option(rank: usize, name: &str, juara: bool) -> String {
     }
 }
 
-/// `Math.min(Math.max(parseInt(m.text) || 10, 1), 20)` (`tam.js:28`).
+/// `Math.min(Math.max(parseInt(m.text) || 10, 1), 20)`.
 ///
-/// `parseInt` yang gagal (atau bernilai 0 — `0` falsy di JS) kembali ke 10.
+/// `parseInt` yang gagal (atau bernilai 0 — `0` falsy di versi awal) kembali ke 10.
 pub(crate) fn limit_dari(text: &str) -> usize {
     let parsed = crate::common::parse_int(text).unwrap_or(0);
     let nilai = if parsed == 0 { 10 } else { parsed };
     nilai.clamp(1, MAKS) as usize
 }
 
-/// `db.getGroup(m.chat) || {}` → `group.name || "Grup"` (`tam.js:30`).
+/// `db.getGroup(m.chat) || {}` → `group.name || "Grup"`.
 fn nama_grup(ctx: &Ctx) -> String {
     ctx.group_field("name")
         .and_then(Value::as_str)
@@ -55,9 +38,9 @@ fn nama_grup(ctx: &Ctx) -> String {
         .to_string()
 }
 
-/// `Object.entries(group.chatStats)` → daftar `(jid, count, name)` (`tam.js:33-35`).
+/// `Object.entries(group.chatStats)` → daftar `(jid, count, name)`.
 ///
-/// `d.count || 0` dan `d.name || null` mengikuti aturan falsy JS. Urutan
+/// `d.count || 0` dan `d.name || null` mengikuti aturan falsy versi awal. Urutan
 /// `Object.entries` = urutan sisip, dan `serde_json` di repo ini memakai fitur
 /// `preserve_order`, jadi urutannya sama.
 fn statistik(ctx: &Ctx) -> Vec<(String, i64, Option<String>)> {
@@ -77,9 +60,9 @@ fn statistik(ctx: &Ctx) -> Vec<(String, i64, Option<String>)> {
         .collect()
 }
 
-/// `.sort((a, b) => b.count - a.count).slice(0, limit)` (`tam.js:36-37`).
+/// `.sort((a, b) => b.count - a.count).slice(0, limit)`.
 ///
-/// `Array.prototype.sort` di JS stabil, jadi urutan asli dipertahankan untuk
+/// `Array.prototype.sort` di versi awal stabil, jadi urutan asli dipertahankan
 /// jumlah suara yang sama — `sort_by` Rust juga stabil.
 fn urutkan(mut data: Vec<(String, i64, Option<String>)>, limit: usize) -> Vec<(String, i64, Option<String>)> {
     data.sort_by(|a, b| b.1.cmp(&a.1));
@@ -109,7 +92,7 @@ pub fn tam(ctx: Ctx) -> Reply {
     let sorted = urutkan(statistik(&ctx), limit);
 
     if sorted.is_empty() {
-        // `tam.js:39-43` — `m.reply` (mengutip pemicu).
+        // `m.reply` (mengutip pemicu).
         return Reply::text(
             "📊 *ᴛᴏᴘ ᴀᴄᴛɪᴠᴇ ᴍᴇᴍʙᴇʀ*\n\n- Belum ada data aktivitas di grup ini",
         );
@@ -117,7 +100,7 @@ pub fn tam(ctx: Ctx) -> Reply {
 
     let mut text = judul(limit, &chat_name);
     for (i, (jid, count, name)) in sorted.iter().enumerate() {
-        // `tam.js:43` — `u.name || user?.name || u.jid.split("@")[0]`.
+        // `u.name || user?.name || u.jid.split("@")[0]`.
         let display = match name {
             Some(n) => n.clone(),
             None => jid.split('@').next().unwrap_or(jid).to_string(),

@@ -1,8 +1,4 @@
-//! `plugins/group/hapusabsen.js` — hapus sesi absen milik grup ini.
-//!
-//! Sesi tidak ada di `db`, tapi di peta proses `global.absensi` yang sama
-//! dengan [`crate::group::mulaiabsen`] — jadi keduanya baca/tulis kunci
-//! session `absensi`.
+//! Hapus sesi absen milik grup ini.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;

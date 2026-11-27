@@ -1,9 +1,4 @@
-//! `plugins/group/unmutemember.js` — buang satu JID dari
-//! `groups[chat].mutedMembers`.
-//!
-//! `resolveTarget` dan pencocokan nomor yang dipakai di sini datang dari
-//! [`crate::group::mutemember`] — di JS keduanya fungsi yang sama, disalin ke
-//! dua file.
+//! Buang satu JID
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -248,7 +243,7 @@ mod tests {
 
     #[test]
     fn only_the_first_matching_entry_is_removed() {
-        // `findIndex` di JS — duplikat nama tidak dibersihkan semua.
+        // `findIndex` di versi awal — duplikat nama tidak dibersihkan semua.
         let r = run(
             "unmutemember",
             serde_json::json!({"mutedMembers": ["628333@s.whatsapp.net", "628333:1@s.whatsapp.net"]}),
@@ -290,7 +285,7 @@ mod tests {
 
     #[test]
     fn the_list_branch_ignores_a_present_target() {
-        // JS mengecek `m.command` DULUAN, sebelum `resolveTarget`.
+        // versi awal mengecek `m.command` DULUAN, sebelum `resolveTarget`.
         let r = run(
             "listmutemember",
             serde_json::json!({"mutedMembers": ["628222@s.whatsapp.net"]}),

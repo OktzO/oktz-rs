@@ -1,20 +1,8 @@
-//! `plugins/group/acc.js` — kelola permintaan masuk grup (accept/reject).
-//!
-//! Yang dipindah: meta, gerbang subcommand, dan teks bantuan.
-//!
-//! Yang tidak dipindah: seluruh jalur kerja (`list`/`approve`/`reject`)
-//! berdiri di atas `sock.groupRequestParticipantsList` (`acc.js:52`) dan
-//! `sock.groupRequestParticipantsUpdate` (`:87`, `:120`) — tidak ada
-//! padanannya di `Ctx`/`Reply`. JS membungkus keduanya dengan `catch` yang
-//! bereaksi `☢` + template error (`acc.js:139-142`), dan jalur itulah yang
-//! selalu diambil di sini — bukan mengarang daftar permintaan. Reaksi `🕕`
-//! yang dikirim JS sebelum `catch` hilang; yang terkirim reaksi terakhir.
-//! Kalau kapabilitas daftar request ditambahkan ke API, cabang ini yang
-//! harus diganti.
+//! Kelola permintaan masuk grup (accept/reject).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// Teks bantuan (`acc.js:36-46`).
+/// Teks bantuan.
 fn help_text(prefix: &str) -> String {
     format!(
         "📋 *ᴊᴏɪɴ ʀᴇQᴜᴇsᴛ ᴍᴀɴᴀɢᴇʀ*\n\n\
@@ -47,7 +35,7 @@ pub fn acc(ctx: Ctx) -> Reply {
     match sub.as_deref() {
         // `!sub || !['list', 'approve', 'reject'].includes(sub)` → bantuan.
         Some("list") | Some("approve") | Some("reject") => {
-            // Jalur `catch` JS (`acc.js:139-142`) — `sock.*` tidak ada di Ctx.
+            // Jalur `catch` versi awal — `sock.*` tidak ada di Ctx.
             Reply::text(crate::common::error_template(&ctx))
                 .with_reaction("☢")
         }

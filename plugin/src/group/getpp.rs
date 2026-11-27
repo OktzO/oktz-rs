@@ -1,17 +1,13 @@
-//! `plugins/group/getpp.js` — kirim foto profil target (mention/reply).
+//! Kirim foto profil target (mention/reply).
 //!
-//! Yang dipindah: seluruh penentuan target (`m.quoted` > `m.mentionedJid[0]` >
-//! angka di `m.args[0]` > `m.sender`), karena itu murni string.
-//!
-//! `ponytail:` pengambilan avatar `sock.profilePictureUrl(target, 'image')`
-//! (`getpp.js:34`) dan pengirimannya `sock.sendMedia(...)` (`:39`) tidak ada
-//! di API plugin, jadi tidak ada gambar yang dikirim — termasuk fallback
-//! `https://files.catbox.moe/ejy4ky.jpg` yang di JS hanya dipakai kalau
-//! avatar target gagal diambil.
+//! `Keterbatasan:` pengambilan avatar `sock.profilePictureUrl(target, 'image')` dan
+//! pengirimannya `sock.sendMedia(...)` (`:39`) tidak ada di API plugin, jadi tidak ada
+//! gambar yang dikirim — termasuk fallback `https://files.catbox.moe/ejy4ky.jpg` yang di
+//! versi awal hanya dipakai kalau avatar target gagal diambil.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `getpp.js:18-28`. `num.startsWith('0')` → `62` + sisa digit, persis
+/// . `num.startsWith('0')` → `62` + sisa digit, persis
 /// konversi awalan `0` ala Indonesia.
 pub(crate) fn resolve_target(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
@@ -90,7 +86,7 @@ mod tests {
         assert_eq!(e.meta.cooldown, 5);
         assert_eq!(e.meta.energi, 0);
         assert!(e.meta.is_enabled);
-        // `isGroup: false` dan `isPrivate: false` di JS — plugin ini tidak
+        // `isGroup: false` dan `isPrivate: false` di versi awal — plugin ini tidak
         // boleh jalan di mana pun sampai ada jalur avatar.
         assert!(!e.meta.is_group && !e.meta.is_private);
         assert!(!e.meta.is_admin && !e.meta.is_bot_admin);

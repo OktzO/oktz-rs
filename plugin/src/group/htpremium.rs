@@ -1,20 +1,14 @@
-//! `plugins/group/htpremium.js` — hidetag dengan pemisah `|` untuk custom tag.
+//! Hidetag dengan pemisah `|` untuk custom tag.
 //!
-//! `pluginConfig.name` di JS adalah array
-//! `['htpremium', 'hidetagpremium', 'htprem']`. `PluginMeta.name` hanya
-//! `String`, jadi elemen pertama jadi `name` dan sisanya jadi `alias` —
-//! `matches()` tetap menerima ketiganya. Pola yang sama dipakai
-//! [`crate::group::autodl`].
-//!
-//! `ponytail:`
+//! `Keterbatasan:`
 //! 1. Cabang media di reply-mode butuh `quoted.download()`
-//!    (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi berhenti di
-//!    `Reply::None`.
+//! (`downloadContentMessage`) yang tidak ada di `Ctx`, jadi berhenti
+//! `Reply::None`.
 //! 2. `contextInfo.groupMentions: [{ groupJid, groupSubject: cmd }]` di mode
-//!    teks tidak punya padanan di `Reply::TextQuoted` — teks tetap `@chat` +
-//!    body dan mention per-jid, tapi tag `@everyone`/custom subject hilang.
-//!    Upgrade path: tambah field group-mention ke `oktz-plugin-api` kalau
-//!    klien lokal benar-benar relies pada `groupSubject`.
+//! teks tidak punya padanan di `Reply::TextQuoted` — teks tetap `@chat` +
+//! body dan mention per-jid, tapi tag `@everyone`/custom subject hilang.
+//! Upgrade path: tambah field group-mention ke `oktz-plugin-api` kalau
+//! klien lokal benar-benar relies pada `groupSubject`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -47,15 +41,15 @@ pub(crate) fn help(prefix: &str) -> String {
 )]
 pub fn htpremium(ctx: Ctx) -> Reply {
     let mentions = roster_jids(&ctx);
-    // Destructure JS: `const [cmd, text] = (m.text || '').split('|')`.
+    // Destructure versi awal: `const [cmd, text] = (m.text || '').split('|')`.
     // Tanpa trim, segmen tambahan diabaikan, `undefined` = tidak ada.
-    // `cmd` hanya jadi `groupSubject` yang tidak bisa di-port — lihat `ponytail:`.
+    // `cmd` hanya jadi `groupSubject` yang tidak bisa diimplementasikan — lihat `Keterbatasan:`.
     let mut it = ctx.text.split('|');
     let _cmd = it.next().unwrap_or_default();
     let text = it.next().map(str::to_string);
 
     if let Some(quoted) = ctx.quoted() {
-        // Cabang media tidak bisa di-port (lihat `ponytail:` modul).
+        // Cabang media tidak bisa diimplementasikan (lihat `Keterbatasan:` modul).
         if quoted.is_media() {
             return Reply::None;
         }
@@ -66,7 +60,7 @@ pub fn htpremium(ctx: Ctx) -> Reply {
         if final_text.is_empty() {
             return Reply::text(EMPTY);
         }
-        // `sock.sendMessage` tanpa `{ quoted }` di JS — teks polos.
+        // `sock.sendMessage` tanpa `{ quoted }` di versi awal — teks polos.
         return Reply::Text {
             text: final_text,
             mentions,
@@ -77,7 +71,7 @@ pub fn htpremium(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     };
 
-    // `cmd` hanya dipakai sebagai `groupSubject`, yang tidak bisa di-port.
+    // `cmd` hanya dipakai sebagai `groupSubject`, yang tidak bisa diimplementasikan.
     Reply::TextQuoted {
         text: format!("@{} {} ", ctx.chat, text),
         mentions,
@@ -170,8 +164,8 @@ mod tests {
 
     #[test]
     fn text_mode_tags_the_chat_and_quotes_the_trigger() {
-        // `split('|')` tanpa trim: spasi setelah `|` ikut terbawa, sama
-        // seperti di JS.
+        // `split('|')` tanpa trim: spasi setelah `|` ikut terbawa,
+        // seperti di versi awal.
         let r = run("everyone | hai semua", None);
         assert!(matches!(r, Reply::TextQuoted { .. }), "mode teks meng-quote m");
         assert_eq!(body(&r), "@120363@g.us  hai semua ");

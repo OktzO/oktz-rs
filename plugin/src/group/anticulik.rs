@@ -1,21 +1,10 @@
-//! `plugins/group/anticulik.js` — sakelar "bot keluar kalau ditambah tanpa izin".
-//!
-//! Yang dipindah: seluruh `handler` (`on`/`off`/status/opsi salah).
-//!
-//! Yang tidak dipindah:
-//! - `saluranCtx()` (`context.js`) pada cabang `on` (`:51`). `Reply` tidak punya
-//!   jalur context sama sekali, jadi balasan itu kehilangan badge newsletter.
-//!   Batasan yang sudah didokumentasikan di `BLOCKED.md` §15, bukan penyimpangan
-//!   port.
-//! - `handleAntiCulik` (`:71`) bukan handler plugin: ia dipanggil dari event
-//!   `groups.update` dan butuh `event.participants`/`event.author`,
-//!   `sock.groupLeave`, dan `sock.user.id`/`.lid`.
+//! Sakelar "bot keluar kalau ditambah tanpa izin".
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 /// `group.anticulik ?? db.setting("anticulik") ?? "off"`, lalu `=== "on"`.
 /// `??` melompati `null`/`undefined` saja, jadi nilai falsy lain (`false`, `""`)
-/// TIDAK membuat status jatuh ke setting — persisoperator `??` di JS.
+/// TIDAK membuat status jatuh ke setting — persisoperator `??` di versi awal.
 fn mode_on(ctx: &Ctx) -> bool {
     let value = ctx
         .group_field("anticulik")

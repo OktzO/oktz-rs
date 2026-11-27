@@ -1,18 +1,14 @@
-//! `plugins/group/banchat.js` — `groups[chat].isBanned`.
+//! `groups[chat].isBanned`.
 //!
-//! Cabang unban memakai `sock.sendMessage(..., { quoted: m })` (bukan
-//! `m.reply`), jadi ia `Reply::TextQuoted`; cabang ban memakai `m.reply` jadi
-//! `Reply::Text`. Keduanya menyebut pengirim lewat `mentions: [m.sender]`.
-//!
-//! `ponytail:` `db.setGroup(m.chat, { ...groupData, isBanned })` menyalin
-//! seluruh objek grup. `Mutation::SetGroup` sudah merge, jadi hanya field
-//! yang berubah yang perlu dikirim — hasil di store sama.
+//! `Keterbatasan:` `db.setGroup(m.chat, {...groupData, isBanned })` menyalin seluruh objek
+//! grup. `Mutation::SetGroup` sudah merge, jadi hanya field yang berubah yang perlu dikirim
+//! — hasil di store sama.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::jid_number;
 
-/// `m.groupMetadata.subject || 'Unknown'` — `handler.js:327` mengisi
+/// `m.groupMetadata.subject || 'Unknown'` — mengisi
 /// `groups[chat].name` dari `meta.subject`.
 pub(crate) const NO_SUBJECT: &str = "Unknown";
 

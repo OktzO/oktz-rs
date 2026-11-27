@@ -1,15 +1,4 @@
-//! `plugins/group/antibot.js` — sakelar deteksi-kick bot per grup.
-//!
-//! Hanya handler `.antibot` yang dipindah. Dua export lain tidak:
-//! - `isBotMessage`/`analyzeBotMessage` memeriksa `m.key`, `m.message`,
-//!   `contextInfo`, dan `pushName` — `Ctx` tidak membawa field itu.
-//! - `detectBot` butuh `sock.sendMessage({delete})` (:267, :269),
-//!   `sock.groupParticipantsUpdate` (:278), dan `sock.user.id` (:242).
-//! - `gpMsg` hanya dipakai `detectBot`, jadi ikut tidak dipindah.
-//!
-//! `pluginConfig.name` di JS berupa array `["antibot", "botdetect"]` dengan
-//! `alias: []`; elemen pertama jadi nama, sisanya jadi command tambahan
-//! (`PluginMeta::commands`, `plugins.js:207-209`).
+//! Sakelar deteksi-kick bot per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

@@ -1,8 +1,4 @@
-//! `plugins/group/resetwarn.js` — hapus satu kunci dari `groups[chat].warnings`.
-//!
-//! Alias `resetwarn` menulis ulang SELURUH peta `warnings` (JS
-//! `db.setGroup(m.chat, { ...groupData, warnings })`), jadi mutasinya bukan
-//! satu field — memotong key-nya dari salinan peta yang sudah dibaca.
+//! Hapus satu kunci dari `groups[chat].warnings`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;

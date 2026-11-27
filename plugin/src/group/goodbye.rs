@@ -1,19 +1,4 @@
-//! `plugins/group/goodbye.js` — sakelar pesan perpisahan per grup.
-//!
-//! Yang dipindah: seluruh `handler` (`on`, `off`, status).
-//!
-//! Yang tidak dipindah:
-//! - `on all`/`off all` butuh `sock.groupFetchAllParticipating()` (`:441`,
-//!   `:464`) untuk tahu grup mana saja. `Reply`/pipeline tidak punya daftar
-//!   grup, jadi cabang itu berhenti di jalur `catch` miliknya sendiri —
-//!   reaksi `☢` + template error — bukan mengarang "diaktifkan di N grup".
-//!   Gerbang owner di depan `sock` tetap dipindah karena itu yang dilihat user.
-//! - Dua reaksi berurutan (`🕕` lalu `☢`) tidak bisa dibawa: `Reply::Reaction`
-//!   hanya menyimpan satu emoji, jadi yang dikirim adalah reaksi terakhir.
-//! - `sendGoodbyeMessage` (`:125`) bukan handler plugin: ia butuh
-//!   `sock.profilePictureUrl`, `sock.waUploadToServer`,
-//!   `generateWAMessageFromContent`/`relayMessage`, `sock.sendPreview`,
-//!   `createGoodbyeCard` (canvas), `saluranCtx()`, dan `goodbyeType` 2..7.
+//! Sakelar pesan perpisahan per grup.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -68,7 +53,7 @@ fn settings_text(prefix: &str, on: bool) -> String {
     )
 }
 
-/// Cabang `* all`: gerbang owner, lalu jalur `catch` milik JS sendiri karena
+/// Cabang `* all`: gerbang owner, lalu jalur `catch` milik versi awal sendiri karena
 /// `groupFetchAllParticipating` tidak ada di `Ctx`.
 fn global_unavailable(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
@@ -92,7 +77,7 @@ fn global_unavailable(ctx: &Ctx) -> Reply {
 pub fn goodbye(ctx: Ctx) -> Reply {
     let sub = ctx.args.first().map(|a| a.to_lowercase());
     let sub2 = ctx.args.get(1).map(|a| a.to_lowercase());
-    // `groupData.goodbye === true` — perbandingan ketat, nilai `"true"` atau
+    // `groupData.goodbye === true` — perbandingan ketat, nilai `"true"`
     // `1` di store tidak dihitung aktif.
     let current = ctx.group_field("goodbye") == Some(&serde_json::Value::Bool(true));
 
@@ -189,8 +174,8 @@ mod tests {
 
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
-        // `leave` juga nama `plugins/owner/leave.js`; nama didahulukan
-        // (`plugins.js:539`), jadi alias `leave` bukan milik goodbye.
+        // `leave` juga nama; nama didahulukan
+        // , jadi alias `leave` bukan milik goodbye.
         assert_eq!(find("bye").map(|e| e.meta.name.as_str()), Some("goodbye"));
         assert_eq!(find("leave").map(|e| e.meta.name.as_str()), Some("leave"));
     }
@@ -285,7 +270,7 @@ mod tests {
 
     #[test]
     fn the_global_branches_never_claim_to_have_changed_any_group() {
-        // `groupFetchAllParticipating` tidak ada di `Ctx`; jalur `catch` JS
+        // `groupFetchAllParticipating` tidak ada di `Ctx`; jalur `catch` versi awal
         // yang dipakai, bukan pesan sukses "diaktifkan di N grup".
         for args in [vec!["on", "all"], vec!["off", "all"]] {
             let r = run(&args, serde_json::json!({}), true);

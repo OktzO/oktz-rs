@@ -1,8 +1,7 @@
-//! `plugins/group/antilinkall.js` — sakelar anti semua jenis link.
+//! Sakelar anti semua jenis link.
 //!
-//! `ponytail:` hanya handler `.antilinkall` yang dipindah. Deteksi per-pesan
-//! ada di middleware dan butuh `sock.sendMessage` untuk menghapus pesan —
-//! `Ctx` tidak punya itu.
+//! `Keterbatasan:` hanya handler `.antilinkall` yang dipindah. Deteksi per-pesan ada di
+//! middleware dan butuh `sock.sendMessage` untuk menghapus pesan — `Ctx` tidak punya itu.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};

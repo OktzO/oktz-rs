@@ -1,9 +1,9 @@
-//! `plugins/group/addantilink.js` — `groups[chat].antilinkList` tambah satu.
+//! `groups[chat].antilinkList` tambah satu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `m.text?.toLowerCase()` — TANPA `trim()`. Jadi `"  tiktok.com  "` masuk
-/// daftar dengan spasi ikut tersimpan, dan tidak akan cocok dengan
+/// `m.text?.toLowerCase()` — TANPA `trim()`. Jadi `" tiktok.com "` masuk
+/// daftar dengan spasi ikut tersimpan, dan tidak akan cocok
 /// `listantilink` yang membandingkan persis. Menambah `trim()` di sini akan
 /// "memperbaiki" perilaku yang justru perlu dicerminkan.
 pub(crate) fn link(ctx: &Ctx) -> String {
@@ -183,9 +183,9 @@ mod tests {
 
     #[test]
     fn the_link_is_not_trimmed_so_padded_input_is_stored_verbatim() {
-        // JS `m.text?.toLowerCase()` tanpa `.trim()` — spasi ikut tersimpan.
+        // versi awal `m.text?.toLowerCase()` tanpa `.trim()` — spasi ikut tersimpan.
         // Menambah trim di sini akan membuatnya cocok dengan `delantilink`,
-        // padahal di JS tidak.
+        // padahal di versi awal tidak.
         let r = run(serde_json::json!({}), "  spaced.com  ");
         assert_eq!(list_write(&r)[0], serde_json::json!("  spaced.com  "));
     }
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn a_non_array_antilink_list_is_treated_as_empty() {
         // `groupData.antilinkList || []` — objek/string bukan array, lalu
-        // `.includes` di JS akan berperilaku aneh. Yang aman dan konsisten dengan
+        // `.includes` di versi awal akan berperilaku aneh. Yang aman dan konsisten
         // store: perlakukan sebagai kosong.
         let r = run(serde_json::json!({"antilinkList": "bukan-array"}), "x.com");
         assert_eq!(list_write(&r).len(), 1);

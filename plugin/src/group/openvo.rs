@@ -1,17 +1,13 @@
-//! `plugins/group/openvo.js` — buka pesan 1x lihat yang di-reply.
+//! Buka pesan 1x lihat yang di-reply.
 //!
-//! Yang dipindah: dua gerbang yang bisa dijawab tanpa jaringan — tidak ada
-//! reply, dan tipe yang tidak didukung.
-//!
-//! `ponytail:` pemeriksaan `content.viewOnce` (`openvo.js:50`) tidak bisa
-//! dilakukan karena `QuotedMessage` tidak membawa flag itu, dan pengunduhannya
-//! `downloadContentFromMessage` (`:78`) tidak ada di API plugin. Jadi media
-//! yang dikenali (image/video/audio) berakhir tanpa balasan apa pun —
-//! bukan video yang dikirim.
+//! `Keterbatasan:` pemeriksaan `content.viewOnce` tidak bisa dilakukan karena
+//! `QuotedMessage` tidak membawa flag itu, dan pengunduhannya `downloadContentFromMessage`
+//! (`:78`) tidak ada di API plugin. Jadi media yang dikenali (image/video/audio) berakhir
+//! tanpa balasan apa pun — bukan video yang dikirim.
 
 use oktz_plugin_api::{Ctx, QuotedKind, Reply, plugin};
 
-/// `openvo.js:63-69` — `type.includes('image'|'video'|'audio')` pada kunci
+/// `type.includes('image'|'video'|'audio')` pada kunci
 /// pesan, bukan pada nama enum. `wire_type()` mengembalikan nama itu.
 pub(crate) fn media_type(kind: &QuotedKind) -> Option<&'static str> {
     let wire = kind.wire_type();
@@ -26,7 +22,7 @@ pub(crate) fn media_type(kind: &QuotedKind) -> Option<&'static str> {
     }
 }
 
-/// `openvo.js:22-26`.
+///
 fn no_quoted(prefix: &str) -> String {
     format!(
         "❌ *ɢᴀɢᴀʟ*\n\n\
@@ -35,7 +31,7 @@ fn no_quoted(prefix: &str) -> String {
     )
 }
 
-/// `openvo.js:72-74`.
+///
 const UNSUPPORTED: &str = "Tipenya gak didukung, hanya support image, video, audio";
 
 #[plugin(

@@ -1,14 +1,11 @@
-//! `plugins/group/checksewa.js` — sisa waktu sewa bot di grup ini.
+//! Sisa waktu sewa bot di grup ini.
 //!
-//! `ponytail:` JS menyimpan data sewa di `db.db.data.sewa`, yaitu tabel
+//! `Keterbatasan:` versi awal menyimpan data sewa di `db.db.data.sewa`, yaitu tabel
 //! top-level yang bukan milik user maupun grup. `Mutation` hanya punya
-//! `SetUser`/`SetGroup`/`SetSetting`, jadi tabel itu dipetakan ke key global
-//! `sewa` di `settings` — persis yang dilakukan `clan/clancreate.rs` untuk
-//! `db.db.data.clans` dan `rpg/guild.rs` untuk `db.db.data.guilds`. Bentuk
-//! isinya sama dengan JS, hanya lokasinya yang berbeda.
-//!
-//! `formatCountdown` memakai `Math.floor`, jadi pecahan milidetik dipangkas ke
-//! bawah — sama dengan pembagian integer yang dipakai di sini.
+//! `SetUser`/`SetGroup`/`SetSetting`, jadi tabel itu dipetakan ke key global `sewa` di
+//! `settings` — persis yang dilakukan `clan/clancreate.rs` untuk `db.db.data.clans` dan
+//! `rpg/guild.rs` untuk `db.db.data.guilds`. Bentuk isinya sama dengan versi awal, hanya
+//! lokasinya yang berbeda.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -20,7 +17,7 @@ const SEWA_KEY: &str = "sewa";
 const DAY_MS: f64 = 86_400_000.0;
 const HOUR_MS: f64 = 3_600_000.0;
 const MINUTE_MS: f64 = 60_000.0;
-/// `diff <= 259200000` (`checksewa.js:77`) — tiga hari.
+/// `diff <= 259200000` — tiga hari.
 const ALMOST_MS: f64 = 259_200_000.0;
 
 /// `db.db.data.sewa` — `Value::Null` kalau tabel belum pernah dibuat.
@@ -38,7 +35,7 @@ fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
         })
 }
 
-/// `new Date(x)` -> epoch ms. `None` berarti `Invalid Date` di JS, dan
+/// `new Date(x)` -> epoch ms. `None` berarti `Invalid Date` di versi awal,
 /// `Intl.DateTimeFormat.formatToParts` melempar `RangeError` atasnya.
 fn epoch_ms(v: Option<&Value>) -> Option<i64> {
     let v = v?;
@@ -51,7 +48,7 @@ fn epoch_ms(v: Option<&Value>) -> Option<i64> {
     v.as_str()?.trim().parse::<f64>().ok().map(|n| n as i64)
 }
 
-/// `formatCountdown(expiredAt)` (`checksewa.js:20-31`) — teks + flag expired.
+/// `formatCountdown(expiredAt)` — teks + flag expired.
 fn format_countdown(expired_at: i64, now: i64) -> (String, bool) {
     let diff = (expired_at - now) as f64;
     if diff <= 0.0 {
@@ -178,9 +175,9 @@ pub fn checksewa(ctx: Ctx) -> Reply {
     }
 
     // `timeHelper.fromTimestamp` atas `Invalid Date` melempar `RangeError`, jadi
-    // JS tidak pernah sampai ke balasan mana pun untuk tenant tanpa
+    // versi awal tidak pernah sampai ke balasan mana pun untuk tenant tanpa
     // `expiredAt`. `Reply::None` + diam adalah padanan terdekat; teks fallback
-    // "Sepertinya ada kendala, coba hubungi owner" milik `handler.js`, bukan
+    // "Sepertinya ada kendala, coba hubungi owner" milik, bukan
     // milik plugin ini.
     let Some(expired_at) = epoch_ms(entry.get("expiredAt")) else {
         return with_init(Reply::None, init);
@@ -330,7 +327,7 @@ mod tests {
         let hour = 3_600_000i64;
         let minute = 60_000i64;
         let day = 86_400_000i64;
-        // `minutes` hanya ikut kalau `days === 0` (`checksewa.js:29`).
+        // `minutes` hanya ikut kalau `days === 0`.
         assert_eq!(format_countdown(now + 24 * hour + 30 * minute, now).0, "1 hari");
         assert_eq!(format_countdown(now + day + 5 * hour + 30 * minute, now).0, "1 hari 5 jam");
         assert_eq!(format_countdown(now + 3 * hour, now).0, "3 jam");
@@ -341,7 +338,7 @@ mod tests {
 
     #[test]
     fn a_tenant_without_expiry_never_reaches_a_reply() {
-        // JS: `fromTimestamp(undefined)` melempar RangeError sebelum balasan
+        // versi awal: `fromTimestamp(undefined)` melempar RangeError sebelum balasan
         // mana pun terkirim.
         let r = run(CHAT, tenant(serde_json::json!({ "name": "Grupku" })));
         assert!(r.is_none(), "tidak ada teks yang boleh dikirim");

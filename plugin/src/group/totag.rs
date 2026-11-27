@@ -1,12 +1,11 @@
-//! `plugins/group/totag.js` — tag semua member dengan meneruskan pesan ter-quote.
+//! Tag semua member dengan meneruskan pesan ter-quote.
 //!
-//! `ponytail:` inti plugin adalah
-//! `sock.sendMessage(chat, { forward: m.quoted.fakeObj || m.quoted })`.
-//! `Reply` tidak punya varian forward dan `QuotedMessage` tidak menyimpan
-//! `fakeObj`/`rawMessage`, jadi tidak ada payload yang bisa dikirim ulang.
-//! Yang bisa di-port adalah guard-nya: konteks reply, reaction 📢/✅, dan
-//! pemeriksaan roster kosong. Upgrade path: tambah `Reply::Forward` +
-//! `QuotedMessage::raw` kalau forward pesan jadi kebutuhan nyata.
+//! `Keterbatasan:` inti plugin adalah `sock.sendMessage(chat, { forward: m.quoted.fakeObj
+//! || m.quoted })`. `Reply` tidak punya varian forward dan `QuotedMessage` tidak menyimpan
+//! `fakeObj`/`rawMessage`, jadi tidak ada payload yang bisa dikirim ulang. Yang bisa
+//! diimplementasikan adalah guard-nya: konteks reply, reaction 📢/✅, dan pemeriksaan roster
+//! kosong. Upgrade path: tambah `Reply::Forward` + `QuotedMessage::raw` kalau forward pesan
+//! jadi kebutuhan nyata.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -43,7 +42,7 @@ pub fn totag(ctx: Ctx) -> Reply {
         return Reply::text(NO_MEMBERS);
     }
 
-    // Forward tidak portable; reaction saja yang tersisa (lihat `ponytail:`).
+    // Forward tidak portable; reaction saja yang tersisa (lihat `Keterbatasan:`).
     Reply::None.with_reaction("✅")
 }
 

@@ -1,28 +1,11 @@
-//! `plugins/group/cekonline.js` — cek member yang online di grup.
-//!
-//! Yang dipindah: seluruh perakitan teks laporan (`cekonline.js:26-99`),
-//! termasuk kotak `╭┈┈⬡「 … 」` dan penanda admin `👑`.
-//!
-//! Penyimpangan (satu-satunya): JS berlangganan presence lewat
-//! `sock.presenceSubscribe(p.id)` lalu menunggu event `presence.update`
-//! (`cekonline.js:46-60`). `Sock` di `oktz-plugin-api` hanya punya
-//! `presence()` yang memetakan `sock.sendPresenceUpdate` (kirim status
-//! sendiri), dan tidak ada jalur event (`sock.ev.on`) sama sekali. Karena itu
-//! daftar "member online" tidak bisa diisi di Rust — hasil yang paling dekat
-//! adalah cabang `onlineMembers.length === 0` dari JS, dan itu yang dipakai
-//! di sini. Kotak "member online" tetap ikut port supaya saat API presence
-//! tersedia tinggal diisi.
-//!
-//! Reaksi: JS memasang `🔍` di awal lalu menimpanya dengan `✅`/`❌`/`☢`.
-//! WhatsApp hanya menyimpan satu reaksi per pesan, jadi Rust hanya mengirim
-//! reaksi terakhir.
+//! Cek member yang online di grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `cekonline.js:38` — roster kosong = metadata/anggota grup tidak terbaca.
+/// Roster kosong = metadata/anggota grup tidak terbaca.
 const TANPA_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak bisa mendapatkan data member grup";
 
-/// `cekonline.js:41` — pesan "menunggu response" sebelum laporan dikirim.
+/// Pesan "menunggu response" sebelum laporan dikirim.
 fn menunggu(jumlah: usize) -> String {
     format!(
         "🔍 *ᴍᴇɴᴄᴀʀɪ ᴍᴇᴍʙᴇʀ ᴏɴʟɪɴᴇ...*\n\n\
@@ -31,7 +14,7 @@ fn menunggu(jumlah: usize) -> String {
     )
 }
 
-/// `cekonline.js:76-82` — kotak info grup.
+/// Kotak info grup.
 fn info_grup(subject: &str, total: usize, online: usize) -> String {
     format!(
         "📊 *ᴄᴇᴋ ᴏɴʟɪɴᴇ*\n\n\
@@ -43,9 +26,9 @@ fn info_grup(subject: &str, total: usize, online: usize) -> String {
     )
 }
 
-/// `cekonline.js:89-99` — kotak member yang online.
+/// Kotak member yang online.
 ///
-/// `members` berisi `(nomor, admin, ikon_presence)`. `presences` di JS berisi
+/// `members` berisi `(nomor, admin, ikon_presence)`. `presences` di versi awal berisi
 /// `lastKnownPresence` per JID: `available` → `🟢`, `composing` → `⌨️`,
 /// `recording` → `🎤`.
 fn member_online(members: &[(String, bool, &str)]) -> String {
@@ -66,7 +49,7 @@ fn member_online(members: &[(String, bool, &str)]) -> String {
     text
 }
 
-/// `cekonline.js:83-87` — cabang "tidak ada member online".
+/// Cabang "tidak ada member online".
 fn tanpa_member_online() -> String {
     String::from(
         "> _Tidak ada member yang terdeteksi online_\n\
@@ -74,9 +57,9 @@ fn tanpa_member_online() -> String {
     )
 }
 
-/// `m.groupMetadata.subject` (`cekonline.js:78`) — nama grup dari metadata WA.
+/// `m.groupMetadata.subject` — nama grup dari metadata WA.
 ///
-/// `None` kalau metadata tidak terbaca; di JS ini melempar dan jatuh ke
+/// `None` kalau metadata tidak terbaca; di versi awal ini melempar dan jatuh
 /// cabang `catch` (`te(...)`).
 fn subject_grup(ctx: &Ctx) -> Option<String> {
     ctx.sock()
@@ -114,14 +97,14 @@ fn presence_online(_ctx: &Ctx) -> Vec<(String, bool, &'static str)> {
     is_bot_admin = false
 )]
 pub fn cekonline(ctx: Ctx) -> Reply {
-    // `cekonline.js:28-30` — `m.groupMembers` = roster pesan ini.
+    // `m.groupMembers` = roster pesan ini.
     let total = ctx.roster.participants.len();
 
     if total == 0 {
         return Reply::text(TANPA_MEMBER).with_reaction("❌");
     }
 
-    // `cekonline.js:26` — `m.groupMetadata.subject`.
+    // `m.groupMetadata.subject`.
     let Some(subject) = subject_grup(&ctx) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -134,7 +117,7 @@ pub fn cekonline(ctx: Ctx) -> Reply {
         text.push_str(&member_online(&online));
     }
 
-    // `cekonline.js:41` lalu `:98` — dua pesan berurutan; yang terakhir
+    // lalu `:98` — dua pesan berurutan; yang terakhir
     // meng-mention member online (`mentions: []` kalau tidak ada → tanpa
     // mention, jadi `Reply::text_no_mention`).
     Reply::sequence(vec![

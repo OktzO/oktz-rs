@@ -1,18 +1,15 @@
-//! `plugins/group/slowmode.js` — `groups[chat].slowmode = { enabled, delay, mode }`.
+//! `groups[chat].slowmode = { enabled, delay, mode }`.
 //!
-//! Yang diport hanya perintahnya; `checkSlowmode()` diekspor ke `handler.js`
-//! untuk dipakai sebagai filter pesan dan tidak punya padanan di `Ctx`.
-//!
-//! `ponytail:` `Mutation::SetGroup` merge, jadi `slowmode: { enabled: false }`
-//! menimpa objek lama secara utuh — persis seperti `{...groupData, slowmode}`
-//! di JS, bukan patch di dalam objek.
+//! `Keterbatasan:` `Mutation::SetGroup` merge, jadi `slowmode: { enabled: false }` menimpa
+//! objek lama secara utuh — persis seperti `{...groupData, slowmode}` di versi awal, bukan
+//! patch di dalam objek.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{js_truthy, parse_int};
 
-/// `PRESETS` (`slowmode.js:17-23`) — urutan object literal, dipakai untuk
+/// `PRESETS` — urutan object literal, dipakai
 /// daftar di layar status dan untuk mencari label delay.
 pub(crate) const PRESETS: [(&str, i64); 5] = [
     ("santai", 10),
@@ -22,7 +19,7 @@ pub(crate) const PRESETS: [(&str, i64); 5] = [
     ("max", 300),
 ];
 
-/// `MODES` (`slowmode.js:25-28`).
+/// `MODES`.
 const MODES: [(&str, &str); 2] = [
     ("all", "Semua pesan + command dihapus"),
     ("onlycommand", "Command di-silent, chat biasa tetap jalan"),
@@ -360,7 +357,7 @@ mod tests {
 
     #[test]
     fn set_is_an_alias_for_on_inside_the_plugin_body() {
-        // `set` bukan alias yang terdaftar, tapi tubuh JS memperlakukannya
+        // `set` bukan alias yang terdaftar, tapi tubuh versi awal memperlakukannya
         // sama dengan `on`.
         let r = run(serde_json::json!({}), &["set", "20"]);
         assert_eq!(slowmode_write(&r), serde_json::json!({"enabled": true, "delay": 20, "mode": "all"}));

@@ -1,7 +1,4 @@
-//! `plugins/group/notifopengroup.js` — toggle `groups[chat].notifOpenGroup`.
-//!
-//! Tubuh bersama dengan tiga plugin `notif*` lain ada di
-//! [`crate::group::notifclosegroup`].
+//! Toggle `groups[chat].notifOpenGroup`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

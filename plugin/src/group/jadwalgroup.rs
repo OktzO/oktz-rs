@@ -1,12 +1,9 @@
-//! `plugins/group/jadwalgroup.js` — `groups[chat].scheduleOpen`/`scheduleClose`.
+//! `groups[chat].scheduleOpen`/`scheduleClose`.
 //!
-//! Jadwal di sini hanya disimpan; yang benar-benar membuka/menutup grup
-//! dijalankan `handler.js` dari cron, bukan dari plugin ini.
-//!
-//! `ponytail:` `delete group.scheduleOpen` jadi `scheduleOpen = null`, karena
-//! `Mutation::SetGroup` merge (`{...existing, ...data}`) dan tidak bisa
-//! menghapus key. Pembaca di JS semuanya `group.scheduleOpen || null`, jadi
-//! `null` dan key yang hilang tidak bisa dibedakan.
+//! `Keterbatasan:` `delete group.scheduleOpen` jadi `scheduleOpen = null`, karena
+//! `Mutation::SetGroup` merge (`{...existing...data}`) dan tidak bisa menghapus key.
+//! Pembaca di versi awal semuanya `group.scheduleOpen || null`, jadi `null` dan key yang
+//! hilang tidak bisa dibedakan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -42,7 +39,7 @@ pub(crate) fn cleared(kind: &str) -> String {
     format!("✅ *ʙᴇʀʜᴀsɪʟ*\n\n> Jadwal *{kind}* otomatis telah dihapus.")
 }
 
-/// `parseTime` (`jadwalgroup.js:22-33`) — `^(\d{1,2}):(\d{2})$` setelah semua
+/// `parseTime` — `^(\d{1,2}):(\d{2})$` setelah semua
 /// spasi dibuang. `None` kalau tidak cocok atau di luar rentang jam/menit.
 pub(crate) fn parse_time(raw: &str) -> Option<(u32, u32)> {
     let cleaned: String = raw.trim().chars().filter(|c| !c.is_whitespace()).collect();
@@ -88,7 +85,7 @@ fn status(ctx: &Ctx) -> String {
     )
 }
 
-/// `time` dari `m.args`: `06 : 00` digabung, sisanya `args.slice(1).join('')`.
+/// `time` dari `m.args`: `06: 00` digabung, sisanya `args.slice(1).join('')`.
 /// `None` kalau tidak ada argumen kedua.
 fn time_arg(args: &[String]) -> Option<String> {
     if args.len() >= 4 && args[2] == ":" {
@@ -278,7 +275,7 @@ mod tests {
 
     #[test]
     fn a_time_split_into_three_tokens_is_joined_again() {
-        // `.jadwalgroup open 6 : 00` — `args[2] === ':'`.
+        // `.jadwalgroup open 6: 00` — `args[2] === ':'`.
         let r = run(serde_json::json!({}), &["open", "6", ":", "00"]);
         assert_eq!(group_write(&r), &serde_json::json!({"scheduleOpen": "06:00"}));
     }

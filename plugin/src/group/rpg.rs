@@ -1,8 +1,4 @@
-//! `plugins/group/rpg.js` — `groups[chat].rpg` on/off.
-//!
-//! Struktur identik dengan `plugins/group/game.js`; yang berbeda hanya nama
-//! field, ikon, dan teks. `setGroup` mengisi default `rpg: true`
-//! (`database.js:737`), jadi grup baru dianggap RPG aktif.
+//! `groups[chat].rpg` on/off.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

@@ -1,14 +1,12 @@
-//! `plugins/group/delstickercmd.js` — hapus satu entri sticker-command.
+//! Hapus satu entri sticker-command.
 //!
-//! `ponytail:` dua hal TIDAK di-port. Pertama, `getQuotedStickerHash(m)`
+//! `Keterbatasan:` dua hal TIDAK diimplementasikan. Pertama, `getQuotedStickerHash(m)`
 //! membaca `fileSha256`/`mediaKey` dari `quoted.message.stickerMessage`, dan
-//! `QuotedMessage` tidak punya keduanya — jadi cabang "reply sticker" selalu
-//! jatuh ke pesan "Gagal menghapus!". Kedua, `src/lib/sticker-command.js`
-//! menyimpan ke `database/stickerCommands.json`; satu-satunya operasi tulis
-//! yang tersedia di `Mutation` adalah `SetSetting`, jadi pemetaannya disimpan
-//! di `setting("stickerCommands")` dengan bentuk yang sama (hash →
-//! `{command, addedBy, addedAt}`). Plugin yang menambah entri
-//! (`addcmdsticker`) harus menulis ke key yang sama.
+//! `QuotedMessage` tidak punya keduanya — jadi cabang "reply sticker" selalu jatuh ke pesan
+//! "Gagal menghapus!". Kedua, menyimpan ke `database/stickerCommands.json`; satu-satunya
+//! operasi tulis yang tersedia di `Mutation` adalah `SetSetting`, jadi pemetaannya disimpan
+//! di `setting("stickerCommands")` dengan bentuk yang sama (hash → `{command, addedBy,
+//! addedAt}`). Plugin yang menambah entri (`addcmdsticker`) harus menulis ke key yang sama.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -54,7 +52,7 @@ fn clean_cmd(raw: &str) -> String {
 }
 
 /// Nama command yang terdaftar, sesuai urutan key di store (persis urutan
-/// iterasi `Object.entries` di JS).
+/// iterasi `Object.entries` di versi awal).
 fn registered(ctx: &Ctx) -> Vec<String> {
     ctx.setting_entries(STORE)
         .map(|(_, v)| {
@@ -98,7 +96,7 @@ pub fn delstickercmd(ctx: Ctx) -> Reply {
         });
     }
 
-    // Cabang quoted tidak bisa di-port (lihat `ponytail:` modul) — hanya
+    // Cabang quoted tidak bisa diimplementasikan (lihat `Keterbatasan:` modul) — hanya
     // jalur nama yang bisa menghapus apa pun.
     if let Some(raw) = &command_name {
         let clean = clean_cmd(raw);

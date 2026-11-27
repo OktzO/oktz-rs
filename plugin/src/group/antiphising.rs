@@ -1,7 +1,7 @@
-//! `plugins/group/antiphising.js` — sakelar deteksi konten phising.
+//! Sakelar deteksi konten phising.
 //!
-//! `ponytail:` hanya handler `.antiphising` yang dipindah; deteksi per-pesan
-//! ada di middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
+//! `Keterbatasan:` hanya handler `.antiphising` yang dipindah; deteksi per-pesan ada di
+//! middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};

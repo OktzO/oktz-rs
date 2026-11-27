@@ -1,15 +1,8 @@
-//! `plugins/group/linkgc.js` — kirim link invite grup.
-//!
-//! Yang dipindah: seluruh alur — ambil kode invite, bentuk URL, balas, dan
-//! reaksi penutup (`linkgc.js:21-31`).
-//!
-//! Kode invite diambil lewat `sock.groupInviteCode(m.chat)` yang di Rust
-//! sudah ada sebagai [`oktz_plugin_api::Sock::kode_undangan`], jadi plugin
-//! ini bekerja penuh — tidak ada penyimpangan.
+//! Kirim link invite grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `linkgc.js:27` — link invite.
+/// Link invite.
 fn link(kode: &str) -> String {
     format!("https://chat.whatsapp.com/{kode}")
 }
@@ -32,14 +25,14 @@ fn link(kode: &str) -> String {
     is_bot_admin = true
 )]
 pub fn linkgc(ctx: Ctx) -> Reply {
-    // `linkgc.js:21` — `m.react('🕕')`; reaksi terakhir di WA menggantikan
+    // `m.react('🕕')`; reaksi terakhir di WA menggantikan
     // reaksi sebelumnya, jadi hanya reaksi penutup yang dikirim.
     match ctx.sock().kode_undangan(&ctx.chat) {
         Ok(kode) => {
-            // `linkgc.js:26` — `Link grup grup ini\n${urlGrup}`.
+            // `Link grup grup ini\n${urlGrup}`.
             Reply::text(format!("Link grup grup ini\n{}", link(&kode))).with_reaction("✅")
         }
-        // `linkgc.js:29-31` — `m.react('☢')` + `te(...)`.
+        // `m.react('☢')` + `te(...)`.
         Err(_) => Reply::text(crate::common::error_template(&ctx)).with_reaction("☢"),
     }
 }

@@ -1,8 +1,8 @@
-//! `plugins/group/antijudol.js` — status dan mode deteksi konten judol.
+//! Status dan mode deteksi konten judol.
 //!
-//! `ponytail:` `checkJudol` (deteksi per-pesan) tidak ikut — butuh
-//! `sock.sendMessage` untuk menghapus pesan dan melempar kicked, dan `Ctx`
-//! tidak punya keduanya. Yang dipindah di sini hanya handler `.antijudol`.
+//! `Keterbatasan:` `checkJudol` (deteksi per-pesan) tidak ikut — butuh `sock.sendMessage`
+//! untuk menghapus pesan dan melempar kicked, dan `Ctx` tidak punya keduanya. Yang dipindah
+//! di sini hanya handler `.antijudol`.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
@@ -17,8 +17,8 @@ pub(crate) const BAD_OPTION: &str =
 
 /// `db.setGroup(m.chat, { antijudol })` atau `{ antijudol, antijudolMode }`.
 ///
-/// Kedua field disimpan sebagai string `'on'`/`'off'` — bukan boolean seperti
-/// `antimedia` — jadi `status.toUpperCase()` di JS selalu berlaku.
+/// Kedua field disimpan sebagai string `'on'`/`'off'` — bukan boolean
+/// `antimedia` — jadi `status.toUpperCase()` di versi awal selalu berlaku.
 fn write(ctx: &Ctx, message: &str, status: &str, mode: Option<&str>) -> Reply {
     let mut data = serde_json::json!({ "antijudol": status });
     if let Some(m) = mode {
@@ -77,7 +77,7 @@ pub fn antijudol(ctx: Ctx) -> Reply {
     match option.as_str() {
         "on" => return write(&ctx, ON, "on", None),
         "off" => return write(&ctx, OFF, "off", None),
-        // Shortcut JS: `kick` dan `remove` tanpa kata `metode` menulis pair
+        // Shortcut versi awal: `kick` dan `remove` tanpa kata `metode` menulis pair
         // yang sama persis dengan `metode kick` / `metode remove`.
         "kick" => return write(&ctx, MODE_KICK, "on", Some("kick")),
         "remove" | "delete" => return write(&ctx, MODE_DELETE, "on", Some("remove")),

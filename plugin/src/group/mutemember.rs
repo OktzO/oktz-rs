@@ -1,19 +1,15 @@
-//! `plugins/group/mutemember.js` — tambah JID ke `groups[chat].mutedMembers`.
+//! Tambah JID ke `groups[chat].mutedMembers`.
 //!
-//! Teks meseinya dihapus `handler.js` lewat `isMutedMember()` yang diekspor
-//! dari file ini di JS; yang diport di sini hanya perintahnya.
-//!
-//! `ponytail:` `lidToJid`/`findParticipantByNumber` di JS membaca
-//! `lidCache` (pemetaan LID → nomor) yang tidak ada di `Ctx`. Yang dipakai di
-//! sini cukup penggantian sufiks `@lid` dan pencocokan `jid` roster, yang
-//! selalu berisi nomor telepon asli.
+//! `Keterbatasan:` `lidToJid`/`findParticipantByNumber` di versi awal membaca `lidCache`
+//! (pemetaan LID → nomor) yang tidak ada di `Ctx`. Yang dipakai di sini cukup penggantian
+//! sufiks `@lid` dan pencocokan `jid` roster, yang selalu berisi nomor telepon asli.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{jid_number, string_list};
 
-/// `isLid` (`lid.js:159`).
+/// `isLid`.
 fn is_lid(jid: &str) -> bool {
     jid.ends_with("@lid")
 }
@@ -306,7 +302,7 @@ mod tests {
 
     #[test]
     fn a_leading_zero_number_is_not_rewritten_to_62_here() {
-        // `getpp` melakukan normalisasi `0` → `62`; `mutemember` tidak, dan
+        // `getpp` melakukan normalisasi `0` → `62`; `mutemember` tidak,
         // teks harus mengikuti apa adanya.
         let r = plain(serde_json::json!({}), &["0812345"], &[]);
         assert_eq!(group_write(&r), serde_json::json!(["0812345@s.whatsapp.net"]));
@@ -369,7 +365,7 @@ mod tests {
 
     #[test]
     fn the_same_number_with_a_device_suffix_counts_as_a_different_entry() {
-        // `endsWith` di JS membandingkan string apa adanya, `628333:9` tidak
+        // `endsWith` di versi awal membandingkan string apa adanya, `628333:9` tidak
         // berakhir dengan `628333` dan sebaliknya.
         let r = plain(
             serde_json::json!({"mutedMembers": ["628333@s.whatsapp.net"]}),

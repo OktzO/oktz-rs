@@ -1,30 +1,21 @@
-//! `plugins/group/afk.js` — set status AFK dengan alasan.
+//! Set status AFK dengan alasan.
 //!
-//! Dua bagian diport:
-//! - `handler` (`afk.js:63-74`) — set AFK + balasan.
-//! - `checkAfk` (`afk.js:76-126`) — hook yang menghapus AFK saat pengirim
-//!   kembali dan memberi tahu user AFK yang disebut. Di Rust jadi
-//!   `afk_answer` (`#[answer_handler]`).
-//!
-//! `ponytail:` dua beda yang dicatat, bukan disembunyikan:
-//! - JS memanggil `checkAfk` untuk SEMUA pesan, Rust hanya untuk non-command
-//!   (jalur answer, `oktz-wa/src/pipeline.rs:4773`), jadi command tidak
-//!   menghapus AFK.
-//! - `getAfkUser` JS jatuh ke `afkStorage` (memori) untuk JID `lid` yang tidak
-//!   bisa dipersist; Rust tidak punya store memori itu, jadi AFK JID `lid`
-//!   tidak terbaca. `notifyThrottle` dipetakan ke `Ctx::sessions`.
+//! `Keterbatasan:` dua beda yang dicatat, bukan disembunyikan:
+//! - versi awal memanggil `checkAfk` untuk SEMUA pesan, Rust hanya untuk non-command
+//! (jalur answer, `oktz-wa/src/pipeline.rs:4773`), jadi command tidak
+//! menghapus AFK.
+//! - `getAfkUser` versi awal jatuh ke `afkStorage` (memori) untuk JID `lid` yang tidak
+//! bisa dipersist; Rust tidak punya store memori itu, jadi AFK JID `lid`
+//! tidak terbaca. `notifyThrottle` dipetakan ke `Ctx::sessions`.
 //! - Sebutan AFK dibaca dari `ctx.roster` (`p.data` = `db.getUser(p.jid)`),
-//!   jadi hanya berlaku di grup yang rosternya terisi.
-//!
-//! `sweepAfkStorage` tidak ikut: `Ctx::sessions` sudah memangkas diri saat
-//! `> 10_000` entri.
+//! jadi hanya berlaku di grup yang rosternya terisi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
 use serde_json::Value;
 
 pub(crate) const NO_REASON: &str = "Tidak ada alasan";
 
-/// `NOTIFY_TTL_MS` (`afk.js:5`) — throttle notifikasi sebutan AFK.
+/// `NOTIFY_TTL_MS` — throttle notifikasi sebutan AFK.
 const NOTIFY_TTL_MS: i64 = 60 * 60 * 1000;
 
 /// `canPersist(jid)` — JID yang aman ditulis ke store. Key `lid` (>15 digit)
@@ -77,7 +68,7 @@ pub fn afk(ctx: Ctx) -> Reply {
     }
 }
 
-/// `formatAfkDuration` (`middleware.js:22-32`) — sama dengan
+/// `formatAfkDuration` — sama
 /// `oktz_router::mode::format_afk_duration`, disalin karena plugin tidak
 /// bergantung pada `oktz-router`.
 pub(crate) fn format_durasi(ms: i64) -> String {
@@ -115,9 +106,9 @@ fn data_peserta<'a>(ctx: &'a Ctx, jid: &str) -> Option<&'a Value> {
         .map(|p| &p.data)
 }
 
-/// `checkAfk` (`afk.js:76-126`) — hook yang dipanggil SEBELUM plugin lain.
+/// `checkAfk` — hook yang dipanggil SEBELUM plugin lain.
 ///
-/// Di JS ini berjalan untuk SEMUA pesan; jalur answer Rust cuma dipanggil
+/// Di versi awal ini berjalan untuk SEMUA pesan; jalur answer Rust cuma dipanggil
 /// untuk pesan non-command (`oktz-wa/src/pipeline.rs:4773`), jadi AFK tidak
 /// ikut terhapus saat pengirim mengetik command. Pengirim tetap menang atas
 /// rantai answer lain: begitu ada balasan, pipeline berhenti.
@@ -309,7 +300,7 @@ mod tests {
         assert!(can_persist("628123@lid"));
         assert!(!can_persist("120363123456789@g.us"), "prefix 120");
         assert!(!can_persist("1234567890123456@s.whatsapp.net"), ">15 digit");
-        // `"".replace(/@.+/g, '')` tetap `""` dan panjangnya 0, jadi JS
+        // `"".replace(/@.+/g, '')` tetap `""` dan panjangnya 0, jadi versi awal
         // justru Menganggapnya boleh dipersist. Meng faithfully; sender
         // kosong tidak mungkin terjadi dari router.
         assert!(can_persist(""));

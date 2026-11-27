@@ -1,9 +1,9 @@
-//! `plugins/group/antisticker.js` — sakelar antiblokir stiker.
+//! Sakelar antiblokir stiker.
 //!
-//! `ponytail:` hanya handler `.antisticker` yang dipindah. `checkAntisticker`
-//! (pemeriksaan per-pesan) butuh `sock.sendMessage` untuk menghapus pesan —
-//! `Ctx` tidak punya itu. `gpMsg` yang membaca `config.groupProtection` ikut
-//! tidak dipindah karena hanya dipakai `checkAntisticker`.
+//! `Keterbatasan:` hanya handler `.antisticker` yang dipindah. `checkAntisticker`
+//! (pemeriksaan per-pesan) butuh `sock.sendMessage` untuk menghapus pesan — `Ctx` tidak
+//! punya itu. `gpMsg` yang membaca `config.groupProtection` ikut tidak dipindah karena
+//! hanya dipakai `checkAntisticker`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

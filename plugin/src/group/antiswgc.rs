@@ -1,4 +1,4 @@
-//! `plugins/group/antiswgc.js` — sakelar deteksi status/group mention.
+//! Sakelar deteksi status/group mention.
 
 use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};

@@ -1,8 +1,4 @@
-//! `plugins/group/autosticker.js` — sakelar ubah gambar/video jadi sticker.
-//!
-//! Hanya handler `.autosticker` yang dipindah. `autoStickerHandler` (:61)
-//! tidak: butuh `m.download()` (:89), `sock.sendImageAsSticker` (:95),
-//! `sock.sendVideoAsSticker` (:104), dan `config.sticker` (:96, :103).
+//! Sakelar ubah gambar/video jadi sticker.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -121,7 +117,7 @@ mod tests {
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(p.meta.is_admin);
-        // `isBotAdmin` tidak ada di pluginConfig JS.
+        // `isBotAdmin` tidak ada di pluginConfig versi awal.
         assert!(!p.meta.is_bot_admin);
         assert!(!p.meta.is_owner && !p.meta.is_premium);
     }

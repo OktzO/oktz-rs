@@ -1,8 +1,8 @@
-//! `plugins/group/autoforward.js` — sakelar auto forward pesan masuk ke grup.
+//! Sakelar auto forward pesan masuk ke grup.
 //!
-//! `ponytail:` penerusan pesan nyata ada di middleware dan butuh
-//! `sock.sendMessage`/`sock.sendMessage` grup lain, yang tidak ada di `Ctx`.
-//! Yang dipindah hanya sakelar `.autoforward`.
+//! `Keterbatasan:` penerusan pesan nyata ada di middleware dan butuh
+//! `sock.sendMessage`/`sock.sendMessage` grup lain, yang tidak ada di `Ctx`. Yang dipindah
+//! hanya sakelar `.autoforward`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 

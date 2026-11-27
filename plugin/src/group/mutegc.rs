@@ -1,20 +1,17 @@
-//! `plugins/group/mutegc.js` — `groups[chat].mutegc = true`.
+//! `groups[chat].mutegc = true`.
 //!
-//! Efeknya dibaca `handler.js:829` lewat `isMutegc`, jadi yang ditulis di sini
-//! hanya flag-nya.
-//!
-//! `ponytail:` `m.groupMetadata.subject` diambil dari `groups[chat].name`
-//! (pola yang sama dengan `mute.rs`). `Ctx` tidak membawa subject langsung.
+//! `Keterbatasan:` `m.groupMetadata.subject` diambil dari `groups[chat].name` (pola yang
+//! sama dengan `mute.rs`). `Ctx` tidak membawa subject langsung.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::js_truthy_value;
 
-/// `m.groupMetadata?.subject || "grup ini"` — nilai cadangan dari JS.
+/// `m.groupMetadata?.subject || "grup ini"` — nilai cadangan dari versi awal.
 pub(crate) const NO_GROUP_NAME: &str = "grup ini";
 
-/// `mutegc.js:33` — sudah aktif.
+/// Sudah aktif.
 pub(crate) const ALREADY_ON: &str = "🔇 *Mute GC Sudah Aktif*\n\n\
     > Member tidak bisa menggunakan command bot di grup ini\n\
     > Hanya admin grup dan owner bot yang bisa akses\n\n\
@@ -34,7 +31,7 @@ pub(crate) fn now_on(prefix: &str, group_name: &str) -> String {
     )
 }
 
-/// `isMutegc(groupJid, db)` (`mutegc.js:52`) — middleware cuma butuh
+/// `isMutegc(groupJid, db)` — middleware cuma butuh
 /// kebenaran flag grup, jadi cukup menerima objek grup dari store.
 pub(crate) fn is_mutegc(group_data: &Value) -> bool {
     group_data.get("mutegc").is_some_and(js_truthy_value)

@@ -1,16 +1,8 @@
-//! `plugins/group/warn.js` — peringatan member + kick otomatis di batas.
+//! Peringatan member + kick otomatis di batas.
 //!
-//! Yang dipindah: seluruh gerbang, pencatatan `warnings` ke store grup, dan
-//! teks SP. Pengeluaran di batas warning
-//! `sock.groupParticipantsUpdate(m.chat, [id], 'remove')` (`warn.js:110`)
-//! tidak ada di API plugin — di titik itu plugin diam (pola `kick.rs`):
-//! warning ke-max tetap tercatat persis urutan JS (pencatatan terjadi SEBELUM
-//! kick), tapi tidak ada klaim "telah dikeluarkan dari grup", dan penghapusan
-//! `warnings[target]` yang di JS terjadi SETELAH kick sukses juga tidak ada.
-//!
-//! `ponytail:` gerbang "jangan warn bot sendiri" (`warn.js:84-88`)
-//! membandingkan target dengan `sock.user?.id`; `Ctx` tidak punya JID bot,
-//! jadi gerbang itu dilewati — pola yang sama dengan `kick.rs`/`delete.rs`.
+//! `Keterbatasan:` gerbang "jangan warn bot sendiri" membandingkan target dengan
+//! `sock.user?.id`; `Ctx` tidak punya JID bot, jadi gerbang itu dilewati — pola yang sama
+//! dengan `kick.rs`/`delete.rs`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value};
@@ -19,7 +11,7 @@ use crate::common::{now_ms, parse_int};
 use crate::group::kick::find_participant;
 use crate::group::listwarn::max_warnings;
 
-/// Teks bantuan (`warn.js:33-48`).
+/// Teks bantuan.
 fn help_text(prefix: &str, max: i64) -> String {
     format!(
         "⚠️ *SISTEM WARNING GRUP*\n\n\
@@ -39,7 +31,7 @@ fn help_text(prefix: &str, max: i64) -> String {
     )
 }
 
-/// Cara pakai saat target tidak ketemu (`warn.js:68-72`).
+/// Cara pakai saat target tidak ketemu.
 fn cara_pakai(prefix: &str) -> String {
     format!(
         "⚠️ *CARA PAKAI*\n\n\
@@ -66,7 +58,7 @@ fn buang_mention_angka(s: &str) -> String {
 
 /// `replace(/^\s*warn\s*/i, '')` — buang whitespace awal, kata `warn` (huruf
 /// bebas), lalu whitespace sesudahnya. `warn` dicocokkan sebagai awalan
-/// (tanpa batas kata), persis regex JS: `warning` ikut terbuang jadi `ing`.
+/// (tanpa batas kata), persis regex versi awal: `warning` ikut terbuang jadi `ing`.
 fn buang_awalan_warn(s: &str) -> String {
     let t = s.trim_start();
     let mut it = t.chars();
@@ -78,7 +70,7 @@ fn buang_awalan_warn(s: &str) -> String {
     }
 }
 
-/// Alasan pada jalur mention (`warn.js:90`) — tanpa kutipan.
+/// Alasan pada jalur mention — tanpa kutipan.
 fn alasan_dari_teks(text: &str) -> String {
     let r = buang_awalan_warn(&buang_mention_angka(text)).trim().to_string();
     if r.is_empty() {
@@ -88,7 +80,7 @@ fn alasan_dari_teks(text: &str) -> String {
     }
 }
 
-/// Alasan pada jalur kutipan (`warn.js:90`) — hanya trim, mention tidak dibuang.
+/// Alasan pada jalur kutipan — hanya trim, mention tidak dibuang.
 fn alasan_dari_kutipan(text: &str) -> String {
     let r = text.trim();
     if r.is_empty() {
@@ -98,9 +90,9 @@ fn alasan_dari_kutipan(text: &str) -> String {
     }
 }
 
-/// Pencatatan warning (`warn.js:93-101`): satu entri `{reason, by, time}`
-/// ditambahkan, lalu `db.setGroup(m.chat, { ...groupData, warnings })`.
-/// Peta `warnings` dikirim utuh seperti spread JS; field grup lain tidak
+/// Pencatatan warning: satu entri `{reason, by, time}`
+/// ditambahkan, lalu `db.setGroup(m.chat, {...groupData, warnings })`.
+/// Peta `warnings` dikirim utuh seperti spread versi awal; field grup lain tidak
 /// disentuh karena mutasi Rust merge parsial.
 fn catat_warning(ctx: &Ctx, target: &str, reason: &str) -> Mutation {
     let mut warnings = ctx
@@ -137,12 +129,12 @@ fn catat_warning(ctx: &Ctx, target: &str, reason: &str) -> Mutation {
 pub fn warn(ctx: Ctx) -> Reply {
     let max = max_warnings(&ctx);
 
-    // `!args[0] && !m.quoted && (!m.mentionedJid || length === 0)` (`warn.js:32`).
+    // `!args[0] && !m.quoted && (!m.mentionedJid || length === 0)`.
     if ctx.args.is_empty() && ctx.quoted().is_none() && ctx.mentioned.is_empty() {
         return Reply::text(help_text(&ctx.prefix, max));
     }
 
-    // Cabang `warn max <angka>` (`warn.js:50-58`).
+    // Cabang `warn max <angka>`.
     if ctx.args.first().map(|a| a.to_lowercase()).as_deref() == Some("max") {
         let new_max = ctx.args.get(1).and_then(|a| parse_int(a));
         if !new_max.is_some_and(|n| (1..=20).contains(&n)) {
@@ -161,7 +153,7 @@ pub fn warn(ctx: Ctx) -> Reply {
         });
     }
 
-    // `m.quoted ? m.quoted.sender : m.mentionedJid[0]` (`warn.js:61-65`).
+    // `m.quoted ? m.quoted.sender: m.mentionedJid[0]`.
     let target = match ctx.quoted() {
         Some(q) => q.sender.clone(),
         None => match ctx.mentioned.first() {
@@ -170,8 +162,8 @@ pub fn warn(ctx: Ctx) -> Reply {
         },
     };
 
-    // Gerbang admin target (`warn.js:75-82`): `participant?.admin` truthy =
-    // admin atau superadmin. Roster kosong = metadata tidak terbaca; JS
+    // Gerbang admin target: `participant?.admin` truthy =
+    // admin atau superadmin. Roster kosong = metadata tidak terbaca; versi awal
     // menelan errornya lewat catch kosong dan melanjutkan.
     if find_participant(&ctx.roster.participants, &target)
         .is_some_and(|p| p.is_admin)
@@ -179,7 +171,7 @@ pub fn warn(ctx: Ctx) -> Reply {
         return Reply::text("❌ Tidak bisa memberikan warning kepada admin grup.");
     }
 
-    // Gerbang bot sendiri (`warn.js:84-88`) dilewati — lihat `ponytail:` di
+    // Gerbang bot sendiri dilewati — lihat `Keterbatasan:`
     // header modul.
 
     let reason = if ctx.quoted().is_some() {
@@ -197,8 +189,8 @@ pub fn warn(ctx: Ctx) -> Reply {
         + 1;
 
     if count >= max {
-        // Kick otomatis tidak di-port — plugin diam, warning tetap tercatat
-        // (urutan JS: pencatatan sebelum kick). Lihat header modul.
+        // Kick otomatis tidak diimplementasikan — plugin diam, warning tetap tercatat
+        // (urutan versi awal: pencatatan sebelum kick). Lihat header modul.
         return Reply::None.with_mutation(mutation);
     }
 
@@ -541,7 +533,7 @@ mod tests {
 
     #[test]
     fn reaching_the_max_stays_silent_but_still_records_like_the_js_order() {
-        // `warn.js` mencatat warning DULU, baru kick. Kick tidak di-port, jadi
+        // mencatat warning DULU, baru kick. Kick tidak diimplementasikan, jadi
         // hasilnya: tercatat + tanpa balasan (pola kick.rs).
         let ctx = Ctx {
             args: vec!["@628999".into(), "spam".into()],

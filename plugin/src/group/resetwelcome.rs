@@ -1,13 +1,13 @@
-//! `plugins/group/resetwelcome.js` — `groups[chat].welcomeMsg = null`.
+//! `groups[chat].welcomeMsg = null`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::js_falsy;
 
 /// `if (!groupData?.welcomeMsg)` — `undefined`, `null`, dan `""` falsy, jadi
-/// ketiganya masuk cabang "sudah default". `js_falsy` juga menandai `0` dan
+/// ketiganya masuk cabang "sudah default". `js_falsy` juga menandai `0`
 /// `false`, sama seperti `!0`; objek dan array tetap truthy karena `!{}` =
-/// `false` di JS.
+/// `false` di versi awal.
 pub(crate) fn is_default(ctx: &Ctx) -> bool {
     js_falsy(ctx.group_field("welcomeMsg"))
 }
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn js_falsiness_decides_the_branch_not_the_json_type() {
-        // `0` falsy → sudah default. `{}` TRUTHY di JS (`!{}` = false) →
+        // `0` falsy → sudah default. `{}` TRUTHY di versi awal (`!{}` = false) →
         // plugin mencoba mereset, dan menulis `null` di atasnya. Mengira
         // "bukan string = tidak ada" akan salah untuk objek.
         let zero = run(serde_json::json!({"welcomeMsg": 0}));

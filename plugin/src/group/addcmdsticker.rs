@@ -1,18 +1,6 @@
-//! `plugins/group/addcmdsticker.js` — daftarkan sticker sebagai shortcut command.
+//! Daftarkan sticker sebagai shortcut command.
 //!
-//! `ponytail:` dua hal tidak ikut.
-//!
-//! 1. `getQuotedStickerHash` membaca `fileSha256`, lalu `mediaKey`, dari
-//!    `quoted.message.stickerMessage` (`sticker-command.js:80-101`).
-//!    `QuotedMessage` tidak punya keduanya, jadi tidak ada kunci yang bisa
-//!    ditulis — dan karena pemeriksaan itu mendahului `getPlugin`, semua
-//!    cabang setelah "reply sticker" mati. Plugin diam, bukanAddition yang
-//!    menipu.
-//! 2. `src/lib/sticker-command.js` menulis ke `database/stickerCommands.json`,
-//!    bukan ke store plugin. Pemetaannya ke store global: key
-//!    `setting("stickerCommands")` dengan bentuk yang sama persis
-//!    (hash → `{command, addedBy, addedAt}`) — sama yang dipakai
-//!    `delstickercmd`.
+//! `Keterbatasan:` dua hal tidak ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -23,7 +11,7 @@ pub(crate) const NO_QUOTE: &str = "⚠️ *Reply sticker* yang ingin dijadikan c
 pub(crate) const NOT_STICKER: &str = "⚠️ Pesan yang di-reply bukan *sticker*!";
 
 /// `commandName.toLowerCase().replace(/^\./, '')` — satu titik di depan saja.
-/// Cabang JS yang memakainya sudah mati (lihat `ponytail:` modul), jadi hanya
+/// Cabang versi awal yang memakainya sudah mati (lihat `Keterbatasan:` modul), jadi hanya
 /// tes yang memakai helper ini.
 #[cfg(test)]
 pub(crate) fn clean_cmd(raw: &str) -> String {
@@ -32,7 +20,7 @@ pub(crate) fn clean_cmd(raw: &str) -> String {
 }
 
 /// Nama command yang terdaftar, sesuai urutan key di store — persis urutan
-/// iterasi `Object.entries(stickerCommands)` di JS.
+/// iterasi `Object.entries(stickerCommands)` di versi awal.
 pub(crate) fn registered(ctx: &Ctx) -> Vec<String> {
     ctx.setting_entries(STORE)
         .map(|(_, v)| {
@@ -93,8 +81,8 @@ pub fn addcmdsticker(ctx: Ctx) -> Reply {
         return Reply::text(NOT_STICKER);
     }
 
-    // `getQuotedStickerHash` tidak bisa dihitung (lihat `ponytail:` modul).
-    // Karena pemeriksaan itu mendahului `getPlugin(cleanCmd)` di JS, semua
+    // `getQuotedStickerHash` tidak bisa dihitung (lihat `Keterbatasan:` modul).
+    // Karena pemeriksaan itu mendahului `getPlugin(cleanCmd)` di versi awal, semua
     // cabang setelahnya mati — plugin diam, bukan melapor sukses tanpa kunci
     // yang benar-benar ditulis.
     Reply::None
@@ -159,7 +147,7 @@ mod tests {
         assert_eq!(p.meta.example, ".addcmdsticker menu");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);
-        // JS: isGroup false DAN isPrivate false — command yang tidak jalan di
+        // versi awal: isGroup false DAN isPrivate false — command yang tidak jalan
         // mode mana pun.
         assert!(!p.meta.is_group);
         assert!(!p.meta.is_private);

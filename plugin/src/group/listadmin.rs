@@ -1,4 +1,4 @@
-//! `plugins/group/listadmin.js` — roster admin/superadmin.
+//! Roster admin/superadmin.
 
 use oktz_plugin_api::registry::Participant;
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -117,7 +117,7 @@ mod tests {
         }
     }
 
-    // -- registrasi & meta ------------------------------------------------
+    // - registrasi & meta ------------------------------------------------
 
     #[test]
     fn registers_with_the_js_plugin_config() {
@@ -144,7 +144,7 @@ mod tests {
         }
     }
 
-    // -- cabang roster -----------------------------------------------------
+    // - cabang roster -----------------------------------------------------
 
     #[test]
     fn empty_roster_takes_the_no_admin_branch() {
@@ -249,7 +249,7 @@ mod tests {
         assert_eq!(out.matches("👑 @").count(), 1, "owner hanya yang pertama");
         assert!(out.contains("👑 @628111"));
         // Superadmin kedua TIDAK jadi admin biasa: di wire `admin`-nya string
-        // `'superadmin'`, dan filter JS cuma mengambil `'admin'`.
+        // `'superadmin'`, dan filter versi awal cuma mengambil `'admin'`.
         assert!(!out.contains("```1. @628222```"));
         assert!(!out.contains("━━━ ᴀᴅᴍɪɴ ━━━"), "blok admin kosong di-lewati");
         assert!(out.ends_with("`Total Admin: 2`"));

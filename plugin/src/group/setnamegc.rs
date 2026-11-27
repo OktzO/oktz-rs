@@ -1,22 +1,17 @@
-//! `plugins/group/setnamegc.js` — ubah nama grup.
-//!
-//! Yang dipindah: seluruh gerbang (tanpa argumen, batas panjang). Penggantian
-//! sebenarnya `sock.groupUpdateSubject(m.chat, newName)` (`setnamegc.js:39`)
-//! tidak ada di API plugin, jadi setelah gerbang lolos plugin diam — bukan
-//! mengirim "berhasil mengubah nama grup".
+//! Ubah nama grup.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `setnamegc.js:30` — `newName.length > 100` (batas bawahnya sudah lewat
+/// `newName.length > 100` (batas bawahnya sudah lewat
 /// `if (!newName)` di baris 22).
 pub(crate) const MAX_NAME: usize = 100;
 
-/// `setnamegc.js:23-26`.
+///
 fn help(prefix: &str) -> String {
     format!("⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{prefix}setnamegc Nama Grup Baru`")
 }
 
-/// `setnamegc.js:31-34`.
+///
 const TOO_LONG: &str = "⚠️ *ᴠᴀʟɪᴅᴀsɪ*\n\n> Nama grup harus 1-100 karakter.";
 
 #[plugin(
@@ -43,8 +38,8 @@ pub fn setnamegc(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `ponytail:` JS menghitung `.length` sebagai unit UTF-16, Rust menghitung
-    // scalar; emoji di luar BMP terhitung 1 di sini dan 2 di JS.
+    // `Keterbatasan:` versi awal menghitung `.length` sebagai unit UTF-16, Rust menghitung
+    // scalar; emoji di luar BMP terhitung 1 di sini dan 2 di versi awal.
     if new_name.chars().count() > MAX_NAME {
         return Reply::text(TOO_LONG);
     }

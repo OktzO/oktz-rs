@@ -1,7 +1,4 @@
-//! `plugins/group/notifpromote.js` — toggle `groups[chat].notifPromote`.
-//!
-//! Tubuh bersama dengan tiga plugin `notif*` lain ada di
-//! [`crate::group::notifclosegroup`].
+//! Toggle `groups[chat].notifPromote`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

@@ -1,8 +1,4 @@
-//! `plugins/group/resetrulesgrup.js` — `groups[chat].groupRules = null`.
-//!
-//! Tanpa cabang: plugin ini SELALU menulis dan SELALU melaporkan sukses.
-//! Quietly berbeda dari pasangan `setwelcome`/`resetwelcome` yang memeriksa
-//! state lebih dulu — itu perilaku JS, bukan kelalaian port.
+//! `groups[chat].groupRules = null`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -92,7 +88,7 @@ mod tests {
 
     #[test]
     fn it_always_writes_even_when_nothing_was_set() {
-        // Tidak ada pemeriksaan state di JS — reset tetap menulis.
+        // Tidak ada pemeriksaan state di versi awal — reset tetap menulis.
         for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"groupRules": null}), serde_json::json!({"groupRules": "lama"})] {
             let r = run(g.clone());
             assert_eq!(group_write(&r)["groupRules"], Value::Null, "input {g}");

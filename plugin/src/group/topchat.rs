@@ -1,4 +1,4 @@
-//! `plugins/group/topchat.js` — `groups[chat].chatStats` (jid → {count,...}).
+//! `groups[chat].chatStats` (jid → {count...}).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -16,7 +16,7 @@ pub(crate) fn count_of(data: &Value) -> i64 {
 
 /// `Object.entries(chatStats).map(...).sort((a,b) => b.count - a.count)`.
 ///
-/// `sort` JS stabil, jadi urutannya `sort_by` + `Reverse` yang sama: seri
+/// `sort` versi awal stabil, jadi urutannya `sort_by` + `Reverse` yang sama: seri
 /// tetap mengikuti urutan dokumen `chatStats`.
 pub(crate) fn sorted_stats(stats: Option<&Value>) -> Vec<(String, i64)> {
     let mut out: Vec<(String, i64)> = stats
@@ -31,7 +31,7 @@ pub(crate) fn sorted_stats(stats: Option<&Value>) -> Vec<(String, i64)> {
     out
 }
 
-/// `i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '▸'`.
+/// `i === 0 ? '🥇': i === 1 ? '🥈': i === 2 ? '🥉': '▸'`.
 pub(crate) const MEDALS: [&str; 4] = ["🥇", "🥈", "🥉", "▸"];
 
 pub(crate) fn render(ctx: &Ctx) -> String {

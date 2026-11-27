@@ -1,17 +1,17 @@
-//! `plugins/group/unmutegc.js` — `groups[chat].mutegc = false`.
+//! `groups[chat].mutegc = false`.
 //!
-//! `ponytail:` `m.groupMetadata.subject` diambil dari `groups[chat].name`
-//! (pola yang sama dengan `mute.rs`). `Ctx` tidak membawa subject langsung.
+//! `Keterbatasan:` `m.groupMetadata.subject` diambil dari `groups[chat].name` (pola yang
+//! sama dengan `mute.rs`). `Ctx` tidak membawa subject langsung.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::group::mutegc::is_mutegc;
 
-/// `m.groupMetadata?.subject || "grup ini"` — nilai cadangan dari JS.
+/// `m.groupMetadata?.subject || "grup ini"` — nilai cadangan dari versi awal.
 pub(crate) const NO_GROUP_NAME: &str = "grup ini";
 
-/// `unmutegc.js:33` — memang belum aktif.
+/// Memang belum aktif.
 pub(crate) const ALREADY_OFF: &str = "🔊 *Mute GC Tidak Aktif*\n\n\
     > Member sudah bisa menggunakan command bot di grup ini";
 

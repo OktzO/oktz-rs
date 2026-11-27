@@ -1,15 +1,11 @@
-//! `plugins/group/notifsholat.js` — `groups[chat].notifSholat` on/off.
-//!
-//! Status yang ditampilkan bukan field yang ditulis plugin ini:
-//! `autoSholat` (grup → global → default) menentukan "Pengingat", sedangkan
-//! `notifSholat` menentukan "Status Grup" dan itu yang disimpan di sini.
+//! `groups[chat].notifSholat` on/off.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 use crate::group::notifclosegroup::ADMIN_ONLY;
 
-/// `ponytail:` `m.isAdmin` tidak ada di `Ctx`; guard memakainya
+/// `Keterbatasan:` `m.isAdmin` tidak ada di `Ctx`; guard memakainya
 /// `ctx.roster.is_admin(sender)`, roster grup untuk pesan yang sama.
 /// `group.autoSholat ?? setting('autoSholat') ?? false` — `??` hanya
 /// null/undefined, jadi `false` milik grup tidak ditimpa global.
@@ -25,7 +21,7 @@ fn group_auto(ctx: &Ctx) -> bool {
 }
 
 /// `group.autoSholatKota || setting('autoSholatKota') || { nama: 'KOTA JAKARTA' }`
-/// — `||` bukan `??`, jadi nilai falsy apa pun jatuh ke global.
+/// `||` bukan `??`, jadi nilai falsy apa pun jatuh ke global.
 fn kota(ctx: &Ctx) -> Value {
     ctx.group_field("autoSholatKota")
         .filter(|v| crate::common::js_truthy_value(v))
@@ -212,7 +208,7 @@ mod tests {
 
     #[test]
     fn an_explicit_false_in_the_group_is_not_overwritten_by_the_global_value() {
-        // `??` di JS: `false` bukan nullish, jadi tetap nonaktif walau global aktif.
+        // `??` di versi awal: `false` bukan nullish, jadi tetap nonaktif walau global aktif.
         let r = run(serde_json::json!({"autoSholat": false}), serde_json::json!({"autoSholat": true}), None, true);
         let t = text_of(&r);
         assert!(t.contains("Status Pengingat (grup ini): *❌ NONAKTIF*"), "{t}");

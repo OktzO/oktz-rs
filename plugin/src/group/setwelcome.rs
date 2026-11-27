@@ -1,9 +1,9 @@
-//! `plugins/group/setwelcome.js` — `groups[chat].welcomeMsg` + `welcome: true`.
+//! `groups[chat].welcomeMsg` + `welcome: true`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 /// `m.text || m.args.join(" ")` — teks setelah command. `m.text` sudah
-/// mencakup sisa argumen, jadi cabang `||` di JS tidak pernah fallen-back ke
+/// mencakup sisa argumen, jadi cabang `||` di versi awal tidak pernah fallen-back
 /// `join` dalam kondisi normal; tetap ditulis sebagai satu nilai.
 pub(crate) fn message(ctx: &Ctx) -> &str {
     ctx.text.as_str()
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn a_whitespace_only_message_is_still_a_message_in_javascript() {
-        // `if (!text)` di JS — `" "` itu truthy, jadi masuk cabang tulis dan
+        // `if (!text)` di versi awal — `" "` itu truthy, jadi masuk cabang tulis
         // `welcomeMsg` berisi spasi. `is_empty()` (bukan `trim().is_empty()`)
         // yang menjaga itu; memakai trim di sini akan mengubahnya jadi help.
         let r = run(serde_json::json!({}), " ");

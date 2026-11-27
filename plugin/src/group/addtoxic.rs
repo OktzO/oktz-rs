@@ -1,4 +1,4 @@
-//! `plugins/group/addtoxic.js` — `groups[chat].toxicWords` tambah satu.
+//! `groups[chat].toxicWords` tambah satu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -51,9 +51,9 @@ pub fn addtoxic(ctx: Ctx) -> Reply {
     if word.is_empty() {
         return Reply::text(help(&ctx.prefix));
     }
-    // `word.length` di JS menghitung UTF-16 code unit; untuk kata Latin
-    // `chars().count()` sama. Unicode astral (emoji) dihitung 2 di JS dan
-    // 1 di Rust — `ponytail:` perbedaan itu tidak materiel untuk daftar
+    // `word.length` di versi awal menghitung UTF-16 code unit; untuk kata Latin
+    // `chars().count()` sama. Unicode astral (emoji) dihitung 2 di versi awal
+    // 1 di Rust — `Keterbatasan:` perbedaan itu tidak materiel untuk daftar
     // kata, tapi batas 30EMU bukan 30 byte.
     let len = word.chars().count();
     if len < 2 {
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn the_length_limit_counts_characters_not_bytes() {
-        // 30 emoji = 120 byte UTF-8 tapi hanya 30 char; JS `length` juga 30
+        // 30 emoji = 120 byte UTF-8 tapi hanya 30 char; versi awal `length` juga 30
         // untuk BMP. Yang diuji: tidak ada yang terpotong oleh batas byte.
         let emoji = "😀".repeat(30);
         let r = run(serde_json::json!({}), &emoji);

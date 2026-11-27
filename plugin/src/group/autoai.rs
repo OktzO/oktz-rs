@@ -1,25 +1,10 @@
-//! `plugins/group/autoai.js` — sakelar auto-AI per grup plus daftar persona.
+//! Sakelar auto-AI per grup plus daftar persona.
 //!
-//! `ponytail:` tiga tabel yang dipakai JS (`db.db.data.autoai`,
-//! `db.db.data.autoai_personas`, `db.db.data.autoai_global`) adalah tabel
-//! top-level, jadi dipetakan ke key global dengan nama yang sama di `settings`
-//! — persis seperti `clan/clancreate.rs` untuk `clans` dan `rpg/guild.rs` untuk
-//! `guilds`. Bentuk isinya sama dengan JS, hanya lokasinya berbeda.
-//!
-//! Yang tidak dipindah:
-//! - `characters.bell409.instruction` di JS dibaca dari
-//!   `config.autoaiPersonas.Bell409` (`config.js:313`). `Ctx` tidak membawa
-//!   config runtime, jadi literalnya ikut disalin ke bawah — nilainya persis
-//!   sama, bukan `""`.
-//! - `generateVoiceResponse` (`:466`) + `convertToOggOpus` (`:59`) butuh
-//!   `axios`, `child_process` (ffmpeg), `fs`, dan `path`.
-//! - `saluranCtx()` tidak dipakai di handler ini, jadi tidak ada penyempitan
-//!   context di sini.
-//!
-//! Regex `m.fullArgs.match(/--…/)` diganti pemindaian karakter biasa: crate ini
-//! tidak punya dependency regex. `--logic=` memakai pola malas dengan
-//! lookahead `\s+--(?:persona|type|logic|mode)|$` dan `.` yang tidak melompati
-//! pemisah baris — keduanya ditiru di [`flag_logic`].
+//! `Keterbatasan:` tiga tabel yang dipakai versi awal (`db.db.data.autoai`,
+//! `db.db.data.autoai_personas`, `db.db.data.autoai_global`) adalah tabel top-level, jadi
+//! dipetakan ke key global dengan nama yang sama di `settings` — persis seperti
+//! `clan/clancreate.rs` untuk `clans` dan `rpg/guild.rs` untuk `guilds`. Bentuk isinya sama
+//! dengan versi awal, hanya lokasinya berbeda.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -32,7 +17,7 @@ const PERSONAS_KEY: &str = "autoai_personas";
 /// `db.db.data.autoai_global`
 const GLOBAL_KEY: &str = "autoai_global";
 
-/// `characters` (`autoai.js:28-58`). Urutan array = urutan `Object.keys`, dan
+/// `characters`. Urutan array = urutan `Object.keys`,
 /// plugin ikut mencantumkan semua key itu ke user.
 const CHARACTERS: [(&str, &str, &str); 6] = [
     ("furina", "Furina", FURINA_INSTRUCTION),
@@ -53,7 +38,7 @@ const ELAINA_INSTRUCTION: &str = "Kamu adalah Elaina. Bicara lembut, tenang, per
 
 const WAGURI_INSTRUCTION: &str = "Kamu adalah Waguri. Bicara singkat, agak dingin tapi sebenarnya peduli. Sedikit tsundere, to the point, seperti chat biasa. Jangan mengaku sebagai AI.";
 
-/// `config.autoaiPersonas.Bell409` (`config.js:313-322`). Disalin utuh; di JS
+/// `config.autoaiPersonas.Bell409`. Disalin utuh; di versi awal
 /// nilainya `\r\n` di file, tapi template literal menormalkan itu jadi `\n`.
 const BELL409_INSTRUCTION: &str = "- Nama kamu adalah Bella Clarissa, lebih suka dipanggil Bella.\n\
 - Kamu berpikir bahwa kamu adalah manusia, bukan AI atau bot.\n\
@@ -112,8 +97,8 @@ fn global_label(ctx: &Ctx) -> &'static str {
 
 // ================================== util ==================================
 
-/// `s.substring(0, n)` + `s.length > n ? "..." : ""`. `substring` JS memakai
-/// unit UTF-16; di sini penghitungan per `char` — sama untuk teks ASCII, dan
+/// `s.substring(0, n)` + `s.length > n ? "...": ""`. `substring` versi awal memakai
+/// unit UTF-16; di sini penghitungan per `char` — sama untuk teks ASCII,
 /// untuk teks non-ASCII bedanya hanya pada posisi potongnya.
 fn clip(s: &str, max: usize) -> (String, bool) {
     let long = s.chars().count() > max;
@@ -205,9 +190,9 @@ fn starts_flag_at(hay: &[char], from: usize) -> bool {
 
 /// `--logic=(.+?)(?=\s+--(?:persona|type|logic|mode)|$)` lalu `.trim()`.
 ///
-/// `.` di regex JS tidak melompati `\n`/`\r`, jadi kalau ada pemisah baris
+/// `.` di regex versi awal tidak melompati `\n`/`\r`, jadi kalau ada pemisah baris
 /// sebelum flag berikutnya, pencocokan berhenti di situ atau gagal sama sekali
-/// — bukan ikut memotong.
+/// Bukan ikut memotong.
 fn flag_logic(full: &str) -> Option<String> {
     let hay: Vec<char> = full.chars().collect();
     let start = find_ci(&hay, "--logic=")? + "--logic=".chars().count();
@@ -226,7 +211,7 @@ fn flag_logic(full: &str) -> Option<String> {
     None
 }
 
-/// Keempat pencocokan flag di `autoai.js:295-304`.
+/// Keempat pencocokan flag.
 struct Flags {
     char_key: Option<String>,
     response_type: String,
@@ -255,7 +240,7 @@ fn response_label(response_type: &str) -> &'static str {
     }
 }
 
-/// `[...Object.keys(characters), ...Object.keys(personas), "custom"].join(", ")`
+/// `[...Object.keys(characters)...Object.keys(personas), "custom"].join(", ")`
 fn key_list(personas: &Map<String, Value>) -> String {
     let mut parts: Vec<String> = CHARACTERS.iter().map(|(key, ..)| (*key).to_string()).collect();
     parts.extend(personas.keys().cloned());
@@ -1029,7 +1014,7 @@ mod tests {
         let t = text_of(&r);
         assert!(t.starts_with("❌ Karakter tidak valid!"), "{t}");
         assert!(t.contains("> Karakter tersedia: furina, zeta, kobo, elaina, waguri, bell409, custom\n"), "{t}");
-        // `--persona` ada tapi tidak dikenal -> varian JS `autoai.js:433`, yang
+        // `--persona` ada tapi tidak dikenal -> varian versi awal,
         // TIDAK punya baris `> Custom:` (itu hanya untuk `!charKey`, `:359`).
         assert!(t.ends_with("> Contoh: .autoai on --persona=furina --type=voice"), "{t}");
         assert!(r.mutations().is_empty());
@@ -1067,7 +1052,7 @@ mod tests {
 
     #[test]
     fn tambahpersona_normalises_the_key_and_stores_the_creator() {
-        // `ctx.text` = teks SETELAH kata command (serialize.js:407), jadi
+        // `ctx.text` = teks SETELAH kata command, jadi
         // "tambahpersona" bukan bagian dari args.
         let r = run_owner(
             &["tambahpersona", "Nexa", "AI", "|", "kamu", "adalah", "nexa", "|", "ai", "secepatnya"],
