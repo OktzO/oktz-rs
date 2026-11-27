@@ -1,9 +1,4 @@
-//! `plugins/store/listproduk.js` — `db.setting('storeProducts')` (katalog).
-//!
-//! Seller.catalog di JS mengirim dengan `forwardedNewsletterMessageInfo`
-//! kalau di grup (`listproduk.js:104-115`); `Reply` tidak punya cara
-//! menyetel `contextInfo` forwarding, jadi teks yang sama dikirim sebagai
-//! pesan biasa. Isi pesan tidak berubah.
+//! `db.setting('storeProducts')` (katalog).
 
 use crate::store::list::js_parse_int;
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -11,7 +6,7 @@ use serde_json::Value;
 
 const EMPTY: &str = "🏪 *Produk Belum Tersedia*\n\nSaat ini belum ada produk yang ditambahkan oleh admin 😔\n\nSilakan cek kembali nanti atau hubungi admin untuk informasi lebih lanjut.\n\n_Terima kasih atas ketertarikan Anda_ 🙏";
 
-/// `(n).toLocaleString("id-ID")` (`listproduk.js:21`) — pemisah ribuan titik,
+/// `(n).toLocaleString("id-ID")` — pemisah ribuan titik,
 /// desimal koma. Untuk harga yang selalu bulat, cukup titik ribuan.
 fn format_price(n: i64) -> String {
     let neg = n < 0;
@@ -30,7 +25,7 @@ fn format_price(n: i64) -> String {
     }
 }
 
-/// `p.type || "digital"` (`listproduk.js:44`) — nilai kosong/falsy jadi
+/// `p.type || "digital"` — nilai kosong/falsy jadi
 /// `digital`, jadi `type` hanya dibaca kalau string non-kosong.
 fn product_type(p: &Value) -> &str {
     match p.get("type").and_then(Value::as_str) {
@@ -51,7 +46,7 @@ fn is_available(p: &Value) -> bool {
     }
 }
 
-/// Baris "Stok: …" — `listproduk.js:47-53`.
+/// Baris "Stok: …" —.
 fn stock_display(p: &Value) -> String {
     let stock = p.get("stock").and_then(Value::as_i64);
     let unlimited = stock == Some(-1);
@@ -104,7 +99,7 @@ pub fn listproduk(ctx: Ctx) -> Reply {
         } else {
             ("📦", "Fisik")
         };
-        // `p.originalPrice ? ... : ""` (`listproduk.js:57`) — `null`/`0`
+        // `p.originalPrice ?...: ""` — `null`/`0`
         // falsy jadi tidak ada harga coret.
         let original = match p.get("originalPrice").and_then(Value::as_i64) {
             Some(o) if o != 0 => format!("~~{}~~ ", format_price(o)),
@@ -273,7 +268,7 @@ mod tests {
         assert!(text_of(&r).contains(&format!("_{}..._", "a".repeat(60))));
     }
 
-    // `listproduk.js:104` juga mengirim di grup; teksnya sama persis.
+    // juga mengirim di grup; teksnya sama persis.
     #[test]
     fn the_group_branch_sends_the_same_text() {
         let s = serde_json::json!({"storeProducts": [{"name": "A", "price": 1000, "stock": 1}]});

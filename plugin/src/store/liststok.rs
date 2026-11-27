@@ -1,7 +1,4 @@
-//! `plugins/store/liststok.js` — daftar stok `setting('storeProducts')`.
-//!
-//! Plugin baca-saja: seluruh cabangnya hanya menampilkan isi store, tidak
-//! pernah menulis.
+//! Daftar stok `setting('storeProducts')`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -72,8 +69,8 @@ pub(crate) fn render_fisik(ctx: &Ctx, p: &serde_json::Value) -> String {
     let total = match p.get("stock").and_then(|v| v.as_i64()) {
         Some(-1) => "♾️ Unlimited".to_string(),
         Some(n) => format!("{n} pcs"),
-        // `product.stock === -1 ? ... : product.stock + ' pcs'` — `undefined`
-        // bukan `-1`, jadi `undefined + ' pcs'` = "undefined pcs" di JS.
+        // `product.stock === -1 ?...: product.stock + ' pcs'` — `undefined`
+        // bukan `-1`, jadi `undefined + ' pcs'` = "undefined pcs" di versi awal.
         None => "undefined pcs".to_string(),
     };
     format!(

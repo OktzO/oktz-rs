@@ -1,4 +1,4 @@
-//! `plugins/store/list.js` — `db.setting('storeLists')` (daftar info toko).
+//! `db.setting('storeLists')` (daftar info toko).
 
 use oktz_plugin_api::registry::MediaSource;
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -8,7 +8,7 @@ const EMPTY: &str = "📋 *Belum Ada Informasi Toko*\n\nSaat ini belum ada infor
 const FOOTER: &str = "💡 _Ketik `";
 const FOOTER_TAIL: &str = "` untuk membaca detail informasi_";
 
-/// `l.image ? "🖼️" : l.video ? "🎬" : "📝"` — `list.js:59`.
+/// `l.image ? "🖼️": l.video ? "🎬": "📝"` —.
 fn media_icon(item: &Value) -> &'static str {
     if truthy_field(item, "image") {
         "🖼️"
@@ -19,7 +19,7 @@ fn media_icon(item: &Value) -> &'static str {
     }
 }
 
-/// `l.image` / `l.video` dibaca sebagai JS: key/value yang bukan `null`/
+/// `l.image` / `l.video` dibaca sebagai versi awal: key/value yang bukan `null`/
 /// `undefined`/`false`/`0`/`""` dianggap ada.
 fn truthy_field(item: &Value, key: &str) -> bool {
     match item.get(key) {
@@ -50,8 +50,8 @@ pub fn list(ctx: Ctx) -> Reply {
         return Reply::text(EMPTY);
     }
 
-    // `parseInt(input) - 1` (`list.js:27`). `parseInt` membaca AWALAN
-    // angka lalu membuang sisa non-digit, jadi "1abc" tetap 1 — beda dari
+    // `parseInt(input) - 1`. `parseInt` membaca AWALAN
+    // angka lalu membuang sisa non-digit, jadi "1abc" tetap 1 — beda
     // `parseInt` versi ketat yang akan menolak.
     if let Some(idx) = js_parse_int(ctx.text.trim())
         .and_then(|n| n.checked_sub(1))
@@ -63,7 +63,7 @@ pub fn list(ctx: Ctx) -> Reply {
             .and_then(Value::as_str)
             .unwrap_or("undefined")
             .to_string();
-        // `list.js:37-49`: image → `Reply::Image` dengan URL; video TIDAK
+        // : image → `Reply::Image` dengan URL; video TIDAK
         // punya padanan Reply (tidak ada variant video) dan `ctx` tidak
         // membawa media, jadi video jatuh ke teks — sama seperti `m.reply`
         // yang jadi tempat teks dikirim.
@@ -97,12 +97,12 @@ pub fn list(ctx: Ctx) -> Reply {
     Reply::text(txt)
 }
 
-/// `parseInt(s)` (`list.js:27`) untuk basis-10 tanpa tanda ekspon: baca
+/// `parseInt(s)` untuk basis-10 tanpa tanda ekspon: baca
 /// digit awal, buang sisa. `None` kalau tidak ada digit sama sekali —
 /// persis `isNaN(parseInt(...))`.
 ///
 /// Penting: yang diparse HANYA digit prefiksnya. `parseInt("2.9")` = 2,
-/// bukan 2.9 — kalau seluruh string diparse, `"1abc"` jadi `NaN` dan
+/// bukan 2.9 — kalau seluruh string diparse, `"1abc"` jadi `NaN`
 /// branch "pilih nomor" tidak pernah tercapai untuk input berantakan.
 pub(crate) fn js_parse_int(s: &str) -> Option<i64> {
     let t = s.trim_start();
@@ -115,7 +115,7 @@ pub(crate) fn js_parse_int(s: &str) -> Option<i64> {
         return None;
     }
     // Digit bisa jauh melebihi i64 hanya untuk input sintetis; saturate
-    // seperti yang dilakukan mesin JS, jangan panic.
+    // seperti yang dilakukan mesin versi awal, jangan panic.
     Some(sign * digits.parse::<i64>().unwrap_or(i64::MAX))
 }
 
@@ -160,8 +160,8 @@ mod tests {
         for a in ["liststore", "info"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "list");
         }
-        // `daftar` bentrok di JS: alias di sini, tapi `user/daftar.js` memakai
-        // kunci yang sama sebagai command. `getPlugin` JS mengutamakan
+        // `daftar` bentrok di versi awal: alias di sini, tapi memakai
+        // kunci yang sama sebagai command. `getPlugin` versi awal mengutamakan
         // `commands` atas `aliases`, jadi `daftar` memang milik plugin itu.
         assert_eq!(oktz_plugin_api::find("daftar").unwrap().meta.name, "daftar");
     }

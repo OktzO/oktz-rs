@@ -1,11 +1,10 @@
-//! `plugins/store/addlist.js` — tambah entri ke `db.setting('storeLists')`.
+//! Tambah entri ke `db.setting('storeLists')`.
 //!
-//! `ponytail:` cabang upload media (`m.quoted?.isMedia` / `m.isMedia` +
-//! `uploadImage`) TIDAK dipindah — `Ctx` tidak membawa media terkirim dan
-//! tidak ada API upload. Tanpa media, `imageUrl`/`videoUrl` tetap `null`
-//! dan plugin tetap menyimpan produk/informasi TEKS dengan benar; yang hilang
-//! hanya thumbnail. Reply yang menyebut media pun tidak muncul karena
-//! keduanya `null`.
+//! `Keterbatasan:` cabang upload media (`m.quoted?.isMedia` / `m.isMedia` + `uploadImage`)
+//! TIDAK dipindah — `Ctx` tidak membawa media terkirim dan tidak ada API upload. Tanpa
+//! media, `imageUrl`/`videoUrl` tetap `null` dan plugin tetap menyimpan produk/informasi
+//! TEKS dengan benar; yang hilang hanya thumbnail. Reply yang menyebut media pun tidak
+//! muncul karena keduanya `null`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -46,7 +45,7 @@ fn usage(prefix: &str) -> String {
 )]
 pub fn addlist(ctx: Ctx) -> Reply {
     // `m.isGroup` diperiksa TERLEBIH DAHULU, sebelum store dibaca
-    // (`addlist.js:24`) — jadi command di grup tidak pernah menyentuh data.
+    // Jadi command di grup tidak pernah menyentuh data.
     if ctx.is_group {
         return Reply::text(denied(&ctx.prefix));
     }
@@ -57,7 +56,7 @@ pub fn addlist(ctx: Ctx) -> Reply {
     };
 
     let name = text[..pipe].trim();
-    // `;;` → baris baru (`addlist.js:50`).
+    // `;;` → baris baru.
     let content = text[pipe + 1..].trim().replace(";;", "\n");
 
     if name.chars().count() < 2 {
@@ -71,10 +70,10 @@ pub fn addlist(ctx: Ctx) -> Reply {
     let item = serde_json::json!({
         "name": name,
         "content": content,
-        // `content.substring(0, 80)` dihitung dari character code unit JS;
+        // `content.substring(0, 80)` dihitung dari character code unit versi awal;
         // untuk teks ASCII sama dengan `chars().take(80)`.
         "description": content.chars().take(80).collect::<String>().replace('\n', " "),
-        // `image`/`video` tetap null — lihat catatan `ponytail:` di modul.
+        // `image`/`video` tetap null — lihat catatan `Keterbatasan:` di modul.
         "image": serde_json::Value::Null,
         "video": serde_json::Value::Null,
     });
@@ -153,7 +152,7 @@ mod tests {
         assert_eq!(oktz_plugin_api::find("addinfo").unwrap().meta.name, "addlist");
     }
 
-    // --- cabang yang tidak menulis apa pun ------------------------------
+    // -- cabang yang tidak menulis apa pun ------------------------------
 
     #[test]
     fn the_group_branch_is_rejected_and_writes_nothing() {
@@ -180,7 +179,7 @@ mod tests {
         assert!(short_body.mutations().is_empty());
     }
 
-    // --- cabang yang menulis -------------------------------------------
+    // -- cabang yang menulis -------------------------------------------
 
     #[test]
     fn a_new_entry_is_appended_and_the_whole_list_is_written_back() {

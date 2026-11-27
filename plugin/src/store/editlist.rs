@@ -1,10 +1,10 @@
-//! `plugins/store/editlist.js` — ubah satu field entri `storeLists`.
+//! Ubah satu field entri `storeLists`.
 //!
-//! `ponytail:` field `gambar` dan `video` tidak bisa dipindah — keduanya
-//! butuh reply/download media lalu upload, dan `Ctx` tidak membawa media.
-//! Percabangan itu dikembalikan sebagai pesan eksplisit (branch yang sama
-//! seperti di JS ketika tidak ada media), bukan diam-diam menyatakan
-//! berhasil. Kalau `Ctx` nanti membawa `quoted`, tinggal isi dua cabang itu.
+//! `Keterbatasan:` field `gambar` dan `video` tidak bisa dipindah — keduanya butuh
+//! reply/download media lalu upload, dan `Ctx` tidak membawa media. Percabangan itu
+//! dikembalikan sebagai pesan eksplisit (branch yang sama seperti di versi awal ketika
+//! tidak ada media), bukan diam-diam menyatakan berhasil. Kalau `Ctx` nanti membawa
+//! `quoted`, tinggal isi dua cabang itu.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -40,7 +40,7 @@ pub fn editlist(ctx: Ctx) -> Reply {
 
     let text = ctx.text.trim();
     // `^(\d+)\s+(nama|isi|deskripsi|gambar|video)\s*(.*)$` (case-insensitive),
-    // `editlist.js:43`.
+    //
     let Some((num, field, value)) = parse_edit_command(text) else {
         return Reply::text(usage(&ctx.prefix));
     };
@@ -73,13 +73,13 @@ pub fn editlist(ctx: Ctx) -> Reply {
             let content = value.replace(";;", "\n");
             let preview = content.chars().take(80).collect::<String>().replace('\n', " ");
             obj.insert("content".into(), Value::from(content));
-            // `editlist.js:100-101`: `description` ikut dihitung ulang.
+            // : `description` ikut dihitung ulang.
             obj.insert("description".into(), Value::from(preview));
         }
         "deskripsi" => {
             obj.insert("description".into(), Value::from(value.replace(";;", " ")));
         }
-        // Dua cabang ini di JS butuh media; lihat `ponytail:` modul.
+        // Dua cabang ini di versi awal butuh media; lihat `Keterbatasan:` modul.
         "gambar" => return Reply::text(NO_MEDIA),
         "video" => {
             return Reply::text(
@@ -106,8 +106,8 @@ pub fn editlist(ctx: Ctx) -> Reply {
     })
 }
 
-/// `(\d+)\s+(nama|isi|deskripsi|gambar|video)\s*(.*)` — `editlist.js:43`.
-/// Field dikembalikan lowercase karena JS memakai flag `i`.
+/// `(\d+)\s+(nama|isi|deskripsi|gambar|video)\s*(.*)` —.
+/// Field dikembalikan lowercase karena versi awal memakai flag `i`.
 fn parse_edit_command(text: &str) -> Option<(i64, &'static str, String)> {
     let t = text.trim_start();
     let digits: String = t.chars().take_while(char::is_ascii_digit).collect();
@@ -118,7 +118,7 @@ fn parse_edit_command(text: &str) -> Option<(i64, &'static str, String)> {
     let lower = rest.to_ascii_lowercase();
     for field in ["nama", "isi", "deskripsi", "gambar", "video"] {
         if lower.strip_prefix(field).is_some() {
-            // `\s*` — nol spasi pun sah (`editlist.js:43`).
+            // `\s*` — nol spasi pun sah.
             return Some((
                 digits.parse().ok()?,
                 field,
@@ -249,7 +249,7 @@ mod tests {
         assert!(text_of(&r).contains("✅ *INFORMASI DIPERBARUI*"));
     }
 
-    // `editlist.js:100`: mengubah `isi` harus MENGHITUNG ULANG `description`.
+    // : mengubah `isi` harus MENGHITUNG ULANG `description`.
     #[test]
     fn editing_content_also_recomputes_the_description_preview() {
         let r = run(

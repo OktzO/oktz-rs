@@ -1,4 +1,4 @@
-//! `plugins/store/hapusproduk.js` — hapus satu produk dari `storeProducts`.
+//! Hapus satu produk dari `storeProducts`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -36,7 +36,7 @@ pub(crate) fn confirm(p: &serde_json::Value) -> String {
     let type_icon = if is_fisik(p) { "📦" } else { "🔑" };
     let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let price = p.get("price").and_then(|v| v.as_i64()).unwrap_or(0);
-    // `deleted.stock + ' pcs'` — `undefined` jadi "undefined" di JS.
+    // `deleted.stock + ' pcs'` — `undefined` jadi "undefined" di versi awal.
     let stock = if is_fisik(p) {
         match p.get("stock").and_then(|v| v.as_i64()) {
             Some(n) => format!("{n} pcs"),

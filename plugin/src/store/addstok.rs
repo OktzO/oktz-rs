@@ -1,14 +1,9 @@
-//! `plugins/store/addstok.js` — tambah stok produk digital atau fisik.
+//! Tambah stok produk digital atau fisik.
 //!
-//! Format digital: `<nomor_produk>|<detail>`, fisik: `<nomor_produk> <jumlah>`.
-//! Baris pemisah `|` dicari PADA INPUT lebih dulu, jadi `<produk> <jumlah>`
-//! tanpa `|` selalu cabang bantuan — bukan "isi kosong".
-//!
-//! `ponytail:` cabang import dari file `.txt` (reply `documentMessage`
-//! `.txt`) TIDAK di-port: `m.quoted.download()` butuh
-//! `downloadContentMessage`, yang tidak ada di `QuotedMessage`. Input
-//! `.addstok <nomor>` dengan reply file karena itu jatuh ke kartu bantuan,
-//! sama seperti file yang bukan `.txt`.
+//! `Keterbatasan:` cabang import dari file `.txt` (reply `documentMessage` `.txt`) TIDAK
+//! diimplementasikan: `m.quoted.download()` butuh `downloadContentMessage`, yang tidak ada
+//! di `QuotedMessage`. Input `.addstok <nomor>` dengan reply file karena itu jatuh ke kartu
+//! bantuan, sama seperti file yang bukan `.txt`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -59,7 +54,7 @@ fn physical_hint(prefix: &str, product_no: i64, name: &str, stock: &str) -> Stri
     )
 }
 
-/// `product.stock === -1 ? '♾️ Unlimited' : stock + ' pcs'` — `stock` sudah
+/// `product.stock === -1 ? '♾️ Unlimited': stock + ' pcs'` — `stock` sudah
 /// berupa string siap tampil.
 fn physical_added(prefix: &str, product_no: i64, name: &str, added: i64, total: i64) -> String {
     format!(
@@ -80,7 +75,7 @@ fn digital_added(prefix: &str, product_no: i64, name: &str, total: usize) -> Str
     )
 }
 
-/// `product.stock = (stock === -1 ? 0 : stock) + add` — `-1` = unlimited,
+/// `product.stock = (stock === -1 ? 0: stock) + add` — `-1` = unlimited,
 /// jadi stok tak Terbaca dianggap 0 sebelum penambahan pertama.
 fn bumped_stock(p: &serde_json::Value, add: i64) -> i64 {
     let stock = p.get("stock").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -199,7 +194,7 @@ pub fn addstok(ctx: Ctx) -> Reply {
         let mut item = serde_json::json!({});
         item["detail"] = serde_json::json!(detail);
         item["addedAt"] = serde_json::json!(crate::common::now_ms());
-        // `if (!product.stockItems) product.stockItems = []` (addstok.js:221).
+        // `if (!product.stockItems) product.stockItems = []`.
         if next[idx].get("stockItems").and_then(|v| v.as_array()).is_none() {
             next[idx]["stockItems"] = serde_json::json!([]);
         }
@@ -220,7 +215,7 @@ pub fn addstok(ctx: Ctx) -> Reply {
     }
 
     // Tanpa `|`: `<nomor> <jumlah>` untuk produk fisik, sisanya kartu bantuan
-    // (jalur import `.txt` tidak di-port — lihat `ponytail:` modul).
+    // (jalur import `.txt` tidak diimplementasikan — lihat `Keterbatasan:` modul).
     let parts: Vec<&str> = text.split_whitespace().collect();
     let product_no = parts.first().and_then(|p| parse_int(p)).map_or(-1, |n| n - 1);
     if product_no >= 0 && product_no < products.len() as i64 {
@@ -358,7 +353,7 @@ mod tests {
 
     #[test]
     fn a_duplicate_detail_is_refused_and_nothing_is_written() {
-        // Perbandingan JS terjadi SETELAH `;;`→`\n` dan `trim()`, jadi hanya
+        // Perbandingan versi awal terjadi SETELAH `;;`→`\n` dan `trim()`, jadi hanya
         // detail yang benar-benar sama string-nya yang dianggap duplikat.
         for input in ["1|lama@mail", "1|  lama@mail  ", "1| lain@mail"] {
             let r = run(input, sample(), false);
@@ -390,7 +385,7 @@ mod tests {
 
     #[test]
     fn a_product_without_a_stock_items_array_gets_one_created() {
-        // `if (!product.stockItems) product.stockItems = []` (addstok.js:221).
+        // `if (!product.stockItems) product.stockItems = []`.
         let s = serde_json::json!({"storeProducts": [{"name": "Netflix", "type": "digital", "price": 1}]});
         let r = run("1|baru@mail", s, false);
         let p = &products_write(&r)[0];

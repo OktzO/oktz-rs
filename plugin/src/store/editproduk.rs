@@ -1,4 +1,4 @@
-//! `plugins/store/editproduk.js` — edit produk toko (hanya di private chat).
+//! Edit produk toko (hanya di private chat).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,23 +26,23 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn editproduk(ctx: Ctx) -> Reply {
-    // `editproduk.js` butuh:
-    //   1. `getDatabase()` + `db.setting('storeProducts')` / `db.setting(key, v)`
-    //      — baca-tulis store produk, tidak ada di `Ctx`.
-    //   2. `m.isGroup` / `m.sender` / `m.text` — sebagian ada di `Ctx`, tapi
-    //      guard private-chat butuh `m.isGroup` (ada: `ctx.is_group`).
-    //   3. `m.quoted.download()` / `m.download()` — unduh media gambar/video,
-    //      tersedia via `ctx.media_fetch.download(...)`.
-    //   4. `uploadImage(buffer, 'image.jpg')` — unggah ke penyimpanan, butuh
-    //      I/O jaringan + filesystem yang belum ada di `Ctx`.
+    // butuh:
+    // 1. `getDatabase()` + `db.setting('storeProducts')` / `db.setting(key, v)`
+    // Baca-tulis store produk, tidak ada di `Ctx`.
+    // 2. `m.isGroup` / `m.sender` / `m.text` — sebagian ada di `Ctx`, tapi
+    // guard private-chat butuh `m.isGroup` (ada: `ctx.is_group`).
+    // 3. `m.quoted.download()` / `m.download()` — unduh media gambar/video,
+    // tersedia via `ctx.media_fetch.download(...)`.
+    // 4. `uploadImage(buffer, 'image.jpg')` — unggah ke penyimpanan, butuh
+    // I/O jaringan + filesystem yang belum ada di `Ctx`.
     //
     // Validasi field (nama ≥ 2 char, harga ≥ 1000, diskon > harga jual, stok
-    // ≥ 0 atau unlimited, tipe digital/fisik) bisa di-port murni, tapi tanpa
-    // akses store hasilnya tidak tersimpan — menyimpang dari JS.
+    // ≥ 0 atau unlimited, tipe digital/fisik) bisa diimplementasikan murni, tapi tanpa
+    // akses store hasilnya tidak tersimpan — menyimpang dari versi awal.
     //
-    // `ponytail:` tambahkan akses store (baca `storeProducts`, tulis via
+    // `Keterbatasan:` tambahkan akses store (baca `storeProducts`, tulis via
     // `Mutation::SetSetting`) dan unggah media ke `Ctx`, lalu replikasikan
-    // seluruh switch field dari JS.
+    // seluruh switch field dari versi awal.
     Reply::text(help(&ctx.prefix))
 }
 

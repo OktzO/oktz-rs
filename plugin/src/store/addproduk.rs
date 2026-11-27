@@ -1,22 +1,16 @@
-//! `plugins/store/addproduk.js` — tambah produk baru ke toko (owner, private).
+//! Tambah produk baru ke toko (owner, private).
 //!
-//! `uploadImage` (`src/lib/uploader.js`) dipakai untuk thumbnail; padanannya
-//! ada sekarang lewat `ctx.http` — port `tools/tourl.rs::unggah_pertama`
-//! mencoba host `UPLOAD_PROVIDERS` berurutan dan berhenti di URL pertama,
-//! persis perilaku `uploadImage`. `Mutation::SetSetting` membawa array
-//! `storeProducts` yang sudah ditambah produk baru.
-//!
-//! `ponytail:` pesan `⏳ _Mengunggah media..._` di JS dikirim SEBELUM unggah;
-//! `Reply` hanya satu per handler, jadi pesan itu digabung hilang — unggah
-//! berjalan langsung. Teks peringatan gagal unggah memakai pesan generik
-//! "semua host upload gagal" karena `HttpGet` tidak membawa pesan error JS.
+//! `Keterbatasan:` pesan `⏳ _Mengunggah media..._` di versi awal dikirim SEBELUM unggah;
+//! `Reply` hanya satu per handler, jadi pesan itu digabung hilang — unggah berjalan
+//! langsung. Teks peringatan gagal unggah memakai pesan generik "semua host upload gagal"
+//! karena `HttpGet` tidak membawa pesan error versi awal.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 /// `storeProducts` — array produk.
 const PRODUK: &str = "storeProducts";
 
-/// `parseInt` JS — ambil digit awal, `NaN` → None.
+/// `parseInt` versi awal — ambil digit awal, `NaN` → None.
 pub(crate) fn js_parse_int(s: &str) -> Option<i64> {
     let t = s.trim_start();
     let (negatif, t) = match t.strip_prefix('-') {
@@ -30,7 +24,7 @@ pub(crate) fn js_parse_int(s: &str) -> Option<i64> {
     digits.parse::<i64>().ok().map(|n| if negatif { -n } else { n })
 }
 
-/// Kartu pakai saat format salah (`addproduk.js:32-56`).
+/// Kartu pakai saat format salah.
 pub(crate) fn kartu_pakai(prefix: &str) -> String {
     format!(
         "➕ *TAMBAH PRODUK BARU*\n\n\
@@ -117,7 +111,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
         js_parse_int(&stock_str).unwrap_or(999)
     };
 
-    // ---- thumbnail: media reply / media langsung (`addproduk.js:67-88`) ----
+    // --- thumbnail: media reply / media langsung ----
     let has_quoted_media = ctx.quoted().is_some_and(|q| q.is_media());
     let is_direct_media =
         ctx.media.is_some() && (ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Image) || ctx.is_media_kind(oktz_plugin_api::registry::IncomingKind::Video));
@@ -177,7 +171,7 @@ pub fn addproduk(ctx: Ctx) -> Reply {
         "createdAt": ms_ke_iso(crate::common::now_ms()),
     });
     if new_product["image"].is_null() && image_url.is_none() {
-        // tetap null seperti JS `image: null`
+        // tetap null seperti versi awal `image: null`
     }
     let _ = &mut new_product;
 

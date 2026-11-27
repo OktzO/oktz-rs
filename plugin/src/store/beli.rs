@@ -1,21 +1,16 @@
-//! `plugins/store/beli.js` — buat nomor transaksi untuk satu produk.
+//! Buat nomor transaksi untuk satu produk.
 //!
-//! Transaksi disimpan di `setting("storeTransactions")` dan penomoran di
-//! `setting("storeTrxCounter")`, persis seperti di JS.
-//!
-//! `ponytail:` TIGA langkah JS TIDAK di-port, semuanya di luar `Ctx`:
-//! `config.owner.number`, `config.store.payment`, dan `config.store.qris`
-//! (isi `config.js`, bukan store); pengiriman gambar/video produk lewat
-//! `sock.sendMessage`; dan notifikasi ke admin lewat
-//! `sock.sendMessage(ownerJid, ...)`. Reply hanya boleh satu, jadi blok
-//! instruksi pembayaran digabung ke balasan pesanan — nomor transaksi,
-//! yang justru bagian penting, tetap utuh.
+//! `Keterbatasan:` TIGA langkah versi awal TIDAK diimplementasikan, semuanya di luar `Ctx`:
+//! `config.owner.number`, `config.store.payment`, dan `config.store.qris`; pengiriman
+//! gambar/video produk lewat `sock.sendMessage`; dan notifikasi ke admin lewat
+//! `sock.sendMessage(ownerJid...)`. Reply hanya boleh satu, jadi blok instruksi pembayaran
+//! digabung ke balasan pesanan — nomor transaksi, yang justru bagian penting, tetap utuh.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-/// `String(n).padStart(3, '0')` (`beli.js:72`).
+/// `String(n).padStart(3, '0')`.
 ///
-/// BUKAN `common::pad_start3` — itu alat sel kolom album yang mengisi dengan
+/// BUKAN `common::pad_start3` — itu alat sel kolom album yang mengisi
 /// spasi di kanan, bukan nol di kiri.
 fn pad3(n: i64) -> String {
     let s = n.to_string();
@@ -27,8 +22,8 @@ const COUNTER: &str = "storeTrxCounter";
 /// `storeTransactions` — objek `{ trxId → transaksi }`.
 const TRX: &str = "storeTransactions";
 
-/// `(Rp " + n.toLocaleString("id-ID"))` — pemisah ribuan titik, sama dengan
-/// `formatNumber` yang dipakai `buyfitur.js`.
+/// `(Rp " + n.toLocaleString("id-ID"))` — pemisah ribuan titik, sama
+/// `formatNumber` yang dipakai.
 pub(crate) fn rupiah(n: i64) -> String {
     let digits = n.abs().to_string();
     let mut out = String::new();
@@ -50,7 +45,7 @@ fn icon(p: &serde_json::Value) -> &'static str {
     }
 }
 
-/// `type === 'fisik' ? 'Fisik' : 'Digital'`.
+/// `type === 'fisik' ? 'Fisik': 'Digital'`.
 fn type_label(p: &serde_json::Value) -> &'static str {
     if crate::store::liststok::is_fisik(p) {
         "Fisik"
@@ -59,7 +54,7 @@ fn type_label(p: &serde_json::Value) -> &'static str {
     }
 }
 
-/// Stok `-1` = unlimited. Fisik dilihat dari `stock`, digital dari
+/// Stok `-1` = unlimited. Fisik dilihat dari `stock`, digital
 /// `stockItems` — `undefined > 0` = false, jadi digital tanpa `stockItems`
 /// selalu habis kecuali unlimited.
 fn available(p: &serde_json::Value) -> bool {
@@ -111,7 +106,7 @@ fn out_of_stock(p: &serde_json::Value) -> String {
     )
 }
 
-/// Dua blok `m.reply` di JS digabung jadi satu balasan.
+/// Dua blok `m.reply` di versi awal digabung jadi satu balasan.
 fn receipt(trx_id: &str, p: &serde_json::Value) -> String {
     let mut txt = String::from("🛒 *PESANAN DIBUAT*\n\n");
     txt.push_str(&format!("🧾 Nomor Transaksi: `{trx_id}`\n\n"));
@@ -223,7 +218,7 @@ mod tests {
     use super::*;
     use serde_json::{Value};
 
-    /// `beli` juga alias `rpg/shop.js` di JS, jadi `find("beli")`
+    /// `beli` juga alias di versi awal, jadi `find("beli")`
     /// mengembalikan shop lebih dulu. Lookup by name, bukan by key.
     fn plugin() -> &'static oktz_plugin_api::PluginEntry {
         oktz_plugin_api::all_plugins()

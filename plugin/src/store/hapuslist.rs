@@ -1,4 +1,4 @@
-//! `plugins/store/hapuslist.js` — hapus entri dari `storeLists`.
+//! Hapus entri dari `storeLists`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -26,7 +26,7 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
         return Reply::text(EMPTY.replace("{PREFIX}", &ctx.prefix));
     }
 
-    // Tanpa nomor valid → tampilkan daftar pilihan (`hapuslist.js:36-44`).
+    // Tanpa nomor valid → tampilkan daftar pilihan.
     let Some(idx) = index_arg(&ctx, lists.len()) else {
         let mut txt =
             String::from("🗑️ *Pilih Informasi yang Dihapus*\n\nKetik `{PREFIX}hapuslist <nomor>`\n\n");
@@ -45,7 +45,7 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
         return Reply::text(txt.replace("{PREFIX}", &ctx.prefix));
     };
 
-    // `lists.splice(idx, 1)[0]` (`hapuslist.js:47`) — seluruh entri dihapus,
+    // `lists.splice(idx, 1)[0]` — seluruh entri dihapus,
     // bukan hanya field-nya.
     let mut lists: Vec<Value> = lists.to_vec();
     let deleted = lists.remove(idx);
@@ -55,7 +55,7 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
         .unwrap_or("undefined")
         .to_string();
 
-    // JS: `await m.react('✅')` lalu `m.reply(...)` (hapuslist.js:52-58).
+    // versi awal: `await m.react('✅')` lalu `m.reply(...)`.
     Reply::text(format!(
         "🗑️ *INFORMASI DIHAPUS*\n\n🏷️ Nama: *{name}*\n\n⚠️ _Informasi telah dihapus secara permanen dan tidak dapat dikembalikan._"
     ))
@@ -170,7 +170,7 @@ mod tests {
         assert_eq!(after[0]["name"].as_str(), Some("A"));
         assert_eq!(after[1]["name"].as_str(), Some("C"), "index 1 (nomor 2) dihapus");
         assert!(text_of(&r).contains("Nama: *B*"));
-        // JS: `await m.react('✅')` — reaksi, bukan teks (hapuslist.js:56).
+        // versi awal: `await m.react('✅')` — reaksi, bukan teks.
         // Assert emoji di `Reply::Reaction`, bukan di teks balasan.
         assert_eq!(reaction_of(&r), Some("✅"), "reaksi ✅ harus ada");
     }

@@ -1,9 +1,4 @@
-//! `plugins/store/hapusstok.js` — hapus satu item stok (atau kurangi stok fisik).
-//!
-//! Produk fisik dan digital punyaJALUR berbeda: fisik mengurangi angka
-//! `stock`, digital menghapus entri `stockItems`. Nomor argumen berarti
-//! berbeda juga — untuk fisik argumen kedua adalah JUMLAH yang dikurangi,
-//! untuk digital adalah NOMOR ITEM. Itu perilaku JS, bukan salah port.
+//! Hapus satu item stok (atau kurangi stok fisik).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -67,7 +62,7 @@ pub(crate) fn reduce_physical(
     ))
 }
 
-/// `product.stock === -1 ? '♾️ Unlimited' : product.stock + ' pcs'`.
+/// `product.stock === -1 ? '♾️ Unlimited': product.stock + ' pcs'`.
 pub(crate) fn stock_text(product: &serde_json::Value) -> String {
     match product.get("stock").and_then(|v| v.as_i64()) {
         Some(-1) => "♾️ Unlimited".to_string(),
@@ -139,7 +134,7 @@ pub fn hapusstok(ctx: Ctx) -> Reply {
     if is_fisik(&product) {
         // Argumen kedua = jumlah yang dikurangi, bukan indeks.
         let reduce = parse_int(&ctx.args[1]).unwrap_or(0);
-        // `return m.reply('♾️ ...')` di JS keluar SEBELUM `db.setting(...)`,
+        // `return m.reply('♾️...')` di versi awal keluar SEBELUM `db.setting(...)`,
         // jadi stok unlimited tidak boleh ditulis ulang sama sekali.
         let Some(cur) = product.get("stock").and_then(|v| v.as_i64()) else {
             return Reply::text(reduce_physical(&ctx.prefix, &product, reduce).unwrap_or_default());

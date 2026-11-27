@@ -1,20 +1,14 @@
-//! `plugins/store/done.js` — konfirmasi transaksi selesai dan kirim data
-//! ke pembeli.
+//! Konfirmasi transaksi selesai dan kirim data
 //!
-//! `ponytail:` TIGA langkah JS tidak di-port, semuanya di luar `Ctx`:
+//! `Keterbatasan:` TIGA langkah versi awal tidak diimplementasikan, semuanya di luar `Ctx`:
 //! - `sock.sendMessage(buyerJid, { text: invoiceTxt })` — pengiriman ke JID
-//!   lain bukan bagian dari `Reply` (`done.js:157-178`). Invoice tetap
-//!   dihitung (termasuk `stockItemDetail` yang diambil dari stok), tapi
-//!   teksnya tidak bisa dikirim ke pembeli.
-//! - Notifikasi grup pembelian `sock.sendMessage(trx.purchaseChat, ...)`
-//!   (`done.js:180-196`) — alasan sama.
+//! lain bukan bagian dari `Reply`. Invoice tetap
+//! dihitung (termasuk `stockItemDetail` yang diambil dari stok), tapi
+//! teksnya tidak bisa dikirim ke pembeli.
+//! - Notifikasi grup pembelian `sock.sendMessage(trx.purchaseChat...)`
+//! Alasan sama.
 //! - `contextInfo` newsletter forwarding pada invoice — `Reply::Text`
-//!   tidak membawa contextInfo.
-//!
-//! Kedua pengiriman yang hilang ada di `try/catch` terpisah di JS, jadi
-//! alur konfirmasi (mutasi stok + status transaksi + balasan admin) tetap
-//! utuh. Reaksi `✅` dilekatkan pada balasan konfirmasi seperti
-//! `tools/txt2qr.rs`.
+//! tidak membawa contextInfo.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -26,12 +20,12 @@ const TRX: &str = "storeTransactions";
 /// `storeProducts` — array produk.
 const PRODUK: &str = "storeProducts";
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Tanggal: `new Date(value)` menerima angka ms atau string ISO.
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// `new Date(value).getTime()` untuk value angka atau string ISO 8601.
-/// `0` kalau tidak bisa diparse — JS `Number.isNaN` jalur `getRegistrationTime`
+/// `0` kalau tidak bisa diparse — versi awal `Number.isNaN` jalur `getRegistrationTime`
 /// juga jatuh ke 0.
 pub(crate) fn date_ke_ms(value: &serde_json::Value) -> i64 {
     match value {
@@ -107,18 +101,18 @@ pub(crate) fn lokali(ms: i64) -> String {
 
 /// `toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year:
 /// "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })`
-/// — `dd/mm/yyyy, hh.mm`.
+/// `dd/mm/yyyy, hh.mm`.
 #[cfg(test)]
 pub(crate) fn lokali_pendek(ms: i64) -> String {
     let (y, mo, d, h, mi, _) = crate::common::jakarta_parts(ms);
     format!("{d:02}/{mo:02}/{y}, {h:02}.{mi:02}")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// Kartu pakai saat nomor transaksi kosong (`done.js:23-39`).
+/// Kartu pakai saat nomor transaksi kosong.
 pub(crate) fn kartu_pakai(prefix: &str) -> String {
     format!(
         "✅ *KONFIRMASI TRANSAKSI*\n\n\
@@ -135,7 +129,7 @@ pub(crate) fn kartu_pakai(prefix: &str) -> String {
     )
 }
 
-/// Daftar transaksi pending saat nomor tidak ditemukan (`done.js:47-61`).
+/// Daftar transaksi pending saat nomor tidak ditemukan.
 fn pending_list(prefix: &str, trx_id: &str, pending: &[&serde_json::Value]) -> String {
     let mut txt = format!("❌ *Transaksi `{trx_id}` tidak ditemukan.*\n\n");
     txt.push_str("⏳ *Transaksi pending saat ini:*\n\n");
@@ -160,7 +154,7 @@ fn pending_list(prefix: &str, trx_id: &str, pending: &[&serde_json::Value]) -> S
     txt
 }
 
-/// Transaksi sudah selesai (`done.js:71-79`).
+/// Transaksi sudah selesai.
 fn sudah_selesai(trx_id: &str, trx: &serde_json::Value) -> String {
     let fisik = trx.get("productType").and_then(|v| v.as_str()) == Some("fisik");
     let ms = date_ke_ms(trx.get("completedAt").unwrap_or(&serde_json::Value::Null));
@@ -178,8 +172,8 @@ fn sudah_selesai(trx_id: &str, trx: &serde_json::Value) -> String {
     )
 }
 
-/// Invoice untuk pembeli (`done.js:124-146`) — dihitung untuk paritas dan
-/// dipakai pesan gagal-kirim di JS; di Rust tidak ada jalur kirim ke JID
+/// Invoice untuk pembeli — dihitung untuk perilaku
+/// dipakai pesan gagal-kirim di versi awal; di Rust tidak ada jalur kirim ke JID
 /// lain, jadi hanya teks konfirmasi admin yang dibalas.
 #[allow(dead_code)]
 fn invoice(
@@ -316,7 +310,7 @@ pub fn done(ctx: Ctx) -> Reply {
                 .and_then(|v| v.as_array())
                 .is_none_or(|a| a.is_empty());
             if !items_kosong {
-                // `const item = product.stockItems.shift()` (`done.js:96-98`).
+                // `const item = product.stockItems.shift()`.
                 let item = products[idx]["stockItems"].as_array_mut().unwrap().remove(0);
                 stock_item_detail = item
                     .get("detail")
@@ -363,7 +357,7 @@ pub fn done(ctx: Ctx) -> Reply {
         value: transactions,
     });
 
-    // `stockItemDetail` hasil shift masih perlu untuk sisa stok — JS membaca
+    // `stockItemDetail` hasil shift masih perlu untuk sisa stok — versi awal membaca
     // ulang dari objek produk setelah mutasi.
     let product = product_idx.map(|i| &products[i]);
     let mut confirm = format!(
@@ -501,7 +495,7 @@ mod tests {
         }
         assert_eq!(setting_mutation, 2);
         let produk = produk_baru.unwrap();
-        // JS: `product.stock = product.stockItems.length` SETELAH shift.
+        // versi awal: `product.stock = product.stockItems.length` SETELAH shift.
         assert_eq!(produk[0]["stock"], 1);
         assert_eq!(produk[0]["stockItems"].as_array().unwrap().len(), 1);
         assert_eq!(produk[0]["stockItems"][0]["detail"], "user:pass-2");

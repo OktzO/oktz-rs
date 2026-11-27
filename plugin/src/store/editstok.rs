@@ -1,8 +1,4 @@
-//! `plugins/store/editstok.js` — ganti detail satu item stok digital.
-//!
-//! Format: `<nomor_produk> <nomor_item>|<detail_baru>`. Baris pemisah `|`
-//! dicari PADA INPUT, jadi `<produk> <item>` tanpa `|` selalu cabang bantuan.
-//! `;;` jadi baris baru di detail yang disimpan.
+//! Ganti detail satu item stok digital.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -153,13 +149,13 @@ pub fn editstok(ctx: Ctx) -> Reply {
         })
 }
 
-/// `new Date().toISOString()` tanpa dependensi waktu — bentuk yang sama
+/// `new Date().toISOString()` tanpa dependensi waktu — bentuk yang
 /// (`YYYY-MM-DDTHH:MM:SS.sssZ`) dari epoch ms, dihitung di zona UTC.
 fn iso_now() -> String {
     iso_from_ms(crate::common::now_ms())
 }
 
-/// `toISOString()` dari epoch ms, memakai algoritma civil yang sudah ada di
+/// `toISOString()` dari epoch ms, memakai algoritma civil yang sudah ada
 /// `common::days_from_civil`.
 fn iso_from_ms(ms: i64) -> String {
     let secs = ms.div_euclid(1000);
