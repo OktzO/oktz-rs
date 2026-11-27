@@ -1,11 +1,10 @@
-//! `plugins/random/cecanjepang.js` — kirim satu gambar acak dari API cecan Jepang.
+//! Kirim satu gambar acak dari API cecan Jepang.
 //!
-//! `ponytail:` reaksi hilang. JS bereaksi dua kali (bendera lalu `✅`) lewat
-//! `m.react`. Di sini `Reply::with_reaction` membungkus reply dalam
-//! `Reply::Reaction`, sedangkan `Reply::has_media`/`media_source` hanya
-//! menembus `Reply::Mutate` — jadi gambar yang dibungkus reaksi tidak akan
-//! pernah di-upload. Gambar lebih penting daripada reaksi, jadi reaksi
-//! dibuang demi media yang benar-benar terkirim.
+//! `Keterbatasan:` reaksi hilang. versi awal bereaksi dua kali (bendera lalu `✅`) lewat
+//! `m.react`. Di sini `Reply::with_reaction` membungkus reply dalam `Reply::Reaction`,
+//! sedangkan `Reply::has_media`/`media_source` hanya menembus `Reply::Mutate` — jadi gambar
+//! yang dibungkus reaksi tidak akan pernah di-upload. Gambar lebih penting daripada reaksi,
+//! jadi reaksi dibuang demi media yang benar-benar terkirim.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -85,7 +84,7 @@ mod tests {
 
     #[test]
     fn the_js_flag_reaction_is_deliberately_dropped() {
-        // JS bereaksi "🇯🇵" lebih dulu. Mempertahkannya lewat
+        // versi awal bereaksi "🇯🇵" lebih dulu. Mempertahkannya lewat
         // `with_reaction` akan membuat gambar tidak pernah terkirim.
         let r = run();
         assert!(
@@ -102,7 +101,7 @@ mod tests {
 
     #[test]
     fn an_empty_context_still_produces_the_same_image() {
-        // JS tidak pernah membaca `m`, jadi tidak ada cabang yang bisa gagal.
+        // versi awal tidak pernah membaca `m`, jadi tidak ada cabang yang bisa gagal.
         let r = cecanjepang(Ctx::default());
         assert!(r.has_media());
     }

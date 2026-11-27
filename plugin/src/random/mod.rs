@@ -6,17 +6,17 @@ pub mod cecankorea;
 pub mod cecanthai;
 pub mod cecanvietnam;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod couple;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod meme;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod lahelu;
 pub mod quotesimage;
 
-// Port dari `oktz-md/plugins/random/anime.js` (kunci `loli` + 29 tipe Nexray).
+// Port (kunci `loli` + 29 tipe Nexray).
 pub mod anime;

@@ -1,10 +1,4 @@
-//! `plugins/random/meme.js` — random meme Indonesia lewat API Neoxr.
-//! Satu endpoint GET, tanpa kunci yang wajib (kunci kosong tetap masuk URL).
-//!
-//! Perilaku JS: `m.react('🕕')` dulu, baru `try`. Karena `Reply::with_reaction`
-//! hanya boleh satu emoji, reaksi yang ikut adalah yang terakhir: `✅` saat
-//! sukses, `☢` saat gagal (`🕕` hilang — konvensi repo yang sama dengan
-//! `instagramdl.js`).
+//! Random meme Indonesia lewat API Neoxr.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -167,7 +161,7 @@ mod tests {
              _Jika masalah berlanjut, hubungi owner bot_"
         );
         assert_eq!(reaction_of(&r), Some("☢"));
-        // JS tetap memanggil `f(url)` di dalam `try` (`meme.js:24-25`);
+        // versi awal tetap memanggil `f(url)` di dalam `try`;
         // kegagalan jaringan terdeteksi justru dari panggilan itu, jadi satu
         // request harus tercatat oleh stub.
         let seen = http.seen.lock().unwrap();

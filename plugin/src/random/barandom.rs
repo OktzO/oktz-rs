@@ -1,9 +1,9 @@
-//! `plugins/random/barandom.js` — kirim satu gambar acak Blue Archive.
+//! Kirim satu gambar acak Blue Archive.
 //!
-//! `ponytail:` cabang `catch` JS (reaksi `☢` + `te(...)`) tidak bisa terjadi
-//! di sini: plugin ini tidak melakukan HTTP apa pun, pipeline yang mengunduh
-//! URL dan melaporkan kegagalan sebagai `PipelineError`, bukan sebagai reply.
-//! Reaksi `🕕` di JS juga hilang — hanya reaksi terakhir (`✅`) yang dibawa.
+//! `Keterbatasan:` cabang `catch` versi awal (reaksi `☢` + `te(...)`) tidak bisa terjadi di
+//! sini: plugin ini tidak melakukan HTTP apa pun, pipeline yang mengunduh URL dan
+//! melaporkan kegagalan sebagai `PipelineError`, bukan sebagai reply. Reaksi `🕕` di versi
+//! awal juga hilang — hanya reaksi terakhir (`✅`) yang dibawa.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn an_empty_context_still_produces_the_same_image() {
-        // JS tidak pernah membaca `m`, jadi tidak ada cabang yang bisa gagal.
+        // versi awal tidak pernah membaca `m`, jadi tidak ada cabang yang bisa gagal.
         let r = barandom(Ctx::default());
         assert!(r.has_media());
     }

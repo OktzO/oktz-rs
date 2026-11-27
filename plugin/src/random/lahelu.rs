@@ -1,10 +1,4 @@
-//! `plugins/random/lahelu.js` — random gambar lahelu.
-//!
-//! Catatan: `mod.rs` kategori `random` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod lahelu;` perlu ditambahkan manual
-//! di `rust/crates/oktz-plugins/src/random/mod.rs`.
-//!
-//! `encode_uri_component` diimpor dari `crate::tools::phisingataubukan`.
+//! Random gambar lahelu.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;

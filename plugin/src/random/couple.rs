@@ -1,9 +1,9 @@
-//! `plugins/random/couple.js` — random gambar pp couple.
+//! Random gambar pp couple.
 //!
-//! `ponytail:` JS mengirim `albumMessage` dengan `quoted: m`. `Reply::sequence`
+//! `Keterbatasan:` versi awal mengirim `albumMessage` dengan `quoted: m`. `Reply::sequence`
 //! tidak membawa `quoted`, dan tiap elemen sequence adalah satu `Reply` tersendiri.
-//! Catatan: baris `pub mod couple;` perlu ditambah ke `random/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! Catatan: baris `pub mod couple;` perlu ditambah ke `random/mod.rs` secara manual (mod.rs
+//! sudah milik plugin lain, dilarang disentuh).
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;

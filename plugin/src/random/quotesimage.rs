@@ -1,8 +1,4 @@
-//! `plugins/random/quotesimage.js` — random quotes image.
-//!
-//! Catatan: `mod.rs` kategori `random` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod quotesimage;` perlu ditambahkan
-//! manual di `rust/crates/oktz-plugins/src/random/mod.rs`.
+//! Random quotes image.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;

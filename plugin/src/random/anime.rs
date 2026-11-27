@@ -1,33 +1,25 @@
-//! `plugins/random/anime.js` — random gambar anime/reaksi (nekos.best).
+//! Random gambar anime/reaksi (nekos.best).
 //!
-//! `name` di JS berupa array `["loli", ...nexrayTypes]` — di Rust jadi
-//! `name = "loli"` + `commands = [...nexrayTypes]` (map `commands` JS),
-//! dan lookup `commands` lebih dulu daripada alias, persis
-//! `plugins.js:539-544`. Efeknya `waifu` milik `anime/mywaifu.js` (alias)
-//! kalah dari plugin ini, sama seperti di JS.
+//! `Keterbatasan:` sumber lama `api.nexray.eu.cc/random/anime` (500) dan
+//! `api.nexray.web.id/random/loli` (301 ke host mati) sudah mati sejak 2026-11-15; tipe
+//! yang didukung pindah ke `nekos.best/api/v2/<tipe>` dan `lick` ke `otakugifs.xyz`. Alur:
+//! unduh JSON (wajib UA browser — tanpa UA nekos.best balas 403), ambil
+//! `results[0].url`/`url`, lalu unduh byte-nya. 7 tipe tanpa sumber hidup dipetakan ke tipe
+//! terdekat — lihat [`tipe_efektif`].
 //!
-//! `ponytail:` sumber lama `api.nexray.eu.cc/random/anime` (500) dan
-//! `api.nexray.web.id/random/loli` (301 ke host mati) sudah mati sejak
-//! 2026-11-15; tipe yang didukung pindah ke `nekos.best/api/v2/<tipe>` dan
-//! `lick` ke `otakugifs.xyz`. Alur: unduh JSON (wajib UA browser — tanpa UA
-//! nekos.best balas 403), ambil `results[0].url`/`url`, lalu unduh byte-nya.
-//! 7 tipe tanpa sumber hidup dipetakan ke tipe terdekat — lihat [`tipe_efektif`].
-//!
-//! `ponytail:` pengiriman view-once interaktif
-//! (`generateWAMessageFromContent` + `relayMessage`) dan tombol `quick_reply`
-//! "Lanjut Cari Lagi?" tidak ada di `Reply` — gambar dikirim biasa.
-//! Reaksi `🖼️` (`anime.js:53`) dibuang:
-//! membungkus media dengan `with_reaction` membuat gambar tidak pernah
-//! di-upload (lihat `random/cecanindo.rs`). Deteksi GIF tetap jalan: byte
-//! diambil lewat `ctx.http` lalu dicek magic `GIF` seperti `anime.js:56-57`,
-//! dan GIF dikirim sebagai video `gifPlayback`.
+//! `Keterbatasan:` pengiriman view-once interaktif (`generateWAMessageFromContent` +
+//! `relayMessage`) dan tombol `quick_reply` "Lanjut Cari Lagi?" tidak ada di `Reply` —
+//! gambar dikirim biasa. Reaksi `🖼️` dibuang: membungkus media dengan `with_reaction`
+//! membuat gambar tidak pernah di-upload (lihat `random/cecanindo.rs`). Deteksi GIF tetap
+//! jalan: byte diambil lewat `ctx.http` lalu dicek magic `GIF` seperti, dan GIF dikirim
+//! sebagai video `gifPlayback`.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::error_template;
 
-/// Daftar tipe Nexray (`anime.js:7-12`) — juga nama command tambahan.
+/// Daftar tipe Nexray — juga nama command tambahan.
 pub(crate) const NEXRAY_TYPES: [&str; 29] = [
     "waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss", "lick",
     "pat", "smug", "bonk", "yeet", "blush", "smile", "wave", "highfive", "handhold", "nom", "bite",
@@ -37,14 +29,14 @@ pub(crate) const NEXRAY_TYPES: [&str; 29] = [
 /// UA browser — Cloudflare di depan nekos.best menolak klien tanpa UA.
 const UA: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 
-/// Sumber `.loli` (`anime.js:38`) — pengganti `api.nexray.web.id/random/loli`
+/// Sumber `.loli` — pengganti `api.nexray.web.id/random/loli`
 /// yang mati (301). Endpoint ini JSON, jadi byte gambarnya diunduh lewat
 /// [`ambil_gambar`].
 pub(crate) const LOLI_URL: &str = "https://nekos.best/api/v2/waifu";
 
 /// Peta 7 tipe yang sumbernya mati ke tipe hidup terdekat.
 ///
-/// `ponytail:` `api.nexray.eu.cc/random/anime` mati (500) sejak 2026-11-15 dan
+/// `Keterbatasan:` `api.nexray.eu.cc/random/anime` mati (500) sejak 2026-11-15
 /// tidak ada sumber pengganti untuk tipe ini. Peta bisa dibuang kalau sumber
 /// aslinya hidup lagi.
 fn tipe_efektif(tipe: &str) -> &str {
@@ -98,14 +90,14 @@ fn ambil_gambar(ctx: &Ctx, json_url: &str) -> Option<Vec<u8>> {
     Some(img.body.bytes().to_vec())
 }
 
-/// Pesan premium (`anime.js:35-37`).
+/// Pesan premium.
 pub(crate) fn teks_premium(prefix: &str) -> String {
     format!(
         "🔞 *Konten Premium*\n\nKonten ini khusus pengguna *Premium*.\n> Ketik *{prefix}benefitpremium* untuk info upgrade"
     )
 }
 
-/// `✨ *ʀᴀɴᴅᴏᴍ ${cmd.toUpperCase()}*` (`anime.js:82`).
+/// `✨ *ʀᴀɴᴅᴏᴍ ${cmd.toUpperCase()}*`.
 pub(crate) fn caption_tipe(tipe: &str) -> String {
     format!("✨ *ʀᴀɴᴅᴏᴍ {}*", tipe.to_uppercase())
 }
@@ -131,7 +123,7 @@ pub(crate) fn caption_tipe(tipe: &str) -> String {
 pub fn anime(ctx: Ctx) -> Reply {
     let cmd = ctx.command.to_lowercase();
 
-    // `.loli` — khusus premium/owner (`anime.js:33-42`).
+    // `.loli` — khusus premium/owner.
     if cmd == "loli" {
         if !ctx.is_premium && !ctx.is_owner {
             return Reply::text(teks_premium(&ctx.prefix));
@@ -142,10 +134,10 @@ pub fn anime(ctx: Ctx) -> Reply {
         return Reply::image(MediaSource::bytes(data), "👧 *ʀᴀɴᴅᴏᴍ ʟᴏʟɪ*");
     }
 
-    // Tipe Nexray: unduh byte, deteksi GIF dari magic-nya (`anime.js:52-58`).
+    // Tipe Nexray: unduh byte, deteksi GIF dari magic-nya.
     if NEXRAY_TYPES.contains(&cmd.as_str()) {
         let Some(data) = ambil_gambar(&ctx, &url_json(&cmd)) else {
-            // `catch` → `m.react('☢')` + `te(...)` (`anime.js:100-103`).
+            // `catch` → `m.react('☢')` + `te(...)`.
             return Reply::text(error_template(&ctx)).with_reaction("☢");
         };
         let is_gif = data.len() > 3 && data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46;
