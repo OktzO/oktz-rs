@@ -1151,6 +1151,7 @@ impl GroupRoster {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuotedKind {
     Text,
+    ViewOnceText,
     Image,
     Video,
     Audio,
@@ -1166,7 +1167,7 @@ pub enum QuotedKind {
 impl QuotedKind {
     pub fn wire_type(&self) -> &str {
         match self {
-            Self::Text => "conversation",
+            Self::Text | Self::ViewOnceText => "conversation",
             Self::Image => "imageMessage",
             Self::Video => "videoMessage",
             Self::Audio => "audioMessage",

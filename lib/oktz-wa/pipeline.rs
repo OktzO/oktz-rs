@@ -3237,7 +3237,11 @@ fn quoted_of(m: &InboundMessage, bot_jids: &[String]) -> Option<QuotedMessage> {
 fn quoted_kind(m: &wa::Message) -> QuotedKind {
     let b = m.get_base_message();
     if b.conversation.is_some() || b.extended_text_message.as_option().is_some() {
-        QuotedKind::Text
+        if m.is_view_once() {
+            QuotedKind::ViewOnceText
+        } else {
+            QuotedKind::Text
+        }
     } else if b.image_message.as_option().is_some() {
         QuotedKind::Image
     } else if b.video_message.as_option().is_some() {
@@ -10840,6 +10844,53 @@ mod tests {
         assert_eq!(q.sender, "628222@s.whatsapp.net");
         assert_eq!(q.chat, "120363@g.us");
         assert!(!q.is_media());
+    }
+
+    #[test]
+    fn view_once_text_quote_is_not_a_plain_text_quote() {
+        let p = Pipeline::new(
+            StoreContext::new(store_with("qvo", "{}")),
+            Arc::new(RecordingSender::default()),
+            "bot",
+            ParseOptions::default(),
+        );
+        let mut m = inbound(
+            ".rvo",
+            "628111@s.whatsapp.net",
+            "628111@s.whatsapp.net",
+            false,
+            "QVO1",
+        );
+        m.message = Arc::new(wa::Message {
+            extended_text_message: MessageField::some(wa::message::ExtendedTextMessage {
+                text: Some(".rvo".to_string()),
+                context_info: MessageField::some(wa::ContextInfo {
+                    stanza_id: Some("QVO2".to_string()),
+                    quoted_message: MessageField::some(wa::Message {
+                        view_once_message_v2: MessageField::some(wa::message::FutureProofMessage {
+                            message: MessageField::some(wa::Message {
+                                extended_text_message: MessageField::some(
+                                    wa::message::ExtendedTextMessage {
+                                        text: Some("rahasia".to_string()),
+                                        view_once: Some(true),
+                                        ..Default::default()
+                                    },
+                                ),
+                                ..Default::default()
+                            }),
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        let q = p.caller_of(&m).quoted.expect("quoted harus terbaca");
+        assert_eq!(q.text, "rahasia");
+        assert!(!matches!(q.kind, QuotedKind::Text));
     }
 
     #[test]

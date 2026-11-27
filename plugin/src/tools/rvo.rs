@@ -1,12 +1,13 @@
 //! `plugins/tools/rvo.js` — baca pesan sekali lihat (view once).
 //!
-//! Port penuh: unduh media quoted lewat `ctx.media_fetch` lalu kirim ulang
-//! sebagai pesan biasa (image/video/audio) — sifat "view once" hilang karena
-//! dikirim ulang sebagai pesan normal. Media jenis lain dikirim sebagai
-//! dokumen `rvo_<timestamp>.<ext>`. Setelah sukses: reaksi ✅; gagal: reaksi ☢
+//! Port penuh: teks view once dibalas apa adanya tanpa unduhan. Media quoted
+//! diunduh lewat `ctx.media_fetch` lalu kirim ulang sebagai pesan biasa
+//! (image/video/audio) — sifat "view once" hilang karena dikirim ulang sebagai
+//! pesan normal. Media jenis lain dikirim sebagai dokumen
+//! `rvo_<timestamp>.<ext>`. Setelah sukses: reaksi ✅; gagal: reaksi ☢
 //! + pesan "Gagal Membuka View Once".
 
-use oktz_plugin_api::{Ctx, MediaOrigin, Reply, plugin};
+use oktz_plugin_api::{Ctx, MediaOrigin, QuotedKind, Reply, plugin};
 
 fn no_quote(prefix: &str) -> String {
     format!(
@@ -23,9 +24,12 @@ fn gagal_buka(msg: &str) -> String {
     format!("❌ *Gagal Membuka View Once*\n\n> {msg}")
 }
 
-/// Pesan untuk galat unduh yang mengindikasikan media hangus dari server.
+/// Pesan untuk galat unduh yang mengindikasikan media tak bisa diakses.
 fn galat_kadaluarsa() -> &'static str {
-    "Media sudah kadaluarsa atau sudah dihapus dari server WhatsApp.\n\n_Pesan View Once yang terlalu lama atau sering dibuka biasanya akan otomatis hangus dari sistem WhatsApp dan tidak bisa diunduh lagi._"
+    "Media tidak bisa dibuka dari perangkat ini.\n\n\
+     Sejak update WhatsApp Nov 2026, isi view once tidak dikirim ke companion web-class. \
+     Buka pesan di HP yang dipasangkan atau pasangkan bot sebagai companion Android.\n\n\
+     Media yang terlalu lama atau sering dibuka juga bisa kadaluarsa dari server WhatsApp."
 }
 
 /// Deteksi galat unduh yang mengindikasikan media hangus dari server
@@ -96,31 +100,32 @@ fn timestamp_now() -> i64 {
     is_private = false
 )]
 pub fn rvo(ctx: Ctx) -> Reply {
-    // JS: `!quoted.isViewOnce && !quoted.isMedia` → tolak. `isViewOnce` tidak
-    // terekspos di `QuotedKind`, jadi quoted media apa pun diterima (lebih
-    // longgar, tapi quoted non-media tetap ditolak).
     let quoted = match ctx.quoted() {
-        Some(q) if q.is_media() => q,
+        Some(q) if q.is_media() || matches!(q.kind, QuotedKind::ViewOnceText) => q,
         Some(_) => return Reply::text(not_view_once()),
         None => return Reply::text(no_quote(&ctx.prefix)),
     };
+
+    if matches!(quoted.kind, QuotedKind::ViewOnceText) {
+        return Reply::text(quoted.text.clone()).with_reaction("✅");
+    }
 
     let caption = caption_of(&quoted.text);
 
     match ctx.media_fetch.download(MediaOrigin::Quoted) {
         Ok(buffer) if !buffer.is_empty() => {
             let reply = match &quoted.kind {
-                oktz_plugin_api::QuotedKind::Image => Reply::image(
+                QuotedKind::Image => Reply::image(
                     oktz_plugin_api::MediaSource::bytes(buffer)
                         .with_mimetype(mimetype_default("image/jpeg", quoted)),
                     caption,
                 ),
-                oktz_plugin_api::QuotedKind::Video => Reply::video(
+                QuotedKind::Video => Reply::video(
                     oktz_plugin_api::MediaSource::bytes(buffer)
                         .with_mimetype(mimetype_default("video/mp4", quoted)),
                     caption,
                 ),
-                oktz_plugin_api::QuotedKind::Audio => Reply::audio(
+                QuotedKind::Audio => Reply::audio(
                     oktz_plugin_api::MediaSource::bytes(buffer)
                         .with_mimetype(mimetype_default("audio/mpeg", quoted)),
                 ),
@@ -243,6 +248,18 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(run(ctx).text_body().unwrap(), not_view_once());
+    }
+
+    #[test]
+    fn view_once_text_quote_is_replied_as_text() {
+        let ctx = Ctx {
+            quoted: Some(quoted(QuotedKind::ViewOnceText)),
+            ..Default::default()
+        };
+        match payload(&run(ctx)) {
+            R::Text { text, .. } => assert_eq!(text, "isi pesan"),
+            other => panic!("harus Text, dapat {other:?}"),
+        }
     }
 
     #[test]
@@ -423,6 +440,23 @@ mod tests {
             );
             assert!(!t.contains("file_sha256"), "galat internal bocor: {t}");
         }
+    }
+
+    #[test]
+    fn missing_key_error_points_to_web_companion_limitation() {
+        let stub = Stub {
+            unduhan: Arc::new(Mutex::new(vec![])),
+            hasil: Err(MediaError {
+                message: "Gagal download media quoted: kunci media hilang".into(),
+            }),
+        };
+        let ctx = Ctx {
+            quoted: Some(quoted(QuotedKind::Image)),
+            media_fetch: Arc::new(stub),
+            ..Default::default()
+        };
+        let t = run(ctx).text_body().unwrap().to_string();
+        assert!(t.contains("companion web"), "{t}");
     }
 
     #[test]
