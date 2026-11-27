@@ -1,13 +1,4 @@
-//! `plugins/tools/spamngl.js` — send NGL Spam.
-//!
-//! Catatan: `mod.rs` kategori `tools` sudah memuat plugin lain yang bukan
-//! milik tugas ini, jadi baris `pub mod spamngl;` perlu ditambahkan manual
-//! di `rust/crates/oktz-plugins/src/tools/mod.rs`.
-//!
-//! `setTimeout(4000)` tidak punya padanan di `Ctx`; loop dijalankan tanpa
-//! jeda. `axios.get` tidak di-await di JS (dikirim sekaligus); di Rust
-//! setiap panggilan `ctx.http.get` adalah sinkron, jadi loop akan menunggu
-//! satu per satu.
+//! Send NGL Spam.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -71,7 +62,7 @@ pub fn spamngl(ctx: Ctx) -> Reply {
         );
     }
 
-    // JS tidak menunggu setiap axios.get; di Rust loop sinkron tanpa jeda.
+    // versi awal tidak menunggu setiap axios.get; di Rust loop sinkron tanpa jeda.
     for _ in 0..jumlah {
         let _ = ctx.http.get(&format!(
             "https://api.cuki.biz.id/api/tools/sendngl?apikey={}&link={}&text={}",

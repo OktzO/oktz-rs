@@ -1,9 +1,8 @@
-//! `plugins/tools/hd.js` — enhance gambar jadi HD.
+//! Enhance gambar jadi HD.
 //!
-//! `ponytail:` reaksi `🕕` pembuka di JS tidak dibawa; `Reply` hanya menyimpan
-//! satu reaksi, jadi yang dikirim `✅`/`❌`. API `ihancer.com` mati, alurnya
-//! pindah ke `rinn::hd` yang menerima URL — jadi gambar diunggah dulu lewat
-//! `unggah::gambar`.
+//! `Keterbatasan:` reaksi `🕕` pembuka di versi awal tidak dibawa; `Reply` hanya menyimpan
+//! satu reaksi, jadi yang dikirim `✅`/`❌`. API `ihancer.com` mati, alurnya pindah ke
+//! `rinn::hd` yang menerima URL — jadi gambar diunggah dulu lewat `unggah::gambar`.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, Reply, plugin};
 use oktz_scraper::{rinn, unggah};
@@ -43,7 +42,7 @@ pub fn hd(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `m.quoted?.isMedia ? quoted.download() : m.download()` (`hd.js:52`) —
+    // `m.quoted?.isMedia ? quoted.download(): m.download()` —
     // quoted diperiksa lebih dulu, bukan gambar trigger.
     let unduhan = if ctx.quoted().is_some_and(|q| q.kind.is_image()) {
         ctx.download_quoted_media()

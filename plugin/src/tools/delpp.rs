@@ -1,8 +1,4 @@
-//! `plugins/tools/delpp.js` — menghapus foto profil bot.
-//!
-//! Port penuh: `sock.removeProfilePicture(botJid)` → `ctx.sock().hapus_foto_bot()`.
-//! Handler JS tidak punya guard; `sock.user?.id` tidak ada di `Ctx`, tapi
-//! `hapus_foto_bot` di `SockKlien` sudah murni aksi profil bot sendiri.
+//! Menghapus foto profil bot.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

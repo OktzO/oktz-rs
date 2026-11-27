@@ -1,23 +1,4 @@
-//! `plugins/tools/ocr.js` — extract teks dari gambar (Offline/Local).
-//!
-//! ## Penyimpangan yang tidak bisa ditiru
-//!
-//! JS memakai OCR lokal: `ourin-native` (binary `.node`) dengan cadangan
-//! `tesseract.js` (`src/lib/native-loader.js:43-73`). Keduanya jalan di proses
-//! Node dan tidak punya padanan di Rust — crate `oktz-scraper` tidak punya
-//! modul OCR, dan menambah dependensi (tesseract/ocr crate) berarti menyentuh
-//! `Cargo.toml` di luar wilayah yang boleh disentuh.
-//!
-//! Port ini memakai layanan OCR gratis OCR.Space
-//! (`https://api.ocr.space/parse/image`, kunci `helloworld`) lewat
-//! `ctx.http` — hasil keluaran bentuknya sama: teks hasil OCR per baris.
-//! Bahasa default `eng`, sama seperti `createWorker("eng")` di JS.
-//!
-//! `sendToolsPreview` (`src/lib/context.js:135-149`) mengirim pesan preview
-//! dengan `caption: ${config.info.website} ${text}`, `title`, dan
-//! `description`. API `Reply` tidak punya varian preview, jadi port ini
-//! mengirim caption yang sama persis sebagai pesan teks; `title` dan
-//! `description` tidak punya tempat di `Reply`.
+//! Extract teks dari gambar (Offline/Local).
 
 use oktz_plugin_api::registry::MultipartPart;
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
@@ -26,7 +7,7 @@ use serde_json::Value;
 const OCR_SPACE: &str = "https://api.ocr.space/parse/image";
 const API_KEY: &str = "helloworld";
 
-/// `title` preview — `ocr.js:66`.
+/// `title` preview —.
 const JUDUL: &str = "📖 *ᴏᴄʀ*";
 
 fn cara_pakai(prefix: &str) -> String {
@@ -50,7 +31,7 @@ fn tidak_ada_teks() -> &'static str {
     "❌ *ᴛɪᴅᴀᴋ ᴀᴅᴀ ᴛᴇᴋs*\n\n> Tidak ada teks yang terdeteksi di gambar"
 }
 
-/// `responseText` (`ocr.js:53-61`).
+/// `responseText`.
 fn render_teks(teks: &str) -> String {
     let baris = teks
         .split('\n')

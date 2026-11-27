@@ -1,22 +1,4 @@
-//! `plugins/tools/converter.js` — convert file ke format lain lewat
-//! `mconverter.eu`.
-//!
-//! Scraper `mconverter` sudah ada di `oktz-scraper`
-//! (`oktz_scraper::mconverter::convert`), jadi plugin ini tidak menyalin
-//! logikanya.
-//!
-//! ## Penyimpangan
-//!
-//! - Berkas sementara ditulis lewat `ctx.berkas()` dengan jalur relatif
-//!   `temp/...` (`process.cwd()/temp` di JS). Scrapercopenia membaca berkasnya
-//!   dengan `std::fs`, jadi jalurnya harus relatif terhadap direktori kerja
-//!   berjalan. Di produksi `BerkasNyata` berakar ke `current_dir()`
-//!   (`lib/oktz-wa/bot.rs:153`), jadi keduanya menunjuk berkas yang sama.
-//!   Di test, `BerkasPalsu` menyimpan di memori dan scraper membaca dari
-//!   disk — hasilnya `File tidak ada`, sama seperti jalur gagal di JS.
-//! - `Date.now()` dipakai untuk nama berkas, jadi nama berkas yang terkirim
-//!   (`converted_<timestamp>.<fmt>`) tidak pernah sama persis antar-jalur.
-//!   Bagian yang dilihat user (nama format, pesan status) tetap sama.
+//! Convert file ke format lain lewat
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -41,7 +23,7 @@ fn tanpa_format(prefix: &str) -> String {
     format!("❌ Masukkan format tujuan!\n\n> Contoh: `{prefix}converter mp3`")
 }
 
-/// `filename.split(".").pop() || "bin"` (`converter.js:84`).
+/// `filename.split(".").pop() || "bin"`.
 fn ekstensi(nama_berkas: &str) -> String {
     match nama_berkas.rsplit_once('.') {
         Some((_, ext)) if !ext.is_empty() => ext.to_string(),
@@ -71,9 +53,9 @@ pub fn converter(ctx: Ctx) -> Reply {
     let quoted_media = ctx.quoted().is_some_and(|q| q.is_media());
     let has_media = ctx.is_media();
 
-    // `if (!m.quoted && !m.isMedia)` (`converter.js:26`) — pesan yang
+    // `if (!m.quoted && !m.isMedia)` — pesan
     // di-reply ADA tapi bukan media belum disqualifikasi di sini; disqualifikasi
-    //-nya terjadi di bawah, setelah cek format.
+    // Nya terjadi di bawah, setelah cek format.
     if ctx.quoted().is_none() && !has_media {
         return Reply::text(usage(&ctx.prefix));
     }
@@ -86,7 +68,7 @@ pub fn converter(ctx: Ctx) -> Reply {
         return Reply::text("❌ Reply file yang mau diconvert!");
     }
 
-    // `quoted?.isMedia` menang atas `m.isMedia` (`converter.js:52-58`).
+    // `quoted?.isMedia` menang atas `m.isMedia`.
     let (nama_berkas, unduhan) = if quoted_media {
         let q = ctx.quoted().expect("sudah dicek");
         let nama = q

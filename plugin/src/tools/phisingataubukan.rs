@@ -1,15 +1,12 @@
-//! `plugins/tools/phisingataubukan.js` — cek apakah sebuah URL phising/berbahaya.
+//! Cek apakah sebuah URL phising/berbahaya.
 //!
-//! Satu-satunya endpoint: `GET https://api.nexray.eu.cc/tools/webphishing?url=…`
-//! (tanpa header khusus, tanpa key — `docs/rust-rewrite/ENDPOINTS.md` §2).
-//!
-//! `ponytail:` dua hal tidak bisa di-cerminkan persis:
+//! `Keterbatasan:` dua hal tidak bisa di-cerminkan persis:
 //! - `m.pushName` tidak ada di `Ctx`, jadi cabang "halo" memakai fallback
-//!   `'User'` yang sama seperti `te()` di `src/lib/error.js`.
-//! - JS bereaksi dua kali pada satu pesan (`m.react("🕕")` di awal, lalu
-//!   `✅`/`❌` di akhir). `Reply::with_reaction` hanya membawa satu reaksi,
-//!   jadi reaksi penutup yang dikirim dan `🕕` hilang — sama seperti batas
-//!   "satu balasan" yang sudah dicatat di HANDOFF §3.5 butir 6.
+//! `'User'` yang sama seperti `te()`.
+//! - versi awal bereaksi dua kali pada satu pesan (`m.react("🕕")` di awal, lalu
+//! `✅`/`❌` di akhir). `Reply::with_reaction` hanya membawa satu reaksi,
+//! jadi reaksi penutup yang dikirim dan `🕕` hilang — sama seperti batas
+//! "satu balasan" yang sudah dicatat di HANDOFF §3.5 butir 6.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -18,7 +15,7 @@ use crate::common::jakarta_parts;
 
 pub(crate) const ENDPOINT: &str = "https://api.nexray.eu.cc/tools/webphishing";
 
-/// `m.pushName` tidak ada di `Ctx`; `src/lib/error.js` memakai `'User'` untuk
+/// `m.pushName` tidak ada di `Ctx`; memakai `'User'`
 /// nilai kosong, jadi nama yang sama dipakai di sini.
 const NO_NAME: &str = "User";
 
@@ -36,7 +33,7 @@ pub(crate) const SCAN_FAILED: &str =
 pub(crate) const SYSTEM_ERROR: &str =
     "😔 Terjadi kesalahan sistem saat mengecek URL tersebut. Mohon coba lagi nanti.";
 
-/// `result.is_phishing ? '🚨 Ya' : '✅ Tidak'` — JS pakai ternary, bukan
+/// `result.is_phishing ? '🚨 Ya': '✅ Tidak'` — versi awal pakai ternary, bukan
 /// `&&`/`||`, jadi nilai falsy apa pun (termasuk `undefined`) tetap "Tidak".
 fn flag(value: Option<&Value>) -> &'static str {
     if crate::common::js_truthy(value) {
@@ -50,7 +47,7 @@ fn field<'a>(result: &'a Value, key: &str) -> Option<&'a Value> {
     result.get(key)
 }
 
-/// `${value}` di dalam template literal JS: objek/array jadi JSON, `null` dan
+/// `${value}` di dalam template literal versi awal: objek/array jadi JSON, `null`
 /// `undefined` jadi string kosong.
 fn stringify(value: Option<&Value>) -> String {
     match value {
@@ -109,13 +106,13 @@ pub(crate) fn encode_uri_component(raw: &str) -> String {
 
 /// `new Date(x).toLocaleString("id-ID")`.
 ///
-/// `ponytail:` hasil `toLocaleString` bergantung zona waktu runtime Node.
+/// `Keterbatasan:` hasil `toLocaleString` bergantung zona waktu runtime Node.
 /// Port ini mengunci `Asia/Jakarta` lewat `crate::common::jakarta_parts`.
 /// Kalau bot dijalankan di zona lain, ini ikut bergeser.
 ///
 /// Nilai yang tidak bisa dibaca jadi `"Invalid Date"`, sama seperti V8.
 ///
-/// `ponytail:` V8 juga mengoercive array jadi `Date` dengan aturan aneh
+/// `Keterbatasan:` V8 juga mengoercive array jadi `Date` dengan aturan aneh
 /// (`new Date([1,2])` -> 2001-02-01). Array dan object tidak direproduksi
 /// karena tidak mungkin keluar dari API yang dipanggil plugin ini; keduanya
 /// menghasilkan `"Invalid Date"`.
@@ -182,15 +179,15 @@ fn frac_millis(frac: &str) -> Option<i64> {
 ///
 /// Tiga aturan ES2015 yang sering dilanggar dan di sini dijaga lewat test:
 ///
-/// - ada offset (`Z`, `+07:00`, `+0700`) -> jam dibaca sebagai UTC lalu
-///   digeser ke zona render;
-/// - tanpa offset -> jam dibaca sebagai waktu lokal (Asia/Jakarta);
-/// - tanggal polos `YYYY-MM-DD` -> **UTC** tengah malam, bukan lokal. V8
-///   begitu sejak ES2015; test `date_only_is_utc_midnight` mengunci itu.
+/// Ada offset (`Z`, `+07:00`, `+0700`) -> jam dibaca sebagai UTC lalu
+/// digeser ke zona render;
+/// Tanpa offset -> jam dibaca sebagai waktu lokal (Asia/Jakarta);
+/// Tanggal polos `YYYY-MM-DD` -> **UTC** tengah malam, bukan lokal. V8
+/// begitu sejak ES2015; test `date_only_is_utc_midnight` mengunci itu.
 ///
 /// Hari 1-31 saja yang diterima; `2026-02-30` bukan-invalid-date di V8 tapi
 /// melorot ke Maret, dan [`days_from_civil`] mereproduksinya karena aritmetikanya
-/// cuma penjumlahan. Jam 24 diterima (melorot ke hari berikutnya), menit 60 dan
+/// cuma penjumlahan. Jam 24 diterima (melorot ke hari berikutnya), menit 60
 /// detik 60 tidak.
 fn parse_date_ms(raw: &str) -> Option<i64> {
     let (body, offset) = split_offset(raw.trim());
@@ -267,7 +264,7 @@ pub fn phisingataubukan(ctx: Ctx) -> Reply {
     };
 
     // `!data.status || !data.result` — `result` boleh objek kosong: objek itu
-    // truthy di JS, jadi tidak boleh disamakan dengan "tidak ada".
+    // truthy di versi awal, jadi tidak boleh disamakan dengan "tidak ada".
     if !crate::common::js_truthy(data.get("status")) || !crate::common::js_truthy(data.get("result")) {
         return Reply::text(SCAN_FAILED).with_reaction("❌");
     }
@@ -386,7 +383,7 @@ mod tests {
         assert_eq!(p.meta.example, ".phisingataubukan https://google.com");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 2);
-        // Tidak ada di pluginConfig JS -> false, bukan default `true` makro.
+        // Tidak ada di pluginConfig versi awal -> false, bukan default `true` makro.
         assert!(!p.meta.is_owner && !p.meta.is_premium);
         assert!(!p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_admin && !p.meta.is_bot_admin);
@@ -459,7 +456,7 @@ mod tests {
 
     #[test]
     fn missing_or_falsy_status_and_result_both_report_the_scan_failure() {
-        // `!data.status || !data.result` — objek kosong tetap truthy di JS,
+        // `!data.status || !data.result` — objek kosong tetap truthy di versi awal,
         // jadi `result: {}` harus tetap jalan.
         let cases = [
             serde_json::json!({ "status": false, "result": scan() }),
@@ -518,7 +515,7 @@ mod tests {
         assert_eq!(encode_uri_component("-_.!~*'()"), "-_.!~*'()", "unreserved tak di-encode");
     }
 
-    // Semua nilai di bawah diambil dari `TZ=Asia/Jakarta node -e ...`, bukan
+    // Semua nilai di bawah diambil dari `TZ=Asia/Jakarta node -e...`, bukan
     // dari tebakan: expected string = output `toLocaleString("id-ID")` V8.
 
     #[test]
@@ -617,7 +614,7 @@ mod tests {
     #[test]
     fn null_and_boolean_go_through_to_number_like_v8() {
         // `new Date(null)` -> epoch 0, bukan Invalid Date. Kalau plugin ini
-        // pernah menerima `last_modified: null` dari API, teks yang tampil di
+        // pernah menerima `last_modified: null` dari API, teks yang tampil
         // produksi adalah "01/01/1970 07.00.00".
         assert_eq!(to_locale_string(Some(&serde_json::json!(null))), "01/01/1970 07.00.00");
         assert_eq!(to_locale_string(Some(&serde_json::json!(false))), "01/01/1970 07.00.00");

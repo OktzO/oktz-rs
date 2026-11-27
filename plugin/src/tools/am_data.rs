@@ -1,10 +1,9 @@
-//! `plugins/tools/am-data.js` — lihat data project Alight Motion dari link share
-//! via `api.obscuraworks.org`.
+//! Lihat data project Alight Motion dari link share
 //!
-//! `ponytail:` JS mengirim header `Authorization: Bearer ${KEY}` dan
-//! `Content-Type: application/json`; `UreqHttp::call` mempertahankan header
-//! kustom melalui `HttpCall::call`. Stub bawaan (`NoHttp`) tidak pernah
-//! jaringan, jadi jalur gagal diuji lewat `Err`.
+//! `Keterbatasan:` versi awal mengirim header `Authorization: Bearer ${KEY}` dan
+//! `Content-Type: application/json`; `UreqHttp::call` mempertahankan header kustom melalui
+//! `HttpCall::call`. Stub bawaan (`NoHttp`) tidak pernah jaringan, jadi jalur gagal diuji
+//! lewat `Err`.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -22,7 +21,7 @@ fn help(prefix: &str) -> String {
 
 const GAGAL: &str = "📱 *ɢᴀɢᴀʟ ᴍᴇᴍʙᴀᴄᴀ ᴅᴀᴛᴀ*\n\n- Pastikan URL share valid";
 
-/// `if (!b) return "-"; if (b < 1024) ...` (`am-data.js:19-24`).
+/// `if (!b) return "-"; if (b < 1024)...`.
 fn fmt_size(b: &Value) -> String {
     let n = match b {
         Value::Number(n) => n.as_i64().unwrap_or(0),
@@ -41,7 +40,7 @@ fn fmt_size(b: &Value) -> String {
 
 /// `new Date(ts._seconds * 1000).toLocaleDateString("id-ID", { dateStyle: "long" })`.
 ///
-/// `ponytail:` tanpa `icu4x` tidak bisa meniru locale id-ID byte-per-byte;
+/// `Keterbatasan:` tanpa `icu4x` tidak bisa meniru locale id-ID byte-per-byte;
 /// format yang dihasilkan adalah representasi yang sama secara struktur
 /// (`DD Month YYYY`). Bulan dalam Bahasa Indonesia.
 fn fmt_date(ts: &Value) -> String {
@@ -167,9 +166,9 @@ pub fn am_data(ctx: Ctx) -> Reply {
     Reply::text(msg).with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

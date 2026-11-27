@@ -1,15 +1,4 @@
-//! `plugins/tools/hd2.js` — enhance gambar menjadi HD dengan AI (V3).
-//!
-//! ## Penyimpangan
-//!
-//! - JS memakai `resolver.resolve("hd", { kind: "imglarger", media })`
-//!   (`src/capabilities/hd.js`), yang mencoba dua backend: `photoai.imglarger.com`
-//!   (lokal) lalu agregator `my.izuka-api.xyz` (jaringan). Port ini memakai
-//!   scraper `oktz_scraper::hd` (backend lokal) dan, kalau gagal, memanggil
-//!   agregator secara langsung — urutan dan bentuk respons sama.
-//! - `jpegThumbnail` pada pesan dokumen tidak punya field di `Reply::Document`,
-//!   jadi thumbnail 50×50 yang dibuat JS tidak ikut. Nama berkas dan caption
-//!   tetap sama.
+//! Enhance gambar menjadi HD dengan AI (V3).
 
 use oktz_plugin_api::registry::MultipartPart;
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
@@ -36,7 +25,7 @@ fn gagal_proses() -> &'static str {
     "Maaf, AI gagal memproses gambarmu kali ini. Silakan coba lagi dalam beberapa saat!"
 }
 
-/// Kandidat URL hasil — `kandidat()` (`src/capabilities/hd.js`).
+/// Kandidat URL hasil — `kandidat()`.
 pub(crate) fn kandidat(isi: &Value, keluar: &mut Vec<String>) {
     if let Some(s) = isi.as_str() {
         keluar.push(s.to_string());
@@ -59,7 +48,7 @@ pub(crate) fn kandidat(isi: &Value, keluar: &mut Vec<String>) {
     }
 }
 
-/// `urlHasil()` (`src/capabilities/hd.js`) — satu level amplop lebih dulu.
+/// `urlHasil()` — satu level amplop lebih dulu.
 pub(crate) fn url_hasil(bentuk: &Value) -> String {
     let mut keluar = Vec::new();
     kandidat(bentuk, &mut keluar);
@@ -78,7 +67,7 @@ pub(crate) fn url_hasil(bentuk: &Value) -> String {
     String::new()
 }
 
-/// Backend lokal — `photoai.imglarger.com` (`src/scraper/hd.js`).
+/// Backend lokal — `photoai.imglarger.com`.
 fn lewat_photoai(ctx: &Ctx, path: &str) -> Option<String> {
     let unggahan = oktz_scraper::hd::upload(ctx.http.as_ref(), path).ok()?;
     let code = unggahan.get("code").and_then(Value::as_str)?.trim().to_string();
@@ -90,7 +79,7 @@ fn lewat_photoai(ctx: &Ctx, path: &str) -> Option<String> {
     if url.is_empty() { None } else { Some(url) }
 }
 
-/// Backend agregator — `my.izuka-api.xyz` (`src/capabilities/hd.js`).
+/// Backend agregator — `my.izuka-api.xyz`.
 fn lewat_izuka(ctx: &Ctx, gambar: &[u8]) -> Option<String> {
     let req = HttpCall::post(IZUKA).multipart(vec![
         MultipartPart::file("image", "image.jpg", gambar.to_vec()).with_mimetype("image/jpeg"),
@@ -149,7 +138,7 @@ pub fn hd2(ctx: Ctx) -> Reply {
         }
     };
 
-    // Backend lokal butuh path file di disk (`src/capabilities/hd.js:41-53`).
+    // Backend lokal butuh path file di disk.
     let temp_dir = "tmp";
     let _ = ctx.berkas().buat_folder(temp_dir);
     let path = format!("{temp_dir}/hd-{}.jpg", crate::common::now_ms());

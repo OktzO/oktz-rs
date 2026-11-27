@@ -1,18 +1,4 @@
-//! `plugins/tools/hd3.js` — memperjelas gambar blur menjadi tajam dengan AI
-//! (Unblur).
-//!
-//! ## Penyimpangan
-//!
-//! - JS memakai `resolver.resolve("hd", { kind: "unblur", media })`
-//!   (`src/capabilities/hd.js`): backend lokal `fgsi.dpdns.org` (buat task +
-//!   polling) lalu agregator `my.izuka-api.xyz`. Port ini memakai scraper
-//!   `oktz_scraper::hdvid` (backend lokal) dan, kalau gagal, memanggil
-//!   agregator secara langsung — urutan dan bentuk respons sama.
-//! - Batas polling di JS untuk jalur ini 60 detik (`POLL_YATIM_MS`,
-//!   `src/capabilities/hd.js:86`); interval polling 3 detik dan maksimal 5
-//!   kegagalan sementara ikut dipakai.
-//! - `jpegThumbnail` pada pesan dokumen tidak punya field di `Reply::Document`,
-//!   jadi thumbnail 50×50 yang dibuat JS tidak ikut. Nama berkas tetap sama.
+//! Memperjelas gambar blur menjadi tajam dengan AI
 
 use oktz_plugin_api::registry::MultipartPart;
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
@@ -35,7 +21,7 @@ fn gagal_proses() -> &'static str {
     "Maaf, AI gagal memproses gambarmu kali ini. Silakan coba lagi dalam beberapa saat!"
 }
 
-/// Backend lokal — `fgsi.dpdns.org` (`src/scraper/hdvid.js`).
+/// Backend lokal — `fgsi.dpdns.org`.
 fn lewat_fgsi(ctx: &Ctx, path: &str, bytes: &[u8], api_key: &str) -> Option<String> {
     let task =
         oktz_scraper::hdvid::create_enhance_task(ctx.http.as_ref(), path, bytes, api_key).ok()?;
@@ -53,7 +39,7 @@ fn lewat_fgsi(ctx: &Ctx, path: &str, bytes: &[u8], api_key: &str) -> Option<Stri
     if url.is_empty() { None } else { Some(url) }
 }
 
-/// Backend agregator — `my.izuka-api.xyz` (`src/capabilities/hd.js`).
+/// Backend agregator — `my.izuka-api.xyz`.
 fn lewat_izuka(ctx: &Ctx, gambar: &[u8]) -> Option<String> {
     let req = HttpCall::post(IZUKA).multipart(vec![
         MultipartPart::file("image", "image.jpg", gambar.to_vec()).with_mimetype("image/jpeg"),

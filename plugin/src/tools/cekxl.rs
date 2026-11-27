@@ -1,8 +1,8 @@
-//! `plugins/tools/cekxl.js` — cek paket dan kuota XL/Axis via `xl-ku.my.id`.
+//! Cek paket dan kuota XL/Axis via `xl-ku.my.id`.
 //!
-//! `ponytail:` JS memakai `axios.get(..., { timeout: 30000 })`; `UreqHttp`
-//! punya timeout global sendiri, jadi timeout per-permintaan tidak ditiru.
-//! Balasan tidak dikutip (JS `m.reply(txt.trim())` polos).
+//! `Keterbatasan:` versi awal memakai `axios.get(..., { timeout: 30000 })`; `UreqHttp`
+//! punya timeout global sendiri, jadi timeout per-permintaan tidak ditiru. Balasan tidak
+//! dikutip (versi awal `m.reply(txt.trim())` polos).
 
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
 use serde_json::Value;
@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::common::js_truthy_value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `cleanNumber` (`cekxl.js:20-25`): buang non-digit, awalan `0` → `62`, dan
+/// `cleanNumber`: buang non-digit, awalan `0` → `62`,
 /// tambah `62` kalau belum ada.
 fn clean_number(raw: &str) -> String {
     let num: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
@@ -48,7 +48,7 @@ fn api_url(number: &str) -> String {
 const INVALID: &str =
     "❌ Nomor yang kamu masukkan tidak valid, pastikan nomor tersebut merupakan nomor XL atau Axis yang benar ya";
 
-/// `❌ Tidak bisa mengecek nomor *{cleanNum}*, pastikan ... XL atau Axis yang aktif`.
+/// `❌ Tidak bisa mengecek nomor *{cleanNum}*, pastikan... XL atau Axis yang aktif`.
 fn not_found(clean_num: &str) -> String {
     format!(
         "❌ Tidak bisa mengecek nomor *{clean_num}*, pastikan nomor tersebut merupakan nomor XL atau Axis yang aktif ya"
@@ -100,7 +100,7 @@ pub fn cekxl(ctx: Ctx) -> Reply {
 
     let mut txt = format!("📱 *INFORMASI XL/AXIS*\n\n📞 Nomor: *{clean_num}*\n");
 
-    // `if (data.x)` — nilai falsy JS (`0`, `""`, `null`, `false`) tidak ditulis.
+    // `if (data.x)` — nilai falsy versi awal (`0`, `""`, `null`, `false`) tidak ditulis.
     if let Some(v) = ada(data.get("msisdn")) {
         txt.push_str(&format!("🆔 MSISDN: *{}*\n", js_str(v)));
     }
@@ -203,7 +203,7 @@ pub fn cekxl(ctx: Ctx) -> Reply {
 }
 
 /// `String(v)` untuk nilai JSON yang masuk ke template literal (mirip
-/// `cekxl.js` yang `${val}`-kan nilai).
+/// yang `${val}`-kan nilai).
 fn js_str(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -214,7 +214,7 @@ fn js_str(v: &Value) -> String {
     }
 }
 
-/// `if (nilai)` — `None` kalau nilai falsy JS (`0`, `""`, `null`, `false`).
+/// `if (nilai)` — `None` kalau nilai falsy versi awal (`0`, `""`, `null`, `false`).
 fn ada(v: Option<&Value>) -> Option<&Value> {
     match v {
         Some(x) if js_truthy_value(x) => Some(x),
@@ -222,9 +222,9 @@ fn ada(v: Option<&Value>) -> Option<&Value> {
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -347,7 +347,7 @@ mod tests {
 
     #[test]
     fn status_salah_atau_error_hasilkan_not_found() {
-        // `cekxl.js:57` — `!data || data.error || data.status === false`.
+        // `!data || data.error || data.status === false`.
         // `{}` tidak memenuhi ketiganya, jadi tidak ikut di sini.
         for body in [
             serde_json::json!({ "error": true }),
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn body_objek_kosong_bukan_error_menghasilkan_teks_info() {
-        // `cekxl.js:57,62-63,110` — `{}` tidak kena cabang not-found, jadi teks
+        // `,62-63,110` — `{}` tidak kena cabang not-found, jadi teks
         // informasi tetap dibangun (tanpa seksi ekstra) dan reaksi ✅.
         let r = run(Stub::body(serde_json::json!({})), "083150850721");
         assert_eq!(reaction_of(&r), Some("✅"));

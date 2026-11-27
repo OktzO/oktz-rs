@@ -1,28 +1,4 @@
-//! `plugins/tools/cekidch.js` — cek ID dan info lengkap channel dari link.
-//!
-//! ## Penyimpangan yang tidak bisa ditiru
-//!
-//! JS memakai `sock.cekIDSaluran(text)` (`src/lib/socket.js:1312-1329`), yang
-//! memanggil `sock.newsletterMetadata("INVITE", channelId)` — protokol
-//! WhatsApp internal. Trait `Sock` di `oktz-plugin-api` tidak punya
-//! `newsletter_metadata`, dan `lib/oktz-plugin-api` berada di luar wilayah
-//! yang boleh disentuh, jadi metadata itu tidak bisa diambil apa adanya.
-//!
-//! Port ini mengambil halaman web channel resmi
-//! (`https://whatsapp.com/channel/<id>`) dan mem-parsing meta tag-nya:
-//! - `og:title` → nama channel.
-//! - `meta[name=description]` → deskripsi (prefix `Follow <nama>'s WhatsApp
-//!   Channel. ` dibuang).
-//! - `og:description` → jumlah pengikut (`N followers`), kalau ada.
-//! - `og:image` → foto channel (`preview`).
-//!
-//! Field yang benar-benar tidak ada di halaman web — `verification` dan
-//! `creation_time` — memakai nilai default yang sama dengan JS:
-//! `Unverified` dan `—`. `subscribers` memakai jumlah pengikut dari
-//! `og:description`; kalau tidak ada, `0` (nilai default JS).
-//!
-//! Saat pengambilan gagal, port ini kembali ke `{ id: channelId }` — persis
-//! apa yang JS lakukan di `catch` (`socket.js:1327`).
+//! Cek ID dan info lengkap channel dari link.
 
 use oktz_plugin_api::registry::{CardHeader, InteractiveButton, MediaSource};
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -30,7 +6,7 @@ use serde_json::json;
 
 const BASE: &str = "https://whatsapp.com/channel/";
 
-/// `formatDate` (`cekidch.js:20-25`) — `—` kalau timestamp kosong/falsy.
+/// `formatDate` — `—` kalau timestamp kosong/falsy.
 fn format_date(timestamp: Option<i64>) -> String {
     let Some(ts) = timestamp else {
         return "—".to_string();
@@ -38,7 +14,7 @@ fn format_date(timestamp: Option<i64>) -> String {
     if ts == 0 {
         return "—".to_string();
     }
-    // `typeof timestamp === "number" && timestamp < 1e12 ? ts * 1000 : ts`
+    // `typeof timestamp === "number" && timestamp < 1e12 ? ts * 1000: ts`
     let ms = if ts < 1_000_000_000_000 { ts * 1000 } else { ts };
     let parts = crate::common::jakarta_parts(ms);
     format!(
@@ -47,7 +23,7 @@ fn format_date(timestamp: Option<i64>) -> String {
     )
 }
 
-/// `formatSubs` (`cekidch.js:27-32`).
+/// `formatSubs`.
 fn format_subs(count: i64) -> String {
     if count == 0 {
         return "0".to_string();
@@ -149,8 +125,8 @@ struct Metadata {
     verification: Option<String>,
 }
 
-/// `metadata.verification === 'VERIFIED' ? '✓ Verified' : 'Unverified'`
-/// (`cekidch.js:64`).
+/// `metadata.verification === 'VERIFIED' ? '✓ Verified': 'Unverified'`
+///
 fn status_verifikasi(verification: Option<&str>) -> &'static str {
     if verification == Some("VERIFIED") {
         "✓ Verified"
@@ -159,7 +135,7 @@ fn status_verifikasi(verification: Option<&str>) -> &'static str {
     }
 }
 
-/// Ambil ID channel dari link — `socket.js:1313-1320`.
+/// Ambil ID channel dari link —.
 fn channel_id_dari(url: &str) -> String {
     if let Some(rest) = url.split("whatsapp.com/channel/").nth(1) {
         return rest.split(['/', '?', '#'].as_slice()).next().unwrap_or("").trim().to_string();
@@ -170,7 +146,7 @@ fn channel_id_dari(url: &str) -> String {
     url.to_string()
 }
 
-/// Ambil jumlah pengikut dari `og:description` ("Channel • 25 followers • ...").
+/// Ambil jumlah pengikut dari `og:description` ("Channel • 25 followers •...").
 fn subscribers_dari_og(html: &str) -> Option<i64> {
     let og = meta_content(html, "og:description")?;
     let idx = og.find("followers")?;

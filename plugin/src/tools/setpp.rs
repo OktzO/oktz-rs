@@ -1,12 +1,9 @@
-//! `plugins/tools/setpp.js` — mengubah foto profil bot.
+//! Mengubah foto profil bot.
 //!
-//! Port penuh: unduh gambar (quoted ATAU trigger) lewat `ctx.media_fetch`,
-//! lalu `sock.updateProfilePicture(botJid, buffer)` → `ctx.sock().set_foto_profil`.
-//!
-//! `ponytail:` `sock.user?.id` (JID bot) tidak ada di `Ctx` — tapi
-//! `SockKlien::set_foto_profil` hanya mendukung foto profil bot sendiri untuk
-//! jid non-grup, jadi argumen jid dilewati apa adanya (paritas tetap: foto bot
-//! yang berubah). Upgrade path: ekspos `bot_id` di `Ctx` untuk validasi jid.
+//! `Keterbatasan:` `sock.user?.id` (JID bot) tidak ada di `Ctx` — tapi
+//! `SockKlien::set_foto_profil` hanya mendukung foto profil bot sendiri untuk jid non-grup,
+//! jadi argumen jid dilewati apa adanya (perilaku tetap: foto bot yang berubah). Upgrade
+//! path: ekspos `bot_id` di `Ctx` untuk validasi jid.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaOrigin, Reply, plugin};
 
@@ -45,8 +42,8 @@ fn gagal_ambil() -> &'static str {
     is_owner = true
 )]
 pub fn setpp(ctx: Ctx) -> Reply {
-    // Sumber: quoted gambar dulu (JS `m.quoted.isImage`), lalu gambar dengan
-    // caption (JS `m.isImage`).
+    // Sumber: quoted gambar dulu (versi awal `m.quoted.isImage`), lalu gambar
+    // caption (versi awal `m.isImage`).
     let origin = match (&ctx.quoted, &ctx.media) {
         (Some(q), _) if q.kind == oktz_plugin_api::QuotedKind::Image => MediaOrigin::Quoted,
         (None, Some(m)) if matches!(m.kind, IncomingKind::Image) => MediaOrigin::Trigger,
@@ -243,7 +240,7 @@ mod tests {
 
     #[test]
     fn without_an_image_it_shows_the_usage_card() {
-        // JS: `buffer` tetap null untuk quoted non-gambar dan pesan tanpa media.
+        // versi awal: `buffer` tetap null untuk quoted non-gambar dan pesan tanpa media.
         assert_eq!(run(None, None, unduh_ok(), Default::default()), usage("."));
         for kind in [QuotedKind::Text, QuotedKind::Video, QuotedKind::Sticker, QuotedKind::Document] {
             assert_eq!(
@@ -283,7 +280,7 @@ mod tests {
 
     #[test]
     fn empty_download_shows_the_usage_card_like_js() {
-        // JS `if (!buffer)` — unduhan kosong = tidak ada gambar.
+        // versi awal `if (!buffer)` — unduhan kosong = tidak ada gambar.
         let unduh = Unduh { hasil: Ok(vec![]) };
         assert_eq!(run(Some(quoted_image()), None, unduh, Default::default()), usage("."));
     }

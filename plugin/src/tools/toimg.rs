@@ -1,11 +1,10 @@
-//! `plugins/tools/toimg.js` — mengubah sticker menjadi gambar.
+//! Mengubah sticker menjadi gambar.
 //!
-//! Port penuh (plan Task 6): unduh sticker (quoted ATAU trigger) lewat
-//! `ctx.media_fetch`, decode webp, encode PNG, kirim `Reply::image`.
-//! Sticker animasi tidak bisa dibedakan dari statis di `Ctx` (`isAnimated`
-//! tidak terekspos) — `ponytail:` sticker animasi tetap diproses sebagai
-//! gambar; upgrade path: ekspos `isAnimated` di `IncomingMedia` untuk
-//! menyarankan `.tovideo` seperti JS.
+//! Port penuh (plan Task 6): unduh sticker (quoted ATAU trigger) lewat `ctx.media_fetch`,
+//! decode webp, encode PNG, kirim `Reply::image`. Sticker animasi tidak bisa dibedakan dari
+//! statis di `Ctx` (`isAnimated` tidak terekspos) — `Keterbatasan:` sticker animasi tetap
+//! diproses sebagai gambar; upgrade path: ekspos `isAnimated` di `IncomingMedia` untuk
+//! menyarankan `.tovideo` seperti versi awal.
 
 use oktz_plugin_api::{plugin, Ctx, IncomingKind, MediaOrigin, Reply};
 
@@ -56,7 +55,7 @@ fn gagal_proses(e: &str) -> String {
     is_private = false
 )]
 pub fn toimg(ctx: Ctx) -> Reply {
-    // Sumber: quoted sticker dulu (JS `quotedIsSticker`), lalu sticker dengan
+    // Sumber: quoted sticker dulu (versi awal `quotedIsSticker`), lalu sticker
     // caption (`selfIsSticker`).
     let asal = match (&ctx.quoted, &ctx.media) {
         (Some(q), _) if q.kind == oktz_plugin_api::QuotedKind::Sticker => MediaOrigin::Quoted,
@@ -76,7 +75,7 @@ pub fn toimg(ctx: Ctx) -> Reply {
     }
 
     // Sticker WA = webp; `sharp` decode + `ke_png` encode — persis
-    // `sock.sendMedia(..., { type: 'image' })` di JS.
+    // `sock.sendMedia(..., { type: 'image' })` di versi awal.
     match oktz_plugin_api::gambar::sharp(&buffer) {
         Ok(gambar) => match gambar.ke_png() {
             Ok(png) => Reply::image(

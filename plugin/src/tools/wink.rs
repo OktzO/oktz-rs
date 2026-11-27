@@ -1,6 +1,4 @@
-//! `plugins/tools/wink.js` — tingkatkan video lewat `oktz_scraper::wink::wink_enhance`.
-//! Ponytail: balasan proses intermediate dan nama berkas `wink-${Date.now()}` tidak
-//! direplikasi (Ctx tidak punya epoch); reaksi 🕕 hilang, hanya `✅`/`❌` akhir.
+//! Tingkatkan video lewat `oktz_scraper::wink::wink_enhance`.
 
 use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin};
 use oktz_scraper::wink::{plan_poll_budget, wink_enhance, Rencana};
@@ -157,7 +155,7 @@ mod tests {
     }
 
     fn video_url(r: &Reply) -> String {
-        // `wink.js` membalas lewat `m.react("✅")` + `m.reply(video)`, jadi
+        // membalas lewat `m.react("✅")` + `m.reply(video)`, jadi
         // balasan datang terbungkus Reaction.
         match r.without_mutations().tanpa_reaksi() {
             Reply::Video { media, .. } => match media {

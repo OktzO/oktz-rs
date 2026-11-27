@@ -1,14 +1,11 @@
-//! `plugins/tools/hitungwrmlbb.js` — kalkulator win rate Mobile Legends.
-//! Hanya butuh jaringan HTTP (ctx.http), tidak ada capability tambahan.
-//! Catatan: `tools/mod.rs` sudah milik plugin lain, jangan sentuh;
-//! orchestrator harus menambah baris `pub mod hitungwrmlbb;` ke `tools/mod.rs`.
+//! Kalkulator win rate Mobile Legends.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 const API_BASE: &str = "https://api.nexray.eu.cc/tools/winrate-mlbb";
 
-/// `hitungwrmlbb.js:16-22` — kartu pakai saat argumen kurang dari 3.
+/// Kartu pakai saat argumen kurang dari 3.
 fn kartu_pakai(prefix: &str) -> String {
     format!(
         "Halo *{}* 👋\n\nUntuk menghitung target Win Rate MLBB kamu, gunakan format:\n\
@@ -18,10 +15,10 @@ fn kartu_pakai(prefix: &str) -> String {
     )
 }
 
-/// `isNaN(x)` JS — setara `Number(x)` yang NaN.
+/// `isNaN(x)` versi awal — setara `Number(x)` yang NaN.
 ///
-/// Bukan `parse::<f64>()` polos: Rust menerima `"nan"` dan `"inf"` yang di
-/// JS justru NaN, dan Rust menolak `"0x10"` yang di JS bernilai 16.
+/// Bukan `parse::<f64>()` polos: Rust menerima `"nan"` dan `"inf"` yang
+/// versi awal justru NaN, dan Rust menolak `"0x10"` yang di versi awal bernilai 16.
 fn is_nan_js(s: &str) -> bool {
     let t = s.trim();
     // Number("") === 0, bukan NaN.
@@ -41,7 +38,7 @@ fn is_nan_js(s: &str) -> bool {
     }
 }
 
-/// `hitungwrmlbb.js:43-47` — susun teks hasil dari `data.result`.
+/// Susun teks hasil dari `data.result`.
 fn hasil_teks(total_match: &str, wr_now: &str, wr_target: &str, result: &str) -> String {
     format!(
         "🎮 *KALKULATOR WINRATE MLBB* 🎮\n\n📊 Total Match: *{}*\n📉 WR Sekarang: *{}%*\
@@ -75,7 +72,7 @@ pub fn hitungwrmlbb(ctx: Ctx) -> Reply {
     let wr_now = &ctx.args[1];
     let wr_target = &ctx.args[2];
 
-    // JS: `isNaN(totalMatch) || isNaN(wrNow) || isNaN(wrTarget)`.
+    // versi awal: `isNaN(totalMatch) || isNaN(wrNow) || isNaN(wrTarget)`.
     if is_nan_js(total_match) || is_nan_js(wr_now) || is_nan_js(wr_target) {
         return Reply::text(
             "❌ Angka tidak valid. Pastikan semua yang dimasukkan adalah angka (tanpa %).\n\n\
@@ -104,7 +101,7 @@ pub fn hitungwrmlbb(ctx: Ctx) -> Reply {
         }
     };
 
-    // JS: `if (!data.status || !data.result)`.
+    // versi awal: `if (!data.status || !data.result)`.
     let status_ok = data
         .get("status")
         .is_some_and(|v| v.is_boolean() && v.as_bool().unwrap_or(false));
@@ -230,7 +227,7 @@ mod tests {
     #[test]
     fn isnan_js_meniru_number_coercion() {
         // isNaN(x) = Number(x) NaN: "50px" invalid, angka turun valid,
-        // string kosong jadi 0 (bukan NaN), sama seperti JS.
+        // string kosong jadi 0 (bukan NaN), sama seperti versi awal.
         assert!(is_nan_js("50px"), "50px harus NaN di JS");
         assert!(is_nan_js("abc"), "abc harus NaN di JS");
         assert!(!is_nan_js(""), "kosong jadi 0, bukan NaN di JS");

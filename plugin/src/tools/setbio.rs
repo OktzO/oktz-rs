@@ -1,15 +1,8 @@
-//! `plugins/tools/setbio.js` — mengubah bio/status bot.
-//!
-//! Port penuh: `sock.updateProfileStatus(bioToSet)` → `ctx.sock().set_bio(bio)`.
-//! `clear` mengosongkan bio. Balasan sukses mengikuti JS apa adanya; kegagalan
-//! `sock` jadi kartu ❌ yang membawa pesan error-nya.
-//!
-//! Panjang dihitung dengan `encode_utf16().count()` karena `String.length` di JS
-//! menghitung unit UTF-16, bukan karakter.
+//! Mengubah bio/status bot.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `bioToSet.length > 139` (setbio.js:31).
+/// `bioToSet.length > 139`.
 const MAX: usize = 139;
 
 fn usage(prefix: &str) -> String {
@@ -36,7 +29,7 @@ fn gagal(e: &str) -> String {
     format!("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat mengubah bio bot.\n> _{e}_")
 }
 
-/// `newBio?.toLowerCase() === 'clear' ? '' : (newBio || '')` (setbio.js:29).
+/// `newBio?.toLowerCase() === 'clear' ? '': (newBio || '')`.
 fn bio_to_set(new_bio: &str) -> &str {
     if new_bio.eq_ignore_ascii_case("clear") {
         ""

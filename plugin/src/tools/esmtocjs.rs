@@ -1,23 +1,12 @@
-//! `plugins/tools/esmtocjs.js` — ubah `import`/`export` ESM jadi CommonJS.
+//! Ubah `import`/`export` ESM jadi CommonJS.
 //!
-//! `convertEsmToCjs` di JS adalah 12 `String.replace` berurutan yang juga
-//! menulis daftar export ke `exportedItems`. Regex tidak tersedia di crate ini,
-//! jadi tiap aturan ditulis ulang sebagai pemindai byte dan efek sampingnya
-//! (pengumpulan nama export) dikumpulkan lewat closure.
-//!
-//! Satu bug JS menentukan hasil dan WAJIB dipertahankan: aturan
-//! `export default (\w+)` (`esmtocjs.js:51`) jalan lebih dulu dari aturan
-//! `export default (function|class|async function) …` (`:57`) dan `\w+` bisa
-//! makan kata `function`. Jadi `export default function foo() {}` berakhir
-//! sebagai `foo() {}` + `module.exports = function`.
-//!
-//! `ponytail:` `sock.sendCodeBlock` tidak ada di API port, jadi hasil konversi
-//! dikirim sebagai teks biasa. Cabang `catch` JS tidak diport — konversi string
-//! di Rust tidak bisa gagal di tengah jalan.
+//! `Keterbatasan:` `sock.sendCodeBlock` tidak ada di API port, jadi hasil konversi dikirim
+//! sebagai teks biasa. Cabang `catch` versi awal tidak diport — konversi string di Rust
+//! tidak bisa gagal di tengah jalan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-// ---------- primitif pemindai (pengganti regex) ----------
+// --------- primitif pemindai (pengganti regex) ----------
 
 fn next_boundary(s: &str, i: usize) -> usize {
     match s[i..].chars().next() {
@@ -36,7 +25,7 @@ fn has(s: &str, i: usize, lit: &str) -> bool {
     s.get(i..).is_some_and(|t| t.starts_with(lit))
 }
 
-/// `\w+` — JS `\w` = `[A-Za-z0-9_]`, tanpa `$`.
+/// `\w+` — versi awal `\w` = `[A-Za-z0-9_]`, tanpa `$`.
 fn ident_at(s: &str, i: usize) -> Option<usize> {
     let mut j = i.min(s.len());
     while let Some(c) = s[j..].chars().next() {
@@ -64,7 +53,7 @@ fn semi(s: &str, i: usize) -> usize {
 }
 
 /// `\s*=` setelah `i`; posisi tepat SETELAH `=`. Spasi setelah `=` bukan bagian
-/// regex JS, jadi harus tetap ikut di hasil.
+/// regex versi awal, jadi harus tetap ikut di hasil.
 fn eq_after(s: &str, i: usize) -> Option<usize> {
     let j = ws_fwd(s, i);
     has(s, j, "=").then_some(j + 1)
@@ -147,7 +136,7 @@ where
     out
 }
 
-// ---------- aturan 1..13, urutannya sama dengan JS ----------
+// --------- aturan 1..13, urutannya sama dengan versi awal ----------
 
 /// Satu nama yang diekspor: `a` atau `b as c` pada `export { … }`.
 pub(crate) struct Exported {
@@ -156,7 +145,7 @@ pub(crate) struct Exported {
 }
 
 impl Exported {
-    /// `e.alias ? `${e.alias}: ${e.name}` : e.name`
+    /// `e.alias ? `${e.alias}: ${e.name}`: e.name`
     fn pair(&self) -> String {
         match &self.alias {
             Some(a) => format!("{a}: {}", self.name),
@@ -289,7 +278,7 @@ fn e5(s: &str, i: usize) -> Option<(usize, String)> {
 }
 
 /// `export\s+default\s+(\w+)\s*;?` — juga menelan `export default function …`
-/// (`\w+` bisa makan `function`), jadi aturan `function|class` di JS mati.
+/// (`\w+` bisa makan `function`), jadi aturan `function|class` di versi awal mati.
 fn e6(s: &str, i: usize) -> Option<(usize, String)> {
     if !has(s, i, "export") {
         return None;
@@ -310,7 +299,7 @@ fn e6(s: &str, i: usize) -> Option<(usize, String)> {
     Some((end, String::new()))
 }
 
-/// `export\s+default\s+(\{[\s\S]*?\})\s*;?` — `[\s\S]*?` malas, jadi berhenti di
+/// `export\s+default\s+(\{[\s\S]*?\})\s*;?` — `[\s\S]*?` malas, jadi berhenti
 /// `}` pertama dan tidak bisa nesting.
 fn e8(s: &str, i: usize) -> Option<(usize, String)> {
     if !has(s, i, "export") {
@@ -470,7 +459,7 @@ fn e13(s: &str, i: usize) -> Option<(usize, String)> {
 }
 
 thread_local! {
-    /// `hasDefaultExport` + `defaultExportValue` — dua closure aturan yang
+    /// `hasDefaultExport` + `defaultExportValue` — dua closure aturan
     /// sama-sama menuliskannya, jadi disimpan sekali per konversi.
     static CURRENT: std::cell::RefCell<DefaultState> =
         const { std::cell::RefCell::new(DefaultState { has_default: false, default_value: String::new() }) };
@@ -691,7 +680,7 @@ mod tests {
     }
 
     // `export default (\w+)` jalan lebih dulu dan `\w+` makan kata `function`,
-    // jadi badan `export default function …` ikut hilang (bug JS yang diport).
+    // jadi badan `export default function …` ikut hilang (bug versi awal yang diport).
     #[test]
     fn the_default_function_branch_is_eaten_by_the_word_rule() {
         assert_eq!(

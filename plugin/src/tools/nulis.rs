@@ -1,16 +1,7 @@
-//! `plugins/tools/nulis.js` — generate tulisan tangan di kertas.
+//! Generate tulisan tangan di kertas.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `@napi-rs/canvas` (`createCanvas`, `loadImage`,
-//! `GlobalFonts.register` dengan font `Zahraaa` dari asset), `getAssetBuffer`
-//! ("font" dan "kertas"), `timeHelper` (`formatDate "DD/MM/YYYY"`,
-//! `formatFull "dddd"`), `saluranCtx()`, dan `sock.sendMedia(..., { type:
-//! "image" }, contextInfo)`.
-//!
-//! `ponytail:` kalau API canvas dan aset tersedia di `Ctx` nanti, port ulang
-//! dari `plugins/tools/nulis.js` (wrap teks lewat `measureText`, tanggal +
-//! hari di kanan atas kertas, buffer JPEG).
+//! `Keterbatasan:` kalau API canvas dan aset tersedia di `Ctx` nanti, tambahkan (wrap teks
+//! lewat `measureText`, tanggal + hari di kanan atas kertas, buffer JPEG).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

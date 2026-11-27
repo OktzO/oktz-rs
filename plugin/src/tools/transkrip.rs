@@ -1,13 +1,4 @@
-//! `plugins/tools/transkrip.js` — konversi voice note / audio ke teks
-//! (Speech-to-Text) lewat Groq Whisper.
-//!
-//! ## Penyimpangan
-//!
-//! - Konversi ke WAV memakai `oktz_plugin_api::ffmpeg` dengan argumen yang
-//!   sama seperti JS: `-ar 16000 -ac 1 -f wav`.
-//! - `error.response?.status` di JS tidak ada padanannya di `HttpError`, jadi
-//!   port ini memakai `terima_semua_status()` dan membaca `res.status`
-//!   langsung. Balasan 401 dan 429 tetap dipisah seperti di JS.
+//! Konversi voice note / audio ke teks
 
 use oktz_plugin_api::registry::MultipartPart;
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
@@ -45,7 +36,7 @@ fn rate_limit() -> &'static str {
     "❌ Rate limit Groq tercapai. Coba lagi nanti."
 }
 
-/// `transcribeWithGroq` (`transkrip.js:32-47`).
+/// `transcribeWithGroq`.
 fn transcribe(ctx: &Ctx, wav: &[u8], api_key: &str) -> Result<String, u16> {
     let parts = vec![
         MultipartPart::file("file", "audio.wav", wav.to_vec()).with_mimetype("audio/wav"),
@@ -84,7 +75,7 @@ fn transcribe(ctx: &Ctx, wav: &[u8], api_key: &str) -> Result<String, u16> {
     is_bot_admin = false
 )]
 pub fn transkrip(ctx: Ctx) -> Reply {
-    // `const quoted = m.quoted || m` (`transkrip.js:49`).
+    // `const quoted = m.quoted || m`.
     let (is_audio, dari_pemicu) = match ctx.quoted() {
         Some(q) => {
             let audio = matches!(q.kind, oktz_plugin_api::QuotedKind::Audio)
@@ -124,7 +115,7 @@ pub fn transkrip(ctx: Ctx) -> Reply {
         return Reply::text(terlalu_kecil()).with_reaction("❌");
     }
 
-    // Konversi ke WAV 16 kHz mono — `convertToWav` (`transkrip.js:23-31`).
+    // Konversi ke WAV 16 kHz mono — `convertToWav`.
     let temp_dir = "tmp";
     let _ = ctx.berkas().buat_folder(temp_dir);
     let ts = crate::common::now_ms();
@@ -168,7 +159,7 @@ pub fn transkrip(ctx: Ctx) -> Reply {
         return Reply::text(tidak_terdeteksi()).with_reaction("❌");
     }
 
-    // `(buffer.length / 1024).toFixed(1)` (`transkrip.js:95`).
+    // `(buffer.length / 1024).toFixed(1)`.
     let ukuran = format!("{:.1}", buffer.len() as f64 / 1024.0);
     let balasan = format!(
         "🎤 *ᴛʀᴀɴsᴋʀɪᴘ*\n\n\

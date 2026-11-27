@@ -1,16 +1,4 @@
-//! `plugins/tools/toaudio.js` — mengubah video/voice note menjadi audio MP3.
-//!
-//! ## Penyimpangan
-//!
-//! - `m.message?.audioMessage?.ptt === true` (`toaudio.js:27,40`) tidak punya
-//!   padanan di `oktz-plugin-api`: `IncomingMedia` dan `QuotedMessage` tidak
-//!   menyimpan flag `ptt`. Port ini memakai启发istik: audio dengan mimetype
-//!   `audio/ogg` (voice note WA) dianggap PTT, audio lain dianggap file audio
-//!   biasa. Efeknya: reply voice note tetap diekstrak (cabang JS untuk PTT),
-//!   sedangkan reply file audio biasa memunculkan peringatan `sudah dalam
-//!   format audio` (cabang JS untuk non-PTT).
-//! - Ekstraksi memakai ffmpeg lewat `oktz_plugin_api::ffmpeg` dengan argumen
-//!   yang sama seperti JS: `-vn -ar 44100 -ac 2 -b:a 192k`.
+//! Mengubah video/voice note menjadi audio MP3.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -84,7 +72,7 @@ fn ptt_dari_mimetype(mimetype: Option<&str>) -> bool {
     is_bot_admin = false
 )]
 pub fn toaudio(ctx: Ctx) -> Reply {
-    // `selfIsVideo` / `selfIsAudio` dicek lebih dulu (`toaudio.js:42-58`).
+    // `selfIsVideo` / `selfIsAudio` dicek lebih dulu.
     let sumber = if matches!(ctx.media_type(), Some("videoMessage")) {
         Some(Sumber {
             video: true,
@@ -111,15 +99,15 @@ pub fn toaudio(ctx: Ctx) -> Reply {
         })
     };
 
-    // JS hanya memakai media yang terdeteksi video/voice-note; `sumber`
+    // versi awal hanya memakai media yang terdeteksi video/voice-note; `sumber`
     // bernilai `None` kalau tidak ada media maupun reply media.
     let Some(sumber) = sumber else {
         return Reply::text(tanpa_media(&ctx.prefix));
     };
 
-    // Kalau sumbernya audio biasa (bukan PTT), JS keluar lebih dulu.
+    // Kalau sumbernya audio biasa (bukan PTT), versi awal keluar lebih dulu.
     if !sumber.video && !sumber.ptt {
-        // Audio biasa: JS tidak punya flag ptt, jadi yang bisa dipastikan
+        // Audio biasa: versi awal tidak punya flag ptt, jadi yang bisa dipastikan
         // hanyalah "ini audio".
         let _ = sumber;
         return Reply::text(sudah_audio(&ctx.prefix));

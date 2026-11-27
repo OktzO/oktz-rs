@@ -1,6 +1,4 @@
-//! `plugins/tools/ipwho.js` — lookup IP lewat ipwho.is.
-//! Ponytail: `Reply` tidak punya variant lokasi, jadi petak lokasi JSON
-//! (latitude/longitude) diabaikan; hanya teks informasi yang dikirim.
+//! Lookup IP lewat ipwho.is.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -58,7 +56,7 @@ pub fn ipwho(ctx: Ctx) -> Reply {
     let url = format!("https://ipwho.is/{ip}");
     let Some(data) = ctx.http.get(&url).ok().and_then(|r| r.json()) else {
         // `fetch` gagal ATAU `res.json()` gagal (badan kosong/bukan JSON)
-        // sama-sama masuk `catch` JS (`ipwho.js:40-41`, `ipwho.js:87-90`).
+        // sama-sama masuk `catch` versi awal.
         return Reply::text(crate::common::error_template(&ctx))
             .with_reaction("☢");
     };

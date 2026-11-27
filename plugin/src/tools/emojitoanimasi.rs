@@ -1,9 +1,9 @@
-//! `plugins/tools/emojitoanimasi.js` — konversi emoji ke sticker animasi lewat Neoxr.
+//! Konversi emoji ke sticker animasi lewat Neoxr.
 //!
-//! `ponytail:` `contextInfo: saluranCtx()` (`src/lib/context.js`) tidak tersedia
-//! di `Reply::Sticker`, dan reaksi ganda JS (`🎭` lalu `✅`) disatukan jadi satu
-//! reaksi akhir (`✅`) seperti `phisingataubukan` (`with_reaction` hanya satu
-//! emoji). Saat `contextInfo` tersedia di `Reply`, pasang ulang.
+//! `Keterbatasan:` `contextInfo: saluranCtx()` tidak tersedia di `Reply::Sticker`, dan
+//! reaksi ganda versi awal (`🎭` lalu `✅`) disatukan jadi satu reaksi akhir (`✅`) seperti
+//! `phisingataubukan` (`with_reaction` hanya satu emoji). Saat `contextInfo` tersedia di
+//! `Reply`, pasang ulang.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -12,12 +12,12 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 const API: &str = "https://api.neoxr.eu/api/emojito";
 
-/// `apiUrl` (`emojitoanimasi.js:34`).
+/// `apiUrl`.
 pub(crate) fn api_url(emoji: &str, apikey: &str) -> String {
     format!("{API}?q={}&apikey={}", encode_uri_component(emoji), apikey)
 }
 
-/// `!data?.status || !data?.data?.url` (`emojitoanimasi.js:37`).
+/// `!data?.status || !data?.data?.url`.
 pub(crate) fn respons_valid(data: &Value) -> bool {
     crate::common::js_truthy(data.get("status"))
         && data
@@ -26,10 +26,10 @@ pub(crate) fn respons_valid(data: &Value) -> bool {
             .is_some_and(|v| matches!(v, Value::String(s) if !s.is_empty()))
 }
 
-/// Teks gagal (`emojitoanimasi.js:39`).
+/// Teks gagal.
 pub(crate) const GAGAL: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Emoji tidak ditemukan atau API error";
 
-/// Kartu pakai (`emojitoanimasi.js:23-28`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎭 *ᴇᴍᴏᴊɪ ᴛᴏ ᴀɴɪᴍᴀsɪ*\n\n\
@@ -84,7 +84,7 @@ pub fn emojitoanimasi(ctx: Ctx) -> Reply {
     let bytes = webp_res.body.bytes().to_vec();
 
     // `contextInfo: saluranCtx()` tidak tersedia di `Reply::Sticker` —
-    // dicatat di `ponytail:` di atas.
+    // dicatat di `Keterbatasan:` di atas.
     Reply::sticker(MediaSource::bytes(bytes)).with_reaction("✅")
 }
 

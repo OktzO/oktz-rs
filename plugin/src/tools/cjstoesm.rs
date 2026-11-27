@@ -1,22 +1,12 @@
-//! `plugins/tools/cjstoesm.js` — ubah `require()`/`module.exports` jadi ESM.
+//! Ubah `require()`/`module.exports` jadi ESM.
 //!
-//! `convertCjsToEsm` di JS adalah 15 `String.replace` berurutan dengan regex.
-//! Regex tidak boleh dipakai di crate ini (tidak ada dependency `regex`), jadi
-//! tiap aturan ditulis ulang sebagai pemindai byte — DAN urutan, sifat
-//! serakah, serta bug JS-nya dipakai apa adanya. Dua di antaranya penting:
-//!
-//! - Aturan `.default` (`cjstoesm.js:36`) tidak pernah jalan: aturan `.prop`
-//!   (`:31`) lebih dulu cocok dan menelan `.default` sebagai properti biasa.
-//! - Aturan `exports.X` (`:70-86`) tidak punya batas kata, jadi ia juga cocok
-//!   di dalam `module.exports.X` dan menghasilkan `module.export { … }`.
-//!
-//! `ponytail:` `sock.sendCodeBlock` tidak ada di API port, jadi hasil konversi
-//! dikirim sebagai teks biasa. Cabang `catch` JS tidak diport — konversi string
-//! di Rust tidak bisa gagal di tengah jalan seperti `replace` JS.
+//! `Keterbatasan:` `sock.sendCodeBlock` tidak ada di API port, jadi hasil konversi dikirim
+//! sebagai teks biasa. Cabang `catch` versi awal tidak diport — konversi string di Rust
+//! tidak bisa gagal di tengah jalan seperti `replace` versi awal.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-// ---------- primitif pemindai (pengganti regex) ----------
+// --------- primitif pemindai (pengganti regex) ----------
 
 fn is_word(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
@@ -29,7 +19,7 @@ fn next_boundary(s: &str, i: usize) -> usize {
     }
 }
 
-/// `\w+` — JS `\w` = `[A-Za-z0-9_]`, tanpa `$`.
+/// `\w+` — versi awal `\w` = `[A-Za-z0-9_]`, tanpa `$`.
 fn ident_at(s: &str, i: usize) -> Option<usize> {
     let mut j = i;
     while let Some(c) = s[j..].chars().next() {
@@ -41,7 +31,7 @@ fn ident_at(s: &str, i: usize) -> Option<usize> {
     (j > i).then_some(j)
 }
 
-/// `\b` di depan posisi `i`: regex JS di sini tidak pakainya, tapi pemindai
+/// `\b` di depan posisi `i`: regex versi awal di sini tidak pakainya, tapi pemindai
 /// `const|let|var` dan `require` butuh batas agar `constant`/`myrequire` tidak
 /// ikut cocok.
 fn word_start_before(s: &str, i: usize) -> bool {
@@ -82,7 +72,7 @@ fn async_prefix(s: &str, i: usize) -> (String, usize) {
     (String::new(), i)
 }
 
-/// `\(([^)]*)\)` — regex JS tidak bisa nesting, ini juga tidak.
+/// `\(([^)]*)\)` — regex versi awal tidak bisa nesting, ini juga tidak.
 fn paren(s: &str, i: usize) -> Option<(String, usize)> {
     if !s[i..].starts_with('(') {
         return None;
@@ -173,7 +163,7 @@ where
     out
 }
 
-/// `{ a, b: c }` → `a, b as c` (`cjstoesm.js:23-27`).
+/// `{ a, b: c }` → `a, b as c`.
 fn named_to_import(list: &str) -> String {
     list.split(',')
         .map(|item| {
@@ -188,7 +178,7 @@ fn named_to_import(list: &str) -> String {
         .join(", ")
 }
 
-/// `{ a, b: c }` → `a, c as b` (`cjstoesm.js:49-54`).
+/// `{ a, b: c }` → `a, c as b`.
 fn obj_to_export(list: &str) -> String {
     list.split(',')
         .map(|item| {
@@ -203,7 +193,7 @@ fn obj_to_export(list: &str) -> String {
         .join(", ")
 }
 
-// ---------- aturan 1..15, urutannya sama dengan JS ----------
+// --------- aturan 1..15, urutannya sama dengan versi awal ----------
 
 /// `(?:const|let|var)\s*\{\s*([^}]+)\s*\}\s*=\s*require\(...\)\s*;?`
 fn r1(s: &str, i: usize) -> Option<(usize, String)> {
@@ -221,7 +211,7 @@ fn r1(s: &str, i: usize) -> Option<(usize, String)> {
 }
 
 /// `(?:const|let|var)\s+(\w+)\s*=\s*require\(...\)\.(\w+)\s*;?` — aturan ini
-/// yang menangkap `… .default` (aturan `.default` di JS tidak pernah jalan).
+/// yang menangkap `….default` (aturan `.default` di versi awal tidak pernah jalan).
 fn r2(s: &str, i: usize) -> Option<(usize, String)> {
     let k = decl_kw(s, i)?;
     let j = ws_fwd(s, k);
@@ -309,7 +299,7 @@ fn r6(s: &str, i: usize) -> Option<(usize, String)> {
 
 /// `(async\s+)?(function|class)\s*(\w*)\s*(\([^)]*\))?\s*\{`
 ///
-/// `params` dikembalikan INCLUDING tanda kurung — `(\([^)]*\))` di JS ikut
+/// `params` dikembalikan INCLUDING tanda kurung — `(\([^)]*\))` di versi awal ikut
 /// ditulis apa adanya ke hasil. `classes` menolak `class`: hanya aturan
 /// `module.exports` (r7) yang memperbolehkannya, `exports.*` (r10) tidak.
 fn decl_tail(s: &str, i: usize, classes: bool) -> Option<(&'static str, String, String, String, usize)> {
@@ -424,7 +414,7 @@ fn r12(s: &str, i: usize) -> Option<(usize, String)> {
 }
 
 /// `exports\.(\w+)\s*=\s*([^;\n]+)\s*;?` — nilai yang diawali `async`,
-/// `function`, `(` atau `class` dikembalikan apa adanya (`cjstoesm.js:84`).
+/// `function`, `.
 fn r13(s: &str, i: usize) -> Option<(usize, String)> {
     let p = exports_prop(s, i)?;
     let ke = ident_at(s, p)?;
@@ -661,7 +651,7 @@ mod tests {
             ("const axios = require('axios')", "import axios from 'axios';"),
             ("const { a, b } = require('x')", "import { a, b } from 'x';"),
             ("const { a, b: c } = require('x')", "import { a, b as c } from 'x';"),
-            // `d: e: f` punya tiga bagian, jadi aturan JS jatuh ke `parts[0]`.
+            // `d: e: f` punya tiga bagian, jadi aturan versi awal jatuh ke `parts[0]`.
             (
                 "var { a, b: c, d: e: f } = require('z')",
                 "import { a, b as c, d } from 'z';",

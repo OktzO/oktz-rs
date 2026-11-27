@@ -1,12 +1,4 @@
-//! `plugins/tools/lookup.js` — DNS lookup untuk domain.
-//!
-//! `pub mod lookup;` perlu ditambah manual ke `src/tools/mod.rs` (mod.rs
-//! berisi plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
-//!
-//! Pakai `ctx.http.get` ke api.hackertarget.com (DNS + whois), lalu render
-//! teks. Tidak ada `sendToolsPreview` (I/O WhatsApp di `src/lib/context.js`),
-//! jadi balasan adalah `Reply::text` polos — deviasi dari JS yang memanggil
-//! `sendToolsPreview`, yang butuh `sock`.
+//! DNS lookup untuk domain.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -20,7 +12,7 @@ fn bersihkan_domain(input: &str) -> String {
     tanpa_www.split('/').next().unwrap_or(tanpa_www).to_string()
 }
 
-/// Padanan regex JS
+/// Padanan regex versi awal
 /// `/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?(\.[a-zA-Z]{2,})+$/`
 /// tanpa dependensi `regex`.
 fn valid_domain(domain: &str) -> bool {
@@ -224,8 +216,8 @@ mod tests {
     fn valid_domain_terima_domain_bener() {
         assert!(valid_domain("google.com"));
         assert!(valid_domain("sub.domain.co.id"));
-        // JS menolak `a-b.c`: TLD-nya cuma 1 huruf, sedangkan regex minta
-        // `[a-zA-Z]{2,}` (`lookup.js:34`).
+        // versi awal menolak `a-b.c`: TLD-nya cuma 1 huruf, sedangkan regex minta
+        // `[a-zA-Z]{2,}`.
         assert!(!valid_domain("a-b.c"));
     }
 

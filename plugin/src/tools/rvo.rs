@@ -1,11 +1,4 @@
-//! `plugins/tools/rvo.js` — baca pesan sekali lihat (view once).
-//!
-//! Port penuh: teks view once dibalas apa adanya tanpa unduhan. Media quoted
-//! diunduh lewat `ctx.media_fetch` lalu kirim ulang sebagai pesan biasa
-//! (image/video/audio) — sifat "view once" hilang karena dikirim ulang sebagai
-//! pesan normal. Media jenis lain dikirim sebagai dokumen
-//! `rvo_<timestamp>.<ext>`. Setelah sukses: reaksi ✅; gagal: reaksi ☢
-//! + pesan "Gagal Membuka View Once".
+//! Baca pesan sekali lihat (view once).
 
 use oktz_plugin_api::{Ctx, MediaOrigin, QuotedKind, Reply, plugin};
 
@@ -33,7 +26,7 @@ fn galat_kadaluarsa() -> &'static str {
 }
 
 /// Deteksi galat unduh yang mengindikasikan media hangus dari server
-/// (`rvo.js:95-101`). Dua keyword terakhir tidak ada di JS tapi perlu di Rust:
+/// . Dua keyword terakhir tidak ada di versi awal tapi perlu di Rust:
 /// wacore melempar galat internal seperti "Missing file_sha256 for unencrypted
 /// media" / "Missing media_key" untuk media yang kuncinya sudah dibakar server.
 fn galat_mengarah_ke_kadaluarsa(msg: &str) -> bool {
@@ -365,7 +358,7 @@ mod tests {
 
     #[test]
     fn empty_download_is_reported_as_expired() {
-        // JS: `if (!buffer) throw new Error("Gagal download media")` → catch
+        // versi awal: `if (!buffer) throw new Error("Gagal download media")` → catch
         // match "Gagal download" → teks kadaluarsa. Unduhan kosong = sama.
         let stub = Stub {
             unduhan: Arc::new(Mutex::new(vec![])),

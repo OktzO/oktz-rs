@@ -1,14 +1,13 @@
-//! `plugins/tools/removebg.js` — hapus background lewat dua API pixelcut lalu
-//! bgninja (`oktz_scraper::removebackground`).
+//! Hapus background lewat dua API pixelcut lalu
 //!
-//! `ponytail:` `pixa()` JS menormalkan gambar ke JPEG dengan `sharp` sebelum
-//! dikirim (dan menyimpannya ke berkas sementara). `sharp` tidak ada di crate
-//! scraper, jadi byte dari WhatsApp dikirim apa adanya — gambar WA hampir
-//! selalu JPEG. Tambahkan normalisasi kalau suatu saat butuh webp/png/heic.
+//! `Keterbatasan:` `pixa()` versi awal menormalkan gambar ke JPEG dengan `sharp` sebelum
+//! dikirim (dan menyimpannya ke berkas sementara). `sharp` tidak ada di crate scraper, jadi
+//! byte dari WhatsApp dikirim apa adanya — gambar WA hampir selalu JPEG. Tambahkan
+//! normalisasi kalau suatu saat butuh webp/png/heic.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-/// Kartu pakai saat bukan gambar (`removebg.js:15-18`).
+/// Kartu pakai saat bukan gambar.
 pub(crate) fn pakai() -> String {
     "❌ *ɢᴀᴍʙᴀʀ ᴅɪʙᴜᴛᴜʜᴋᴀɴ*\n\n> Reply atau kirim gambar dengan caption .removebg".to_string()
 }
@@ -41,7 +40,7 @@ pub fn removebg(ctx: Ctx) -> Reply {
 
     let jam = || Reply::None.with_reaction("🕕");
 
-    // `removebg.js:22-28` — gambar pemicu diperiksa DULU, baru yang di-reply
+    // Gambar pemicu diperiksa DULU, baru yang di-reply
     // (kebalikan urutan `toisland`/`tocermin`).
     let unduh = if ctx.is_media_kind(oktz_plugin_api::IncomingKind::Image) {
         ctx.download_media()
@@ -52,7 +51,7 @@ pub fn removebg(ctx: Ctx) -> Reply {
     };
 
     let Ok(buffer) = unduh else {
-        // JS: unduhan yang MELEMPAR ditangkap `catch` → `te()` tanpa reaksi
+        // versi awal: unduhan yang MELEMPAR ditangkap `catch` → `te()` tanpa reaksi
         // tambahan; hanya reaksi `🕕` yang sudah terkirim.
         return Reply::sequence(vec![jam(), Reply::text(crate::common::error_template(&ctx))]);
     };
@@ -61,7 +60,7 @@ pub fn removebg(ctx: Ctx) -> Reply {
         .or_else(|_| oktz_scraper::removebackground::bgninja_remove(ctx.http.as_ref(), &buffer));
 
     match hasil {
-        // JS tidak pernah `m.react('✅')` di plugin ini.
+        // versi awal tidak pernah `m.react('✅')` di plugin ini.
         Ok(gambar) => Reply::sequence(vec![
             jam(),
             Reply::image(

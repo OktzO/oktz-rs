@@ -1,34 +1,32 @@
-//! `plugins/tools/imgtoprompt.js` — ubah gambar menjadi prompt AI.
+//! Ubah gambar menjadi prompt AI.
 //!
-//! `ponytail:` scraping sebenarnya ada di crate `oktz_scraper` (modul
-//! `img2prompt`), jadi plugin ini cuma panggil fungsi itu — tidak menyalin
-//! logika scraper ke sini.
-//! Unduh media: `m.download()`/`m.quoted.download()` →
-//! `ctx.download_media()` / `download_quoted_media()`.
-//! `Buffer.isBuffer` / validasi kosong → cek `bytes.len() > 0`.
-//! `result.status === 'eror' || !result.prompt` → teks gagal.
-//! `te(...)` → `crate::common::error_template(&ctx)`.
+//! `Keterbatasan:` scraping sebenarnya ada di crate `oktz_scraper` (modul `img2prompt`),
+//! jadi plugin ini cuma panggil fungsi itu — tidak menyalin logika scraper ke sini. Unduh
+//! media: `m.download()`/`m.quoted.download()` → `ctx.download_media()` /
+//! `download_quoted_media()`. `Buffer.isBuffer` / validasi kosong → cek `bytes.len() > 0`.
+//! `result.status === 'eror' || !result.prompt` → teks gagal. `te(...)` →
+//! `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use oktz_scraper::img2prompt::imgtoprompt as img2prompt;
 
-/// Balasan saat bukan gambar (`imgtoprompt.js:29-31`).
+/// Balasan saat bukan gambar.
 pub(crate) const BUKAN_GAMBAR: &str =
     "❌ *ɢᴀᴍʙᴀʀ ᴅɪʙᴜᴛᴜʜᴋᴀɴ*\n\n> Reply atau kirim gambar dengan caption .imgtoprompt";
 
-/// Balasan saat unduh gagal (`imgtoprompt.js:40-41`).
+/// Balasan saat unduh gagal.
 pub(crate) const GAGAL_UNDUH: &str = "❌ Gagal mengunduh gambar";
 
-/// Balasan saat buffer tidak valid (`imgtoprompt.js:43-45`).
+/// Balasan saat buffer tidak valid.
 pub(crate) const BUFFER_TIDAK_VALID: &str = "❌ Buffer gambar tidak valid";
 
-/// Balasan saat scraper gagal / tidak ada prompt (`imgtoprompt.js:57-58`).
+/// Balasan saat scraper gagal / tidak ada prompt.
 pub(crate) fn gagal_generasi(msg: &str) -> String {
     format!("❌ *ɢᴀɢᴀʟ*\n\n> {msg}")
 }
 
-/// Balasan sukses (`imgtoprompt.js:60-62`).
+/// Balasan sukses.
 pub(crate) fn sukses(prompt: &str, generated_at: &str) -> String {
     format!(
         "🎨 *ɪᴍᴀɢᴇ ᴛᴏ ᴘʀᴏᴍᴘᴛ*\n\n\
@@ -39,7 +37,7 @@ pub(crate) fn sukses(prompt: &str, generated_at: &str) -> String {
 
 /// `new Date().toISOString()` — UTC `YYYY-MM-DDTHH:mm:ss.sssZ`.
 ///
-/// `jakarta_parts` mengembalikan waktu WIB; kurangi offset supaya yang
+/// `jakarta_parts` mengembalikan waktu WIB; kurangi offset supaya
 /// keluar komponen UTC, bukan WIB.
 fn iso_now() -> String {
     let ms = crate::common::now_ms();
@@ -128,9 +126,9 @@ fn gambar_bytes(ctx: &Ctx) -> Option<Vec<u8>> {
     None
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -255,7 +253,7 @@ mod tests {
     }
 
     /// Unduhan gagal (`m.download()` menolak) — default `NoMediaFetch` juga
-    /// begitu, jadi ini menjalankan cabang `GAGAL_UNDUH` (`imgtoprompt.js:40-41`).
+    /// begitu, jadi ini menjalankan cabang `GAGAL_UNDUH`.
     fn run_unduh_gagal(http: Arc<Stub>) -> Reply {
         imgtoprompt(ctx_dengan_media(
             http,

@@ -1,10 +1,4 @@
-//! `plugins/tools/emojitoimage.js` — konversi emoji ke gambar HD via API Neoxr.
-//!
-//! Catatan: `pub mod emojitoimage;` perlu ditambah manual ke
-//! `rust/crates/oktz-plugins/src/tools/mod.rs` (mod.rs milik plugin lain,
-//! jangan disentuh).
-//!
-//! Kunci `config.APIkey.neoxr` dibaca dari `ctx.config()`.
+//! Konversi emoji ke gambar HD via API Neoxr.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -34,8 +28,8 @@ fn api_url(emoji: &str, style: &str, api_key: &str) -> String {
     )
 }
 
-/// `String(v)` untuk nilai JSON yang masuk ke template literal — sama seperti
-/// `ytstalk.js`: objek/array jadi `"[object Object]"`.
+/// `String(v)` untuk nilai JSON yang masuk ke template literal — sama
+/// : objek/array jadi `"[object Object]"`.
 fn js_str(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -92,7 +86,7 @@ pub fn emojitoimage(ctx: Ctx) -> Reply {
     }
     let url = url.unwrap();
 
-    // `${data.data.code || "-"}` (`emojitoimage.js:65`): nilai falsy JS jadi `-`.
+    // `${data.data.code || "-"}`: nilai falsy versi awal jadi `-`.
     let code_val = body
         .get("data")
         .and_then(|d| d.get("code"))
@@ -236,7 +230,7 @@ mod tests {
 
     #[test]
     fn style_salah_jadi_apple() {
-        // `emojitoimage.js:32,47` — style di luar STYLES jatuh ke "apple"
+        // `,47` — style di luar STYLES jatuh ke "apple"
         // sebelum URL dibangun; `api_url` cuma memformat nilai yang diberi.
         let http = Stub::offline();
         let r = run_dengan_kunci(http.clone(), "😳 blabla");

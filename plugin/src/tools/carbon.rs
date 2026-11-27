@@ -1,13 +1,10 @@
-//! `plugins/tools/carbon.js` — gambar kode ala Carbon.
+//! Gambar kode ala Carbon.
 //!
-//! `ponytail:` pengiriman tidak bisa di-port. `buildCarbonUrl` +
+//! `Keterbatasan:` pengiriman tidak bisa diimplementasikan. `buildCarbonUrl` +
 //! `THEMES`/`FONTS` ikut hilang bersamanya: satu-satunya pemanggilnya adalah
-//! `@microlink/mql`, yaitu layanan screenshot berbasis browser yang tidak
-//! ada di `HttpGet` (yang cuma bisa GET/POST biasa). Reaksi 🕕 dan kartu
-//! usage — dua hal yang murni teks — tetap dipertahankan.
-//!
-//! Teks sumber diambil `m.text || m.quoted?.text` (`quoted` menang kalau
-//! `m.text` kosong).
+//! `@microlink/mql`, yaitu layanan screenshot berbasis browser yang tidak ada di `HttpGet`
+//! (yang cuma bisa GET/POST biasa). Reaksi 🕕 dan kartu usage — dua hal yang murni teks —
+//! tetap dipertahankan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -29,7 +26,7 @@ fn unavailable() -> &'static str {
      > ada di `Ctx`, dan `sock.sendMedia` untuk mengirim hasilnya."
 }
 
-/// `m.text || m.quoted?.text` — string kosong di JS berarti falsy, jadi quoted
+/// `m.text || m.quoted?.text` — string kosong di versi awal berarti falsy, jadi quoted
 /// baru dibaca kalau `m.text` kosong; quoted kosong pun tetap falsy.
 fn source_code(ctx: &Ctx) -> &str {
     if ctx.text.is_empty() {

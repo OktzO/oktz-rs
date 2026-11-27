@@ -1,17 +1,16 @@
-//! `plugins/tools/styleteks.js` — ubah teks biasa jadi berbagai gaya font.
+//! Ubah teks biasa jadi berbagai gaya font.
 //!
-//! `ponytail:` tombol `cta_copy` tidak punya padanan di `Reply` (hanya teks
-//! yang bisa dikirim), jadi hasil dikirim sebagai balasan teks biasa — kutipan
-//! `quoted: m` tetap ikut karena itu bawaan `Reply::Text`.
-//! Satu `Reply` juga hanya membawa satu reaksi; reaksi penutup `✅`/`❌` yang
-//! dipertahankan, reaksi pembuka `🕕` dilewatkan.
+//! `Keterbatasan:` tombol `cta_copy` tidak punya padanan di `Reply` (hanya teks yang bisa
+//! dikirim), jadi hasil dikirim sebagai balasan teks biasa — kutipan `quoted: m` tetap ikut
+//! karena itu bawaan `Reply::Text`. Satu `Reply` juga hanya membawa satu reaksi; reaksi
+//! penutup `✅`/`❌` yang dipertahankan, reaksi pembuka `🕕` dilewatkan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const CONTOH: &str = "Zann";
 const GAYA_EKSTRA: [&str; 3] = ["Strike Through", "Underline", "Slash Through"];
 
-/// Peta `FONTS` dari JS: urutan gaya dan pasangan huruf sama persis.
+/// Peta `FONTS` dari versi awal: urutan gaya dan pasangan huruf sama persis.
 static FONTS: [(&str, &[(&str, &str)]); 14] = [
     ("Cursive", &[
         ("a", "𝓪"),
@@ -772,7 +771,7 @@ static FONTS: [(&str, &[(&str, &str)]); 14] = [
 ];
 
 /// `applyStyle(text, map)` — nilai peta kosong jatuh ke karakter asli,
-/// sama seperti cek truthy di JS.
+/// sama seperti cek truthy di versi awal.
 fn terapkan(teks: &str, peta: &[(&str, &str)]) -> String {
     let mut hasil = String::with_capacity(teks.len());
     for c in teks.chars() {
@@ -789,7 +788,7 @@ fn terapkan(teks: &str, peta: &[(&str, &str)]) -> String {
 /// `strikeThrough`/`underline`/`slashThrough` — sisipkan tanda setelah tiap
 /// karakter, lalu satu tanda lagi di akhir.
 ///
-/// `ponytail:` JS memecah per code unit UTF-16 (emoji jadi surrogate tunggal
+/// `Keterbatasan:` versi awal memecah per code unit UTF-16 (emoji jadi surrogate tunggal
 /// yang hanya bisa dikirim sebagai CESU-8); di sini per `char` supaya hasilnya
 /// tetap UTF-8 valid.
 fn gores(teks: &str, tanda: char) -> String {
@@ -895,7 +894,7 @@ pub fn styleteks(ctx: Ctx) -> Reply {
     };
 
     // `sock.sendMessage(m.chat, { text: hasil, interactiveButtons: [{cta_copy}] })`
-    // — teks masuk body kartu, tombol salin ikut.
+    // Teks masuk body kartu, tombol salin ikut.
     Reply::interactive(hasil.clone())
         .with_button_card(oktz_plugin_api::registry::InteractiveButton::copy(
             "📋 Copy Hasil Teks",
@@ -971,7 +970,7 @@ mod tests {
             "🔹 *Cursive* ➔ 𝓩𝓪𝓷𝓷\n",
             "🔹 *Double Struck* ➔ ℤ𝕒𝕟𝕟\n",
             "🔹 *Tiny* ➔ ᴢᴀɴɴ\n",
-            // JS menyisipkan tanda di antara huruf DAN satu di akhir.
+            // versi awal menyisipkan tanda di antara huruf DAN satu di akhir.
             "🔹 *Strike Through* ➔ Z\u{0336}a\u{0336}n\u{0336}n\u{0336}\u{0336}\n",
             "🔹 *Underline* ➔ Z\u{0332}a\u{0332}n\u{0332}n\u{0332}\u{0332}\n",
             "🔹 *Slash Through* ➔ Z\u{0337}a\u{0337}n\u{0337}n\u{0337}\u{0337}\n",
@@ -996,7 +995,7 @@ mod tests {
     #[test]
     fn cursive_memakai_huruf_asli_untuk_peta_kosong() {
         let r = jalankan("Cursive | Halo Dunia");
-        // JS: `map["D"]` kosong → falsy → huruf asli "D" tetap dipakai.
+        // versi awal: `map["D"]` kosong → falsy → huruf asli "D" tetap dipakai.
         assert_eq!(r.text_body().unwrap(), "𝓗𝓪𝓵𝓸 D𝓾𝓷𝓲𝓪");
         assert_eq!(reaksi(&r), Some("✅"));
         assert!(matches!(
@@ -1018,7 +1017,7 @@ mod tests {
 
     #[test]
     fn alias_garis_strike_underline_slash() {
-        // JS `text.split("").join(tanda) + tanda` → tanda di antara huruf DAN
+        // versi awal `text.split("").join(tanda) + tanda` → tanda di antara huruf DAN
         // satu ekstra di akhir.
         assert_eq!(
             jalankan("strike | Halo").text_body().unwrap(),

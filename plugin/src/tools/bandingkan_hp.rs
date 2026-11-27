@@ -1,18 +1,4 @@
-//! `plugins/tools/bandingkan-hp.js` — bandingkan spesifikasi dua smartphone
-//! dari Carisinyal.
-//!
-//! ## Penyimpangan
-//!
-//! - JS memakai `cheerio` untuk mem-parsing HTML. Crate `oktz-plugins` tidak
-//!   punya parser HTML dan menambah dependensi berarti menyentuh
-//!   `Cargo.toml` di luar wilayah yang boleh disentuh, jadi port ini memakai
-//!   parser HTML kecil yang ditulis di file ini (tokenizer tag + pohon
-//!   sederhana). Bentuk yang dibaca sama seperti di JS: elemen ber-class
-//!   `ct-text-block` (judul seksi) dan `ct-new-columns` (baris perbandingan
-//!   dengan anak `ct-div-block`).
-//! - Album gambar (`albumMessage` + `messageAssociation`) tidak ada di API
-//!   `Reply`. Port ini mengirim gambar-gambarnya sebagai pesan terpisah
-//!   setelah teks, dengan urutan yang sama.
+//! Bandingkan spesifikasi dua smartphone
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -326,7 +312,7 @@ fn punya_ancestor(node: &Node, class: &str, ancestors: &mut Vec<String>) -> bool
     false
 }
 
-/// `extractCell` (`bandingkan-hp.js:72-87`).
+/// `extractCell`.
 fn extract_cell(cell: &Node) -> String {
     if let Some(img) = cell.cari_img() {
         if let Some(src) = img.attr("src") {
@@ -361,7 +347,7 @@ struct Seksi {
     rows: Vec<Baris>,
 }
 
-/// `fetchCompare` (`bandingkan-hp.js:89-123`).
+/// `fetchCompare`.
 fn fetch_compare(html: &str) -> Vec<Seksi> {
     let root = parse_html(html);
     let mut blok: Vec<&Node> = Vec::new();
@@ -419,7 +405,7 @@ fn fetch_compare(html: &str) -> Vec<Seksi> {
     sections
 }
 
-/// `normalize` (`bandingkan-hp.js:29-31`).
+/// `normalize`.
 fn normalize(text: &str) -> String {
     text.to_lowercase()
         .chars()
@@ -427,7 +413,7 @@ fn normalize(text: &str) -> String {
         .collect()
 }
 
-/// `score` (`bandingkan-hp.js:33-43`).
+/// `score`.
 fn score(title: &str, query: &str) -> i64 {
     let t = normalize(title);
     let q = normalize(query);
@@ -467,7 +453,7 @@ struct Hp {
     title: String,
 }
 
-/// `getPhoneList` (`bandingkan-hp.js:45-57`).
+/// `getPhoneList`.
 fn get_phone_list(html: &str) -> Vec<Hp> {
     let mut list = Vec::new();
     let Some(mulai) = html.find("<select") else {
@@ -545,7 +531,7 @@ fn ambil_atribut(tag: &str, nama: &str) -> Option<String> {
     None
 }
 
-/// `bestMatch` (`bandingkan-hp.js:59-70`).
+/// `bestMatch`.
 fn best_match(list: &[Hp], query: &str) -> Option<Hp> {
     let mut best: Option<Hp> = None;
     let mut best_score = -1i64;
@@ -636,7 +622,7 @@ pub fn bandingkan_hp(ctx: Ctx) -> Reply {
     };
     let mut sections = fetch_compare(&res.text());
 
-    // Kumpulkan gambar dan ganti nilainya dengan penanda (`bandingkan-hp.js:161-173`).
+    // Kumpulkan gambar dan ganti nilainya dengan penanda.
     let mut images: Vec<String> = Vec::new();
     for sec in sections.iter_mut() {
         for row in sec.rows.iter_mut() {

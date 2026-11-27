@@ -1,7 +1,4 @@
-//! `plugins/tools/setname.js` — mengubah nama profil bot.
-//!
-//! Port penuh: `sock.updateProfileName(newName)` → `ctx.sock().set_nama(nama)`.
-//! Validasi 1-25 karakter (`String.length` JS = unit UTF-16).
+//! Mengubah nama profil bot.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -176,7 +173,7 @@ mod tests {
     fn the_length_window_is_one_to_twenty_five() {
         assert_eq!(run(&"a".repeat(MAX)), sukses(&"a".repeat(MAX)), "tepat 25 masih sah");
         assert_eq!(run(&"a".repeat(MAX + 1)), out_of_range());
-        // `""` sudah ditangkap kartu usage lebih dulu — `length < 1` di JS
+        // `""` sudah ditangkap kartu usage lebih dulu — `length < 1` di versi awal
         // tidak bisa terjadi karena `!newName` sudah keluar duluan.
         assert_eq!(run(&"a".repeat(0)), usage("."));
     }

@@ -1,21 +1,8 @@
-//! `plugins/tools/deploy.js` — deploy HTML atau file ZIP ke Vercel.
+//! Deploy HTML atau file ZIP ke Vercel.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: membaca `config.vercel.token` dari `config.js`, tetapi field
-//! `vercel` tidak ada pada `oktz_core::config::Runtime` (hanya `api_keys`,
-//! `owner`, `assets`, dst. — lihat `rust/crates/oktz-core/src/config.rs`).
-//! Tidak ada jalur membaca kunci Vercel dari `Ctx`, jadi tidak bisa meniru
-//! perilaku JS apa adanya. Selain itu, `AdmZip` (unzip buffer ZIP) dan
-//! `m.quoted.download()` untuk file ZIP/HTML butuh kapasitas yang belum ada.
-//!
-//! `ponytail:` kalau `config.vercel` ditambahkan ke `Runtime` nanti, port ulang
-//! dari `plugins/tools/deploy.js` (guard token, reaksi `🕕`, ekstrak ZIP/HTML,
-//! POST ke `https://api.vercel.com/v13/deployments`, GET domains, fallback
-//! ke `${name}.vercel.app`).
-//!
-//! NOTE: baris `pub mod deploy;` perlu ditambah ke `tools/mod.rs`
-//! secara manual (mod.rs dilarang disentuh karena sudah milik plugin lain).
+//! `Keterbatasan:` kalau `config.vercel` ditambahkan ke `Runtime` nanti, tambahkan (guard
+//! token, reaksi `🕕`, ekstrak ZIP/HTML, POST ke `https://api.vercel.com/v13/deployments`,
+//! GET domains, fallback ke `${name}.vercel.app`).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

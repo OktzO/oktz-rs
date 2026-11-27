@@ -1,12 +1,9 @@
-//! `plugins/tools/tempmail.js` — buat email sementara & cek inbox.
+//! Buat email sementara & cek inbox.
 //!
-//! `ponytail:` `TempMailCreate()` / `TempMailInbox()` dipanggil lewat crate
-//! `oktz_scraper::tempmail` (bukan menyalin logika scraper). Simpan email ke
-//! store user lewat `Mutation::SetUser`. `m.react("🕕")` / `✅` / `❌` /
-//! `☢` / `📭` — satu reaksi saja yang dibawa (`✅` atau error).
-//!
-//! Catatan: baris `pub mod tempmail;` perlu ditambah ke `tools/mod.rs`
-//! secara manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `TempMailCreate()` / `TempMailInbox()` dipanggil lewat crate
+//! `oktz_scraper::tempmail` (bukan menyalin logika scraper). Simpan email ke store user
+//! lewat `Mutation::SetUser`. `m.react("🕕")` / `✅` / `❌` / `☢` / `📭` — satu reaksi saja
+//! yang dibawa (`✅` atau error).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use oktz_scraper::tempmail::{temp_mail_create, temp_mail_inbox};
@@ -65,7 +62,7 @@ pub fn tempmail(ctx: Ctx) -> Reply {
                     .to_string();
 
                 let mut user_data = ctx.user_data.clone();
-                // JS: `db.getUser(sender) || {}` lalu `.tempmail = email`.
+                // versi awal: `db.getUser(sender) || {}` lalu `.tempmail = email`.
                 if let Some(obj) = user_data.as_object_mut() {
                     obj.insert("tempmail".to_string(), json!(email.clone()));
                 } else {
@@ -322,7 +319,7 @@ mod tests {
     #[test]
     fn create_gagal_tanpa_status() {
         // `TempMailCreate` cuma mengembalikan `status:false` kalau axios
-        // melempar (`tempmail.js:30-32`); body 200 berisi `"status":false`
+        // melempar; body 200 berisi `"status":false`
         // tetap dianggap sukses oleh scraper. Jadi kegagalan disimulasikan
         // lewat error transport.
         let http = Stub::gagal("server busy");

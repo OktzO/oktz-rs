@@ -1,24 +1,24 @@
-//! `plugins/tools/ssweb.js` — screenshot website lewat thum.io.
+//! Screenshot website lewat thum.io.
 //!
-//! `ponytail:` opsi `--mobile`/`--hp` dan penambahan `https://` di-port apa
-//! adanya. Reaksi ganda JS (`🕕` lalu `✅`) disatukan jadi satu reaksi akhir
-//! `✅`, karena `Reply::with_reaction` hanya membawa satu emoji.
+//! `Keterbatasan:` opsi `--mobile`/`--hp` dan penambahan `https://` diimplementasikan apa
+//! adanya. Reaksi ganda versi awal (`🕕` lalu `✅`) disatukan jadi satu reaksi akhir `✅`,
+//! karena `Reply::with_reaction` hanya membawa satu emoji.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 const THUM: &str = "https://image.thum.io/get";
 
-/// `width` dari mode (`ssweb.js:20-22`).
+/// `width` dari mode.
 pub(crate) fn lebar(mode: &str) -> u32 {
     if mode == "mobile" { 720 } else { 1920 }
 }
 
-/// `apiUrl` (`ssweb.js:22`).
+/// `apiUrl`.
 pub(crate) fn api_url(url: &str, mode: &str) -> String {
     format!("{THUM}/width/{}/crop/1080/noanimate/{}", lebar(mode), url)
 }
 
-/// Kartu pakai (`ssweb.js:34-40`).
+/// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "📸 *sᴄʀᴇᴇɴsʜᴏᴛ ᴡᴇʙ*\n\n\
@@ -29,7 +29,7 @@ pub(crate) fn pakai(prefix: &str) -> String {
     )
 }
 
-/// Pisahkan opsi `--mobile`/`--hp` dari URL (`ssweb.js:44-47`).
+/// Pisahkan opsi `--mobile`/`--hp` dari URL.
 pub(crate) fn pisah_mode_opsi(text: &str) -> (&str, String) {
     if text.contains("--mobile") || text.contains("--hp") {
         let bersih = text

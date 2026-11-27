@@ -1,18 +1,4 @@
-//! `plugins/tools/crm.js` — convert pesan yang di-reply jadi kode relayMessage.
-//!
-//! ## Penyimpangan
-//!
-//! - JS membaca `m.quoted.message` — objek pesan mentah lengkap (semua field
-//!   Baileys, termasuk `jpegThumbnail`, `contextInfo`, dan lain-lain). API
-//!   `QuotedMessage` hanya membawa `kind`, `text`, `mimetype`, dan
-//!   `file_name`, jadi port ini membangun ulang isi pesan dari empat field
-//!   itu. Bentuk `extendedTextMessage` (hasil `normalizeForRelay`) sama
-//!   persis dengan JS untuk pesan teks; untuk media, isinya lebih ringkas
-//!   karena byte dan field protokolnya tidak tersedia.
-//! - `sock.relayMessage` (mengirim ulang pesan yang di-reply) tidak ada di
-//!   `Reply`; port ini hanya menghasilkan kode dan berkasnya.
-//! - Snippet mode memakai `Reply::table` — pesan `richResponseMessage` yang
-//!   sama-sama berformat tabel, dengan teks judul dan kode di baris berikutnya.
+//! Convert pesan yang di-reply jadi kode relayMessage.
 
 use oktz_plugin_api::registry::MediaSource;
 use oktz_plugin_api::{Ctx, QuotedKind, QuotedMessage, Reply, plugin};
@@ -27,7 +13,7 @@ fn tanpa_quote(ctx: &Ctx) -> String {
 
 const JENIS_TIDAK_DIDUKUNG: &str = "❌ Jenis pesan ini belum didukung untuk di-relay.";
 
-/// `toJsLiteral` (`crm.js:45-88`).
+/// `toJsLiteral`.
 fn to_js_literal(value: &Value, indent: usize) -> String {
     match value {
         Value::Null => "null".to_string(),
@@ -68,7 +54,7 @@ fn to_js_literal(value: &Value, indent: usize) -> String {
     }
 }
 
-/// `/^[A-Za-z_$][A-Za-z0-9_$]*$/` (`crm.js:79`).
+/// `/^[A-Za-z_$][A-Za-z0-9_$]*$/`.
 fn is_valid_ident(k: &str) -> bool {
     let mut chars = k.chars();
     let Some(first) = chars.next() else {
@@ -124,7 +110,7 @@ fn konten_dari_quoted(q: &QuotedMessage) -> Value {
     Value::Object(map)
 }
 
-/// `typeNameFromContent` (`crm.js:116-120`).
+/// `typeNameFromContent`.
 fn nama_tipe(konten: &Value) -> String {
     let key = konten
         .as_object()
@@ -138,7 +124,7 @@ fn nama_tipe(konten: &Value) -> String {
     }
 }
 
-/// `buildReadableSendCode` (`crm.js:107-114`).
+/// `buildReadableSendCode`.
 fn kode_relay(konten: &Value) -> String {
     format!(
         "=> conn.relayMessage(\n  m.chat,\n  {},\n  {{}}\n)",

@@ -1,17 +1,13 @@
-//! `plugins/tools/izen.js` — bypass shortlink / skiplink menggunakan izen.
+//! Bypass shortlink / skiplink menggunakan izen.
 //!
-//! `ponytail:` `m.react("⏳")` dan `m.react("✅")` terjadi pada satu pesan,
-//! sementara `Reply::with_reaction` hanya satu emoji — hanya `✅` yang dibawa.
-//! `encode_uri_component` disalin ke sini (duplikasi dari
-//! `phisingataubukan.js`) karena rule port tidak menyentuh file plugin lain.
-//!
-//! Catatan: baris `pub mod izen;` perlu ditambah ke `tools/mod.rs` secara
-//! manual (mod.rs sudah milik plugin lain, dilarang disentuh).
+//! `Keterbatasan:` `m.react("⏳")` dan `m.react("✅")` terjadi pada satu pesan, sementara
+//! `Reply::with_reaction` hanya satu emoji — hanya `✅` yang dibawa. `encode_uri_component`
+//! disalin ke sini karena rule port tidak menyentuh file plugin lain.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `encodeURIComponent` — spasi jadi `%20`, `+'` di-encode. Sama persis dengan
-// implementasi di `plugins/tools/phisingataubukan.js` (disalin karena file
+/// `encodeURIComponent` — spasi jadi `%20`, `+'` di-encode. Sama persis
+// implementasi (disalin karena file
 // plugin lain dilarang disentuh).
 pub(crate) fn encode_uri_component(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());

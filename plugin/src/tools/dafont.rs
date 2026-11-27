@@ -1,35 +1,13 @@
-//! `plugins/tools/dafont.js` — cari dan download font dari DaFont.
-//!
-//! Scraper ada di `oktz_scraper::dafont` (bukan disalin ke sini). Sesi
-//! interaktif JS (`global.dafontSessions`) dipetakan ke `Ctx::session_*`, dan
-//! `dafontAnswerHandler` didaftarkan lewat `#[oktz_plugin_api::answer_handler]`
-//! (`dafont.js:105-142`).
-//!
-//! Semantik yang disalin dari JS:
-//! - Kunci sesi = digit dari JID sender (`dafont.js:7-9`). Di sini kuncinya
-//!   diberi awalan `dafont:` karena store sesi Rust dipakai bersama semua
-//!   plugin, bukan per-plugin seperti `global.dafontSessions`.
-//! - TTL 120 detik (`:5,23-26`) dicek manual dari `startedAt`; `setTimeout`
-//!   tidak ada di handler sinkron.
-//! - `result.results.slice(0, 10)` (`:79`), `fileName: v.name + ".zip"`
-//!   (`:133`), `mimetype: "application/zip"` (`:134`).
-//! - Balasan angka di luar daftar / chat berbeda / sesi tidak ada → `None`,
-//!   padanan `return false` (`:106-113`).
-//! - Reaksi berurutan JS (`🕕` di `:69`, lalu `✅`/`☢`/`❌`) tidak mungkin:
-//!   satu `Reply` membawa satu reaksi, jadi yang dipegang reaksi penutup.
-//! - Jalur `catch` handler (`:98-102`, "Gagal mencari font, coba lagi nanti")
-//!   tidak terjangkau: `DaFont` menangkap semua galat jaringan sendiri dan
-//!   selalu mengembalikan `{ status, error }`, sedangkan `status: true` selalu
-//!   membawa `results` array. `Err` dari scraper Rust adalah pesan itu.
+//! Cari dan download font dari DaFont.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::{Value, json};
 
-/// `SESSION_TIMEOUT` (`dafont.js:5`).
+/// `SESSION_TIMEOUT`.
 const SESSION_TIMEOUT_MS: i64 = 120_000;
-/// `result.results.slice(0, 10)` (`dafont.js:79`).
+/// `result.results.slice(0, 10)`.
 const MAKS_ITEM: usize = 10;
-/// Awalan kunci di store sesi bersama (JS-nya peta khusus dafont).
+/// Awalan kunci di store sesi bersama (versi awal-nya peta khusus dafont).
 const SESSION_PREFIX: &str = "dafont:";
 
 pub(crate) fn help(prefix: &str) -> String {
@@ -39,7 +17,7 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `getSessionKey(jid)` (`dafont.js:7-9`) + awalan milik plugin ini.
+/// `getSessionKey(jid)` + awalan milik plugin ini.
 fn kunci_sesi(jid: &str) -> String {
     let angka: String = jid.chars().filter(char::is_ascii_digit).collect();
     if angka.is_empty() {
@@ -49,10 +27,10 @@ fn kunci_sesi(jid: &str) -> String {
     }
 }
 
-/// `getSession(jid)` (`dafont.js:11-14`) dengan TTL manual.
+/// `getSession(jid)` dengan TTL manual.
 ///
-/// Sesi yang sudah lewat 120 detik ikut dihapus dari store, persis seperti
-/// `setTimeout` di JS (`:23-26`).
+/// Sesi yang sudah lewat 120 detik ikut dihapus dari store, persis
+/// `setTimeout` di versi awal (`:23-26`).
 fn sesi_aktif(ctx: &Ctx, sender: &str) -> Option<Value> {
     let key = kunci_sesi(sender);
     let sesi = ctx.session_get(&key)?;
@@ -64,12 +42,12 @@ fn sesi_aktif(ctx: &Ctx, sender: &str) -> Option<Value> {
     Some(sesi)
 }
 
-/// `${v}` JS untuk string yang scraper selalu isi (`name`, `author`).
+/// `${v}` versi awal untuk string yang scraper selalu isi (`name`, `author`).
 fn teks(v: Option<&Value>) -> String {
     v.and_then(Value::as_str).unwrap_or_default().to_string()
 }
 
-/// `v.downloads || "-"` / `v.license || "-"` (`dafont.js:87-88,119-120`).
+/// `v.downloads || "-"` / `v.license || "-"`.
 ///
 /// Nilai falsy (`null`, `""`) jadi `"-"`; scraper hanya menghasilkan string
 /// atau `null` di dua field ini.
@@ -100,7 +78,7 @@ fn atau_strip(v: Option<&Value>) -> String {
 pub fn dafont(ctx: Ctx) -> Reply {
     let text = ctx.args.join(" ");
     if text.is_empty() {
-        // `m.react("❌")` lalu `m.reply(...)` (`dafont.js:56-67`).
+        // `m.react("❌")` lalu `m.reply(...)`.
         return Reply::text(help(&ctx.prefix)).with_reaction("❌");
     }
 
@@ -113,7 +91,7 @@ pub fn dafont(ctx: Ctx) -> Reply {
     };
 
     if !crate::common::js_truthy(hasil.get("status")) {
-        // `m.react("☢")` + `❌ *DaFont Gagal*\n\n> ${result.error}` (`dafont.js:74-77`).
+        // `m.react("☢")` + `❌ *DaFont Gagal*\n\n> ${result.error}`.
         let error = hasil.get("error").and_then(Value::as_str).unwrap_or_default();
         return Reply::text(format!("❌ *DaFont Gagal*\n\n> {error}")).with_reaction("☢");
     }
@@ -137,7 +115,7 @@ pub fn dafont(ctx: Ctx) -> Reply {
     }
     txt.push_str("\n_Reply pesan ini dengan nomor font buat download file-nya_");
 
-    // `setSession(m.sender, items)` + `session.chat = m.chat` (`dafont.js:93-94`).
+    // `setSession(m.sender, items)` + `session.chat = m.chat`.
     ctx.session_set(
         &kunci_sesi(&ctx.sender),
         json!({ "data": items, "chat": ctx.chat, "startedAt": crate::common::now_ms() }),
@@ -146,19 +124,19 @@ pub fn dafont(ctx: Ctx) -> Reply {
     Reply::text(txt).with_reaction("✅")
 }
 
-/// `dafontAnswerHandler` (`dafont.js:105-142`) — balasan nomor font.
+/// `dafontAnswerHandler` — balasan nomor font.
 ///
-/// `None` = `return false` di JS: bukan balasan angka yang sah, jadi rantai
+/// `None` = `return false` di versi awal: bukan balasan angka yang sah, jadi rantai
 /// answer handler lain lanjut.
 #[oktz_plugin_api::answer_handler]
 pub fn dafont_answer(ctx: &Ctx) -> Option<Reply> {
     let sesi = sesi_aktif(ctx, &ctx.sender)?;
-    // `if (m.chat !== session.chat) return false;` (`dafont.js:108`).
+    // `if (m.chat !== session.chat) return false;`.
     if sesi.get("chat").and_then(Value::as_str) != Some(ctx.chat.as_str()) {
         return None;
     }
 
-    // `parseInt(text) - 1` lalu `isNaN || < 0 || >= data.length` (`dafont.js:110-113`).
+    // `parseInt(text) - 1` lalu `isNaN || < 0 || >= data.length`.
     let index = crate::common::parse_int(ctx.text.trim())? - 1;
     let data = sesi.get("data").and_then(Value::as_array)?;
     if index < 0 || index as usize >= data.len() {
@@ -175,7 +153,7 @@ pub fn dafont_answer(ctx: &Ctx) -> Option<Reply> {
     );
 
     let mut balasan = Vec::new();
-    // `if (v.preview) sendMedia(image) else m.reply(detail)` (`dafont.js:122-126`).
+    // `if (v.preview) sendMedia(image) else m.reply(detail)`.
     match v
         .get("preview")
         .and_then(Value::as_str)
@@ -185,7 +163,7 @@ pub fn dafont_answer(ctx: &Ctx) -> Option<Reply> {
         None => balasan.push(Reply::text(detail)),
     }
     // `if (v.download) sendMessage({ document, fileName: name + ".zip" })`
-    // (`dafont.js:128-138`).
+    //
     if let Some(url) = v
         .get("download")
         .and_then(Value::as_str)
@@ -197,7 +175,7 @@ pub fn dafont_answer(ctx: &Ctx) -> Option<Reply> {
         ));
     }
 
-    // `clearSession(m.sender)` (`dafont.js:140`).
+    // `clearSession(m.sender)`.
     ctx.session_take(&kunci_sesi(&ctx.sender));
     Some(Reply::sequence(balasan))
 }
@@ -398,7 +376,7 @@ mod tests {
 
     #[test]
     fn galat_jaringan_memakai_kartu_gagal_yang_sama() {
-        // `Ctx` default memakai `NoHttp` (selalu `Err`) — di JS jalur ini
+        // `Ctx` default memakai `NoHttp` (selalu `Err`) — di versi awal jalur ini
         // `{status:false, error: e.message}` dari `DaFont`.
         let sesi = oktz_plugin_api::new_session_store();
         let r = dafont(ctx_of(&sesi, "arial", Arc::new(oktz_plugin_api::NoHttp)));
@@ -481,7 +459,7 @@ mod tests {
 
     #[test]
     fn parse_int_berhenti_di_karakter_pertama_yang_bukan_angka() {
-        // `parseInt` JS: "1.5" dan "1xyz" sama-sama jadi 1 (`dafont.js:111`).
+        // `parseInt` versi awal: "1.5" dan "1xyz" sama-sama jadi 1.
         for body in ["1.5", "1xyz"] {
             let sesi = oktz_plugin_api::new_session_store();
             dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
@@ -514,7 +492,7 @@ mod tests {
         let sesi = oktz_plugin_api::new_session_store();
         dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
 
-        // Mundurkan `startedAt` sampai tepat TTL; `setTimeout` JS sudah
+        // Mundurkan `startedAt` sampai tepat TTL; `setTimeout` versi awal sudah
         // menghapus sesi pada titik ini.
         sesi.lock().unwrap().entry(kunci_sesi(ME).to_string()).and_modify(|s| {
             s["startedAt"] = json!(crate::common::now_ms() - SESSION_TIMEOUT_MS);

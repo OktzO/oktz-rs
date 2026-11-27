@@ -1,10 +1,7 @@
-//! `plugins/tools/videotranscribe.js` — transkrip video dari URL.
+//! Transkrip video dari URL.
 //!
-//! NOTE: baris `pub mod videotranscribe;` perlu ditambah ke `tools/mod.rs`
-//! secara manual (mod.rs dilarang disentuh).
-//!
-//! `ponytail:` `crypto.randomUUID()` di JS diganti hex acak via `rand`;
-//! format track_id tetap `{hex}_{ms}`.
+//! `Keterbatasan:` `crypto.randomUUID()` di versi awal diganti hex acak via `rand`; format
+//! track_id tetap `{hex}_{ms}`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -14,7 +11,7 @@ use rand::Rng as _;
 pub(crate) const ENDPOINT: &str = "https://api.proactor.ai:7788/v1/tourists/files/transcription";
 pub(crate) const DEFAULT_LANG: &str = "en";
 
-// ponytail: `HEADERS` JS (termasuk user-agent) tidak bisa dipasang lewat
+// Keterbatasan: `HEADERS` versi awal (termasuk user-agent) tidak bisa dipasang lewat
 // `HttpGet::post_json`; endpoint tetap menerima tanpa header itu. Naik kelas
 // kalau server mulai menolak: tambah varian `post_json_headers`.
 
@@ -46,7 +43,7 @@ fn join_transcript(items: &[Value]) -> String {
         .to_string()
 }
 
-/// Padanan `cleanResult(url, json)` di JS.
+/// Padanan `cleanResult(url, json)` di versi awal.
 fn clean_result(json: &Value) -> Result<(String, usize, String), String> {
     let code = json.get("code").and_then(Value::as_i64).unwrap_or(500);
     let data = json

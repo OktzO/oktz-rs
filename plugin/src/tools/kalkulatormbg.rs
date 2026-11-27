@@ -40,7 +40,7 @@ pub(crate) struct Durasi {
 }
 
 /// `Number(raw.replace(/[^0-9]/g, ''))` — buang semua non-digit, lalu parse.
-/// String kosong jadi `0` (`Number("") === 0`), sama seperti JS.
+/// String kosong jadi `0` (`Number("") === 0`), sama seperti versi awal.
 pub(crate) fn parse_uang(raw: &str) -> f64 {
     let digits: String = raw.chars().filter(char::is_ascii_digit).collect();
     digits.parse::<f64>().unwrap_or(0.0)
@@ -61,7 +61,7 @@ pub(crate) fn thousands_id(n: f64) -> String {
     out
 }
 
-/// `angka < 1000 ? "… Perak" : "Rp …"`.
+/// `angka < 1000 ? "… Perak": "Rp …"`.
 pub(crate) fn format_rupiah(angka: f64) -> String {
     let formatted = thousands_id(angka);
     if angka < 1000.0 {
@@ -75,7 +75,7 @@ pub(crate) fn hitung_durasi(hari_float: f64) -> Durasi {
     Durasi {
         tahun: (hari_float / 365.0).floor() as u64,
         bulan: ((hari_float % 365.0) / 30.0).floor() as u64,
-        // JS: `hariFloat % 30` — BUKAN `(hariFloat % 365) % 30`.
+        // versi awal: `hariFloat % 30` — BUKAN `(hariFloat % 365) % 30`.
         hari: (hari_float % 30.0).floor() as u64,
         jam: ((hari_float % 1.0) * 24.0).floor() as u64,
         menit: (((hari_float * 24.0) % 1.0) * 60.0).floor() as u64,
@@ -128,7 +128,7 @@ pub(crate) fn render_mbg(uang: f64) -> String {
         let persen = uang / gaji * 100.0;
         c.push_str(&format!("🏆 {nama}\n"));
         c.push_str(&format!("💵 {}/tahun\n", format_rupiah(gaji)));
-        // JS: `persen < 0.0001 ? "0%" : persen.toFixed(4) + "%"`
+        // versi awal: `persen < 0.0001 ? "0%": persen.toFixed(4) + "%"`
         c.push_str(&format!(
             "📈 Persentase: {}\n\n",
             if persen < 0.0001 {
@@ -161,7 +161,7 @@ pub fn kalkulatormbg(ctx: Ctx) -> Reply {
         ));
     };
 
-    // JS: `isNaN(uang) || uang <= 0`. `parse_uang` tidak pernah menghasilkan
+    // versi awal: `isNaN(uang) || uang <= 0`. `parse_uang` tidak pernah menghasilkan
     // NaN (digit kosong -> 0.0), jadi cukup cek <= 0.
     let uang = parse_uang(raw);
     if uang <= 0.0 {

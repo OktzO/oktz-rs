@@ -12,9 +12,9 @@ pub mod setname;
 pub mod setpp;
 pub mod toimg;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod caribug;
 pub mod getpaste;
 pub mod hd;
@@ -26,11 +26,11 @@ pub mod tovn;
 pub mod txt2qr;
 pub mod videotranscribe;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod ipwho;
 pub mod tovideo;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod am_data;
 pub mod cekxl;
 pub mod emojitoanimasi;
@@ -45,16 +45,16 @@ pub mod ssweb;
 pub mod tempmail;
 pub mod wink;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod dafont;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod styleteks;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod removebg;
 
-// Port dari `oktz-md/plugins/tools/` (kategori tools).
+// Port dari `versi awal/plugins/tools/` (kategori tools).
 pub mod bandingkan_hp;
 pub mod cekidch;
 pub mod converter;

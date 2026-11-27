@@ -1,16 +1,9 @@
-//! `plugins/tools/hdvid.js` — meningkatkan kualitas video ke HD dengan FFmpeg.
+//! Meningkatkan kualitas video ke HD dengan FFmpeg.
 //!
-//! Catatan: `pub mod hdvid;` perlu ditambah manual ke
-//! `rust/crates/oktz-plugins/src/tools/mod.rs` (mod.rs milik plugin lain,
-//! jangan disentuh).
-//!
-//! Pakai `oktz_plugin_api::ffmpeg::jalankan_dengan_masukan` (ffmpeg baca dari
-//! `pipe:0`, tulis ke `pipe:1`). Tidak ada dependensi fluent-ffmpeg baru.
-//!
-//! `ponytail:` JS mengirim kartu `🎞️ *PROSES ENHANCE DIMULAI*` sebelum ffmpeg;
-//! di sini tidak dikirim supaya satu pemanggilan handler tetap satu balasan
-//! (pakai `Reply::Sequence` kalau balasan progres dibutuhkan). `fileName:
-//! HDVID-<ms>.mp4` tidak ada di `Reply::video`; `mimetype` sudah dipasang.
+//! `Keterbatasan:` versi awal mengirim kartu `🎞️ *PROSES ENHANCE DIMULAI*` sebelum ffmpeg;
+//! di sini tidak dikirim supaya satu pemanggilan handler tetap satu balasan (pakai
+//! `Reply::Sequence` kalau balasan progres dibutuhkan). `fileName: HDVID-<ms>.mp4` tidak
+//! ada di `Reply::video`; `mimetype` sudah dipasang.
 
 use oktz_plugin_api::ffmpeg;
 use oktz_plugin_api::{Ctx, IncomingKind, MediaSource, QuotedKind, Reply, plugin};
@@ -28,7 +21,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `m.isVideo || (m.quoted && m.quoted.type === "videoMessage")` atau
+/// `m.isVideo || (m.quoted && m.quoted.type === "videoMessage")`
 /// document video.
 fn is_video_input(ctx: &Ctx) -> bool {
     let dari_pemicu = match &ctx.media {
@@ -137,7 +130,7 @@ pub fn hdvid(ctx: Ctx) -> Reply {
         }
     };
 
-    // `mimetype: "video/mp4"` dari JS; `fileName` tidak ada di `Reply::video`.
+    // `mimetype: "video/mp4"` dari versi awal; `fileName` tidak ada di `Reply::video`.
     Reply::video(
         MediaSource::bytes(result).with_mimetype("video/mp4"),
         "✨ *PROSES SELESAI* ✨\n\nIni dia hasil videonya kak, udah jauh lebih mulus dan HD kan? 😍",

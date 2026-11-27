@@ -1,11 +1,8 @@
-//! `plugins/tools/invoicemaker.js` — membuat invoice/nota penjualan.
+//! Membuat invoice/nota penjualan.
 //!
-//! `pub mod invoicemaker;` perlu ditambah manual ke `src/tools/mod.rs`
-//! (mod.rs berisi plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
-//!
-//! `ponytail:` konteks pengiriman (newsletter `contextInfo`) dari JS tidak
-//! ada di `Reply`, jadi dikirim sebagai gambar biasa dengan caption. Kunci
-//! API `neoxr` dibaca dari `ctx.config().api_keys.neoxr`.
+//! `Keterbatasan:` konteks pengiriman (newsletter `contextInfo`) dari versi awal tidak ada
+//! di `Reply`, jadi dikirim sebagai gambar biasa dengan caption. Kunci API `neoxr` dibaca
+//! dari `ctx.config().api_keys.neoxr`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
@@ -332,7 +329,7 @@ mod tests {
 
     #[test]
     fn item_nama_kosong_diganti_item() {
-        // JS: `name || "Item"` — nama kosong jadi "Item", bukan ditolak.
+        // versi awal: `name || "Item"` — nama kosong jadi "Item", bukan ditolak.
         let http = Arc::new(Stub::json(serde_json::json!({
             "status": true,
             "data": {

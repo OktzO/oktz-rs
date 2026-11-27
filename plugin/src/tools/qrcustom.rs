@@ -1,38 +1,28 @@
-//! `plugins/tools/qrcustom.js` — generate QR code custom dengan logo.
+//! Generate QR code custom dengan logo.
 //!
-//! Encoder QR di bawah adalah port 1:1 dari lib `qrcode` yang dipakai JS
-//! (`QRCode.toBuffer(data, { width: 512, margin: 2, errorCorrectionLevel: 'H' })`):
-//! tabel RS-block/codewords, pola alignment, format/version info, 8 mask
-//! dengan penalty N1-N4, dan zigzag data — semuanya mengikuti
-//! `node-qrcode/lib/core/*` supaya hasilnya scannable seperti JS.
-//!
-//! `ponytail:` DUA hal JS tidak di-port:
+//! `Keterbatasan:` DUA hal versi awal tidak diimplementasikan:
 //! - Komposit logo (`sharp(logo).resize(120,120)` + `composite centre`,
-//!   `qrcustom.js:38-41`): `oktz_plugin_api::gambar` tidak mengekspos piksel
-//!   mentah (hanya resize/encode), jadi logo dari `m.download()` /
-//!   `m.quoted.download()` tidak bisa ditempel ke matriks QR. QR dikirim
-//!   tanpa logo.
-//! - Reaksi `📱` (`qrcustom.js:51`) dibuang: membungkus gambar dengan
-//!   `with_reaction` membuat gambar tidak pernah di-upload (lihat
-//!   `random/cecanindo.rs`). Pesan `🕕` tetap dikirim lebih dulu seperti JS.
-//!
-//! Input di-encode sebagai SATU segmen BYTE. JS mengoptimasi segmen
-//! (numeric/alphanumeric) lewat `Segments.fromString`; hasil scan tetap
-//! sama, hanya susunan bit internalnya yang berbeda.
+//! ): `oktz_plugin_api::gambar` tidak mengekspos piksel
+//! mentah (hanya resize/encode), jadi logo dari `m.download()` /
+//! `m.quoted.download()` tidak bisa ditempel ke matriks QR. QR dikirim
+//! tanpa logo.
+//! - Reaksi `📱` dibuang: membungkus gambar
+//! `with_reaction` membuat gambar tidak pernah di-upload (
+//! `random/cecanindo.rs`). Pesan `🕕` tetap dikirim lebih dulu seperti versi awal.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::common::error_template;
 
-/// Lebar gambar keluaran JS (`qrcustom.js:32`) dan margin modul (`margin: 2`).
+/// Lebar gambar keluaran versi awal dan margin modul (`margin: 2`).
 const LEBAR: u32 = 512;
 const MARGIN: u32 = 2;
 
-// ---------------------------------------------------------------------------
-// Galois field GF(256) — `galois-field.js`
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Galois field GF(256) —
+// --------------------------------------------------------------------------
 
-/// Log/anti-log GF(256), polinomial 0x11D (`galois-field.js:14-30`).
+/// Log/anti-log GF(256), polinomial 0x11D.
 fn tabel_gf() -> &'static (Vec<u8>, Vec<u8>) {
     use std::sync::OnceLock;
     static TABEL: OnceLock<(Vec<u8>, Vec<u8>)> = OnceLock::new();
@@ -55,7 +45,7 @@ fn tabel_gf() -> &'static (Vec<u8>, Vec<u8>) {
     })
 }
 
-/// `GF.mul` (`galois-field.js:53-62`).
+/// `GF.mul`.
 fn gf_kali(x: u8, y: u8) -> u8 {
     if x == 0 || y == 0 {
         return 0;
@@ -65,7 +55,7 @@ fn gf_kali(x: u8, y: u8) -> u8 {
 }
 
 /// Polinomial generator derajat `n`: hasil kali (x + α^i), i = 0..n
-/// (`polynomial.js` `generateECPolynomial`), monik dengan koefisien
+/// , monik dengan koefisien
 /// tertinggi lebih dulu.
 fn poly_generator(n: usize) -> Vec<u8> {
     let mut gen_poly = vec![1u8];
@@ -83,7 +73,7 @@ fn poly_generator(n: usize) -> Vec<u8> {
 }
 
 /// Sisa pembagian data oleh polinomial generator = codeword EC
-/// (`reed-solomon-encoder.js` + `polynomial.js` `mod`).
+///
 fn rs_ec(data: &[u8], ec_len: usize) -> Vec<u8> {
     let gen_poly = poly_generator(ec_len);
     let mut rem = vec![0u8; data.len() + ec_len];
@@ -99,24 +89,24 @@ fn rs_ec(data: &[u8], ec_len: usize) -> Vec<u8> {
     rem[data.len()..].to_vec()
 }
 
-// ---------------------------------------------------------------------------
-// Tabel spesifikasi — `error-correction-code.js` (kolom H) + `utils.js`
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Tabel spesifikasi — (kolom H) +
+// --------------------------------------------------------------------------
 
-/// `CODEWORDS_COUNT` (`utils.js:2-8`) — total codeword per versi.
+/// `CODEWORDS_COUNT` — total codeword per versi.
 const TOTAL_CODEWORDS: [u16; 41] = [
     0, 26, 44, 70, 100, 134, 172, 196, 242, 292, 346, 404, 466, 532, 581, 655, 733, 815, 901,
     991, 1085, 1156, 1258, 1364, 1474, 1588, 1706, 1828, 1921, 2051, 2185, 2323, 2465, 2611,
     2761, 2876, 3034, 3196, 3362, 3532, 3706,
 ];
 
-/// `EC_BLOCKS_TABLE` kolom H (`error-correction-code.js:8-49`) — jumlah blok.
+/// `EC_BLOCKS_TABLE` kolom H — jumlah blok.
 const BLOK_H: [u16; 40] = [
     1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35,
     37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81,
 ];
 
-/// `EC_CODEWORDS_TABLE` kolom H (`error-correction-code.js:53-94`) — EC per blok.
+/// `EC_CODEWORDS_TABLE` kolom H — EC per blok.
 const EC_H: [u16; 40] = [
     17, 28, 44, 64, 88, 112, 130, 156, 192, 224, 264, 308, 352, 384, 432, 480, 532, 588, 650,
     700, 750, 816, 900, 960, 1050, 1110, 1200, 1260, 1350, 1440, 1530, 1620, 1710, 1800, 1890,
@@ -128,7 +118,7 @@ fn total_codewords(versi: usize) -> u16 {
     TOTAL_CODEWORDS[versi]
 }
 
-/// Kapasitas byte mode untuk satu versi pada level H (`version.js:73-105`).
+/// Kapasitas byte mode untuk satu versi pada level H.
 fn kapasitas_byte(versi: usize) -> usize {
     let sisa = total_codewords(versi) - EC_H[versi - 1];
     let bit_data = (sisa as usize) * 8;
@@ -137,14 +127,14 @@ fn kapasitas_byte(versi: usize) -> usize {
     (bit_data - 4 - cc) / 8
 }
 
-/// Versi terkecil yang memuat `len` byte (`version.js` `getBestVersionForData`).
+/// Versi terkecil yang memuat `len` byte.
 fn versi_terbaik(len: usize) -> Option<usize> {
     (1..=40).find(|&v| len <= kapasitas_byte(v))
 }
 
-// ---------------------------------------------------------------------------
-// BCH format/version info — `format-info.js` + `version.js`
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// BCH format/version info — +
+// --------------------------------------------------------------------------
 
 /// `getBCHDigit`.
 fn bch_digit(d: u32) -> u32 {
@@ -157,7 +147,7 @@ fn bch_digit(d: u32) -> u32 {
     digit
 }
 
-/// Bit format info untuk level H (bit 2) + mask (`format-info.js:22-40`).
+/// Bit format info untuk level H (bit 2) + mask.
 fn bit_format(mask: u32) -> u32 {
     const G15: u32 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | 1;
     const G15_MASK: u32 = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
@@ -171,7 +161,7 @@ fn bit_format(mask: u32) -> u32 {
     ((data << 10) | d) ^ G15_MASK
 }
 
-/// Bit version info untuk versi >= 7 (`version.js:78-100`).
+/// Bit version info untuk versi >= 7.
 fn bit_versi(versi: usize) -> u32 {
     const G18: u32 =
         (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | 1;
@@ -183,11 +173,11 @@ fn bit_versi(versi: usize) -> u32 {
     ((versi as u32) << 12) | d
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Matriks modul
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// BitMatrix dengan penanda reserved (`bit-matrix.js`).
+/// BitMatrix dengan penanda reserved.
 struct Matriks {
     size: usize,
     data: Vec<bool>,
@@ -234,7 +224,7 @@ impl Matriks {
     }
 }
 
-/// `setupFinderPattern` (`qrcode.js:38-62`).
+/// `setupFinderPattern`.
 fn pola_finder(m: &mut Matriks) {
     let size = m.size;
     for &(row, col) in &[(0usize, 0usize), (0, size - 7), (size - 7, 0)] {
@@ -255,7 +245,7 @@ fn pola_finder(m: &mut Matriks) {
     }
 }
 
-/// `setupTimingPattern` (`qrcode.js:70-78`).
+/// `setupTimingPattern`.
 fn pola_timing(m: &mut Matriks) {
     let size = m.size;
     for r in 8..size - 8 {
@@ -265,7 +255,7 @@ fn pola_timing(m: &mut Matriks) {
     }
 }
 
-/// Koordinat baris/kolom alignment (`alignment-pattern.js:30-48`).
+/// Koordinat baris/kolom alignment.
 fn koordinat_alignment(versi: usize) -> Vec<usize> {
     if versi == 1 {
         return Vec::new();
@@ -286,7 +276,7 @@ fn koordinat_alignment(versi: usize) -> Vec<usize> {
     pos
 }
 
-/// `setupAlignmentPattern` (`qrcode.js:86-106`).
+/// `setupAlignmentPattern`.
 fn pola_alignment(m: &mut Matriks, versi: usize) {
     let coords = koordinat_alignment(versi);
     let n = coords.len();
@@ -307,7 +297,7 @@ fn pola_alignment(m: &mut Matriks, versi: usize) {
     }
 }
 
-/// `setupFormatInfo` (`qrcode.js:177-205`) — ditempatkan apa adanya, juga
+/// `setupFormatInfo` — ditempatkan apa adanya, juga
 /// untuk mask dummy 0 saat reservasi.
 fn pasang_format_info(m: &mut Matriks, mask: u32) {
     let size = m.size;
@@ -334,7 +324,7 @@ fn pasang_format_info(m: &mut Matriks, mask: u32) {
     m.set_reserved(size as i32 - 8, 8, true);
 }
 
-/// `setupVersionInfo` (`qrcode.js:135-152`).
+/// `setupVersionInfo`.
 fn pasang_versi_info(m: &mut Matriks, versi: usize) {
     let size = m.size;
     let bits = bit_versi(versi);
@@ -347,7 +337,7 @@ fn pasang_versi_info(m: &mut Matriks, versi: usize) {
     }
 }
 
-/// `setupData` (`qrcode.js:213-250`) — zigzag dua kolom dari kanan bawah.
+/// `setupData` — zigzag dua kolom dari kanan bawah.
 fn pasang_data(m: &mut Matriks, data: &[u8]) {
     let size = m.size;
     let mut inc: i32 = -1;
@@ -387,7 +377,7 @@ fn pasang_data(m: &mut Matriks, data: &[u8]) {
     }
 }
 
-/// Nilai mask pada posisi (i, j) (`mask-pattern.js:156-171`).
+/// Nilai mask pada posisi (i, j).
 fn nilai_mask(p: usize, i: usize, j: usize) -> bool {
     match p {
         0 => (i + j).is_multiple_of(2),
@@ -415,7 +405,7 @@ fn terapkan_mask(p: usize, m: &mut Matriks) {
     }
 }
 
-/// Penalty N1 (`mask-pattern.js:51-94`).
+/// Penalty N1.
 fn penalty_n1(m: &Matriks) -> u32 {
     let size = m.size;
     let mut poin = 0u32;
@@ -456,7 +446,7 @@ fn penalty_n1(m: &Matriks) -> u32 {
     poin
 }
 
-/// Penalty N2 (`mask-pattern.js:101-118`).
+/// Penalty N2.
 fn penalty_n2(m: &Matriks) -> u32 {
     let size = m.size;
     let mut poin = 0u32;
@@ -474,7 +464,7 @@ fn penalty_n2(m: &Matriks) -> u32 {
     poin * 3
 }
 
-/// Penalty N3 (`mask-pattern.js:125-146`).
+/// Penalty N3.
 fn penalty_n3(m: &Matriks) -> u32 {
     let size = m.size;
     let mut poin = 0u32;
@@ -495,7 +485,7 @@ fn penalty_n3(m: &Matriks) -> u32 {
     poin * 40
 }
 
-/// Penalty N4 (`mask-pattern.js:153-165`).
+/// Penalty N4.
 fn penalty_n4(m: &Matriks) -> u32 {
     let mut gelap = 0u32;
     let total = (m.size * m.size) as u32;
@@ -507,7 +497,7 @@ fn penalty_n4(m: &Matriks) -> u32 {
     (k.unsigned_abs()) * 10
 }
 
-/// `getBestMask` (`mask-pattern.js:174-199`).
+/// `getBestMask`.
 fn mask_terbaik(m: &mut Matriks) -> usize {
     let mut best = 0usize;
     let mut terendah = u32::MAX;
@@ -524,7 +514,7 @@ fn mask_terbaik(m: &mut Matriks) -> usize {
     best
 }
 
-/// `createData` (`qrcode.js:259-316`) — satu segmen BYTE (mode bit 4).
+/// `createData` — satu segmen BYTE (mode bit 4).
 fn buat_data(versi: usize, data: &[u8]) -> Vec<u8> {
     let mut bits: Vec<bool> = Vec::new();
     let taruh = |v: u32, n: u32, bits: &mut Vec<bool>| {
@@ -567,7 +557,7 @@ fn buat_data(versi: usize, data: &[u8]) -> Vec<u8> {
     interleave(&buf, versi)
 }
 
-/// `createCodewords` (`qrcode.js:325-395`) — bagi blok, hitung EC, interleave.
+/// `createCodewords` — bagi blok, hitung EC, interleave.
 fn interleave(buf: &[u8], versi: usize) -> Vec<u8> {
     let total = total_codewords(versi) as usize;
     let ec_total = EC_H[versi - 1] as usize;
@@ -606,7 +596,7 @@ fn interleave(buf: &[u8], versi: usize) -> Vec<u8> {
     out
 }
 
-/// `createSymbol` (`qrcode.js:400-460`) — matriks akhir + mask yang dipakai.
+/// `createSymbol` — matriks akhir + mask yang dipakai.
 fn matriks_qr(data: &[u8]) -> Option<(Matriks, usize)> {
     let versi = versi_terbaik(data.len())?;
     let codewords = buat_data(versi, data);
@@ -628,9 +618,9 @@ fn matriks_qr(data: &[u8]) -> Option<(Matriks, usize)> {
     Some((m, mask))
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Penulis PNG grayscale — padanan `toBuffer({ type: 'png', width: 512 })`
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 fn crc32(data: &[u8]) -> u32 {
     let mut crc = 0xFFFF_FFFFu32;
@@ -716,19 +706,19 @@ fn qr_png(data: &[u8]) -> Option<Vec<u8>> {
     matriks_qr(data).map(|(m, _)| matriks_ke_png(&m))
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Plugin
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// Kartu pakai saat teks kosong (`qrcustom.js:20-29`).
+/// Kartu pakai saat teks kosong.
 pub(crate) fn kartu_pakai(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n> `{prefix}qrcustom <url/text>`\n\n*Contoh:*\n> `{prefix}qrcustom https://wa.me/628xxx`\n\n💡 Reply gambar untuk custom logo di tengah QR"
     )
 }
 
-/// `📱 *QR Code*\n> ${data.substring(0, 50)}${data.length > 50 ? '...' : ''}`
-/// (`qrcustom.js:47`).
+/// `📱 *QR Code*\n> ${data.substring(0, 50)}${data.length > 50 ? '...': ''}`
+///
 pub(crate) fn caption_qr(data: &str) -> String {
     let potong: String = data.chars().take(50).collect();
     format!("📱 *QR Code*\n> {potong}{}", if data.chars().count() > 50 { "..." } else { "" })
@@ -756,11 +746,11 @@ pub fn qrcustom(ctx: Ctx) -> Reply {
         return Reply::text(kartu_pakai(&ctx.prefix));
     }
 
-    // Pesan 🕜 dikirim sebelum try (`qrcustom.js:32`).
+    // Pesan 🕜 dikirim sebelum try.
     let awal = Reply::text("🕕 *Generating QR code...*");
 
     let Some(png) = qr_png(data.as_bytes()) else {
-        // Data melebihi kapasitas versi 40-H — JS `throw` → catch.
+        // Data melebihi kapasitas versi 40-H — versi awal `throw` → catch.
         return Reply::sequence(vec![
             awal,
             Reply::text(error_template(&ctx)).with_reaction("☢"),
@@ -806,7 +796,7 @@ mod tests {
 
     #[test]
     fn kunci_qrcode_menang_dari_alias_txt2qr_seperti_js() {
-        // `commands` dicek sebelum alias (`plugins.js:539-544`), jadi
+        // `commands` dicek sebelum alias, jadi
         // `qrcode` milik qrcustom (command) menimpa alias `txt2qr`.
         assert_eq!(
             oktz_plugin_api::find("qrcode").map(|p| p.meta.name.as_str()),
@@ -864,7 +854,7 @@ mod tests {
     #[test]
     fn qr_versi_dan_mask_mengikuti_lib_qrcode() {
         // Fixture dari `node-qrcode` — `create([{data, mode:'byte'}], {H})`
-        // dijalankan dengan node (lib yang sama dipakai JS plugin), lalu
+        // dijalankan dengan node (lib yang sama dipakai versi awal plugin), lalu
         // matriksnya dibuang ke sini sebagai bit-string baris-per-baris.
         let fixtures: [(&[u8], usize, usize, &str); 3] = [
             (b"oktz".as_slice(), 1, 2, FIX_OKTZ),
@@ -904,7 +894,7 @@ mod tests {
         );
     }
 
-    // -- fixture dari node-qrcode (bit matriks, baris-per-baris) -----------
+    // - fixture dari node-qrcode (bit matriks, baris-per-baris) -----------
 
     const FIX_OKTZ: &str = "111111101011001111111100000101100101000001101110101010001011101101110100001001011101101110100001001011101100000101010001000001111111101010101111111000000001011000000000001110101110011100111100000011110110100001111010111010111011010111111000010000111111101001110100101011011000000001011110001101111111100001101100110100000100001011001100101110101001100101010101110101000101100000101110101111101010000100000100011110110100111111100100111010110";
 

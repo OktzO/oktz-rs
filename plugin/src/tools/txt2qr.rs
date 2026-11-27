@@ -1,8 +1,8 @@
-//! `plugins/tools/txt2qr.js` — generate QR code dari teks.
+//! Generate QR code dari teks.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `txt2qr.js:23` — kartu pakai saat teks kosong.
+/// Kartu pakai saat teks kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📱 *ᴛᴇxᴛ ᴛᴏ Qʀ*\n\n> Masukkan teks/URL\n\n`Contoh: {prefix}txt2qr https://google.com`"
@@ -31,10 +31,10 @@ pub fn txt2qr(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // `ponytail:` `Ctx` tidak bawa kan QR renderer (qrcode JS). Pembuatan QR
+    // `Keterbatasan:` `Ctx` tidak bawa kan QR renderer (qrcode versi awal). Pembuatan QR
     // membutuhkan crate gambar yang belum ada di dependensi crate ini.
     // Tambahkan renderer QR di sini (atau panggil lewat `oktz_scraper`) bila
-    // tersedia. Sementara, balas pesan teks yang meniru output JS.
+    // tersedia. Sementara, balas pesan teks yang meniru output versi awal.
     Reply::text(format!("📱 *Qʀ ᴄᴏᴅᴇ*\n\n> {}", &text[..text.len().min(100)]))
 }
 

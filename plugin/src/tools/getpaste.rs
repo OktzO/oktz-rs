@@ -1,7 +1,4 @@
-//! `plugins/tools/getpaste.js` — ambil konten dari Pastebin.
-//!
-//! NOTE: baris `pub mod getpaste;` perlu ditambah ke `tools/mod.rs` secara
-//! manual (mod.rs dilarang disentuh).
+//! Ambil konten dari Pastebin.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -10,9 +7,9 @@ const BASE: &str = "https://pastebin.com/raw/";
 pub(crate) const USAGE_TMPL: &str =
     "📋 *ɢᴇᴛ ᴘᴀsᴛᴇʙɪɴ*\n\n> Masukkan link Pastebin yang valid\n\n> Contoh: `{prefix}getpaste https://pastebin.com/Gu8RZaqv`";
 
-/// Ekstrak ID paste dari link, padanan `_id` di JS:
+/// Ekstrak ID paste dari link, padanan `_id` di versi awal:
 /// `/pastebin\.com\/(?:raw\/)?([a-zA-Z0-9]+)/` — kalau tidak cocok, pakai
-/// input apa adanya (JS melakukan hal yang sama).
+/// input apa adanya (versi awal melakukan hal yang sama).
 pub(crate) fn paste_id(link: &str) -> String {
     let Some(start) = link.find("pastebin.com/") else {
         return link.to_string();

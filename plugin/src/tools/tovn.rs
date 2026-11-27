@@ -1,9 +1,5 @@
-//! `plugins/tools/tovn.js` — mengubah audio/video menjadi voice note.
-//!
-//! `NOTE (mod.rs):` `tools/mod.rs` sudah memuat banyak plugin (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak menambahkan `pub mod`.
-//! Tambahkan baris berikut secara manual ke `src/tools/mod.rs`:
-//!   pub mod tovn;
+//! Mengubah audio/video menjadi voice note.
+
 //
 //! FFmpeg lewat `oktz_plugin_api::ffmpeg::jalankan_ke_berkas`.
 //! Unduh media lewat `ctx.download_media()` / `ctx.download_quoted_media()`.

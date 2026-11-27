@@ -1,11 +1,4 @@
-//! `plugins/tools/tovideo.js` — mengubah sticker animasi menjadi video MP4.
-//!
-//! `pub mod tovideo;` perlu ditambah manual ke `src/tools/mod.rs` (mod.rs
-//! berisi plugin lain, bukan milik saya — lihat PORT-BRIEF §6).
-//!
-//! Deteksi animasi WebP melalui penanda `ANIM`/`ANMF` di byte — padanan
-//! `isAnimatedWebp`. Sticker statis dikonversi ke PNG lewat `sharp`;
-//! sticker animasi dikonversi ke MP4 lewat ffmpeg (`jalankan_ke_berkas`).
+//! Mengubah sticker animasi menjadi video MP4.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -175,10 +168,10 @@ mod tests {
 
     #[test]
     fn is_animated_webp_mendeteksi_penanda() {
-        // `tovideo.js:26` menolak buffer < 50 byte walau penandanya ada.
+        // menolak buffer < 50 byte walau penandanya ada.
         assert!(!is_animated_webp(&[0, 0, 0, 0, b'A', b'N', b'I', b'M', 0, 0]));
 
-        // `Buffer.includes` JS memindai seluruh buffer (`tovideo.js:27`),
+        // `Buffer.includes` versi awal memindai seluruh buffer,
         // bukan hanya offset 0.
         let mut anim = vec![0u8; 60];
         anim[25..29].copy_from_slice(b"ANIM");
@@ -217,9 +210,9 @@ mod tests {
 
     #[test]
     fn unduh_gagal_dilaporkan() {
-        // `tovideo.js:129-132`: sticker ada tapi unduhan gagal/kosong →
+        // : sticker ada tapi unduhan gagal/kosong →
         // "Tidak dapat mengunduh sticker". Sticker disertakan supaya tidak
-        // jatuh ke cabang "Tidak ada sticker" (`tovideo.js:114-122`);
+        // jatuh ke cabang "Tidak ada sticker";
         // `NoMediaFetch` default bikin `download_media()` gagal.
         let r = run(
             BerkasPalsu::baru(),

@@ -1,13 +1,9 @@
-//! `plugins/tools/ptv.js` — kirim video sebagai PTV (circle video).
+//! Kirim video sebagai PTV (circle video).
 //!
-//! Port penuh: unduh video (quoted dulu, lalu video dengan caption pada pesan
-//! pemicu) lewat `ctx.media_fetch`, kirim `Reply::video_gif` dengan mimetype
-//! `video/mp4` + reaksi ✅.
-//!
-//! `ponytail:` WA `ptv: true` (bentuk video-note bulat) tidak ada padanannya
-//! di `Reply::Video` (hanya `gif_playback`) — dikirim sebagai video loop tanpa
-//! suara (efek visual sama seperti JS yang juga memakai `gifPlayback: true`).
-//! Upgrade path: tambah flag `ptv` di `Reply::Video` + wire `videoNote`.
+//! `Keterbatasan:` WA `ptv: true` (bentuk video-note bulat) tidak ada padanannya di
+//! `Reply::Video` (hanya `gif_playback`) — dikirim sebagai video loop tanpa suara (efek
+//! visual sama seperti versi awal yang juga memakai `gifPlayback: true`). Upgrade path:
+//! tambah flag `ptv` di `Reply::Video` + wire `videoNote`.
 
 use oktz_plugin_api::{plugin, Ctx, IncomingKind, MediaOrigin, Reply};
 
@@ -37,8 +33,8 @@ fn gagal_unduh(asal: &str) -> String {
     is_private = false
 )]
 pub fn ptv(ctx: Ctx) -> Reply {
-    // Sumber: quoted video dulu (JS `m.quoted.isVideo`), lalu video pada pesan
-    // pemicu (JS `m.isVideo`).
+    // Sumber: quoted video dulu (versi awal `m.quoted.isVideo`), lalu video pada pesan
+    // pemicu (versi awal `m.isVideo`).
     let (asal, label) = match (&ctx.quoted, &ctx.media) {
         (Some(q), _) if q.kind == oktz_plugin_api::QuotedKind::Video => {
             (MediaOrigin::Quoted, "quoted")
@@ -53,7 +49,7 @@ pub fn ptv(ctx: Ctx) -> Reply {
         Ok(b) => b,
         Err(_) => return Reply::text(gagal_unduh(label)),
     };
-    // JS `if (!video)` → kartu cara pakai.
+    // versi awal `if (!video)` → kartu cara pakai.
     if buffer.is_empty() {
         return Reply::text(usage(&ctx.prefix));
     }
@@ -224,7 +220,7 @@ mod tests {
 
     #[test]
     fn empty_buffer_shows_usage_card_like_js() {
-        // JS `if (!video)` — unduhan kosong dianggap tidak ada video.
+        // versi awal `if (!video)` — unduhan kosong dianggap tidak ada video.
         let ctx = Ctx {
             quoted: Some(quoted_video()),
             media_fetch: Arc::new(stub_ok(&[])),

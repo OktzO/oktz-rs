@@ -1,9 +1,6 @@
-//! `plugins/tools/caribug.js` — cari bug di kode lewat API Cuki.
+//! Cari bug di kode lewat API Cuki.
 //!
-//! NOTE: baris `pub mod caribug;` perlu ditambah ke `tools/mod.rs` secara
-//! manual (mod.rs dilarang disentuh).
-//!
-//! `ponytail:` JS bereaksi dua kali (`🕕` awal, lalu `✅`/`❌` akhir).
+//! `Keterbatasan:` versi awal bereaksi dua kali (`🕕` awal, lalu `✅`/`❌` akhir).
 //! `Reply::with_reaction` cuma satu emoji, jadi cuma reaksi akhir yang ikut.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -13,8 +10,8 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 pub(crate) const ENDPOINT: &str = "https://api.cuki.biz.id/api/aicode/caribug";
 
-/// `explainFailure(new MissingApiKeyError('cuki', 'APIKEY_CUKI'), ..)`
-/// (`stalker-fallback.js:29-45`).
+/// `explainFailure(new MissingApiKeyError('cuki', 'APIKEY_CUKI')..)`
+///
 pub(crate) const MISSING_KEY: &str =
     "❌ *API Key belum diset!*\n\n> Command `.caribug` butuh `APIKEY_CUKI` di `.env`\n> Saat ini belum ada, jadi tidak bisa dipanggil.";
 

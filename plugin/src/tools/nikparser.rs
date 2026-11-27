@@ -1,7 +1,4 @@
-//! `plugins/tools/nikparser.js` — parse dan validasi NIK KTP.
-//! Butuh HTTP (ctx.http) + `config.APIkey.obscura` yang sudah ada di Runtime.
-//! Catatan: `tools/mod.rs` sudah milik plugin lain, jangan sentuh;
-//! orchestrator harus menambah baris `pub mod nikparser;` ke `tools/mod.rs`.
+//! Parse dan validasi NIK KTP.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -9,8 +6,8 @@ use serde_json::Value;
 const OBSCURA_BASE: &str = "https://api.obscuraworks.org/api/v2/tools/nik";
 const NEXRAY_BASE: &str = "https://api.nexray.eu.cc/tools/nikparse";
 
-/// `nikparser.js:4-14` — meta plugin.
-/// `nikparser.js:54-62` — kartu pakai saat NIK kurang dari 16 digit.
+/// Meta plugin.
+/// Kartu pakai saat NIK kurang dari 16 digit.
 fn kartu_pakai(prefix: &str) -> String {
     format!(
         "🪪 *ɴɪᴋ ᴘᴀʀꜱᴇʀ*\n\n- Parse dan validasi NIK KTP 🇮🇩\n\
@@ -19,7 +16,7 @@ fn kartu_pakai(prefix: &str) -> String {
     )
 }
 
-/// `nikparser.js:90` — mapping kode provinsi ke nama, persis seperti JS.
+/// Mapping kode provinsi ke nama, persis seperti versi awal.
 fn nama_provinsi(kode: i64) -> &'static str {
     match kode {
         11 => "Aceh",
@@ -60,7 +57,7 @@ fn nama_provinsi(kode: i64) -> &'static str {
     }
 }
 
-/// `nikparser.js:97-100` — nama hari dalam bahasa Indonesia.
+/// Nama hari dalam bahasa Indonesia.
 fn nama_hari(idx: u32) -> &'static str {
     match idx {
         0 => "Minggu",
@@ -74,7 +71,7 @@ fn nama_hari(idx: u32) -> &'static str {
     }
 }
 
-/// `nikparser.js:97-100` — nama bulan dalam bahasa Indonesia.
+/// Nama bulan dalam bahasa Indonesia.
 fn nama_bulan(idx: u32) -> &'static str {
     match idx {
         1 => "Januari",
@@ -93,11 +90,11 @@ fn nama_bulan(idx: u32) -> &'static str {
     }
 }
 
-/// `nikparser.js:82-88` — format `new Date(birthISO).toLocaleDateString("id-ID", ...)`.
+/// Format `new Date(birthISO).toLocaleDateString("id-ID"...)`.
 ///
-/// JS `toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric',
+/// versi awal `toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric',
 /// month: 'long', day: 'numeric' })` -> "Senin, 21 September 2009".
-/// Diverifikasi lewat node: `new Date("2009-09-21").toLocaleDateString("id-ID", ...)`.
+/// Diverifikasi lewat node: `new Date("2009-09-21").toLocaleDateString("id-ID"...)`.
 /// Di sini dibangun manual supaya deterministik tanpa dependensi ICU.
 fn format_tanggal_id(birth_iso: &str) -> String {
     // "YYYY-MM-DD" atau penuh dengan waktu.
@@ -130,7 +127,7 @@ fn format_tanggal_id(birth_iso: &str) -> String {
     )
 }
 
-/// `nikparser.js:89-98` — susun teks hasil parse.
+/// Susun teks hasil parse.
 fn hasil_teks(data: &Value) -> String {
     let raw = data
         .get("raw")
@@ -138,7 +135,7 @@ fn hasil_teks(data: &Value) -> String {
         .unwrap_or("-")
         .to_string();
     // `parseNik` mengirim `birthISO: null` saat API tidak memberi `lahir`,
-    // dan `new Date(null)` di JS adalah epoch — bukan "-".
+    // dan `new Date(null)` di versi awal adalah epoch — bukan "-".
     let tanggal = match data.get("birthISO").and_then(Value::as_str) {
         Some("") => "Invalid Date".to_string(),
         Some(iso) => format_tanggal_id(iso),
@@ -198,9 +195,9 @@ fn hasil_teks(data: &Value) -> String {
     )
 }
 
-/// JS `parseNik` mengembalikan `{ value, provider }`. Di sini handler panggil
+/// versi awal `parseNik` mengembalikan `{ value, provider }`. Di sini handler panggil
 /// HTTP langsung ke obscura dulu, ke nexray sebagai cadangan, lalu
-/// normalisasikan bentuk supaya sama dengan JS.
+/// normalisasikan bentuk supaya sama dengan versi awal.
 
 #[plugin(
     name = "nikparser",
@@ -265,7 +262,7 @@ pub fn nikparser(ctx: Ctx) -> Reply {
         .with_reaction("❌");
     }
 
-    // Normalisasi field sesuai bentuk yang nikparser.js pakai (data.*).
+    // Normalisasi field sesuai bentuk yang pakai (data.*).
     let data = if data.get("result").is_some() {
         // Nexray -> bentuk data.*.
         let r = data.get("result").unwrap_or(&Value::Null);
@@ -303,8 +300,8 @@ pub fn nikparser(ctx: Ctx) -> Reply {
     Reply::text(hasil_teks(&data)).with_reaction("✅")
 }
 
-/// Nexray kirim "DD/MM/YYYY", kadang bulan > 12 (perempuan: bulan+12) dan
-/// tahun digeser 2000-an. Normalisasi ke ISO, sama seperti JS.
+/// Nexray kirim "DD/MM/YYYY", kadang bulan > 12 (perempuan: bulan+12)
+/// tahun digeser 2000-an. Normalisasi ke ISO, sama seperti versi awal.
 fn normalisasi_tanggal_nexray(lahir: &str) -> String {
     if lahir.is_empty() {
         return String::new();
@@ -316,10 +313,10 @@ fn normalisasi_tanggal_nexray(lahir: &str) -> String {
 
     let (bulan, tahun) = if mm > 12 { (mm - 12, yyyy + 2000) } else { (mm, yyyy) };
 
-    // Buat Date seperti JS: new Date(year, month-1, dd).toISOString().
+    // Buat Date seperti versi awal: new Date(year, month-1, dd).toISOString().
     // Jika tidak valid -> kosong.
-    // ponytail: JS `new Date(y, m, d)` akan rollover untuk bulan > 12 atau
-    // hari di luar jumlah hari bulan itu (mis. "99/99/9999"), sedangkan di
+    // Keterbatasan: versi awal `new Date(y, m, d)` akan rollover untuk bulan > 12
+    // hari di luar jumlah hari bulan itu (mis. "99/99/9999"), sedangkan
     // sini nilai tak masuk akal dibuang supaya tidak melahirkan tanggal
     // karangan. Naikkan ke normalisasi penuh kalau data nyata pernah keluar
     // dari rentang wajar.
@@ -448,7 +445,7 @@ mod tests {
 
     #[test]
     fn non_digit_dibuang_dari_text() {
-        // JS: m.text.replace(/\D/g, "") -> angka saja.
+        // versi awal: m.text.replace(/\D/g, "") -> angka saja.
         let r = nikparser(ctx("351707 2109020003", Stub::offline(), ""));
         assert!(text_of(&r).contains("3517072109020003") || text_of(&r).contains("nikparser"));
     }
@@ -544,7 +541,7 @@ mod tests {
 
     #[test]
     fn normalisasi_nexray_bulan_lewat_12_digeser_2000() {
-        // Perempuan: bulan 21 -> 09, dan JS menambah 2000 ke tahun: 1989 -> 3989.
+        // Perempuan: bulan 21 -> 09, dan versi awal menambah 2000 ke tahun: 1989 -> 3989.
         assert_eq!(normalisasi_tanggal_nexray("21/21/1989"), "3989-09-21T00:00:00.000Z");
         assert_eq!(normalisasi_tanggal_nexray("05/05/2000"), "2000-05-05T00:00:00.000Z");
         assert_eq!(normalisasi_tanggal_nexray(""), "");

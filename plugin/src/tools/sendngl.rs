@@ -1,15 +1,14 @@
-//! `plugins/tools/sendngl.js` — kirim pesan NGL.
+//! Kirim pesan NGL.
 //!
-//! `ponytail:` `sendNgl` di JS (`src/lib/stalker-fallback.js`) menjalankan
-//! fallback cuki → nexray, dan reaksi `🎴` sebelum pemakaian dihapus karena
-//! `Reply` hanya mampu satu reaksi (yang penutup). Semua jaringan lewat
-//! `ctx.http`; tidak menyalin logika `stalker-fallback.js` ke sini, melainkan
-//! meniru alurnya (cuki dulu, nexray cadangan) lewat dua permintaan HTTP.
+//! `Keterbatasan:` `sendNgl` di versi awal menjalankan fallback cuki → nexray, dan reaksi
+//! `🎴` sebelum pemakaian dihapus karena `Reply` hanya mampu satu reaksi (yang penutup).
+//! Semua jaringan lewat `ctx.http`; tidak menyalin logika ke sini, melainkan meniru alurnya
+//! (cuki dulu, nexray cadangan) lewat dua permintaan HTTP.
 
 use oktz_plugin_api::{Ctx, HttpError, HttpGet, Reply, plugin};
 use serde_json::Value;
 
-/// `sendngl.js:27-32` — pesan saat `link` hilang.
+/// Pesan saat `link` hilang.
 fn link_missing(prefix: &str) -> String {
     format!(
         "*LINK NGL NYA MANA ??*\n\
@@ -17,7 +16,7 @@ fn link_missing(prefix: &str) -> String {
     )
 }
 
-/// `sendngl.js:30-32` — pesan saat `kata` hilang.
+/// Pesan saat `kata` hilang.
 fn kata_missing(prefix: &str) -> String {
     format!(
         "*KATA KATA NYA MANA ??*\n\n\
@@ -25,7 +24,7 @@ fn kata_missing(prefix: &str) -> String {
     )
 }
 
-/// `src/lib/error.js` + `config.errorTemplate` (`config.js:153`).
+/// + `config.errorTemplate`.
 ///
 /// `pushName || 'User'` jadi `'User'` karena `m.pushName` tidak ada di `Ctx`;
 // `prefix || '.'` dan `command || '?'` tetap dihormati. Duplikasi sengaja
@@ -40,9 +39,9 @@ fn error_template(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `sendNgl(link, text, 1)` di `src/lib/stalker-fallback.js:315-354`.
+/// `sendNgl(link, text, 1)`.
 ///
-/// Cuki: `POST https://api.cuki.biz.id/api/ephoto/ngl?apikey=<key>` dengan
+/// Cuki: `POST https://api.cuki.biz.id/api/ephoto/ngl?apikey=<key>`
 // JSON `{ link, text }`; sukses kalau `res.data.success !== false`.
 /// Nexray: `GET https://api.nexray.eu.cc/tools/spamngl?url=...&jumlah=1&pesan=...`;
 /// sukses kalau `res.data.status` truthy.
@@ -213,7 +212,7 @@ mod tests {
     }
 
     /// `run` dengan `config.APIkey.cuki` terisi — jalur cuki di `sendNgl`
-    /// (`stalker-fallback.js:316-322`) baru jalan kalau key tidak kosong.
+    /// baru jalan kalau key tidak kosong.
     fn run_dengan_kunci(http: Arc<Stub>, text: &str) -> Reply {
         let ctx = Ctx {
             text: text.to_string(),
@@ -355,7 +354,7 @@ mod tests {
 
     #[test]
     fn error_template_mengikuti_ganti_prefix_dan_command() {
-        // `error.js:5-6` memakai `prefix || '.'` dan `command || '?'`;
+        // memakai `prefix || '.'` dan `command || '?'`;
         // `crate::common::error_template` tidak punya fallback itu.
         assert_eq!(
             error_template("", ""),

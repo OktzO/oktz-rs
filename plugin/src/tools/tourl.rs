@@ -1,17 +1,4 @@
-//! `plugins/tools/tourl.js` — upload media ke beberapa host, atau paste teks
-//! dan dapet link.
-//!
-//! ## Penyimpangan
-//!
-//! - JS menjalankan fan-out keenam host lewat `runUploadFanout`
-//!   (`src/lib/upload-fanout.js`) dengan batas waktu per host dan batas
-//!   total. Trait `HttpGet` di `oktz-plugin-api` tidak punya batas waktu
-//!   per-request yang bisa diatur plugin, jadi port ini mencoba host satu per
-//!   satu secara berurutan (tanpa fan-out paralel) dan berhenti setelah
-//!   dadanya. Semua pesan dan urutan tombol sama dengan JS.
-//! - `sock.sendButton` dengan header media (`type: "image" | "video"`) tidak
-//!   ada di `Reply`; port ini mengirim kartunya tanpa header media.
-//! - `config.bot.name` dipakai sebagai footer — sama seperti JS.
+//! Upload media ke beberapa host, atau paste teks
 
 use oktz_plugin_api::registry::{CardHeader, InteractiveButton};
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
@@ -30,7 +17,7 @@ struct Hasil {
     expires: String,
 }
 
-/// `formatBytes` (`tourl.js:34-39`).
+/// `formatBytes`.
 fn format_bytes(bytes: usize) -> String {
     if bytes >= 1024 * 1024 * 1024 {
         return format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0));
@@ -38,7 +25,7 @@ fn format_bytes(bytes: usize) -> String {
     format!("{} MB", (bytes as f64 / (1024.0 * 1024.0)).round())
 }
 
-/// `getFileExtension` (`tourl.js:150-167`).
+/// `getFileExtension`.
 fn ekstensi(mimetype: &str) -> &'static str {
     match mimetype {
         "image/jpeg" => "jpg",
@@ -58,9 +45,9 @@ fn ekstensi(mimetype: &str) -> &'static str {
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Host upload
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 fn litterbox(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<Hasil> {
     let res = ctx
@@ -326,7 +313,7 @@ fn ambil_file_src(html: &str) -> Option<String> {
 }
 
 /// Daftar host — urutan percobaan sama seperti `UPLOAD_PROVIDERS`
-/// (`src/lib/upload-providers.js`).
+///
 fn unggah_semua(ctx: &Ctx, buffer: &[u8], filename: &str) -> (Vec<Hasil>, Vec<String>) {
     let mut hasil = Vec::new();
     let mut gagal = Vec::new();
@@ -347,7 +334,7 @@ fn unggah_semua(ctx: &Ctx, buffer: &[u8], filename: &str) -> (Vec<Hasil>, Vec<St
     (hasil, gagal)
 }
 
-/// `uploadImage` (`src/lib/uploader.js:1-29`) — coba host berurutan,
+/// `uploadImage` — coba host berurutan,
 /// berhenti di URL pertama yang berhasil. Dipakai `store/addproduk.rs`.
 pub(crate) fn unggah_pertama(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<String> {
     let percobaan: Vec<Option<Hasil>> = vec![
@@ -365,7 +352,7 @@ pub(crate) fn unggah_pertama(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option
         .map(|h| h.url)
 }
 
-/// `uploadToPaster` (`tourl.js:56-72`).
+/// `uploadToPaster`.
 fn upload_paster(ctx: &Ctx, nama: &str, url_paster: &str, text: &str) -> Option<Hasil> {
     let res = ctx
         .http
@@ -390,7 +377,7 @@ fn upload_paster(ctx: &Ctx, nama: &str, url_paster: &str, text: &str) -> Option<
     })
 }
 
-/// `resolveText` (`tourl.js:78-86`).
+/// `resolveText`.
 fn resolve_text(ctx: &Ctx) -> String {
     let args = ctx.text.trim();
     if !args.is_empty() {
@@ -412,7 +399,7 @@ fn media_uploader(prefix: &str) -> String {
     )
 }
 
-/// Jalur paste teks (`handleText`, `tourl.js:88-148`).
+/// Jalur paste teks.
 fn handle_text(ctx: &Ctx, text: &str) -> Reply {
     let mut hasil = Vec::new();
     let mut gagal = Vec::new();
@@ -546,7 +533,7 @@ pub fn tourl(ctx: Ctx) -> Reply {
     kirim_media(&ctx, buffer, mimetype, filename)
 }
 
-/// Jalur media (`tourl.js:233-315`).
+/// Jalur media.
 fn kirim_media(ctx: &Ctx, buffer: Vec<u8>, mimetype: String, filename: String) -> Reply {
     if buffer.is_empty() {
         return Reply::text("❌ Waduh kak, medianya nggak kebaca. Coba kirim ulang deh!");

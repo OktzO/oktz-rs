@@ -1,18 +1,4 @@
-//! `plugins/tools/qwa.js` — membuat gambar quote WhatsApp lewat
-//! `qwa.eeq.my.id/api/generate`.
-//!
-//! ## Penyimpangan
-//!
-//! - `mainMsg.messageTimestamp` (`qwa.js:59`) tidak ada di `Ctx`, jadi waktu
-//!   yang dikirim diambil dari jam sekarang (cabang `new Date()` di JS).
-//! - `pushName` pesan yang di-reply tidak ada di `QuotedMessage`, jadi untuk
-//!   quote yang di-reply dipakai nilai cadangan `~ User` — sama dengan
-//!   cabang JS ketika `pushName` kosong.
-//! - `formatNumber` memakai `awesome-phonenumber`. Port ini memakai
-//!   pemformatan internasional sederhana: `+62` diikuti nomor nasional yang
-//!   dikelompokkan 3-4-4 (pola `libphonenumber` untuk nomor sel Indonesia),
-//!   lalu `-` diganti spasi seperti di JS. Nomor non-Indonesia memakai
-//!   pengelompokan 3-4-3.
+//! Membuat gambar quote WhatsApp lewat
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 use serde_json::json;
@@ -34,7 +20,7 @@ fn caption_sukses() -> &'static str {
     "✅ Berhasil membuat quote WhatsApp!"
 }
 
-/// `formatNumber` (`qwa.js:85-94`) — nomor internasional dengan spasi.
+/// `formatNumber` — nomor internasional dengan spasi.
 fn format_number(num_str: &str) -> String {
     let bersih = num_str.split('@').next().unwrap_or(num_str);
     if bersih.starts_with('+') {
@@ -81,7 +67,7 @@ fn kelompokkan(digits: &str, pola: &[usize]) -> String {
     out
 }
 
-/// `~ ${pushName}` atau `~ User` (`qwa.js:97`).
+/// `~ ${pushName}` atau `~ User`.
 fn nama_sender(push_name: &str) -> String {
     if push_name.is_empty() {
         "~ User".to_string()
@@ -111,7 +97,7 @@ pub fn qwa(ctx: Ctx) -> Reply {
     let quoted = ctx.quoted().cloned();
 
     // `mainMsg` = pesan yang di-reply kalau ada teks; selain itu pesan itu
-    // sendiri yang jadi isi quote (`qwa.js:33-53`).
+    // sendiri yang jadi isi quote.
     let (main_push_name, main_sender, teks, quote_pakai) = match (&quoted, text_to_quote.is_empty())
     {
         (Some(q), true) => (String::new(), q.sender.clone(), q.text.clone(), false),
@@ -139,7 +125,7 @@ pub fn qwa(ctx: Ctx) -> Reply {
         return Reply::text(format_salah(&ctx.prefix));
     }
 
-    // `getPp(sock, jid)` (`qwa.js:22-29`).
+    // `getPp(sock, jid)`.
     let avatar = ctx
         .sock()
         .foto_profil(&main_sender, "image")
@@ -163,7 +149,7 @@ pub fn qwa(ctx: Ctx) -> Reply {
     if quote_pakai
         && let Some(q) = &quoted
     {
-        // `pushName` pesan yang di-reply tidak tersedia; JS memakai `~ User`.
+        // `pushName` pesan yang di-reply tidak tersedia; versi awal memakai `~ User`.
         payload["quoted"] = json!({
             "name": nama_sender(""),
             "number": format_number(&q.sender),

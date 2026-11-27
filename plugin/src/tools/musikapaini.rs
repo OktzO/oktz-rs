@@ -1,25 +1,4 @@
-//! `plugins/tools/musikapaini.js` — identifikasi lagu dari audio.
-//!
-//! Alur JS: unggah audio ke termai, lalu kirim URL-nya ke
-//! `api.neoxr.eu/api/whatmusic`.
-//!
-//! ## Penyimpangan
-//!
-//! - `uploadTo0x0` (`musikapaini.js:21-39`) memakai `process.env.TERMAI_UPLOAD_KEY`.
-//!   `Ctx` tidak mengekspos env, jadi kunci dibaca langsung dari env proses
-//!   dengan `std::env::var` (nilai kosong kalau tidak ada — sama dengan
-//!   `process.env.TERMAI_UPLOAD_KEY || ""`).
-//! - **Bug JS ikut dipertahankan:** `uploadTo0x0` mengembalikan objek respons
-//!   utuh, lalu objek itu dipakai sebagai parameter `url` untuk whatmusic —
-//!   jadi `url=[object Object]`. Port ini memakai URL yang benar (hasil
-//!   unggahan) karena itulah yang membuat fitur bisa bekerja; hasil akhirnya
-//!   sama seperti yang JS niatkan.
-//! - When termai menolak (kode 403 tanpa kunci), port ini memakai host
-//!   cadangan tanpa kunci (Litterbox/catbox) supaya fitur tetap jalan.
-//! - `footer` dan `interactiveButtons` di JS dikirim sebagai field biasa pada
-//!   pesan teks; keduanya bukan field proto yang sah dan hilang saat encode,
-//!   jadi pesan yang terlihat user di JS hanyalah teksnya. Port ini karena
-//!   itu mengirim teks biasa.
+//! Identifikasi lagu dari audio.
 
 use oktz_plugin_api::registry::{InteractiveButton, MultipartPart};
 use oktz_plugin_api::{Ctx, HttpCall, Reply, plugin};
@@ -51,15 +30,15 @@ fn mengidentifikasi() -> &'static str {
     "🔍 *ᴍᴇɴɢɪᴅᴇɴᴛɪꜰɪᴋᴀsɪ...*\n\n> Mencari info lagu..."
 }
 
-/// `process.env.TERMAI_UPLOAD_KEY || ""` (`musikapaini.js:29`).
+/// `process.env.TERMAI_UPLOAD_KEY || ""`.
 fn termai_key() -> String {
     std::env::var("TERMAI_UPLOAD_KEY").unwrap_or_default()
 }
 
-/// Pesan galat unggah — `throw new Error("Upload gagal")` (`musikapaini.js:37`).
+/// Pesan galat unggah — `throw new Error("Upload gagal")`.
 const UPLOAD_GAGAL: &str = "Upload gagal";
 
-/// Unggah ke termai — `uploadTo0x0` (`musikapaini.js:21-39`).
+/// Unggah ke termai — `uploadTo0x0`.
 fn upload_termai(ctx: &Ctx, buffer: &[u8], filename: &str) -> Result<String, String> {
     let url = format!("{TERMAI}?key={}", termai_key());
     let Ok(res) = ctx.http.call(
@@ -93,7 +72,7 @@ fn upload_termai(ctx: &Ctx, buffer: &[u8], filename: &str) -> Result<String, Str
     Err(UPLOAD_GAGAL.to_string())
 }
 
-/// Cadangan tanpa kunci — Litterbox (`src/lib/upload-providers.js:21-37`).
+/// Cadangan tanpa kunci — Litterbox.
 fn upload_litterbox(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<String> {
     let res = ctx
         .http
@@ -113,7 +92,7 @@ fn upload_litterbox(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<String> 
     }
 }
 
-/// `fotoApi.neoxr.whatMusic` (`musikapaini.js:90-98`).
+/// `fotoApi.neoxr.whatMusic`.
 fn what_music(ctx: &Ctx, url_audio: &str, api_key: &str) -> Option<Value> {
     let url = format!(
         "{WHATMUSIC}?url={}&apikey={}",
@@ -132,7 +111,7 @@ fn ambil_str(music: &Value, kunci: &str) -> String {
         .to_string()
 }
 
-/// Teks hasil — `musikapaini.js:108-114`.
+/// Teks hasil —.
 fn render(music: &Value) -> String {
     format!(
         "🎵 *ʟᴀɢᴜ ᴅɪᴛᴇᴍᴜᴋᴀɴ!*\n\n\
@@ -149,7 +128,7 @@ fn render(music: &Value) -> String {
     )
 }
 
-/// Tombol tautan — `musikapaini.js:116-146`.
+/// Tombol tautan —.
 fn tombol(music: &Value) -> Vec<InteractiveButton> {
     let links = music.get("links").cloned().unwrap_or(Value::Null);
     let mut buttons = Vec::new();
