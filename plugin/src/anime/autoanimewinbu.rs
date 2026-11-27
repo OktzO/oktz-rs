@@ -1,23 +1,4 @@
-//! `plugins/anime/autoanimewinbu.js` — manajer auto-upload anime winbu.net.
-//!
-//! ## Penyimpangan
-//!
-//! - **Daemon auto-check** (`startAutoCheck`/`stopAutoCheck`/`runCheck`,
-//!   `src/lib/auto-anime.js`) menjalankan `setInterval` di proses Node yang
-//!   scrape winbu.net lalu kirim pesan PROAKTIF ke grup target. API plugin
-//!   tidak punya penjadwal dan `Reply` tidak bisa mengirim ke chat lain, jadi
-//!   penanda "sedang berjalan" dicatat di `ctx.sessions` (pola
-//!   `owner/startschedule.rs`) dan sub-command `cek`/`check`/`list` — yang
-//!   intinya `runCheck`/`getOngoingAnimeList` (scrape + broadcast) — jatuh ke
-//!   blok `catch` JS (`te(...)` = error template).
-//! - **State & riwayat** disimpan lewat `ctx.berkas()` di jalur JS apa adanya:
-//!   `src/data/autoanime_winbu_state.json` dan
-//!   `src/data/autoanime_winbu_sent.json` (batas `SENT_MAX` 5000, buang
-//!   tertua).
-//! - **Interactive buttons** (`quick_reply`) memakai `Reply::interactive` +
-//!   `InteractiveButton::quick_reply` (padanan wire `interactiveButtons`).
-//! - **`sent.size`** — JS memakai `Set`; di sini array JSON (urutan insertion
-//!   sama seperti iterasi `Set.keys()` untuk pemotongan 5000).
+//! Manajer auto-upload anime winbu.net.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
@@ -25,24 +6,24 @@ use serde_json::{Value, json};
 
 use crate::common::{error_template, js_truthy};
 
-/// Jalur state & riwayat — persis `auto-anime.js:8-10`, relatif ke direktori
+/// Jalur state & riwayat — persis, relatif ke direktori
 /// kerja (`ctx.berkas()` berakar ke sana).
 const STATE_PATH: &str = "src/data/autoanime_winbu_state.json";
 const SENT_PATH: &str = "src/data/autoanime_winbu_sent.json";
 const DATA_DIR: &str = "src/data";
 
-/// `SENT_MAX` (`auto-anime.js:11`).
+/// `SENT_MAX`.
 const SENT_MAX: usize = 5000;
 
 /// Kunci penanda daemon berjalan di `ctx.sessions` — padanan `isRunning()`.
 const RUNNING_KEY: &str = "autoanimewinbu:running";
 
-/// State default (`auto-anime.js:47`).
+/// State default.
 fn state_default() -> Value {
     json!({ "enabled": false, "groups": [], "interval": 5 })
 }
 
-/// `loadState` (`auto-anime.js:45-52`).
+/// `loadState`.
 fn load_state(ctx: &Ctx) -> Value {
     if !ctx.berkas().ada(STATE_PATH) {
         return state_default();
@@ -54,7 +35,7 @@ fn load_state(ctx: &Ctx) -> Value {
         .unwrap_or_else(state_default)
 }
 
-/// `saveState` (`auto-anime.js:54-59`) — `JSON.stringify(state, null, 2)`;
+/// `saveState` — `JSON.stringify(state, null, 2)`;
 /// kegagalan diabaikan seperti `catch {}`.
 fn save_state(ctx: &Ctx, state: &Value) {
     let _ = ctx.berkas().buat_folder(DATA_DIR);
@@ -62,7 +43,7 @@ fn save_state(ctx: &Ctx, state: &Value) {
     let _ = ctx.berkas().tulis_teks(STATE_PATH, &pretty);
 }
 
-/// `loadSent` (`auto-anime.js:20-27`) — daftar urut insertion.
+/// `loadSent` — daftar urut insertion.
 fn load_sent(ctx: &Ctx) -> Vec<String> {
     if !ctx.berkas().ada(SENT_PATH) {
         return Vec::new();
@@ -74,7 +55,7 @@ fn load_sent(ctx: &Ctx) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `saveSent` (`auto-anime.js:29-43`) — buang tertua sampai <= SENT_MAX.
+/// `saveSent` — buang tertua sampai <= SENT_MAX.
 fn save_sent(ctx: &Ctx, mut set: Vec<String>) {
     if set.len() > SENT_MAX {
         let excess = set.len() - SENT_MAX;
@@ -102,17 +83,17 @@ fn groups(state: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `state.interval || 5` — `||` JS membuat interval `0` ikut default.
+/// `state.interval || 5` — `||` versi awal membuat interval `0` ikut default.
 fn interval(state: &Value) -> i64 {
     state.get("interval").and_then(Value::as_i64).filter(|n| *n != 0).unwrap_or(5)
 }
 
-/// `x ? a : b` untuk teks.
+/// `x ? a: b` untuk teks.
 fn jika(kondisi: bool, ya: &str, tidak: &str) -> String {
     if kondisi { ya.to_string() } else { tidak.to_string() }
 }
 
-/// `(typeof args === 'string' ? args : '').replace(/^(addgrup|addgroup)\s*/i,
+/// `(typeof args === 'string' ? args: '').replace(/^(addgrup|addgroup)\s*/i,
 /// '').trim()` — buang awalan sub-command (case-insensitive) lalu trim.
 fn strip_sub(text: &str, sub: &str) -> String {
     if text.len() >= sub.len() && text[..sub.len()].eq_ignore_ascii_case(sub) {
@@ -136,7 +117,7 @@ fn strip_sub(text: &str, sub: &str) -> String {
     is_private = false
 )]
 pub fn autoanimewinbu(ctx: Ctx) -> Reply {
-    // `const sub = m.text` — di framework JS ini token pertama setelah command
+    // `const sub = m.text` — di framework versi awal ini token pertama setelah command
     // (switch(sub) mencocokkan persis 'start' dst), dan `args` adalah sisanya.
     let sub = ctx.args.first().map(String::as_str).unwrap_or("");
     let sisa_args = ctx.args.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
@@ -229,7 +210,7 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
                 ctx.session_set(RUNNING_KEY, json!(true));
             }
             // `runCheck()` (scrape winbu.net + kirim proaktif ke grup) tidak
-            // tersedia di API plugin — jatuh ke blok `catch` JS.
+            // tersedia di API plugin — jatuh ke blok `catch` versi awal.
             Reply::sequence_text([
                 "🔍 Mengecek anime terbaru...".to_string(),
                 error_template(&ctx),
@@ -238,7 +219,7 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
 
         "list" => {
             // `getOngoingAnimeList()` (scrape winbu.net) tidak tersedia —
-            // jatuh ke blok `catch` JS.
+            // jatuh ke blok `catch` versi awal.
             Reply::sequence_text([
                 "📺 Mengambil daftar anime...".to_string(),
                 error_template(&ctx),
@@ -322,7 +303,7 @@ pub fn autoanimewinbu(ctx: Ctx) -> Reply {
             baru["interval"] = json!(mins);
             save_state(&ctx, &baru);
 
-            // JS me-restart interval saat berjalan; penanda memori tidak
+            // versi awal me-restart interval saat berjalan; penanda memori tidak
             // berubah.
             Reply::text(format!("✅ Interval diubah ke *{mins} menit*"))
         }

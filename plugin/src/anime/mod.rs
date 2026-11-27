@@ -2,11 +2,11 @@
 
 pub mod topanime;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod mywaifu;
 
 // Port batch anime: manajer auto-upload winbu.net.

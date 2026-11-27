@@ -1,9 +1,6 @@
-//! `plugins/anime/topanime.js` — 10 karakter anime terpopuler dari izuka-api.
+//! 10 karakter anime terpopuler dari izuka-api.
 //!
-//! Balasan berupa gambar (`list[0].image`) dengan caption daftar; kalau entri
-//! pertama tidak punya gambar, daftar polos yang dikirim.
-//!
-//! `ponytail:` JS mengirim gambar dengan `{ quoted: m }`. `Reply::Image` tidak
+//! `Keterbatasan:` versi awal mengirim gambar dengan `{ quoted: m }`. `Reply::Image` tidak
 //! punya penanda kutipan, jadi pipeline yang menentukan.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
@@ -11,19 +8,19 @@ use serde_json::Value;
 
 use crate::common::js_truthy;
 
-/// Endpoint tunggal (`topanime.js:22`).
+/// Endpoint tunggal.
 const ENDPOINT: &str = "https://my.izuka-api.xyz/api/anime/top-anime";
 
-/// Batas `Math.min(list.length, 10)` (`topanime.js:35`).
+/// Batas `Math.min(list.length, 10)`.
 const MAX_ITEMS: usize = 10;
 
-/// Kalimat saat data tidak lengkap (`topanime.js:27`).
+/// Kalimat saat data tidak lengkap.
 const NO_DATA: &str = "Maaf, sistem gagal mengambil daftar Top Anime.";
 
-/// Kalimat saat request-nya sendiri gagal (`topanime.js:58`).
+/// Kalimat saat request-nya sendiri gagal.
 const SERVER_ERROR: &str = "Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.";
 
-/// `${nilai}` di JS: string apa adanya, sisanya JSON kompak.
+/// `${nilai}` di versi awal: string apa adanya, sisanya JSON kompak.
 fn interp(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) => s.clone(),
@@ -32,9 +29,9 @@ fn interp(value: Option<&Value>) -> String {
     }
 }
 
-/// `Math.min(list.length, 10)` (`topanime.js:35`).
+/// `Math.min(list.length, 10)`.
 ///
-/// `ponytail:` hanya array dan string yang punya `.length`; objek, angka, dan
+/// `Keterbatasan:` hanya array dan string yang punya `.length`; objek, angka,
 /// boolean mengembalikan `undefined`, jadi `Math.min(undefined, 10)` = `NaN`
 /// dan loop `i < NaN` tidak pernah jalan. `None` di sini berarti `NaN` itu.
 fn max_items(list: &Value) -> Option<usize> {
@@ -46,7 +43,7 @@ fn max_items(list: &Value) -> Option<usize> {
     Some(n.min(MAX_ITEMS))
 }
 
-/// `list[i]` di JS. String terindeks jadi karakter satu huruf — bukan objek —
+/// `list[i]` di versi awal. String terindeks jadi karakter satu huruf — bukan objek —
 /// jadi semua `.field`-nya `undefined`.
 fn js_items(list: &Value, max: usize) -> Vec<Value> {
     match list {
@@ -60,7 +57,7 @@ fn js_items(list: &Value, max: usize) -> Vec<Value> {
     }
 }
 
-/// `topanime.js:32-45`.
+///
 fn render_list(list: &Value) -> String {
     let mut txt = String::from("🏆 *TOP ANIME CHARACTERS (WAIFU LIST)* 🏆\n\n");
     txt.push_str("Berikut adalah daftar karakter terpopuler dan paling dicintai saat ini:\n\n");
@@ -93,7 +90,7 @@ fn render_list(list: &Value) -> String {
     txt
 }
 
-/// `list.length > 0 && list[0].image` (`topanime.js:49`) — `&&` ter-short
+/// `list.length > 0 && list[0].image` — `&&` ter-short
 /// circuit, jadi `list[0]` tidak pernah dibaca saat `.length` bukan positif.
 fn first_image(list: &Value) -> Option<String> {
     let first = js_items(list, 1).into_iter().next()?;
@@ -139,7 +136,7 @@ pub fn topanime(ctx: Ctx) -> Reply {
         return Reply::text(NO_DATA).with_reaction("❌");
     };
 
-    // `list` yang truthy tapi bukan array TIDAK melempar di JS: `.length` dan
+    // `list` yang truthy tapi bukan array TIDAK melempar di versi awal: `.length`
     // `[0]` cuma `undefined`, jadi yang terjadi frame kosong berisi `NaN`.
     let txt = render_list(list);
     // `list.length > 0 && list[0].image` truthy -> kirim gambar; selain itu
@@ -348,7 +345,7 @@ mod tests {
 
     #[test]
     fn a_dead_server_or_a_non_json_body_reports_the_server_error() {
-        // `catch` di `topanime.js:55-59` hanya tersentuh kegagalan request
+        // `catch` hanya tersentuh kegagalan request
         // atau JSON yang tidak bisa dibaca axios.
         let r = run(Stub::offline());
         assert_eq!(body(&r), SERVER_ERROR);
@@ -358,7 +355,7 @@ mod tests {
         assert_eq!(body(&r), SERVER_ERROR);
     }
 
-    /// `list` truthy tapi bukan array tidak melempar di JS: `list.length` dan
+    /// `list` truthy tapi bukan array tidak melempar di versi awal: `list.length`
     /// `list[0]` sama-sama `undefined`, jadi yang dicetak frame `NaN` polos.
     #[test]
     fn a_truthy_non_array_list_renders_the_nan_frame_instead_of_throwing() {

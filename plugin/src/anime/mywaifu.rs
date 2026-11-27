@@ -1,22 +1,22 @@
-//! `plugins/anime/mywaifu.js` — koleksi gambar waifu (sumber: nekosapi.com).
+//! Koleksi gambar waifu (sumber: nekosapi.com).
 //!
-//! `ponytail:` sumber asli `api.waifu.im` DNS-nya sudah mati (2026-11-15),
-//! diganti `api.nekosapi.com/v4/images/random`. `crypto.randomBytes(32)`
-//! (messageSecret) dan `sock.waUploadToServer`/`relayMessage` diabaikan —
-//! `Reply` tidak bawa contextInfo/messageSecret, dan pipeline yang
-//! meng-upload media Url. `m.react('🕕')`/`'✅'`/`'❌'` → satu reaksi terakhir.
-//! `te(...)` → `crate::common::error_template(&ctx)`.
+//! `Keterbatasan:` sumber asli `api.waifu.im` DNS-nya sudah mati (2026-11-15), diganti
+//! `api.nekosapi.com/v4/images/random`. `crypto.randomBytes(32)` (messageSecret) dan
+//! `sock.waUploadToServer`/`relayMessage` diabaikan — `Reply` tidak bawa
+//! contextInfo/messageSecret, dan pipeline yang meng-upload media Url.
+//! `m.react('🕕')`/`'✅'`/`'❌'` → satu reaksi terakhir. `te(...)` →
+//! `crate::common::error_template(&ctx)`.
 
 use oktz_plugin_api::{Ctx, HttpCall, MediaSource, Reply, plugin};
 
-/// `https://api.nekosapi.com/v4/images/random` (`mywaifu.js:48` memakai
+/// `https://api.nekosapi.com/v4/images/random` ( memakai
 /// `api.waifu.im` yang DNS-nya sudah mati sejak 2026-11-15).
 const ENDPOINT: &str = "https://api.nekosapi.com/v4/images/random";
 
-/// Jumlah gambar per permintaan (`mywaifu.js:39`).
+/// Jumlah gambar per permintaan.
 const LIMIT: u32 = 10;
 
-/// Bantuan saat mode bukan `sfw`/`nsfw` (`mywaifu.js:25-33`).
+/// Bantuan saat mode bukan `sfw`/`nsfw`.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "🌸 *PENCARI WAIFU* 🌸\n\n\
@@ -28,7 +28,7 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// Gambar tidak ditemukan (`mywaifu.js:56-58`).
+/// Gambar tidak ditemukan.
 pub(crate) fn tidak_ditemukan(mode: &str) -> String {
     format!(
         "❌ *GAMBAR TIDAK DITEMUKAN*\n\nMaaf, sistem tidak dapat menemukan gambar untuk kategori *{}* saat ini.",
@@ -36,11 +36,11 @@ pub(crate) fn tidak_ditemukan(mode: &str) -> String {
     )
 }
 
-/// Gagal memanggil API (`mywaifu.js:106-109`).
+/// Gagal memanggil API.
 pub(crate) const GAGAL_API: &str =
     "❌ *TERJADI KESALAHAN*\n\nMaaf, terjadi gangguan saat sistem mencoba memanggil API.";
 
-/// Caption sukses (`mywaifu.js:62`).
+/// Caption sukses.
 pub(crate) fn caption(mode: &str, jumlah: usize) -> String {
     format!(
         "🌸 *KOLEKSI WAIFU ({})* 🌸\n\nSistem berhasil mendapatkan *{}* gambar waifu spesial untukmu! Cek album di bawah ini untuk melihat koleksi lengkapnya! ✨",
@@ -49,7 +49,7 @@ pub(crate) fn caption(mode: &str, jumlah: usize) -> String {
     )
 }
 
-/// Bangun URL query (`mywaifu.js:41-46`).
+/// Bangun URL query.
 pub(crate) fn api_url(is_nsfw: bool) -> String {
     format!(
         "{}?rating={}&limit={}",
@@ -117,9 +117,9 @@ pub fn mywaifu(ctx: Ctx) -> Reply {
     Reply::sequence(balasan).with_reaction("✅")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -268,7 +268,7 @@ mod tests {
         let panggilan = http.panggilan.lock().unwrap().clone();
         assert_eq!(panggilan.len(), 1);
         assert_eq!(panggilan[0], api_url(true));
-        // JS `m.react('✅')` (`mywaifu.js:103`) membungkus Sequence (caption +
+        // versi awal `m.react('✅')` membungkus Sequence (caption +
         // 10 gambar); lepas `Reaction` dulu untuk memeriksa isinya.
         match r.without_mutations().tanpa_reaksi() {
             Reply::Sequence(balasan) => {
