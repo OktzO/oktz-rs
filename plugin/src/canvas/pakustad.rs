@@ -1,22 +1,16 @@
-//! `plugins/canvas/pakustad.js` — tanya "pak ustad" (gambar) lewat Cuki.
+//! Tanya "pak ustad" (gambar) lewat Cuki.
 //!
-//! `pluginConfig.name` di JS berupa array tiga nama
-//! (`['pakustad', 'pak-ustad', 'tanyaustad']`); yang pertama jadi `name`, sisa
-//! nya jadi `alias` — pola yang sama dengan `crate::fun::husbualbum`.
-//! Kategori di JS `fun`, bukan nama folder `canvas`; nilai `category` di
-//! `#[plugin]` disalin apa adanya dari `pluginConfig`.
-//!
-//! `ponytail:` `config.APIkey?.cuki` tidak ada di `Ctx`, jadi dikunci `""` —
-//! pola yang sama dengan `crate::ai::anime_gen` dan `crate::info::jadwalbola`.
-//! Efeknya cabang "API Key belum diset" (`pakustad.js:34`) selalu benar dan
-//! jalur HTTP setelahnya tidak terjangkau sampai router menyediakan config.
+//! `Keterbatasan:` `config.APIkey?.cuki` tidak ada di `Ctx`, jadi dikunci `""` — pola yang
+//! sama dengan `crate::ai::anime_gen` dan `crate::info::jadwalbola`. Efeknya cabang "API
+//! Key belum diset" selalu benar dan jalur HTTP setelahnya tidak terjangkau sampai router
+//! menyediakan config.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `pakustad.js:25-29` — cabang `if (!text)`.
+/// Cabang `if (!text)`.
 fn help(prefix: &str) -> String {
     format!(
         "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -25,11 +19,11 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `pakustad.js:35` — teks literal, bukan lewat `explainFailure`.
+/// Teks literal, bukan lewat `explainFailure`.
 const MISSING_KEY: &str =
     "❌ *API Key belum diset!*\n\n> Isi `APIKEY_CUKI` di file `.env`, lalu restart bot";
 
-/// `src/lib/error.js` + `config.errorTemplate` (`config.js:153`).
+/// + `config.errorTemplate`.
 ///
 /// `pushName || 'User'` jadi `'User'` karena `m.pushName` tidak ada di `Ctx`;
 /// `prefix || '.'` dan `command || '?'` tetap dihormati karena keduanya ada.
@@ -43,7 +37,7 @@ pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `m.text || m.quoted?.text` (`pakustad.js:22`).
+/// `m.text || m.quoted?.text`.
 pub(crate) fn effective_text(ctx: &Ctx) -> String {
     if !ctx.text.is_empty() {
         return ctx.text.clone();
@@ -186,7 +180,7 @@ mod tests {
 
     #[test]
     fn every_name_from_the_js_array_resolves_here() {
-        // `name: ['pakustad', 'pak-ustad', 'tanyaustad']` di JS.
+        // `name: ['pakustad', 'pak-ustad', 'tanyaustad']` di versi awal.
         for a in ["pakustad", "pak-ustad", "tanyaustad"] {
             assert_eq!(
                 oktz_plugin_api::find(a).unwrap().meta.name,
@@ -233,7 +227,7 @@ mod tests {
 
     #[test]
     fn the_help_message_keeps_the_backtick_delimiters_from_js() {
-        // JS memakai backtick di dalam blok bold, bukan asterisk.
+        // versi awal memakai backtick di dalam blok bold, bukan asterisk.
         assert_eq!(
             help("."),
             "⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*\n\n\
@@ -274,7 +268,7 @@ mod tests {
         assert!(error_template("#", "pakustad").contains("#pakustad"));
     }
 
-    // Bentuk respons sukses dipakai hanya sebagai dokumentasi bentuk JSON yang
+    // Bentuk respons sukses dipakai hanya sebagai dokumentasi bentuk JSON
     // dibaca plugin; jalur sebenarnya tidak terjangkau selama kunci kosong.
     #[test]
     fn the_success_shape_needs_results_url() {

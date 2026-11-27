@@ -1,13 +1,10 @@
-//! `plugins/canvas/tiktokchat.js` — fake chat TikTok dari avatar.
-//!
-//! Catatan: baris `pub mod tiktokchat;` perlu ditambah ke
-//! `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain).
+//! Fake chat TikTok dari avatar.
 
 use oktz_plugin_api::{
     Ctx, HttpCall, HttpError, HttpGet, IncomingKind, MediaSource, MultipartPart, Reply, plugin,
 };
 
-/// `tiktokchat.js:23-29` — kartu pakai saat gambar/teks/pemisah `|` belum lengkap.
+/// Kartu pakai saat gambar/teks/pemisah `|` belum lengkap.
 fn help(prefix: &str) -> String {
     format!(
         "💬 *TIKTOK CHAT CANVAS*\n\n\
@@ -19,7 +16,7 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `tiktokchat.js:51-60` — unggah avatar + teks ke canvas TikTok chat.
+/// Unggah avatar + teks ke canvas TikTok chat.
 fn upload_chat(http: &dyn HttpGet, username: &str, message: &str, avatar: &[u8]) -> Result<Vec<u8>, String> {
     let res = http
         .call(
@@ -126,7 +123,7 @@ mod tests {
         ) -> Result<HttpResponse, HttpError> {
             self.respond(url)
         }
-        /// Plugin memakai `HttpCall::multipart` (`tiktokchat.js:51-60`);
+        /// Plugin memakai `HttpCall::multipart`;
         /// default `HttpGet::call` menolak multipart, jadi stub wajib
         /// menimpanya (pola sama dengan `search/animeapaini.rs`).
         fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {

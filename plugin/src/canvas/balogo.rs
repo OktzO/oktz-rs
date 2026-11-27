@@ -1,12 +1,8 @@
-//! `plugins/canvas/balogo.js` — logo Blue Archive dua kolom dari maker API.
+//! Logo Blue Archive dua kolom dari maker API.
 //!
-//! Balasan berupa gambar yang diambil dari URL maker; tidak ada HTTP dari
-//! plugin ini — pipeline yang mengunduh dan meng-upload-nya.
-//!
-//! `ponytail:` `catch` di JS (`balogo.js:39-42`) hanya menempel pada
-//! `sock.sendMedia`, satu-satunya operasi yang bisa melempar. Di sini media
-//! cuma URL dan upload-nya dikerjakan pipeline, jadi cabang `☢` +
-//! `src/lib/error.js` tidak punya sumber kegagalan dan tidak ditulis.
+//! `Keterbatasan:` `catch` di versi awal hanya menempel pada `sock.sendMedia`, satu-satunya
+//! operasi yang bisa melempar. Di sini media cuma URL dan upload-nya dikerjakan pipeline,
+//! jadi cabang `☢` + tidak punya sumber kegagalan dan tidak ditulis.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -15,7 +11,7 @@ use crate::tools::phisingataubukan::encode_uri_component;
 const MAKER_URL: &str = "https://api.nexray.web.id/maker/balogo?text=";
 
 /// `input.split(/[&,]/).map(s => s.trim()).filter(s => s)`
-/// (`balogo.js:20`) — pemisah bisa `&` atau `,`, bagian kosong dibuang.
+/// Pemisah bisa `&` atau `,`, bagian kosong dibuang.
 fn split_parts(input: &str) -> Vec<&str> {
     input
         .split(['&', ','])
@@ -24,7 +20,7 @@ fn split_parts(input: &str) -> Vec<&str> {
         .collect()
 }
 
-/// `balogo.js:23`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "🎮 *ʙʟᴜᴇ ᴀʀᴄʜɪᴠᴇ ʟᴏɢᴏ*\n\n\
@@ -56,7 +52,7 @@ pub fn balogo(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // Spasi di antara kedua query yang di-encode itu literal di `balogo.js:33`.
+    // Spasi di antara kedua query yang di-encode itu literal.
     let url = format!(
         "{MAKER_URL}{} {}",
         encode_uri_component(parts[0]),
@@ -115,7 +111,7 @@ mod tests {
     fn two_columns_produce_the_maker_url_without_a_caption() {
         let r = run("Blue & Archive");
         assert!(r.has_media());
-        // `balogo.js:33` menyisipkan spasi LITERAL di antara dua hasil
+        // menyisipkan spasi LITERAL di antara dua hasil
         // `encodeURIComponent`, jadi kolom yang tanpa spasi tetap terpisah
         // oleh spasi kosong: `Blue` + " " + `Archive`.
         assert_eq!(
@@ -144,7 +140,7 @@ mod tests {
 
     #[test]
     fn only_the_first_two_usable_parts_are_used() {
-        // `A &  & B & C` -> ["A","B","C"]; teks ketiga dibuang seperti JS.
+        // `A & & B & C` -> ["A","B","C"]; teks ketiga dibuang seperti versi awal.
         let r = run("A &  & B & C");
         assert_eq!(
             r.media_source(),

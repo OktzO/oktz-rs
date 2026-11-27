@@ -10,31 +10,31 @@ pub mod iqc2;
 pub mod pakustad;
 pub mod watercolortext;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod buatquotes;
 pub mod facepalm;
 pub mod sroast;
 pub mod starboy;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod musiccard;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod applemusic;
 pub mod fakecall;
 pub mod tiktokchat;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod fakeml;
 pub mod profileig;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod fakedev7;
 pub mod iqcpink;
 
-// Port batch paritas canvas (fakestory1-4, gura, topixel).
+// Port batch perilaku canvas (fakestory1-4, gura, topixel).
 pub mod fakestory;
 pub mod fakestory2;
 pub mod fakestory3;

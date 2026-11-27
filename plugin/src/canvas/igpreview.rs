@@ -1,10 +1,4 @@
-//! `plugins/canvas/igpreview.js` — kartu pratinjau post Instagram, dirender
-//! lokal dengan crate `image` + `ab_glyph` (tanpa API luar).
-//!
-//! Geometri kartu, gradient, bayangan, kaca buram, path ikon, dan tata letak
-//! teks mengikuti `igpreview.js` apa adanya. Anton diunduh sekali ke
-//! `media/fonts`; Inter di-embed sebagai instance statis (lihat `FONT_*`), emoji
-//! Apple dibaca dari `media/fonts/emoji-apple-image.json`.
+//! Kartu pratinjau post Instagram, dirender
 
 use ab_glyph::{Font, FontArc, GlyphId, ScaleFont, point};
 use image::imageops::FilterType;
@@ -28,7 +22,7 @@ const JALUR_ANTON: &str = "media/fonts/Anton-Regular.ttf";
 
 // Canvas memakai Inter variabel dengan optical sizing otomatis: sumbu `opsz`
 // mengikuti ukuran px (mentok 32). `ab_glyph` tidak bisa memilih sumbu, jadi
-// tiap teks memakai instance statis (opsz, wght) yang dipakai persis oleh JS.
+// tiap teks memakai instance statis (opsz, wght) yang dipakai persis oleh versi awal.
 const FONT_NAMA: &[u8] = include_bytes!("../../../assets/fonts/inter/Inter-Nama.ttf");
 const FONT_DESKRIPSI: &[u8] = include_bytes!("../../../assets/fonts/inter/Inter-Deskripsi.ttf");
 const FONT_KOLASE: &[u8] = include_bytes!("../../../assets/fonts/inter/Inter-Kolase.ttf");
@@ -39,7 +33,7 @@ const PETA_EMOJI: &str = "media/fonts/emoji-apple-image.json";
 const GAGAL_UNDUH: &str = "❌ Gagal mengunduh gambar!";
 const GAGAL_RENDER: &str = "❌ Gagal membuat preview, coba lagi beberapa saat.";
 
-/// Teks bantuan — `igpreview.js:49-64`.
+/// Teks bantuan —.
 fn help(panggilan: &str) -> String {
     format!(
         "*📸 INSTAGRAM PREVIEW CARD MAKER*\n\n\
@@ -115,9 +109,9 @@ pub(crate) fn parse_bg(arg: &str) -> Bg {
     Bg::Default
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Pixel
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 fn taruh_alfa(img: &mut RgbaImage, x: i64, y: i64, warna: Rgba<u8>, alfa: f32) {
     if alfa <= 0.0 || (x < 0) || (y < 0) || x >= img.width() as i64 || y >= img.height() as i64 {
@@ -468,9 +462,9 @@ fn pudar_foto(img: &RgbaImage) -> RgbaImage {
     image::imageops::blur(&redup, 12.0)
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks & emoji
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[derive(Clone, Copy)]
 enum Dasar {
@@ -760,9 +754,9 @@ fn gambar_rich(
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Font
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[derive(Clone, Default)]
 pub(crate) struct Fonts {
@@ -840,9 +834,9 @@ fn muat_peta_emoji(ctx: &Ctx) -> Option<HashMap<String, String>> {
     serde_json::from_slice(&mentah).ok()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Render murni — tanpa Ctx, testable.
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 const LABEL_KOLASE: [&str; 15] = [
     "hidup",
@@ -1368,9 +1362,9 @@ pub(crate) fn render(k: &Konten) -> Result<Vec<u8>, String> {
     Ok(buf.into_inner())
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Handler
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 fn ada_gambar(ctx: &Ctx) -> bool {
     let mime_gambar = |mime: Option<&str>| mime.is_some_and(|m| m.contains("image"));
@@ -1477,9 +1471,9 @@ pub fn igpreview(ctx: Ctx) -> Reply {
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -1666,7 +1660,7 @@ mod tests {
         assert_eq!(kosong, vec!["a", "", "b"]);
     }
 
-    // --- handler ---
+    // -- handler ---
 
     #[derive(Debug, Default)]
     struct Stub {

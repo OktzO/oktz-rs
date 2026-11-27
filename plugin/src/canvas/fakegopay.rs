@@ -1,32 +1,30 @@
-//! `plugins/canvas/fakegopay.js` — gambar saldo GoPay palsu dari API
-//! `kyzznekoo`.
+//! Gambar saldo GoPay palsu dari API
 //!
-//! `ponytail:` axios di JS mengirim dua header (`User-Agent` dan
-//! `Content-Type`). `HttpGet` tidak punya setter header per-request, jadi dua
-//! header itu tidak ikut. Dicatat supaya tidak hilang saat mekanismenya
-//! ditambahkan.
+//! `Keterbatasan:` axios di versi awal mengirim dua header (`User-Agent` dan
+//! `Content-Type`). `HttpGet` tidak punya setter header per-request, jadi dua header itu
+//! tidak ikut. Dicatat supaya tidak hilang saat mekanismenya ditambahkan.
 //!
-//! `ponytail:` `console.error("[FakeGopay Error]", e)` di cabang `catch` tidak
-//! punya padanan — `Reply` tidak membawa log.
+//! `Keterbatasan:` `console.error("[FakeGopay Error]", e)` di cabang `catch` tidak punya
+//! padanan — `Reply` tidak membawa log.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// Cabang `if (!text)` (`fakegopay.js:21`).
+/// Cabang `if (!text)`.
 const FORMAT_SALAH: &str = "Format salah!\n\n> Contoh: .fakegopay 100000|500|20000|Januari";
 
-/// Cabang argumen kurang (`fakegopay.js:23`).
+/// Cabang argumen kurang.
 const ARGUMEN_KURANG: &str = "Pastikan semua argumen diisi dengan benar, dipisah dengan tanda |.";
 
-/// Caption sukses (`fakegopay.js:35`).
+/// Caption sukses.
 const CAPTION: &str = "✅ Berhasil membuat fake gopay";
 
-/// Empat argumen hasil `text.split("|").map(v => v.trim())` (`fakegopay.js:22`).
+/// Empat argumen hasil `text.split("|").map(v => v.trim())`.
 ///
 /// Destructuring tanpa default: field yang tidak ada `undefined` dan lolos
-/// pemeriksaan `!saldo`, sama seperti di JS. Batasnya hanya empat — sisa
-/// `|` diabaikan persis seperti di JS.
+/// pemeriksaan `!saldo`, sama seperti di versi awal. Batasnya hanya empat — sisa
+/// `|` diabaikan persis seperti di versi awal.
 pub(crate) fn split_args(text: &str) -> [String; 4] {
     let mut out = [const { String::new() }; 4];
     for (slot, part) in out.iter_mut().zip(text.split('|')) {
@@ -35,7 +33,7 @@ pub(crate) fn split_args(text: &str) -> [String; 4] {
     out
 }
 
-/// URL API dengan keempat argumen ter-encode (`fakegopay.js:27`).
+/// URL API dengan keempat argumen ter-encode.
 pub(crate) fn api_url(args: &[String; 4]) -> String {
     format!(
         "https://kyzznekoo.zone.id/api/canvas/fakegopay?saldo={}&coin={}&terpakai={}&bulan={}",
@@ -239,7 +237,7 @@ mod tests {
 
     #[test]
     fn extra_segments_beyond_the_fourth_are_ignored() {
-        // Destructuring JS hanya mengambil empat elemen pertama, jadi segmen
+        // Destructuring versi awal hanya mengambil empat elemen pertama, jadi segmen
         // kelima tidak membuat guard gagal — request tetap terkirim.
         let args = split_args("1|2|3|4|5|6");
         assert_eq!(args, ["1", "2", "3", "4"]);

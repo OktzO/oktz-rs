@@ -1,15 +1,7 @@
-//! `plugins/canvas/starboy.js` — efek gambar Starboy dari foto.
+//! Efek gambar Starboy dari foto.
 //!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh deteksi `mimetype` pada quoted/trigger (tidak lengkap di
-//! `Ctx`), `q.download()`, `uploadImage` dari `src/lib/uploader.js`, `axios`
-//! ke `https://api.cuki.biz.id/api/canvas/starboy?apikey=...&image=...`
-//! (`responseType: 'arraybuffer'`), dan `sock.sendMessage(..., { image:
-//! imageBuffer })`.
-//!
-//! `ponytail:` kalau media intake dan uploader tersedia di `Ctx` nanti, port
-//! ulang dari `plugins/canvas/starboy.js` (reaksi `🕕` → `✅`/`☢`).
+//! `Keterbatasan:` kalau media intake dan uploader tersedia di `Ctx` nanti, tambahkan
+//! (reaksi `🕕` → `✅`/`☢`).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

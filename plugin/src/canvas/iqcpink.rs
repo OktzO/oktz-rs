@@ -1,21 +1,20 @@
-//! `plugins/canvas/iqcpink.js` — Fake Quote iOS style versi pink.
+//! Fake Quote iOS style versi pink.
 //!
-//! `ponytail:` inti plugin JS adalah render pixel `@napi-rs/canvas` (background
-//! catbox 906x1736, font Inter yang diunduh, emoji Apple dari JSON GitHub,
-//! bubble rounded-rect + shadow, wrapping dengan `measureText`). `Kanvas`
-//! (`oktz_plugin_api::kanvas`) tidak punya compositing gambar, font ganda,
-//! shadow, maupun `measureText`, dan `Gambar` tidak membuka akses piksel
-//! mentah — render 1:1 mustahil tanpa dependensi baru (`Cargo.toml` di luar
-//! jangkauan port ini). Yang diport: cabang validasi persis JS; langkah
-//! render jatuh ke cabang `catch` JS (`iqcpink.js:490-498`).
+//! `Keterbatasan:` inti plugin versi awal adalah render pixel `@napi-rs/canvas` (background
+//! catbox 906x1736, font Inter yang diunduh, emoji Apple dari JSON GitHub, bubble
+//! rounded-rect + shadow, wrapping dengan `measureText`). `Kanvas`
+//! (`oktz_plugin_api::kanvas`) tidak punya compositing gambar, font ganda, shadow, maupun
+//! `measureText`, dan `Gambar` tidak membuka akses piksel mentah — render 1:1 mustahil
+//! tanpa dependensi baru (`Cargo.toml` di luar jangkauan port ini). Yang diport: cabang
+//! validasi persis versi awal; langkah render jatuh ke cabang `catch` versi awal.
 //!
-//! `ponytail:` reaksi `🕕` (`iqcpink.js:468`) hilang — `Reply` hanya membawa
-//! satu reaksi, jadi yang dipegang reaksi penutup (`❌` pada cabang catch;
-//! `✅` tidak terjangkau selama render belum ada).
+//! `Keterbatasan:` reaksi `🕕` hilang — `Reply` hanya membawa satu reaksi, jadi yang
+//! dipegang reaksi penutup (`❌` pada cabang catch; `✅` tidak terjangkau selama render belum
+//! ada).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `iqcpink.js:450-457` — kartu saat teks kosong DAN tidak ada gambar.
+/// Kartu saat teks kosong DAN tidak ada gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🩷 *FITUR FAKE QUOTE iOS PINK*\n\n\
@@ -27,12 +26,12 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `iqcpink.js:497` — pesan cabang `catch`.
+/// Pesan cabang `catch`.
 pub(crate) const GAGAL: &str =
     "❌ *GAGAL MEMPROSES QUOTE*\n\nMaaf, terjadi kesalahan saat mencoba membuat gambar quote pink. Silakan coba lagi beberapa saat.";
 
-/// `text || (m.quoted && m.quoted.text ? m.quoted.text : "")`
-/// (`iqcpink.js:434`).
+/// `text || (m.quoted && m.quoted.text ? m.quoted.text: "")`
+///
 pub(crate) fn target_text(ctx: &Ctx) -> String {
     if !ctx.text.is_empty() {
         return ctx.text.clone();
@@ -40,9 +39,9 @@ pub(crate) fn target_text(ctx: &Ctx) -> String {
     ctx.quoted().map(|q| q.text.clone()).unwrap_or_default()
 }
 
-/// `iqcpink.js:436-447` — quoted MEDIA dulu, baru media pesan pemicu.
-/// Media bukan gambar diabaikan (JS `m.quoted.download` hanya untuk isMedia,
-/// dan video/foto pemicu yang bukan gambar tetap dipakai apa adanya oleh JS —
+/// Quoted MEDIA dulu, baru media pesan pemicu.
+/// Media bukan gambar diabaikan (versi awal `m.quoted.download` hanya untuk isMedia,
+/// dan video/foto pemicu yang bukan gambar tetap dipakai apa adanya oleh versi awal —
 /// `loadImage` akan gagal dan masuk catch, jadi di sini unduhan apa pun
 /// diterima dan kegagalannya jatuh ke cabang yang sama).
 pub(crate) fn target_image(ctx: &Ctx) -> Option<Vec<u8>> {
@@ -72,12 +71,12 @@ pub fn iqcpink(ctx: Ctx) -> Reply {
     let text = target_text(&ctx);
     let gambar = target_image(&ctx);
 
-    // `if (!targetText && !targetImgBuffer)` (`iqcpink.js:449`).
+    // `if (!targetText && !targetImgBuffer)`.
     if text.is_empty() && gambar.is_none() {
         return Reply::text(help(&ctx.prefix));
     }
 
-    // Render canvas tidak tersedia — cabang catch JS (`iqcpink.js:490-498`).
+    // Render canvas tidak tersedia — cabang catch versi awal.
     let _ = (&text, &gambar);
     Reply::text(GAGAL).with_reaction("❌")
 }
@@ -160,7 +159,7 @@ mod tests {
 
     #[test]
     fn teks_spasi_bukan_kosong() {
-        // JS `text ||` — spasi adalah truthy, jadi masuk jalur render.
+        // versi awal `text ||` — spasi adalah truthy, jadi masuk jalur render.
         let r = run(ctx_of(" ", None));
         assert_eq!(teks(&r), GAGAL);
     }
@@ -173,7 +172,7 @@ mod tests {
 
     #[test]
     fn quoted_media_yang_unduhannya_gagal_jatuh_ke_help() {
-        // JS menelan error `m.quoted.download()` (`iqcpink.js:447`) —
+        // versi awal menelan error `m.quoted.download()` —
         // targetImgBuffer tetap null → help.
         let r = run(ctx_of("", Some(QuotedKind::Image)));
         assert_eq!(teks(&r), help("."));
@@ -207,7 +206,7 @@ mod tests {
     }
 
     // MediaFetch yang selalu gagal — menegaskan unduhan yang error tidak
-    // mengubah jalur (JS menelan error unduhan, `iqcpink.js:447`).
+    // mengubah jalur.
     #[test]
     fn unduhan_gagal_tetap_sama_dengan_tanpa_gambar() {
         #[derive(Debug)]

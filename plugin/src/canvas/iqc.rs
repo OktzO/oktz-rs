@@ -1,20 +1,14 @@
-//! `plugins/canvas/iqc.js` — kirim URL gambar fake quote iOS ke WhatsApp.
+//! Kirim URL gambar fake quote iOS ke WhatsApp.
 //!
-//! Tidak ada HTTP di plugin ini: JS juga tidak memanggil axios, hanya
-//! menyerahkan URL ke Baileys (`image: { url }`).
-//!
-//! `ponytail:` cabang `catch` di JS (`iqc.js:38-42`) menangkap kegagalan
-//! `sock.sendMessage`. Pengiriman sekarang dikerjakan pipeline, jadi cabang
-//! itu tidak lagi punya pemicu di dalam handler.
-//!
-//! `pluginConfig` tidak punya key `example`, jadi `example` kosong — bukan
-//! diisi tebakan.
+//! `Keterbatasan:` cabang `catch` di versi awal menangkap kegagalan `sock.sendMessage`.
+//! Pengiriman sekarang dikerjakan pipeline, jadi cabang itu tidak lagi punya pemicu di
+//! dalam handler.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// Cabang `if (!targetText)` (`iqc.js:21-27`).
+/// Cabang `if (!targetText)`.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "💬 *FITUR FAKE QUOTE iOS*\n\n\
@@ -26,10 +20,10 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `text || (m.quoted && m.quoted.text ? m.quoted.text : "")` (`iqc.js:18`).
+/// `text || (m.quoted && m.quoted.text ? m.quoted.text: "")`.
 ///
 /// `m.quoted.text` kosong (`""`) diperlakukan sama dengan tidak ada quote —
-/// itu yang membuat `m.quoted.text ?` Guard di JS.
+/// itu yang membuat `m.quoted.text ?` Guard di versi awal.
 pub(crate) fn target_text(text: &str, quoted: Option<&str>) -> String {
     if !text.is_empty() {
         return text.to_string();
@@ -37,7 +31,7 @@ pub(crate) fn target_text(text: &str, quoted: Option<&str>) -> String {
     quoted.filter(|q| !q.is_empty()).unwrap_or("").to_string()
 }
 
-/// `https://my.izuka-api.xyz/api/canvas/iqc?text=<text>` (`iqc.js:32`).
+/// `https://my.izuka-api.xyz/api/canvas/iqc?text=<text>`.
 pub(crate) fn api_url(target: &str) -> String {
     format!(
         "https://my.izuka-api.xyz/api/canvas/iqc?text={}",
@@ -137,7 +131,7 @@ mod tests {
         assert!(!meta.is_private);
         assert!(!meta.is_owner);
         assert!(!meta.is_premium);
-        // `pluginConfig` JS tidak punya key `example`.
+        // `pluginConfig` versi awal tidak punya key `example`.
         assert_eq!(meta.example, "");
     }
 
@@ -189,8 +183,8 @@ mod tests {
         }
     }
 
-    /// `serialize.js:407` sudah mem-trim `m.text`, jadi teks spasi-tifu tidak
-    /// pernah sampai ke handler. Kalau tetap dipaksakan, `text || ...` di JS
+    /// sudah mem-trim `m.text`, jadi teks spasi-tifu tidak
+    /// pernah sampai ke handler. Kalau tetap dipaksakan, `text ||...` di versi awal
     /// memakai string spasi itu apa adanya (truthy) — bukan help.
     #[test]
     fn a_whitespace_only_text_is_truthy_in_js_and_still_builds_the_url() {

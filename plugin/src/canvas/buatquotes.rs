@@ -1,11 +1,10 @@
-//! `plugins/canvas/buatquotes.js` — gambar quote bertema anime.
+//! Gambar quote bertema anime.
 //!
-//! `ponytail:` `@napi-rs/canvas`, `node:fs`, dan font dari GitHub tidak
-//! tersedia di `Ctx`/`Reply`; gambar quote tidak dapat dihasilkan. Data
-//! background (8 background) dan teks pakai di-port agar bisa diuji. Handler
-//! untuk teks lengkap diakhiri `error_template` + `☢` (pola `swm.rs`).
-//! Saat canvas tersedia, tambahkan `pub mod buatquotes;` di
-//! `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
+//! `Keterbatasan:` `@napi-rs/canvas`, `node:fs`, dan font dari GitHub tidak tersedia di
+//! `Ctx`/`Reply`; gambar quote tidak dapat dihasilkan. Data background (8 background) dan
+//! teks pakai diimplementasikan agar bisa diuji. Handler untuk teks lengkap diakhiri
+//! `error_template` + `☢` (pola `swm.rs`). Saat canvas tersedia, tambahkan `pub mod
+//! buatquotes;` di `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
 //! menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
@@ -15,7 +14,7 @@ const CANVAS_WIDTH: u32 = 1254;
 #[cfg(test)]
 const CANVAS_HEIGHT: u32 = 1254;
 
-/// `BACKGROUNDS` (`buatquotes.js:34-91`).
+/// `BACKGROUNDS`.
 #[cfg(test)]
 pub(crate) struct Background {
     pub name: &'static str,
@@ -85,7 +84,7 @@ pub(crate) const BACKGROUNDS: [Background; 8] = [
     },
 ];
 
-/// `TEXT_STYLE` (`buatquotes.js:93-100`).
+/// `TEXT_STYLE`.
 #[cfg(test)]
 pub(crate) struct TextStyle {
     pub initial_size: u32,
@@ -98,7 +97,7 @@ pub(crate) const TEXT_STYLE: TextStyle = TextStyle {
     min_font_size: 24,
 };
 
-/// Kartu pakai tanpa argumen (`buatquotes.js:268-287`).
+/// Kartu pakai tanpa argumen.
 pub(crate) fn pakai(prefix: &str) -> String {
     format!(
         "🎨 *FITUR BUAT QUOTES ANIME*\n\n\
@@ -142,7 +141,7 @@ pub fn buatquotes(ctx: Ctx) -> Reply {
         return Reply::text(pakai(&ctx.prefix));
     }
 
-    // `@napi-rs/canvas` + `node:fs` + font eksternal tidak tersedia di
+    // `@napi-rs/canvas` + `node:fs` + font eksternal tidak tersedia
     // `Ctx`/`Reply` — diakhiri error_template seperti swm.rs.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }

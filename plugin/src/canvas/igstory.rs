@@ -1,23 +1,12 @@
-//! `plugins/canvas/igstory.js` — simulasi post Instagram Story dari foto.
+//! Simulasi post Instagram Story dari foto.
 //!
-//! ## BLOKIR sebagian — jalur render.
-//!
-//! Render memakai `@napi-rs/canvas` (`createCanvas`, `loadImage`,
-//! `GlobalFonts.register`, `ctx.filter = blur`, komposit ikon SVG recolor) yang
-//! tidak ada padanannya di `Ctx`/`Reply` — helper `gambar` cuma resize, dan
-//! `Kanvas` tidak punya komposit/garis-bebas/ukur teks. Jalur tanpa media
-//! (kartu pakai) di-port penuh; jalur dengan media jatuh ke blok `catch` JS
-//! (`m.react('❌')` + "GAGAL MEMPROSES GAMBAR"), karena di sanalah render
-//! gagal berakhir. Konstanta layout di-port untuk paritas.
-//!
-//! `ponytail:` kalau API canvas penuh tersedia di `Ctx` nanti, port ulang
-//! `generateIgStory` dari `plugins/canvas/igstory.js` (latar storyig.png,
-//! foto utama blur 28px cover+blur, avatar bundar, ikon recolor
-//! `source-in`, crop 1400px bawah).
+//! `Keterbatasan:` kalau API canvas penuh tersedia di `Ctx` nanti, tambahkan
+//! `generateIgStory` (latar storyig.png, foto utama blur 28px cover+blur, avatar bundar,
+//! ikon recolor `source-in`, crop 1400px bawah).
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// `BG_URL` / `FONT_URL` (`igstory.js:22-23`).
+/// `BG_URL` / `FONT_URL`.
 #[cfg(test)]
 pub(crate) const BG_URL: &str =
     "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/storyig.png";
@@ -25,7 +14,7 @@ pub(crate) const BG_URL: &str =
 pub(crate) const FONT_URL: &str =
     "https://github.com/rsms/inter/raw/refs/heads/master/docs/font-files/Inter-Medium.woff2";
 
-/// `ICON_URLS` (`igstory.js:25-32`).
+/// `ICON_URLS`.
 #[cfg(test)]
 pub(crate) const ICON_URLS: [(&str, &str); 6] = [
     ("like", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/igstory/like.svg"),
@@ -41,7 +30,7 @@ pub(crate) const ICON_COLOR: &str = "#f9fdfe";
 #[cfg(test)]
 pub(crate) const VERIFY_COLOR: &str = "#0095F6";
 
-/// Ukuran kanvas dan zona layout (`igstory.js:41-68`).
+/// Ukuran kanvas dan zona layout.
 #[cfg(test)]
 pub(crate) const CANVAS_W: u32 = 1080;
 #[cfg(test)]
@@ -55,7 +44,7 @@ pub(crate) const VERIFY_SIZE: u32 = 40;
 #[cfg(test)]
 pub(crate) const DEFAULT_X: (u32, u32, u32, u32, u32) = (22, 256, 459, 688, 978);
 
-/// Kartu pakai saat tidak ada gambar (`igstory.js:272-279`).
+/// Kartu pakai saat tidak ada gambar.
 fn pakai(prefix: &str) -> String {
     format!(
         "📸 *FITUR IG STORY POST*\n\n\
@@ -67,7 +56,7 @@ fn pakai(prefix: &str) -> String {
     )
 }
 
-/// Pesan `catch` (`igstory.js:322`).
+/// Pesan `catch`.
 const GAGAL: &str = "❌ *GAGAL MEMPROSES GAMBAR*\n\nMaaf, terjadi kesalahan saat mencoba membuat gambar IG Story. Pastikan gambar yang dikirim valid dan coba lagi beberapa saat.";
 
 #[plugin(
@@ -83,7 +72,7 @@ const GAGAL: &str = "❌ *GAGAL MEMPROSES GAMBAR*\n\nMaaf, terjadi kesalahan saa
     is_private = false
 )]
 pub fn igstory(ctx: Ctx) -> Reply {
-    // JS: quoted.isMedia dulu, lalu media pesan pemicu (`igstory.js:264-268`).
+    // versi awal: quoted.isMedia dulu, lalu media pesan pemicu.
     let media_ada = ctx.quoted().is_some_and(|q| q.is_media())
         || ctx.is_media_kind(IncomingKind::Image)
         || ctx.is_media_kind(IncomingKind::Video);
@@ -93,7 +82,7 @@ pub fn igstory(ctx: Ctx) -> Reply {
     }
 
     // Jalur render `@napi-rs/canvas` tidak tersedia — jatuh ke blok `catch`
-    // JS: reaksi ❌ + pesan gagal. Lihat catatan kepala.
+    // versi awal: reaksi ❌ + pesan gagal. Lihat catatan kepala.
     Reply::text(GAGAL).with_reaction("❌")
 }
 

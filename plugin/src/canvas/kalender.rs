@@ -1,28 +1,18 @@
-//! `plugins/canvas/kalender.js` — kalender Indonesia 2026 per bulan/setahun.
+//! Kalender Indonesia 2026 per bulan/setahun.
 //!
-//! ## BLOKIR sebagian — jalur render.
-//!
-//! Render memakai `@napi-rs/canvas` (header gradient + motif batik, kartu
-//! bulan, legenda, 7 font yang diunduh + didaftarkan via `GlobalFonts`) yang
-//! tidak ada padanannya di `Ctx`/`Reply`. Yang di-port penuh: parsing mode
-//! (tahun/bulan), tabel hari libur, hitungan geometri kartu, caption, dan
-//! kartu format salah. Jalur valid jatuh ke blok `catch` JS (`m.react('❌')` +
-//! "GAGAL MEMBUAT KALENDER"), karena di sanalah render gagal berakhir.
-//!
-//! `ponytail:` kalau API canvas penuh tersedia di `Ctx` nanti, port ulang
-//! `renderTahun`/`renderBulan` dari `plugins/canvas/kalender.js` (3 kolom,
-//! skala kartu 1.6/2.1, statistik 17/8/25).
+//! `Keterbatasan:` kalau API canvas penuh tersedia di `Ctx` nanti, tambahkan
+//! `renderTahun`/`renderBulan` (3 kolom, skala kartu 1.6/2.1, statistik 17/8/25).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 #[cfg(test)]
 use crate::common::days_from_civil;
 
-/// `TAHUN` (`kalender.js:22`).
+/// `TAHUN`.
 #[cfg(test)]
 pub(crate) const TAHUN: i64 = 2026;
 
-/// `NAMA_BULAN` (`kalender.js:24`).
+/// `NAMA_BULAN`.
 #[cfg(test)]
 pub(crate) const NAMA_BULAN: [&str; 12] = [
     "Januari",
@@ -39,11 +29,11 @@ pub(crate) const NAMA_BULAN: [&str; 12] = [
     "Desember",
 ];
 
-/// `NAMA_HARI` (`kalender.js:25`).
+/// `NAMA_HARI`.
 #[cfg(test)]
 pub(crate) const NAMA_HARI: [&str; 7] = ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"];
 
-/// Hari libur 2026 — `LIBUR` (`kalender.js:27-53`), kunci `"bulan-tanggal"`.
+/// Hari libur 2026 — `LIBUR`, kunci `"bulan-tanggal"`.
 #[cfg(test)]
 pub(crate) const LIBUR: [(&str, &str, &str); 25] = [
     ("1-1", "Tahun Baru Masehi", "nasional"),
@@ -73,7 +63,7 @@ pub(crate) const LIBUR: [(&str, &str, &str); 25] = [
     ("12-25", "Hari Raya Natal", "keagamaan"),
 ];
 
-/// `NAMA_KE_NOMOR` (`kalender.js:545-548`).
+/// `NAMA_KE_NOMOR`.
 pub(crate) fn nama_ke_nomor(nama: &str) -> Option<u32> {
     match nama {
         "januari" => Some(1),
@@ -92,7 +82,7 @@ pub(crate) fn nama_ke_nomor(nama: &str) -> Option<u32> {
     }
 }
 
-/// `jumlahHariDiBulan` (`kalender.js:81-83`) — `new Date(2026, bulan, 0)`.
+/// `jumlahHariDiBulan` — `new Date(2026, bulan, 0)`.
 #[cfg(test)]
 pub(crate) fn jumlah_hari_di_bulan(bulan: u32) -> u32 {
     match bulan {
@@ -103,14 +93,14 @@ pub(crate) fn jumlah_hari_di_bulan(bulan: u32) -> u32 {
     }
 }
 
-/// `offsetHariPertama` (`kalender.js:85-88`) — indeks SEN=0.
+/// `offsetHariPertama` — indeks SEN=0.
 #[cfg(test)]
 pub(crate) fn offset_hari_pertama(bulan: u32) -> u32 {
     let days = days_from_civil(TAHUN, bulan, 1);
     ((days + 3).rem_euclid(7)) as u32
 }
 
-/// Satu libur bulan tertentu — `liburDiBulan` (`kalender.js:90-95`), urut tgl.
+/// Satu libur bulan tertentu — `liburDiBulan`, urut tgl.
 #[cfg(test)]
 pub(crate) fn libur_di_bulan(bulan: u32) -> Vec<(u32, &'static str, &'static str)> {
     let mut out: Vec<(u32, &'static str, &'static str)> = LIBUR
@@ -125,7 +115,7 @@ pub(crate) fn libur_di_bulan(bulan: u32) -> Vec<(u32, &'static str, &'static str
     out
 }
 
-/// `hitungTinggiKartuBulan` (`kalender.js:299-318`).
+/// `hitungTinggiKartuBulan`.
 #[cfg(test)]
 pub(crate) fn hitung_tinggi_kartu_bulan(bulan: u32, skala: f64) -> f64 {
     let tinggi_head = 58.0 * skala;
@@ -148,13 +138,13 @@ pub(crate) fn hitung_tinggi_kartu_bulan(bulan: u32, skala: f64) -> f64 {
     y_daftar_mulai + tinggi_daftar + 16.0 * skala
 }
 
-/// Caption hasil render tahun (`kalender.js:584-587`).
+/// Caption hasil render tahun.
 #[cfg(test)]
 pub(crate) fn caption_tahun() -> String {
     "📅 *KALENDER INDONESIA 2026*\n\nBerikut adalah kalender lengkap tahun 2026 yang dilengkapi dengan seluruh hari libur nasional dan cuti bersama.".to_string()
 }
 
-/// Caption hasil render bulan (`kalender.js:591-594`).
+/// Caption hasil render bulan.
 #[cfg(test)]
 pub(crate) fn caption_bulan(nama: &str) -> String {
     // `charAt(0).toUpperCase() + slice(1)` — input selalu huruf kecil.
@@ -170,10 +160,10 @@ pub(crate) fn caption_bulan(nama: &str) -> String {
     )
 }
 
-/// Pesan format salah (`kalender.js:565-568`).
+/// Pesan format salah.
 const FORMAT_SALAH: &str = "❌ *FORMAT BULAN TIDAK VALID*\n\nSilakan masukkan nama bulan yang benar (contoh: *januari*, *februari*, dll) atau biarkan kosong untuk melihat kalender penuh selama setahun.";
 
-/// Pesan `catch` (`kalender.js:603`).
+/// Pesan `catch`.
 const GAGAL: &str = "❌ *GAGAL MEMBUAT KALENDER*\n\nMaaf, sistem mengalami gangguan saat mencoba membuat gambar kalender. Silakan coba lagi nanti.";
 
 #[plugin(
@@ -191,14 +181,14 @@ const GAGAL: &str = "❌ *GAGAL MEMBUAT KALENDER*\n\nMaaf, sistem mengalami gang
 pub fn kalender(ctx: Ctx) -> Reply {
     let input = ctx.text.trim().to_lowercase();
 
-    // `if (text)` — teks kosong jatuh ke mode tahun (`kalender.js:556-570`).
+    // `if (text)` — teks kosong jatuh ke mode tahun.
     if !input.is_empty() && input != "tahun" && input != "2026"
         && nama_ke_nomor(&input).is_none() {
             return Reply::text(FORMAT_SALAH);
         }
 
     // Jalur render `@napi-rs/canvas` tidak tersedia — jatuh ke blok `catch`
-    // JS: reaksi ❌ + pesan gagal. Lihat catatan kepala.
+    // versi awal: reaksi ❌ + pesan gagal. Lihat catatan kepala.
     Reply::text(GAGAL).with_reaction("❌")
 }
 
@@ -241,14 +231,14 @@ mod tests {
     #[test]
     fn tabel_libur_sama_dengan_js() {
         assert_eq!(LIBUR.len(), 25);
-        // Statistik header JS: 17 nasional? (label "Libur Nasional" = 17,
+        // Statistik header versi awal: 17 nasional? (label "Libur Nasional" = 17,
         // "Cuti Bersama" = 8, total 25). Hitung dari tabel:
         let nasional = LIBUR.iter().filter(|(.., t)| *t == "nasional").count();
         let cuti = LIBUR.iter().filter(|(.., t)| *t == "cuti").count();
         let keagamaan = LIBUR.iter().filter(|(.., t)| *t == "keagamaan").count();
         let budaya = LIBUR.iter().filter(|(.., t)| *t == "budaya").count();
         assert_eq!(nasional + cuti + keagamaan + budaya, 25);
-        // Statistik JS: "17" Libur Nasional (nasional + keagamaan + budaya?),
+        // Statistik versi awal: "17" Libur Nasional (nasional + keagamaan + budaya?),
         // "8" Cuti Bersama. Yang pasti: cuti = 8 dan total = 25.
         assert_eq!(cuti, 8);
         assert_eq!(nasional, 4);
@@ -322,7 +312,7 @@ mod tests {
         assert_eq!(teks(&run("januarijuga")), FORMAT_SALAH);
         assert_eq!(teks(&run("2027")), FORMAT_SALAH);
         // Mode valid (tahun/kosong/2026/nama bulan) → jalur render gagal →
-        // blok catch JS.
+        // blok catch versi awal.
         for teks in ["", "tahun", "2026", "januari", "  Desember  "] {
             let r = run(teks);
             assert_eq!(

@@ -1,30 +1,6 @@
-//! `plugins/canvas/fakeml.js` — membuat fake ML profile card.
+//! Membuat fake ML profile card.
 //!
-//! Alur JS: ambil gambar (quoted gambar → gambar pemicu → foto profil pengirim
-//! → aset `pp-kosong`, `fakeml.js:33-58`) → unggah (`uploadTo0x0`) → API
-//! `fakelobyml` (`fakeml.js:70`) → kirim hasilnya sebagai gambar.
-//!
-//! `uploadTo0x0` di JS sekarang hanya meneruskan ke `uploadImage`
-//! (`src/lib/tmpfiles.js:7-16`), jadi rantai 6 host di blok SALINAN bawah ini
-//! memang helper yang dipakai `fakeml.js:64-67`.
-//!
-//! Penyimpangan yang tercatat apa adanya:
-//!
-//! - **Reaksi `🕕` dibuang** (`fakeml.js:62`). `Reply` hanya bisa membawa satu
-//!   reaksi, jadi yang ikut adalah reaksi penutup (`✅`/`❌`).
-//! - **API diambil eksplisit.** JS menyerahkan URL API ke
-//!   `sock.sendMedia(..., { type: 'image' })` dan Baileys yang mengunduhnya
-//!   (`fakeml.js:68-76`); di sini `ctx.http.get` yang mengunduh, supaya
-//!   kegagalan API tetap masuk cabang catch yang sama (`fakeml.js:78-81`:
-//!   reaksi `❌` + balas `Coba lagi`), bukan jadi error jaringan pipeline.
-//! - **Aset `pp-kosong` tidak ada / gagal dibaca** di JS melempar keluar
-//!   handler (`fakeml.js:56`); di sini `None` diperlakukan seperti buffer
-//!   kosong dan memakai pesan ❌ yang sama.
-//!
-//! `pub mod fakeml;` perlu ditambah manual ke `src/canvas/mod.rs` — berkas ini
-//! belum ikut dikompilasi tanpa baris itu.
-//!
-//! `ponytail:` blok SALINAN sama persis dengan `ai/tofigurev2.rs`; angkat ke
+//! `Keterbatasan:` blok SALINAN sama persis dengan `ai/tofigurev2.rs`; angkat ke
 //! `crate::common` kalau plugin di luar ai/canvas turut memakainya.
 
 use oktz_plugin_api::{
@@ -35,7 +11,7 @@ use serde_json::Value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 // ===========================================================================
-// SALINAN `src/lib/uploader.js` + `src/lib/upload-providers.js`
+// SALINAN +
 //
 // Aturan port-brief: helper bersama belum ada di crate, jadi blok ini disalin
 // identik ke empat berkas ai (toemotebatu, tofigurev2, toghibli, tomekah).
@@ -43,15 +19,15 @@ use crate::tools::phisingataubukan::encode_uri_component;
 //
 // Tidak bisa disalin: `withTimeout(..., 20000)` per provider — mesin sinkron
 // ini tidak punya timer. `UreqHttp` sudah memasang timeout global 20 detik
-// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` JS.
+// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` versi awal.
 // ===========================================================================
 
-/// `upload-providers.js:16-17` — UA browser untuk host yang menolaknya.
+/// UA browser untuk host yang menolaknya.
 const UA_UPLOAD: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Nama berkas + content-type: JS selalu memanggil
+/// Nama berkas + content-type: versi awal selalu memanggil
 /// `uploadImage(buffer, 'image.jpg')`, dan `mime.lookup('image.jpg')` =
-/// `image/jpeg` (`upload-providers.js:19`).
+/// `image/jpeg`.
 const NAMA_BERKAS: &str = "image.jpg";
 const MIME_BERKAS: &str = "image/jpeg";
 
@@ -60,7 +36,7 @@ fn respons_ok(res: &HttpResponse) -> bool {
     (200..300).contains(&res.status)
 }
 
-/// `typeof url !== 'string' || !url` (`uploader.js:30`).
+/// `typeof url !== 'string' || !url`.
 fn url_dari(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
@@ -68,7 +44,7 @@ fn url_dari(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// `litterbox` (`upload-providers.js:21-37`).
+/// `litterbox`.
 fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -92,7 +68,7 @@ fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `kappa` (`upload-providers.js:39-59`).
+/// `kappa`.
 fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -114,7 +90,7 @@ fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(data.get("link")).ok_or_else(|| "Invalid response".into())
 }
 
-/// `uguu` (`upload-providers.js:61-82`).
+/// `uguu`.
 fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -144,7 +120,7 @@ fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(url).ok_or_else(|| "Invalid response".into())
 }
 
-/// `nekohime` (`upload-providers.js:84-101`).
+/// `nekohime`.
 fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -158,7 +134,7 @@ fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         return Err("Nekohime gagal".into());
     }
     let data = res.json().unwrap_or(Value::Null);
-    // `Array.isArray(f) ? f[0]?.url : f?.url` (`upload-providers.js:97-98`).
+    // `Array.isArray(f) ? f[0]?.url: f?.url`.
     let url = match data.get("files") {
         Some(Value::Array(list)) => list.first().and_then(|f| f.get("url")),
         Some(f) => f.get("url"),
@@ -173,7 +149,7 @@ fn lewati_spasi(t: &str) -> usize {
 }
 
 /// Regex `Download link:\s*<a href=([^>\s]+)>` (case-insensitive,
-/// `upload-providers.js:124`).
+///
 fn tautan_leopard(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -193,12 +169,12 @@ fn tautan_leopard(html: &str) -> Option<String> {
     None
 }
 
-/// `leopard` (`upload-providers.js:103-127`).
+/// `leopard`.
 fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     const HALAMAN: &str = "https://leopard.hosting.pecon.us/upload.php";
     // Pemanasan: status tidak diperiksa, tapi kegagalan jaringan tetap
-    // menggagalkan provider ini (`await fetch(...)` tanpa catch di JS).
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // menggagalkan provider ini (`await fetch(...)` tanpa catch di versi awal).
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get(HALAMAN)
             .header("User-Agent", UA_UPLOAD)
@@ -224,7 +200,7 @@ fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     tautan_leopard(&html).ok_or_else(|| "Leopard gagal".into())
 }
 
-/// `/startUpload\("([^"]+)"/` (`upload-providers.js:142`).
+/// `/startUpload\("([^"]+)"/`.
 fn start_upload(body: &str) -> Option<String> {
     let mut dari = 0;
     while let Some(rel) = body[dari..].find("startUpload(\"") {
@@ -239,7 +215,7 @@ fn start_upload(body: &str) -> Option<String> {
 }
 
 /// Regex `id=["']file_src["'][^>]*value=["']([^"']+)["']` (case-insensitive,
-/// `upload-providers.js:172`) versi scanner.
+/// ) versi scanner.
 fn file_src_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -282,7 +258,7 @@ fn file_src_upload_ee(html: &str) -> Option<String> {
 }
 
 /// Regex `View file:\s*<br\s*\/?>\s*<a href=["']?([^"'>\s]+)["']?`
-/// (case-insensitive, `upload-providers.js:173`) versi scanner.
+/// versi scanner.
 fn view_file_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -321,9 +297,9 @@ fn view_file_upload_ee(html: &str) -> Option<String> {
     None
 }
 
-/// `uploadEe` (`upload-providers.js:129-179`).
+/// `uploadEe`.
 fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // `ext` (`upload-providers.js:130-133`) ditulis apa adanya, walau dengan
+    // `ext` ditulis apa adanya, walau
     // nama berkas tetap "image.jpg" cabang `cat_file` tidak pernah tercapai.
     let ext = NAMA_BERKAS
         .rsplit_once('.')
@@ -331,8 +307,8 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .unwrap_or_default();
     let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
-    // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get("https://www.upload.ee/?")
             .header("User-Agent", UA_UPLOAD)
@@ -395,7 +371,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     // `replaceAll("&amp;", "&")` lalu `replaceAll("&quot;", "\"")`.
     let mut url = raw.replace("&amp;", "&").replace("&quot;", "\"");
     if is_image {
-        // `String.replace("/files/", …)` JS mengganti kemunculan PERTAMA.
+        // `String.replace("/files/", …)` versi awal mengganti kemunculan PERTAMA.
         url = url.replacen("/files/", "/image/", 1);
         if let Some(tanpa_html) = url.strip_suffix(".html") {
             url = tanpa_html.to_string();
@@ -404,12 +380,12 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `uploadImage(buffer, 'image.jpg')` (`uploader.js:14-40`) — provider
+/// `uploadImage(buffer, 'image.jpg')` — provider
 /// dicoba berurutan sampai ada yang mengembalikan URL.
 type Unggah = fn(&dyn HttpGet, &[u8]) -> Result<String, String>;
 
 fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
+    // Urutan `PROVIDERS`.
     let providers: [(&str, Unggah); 6] = [
         ("Litterbox", litterbox),
         ("Kappa", kappa),
@@ -431,10 +407,10 @@ fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     ))
 }
 
-/// Balasan yang sama dipakai dua kali: `!buffer` (`fakeml.js:60`).
+/// Balasan yang sama dipakai dua kali: `!buffer`.
 const MINTA_GAMBAR: &str = "❌ Kirim/reply gambar untuk dijadikan avatar!";
 
-/// `fakeml.js:26-30` — kartu pakai; `${m.prefix}` muncul dua kali.
+/// Kartu pakai; `${m.prefix}` muncul dua kali.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "🎮 *ꜰᴀᴋᴇ ᴍʟ ᴘʀᴏꜰɪʟᴇ*\n\n\
@@ -445,7 +421,7 @@ pub(crate) fn bantuan(prefix: &str) -> String {
     )
 }
 
-/// `fakeml.js:70` — API canvas; `encodeURIComponent` untuk kedua parameter.
+/// API canvas; `encodeURIComponent` untuk kedua parameter.
 fn api_url(avatar: &str, nickname: &str) -> String {
     format!(
         "https://api.nexray.web.id/maker/fakelobyml?avatar={}&nickname={}",
@@ -454,14 +430,14 @@ fn api_url(avatar: &str, nickname: &str) -> String {
     )
 }
 
-/// `getAssetBuffer("pp-kosong")` (`fakeml.js:56`) — baca berkasnya lewat
+/// `getAssetBuffer("pp-kosong")` — baca berkasnya lewat
 /// `ctx.berkas()`; jalur asetnya dari `ctx.config().assets`.
 fn aset_pp_kosong(ctx: &Ctx) -> Option<Vec<u8>> {
     let jalur = ctx.config().assets.get("pp-kosong")?;
     ctx.berkas().baca(jalur).ok()
 }
 
-/// Cabang `fakeml.js:49-58` — foto profil pengirim; apa pun yang gagal
+/// Cabang — foto profil pengirim; apa pun yang gagal
 /// (sock melempar, tanpa foto, unduhan non-2xx) jatuh ke aset `pp-kosong`.
 fn foto_profil_atau_aset(ctx: &Ctx) -> Option<Vec<u8>> {
     match ctx.sock().foto_profil(&ctx.sender, "image") {
@@ -495,7 +471,7 @@ pub fn fakeml(ctx: Ctx) -> Reply {
         return Reply::text(bantuan(&ctx.prefix));
     }
 
-    // `fakeml.js:33-58` — quoted gambar dulu, baru gambar pemicu, terakhir PP.
+    // Quoted gambar dulu, baru gambar pemicu, terakhir PP.
     let unduhan: Option<Result<Vec<u8>, ()>> = if ctx.quoted().is_some_and(|q| q.kind.is_image()) {
         Some(ctx.download_quoted_media().map_err(|_| ()))
     } else if ctx.is_media_kind(IncomingKind::Image) {
@@ -505,7 +481,7 @@ pub fn fakeml(ctx: Ctx) -> Reply {
     };
 
     let buffer = match unduhan {
-        // `fakeml.js:40-42`/`:46-48` — `m.reply(te(...))` TANPA `return`;
+        // /`:46-48` — `m.reply(te(...))` TANPA `return`;
         // alurnya lanjut ke pemeriksaan `!buffer`, jadi user menerima DUA
         // balasan berurutan.
         Some(Err(())) => {
@@ -522,10 +498,10 @@ pub fn fakeml(ctx: Ctx) -> Reply {
         return Reply::text(MINTA_GAMBAR);
     };
 
-    // ponytail: reaksi 🕕 (`fakeml.js:62`) hilang — `Reply` hanya membawa
+    // Keterbatasan: reaksi 🕕 hilang — `Reply` hanya membawa
     // satu reaksi, jadi hanya reaksi penutup di bawah yang dikirim.
 
-    // `fakeml.js:78-81` — catch hanya membalas `Coba lagi` + reaksi ❌, BUKAN
+    // Catch hanya membalas `Coba lagi` + reaksi ❌, BUKAN
     // template error.
     let gagal = || Reply::text("Coba lagi").with_reaction("❌");
     let Ok(avatar) = upload_image(&*ctx.http, &buffer) else {
@@ -632,7 +608,7 @@ mod tests {
         }
     }
 
-    /// `sock.profilePictureUrl` — hasil atau error yang bisa disetel, dan
+    /// `sock.profilePictureUrl` — hasil atau error yang bisa disetel,
     /// hitungan panggilan supaya cabang tanpa gambar bisa dipastikan.
     #[derive(Debug, Default)]
     struct StubSock {
@@ -921,7 +897,7 @@ mod tests {
         assert_eq!(bytes_gambar(&r), ISI_API);
         assert_eq!(reaksi(&r), Some("✅".into()));
         assert_eq!(*http.unduhan.lock().unwrap(), [MediaOrigin::Trigger]);
-        // `fakeml.js:70` — hanya avatar + nickname yang dikirim.
+        // Hanya avatar + nickname yang dikirim.
         assert_eq!(
             http.panggilan.lock().unwrap()[1].url,
             api_url("https://litterbox.example/img.jpg", "Misaki")

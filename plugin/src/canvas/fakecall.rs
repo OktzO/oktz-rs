@@ -1,23 +1,16 @@
-//! `plugins/canvas/fakecall.js` — gambar panggilan palsu WhatsApp (Android/iOS).
+//! Gambar panggilan palsu WhatsApp (Android/iOS).
 //!
-//! API: `my.izuka-api.xyz/api/canvas/fakecall-android|ios` (multipart POST,
-//! `fakecall.js:73-95`). Provider pindah ke `apiii-xrina.my.id` dengan bentuk
-//! beda: `GET /canvas/call-andro|call-ios?pp=&nama=&durasi=` (openapi.json
-//! 2026-11-21, dites live balas PNG). Avatar jadi URL `pp`, bukan berkas
-//! multipart — buffer byte tak bisa dipakai, jadi foto profil sender
-//! (`ctx.sock().foto_profil`) dipakai dan catbox jadi cadangan.
-//!
-//! `ponytail:` `m.react('🕕')` lalu reaksi `📞`/`☢` — `Reply` hanya menyimpan
-//! satu reaksi, jadi yang dipegang adalah yang terakhir. JS gagal API tetap
-//! kirim `m.quoted.download()` sebagai gambar; ini balas error template.
+//! `Keterbatasan:` `m.react('🕕')` lalu reaksi `📞`/`☢` — `Reply` hanya menyimpan satu
+//! reaksi, jadi yang dipegang adalah yang terakhir. versi awal gagal API tetap kirim
+//! `m.quoted.download()` sebagai gambar; ini balas error template.
 
 use oktz_scraper::common::encode_uri_component;
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-/// Avatar cadangan (`fakecall.js:70`).
+/// Avatar cadangan.
 pub(crate) const AVATAR_CADANGAN: &str = "https://files.catbox.moe/nwvkbt.png";
 
-/// Balasan saat format tidak ada `|` atau teks kosong (`fakecall.js:25-39`).
+/// Balasan saat format tidak ada `|` atau teks kosong.
 pub(crate) fn bantuan(prefix: &str) -> String {
     format!(
         "Halo! Sepertinya format yang kamu masukkan kurang tepat.\n\n\
@@ -45,7 +38,7 @@ pub(crate) fn api_url(endpoint: &str, pp: &str, nama: &str, durasi: &str) -> Str
     )
 }
 
-/// Caption tidak ada (`fakecall.js` hanya mengirim image tanpa caption).
+/// Caption tidak ada.
 const CAPTION: &str = "";
 
 #[plugin(
@@ -90,7 +83,7 @@ pub fn fakecall(ctx: Ctx) -> Reply {
         );
     }
 
-    // `pp` wajib di API baru; JS memakai buffer yang diunggah, jadi foto
+    // `pp` wajib di API baru; versi awal memakai buffer yang diunggah, jadi foto
     // profil pengirim jadi sumbernya, catbox cadangan.
     let pp = ctx
         .sock()
@@ -111,16 +104,16 @@ pub fn fakecall(ctx: Ctx) -> Reply {
     };
     let data = res.body.bytes().to_vec();
     if data.starts_with(b"{") {
-        // API balas JSON error (bukan gambar): `catch` JS.
+        // API balas JSON error (bukan gambar): `catch` versi awal.
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
     }
 
     Reply::image(MediaSource::bytes(data), CAPTION).with_reaction("📞")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

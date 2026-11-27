@@ -1,15 +1,10 @@
-//! `plugins/canvas/fakestory2.js` — fake Instagram story, 1 gambar penuh.
-//!
-//! Sama seperti `canvas/fakestory.rs`: render `@napi-rs/canvas` (background
-//! blur, kartu, avatar, ikon Path2D) tidak dapat diport; alur sebelum render
-//! diport persis JS dan langkah render jatuh ke cabang `catch`
-//! (`fakestory2.js:208-211`). Helper bersama ada di `canvas/fakestory.rs`.
+//! Fake Instagram story, 1 gambar penuh.
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
 use super::fakestory::{gagal, get_avatar, is_image, username_args};
 
-/// `fakestory2.js:182-187` — kartu saat pesan bukan gambar.
+/// Kartu saat pesan bukan gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📷 *ꜰᴀᴋᴇ sᴛᴏʀʏ 2*\n\n\
@@ -19,7 +14,7 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `fakestory2.js:197` — unduhan gambar kosong/gagal.
+/// Unduhan gambar kosong/gagal.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak bisa download gambar";
 
 #[plugin(

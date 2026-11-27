@@ -1,22 +1,19 @@
-//! `plugins/canvas/fakestory.js` — fake Instagram story (kartu 2 gambar).
+//! Fake Instagram story (kartu 2 gambar).
 //!
-//! `ponytail:` inti plugin JS adalah render pixel `@napi-rs/canvas` 720x1150
-//! (background blur `ctx.filter`, kartu rounded-rect + clip, avatar lingkaran,
-//! ikon `Path2D` SVG, teks dengan shadow). `Kanvas` tidak punya compositing
-//! gambar, blur, clip, maupun `Path2D` — render 1:1 mustahil tanpa
-//! dependensi baru (`Cargo.toml` di luar jangkauan port ini). Yang diport:
-//! seluruh alur sebelum render persis JS (username, avatar, cek gambar,
-//! unduhan); langkah render jatuh ke cabang `catch` JS (`fakestory.js:241-244`).
+//! `Keterbatasan:` inti plugin versi awal adalah render pixel `@napi-rs/canvas` 720x1150
+//! (background blur `ctx.filter`, kartu rounded-rect + clip, avatar lingkaran, ikon
+//! `Path2D` SVG, teks dengan shadow). `Kanvas` tidak punya compositing gambar, blur, clip,
+//! maupun `Path2D` — render 1:1 mustahil tanpa dependensi baru (`Cargo.toml` di luar
+//! jangkauan port ini). Yang diport: seluruh alur sebelum render persis versi awal
+//! (username, avatar, cek gambar, unduhan); langkah render jatuh ke cabang `catch` versi
+//! awal.
 //!
-//! `ponytail:` reaksi `🕕` (`fakestory.js:204`) hilang — `Reply` hanya membawa
-//! satu reaksi; yang dipegang reaksi cabang terakhir (`❌`/`☢`).
-//!
-//! Helper `aset_pp_kosong`, `get_avatar`, dan `gagal` dipakai bersama
-//! `fakestory2/3/4` (satu nama = satu berkas tetap terjaga).
+//! `Keterbatasan:` reaksi `🕕` hilang — `Reply` hanya membawa satu reaksi; yang dipegang
+//! reaksi cabang terakhir (`❌`/`☢`).
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// `fakestory.js:212-218` — kartu saat pesan bukan gambar.
+/// Kartu saat pesan bukan gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📷 *ꜰᴀᴋᴇ sᴛᴏʀʏ*\n\n\
@@ -26,10 +23,10 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `fakestory.js:229` — unduhan gambar kosong/gagal.
+/// Unduhan gambar kosong/gagal.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak bisa download gambar";
 
-/// `getAssetBuffer("pp-kosong")` (`asset-manager.js:46-70`) — baca
+/// `getAssetBuffer("pp-kosong")` — baca
 /// `config.assets["pp-kosong"]` kalau bukan URL, lewat `ctx.berkas()`.
 pub(crate) fn aset_pp_kosong(ctx: &Ctx) -> Option<Vec<u8>> {
     let jalur = ctx.config().assets.get("pp-kosong")?;
@@ -40,7 +37,7 @@ pub(crate) fn aset_pp_kosong(ctx: &Ctx) -> Option<Vec<u8>> {
     ctx.berkas().baca(rel).ok()
 }
 
-/// `getAvatarBuffer` (`fakestory.js:190-201`): foto profil → unduh →
+/// `getAvatarBuffer`: foto profil → unduh →
 /// pp-kosong; kalau semuanya gagal, `throw` → cabang catch.
 pub(crate) fn get_avatar(ctx: &Ctx) -> Option<Vec<u8>> {
     if let Ok(Some(url)) = ctx.sock().foto_profil(&ctx.sender, "image")
@@ -51,7 +48,7 @@ pub(crate) fn get_avatar(ctx: &Ctx) -> Option<Vec<u8>> {
     aset_pp_kosong(ctx)
 }
 
-/// `m.args.join(" ").trim() || m.pushName || "User"` (`fakestory.js:203`).
+/// `m.args.join(" ").trim() || m.pushName || "User"`.
 pub(crate) fn username_args(ctx: &Ctx) -> String {
     let gabung = ctx.args.join(" ");
     let nama = gabung.trim();
@@ -64,12 +61,12 @@ pub(crate) fn username_args(ctx: &Ctx) -> String {
     "User".to_string()
 }
 
-/// Cabang catch JS (`fakestory.js:241-244`): template error + reaksi `☢`.
+/// Cabang catch versi awal: template error + reaksi `☢`.
 pub(crate) fn gagal(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
 
-/// `m.isImage || (m.quoted && m.quoted.isImage)` (`fakestory.js:210`).
+/// `m.isImage || (m.quoted && m.quoted.isImage)`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
     ctx.is_media_kind(IncomingKind::Image)
         || ctx.quoted().is_some_and(|q| q.kind.is_image())
@@ -103,7 +100,7 @@ pub fn fakestory(ctx: Ctx) -> Reply {
         return Reply::text(help(&ctx.prefix)).with_reaction("❌");
     }
 
-    // `m.isImage && m.download` lebih dulu, baru quoted (`fakestory.js:220-226`);
+    // `m.isImage && m.download` lebih dulu, baru quoted;
     // top dan bottom memakai gambar yang sama.
     let top = if ctx.is_media_kind(IncomingKind::Image) {
         ctx.download_media().ok()
@@ -117,7 +114,7 @@ pub fn fakestory(ctx: Ctx) -> Reply {
     };
     let _bottom = top;
 
-    // Render canvas tidak tersedia — cabang catch JS.
+    // Render canvas tidak tersedia — cabang catch versi awal.
     gagal(&ctx)
 }
 
@@ -383,7 +380,7 @@ pub(crate) mod tests {
     #[test]
     fn aset_pp_kosong_mengikuti_get_asset_buffer() {
         let ctx = ctx_of("");
-        // Runtime::default() tanpa kunci → null (seperti JS tanpa kunci).
+        // Runtime::default() tanpa kunci → null (seperti versi awal tanpa kunci).
         assert_eq!(aset_pp_kosong(&ctx), None);
     }
 }

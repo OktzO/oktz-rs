@@ -1,12 +1,10 @@
-//! `plugins/canvas/sroast.js` — stiker roast dengan canvas (`@napi-rs/canvas`),
-//! font eksternal dari catbox.moe, dan teks yang di-wrap.
+//! Stiker roast dengan canvas (`@napi-rs/canvas`),
 //!
-//! `ponytail:` Tidak ada API canvas (gambar, font, teks) yang diekspos ke
-//! plugin di registry Rust, dan tidak ada klien HTTP untuk memuat font dari
-//! URL eksternal. Sebagian gambar dari plugin ini tidak dapat dicerminkan.
-//! Handler di bawah hanya menangani guard input dan jatuh ke balasan error
-//! saat bagian canvas harus dieksekusi — ini penyimpangan disengaja yang
-//! perlu diimplementasikan ulang saat API canvas tersedia.
+//! `Keterbatasan:` Tidak ada API canvas (gambar, font, teks) yang diekspos ke plugin di
+//! registry Rust, dan tidak ada klien HTTP untuk memuat font dari URL eksternal. Sebagian
+//! gambar dari plugin ini tidak dapat dicerminkan. Handler di bawah hanya menangani guard
+//! input dan jatuh ke balasan error saat bagian canvas harus dieksekusi — ini penyimpangan
+//! disengaja yang perlu diimplementasikan ulang saat API canvas tersedia.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -17,8 +15,8 @@ pub(crate) fn help(prefix: &str, command: &str) -> String {
     )
 }
 
-/// `ponytail:` Implementasi canvas asli (createCanvas, wrapText, drawText,
-/// encode PNG, GlobalFonts.register dari catbox.moe) tidak tersedia di
+/// `Keterbatasan:` Implementasi canvas asli (createCanvas, wrapText, drawText,
+/// encode PNG, GlobalFonts.register dari catbox.moe) tidak tersedia
 // registry Rust. Fungsi ini adalah placeholder yang selalu gagal.
 fn buat_stiker_roast(_t1: &str, _t2: &str, _t3: &str) -> Result<Vec<u8>, String> {
     Err("canvas API tidak tersedia di registry plugin".to_string())
@@ -52,7 +50,7 @@ pub fn sroast(ctx: Ctx) -> Reply {
     let t2 = parts.get(1).copied().unwrap_or("-").to_uppercase();
     let t3 = parts.get(2).copied().unwrap_or("-");
 
-    // `m.react('🕕')` di JS sebelum try — di sini hanya satu reaksi yang
+    // `m.react('🕕')` di versi awal sebelum try — di sini hanya satu reaksi
     // dapat dibawa, jadi reaksi akhir adalah ✅ atau ☢.
     match buat_stiker_roast(t1, &t2, t3) {
         Ok(_buffer) => Reply::text("Stiker roast berhasil dibuat.").with_reaction("✅"),

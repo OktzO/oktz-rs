@@ -1,20 +1,15 @@
-//! `plugins/canvas/watercolortext.js` — gambar teks efek watercolor lewat Cuki.
+//! Gambar teks efek watercolor lewat Cuki.
 //!
-//! Nama plugin di JS bukan nama file: `watercolortext.js` mendaftarkan
-//! `.watercolorfx`. Teks bantuan juga memakai literal `watercolortext`, bukan
-//! `m.command` — keduanya ikut apa adanya.
-//!
-//! `ponytail:` `config.APIkey.cuki` tidak ada di `Ctx`, jadi dikunci `""` —
-//! pola yang sama dengan `crate::ai::anime_gen` dan `crate::info::jadwalbola`.
-//! Efeknya cabang "API key belum diset" (`watercolortext.js:35`) selalu
-//! benar dan jalur HTTP setelahnya tidak terjangkau sampai router menyediakan
-//! config.
+//! `Keterbatasan:` `config.APIkey.cuki` tidak ada di `Ctx`, jadi dikunci `""` — pola yang
+//! sama dengan `crate::ai::anime_gen` dan `crate::info::jadwalbola`. Efeknya cabang "API
+//! key belum diset" selalu benar dan jalur HTTP setelahnya tidak terjangkau sampai router
+//! menyediakan config.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `watercolortext.js:26-28` — cabang `if (!text)`.
+/// Cabang `if (!text)`.
 fn help(prefix: &str) -> String {
     format!(
         "🎨 *ᴡᴀᴛᴇʀᴄᴏʟᴏʀ ᴛᴇxᴛ*\n\n\
@@ -23,8 +18,8 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `explainFailure(new MissingApiKeyError('cuki', 'APIKEY_CUKI'), ..)`
-/// (`src/lib/stalker-fallback.js:30-36`).
+/// `explainFailure(new MissingApiKeyError('cuki', 'APIKEY_CUKI')..)`
+///
 fn missing_key_message(command: &str) -> String {
     format!(
         "❌ *API Key belum diset!*\n\n\
@@ -33,7 +28,7 @@ fn missing_key_message(command: &str) -> String {
     )
 }
 
-/// `src/lib/error.js` + `config.errorTemplate` (`config.js:153`).
+/// + `config.errorTemplate`.
 ///
 /// `pushName || 'User'` jadi `'User'` karena `m.pushName` tidak ada di `Ctx`;
 /// `prefix || '.'` dan `command || '?'` tetap dihormati karena keduanya ada.
@@ -88,7 +83,7 @@ pub fn watercolortext(ctx: Ctx) -> Reply {
         encode_uri_component(&text)
     );
 
-    // `axios.get` melempar untuk status >= 400 maupun error jaringan, dan
+    // `axios.get` melempar untuk status >= 400 maupun error jaringan,
     // keduanya ditangkap `catch` yang sama.
     let Ok(res) = ctx.http.get(&url) else {
         return Reply::text(error_template(&ctx.prefix, &ctx.command)).with_reaction("☢");

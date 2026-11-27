@@ -1,12 +1,5 @@
-//! `plugins/canvas/facepalm.js` — bikin gambar facepalm dari foto.
-//!
-//! ## BLOKIR — tidak di-port.
-//!
-//! Alasan: butuh `downloadMediaMessage` + `loadImage` (media intake dan
-//! decoding gambar yang tidak ada di `Ctx`), `createCanvas`/`canvas.getContext`
-//! (`@napi-rs/canvas`, render overlay 632x357), `axios` untuk ambil overlay
-//! dari GitHub (`responseType: "arraybuffer"`), dan
-//! `sock.sendMessage(..., { image: buffer, caption: "🤦‍♂️ *Facepalm*" })`.
+//! Bikin gambar facepalm dari foto.
+
 //
 //! `ponytail:` kalau API canvas dan `download_media` tersedia di `Ctx` nanti,
 //! port ulang dari `plugins/canvas/facepalm.js` (guard tipe imageMessage,

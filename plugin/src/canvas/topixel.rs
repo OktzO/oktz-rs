@@ -1,23 +1,22 @@
-//! `plugins/canvas/topixel.js` — pixel art maker (sharp block-average).
+//! Pixel art maker (sharp block-average).
 //!
-//! `ponytail:` inti plugin JS adalah loop piksel mentah sharp
-//! (`image.raw().toBuffer()` + rata-rata blok per `block` piksel,
-//! `topixel.js:26-81`). `Gambar` (`oktz_plugin_api::gambar`) tidak membuka
-//! akses piksel mentah dan crate `image` bukan dependensi langsung
-//! `oktz-plugins` (`Cargo.toml` di luar jangkauan port ini), jadi render 1:1
-//! mustahil. Yang diport: seluruh cabang validasi + `getBlock` persis JS;
-//! langkah pixelate jatuh ke cabang `catch` JS (`topixel.js:118-121`).
+//! `Keterbatasan:` inti plugin versi awal adalah loop piksel mentah sharp
+//! (`image.raw().toBuffer()` + rata-rata blok per `block` piksel,). `Gambar`
+//! (`oktz_plugin_api::gambar`) tidak membuka akses piksel mentah dan crate `image` bukan
+//! dependensi langsung `oktz-plugins` (`Cargo.toml` di luar jangkauan port ini), jadi
+//! render 1:1 mustahil. Yang diport: seluruh cabang validasi + `getBlock` persis versi
+//! awal; langkah pixelate jatuh ke cabang `catch` versi awal.
 //!
-//! `ponytail:` reaksi `🕕` (`topixel.js:103`) hilang — `Reply` hanya membawa
-//! satu reaksi; yang dipegang reaksi catch (`☢`).
+//! `Keterbatasan:` reaksi `🕕` hilang — `Reply` hanya membawa satu reaksi; yang dipegang
+//! reaksi catch (`☢`).
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// `topixel.js:21-24` — `Math.min(Math.max(Number(level) || 12, 1), 40)`,
+/// `Math.min(Math.max(Number(level) || 12, 1), 40)`,
 /// lalu `41 - value`.
 ///
-/// `Number(level)` ditiru: `f64` yang terparse; `NaN`/negatif-nol seperti JS.
-/// `|| 12` JS memicu untuk `NaN`, `0`, `-0` (falsy).
+/// `Number(level)` ditiru: `f64` yang terparse; `NaN`/negatif-nol seperti versi awal.
+/// `|| 12` versi awal memicu untuk `NaN`, `0`, `-0` (falsy).
 pub(crate) fn get_block(level: &str) -> u32 {
     let nilai: f64 = parse_number(level).unwrap_or(f64::NAN);
     let nilai = if nilai == 0.0 || nilai.is_nan() { 12.0 } else { nilai };
@@ -89,15 +88,15 @@ pub(crate) fn parse_number(s: &str) -> Option<f64> {
     Some(if negatif { -nilai } else { nilai })
 }
 
-/// `topixel.js:96` — kartu untuk pesan pemicu bukan gambar.
+/// Kartu untuk pesan pemicu bukan gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "👾 *PIXEL ART MAKER*\n\nKirim atau reply foto dengan perintah `{prefix}topixel [level]` untuk mengubah fotomu menjadi gaya retro pixel art!\n\n_Catatan: Level opsional antara 1-40 (semakin besar semakin kotak-kotak)._"
     )
 }
 
-/// `topixel.js:87-101` — media: quoted HARUS gambar (`⚠️`), pemicu HARUS
-/// gambar (`help`), unduhan/keberadaan kosong → `topixel.js:101`.
+/// Media: quoted HARUS gambar (`⚠️`), pemicu HARUS
+/// gambar (`help`), unduhan/keberadaan kosong →.
 pub(crate) enum Media {
     Bytes(Vec<u8>),
     BukanQuotedGambar,
@@ -154,7 +153,7 @@ pub fn topixel(ctx: Ctx) -> Reply {
     };
     let _ = buffer;
 
-    // Pixelate tidak tersedia — cabang catch JS (`topixel.js:118-121`).
+    // Pixelate tidak tersedia — cabang catch versi awal.
     Reply::text(crate::common::error_template(&ctx)).with_reaction("☢")
 }
 
@@ -248,8 +247,8 @@ mod tests {
         assert_eq!(get_block("100"), 1);
         // Negatif → clamp 1 → block 40.
         assert_eq!(get_block("-5"), 40);
-        // Desimal JS: Number("2.9") = 2.9 → clamp → block 41-2.9 = 38.1 →
-        // JS mengembalikan pecahan; Rust memotong ke 38.
+        // Desimal versi awal: Number("2.9") = 2.9 → clamp → block 41-2.9 = 38.1 →
+        // versi awal mengembalikan pecahan; Rust memotong ke 38.
         assert_eq!(get_block("2.9"), 38);
     }
 

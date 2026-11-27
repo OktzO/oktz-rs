@@ -1,19 +1,17 @@
-//! `plugins/canvas/fakedana.js` — gambar saldo/bukti transaksi DANA palsu dari
-//! API `nexray`.
+//! Gambar saldo/bukti transaksi DANA palsu
 //!
-//! `ponytail:` `nominal` dibersihkan jadi digit saja sebelum masuk URL, jadi
-//! `encodeURIComponent` di JS tidak pernah mengubah apa pun. Di sini
-//! pemanggilan itu dilewati, bukan ditiru.
+//! `Keterbatasan:` `nominal` dibersihkan jadi digit saja sebelum masuk URL, jadi
+//! `encodeURIComponent` di versi awal tidak pernah mengubah apa pun. Di sini pemanggilan
+//! itu dilewati, bukan ditiru.
 //!
-//! `ponytail:` `te()` memakai `m.pushName`, yang tidak ada di `Ctx` — teks
-//! balasan memakai fallback `'User'`, sama seperti `error.js` saat `pushName`
-//! kosong.
+//! `Keterbatasan:` `te()` memakai `m.pushName`, yang tidak ada di `Ctx` — teks balasan
+//! memakai fallback `'User'`, sama seperti saat `pushName` kosong.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `src/lib/error.js` + `config.errorTemplate` (`config.js:153`).
+/// + `config.errorTemplate`.
 ///
 /// `pushName || 'User'` jadi `'User'`; `prefix || '.'` dan `command || '?'`
 /// tetap dihormati karena keduanya ada di `Ctx`.
@@ -27,7 +25,7 @@ pub(crate) fn error_template(prefix: &str, command: &str) -> String {
     )
 }
 
-/// Cabang `if (!nominal)` (`fakedana.js:24-33`).
+/// Cabang `if (!nominal)`.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "⚠️ *PEMBUATAN FAKE DANA*\n\n\
@@ -41,24 +39,24 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `(text || m.text || "").trim().replace(/[^0-9]/g, "")` (`fakedana.js:21`).
+/// `(text || m.text || "").trim().replace(/[^0-9]/g, "")`.
 ///
-/// `[^0-9]` di JS ASCII, jadi `char::is_ascii_digit` — bukan `is_numeric`,
+/// `[^0-9]` di versi awal ASCII, jadi `char::is_ascii_digit` — bukan `is_numeric`,
 /// yang menerima angka non-Latin.
 pub(crate) fn nominal_of(text: &str) -> String {
     text.trim().chars().filter(char::is_ascii_digit).collect()
 }
 
-/// `Number(nominal).toLocaleString("id-ID")` (`fakedana.js:45`).
+/// `Number(nominal).toLocaleString("id-ID")`.
 ///
-/// `ponytail:` di atas `1e21` V8 beralih ke notasi eksponensial
+/// `Keterbatasan:` di atas `1e21` V8 beralih ke notasi eksponensial
 /// (`1e+30`); `thousands_id` tidak, jadi angka sepanjang itu akan tampil
 /// berbeda. Praktis tidak terjadi untuk nominal.
 pub(crate) fn nominal_formatted(nominal: &str) -> String {
     thousands_id(nominal.parse::<f64>().unwrap_or(f64::NAN))
 }
 
-/// Caption sukses (`fakedana.js:51`).
+/// Caption sukses.
 pub(crate) fn success_caption(nominal: &str) -> String {
     format!(
         "✅ *BERHASIL*\n\nGambar *Fake DANA* dengan nominal *Rp {}* berhasil dibuat.",
@@ -95,7 +93,7 @@ pub fn fakedana(ctx: Ctx) -> Reply {
     };
 
     // `await m.react("🕕")` lalu `await m.react("✅")` — dua reaksi pada pesan
-    // yang sama. `Reply` hanya menyimpan satu, jadi reaksi terakhir yang
+    // yang sama. `Reply` hanya menyimpan satu, jadi reaksi terakhir
     // dipegang, sama seperti yang dilakukan plugin lain di crate ini.
     Reply::image(
         MediaSource::bytes(res.body.bytes().to_vec()),

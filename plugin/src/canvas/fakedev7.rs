@@ -1,21 +1,19 @@
-//! `plugins/canvas/fakedev7.js` — fake developer (Python Theme).
+//! Fake developer (Python Theme).
 //!
-//! `ponytail:` inti plugin JS adalah render pixel `@napi-rs/canvas` 1080x1080
-//! (background kode Python acak, gradien radial, avatar lingkaran dari gambar
-//! yang diunduh, teks melingkar, badge crown/leaf/blue tick). `Kanvas`
-//! (`oktz_plugin_api::kanvas`) tidak punya compositing gambar/gradien radial
-//! terhadap gambar/font ganda, dan `Gambar` tidak membuka akses piksel mentah
-//! — render 1:1 mustahil tanpa dependensi baru (`Cargo.toml` di luar jangkauan
-//! port ini). Yang diport: seluruh cabang sebelum render persis JS (help,
-//! sumber avatar, pp-kosong); langkah render jatuh ke cabang `catch` JS
-//! (`fakedev7.js:171-174`).
+//! `Keterbatasan:` inti plugin versi awal adalah render pixel `@napi-rs/canvas` 1080x1080
+//! (background kode Python acak, gradien radial, avatar lingkaran dari gambar yang diunduh,
+//! teks melingkar, badge crown/leaf/blue tick). `Kanvas` (`oktz_plugin_api::kanvas`) tidak
+//! punya compositing gambar/gradien radial terhadap gambar/font ganda, dan `Gambar` tidak
+//! membuka akses piksel mentah — render 1:1 mustahil tanpa dependensi baru (`Cargo.toml` di
+//! luar jangkauan port ini). Yang diport: seluruh cabang sebelum render persis versi awal
+//! (help, sumber avatar, pp-kosong); langkah render jatuh ke cabang `catch` versi awal.
 //!
-//! `ponytail:` reaksi `🕕` (`fakedev7.js:43`) hilang — `Reply` hanya membawa
-//! satu reaksi; yang dipegang reaksi catch (`❌`).
+//! `Keterbatasan:` reaksi `🕕` hilang — `Reply` hanya membawa satu reaksi; yang dipegang
+//! reaksi catch (`❌`).
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
-/// `fakedev7.js:26` — kartu saat nama kosong.
+/// Kartu saat nama kosong.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🎮 *ꜰᴀᴋᴇ ᴅᴇᴠᴇʟᴏᴘᴇʀ 7*\n\n> Masukkan nama untuk profile\n\n\
@@ -25,15 +23,15 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `fakedev7.js:41` — dipakai kalau buffer tetap kosong setelah fallback.
+/// Dipakai kalau buffer tetap kosong setelah fallback.
 pub(crate) const AVATAR_KOSONG: &str = "❌ Kirim/reply gambar untuk dijadikan avatar!";
 
-/// `fakedev7.js:173` — pesan cabang `catch`.
+/// Pesan cabang `catch`.
 pub(crate) const GAGAL: &str = "❌ Terjadi kesalahan saat memproses gambar.";
 
-/// `getAssetBuffer("pp-kosong")` (`asset-manager.js:46-70`) — baca
+/// `getAssetBuffer("pp-kosong")` — baca
 /// `config.assets["pp-kosong"]` kalau bukan URL, lewat `ctx.berkas()`.
-/// Cache JS sengaja tidak ditiru (di Rust setiap panggilan membaca ulang).
+/// Cache versi awal sengaja tidak ditiru (di Rust setiap panggilan membaca ulang).
 pub(crate) fn aset_pp_kosong(ctx: &Ctx) -> Option<Vec<u8>> {
     let jalur = ctx.config().assets.get("pp-kosong")?;
     if jalur.starts_with("http") {
@@ -43,13 +41,13 @@ pub(crate) fn aset_pp_kosong(ctx: &Ctx) -> Option<Vec<u8>> {
     ctx.berkas().baca(rel).ok()
 }
 
-/// Sumber avatar (`fakedev7.js:28-40`): quoted image → trigger image →
+/// Sumber avatar: quoted image → trigger image →
 /// foto profil → aset pp-kosong.
 ///
-/// `Err(())` untuk dua bentuk kegagalan yang di JS berbeda jalur:
+/// `Err(())` untuk dua bentuk kegagalan yang di versi awal berbeda jalur:
 /// unduhan quoted/trigger yang gagal langsung `return m.reply(te(...))`
-/// (`fakedev7.js:30,32`), sedangkan kegagalan jalur foto profil jatuh ke
-/// pp-kosong dan `!buffer` bila asetnya tidak ada (`fakedev7.js:41`).
+/// , sedangkan kegagalan jalur foto profil jatuh
+/// pp-kosong dan `!buffer` bila asetnya tidak ada.
 pub(crate) enum Avatar {
     Bytes(Vec<u8>),
     UnduhanGagal,
@@ -72,7 +70,7 @@ pub(crate) fn avatar(ctx: &Ctx) -> Avatar {
         };
     }
     // Jalur foto profil: kegagalan `profilePictureUrl` maupun unduhan
-    // ditelan JS (`fakedev7.js:34-39`) → pp-kosong.
+    // ditelan versi awal → pp-kosong.
     if let Ok(Some(url)) = ctx.sock().foto_profil(&ctx.sender, "image")
         && let Ok(res) = ctx.http.get(&url)
     {
@@ -101,7 +99,7 @@ pub(crate) fn avatar(ctx: &Ctx) -> Avatar {
     is_bot_admin = false
 )]
 pub fn fakedev7(ctx: Ctx) -> Reply {
-    // `const name = m.text?.trim()` (`fakedev7.js:24`).
+    // `const name = m.text?.trim()`.
     let nama = ctx.text.trim();
     if nama.is_empty() {
         return Reply::text(help(&ctx.prefix));
@@ -111,14 +109,14 @@ pub fn fakedev7(ctx: Ctx) -> Reply {
         Avatar::Bytes(b) => b,
         Avatar::UnduhanGagal => {
             // `catch (e) { return m.reply(te(m.prefix, m.command, m.pushName)) }`
-            // (`fakedev7.js:30,32`) — sebelum `m.react("🕕")`, jadi tanpa reaksi.
+            // Sebelum `m.react("🕕")`, jadi tanpa reaksi.
             return Reply::text(crate::common::error_template(&ctx));
         }
         Avatar::TidakAda => return Reply::text(AVATAR_KOSONG),
     };
     let _ = buffer;
 
-    // Render canvas tidak tersedia — cabang catch JS (`fakedev7.js:171-174`).
+    // Render canvas tidak tersedia — cabang catch versi awal.
     Reply::text(GAGAL).with_reaction("❌")
 }
 
@@ -374,10 +372,10 @@ mod tests {
     fn aset_pp_kosong_dibaca_dari_config_assets() {
         let mut ctx = ctx_of("Misaki");
         // Runtime::default() di test tidak punya kunci aset → getAssetBuffer
-        // JS dengan config tanpa kunci juga mengembalikan null.
+        // versi awal dengan config tanpa kunci juga mengembalikan null.
         assert_eq!(aset_pp_kosong(&ctx), None);
 
-        // Kunci yang menunjuk URL diabaikan getAssetBuffer JS (`!startsWith("http")`).
+        // Kunci yang menunjuk URL diabaikan getAssetBuffer versi awal (`!startsWith("http")`).
         let mut rt = ctx.config().clone();
         rt.assets
             .0

@@ -1,18 +1,7 @@
-//! `plugins/canvas/gura.js` — efek canvas Gura dari foto lewat API Nexray.
+//! Efek canvas Gura dari foto lewat API Nexray.
 //!
-//! Port penuh: gambar (reply/kirim) → unggah lewat rantai provider
-//! `src/lib/uploader.js` → `GET api.nexray.eu.cc/canvas/gura?url=...` → kirim
-//! gambar hasil (`gura.js:23-61`).
-//!
-//! Penyimpangan yang tercatat apa adanya:
-//!
-//! - **Reaksi `🕕` dibuang** (`gura.js:42`). `Reply` hanya bisa membawa satu
-//!   reaksi, jadi yang ikut adalah reaksi penutup (`✅`/`☢`).
-//! - **`m.pushName` dipakai apa adanya** — `Ctx` punya `push_name`.
-//!
-//! `ponytail:` blok SALINAN `uploadImage` sama persis dengan
-//! `canvas/profileig.rs` dan empat berkas `ai/*`; angkat ke `crate::common`
-//! kalau plugin lain turut memakainya.
+//! `Keterbatasan:` blok SALINAN `uploadImage` sama persis dengan `canvas/profileig.rs` dan
+//! empat berkas `ai/*`; angkat ke `crate::common` kalau plugin lain turut memakainya.
 
 use oktz_plugin_api::{
     Ctx, HttpCall, HttpGet, HttpResponse, IncomingKind, MediaSource, MultipartPart, Reply, plugin,
@@ -22,11 +11,11 @@ use serde_json::Value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 // ===========================================================================
-// SALINAN `src/lib/uploader.js` + `src/lib/upload-providers.js`
+// SALINAN +
 // (identik dengan blok di `canvas/profileig.rs` — lihat catatan di sana).
 // ===========================================================================
 
-/// `upload-providers.js:16-17` — UA browser untuk host yang menolaknya.
+/// UA browser untuk host yang menolaknya.
 const UA_UPLOAD: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
 const NAMA_BERKAS: &str = "image.jpg";
@@ -44,7 +33,7 @@ fn url_dari(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// `litterbox` (`upload-providers.js:21-37`).
+/// `litterbox`.
 fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -68,7 +57,7 @@ fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `kappa` (`upload-providers.js:39-59`).
+/// `kappa`.
 fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -90,7 +79,7 @@ fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(data.get("link")).ok_or_else(|| "Invalid response".into())
 }
 
-/// `uguu` (`upload-providers.js:61-82`).
+/// `uguu`.
 fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -120,7 +109,7 @@ fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(url).ok_or_else(|| "Invalid response".into())
 }
 
-/// `nekohime` (`upload-providers.js:84-101`).
+/// `nekohime`.
 fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -166,7 +155,7 @@ fn tautan_leopard(html: &str) -> Option<String> {
     None
 }
 
-/// `leopard` (`upload-providers.js:103-127`).
+/// `leopard`.
 fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     const HALAMAN: &str = "https://leopard.hosting.pecon.us/upload.php";
     http.call(
@@ -290,7 +279,7 @@ fn view_file_upload_ee(html: &str) -> Option<String> {
     None
 }
 
-/// `uploadEe` (`upload-providers.js:129-179`).
+/// `uploadEe`.
 fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let ext = NAMA_BERKAS
         .rsplit_once('.')
@@ -367,7 +356,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `uploadImage(buffer, 'image.jpg')` (`uploader.js:14-40`).
+/// `uploadImage(buffer, 'image.jpg')`.
 type Unggah = fn(&dyn HttpGet, &[u8]) -> Result<String, String>;
 
 pub(crate) fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
@@ -396,23 +385,23 @@ pub(crate) fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, 
 // Plugin
 // ===========================================================================
 
-/// `gura.js:29` — kartu untuk pesan pemicu bukan gambar.
+/// Kartu untuk pesan pemicu bukan gambar.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "🦈 *GURA CANVAS*\n\nKirim atau reply foto dengan perintah `{prefix}gura` untuk memberikan efek Gura!"
     )
 }
 
-/// `gura.js:47` — URL API Nexray.
+/// URL API Nexray.
 pub(crate) fn api_url(img_url: &str) -> String {
     format!("https://api.nexray.eu.cc/canvas/gura?url={}", encode_uri_component(img_url))
 }
 
-/// `gura.js:54` — caption sukses.
+/// Caption sukses.
 pub(crate) const CAPTION: &str = "🦈 *RAWWRR! Gura is here!*";
 
-/// `gura.js:24-38` — media: quoted HARUS gambar (`⚠️`), pemicu HARUS gambar
-/// (`help`), lalu unduh; unduhan/keberadaan kosong → `gura.js:40`.
+/// Media: quoted HARUS gambar (`⚠️`), pemicu HARUS gambar
+/// (`help`), lalu unduh; unduhan/keberadaan kosong →.
 pub(crate) enum Media {
     Bytes(Vec<u8>),
     BukanQuotedGambar,
@@ -439,7 +428,7 @@ pub(crate) fn ambil_media(ctx: &Ctx) -> Media {
     }
 }
 
-/// `gura.js:89` — kartu catch: template error + reaksi `☢`.
+/// Kartu catch: template error + reaksi `☢`.
 pub(crate) fn gagal(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
@@ -471,7 +460,7 @@ pub fn gura(ctx: Ctx) -> Reply {
     };
 
     // `try { uploadImage; fetch(apiUrl); send ✅ } catch { ☢ + te }`
-    // (`gura.js:44-60`). Reaksi `🕕` (`gura.js:42`) hilang — satu reaksi saja.
+    // . Reaksi `🕕` hilang — satu reaksi saja.
     let Some(img_url) = upload_image(&*ctx.http, &buffer).ok() else {
         return gagal(&ctx);
     };
@@ -479,7 +468,7 @@ pub fn gura(ctx: Ctx) -> Reply {
     let Ok(res) = ctx.http.call(&HttpCall::get(api_url(&img_url))) else {
         return gagal(&ctx);
     };
-    // `if (!res.ok) throw` (`gura.js:50`).
+    // `if (!res.ok) throw`.
     if !respons_ok(&res) {
         return gagal(&ctx);
     }

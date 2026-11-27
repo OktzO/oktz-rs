@@ -1,44 +1,36 @@
-//! `plugins/canvas/iqc2.js` — fake quote iOS dengan provider, jam, dan
-//! baterai acak.
+//! Fake quote iOS dengan provider, jam,
 //!
-//! Tidak ada HTTP di plugin ini: JS juga tidak memanggil axios, hanya
-//! menyerahkan URL ke Baileys (`image: { url }`).
+//! `Keterbatasan:` `m.pushName` tidak ada di `Ctx`. memakai `pushName || "Unknown"`, jadi
+//! teks help memakai `"Unknown"` sebagai fallback — bukan `'User'` seperti.
 //!
-//! `ponytail:` `m.pushName` tidak ada di `Ctx`. `serialize.js:760` memakai
-//! `pushName || "Unknown"`, jadi teks help memakai `"Unknown"` sebagai
-//! fallback — bukan `'User'` seperti `error.js`.
-//!
-//! `ponytail:` cabang `catch` di JS (`iqc2.js:45-49`) menangkap kegagalan
-//! `sock.sendMessage`. Pengiriman sekarang dikerjakan pipeline, jadi cabang
-//! itu tidak lagi punya pemicu di dalam handler.
-//!
-//! `pluginConfig` tidak punya key `example`, jadi `example` kosong — bukan
-//! diisi tebakan.
+//! `Keterbatasan:` cabang `catch` di versi awal menangkap kegagalan `sock.sendMessage`.
+//! Pengiriman sekarang dikerjakan pipeline, jadi cabang itu tidak lagi punya pemicu di
+//! dalam handler.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::common::{now_ms, random_index, roll, time_hm};
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `providers` (`iqc2.js:31`).
+/// `providers`.
 const PROVIDERS: [&str; 6] = ["INDOSAT", "TELKOMSEL", "XL", "TRI", "SMARTFREN", "WIFI"];
 
 /// Batas atas `baterai`: `Math.floor(Math.random() * (100 - 10 + 1)) + 10`.
 const BATERAI_SPAN: u32 = 100 - 10 + 1;
 
-/// `providers[Math.floor(Math.random() * providers.length)]` (`iqc2.js:32`).
+/// `providers[Math.floor(Math.random() * providers.length)]`.
 pub(crate) fn random_provider() -> &'static str {
     PROVIDERS[random_index(PROVIDERS.len())]
 }
 
-/// `Math.floor(Math.random() * (100 - 10 + 1)) + 10` (`iqc2.js:37`) — inklusif
+/// `Math.floor(Math.random() * (100 - 10 + 1)) + 10` — inklusif
 /// 10..=100, jadi rentang Rust `0..91` digeser 10.
 pub(crate) fn random_baterai() -> u32 {
     roll(BATERAI_SPAN) + 10
 }
 
 /// `toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })`
-/// lalu `.replace('.', ':')` (`iqc2.js:35`).
+/// lalu `.replace('.', ':')`.
 ///
 /// id-ID memisahkan jam dan menit dengan titik (`"19.05"`), dan `replace`
 /// tanpa flag `g` hanya mengganti kemunculan pertama — hasilnya persis
@@ -47,7 +39,7 @@ pub(crate) fn jam() -> String {
     time_hm(now_ms())
 }
 
-/// `text || (m.quoted && m.quoted.text ? m.quoted.text : "")` (`iqc2.js:18`).
+/// `text || (m.quoted && m.quoted.text ? m.quoted.text: "")`.
 pub(crate) fn target_text(text: &str, quoted: Option<&str>) -> String {
     if !text.is_empty() {
         return text.to_string();
@@ -55,7 +47,7 @@ pub(crate) fn target_text(text: &str, quoted: Option<&str>) -> String {
     quoted.filter(|q| !q.is_empty()).unwrap_or("").to_string()
 }
 
-/// `https://api.nexray.eu.cc/maker/v1/iqc?...` (`iqc2.js:39`).
+/// `https://api.nexray.eu.cc/maker/v1/iqc?...`.
 pub(crate) fn api_url(target: &str, provider: &str, jam: &str, baterai: u32) -> String {
     format!(
         "https://api.nexray.eu.cc/maker/v1/iqc?text={}&provider={}&jam={}&baterai={}",
@@ -66,7 +58,7 @@ pub(crate) fn api_url(target: &str, provider: &str, jam: &str, baterai: u32) -> 
     )
 }
 
-/// Cabang `if (!targetText)` (`iqc2.js:21-26`).
+/// Cabang `if (!targetText)`.
 pub(crate) fn help(push_name: &str) -> String {
     format!(
         "Halo *{push_name}*, sepertinya kamu belum memasukkan teksnya.\n\n\
@@ -176,7 +168,7 @@ mod tests {
         assert!(!meta.is_private);
         assert!(!meta.is_owner);
         assert!(!meta.is_premium);
-        // `pluginConfig` JS tidak punya key `example`.
+        // `pluginConfig` versi awal tidak punya key `example`.
         assert_eq!(meta.example, "");
     }
 
@@ -236,8 +228,8 @@ mod tests {
         }
     }
 
-    /// `serialize.js:407` sudah mem-trim `m.text`, jadi teks spasi-tifu tidak
-    /// pernah sampai ke handler. Kalau tetap dipaksakan, `text || ...` di JS
+    /// sudah mem-trim `m.text`, jadi teks spasi-tifu tidak
+    /// pernah sampai ke handler. Kalau tetap dipaksakan, `text ||...` di versi awal
     /// memakai string spasi itu apa adanya (truthy) — bukan help.
     #[test]
     fn a_whitespace_only_text_is_truthy_in_js_and_still_builds_the_url() {

@@ -1,10 +1,10 @@
-//! `plugins/canvas/applemusic.js` — gambar pemutar Apple Music dari foto.
+//! Gambar pemutar Apple Music dari foto.
 //!
-//! `ponytail:` kunci upload `TERMAI_UPLOAD_KEY` dibaca dari `process.env` di
-//! JS, yang tidak ada di `Ctx`; port menggunakan `""` (mirip `|| ""` di JS).
-//! Tambahkan kolom kunci ke `Runtime` kalau router mengeksposnya nanti.
-//! Catatan: baris `pub mod applemusic;` perlu ditambah ke
-//! `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain).
+//! `Keterbatasan:` kunci upload `TERMAI_UPLOAD_KEY` dibaca dari `process.env` di versi
+//! awal, yang tidak ada di `Ctx`; port menggunakan `""` (mirip `|| ""` di versi awal).
+//! Tambahkan kolom kunci ke `Runtime` kalau router mengeksposnya nanti. Catatan: baris `pub
+//! mod applemusic;` perlu ditambah ke `src/canvas/mod.rs` secara manual (mod.rs milik
+//! plugin lain).
 
 use oktz_plugin_api::{
     Ctx, HttpCall, HttpError, HttpGet, IncomingKind, MediaSource, MultipartPart, Reply, plugin,
@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// `applemusic.js:4-10` — kartu pakai saat gambar/teks/pemisah `|` belum lengkap.
+/// Kartu pakai saat gambar/teks/pemisah `|` belum lengkap.
 fn help(prefix: &str) -> String {
     format!(
         "🎵 *APPLE MUSIC CANVAS*\n\n\
@@ -26,13 +26,13 @@ fn help(prefix: &str) -> String {
     )
 }
 
-/// `TERMAI_UPLOAD_KEY` hanya ada di `process.env` JS; `Ctx` tidak mengekspos
+/// `TERMAI_UPLOAD_KEY` hanya ada di `process.env` versi awal; `Ctx` tidak mengekspos
 // env, jadi `""` — sama dengan `process.env.TERMAI_UPLOAD_KEY || ""`.
 fn termai_key() -> &'static str {
     ""
 }
 
-/// `applemusic.js:21-37` — unggah cover ke termai, ambil `path` atau
+/// Unggah cover ke termai, ambil `path`
 // `files[0].url`; kalau keduanya tidak ada → `Error('Upload gagal')`.
 fn upload_cover(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let url = format!("https://c.termai.cc/api/upload?key={}", termai_key());
@@ -59,7 +59,7 @@ fn upload_cover(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Err("Upload gagal".to_string())
 }
 
-/// `applemusic.js:71` — API canvas Apple Music.
+/// API canvas Apple Music.
 fn apple_music_url(title: &str, artist: &str, cover_url: &str) -> String {
     format!(
         "https://my.izuka-api.xyz/api/canvas/apple-music?title={}&artist={}&coverUrl={}",
@@ -69,7 +69,7 @@ fn apple_music_url(title: &str, artist: &str, cover_url: &str) -> String {
     )
 }
 
-/// Pesan gagal gabung (JS `catch` tangkap semua: upload, API).
+/// Pesan gagal gabung (versi awal `catch` tangkap semua: upload, API).
 const GAGAL_CANVAS: &str =
     "Maaf, gagal membuat canvas Apple Music. Coba lagi beberapa saat.";
 
@@ -173,7 +173,7 @@ mod tests {
         ) -> Result<HttpResponse, HttpError> {
             self.respond(url)
         }
-        /// Plugin memakai `HttpCall::multipart` (`applemusic.js:23-27`);
+        /// Plugin memakai `HttpCall::multipart`;
         /// default `HttpGet::call` menolak multipart, jadi stub wajib
         /// menimpanya (pola sama dengan `search/animeapaini.rs`).
         fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
@@ -410,8 +410,8 @@ mod tests {
         assert_eq!(p.meta.category, "canvas");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 2);
-        // `applemusic` juga nama `plugins/search/applemusic.js`; nama
-        // didahulukan (`plugins.js:539`).
+        // `applemusic` juga nama; nama
+        // didahulukan.
         assert_eq!(oktz_plugin_api::find("applemusic").unwrap().meta.name, "applemusic");
         assert_eq!(oktz_plugin_api::find("applecanvas").unwrap().meta.name, "applemusic-canvas");
     }

@@ -1,25 +1,6 @@
-//! `plugins/canvas/profileig.js` — membuat canvas profile instagram.
+//! Membuat canvas profile instagram.
 //!
-//! Alur JS: enam argumen dipisah `|` → gambar (reply/kirim gambar, diunggah)
-//! atau foto profil pengirim → API `kyzznekoo.zone.id` → kirim gambar hasil
-//! (`profileig.js:22-61`).
-//!
-//! Penyimpangan yang tercatat apa adanya:
-//!
-//! - **Reaksi `🕕` dibuang** (`profileig.js:30`). `Reply` hanya bisa membawa
-//!   satu reaksi, jadi yang ikut adalah reaksi penutup (`✅`/`❌`).
-//! - **Semua kegagalan jadi template error + `❌`.** JS membungkus unduh,
-//!   unggah, API, dan kirim dalam satu `try` (`profileig.js:31-61`), jadi
-//!   cabang catch yang sama dipakai untuk semuanya di sini.
-//! - **`sock.profilePictureUrl` mengembalikan `Ok(None)`** kalau pengguna
-//!   tidak punya foto; JS hanya menangkap lemparan, tapi hasil `None` di sana
-//!   tetap berujung ke gambar default (`profileig.js:37-42`), jadi di sini
-//!   `Err` dan `Ok(None)` sama-sama jatuh ke URL default.
-//!
-//! `pub mod profileig;` perlu ditambah manual ke `src/canvas/mod.rs` — berkas
-//! ini belum ikut dikompilasi tanpa baris itu.
-//!
-//! `ponytail:` blok SALINAN sama persis dengan `ai/tofigurev2.rs`; angkat ke
+//! `Keterbatasan:` blok SALINAN sama persis dengan `ai/tofigurev2.rs`; angkat ke
 //! `crate::common` kalau plugin di luar ai/canvas turut memakainya.
 
 use oktz_plugin_api::{
@@ -30,7 +11,7 @@ use serde_json::Value;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 // ===========================================================================
-// SALINAN `src/lib/uploader.js` + `src/lib/upload-providers.js`
+// SALINAN +
 //
 // Aturan port-brief: helper bersama belum ada di crate, jadi blok ini disalin
 // identik ke empat berkas ai (toemotebatu, tofigurev2, toghibli, tomekah).
@@ -38,15 +19,15 @@ use crate::tools::phisingataubukan::encode_uri_component;
 //
 // Tidak bisa disalin: `withTimeout(..., 20000)` per provider — mesin sinkron
 // ini tidak punya timer. `UreqHttp` sudah memasang timeout global 20 detik
-// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` JS.
+// (`ureq_http.rs:24`), kebetulan sama dengan `PROVIDER_TIMEOUT_MS` versi awal.
 // ===========================================================================
 
-/// `upload-providers.js:16-17` — UA browser untuk host yang menolaknya.
+/// UA browser untuk host yang menolaknya.
 const UA_UPLOAD: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36";
 
-/// Nama berkas + content-type: JS selalu memanggil
+/// Nama berkas + content-type: versi awal selalu memanggil
 /// `uploadImage(buffer, 'image.jpg')`, dan `mime.lookup('image.jpg')` =
-/// `image/jpeg` (`upload-providers.js:19`).
+/// `image/jpeg`.
 const NAMA_BERKAS: &str = "image.jpg";
 const MIME_BERKAS: &str = "image/jpeg";
 
@@ -55,7 +36,7 @@ fn respons_ok(res: &HttpResponse) -> bool {
     (200..300).contains(&res.status)
 }
 
-/// `typeof url !== 'string' || !url` (`uploader.js:30`).
+/// `typeof url !== 'string' || !url`.
 fn url_dari(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
@@ -63,7 +44,7 @@ fn url_dari(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// `litterbox` (`upload-providers.js:21-37`).
+/// `litterbox`.
 fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -87,7 +68,7 @@ fn litterbox(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `kappa` (`upload-providers.js:39-59`).
+/// `kappa`.
 fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -109,7 +90,7 @@ fn kappa(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(data.get("link")).ok_or_else(|| "Invalid response".into())
 }
 
-/// `uguu` (`upload-providers.js:61-82`).
+/// `uguu`.
 fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -139,7 +120,7 @@ fn uguu(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     url_dari(url).ok_or_else(|| "Invalid response".into())
 }
 
-/// `nekohime` (`upload-providers.js:84-101`).
+/// `nekohime`.
 fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     let res = http
         .call(
@@ -153,7 +134,7 @@ fn nekohime(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         return Err("Nekohime gagal".into());
     }
     let data = res.json().unwrap_or(Value::Null);
-    // `Array.isArray(f) ? f[0]?.url : f?.url` (`upload-providers.js:97-98`).
+    // `Array.isArray(f) ? f[0]?.url: f?.url`.
     let url = match data.get("files") {
         Some(Value::Array(list)) => list.first().and_then(|f| f.get("url")),
         Some(f) => f.get("url"),
@@ -168,7 +149,7 @@ fn lewati_spasi(t: &str) -> usize {
 }
 
 /// Regex `Download link:\s*<a href=([^>\s]+)>` (case-insensitive,
-/// `upload-providers.js:124`).
+///
 fn tautan_leopard(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -188,12 +169,12 @@ fn tautan_leopard(html: &str) -> Option<String> {
     None
 }
 
-/// `leopard` (`upload-providers.js:103-127`).
+/// `leopard`.
 fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     const HALAMAN: &str = "https://leopard.hosting.pecon.us/upload.php";
     // Pemanasan: status tidak diperiksa, tapi kegagalan jaringan tetap
-    // menggagalkan provider ini (`await fetch(...)` tanpa catch di JS).
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // menggagalkan provider ini (`await fetch(...)` tanpa catch di versi awal).
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get(HALAMAN)
             .header("User-Agent", UA_UPLOAD)
@@ -219,7 +200,7 @@ fn leopard(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     tautan_leopard(&html).ok_or_else(|| "Leopard gagal".into())
 }
 
-/// `/startUpload\("([^"]+)"/` (`upload-providers.js:142`).
+/// `/startUpload\("([^"]+)"/`.
 fn start_upload(body: &str) -> Option<String> {
     let mut dari = 0;
     while let Some(rel) = body[dari..].find("startUpload(\"") {
@@ -234,7 +215,7 @@ fn start_upload(body: &str) -> Option<String> {
 }
 
 /// Regex `id=["']file_src["'][^>]*value=["']([^"']+)["']` (case-insensitive,
-/// `upload-providers.js:172`) versi scanner.
+/// ) versi scanner.
 fn file_src_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -277,7 +258,7 @@ fn file_src_upload_ee(html: &str) -> Option<String> {
 }
 
 /// Regex `View file:\s*<br\s*\/?>\s*<a href=["']?([^"'>\s]+)["']?`
-/// (case-insensitive, `upload-providers.js:173`) versi scanner.
+/// versi scanner.
 fn view_file_upload_ee(html: &str) -> Option<String> {
     let turun = html.to_ascii_lowercase();
     let mut dari = 0;
@@ -316,9 +297,9 @@ fn view_file_upload_ee(html: &str) -> Option<String> {
     None
 }
 
-/// `uploadEe` (`upload-providers.js:129-179`).
+/// `uploadEe`.
 fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // `ext` (`upload-providers.js:130-133`) ditulis apa adanya, walau dengan
+    // `ext` ditulis apa adanya, walau
     // nama berkas tetap "image.jpg" cabang `cat_file` tidak pernah tercapai.
     let ext = NAMA_BERKAS
         .rsplit_once('.')
@@ -326,8 +307,8 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .unwrap_or_default();
     let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
-    // Pemanasan GET — JS tidak memeriksa status, hanya gagal jaringan.
-    // `terima_semua_status` = `fetch` JS yang tidak melempar untuk 4xx/5xx.
+    // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
+    // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
     http.call(
         &HttpCall::get("https://www.upload.ee/?")
             .header("User-Agent", UA_UPLOAD)
@@ -390,7 +371,7 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     // `replaceAll("&amp;", "&")` lalu `replaceAll("&quot;", "\"")`.
     let mut url = raw.replace("&amp;", "&").replace("&quot;", "\"");
     if is_image {
-        // `String.replace("/files/", …)` JS mengganti kemunculan PERTAMA.
+        // `String.replace("/files/", …)` versi awal mengganti kemunculan PERTAMA.
         url = url.replacen("/files/", "/image/", 1);
         if let Some(tanpa_html) = url.strip_suffix(".html") {
             url = tanpa_html.to_string();
@@ -399,12 +380,12 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     Ok(url)
 }
 
-/// `uploadImage(buffer, 'image.jpg')` (`uploader.js:14-40`) — provider
+/// `uploadImage(buffer, 'image.jpg')` — provider
 /// dicoba berurutan sampai ada yang mengembalikan URL.
 type Unggah = fn(&dyn HttpGet, &[u8]) -> Result<String, String>;
 
 fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
-    // Urutan `PROVIDERS` (`upload-providers.js:183-190`).
+    // Urutan `PROVIDERS`.
     let providers: [(&str, Unggah); 6] = [
         ("Litterbox", litterbox),
         ("Kappa", kappa),
@@ -426,24 +407,24 @@ fn upload_image(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
     ))
 }
 
-/// `profileig.js:23` — kartu saat `text` kosong; contohnya literal
+/// Kartu saat `text` kosong; contohnya literal
 /// `.profileig` (bukan `${m.prefix}`), termasuk baris `> ` berisi spasi.
 pub(crate) const FORMAT_SALAH: &str = "Format salah!\n\n> Contoh: .profileig 10M|1|150|jokowi|Presiden RI|true\n> \n> _Catatan: Reply gambar untuk dijadikan foto profil._";
 
-/// `profileig.js:25` — ada argumen yang kosong setelah di-`trim`.
+/// Ada argumen yang kosong setelah di-`trim`.
 pub(crate) const ARGUMEN_KURANG: &str =
     "Pastikan semua argumen diisi dengan benar, dipisah dengan tanda |.";
 
-/// `profileig.js:41` — dipakai kalau pengirim tidak punya foto profil.
+/// Dipakai kalau pengirim tidak punya foto profil.
 const PP_DEFAULT: &str = "https://i.ibb.co/3Fh9Q6M/blank-profile-picture.png";
 
-/// `profileig.js:50-51`.
+///
 const UA_PROFILIG: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
 
-/// `profileig.js:55`.
+///
 const CAPTION: &str = "✅ Berhasil membuat profile IG";
 
-/// `profileig.js:45` — tujuh parameter, urutannya persis seperti JS.
+/// Tujuh parameter, urutannya persis seperti versi awal.
 fn api_url(
     url: &str,
     pengikut: &str,
@@ -465,17 +446,17 @@ fn api_url(
     )
 }
 
-/// `profileig.js:32-43` — cabang gambar (unduh → unggah) atau foto profil.
+/// Cabang gambar (unduh → unggah) atau foto profil.
 fn gambar_atau_pp(ctx: &Ctx, is_image: bool) -> Result<String, ()> {
     if !is_image {
-        // JS hanya menangkap lemparan (`profileig.js:37-42`); `Ok(None)` di
+        // versi awal hanya menangkap lemparan; `Ok(None)`
         // sini artinya hal yang sama: tidak ada URL → gambar default.
         return Ok(match ctx.sock().foto_profil(&ctx.sender, "image") {
             Ok(Some(url)) => url,
             _ => PP_DEFAULT.to_string(),
         });
     }
-    // `const msg = m.quoted ? m.quoted : m` (`profileig.js:33`) — quoted
+    // `const msg = m.quoted ? m.quoted: m` — quoted
     // dipakai walau BUKAN gambar; unduhannya lalu gagal dan masuk catch.
     let buffer = if ctx.quoted().is_some() {
         ctx.download_quoted_media()
@@ -503,14 +484,14 @@ fn gambar_atau_pp(ctx: &Ctx, is_image: bool) -> Result<String, ()> {
     is_bot_admin = false
 )]
 pub fn profileig(ctx: Ctx) -> Reply {
-    // `profileig.js:23` — `!text`; spasi saja BUKAN kosong di sini, baru
-    // ketahuan kosong oleh cek argumen (`profileig.js:25`).
+    // `!text`; spasi saja BUKAN kosong di sini, baru
+    // ketahuan kosong oleh cek argumen.
     if ctx.text.is_empty() {
         return Reply::text(FORMAT_SALAH);
     }
 
-    // `profileig.js:24` — `text.split("|").map(v => v.trim())`; argumen ke-7
-    // dan seterusnya dibuang destructuring `const [..] = ..`.
+    // `text.split("|").map(v => v.trim())`; argumen ke-7
+    // dan seterusnya dibuang destructuring `const [..] =..`.
     let mut bagian = ctx.text.split('|').map(str::trim);
     let pengikut = bagian.next().unwrap_or("");
     let mengikuti = bagian.next().unwrap_or("");
@@ -522,14 +503,14 @@ pub fn profileig(ctx: Ctx) -> Reply {
         return Reply::text(ARGUMEN_KURANG);
     }
 
-    // `profileig.js:28` — gambar pemicu ATAU gambar yang di-reply.
+    // Gambar pemicu ATAU gambar yang di-reply.
     let is_image = ctx.is_media_kind(IncomingKind::Image)
         || ctx.quoted().is_some_and(|q| q.kind.is_image());
 
-    // ponytail: reaksi 🕕 (`profileig.js:30`) hilang — `Reply` hanya membawa
+    // Keterbatasan: reaksi 🕕 hilang — `Reply` hanya membawa
     // satu reaksi, jadi hanya reaksi penutup di bawah yang dikirim.
 
-    // `profileig.js:57-61` — SEMUA kegagalan (unduh, unggah, API, kirim) masuk
+    // SEMUA kegagalan (unduh, unggah, API, kirim) masuk
     // catch yang sama: template error + reaksi ❌.
     let gagal = || {
         Reply::text(crate::common::error_template(&ctx)).with_reaction("❌")
@@ -825,7 +806,7 @@ mod tests {
     fn argumen_kurang_atau_kosong_mengirim_pesan_argumen() {
         let http = Stub::baru(vec![], Ok(Vec::new()));
         let sock = Arc::new(StubSock::default());
-        // Termasuk spasi-saja (bukan `!text`, tapi splitnya kosong) dan
+        // Termasuk spasi-saja (bukan `!text`, tapi splitnya kosong)
         // argumen di tengah yang kosong setelah trim.
         for text in [
             "   ",
@@ -907,7 +888,7 @@ mod tests {
                 "true"
             )
         );
-        // `profileig.js:50-51` — UA + Content-Type dikirim apa adanya.
+        // UA + Content-Type dikirim apa adanya.
         let headers = &panggilan[1].headers;
         assert!(headers.iter().any(|(k, v)| k == "User-Agent" && v == UA_PROFILIG));
         assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
@@ -936,7 +917,7 @@ mod tests {
 
     #[test]
     fn quoted_bukan_gambar_tetap_diunduh_sebagai_gambar_lalu_gagal() {
-        // `profileig.js:28` — `isImage` dari gambar pemicu; `:33` memilih
+        // `isImage` dari gambar pemicu; `:33` memilih
         // quoted APA PUN isinya, jadi unduhan quoted teks yang gagal.
         let http = Stub::baru(
             vec![],

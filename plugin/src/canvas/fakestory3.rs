@@ -1,16 +1,10 @@
-//! `plugins/canvas/fakestory3.js` — fake Instagram story dengan text overlay.
-//!
-//! Sama seperti `canvas/fakestory.rs`: render `@napi-rs/canvas` (background
-//! blur, dua panel gambar dengan teks ber-shadow yang di-wrap `measureText`)
-//! tidak dapat diport; alur sebelum render diport persis JS dan langkah render
-//! jatuh ke cabang `catch` (`fakestory3.js:294-297`). Helper bersama ada di
-//! `canvas/fakestory.rs`.
+//! Fake Instagram story dengan text overlay.
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
 use super::fakestory::{gagal, get_avatar, is_image};
 
-/// `fakestory3.js:247-253` — kartu saat input kosong / tanpa pipa.
+/// Kartu saat input kosong / tanpa pipa.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📷 *ꜰᴀᴋᴇ sᴛᴏʀʏ 3*\n\n\
@@ -21,13 +15,13 @@ pub(crate) fn help(prefix: &str) -> String {
     )
 }
 
-/// `fakestory3.js:265` — pesan bukan gambar.
+/// Pesan bukan gambar.
 pub(crate) const BUKAN_GAMBAR: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Reply gambar untuk membuat fake story!";
 
-/// `fakestory3.js:275` — unduhan gambar kosong/gagal.
+/// Unduhan gambar kosong/gagal.
 pub(crate) const GAGAL_UNDUH: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak bisa download gambar";
 
-/// `fakestory3.js:245-258` — `input.split("|").map(trim)`; username =
+/// `input.split("|").map(trim)`; username =
 /// `parts[0] || m.pushName || "User"` (part kosong jatuh ke pushName);
 /// `text1`/`text2` kosong bila tidak ada.
 pub(crate) fn pisah_input(ctx: &Ctx) -> (String, String, String) {
@@ -65,7 +59,7 @@ pub(crate) fn pisah_input(ctx: &Ctx) -> (String, String, String) {
     is_bot_admin = false
 )]
 pub fn fakestory3(ctx: Ctx) -> Reply {
-    // `if (!input || !input.includes("|"))` (`fakestory3.js:246`).
+    // `if (!input || !input.includes("|"))`.
     let input = ctx.args.join(" ");
     if input.is_empty() || !input.contains('|') {
         return Reply::text(help(&ctx.prefix));

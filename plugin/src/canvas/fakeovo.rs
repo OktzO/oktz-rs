@@ -1,24 +1,23 @@
-//! `plugins/canvas/fakeovo.js` — gambar aplikasi OVO palsu dari API
-//! `kyzznekoo`.
+//! Gambar aplikasi OVO palsu dari API
 //!
-//! `ponytail:` axios di JS mengirim dua header (`User-Agent` dan
-//! `Content-Type`). `HttpGet` tidak punya setter header per-request, jadi dua
-//! header itu tidak ikut.
+//! `Keterbatasan:` axios di versi awal mengirim dua header (`User-Agent` dan
+//! `Content-Type`). `HttpGet` tidak punya setter header per-request, jadi dua header itu
+//! tidak ikut.
 //!
-//! `ponytail:` `console.error("[FakeOvo Error]", e)` di cabang `catch` tidak
-//! punya padanan — `Reply` tidak membawa log.
+//! `Keterbatasan:` `console.error("[FakeOvo Error]", e)` di cabang `catch` tidak punya
+//! padanan — `Reply` tidak membawa log.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
 use crate::tools::phisingataubukan::encode_uri_component;
 
-/// Cabang `if (!text)` (`fakeovo.js:21`).
+/// Cabang `if (!text)`.
 const FORMAT_SALAH: &str = "Format salah!\n\n> Contoh: .fake-ovo Budi";
 
-/// Caption sukses (`fakeovo.js:33`).
+/// Caption sukses.
 const CAPTION: &str = "✅ Berhasil membuat fake ovo";
 
-/// `https://kyzznekoo.zone.id/api/canvas/fake-ovo?q=<text>` (`fakeovo.js:25`).
+/// `https://kyzznekoo.zone.id/api/canvas/fake-ovo?q=<text>`.
 pub(crate) fn api_url(text: &str) -> String {
     format!(
         "https://kyzznekoo.zone.id/api/canvas/fake-ovo?q={}",

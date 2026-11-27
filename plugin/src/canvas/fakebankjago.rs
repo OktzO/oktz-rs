@@ -1,12 +1,8 @@
-//! `plugins/canvas/fakebankjago.js` — gambar tampilan saldo Bank Jago palsu.
+//! Gambar tampilan saldo Bank Jago palsu.
 //!
-//! Gambar dibuat di luar bot: plugin cuma meneruskan nama + saldo ke maker API
-//! nexray dan meneruskan byte-nya sebagai `MediaSource::Bytes`.
-//!
-//! `ponytail:` `Number(saldoClean).toLocaleString("id-ID")` memakai pemisah
-//! ribuan titik. Saldo sepanjang puluhan digit meleset: `Number` jadi `1e+20`
-//! (dan V8 menulis `100.000.000.000.000.000.000`), sedangkan
-//! `thousands_id` memformat digit apa adanya.
+//! `Keterbatasan:` `Number(saldoClean).toLocaleString("id-ID")` memakai pemisah ribuan
+//! titik. Saldo sepanjang puluhan digit meleset: `Number` jadi `1e+20` (dan V8 menulis
+//! `100.000.000.000.000.000.000`), sedangkan `thousands_id` memformat digit apa adanya.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 use crate::tools::kalkulatormbg::thousands_id;
@@ -14,9 +10,9 @@ use crate::tools::phisingataubukan::encode_uri_component;
 
 const MAKER_URL: &str = "https://api.nexray.eu.cc/maker/fakebank-jago";
 
-/// `(nama, saldo)` hasil pemecahan input (`fakebankjago.js:20-33`).
+/// `(nama, saldo)` hasil pemecahan input.
 ///
-/// Pemisah `|` didahulukan daripada `,` — sama seperti `if/else if` di JS.
+/// Pemisah `|` didahulukan daripada `,` — sama seperti `if/else if` di versi awal.
 /// Saat tidak ada pemisah, keduanya kosong dan plugin jatuh ke kartu bantuan.
 fn split_input(raw: &str) -> (String, String) {
     let raw = raw.trim();
@@ -39,7 +35,7 @@ fn digits_only(raw: &str) -> String {
     raw.chars().filter(char::is_ascii_digit).collect()
 }
 
-/// `fakebankjago.js:38-48`.
+///
 fn help(prefix: &str) -> String {
     format!(
         "⚠️ *PEMBUATAN FAKE BANK JAGO*\n\n\
@@ -299,7 +295,7 @@ mod tests {
 
     #[test]
     fn an_empty_image_body_is_still_forwarded_as_bytes() {
-        // JS tidak mengecek panjang buffer; `Buffer.from([])` tetap terkirim.
+        // versi awal tidak mengecek panjang buffer; `Buffer.from([])` tetap terkirim.
         let http = Arc::new(Stub {
             resp: Some(Vec::new()),
             seen: Mutex::new(Vec::new()),

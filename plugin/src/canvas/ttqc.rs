@@ -1,28 +1,18 @@
-//! `plugins/canvas/ttqc.js` — fake quote chat ala TikTok.
+//! Fake quote chat ala TikTok.
 //!
-//! ## BLOKIR sebagian — jalur render.
-//!
-//! Render memakai `@napi-rs/canvas` (template ttqc/qyzwa.png, lima font yang
-//! diunduh + didaftarkan, `measureText` untuk wrap + lebar bubble) yang tidak
-//! ada padanannya di `Ctx`/`Reply`. Yang di-port penuh: seleksi teks
-//! (argumen vs quoted), konstanta template/menu, dan kartu pakai. Jalur dengan
-//! teks jatuh ke blok `catch` JS (`m.react('☢')` + `te(...)` = error template),
-//! karena di sanalah render gagal berakhir.
-//!
-//! `ponytail:` kalau API canvas penuh tersedia di `Ctx` nanti, port ulang
-//! `render` dari `plugins/canvas/ttqc.js` (canvas 1080x2280 @2x, PP bundar,
-//! bubble putih wrap 520px, menu 6 item Font Awesome).
+//! `Keterbatasan:` kalau API canvas penuh tersedia di `Ctx` nanti, tambahkan `render`
+//! (canvas 1080x2280 @2x, PP bundar, bubble putih wrap 520px, menu 6 item Font Awesome).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::error_template;
 
-/// `TEMPLATE_URL` (`ttqc.js:7`).
+/// `TEMPLATE_URL`.
 #[cfg(test)]
 pub(crate) const TEMPLATE_URL: &str =
     "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/qyzwa.png";
 
-/// `FONT_ASSETS` (`ttqc.js:9-15`).
+/// `FONT_ASSETS`.
 #[cfg(test)]
 pub(crate) const FONT_ASSETS: [(&str, &str); 5] = [
     ("Plus Jakarta Sans", "https://raw.githubusercontent.com/Ditzzx-vibecoder/Assets/main/ttqc/PlusJakartaSans-Regular.ttf"),
@@ -32,7 +22,7 @@ pub(crate) const FONT_ASSETS: [(&str, &str); 5] = [
     ("Noto Color Emoji", "https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf"),
 ];
 
-/// `MENU_ICONS` (`ttqc.js:17-24`) — `(unicode, teks, warna)`.
+/// `MENU_ICONS` — `(unicode, teks, warna)`.
 #[cfg(test)]
 pub(crate) const MENU_ICONS: [(&str, &str, &str); 6] = [
     ("\u{f3e5}", "Balas", "#000000"),
@@ -43,7 +33,7 @@ pub(crate) const MENU_ICONS: [(&str, &str, &str); 6] = [
     ("\u{f024}", "Laporkan", "#ea4335"),
 ];
 
-/// `canvasConfig` (`ttqc.js:26-33`).
+/// `canvasConfig`.
 #[cfg(test)]
 pub(crate) const TOP_PP: (i32, i32, u32) = (183, 83, 42);
 #[cfg(test)]
@@ -55,7 +45,7 @@ pub(crate) const TEXT_XY: (i32, i32) = (175, 962);
 #[cfg(test)]
 pub(crate) const BUBBLE: (u32, u32) = (520, 30);
 
-/// Kartu pakai saat teks kosong (`ttqc.js:254-256`).
+/// Kartu pakai saat teks kosong.
 fn pakai(prefix: &str) -> String {
     format!(
         "💬 *ᴛɪᴋᴛᴏᴋ ǫᴜᴏᴛᴇ*\n\n\
@@ -81,7 +71,7 @@ pub fn ttqc(ctx: Ctx) -> Reply {
     let mut text = ctx.args.join(" ");
     let _target_jid = ctx.sender.clone();
 
-    // Reply pesan teks: pakai teks quote kalau argumen kosong (`ttqc.js:247-251`).
+    // Reply pesan teks: pakai teks quote kalau argumen kosong.
     if let Some(q) = ctx.quoted()
         && !q.text.is_empty()
             && text.is_empty() {
@@ -95,7 +85,7 @@ pub fn ttqc(ctx: Ctx) -> Reply {
     }
 
     // Jalur render `@napi-rs/canvas` tidak tersedia — jatuh ke blok `catch`
-    // JS: reaksi ☢ + `te(m.prefix, m.command, m.pushName)`. Lihat catatan kepala.
+    // versi awal: reaksi ☢ + `te(m.prefix, m.command, m.pushName)`. Lihat catatan kepala.
     Reply::text(error_template(&ctx)).with_reaction("☢")
 }
 
@@ -189,7 +179,7 @@ mod tests {
 
     #[test]
     fn teks_argumen_menang_dari_quote() {
-        // JS: argumen ada → teks argumen yang dipakai (cabang render, tetap
+        // versi awal: argumen ada → teks argumen yang dipakai (cabang render, tetap
         // error); argumen kosong + quote ada → teks quote.
         let r = run("argumen", Some("dari quote"));
         assert!(r.without_mutations().text_body().is_some());

@@ -1,28 +1,27 @@
-//! `plugins/canvas/musiccard.js` — kartu musik dari gambar + judul/artis.
+//! Kartu musik dari gambar + judul/artis.
 //!
-//! `ponytail:` `ImageUploadService` (pixhost.to) dan
-//! `api.nexray.eu.cc/canvas/musiccard` untuk menghasilkan gambar kartu tidak
-//! tersedia di `Ctx`/`Reply`; handler untuk gambar+teks lengkap diakhiri
-//! `error_template` + `☢` (pola `swm.rs`). Unduh gambar (tersedia via
-//! `Ctx::download_media`) dan pemisahan judul/artis di-port agar bisa diuji.
-//! Saat unggah + API kartu tersedia, tambahkan `pub mod musiccard;` di
-//! `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
+//! `Keterbatasan:` `ImageUploadService` (pixhost.to) dan
+//! `api.nexray.eu.cc/canvas/musiccard` untuk menghasilkan gambar kartu tidak tersedia di
+//! `Ctx`/`Reply`; handler untuk gambar+teks lengkap diakhiri `error_template` + `☢` (pola
+//! `swm.rs`). Unduh gambar (tersedia via `Ctx::download_media`) dan pemisahan judul/artis
+//! diimplementasikan agar bisa diuji. Saat unggah + API kartu tersedia, tambahkan `pub mod
+//! musiccard;` di `src/canvas/mod.rs` secara manual (mod.rs milik plugin lain — dilarang
 //! menyentuh per brief).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `m.pushName` tidak tersedia di `Ctx`; fallback nama artis seperti JS
+/// `m.pushName` tidak tersedia di `Ctx`; fallback nama artis seperti versi awal
 /// (`parts[1].trim() || m.pushName` → `"Unknown Artist"`).
 #[cfg(test)]
 const NAMA_ARTIS_DEFAULT: &str = "Unknown Artist";
 
-/// Keterangan judul belum diisi (`musiccard.js:60-62`).
+/// Keterangan judul belum diisi.
 pub(crate) const JUDUL_BELUM_DIISI: &str = "❌ *Judul lagu dan artis belum diisi!*\n\nFormat penulisan yang benar adalah: `.musiccard <judul>|<nama>`\nPisahkan judul dan nama artis dengan simbol pita ( | ).";
 
-/// Keterangan gambar tidak terdeteksi (`musiccard.js:56-58`).
+/// Keterangan gambar tidak terdeteksi.
 pub(crate) const GAMBAR_TIDAK_TERDETEKSI: &str = "❌ *Gambar tidak terdeteksi!* Pastikan kamu mengirim gambar dengan benar.";
 
-/// Unduh gambar: quoted dulu, baru trigger (`musiccard.js:32-36` / `46-50`).
+/// Unduh gambar: quoted dulu, baru trigger.
 pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     if ctx.quoted().is_some() {
         ctx.download_quoted_media().ok()
@@ -33,7 +32,7 @@ pub(crate) fn unduh_media(ctx: &Ctx) -> Option<Vec<u8>> {
     }
 }
 
-/// Pisahkan `judul|nama` (`musiccard.js:67-71`: `text.split("|")`, ambil
+/// Pisahkan `judul|nama``, ambil
 /// `parts[0]` dan `parts[1]` — pipa ketiga dst. dibuang). Tanpa `|`: nama =
 /// `NAMA_ARTIS_DEFAULT` (karena `m.pushName` tidak ada di `Ctx`).
 #[cfg(test)]

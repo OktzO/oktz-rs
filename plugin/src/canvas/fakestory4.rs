@@ -1,17 +1,10 @@
-//! `plugins/canvas/fakestory4.js` — fake Instagram story, 2 gambar berbeda.
-//!
-//! Sama seperti `canvas/fakestory.rs`: render `@napi-rs/canvas` (background
-//! blur dua panel, kartu, avatar, ikon Path2D) tidak dapat diport; alur
-//! sebelum render diport persis JS dan langkah render jatuh ke cabang `catch`
-//! (`fakestory4.js:240-243`). Helper bersama ada di `canvas/fakestory.rs`.
-//! Berbeda dari fakestory: tidak ada cek `isImage` — gambar pemicu dan quoted
-//! boleh berbeda (`fakestory4.js:204-214`).
+//! Fake Instagram story, 2 gambar berbeda.
 
 use oktz_plugin_api::{Ctx, IncomingKind, Reply, plugin};
 
 use super::fakestory::{gagal, get_avatar, username_args};
 
-/// `fakestory4.js:217-223` — kartu saat tidak ada gambar sama sekali.
+/// Kartu saat tidak ada gambar sama sekali.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
         "📷 *ꜰᴀᴋᴇ sᴛᴏʀʏ 4*\n\n\
@@ -45,7 +38,7 @@ pub fn fakestory4(ctx: Ctx) -> Reply {
         return gagal(&ctx);
     };
 
-    // `fakestory4.js:204-214` — trigger image lebih dulu (bottom = quoted
+    // Trigger image lebih dulu (bottom = quoted
     // image bila ada, kalau tidak bottom = top); baru quoted image (bottom
     // = top). Tidak ada cek isImage di plugin ini.
     let (top, bottom) = if ctx.is_media_kind(IncomingKind::Image) {
@@ -204,7 +197,7 @@ mod tests {
 
     #[test]
     fn gambar_pemicu_tanpa_quoted_tidak_mengunduh_quoted() {
-        // `fakestory4.js:204-210` — bottom = top tanpa unduhan quoted kedua.
+        // Bottom = top tanpa unduhan quoted kedua.
         let mut ctx = ctx_sukses_avatar("Misaki");
         ctx.media = media_gambar();
         let unduh = Unduh::baru();
