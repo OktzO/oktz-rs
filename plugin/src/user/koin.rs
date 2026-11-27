@@ -1,17 +1,16 @@
-//! `plugins/user/koin.js` — baca `users[sender].koin`.
+//! Baca `users[sender].koin`.
 //!
-//! `ponytail:` `Ctx::user_data` hanya diisi untuk `sender` (lihat
-//! `oktz-wa/src/pipeline.rs`), sedangkan JS membaca `db.getUser(targetJid)`
-//! setelah mention. Untuk target selain sender angka yang tampil adalah milik
-//! pengirim. Tambahkan `user_data_for(target)` ke `Ctx` kalau router mau
-//! membaca state target.
+//! `Keterbatasan:` `Ctx::user_data` hanya diisi untuk `sender` (lihat
+//! `oktz-wa/src/pipeline.rs`), sedangkan versi awal membaca `db.getUser(targetJid)` setelah
+//! mention. Untuk target selain sender angka yang tampil adalah milik pengirim. Tambahkan
+//! `user_data_for(target)` ke `Ctx` kalau router mau membaca state target.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
 use crate::common::{int_field, user_target};
 
-/// `formatKoin` (`koin.js:12-17`) — batas bawah eksklusif untuk tiap satuan.
+/// `formatKoin` — batas bawah eksklusif untuk tiap satuan.
 pub(crate) fn format_koin(num: i64) -> String {
     let n = num as f64;
     if n >= 1_000_000_000_000.0 {
@@ -117,7 +116,7 @@ mod tests {
         }
     }
 
-    // -- format angka ------------------------------------------------------
+    // - format angka ------------------------------------------------------
 
     #[test]
     fn format_koin_switches_unit_at_each_threshold() {
@@ -131,7 +130,7 @@ mod tests {
         assert_eq!(format_koin(2_000_000_000_000), "2.00T");
     }
 
-    // -- cabang state tersimpan -------------------------------------------
+    // - cabang state tersimpan -------------------------------------------
 
     #[test]
     fn an_absent_user_row_reads_zero_and_free() {
@@ -158,7 +157,7 @@ mod tests {
         );
     }
 
-    // -- cabang target -----------------------------------------------------
+    // - cabang target -----------------------------------------------------
 
     #[test]
     fn the_shop_block_only_appears_for_the_sender() {

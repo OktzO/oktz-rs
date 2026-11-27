@@ -1,9 +1,4 @@
-//! `plugins/user/daily.js` — klaim hadiah harian (exp, koin, potion).
-//!
-//! Hadiah diacak DULUAN (`Math.random`), jadi balasan berbeda tiap kali
-//! dipanggil — yang dikunci test adalah RENTANG dan bentuknya, bukan
-//! angka persisnya. Cooldown dibaca dari `user.cooldowns.daily` (epoch ms),
-//! bukan dari counter router.
+//! Klaim hadiah harian (exp, koin, potion).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -28,7 +23,7 @@ pub(crate) fn remaining_text(remaining_ms: i64) -> String {
     )
 }
 
-/// `getTimeGreeting()` (`formatter.js:508`) — jam lokal Asia/Jakarta.
+/// `getTimeGreeting()` — jam lokal Asia/Jakarta.
 pub(crate) fn greeting(now: i64) -> &'static str {
     match jakarta_hour(now) {
         4..=9 => "Selamat Pagi 🌅",
@@ -128,7 +123,7 @@ pub fn daily(ctx: Ctx) -> Reply {
     })
 }
 
-/// `time_hm` dipakai ulang agar zona waktu di plugin ini sama dengan yang
+/// `time_hm` dipakai ulang agar zona waktu di plugin ini sama dengan
 /// dipakai plugin lain (`common::jakarta_parts`).
 #[allow(dead_code)]
 fn _assert_same_timezone(now: i64) -> String {
@@ -345,7 +340,7 @@ mod tests {
     #[test]
     fn the_greeting_bands_match_the_javascript_hours() {
         // `getHour()` membaca jam LOKAL Asia/Jakarta, jadi jam yang diuji
-        // adalah jam WIB. `jakarta_hour_utc_ms` membangun epoch ms yang
+        // adalah jam WIB. `jakarta_hour_utc_ms` membangun epoch ms
         // jatuh persis di jam WIB itu.
         let at = |h: u32| {
             let local_ms = (h as i64) * 3_600_000;

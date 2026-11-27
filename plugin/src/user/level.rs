@@ -1,4 +1,4 @@
-//! `plugins/user/level.js` — baca `users[sender].exp`, kotak level + progres.
+//! Baca `users[sender].exp`, kotak level + progres.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -17,7 +17,7 @@ pub(crate) fn exp_to_next_level(exp: i64) -> i64 {
     exp_for_level(calculate_level(exp) + 1) - exp
 }
 
-/// `getLevelBar` (`level.js:29-37`) — 10 slot, `Math.min` di atas jumlah slot
+/// `getLevelBar` — 10 slot, `Math.min` di atas jumlah slot
 /// supaya bar tidak pernah melebihi 10.
 pub(crate) fn level_bar(current: i64, target: i64) -> String {
     let filled = if target <= 0 {
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn level_bar_survives_a_zero_target() {
-        // `current / 0` = Infinity di JS, `Math.min(Infinity, 10)` = 10.
+        // `current / 0` = Infinity di versi awal, `Math.min(Infinity, 10)` = 10.
         assert_eq!(level_bar(0, 0), "▰▰▰▰▰▰▰▰▰▰");
     }
 

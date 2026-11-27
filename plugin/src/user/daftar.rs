@@ -1,11 +1,10 @@
-//! `plugins/user/daftar.js` — daftar user melalui sesi reply interaktif 4 langkah
-//! (nama → umur → gender → konfirmasi), dengan database dan `sock`.
+//! Daftar user melalui sesi reply interaktif 4 langkah
 //!
-//! `ponytail:` `getDatabase()`, `db.setUser()`, `db.updateKoin/Exp/Energi()`,
-//! `db.save()`, dan `sock.sendMessage`/`m.react` tidak diekspos ke plugin di
-//! registry Rust. Tidak ada store, tidak ada sesi, dan tidak ada pengiriman
-//! pesan. Seluruh handler di bawah jatuh ke error template — penyimpangan
-//! disengaja yang perlu diimplementasikan ulang saat API database/sock tersedia.
+//! `Keterbatasan:` `getDatabase()`, `db.setUser()`, `db.updateKoin/Exp/Energi()`,
+//! `db.save()`, dan `sock.sendMessage`/`m.react` tidak diekspos ke plugin di registry Rust.
+//! Tidak ada store, tidak ada sesi, dan tidak ada pengiriman pesan. Seluruh handler di
+//! bawah jatuh ke error template — penyimpangan disengaja yang perlu diimplementasikan
+//! ulang saat API database/sock tersedia.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -26,7 +25,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_bot_admin = false
 )]
 pub fn daftar(ctx: Ctx) -> Reply {
-    // `ponytail:` Semua logika daftar (cek isRegistered, sesi registrasi,
+    // `Keterbatasan:` Semua logika daftar (cek isRegistered, sesi registrasi,
     // buat sesi, kirim prompt dengan gambar, m.react) butuh database dan sock
     // yang tidak tersedia di registry Rust.
     Reply::text(crate::common::error_template(&ctx))

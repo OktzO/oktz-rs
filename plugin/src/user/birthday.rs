@@ -1,12 +1,11 @@
-//! `plugins/user/birthday.js` — baca `users[sender].birthday`, hitung hari ke
-//! ulang tahun berikutnya di Asia/Jakarta.
+//! Baca `users[sender].birthday`, hitung hari
 //!
-//! `ponytail:` `Ctx::user_data` hanya diisi untuk `sender`, sedangkan JS membaca
-//! `db.getUser(target)` setelah mention. Port ini karena itu selalu membaca dan
-//! menampilkan birthday PENGIRIM — nama dan mention juga mengikuti pengirim
-//! supaya tidak ada baris yang mencampur nama orang lain dengan tanggal orang
-//! ini. Jalankan tanpa mention (`.birthday`) kalau butuh hasil yang persis
-//! sama dengan JS. Perbaiki di `Ctx` lebih dulu kalau mention harus didukung.
+//! `Keterbatasan:` `Ctx::user_data` hanya diisi untuk `sender`, sedangkan versi awal
+//! membaca `db.getUser(target)` setelah mention. Port ini karena itu selalu membaca dan
+//! menampilkan birthday PENGIRIM — nama dan mention juga mengikuti pengirim supaya tidak
+//! ada baris yang mencampur nama orang lain dengan tanggal orang ini. Jalankan tanpa
+//! mention (`.birthday`) kalau butuh hasil yang persis sama dengan versi awal. Perbaiki di
+//! `Ctx` lebih dulu kalau mention harus didukung.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -15,8 +14,8 @@ use crate::common::{MONTHS_ID, days_from_civil, jakarta_parts};
 const NO_SELF: &str = "❌ Kamu belum set birthday!\n\n";
 const NO_OTHER: &str = "❌ User belum set birthday!";
 
-/// `(hari, bulan)` dari `"DD-MM"` hasil `setbirthday`. `Number('xx')` = NaN di
-/// JS, dan `new Date(y, NaN - 1, day)` jadi Invalid Date — tidak crash, tapi
+/// `(hari, bulan)` dari `"DD-MM"` hasil `setbirthday`. `Number('xx')` = NaN
+/// versi awal, dan `new Date(y, NaN - 1, day)` jadi Invalid Date — tidak crash, tapi
 /// semua perhitungan jadi NaN. Di sini yang tidak terbaca jadi `None` supaya
 /// plugin tidak pernah mengetag nonsense nonsense.
 pub(crate) fn parse_birthday(raw: &str) -> Option<(u32, u32)> {
@@ -31,13 +30,13 @@ pub(crate) fn parse_birthday(raw: &str) -> Option<(u32, u32)> {
 
 /// `(next_bday_ms, diff_days, is_today)` untuk `now` dalam ms.
 ///
-/// JS: `nextBday = new Date(y, month - 1, day)`; kalau sudah lewat, maju satu
+/// versi awal: `nextBday = new Date(y, month - 1, day)`; kalau sudah lewat, maju satu
 /// tahun. `Math.ceil(diff / 86400000)` — jadi besok masih "1 hari lagi".
 pub(crate) fn next_birthday(now: i64, day: u32, month: u32) -> (i64, i64, bool) {
     let (year, cur_month, cur_day, ..) = jakarta_parts(now);
     let is_today = cur_day == day && cur_month == month;
 
-    // Semua dalam milidetik: `now` dari `Date.now()`, `midnight` dari
+    // Semua dalam milidetik: `now` dari `Date.now()`, `midnight`
     // `days_from_civil(...)*86400*1000`. Mengcampur detik dan milidetik di sini
     // membuat hitung mundur meleset ribuan hari.
     let midnight =
@@ -174,7 +173,7 @@ mod tests {
         }
     }
 
-    // -- parsing -----------------------------------------------------------
+    // - parsing -----------------------------------------------------------
 
     #[test]
     fn parse_birthday_accepts_the_setbirthday_output_format() {
@@ -188,7 +187,7 @@ mod tests {
         assert_eq!(parse_birthday("abc-def"), None);
     }
 
-    // -- cabang state tersimpan -------------------------------------------
+    // - cabang state tersimpan -------------------------------------------
 
     #[test]
     fn absent_birthday_for_self_asks_to_set_one_with_the_prefix() {
@@ -208,7 +207,7 @@ mod tests {
         assert_eq!(out, "❌ User belum set birthday!");
     }
 
-    // -- cabang hitung mundur ---------------------------------------------
+    // - cabang hitung mundur ---------------------------------------------
 
     #[test]
     fn a_future_birthday_counts_down_in_whole_days() {

@@ -1,29 +1,20 @@
-//! `plugins/user/listdaftar.js` — daftar user terdaftar dengan filter dan
-//! pagination (owner only).
+//! Daftar user terdaftar dengan filter
 //!
-//! `db.getAllUsers()` tidak ada di `Ctx` (hanya `user_data` milik sender);
-//! cara yang dipakai `main/leaderboard.rs` dipakai juga di sini: snapshot
-//! store dibaca lewat `ctx.berkas()` di `database/main/settings.json`.
-//! Kunci map `users` adalah nomor bersih, dan objek user JS tidak selalu
-//! punya field `lid`/`jid` — `@${user.lid || user.jid}` di JS memakai field
-//! itu apa adanya; port ini jatuh ke kunci map kalau keduanya tidak ada,
-//! supaya mention tidak berubah jadi `@undefined`.
-//!
-//! `ponytail:` `contextInfo.forwardedNewsletterMessageInfo` (saluran) pada
-//! pengiriman JS tidak ada di `Reply::Text` — mentions tetap dikirim.
+//! `Keterbatasan:` `contextInfo.forwardedNewsletterMessageInfo` (saluran) pada pengiriman
+//! versi awal tidak ada di `Reply::Text` — mentions tetap dikirim.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::store::done::date_ke_ms;
 
-/// `PAGE_SIZE = 20` (`listdaftar.js:6`).
+/// `PAGE_SIZE = 20`.
 const PAGE_SIZE: usize = 20;
 
 /// Kata kunci yang menghentikan penampungan token search
-/// (`listdaftar.js:64-72`).
+///
 const STOPWORDS: [&str; 8] = ["page", "hal", "halaman", "search", "cari", "nama", "sort", "urut"];
 
-/// Opsi hasil parse `parseListOptions` (`listdaftar.js:41-135`).
+/// Opsi hasil parse `parseListOptions`.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Opsi {
     page: usize,
@@ -41,8 +32,8 @@ impl Default for Opsi {
     }
 }
 
-/// `parseListOptions(m.text)` — port 1:1 termasuk perilaku `i += 1` di dalam
-/// loop search JS yang melompati token terakhir yang diserap.
+/// `parseListOptions(m.text)` — port 1:1 termasuk perilaku `i += 1` di
+/// loop search versi awal yang melompati token terakhir yang diserap.
 pub(crate) fn parse_opsi(input: &str) -> Opsi {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut opsi = Opsi::default();
@@ -105,7 +96,7 @@ pub(crate) fn parse_opsi(input: &str) -> Opsi {
 
 /// `getRegistrationTime` — `lastRegisteredAt || registeredAt`, gagal parse = 0.
 pub(crate) fn waktu_daftar(user: &serde_json::Value) -> i64 {
-    // `user?.lastRegisteredAt || user?.registeredAt || null` — JS `||` jatuh
+    // `user?.lastRegisteredAt || user?.registeredAt || null` — versi awal `||` jatuh
     // ke registeredAt juga saat lastRegisteredAt null/kosong, bukan hanya
     // saat field-nya absen.
     let last = user.get("lastRegisteredAt").unwrap_or(&serde_json::Value::Null);
@@ -126,7 +117,7 @@ pub(crate) fn format_waktu(ms: i64) -> String {
     format!("{d:02}/{mo:02}/{y}, {h:02}.{mi:02}")
 }
 
-/// Emoji gender (`listdaftar.js:160-164`).
+/// Emoji gender.
 fn emoji_gender(user: &serde_json::Value) -> &'static str {
     match user.get("regGender").and_then(|v| v.as_str()) {
         Some("Laki-laki") => "👨",
@@ -159,7 +150,7 @@ fn tampil_jid(user: &serde_json::Value, kunci: &str) -> String {
         .to_string()
 }
 
-/// Satu baris user (`listdaftar.js:166-171`).
+/// Satu baris user.
 fn baris_user(no: usize, user: &serde_json::Value, jid: &str) -> String {
     let nama = user
         .get("regName")
@@ -345,7 +336,7 @@ mod tests {
             parse_opsi("urut terbaru"),
             Opsi { sort_terbaru: true, ..Default::default() }
         );
-        // JS: `parseInt("0")` gagal `> 0` pada cabang `page <n>`, tetapi
+        // versi awal: `parseInt("0")` gagal `> 0` pada cabang `page <n>`, tetapi
         // token telanjang "0" tetap masuk lewat cabang `/^\d+$/` — keduanya
         // menghasilkan page 0 yang dijepit jadi 1 saat render (`Math.max`).
         let nol = Opsi { page: 0, ..Default::default() };

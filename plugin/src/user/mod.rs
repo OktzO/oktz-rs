@@ -14,8 +14,8 @@ pub mod notiflimit;
 pub mod profile;
 pub mod setbirthday;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod daftar;
 pub mod unreg;

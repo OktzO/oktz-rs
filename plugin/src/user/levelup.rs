@@ -1,8 +1,4 @@
-//! `plugins/user/levelup.js` — `users[sender].settings.levelupNotif`.
-//!
-//! Default `true`: notifikasi aktif sampai ada yang `off` secara eksplisit.
-//! Struct ini menyimpan seluruh objek `settings`, jadi field lain yang sudah
-//! ada di user tidak boleh hilang saat plugin ini menulis.
+//! `users[sender].settings.levelupNotif`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -178,7 +174,7 @@ mod tests {
     #[test]
     fn a_settings_field_that_is_not_an_object_is_replaced_not_merged() {
         // `!user.settings` hanya berlaku untuk null/undefined; kalau `settings`
-        // sudah berisi string, JS akan menambah properti ke String (diam).
+        // sudah berisi string, versi awal akan menambah properti ke String (diam).
         // Yang aman dan konsisten: perlakukan sebagai objek kosong.
         let __balasan = run(serde_json::json!({"settings": "bukan-objek"}), "on");
         let s = settings_of(&__balasan);

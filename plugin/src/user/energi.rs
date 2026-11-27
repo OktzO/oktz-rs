@@ -1,10 +1,10 @@
-//! `plugins/user/energi.js` — baca `users[sender].energi` + `isPremium`.
+//! Baca `users[sender].energi` + `isPremium`.
 //!
-//! `ponytail:` `db.setting('energi')` adalah toggle GLOBAL di store, dan `Ctx`
-//! hanya membawa `users[sender]` + `groups[chat]`. Handler ini karena itu
-//! selalu memakai cabang "energi aktif" (`config.energi.enabled === true`).
-//! Cabang "OFF" tetap diuji lewat [`render`], yang menerima flag-nya sebagai
-//! argumen — begitu router expose settings, cukup teruskan nilainya.
+//! `Keterbatasan:` `db.setting('energi')` adalah toggle GLOBAL di store, dan `Ctx` hanya
+//! membawa `users[sender]` + `groups[chat]`. Handler ini karena itu selalu memakai cabang
+//! "energi aktif" (`config.energi.enabled === true`). Cabang "OFF" tetap diuji lewat
+//! [`render`], yang menerima flag-nya sebagai argumen — begitu router expose settings,
+//! cukup teruskan nilainya.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
@@ -12,13 +12,13 @@ use serde_json::Value;
 use crate::common::user_target;
 use crate::tools::kalkulatormbg::thousands_id;
 
-/// `config.energi` (`config.js:112-117`).
+/// `config.energi`.
 pub(crate) const ENERGI_ENABLED: bool = true;
 pub(crate) const ENERGI_DEFAULT: i64 = 99_999;
 pub(crate) const ENERGI_PREMIUM: i64 = 99_999_999;
 pub(crate) const UNLIMITED: i64 = -1;
 
-/// `formatNumber` (`energi.js:16-19`) — `-1` jadi `∞ Unlimited`.
+/// `formatNumber` — `-1` jadi `∞ Unlimited`.
 pub(crate) fn format_energi(num: i64) -> String {
     if num == UNLIMITED {
         "∞ Unlimited".to_string()
@@ -157,7 +157,7 @@ mod tests {
         }
     }
 
-    // -- cabang toggle global --------------------------------------------
+    // - cabang toggle global --------------------------------------------
 
     #[test]
     fn the_disabled_flag_wins_over_everything_and_marks_the_status() {
@@ -190,7 +190,7 @@ mod tests {
         assert!(out.ends_with("⚠️ Energi hampir habis!\nGunakan `.buyenergi` untuk beli"));
     }
 
-    // -- cabang state tersimpan -------------------------------------------
+    // - cabang state tersimpan -------------------------------------------
 
     #[test]
     fn an_absent_balance_uses_the_config_tier() {
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(user_status(true, true, false), "Owner (Energi OFF)");
     }
 
-    // -- format ------------------------------------------------------------
+    // - format ------------------------------------------------------------
 
     #[test]
     fn minus_one_renders_as_infinity_and_numbers_are_dotted() {
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(format_energi(99_999_999), "99.999.999");
     }
 
-    // -- cabang pesan bawah ----------------------------------------------
+    // - cabang pesan bawah ----------------------------------------------
 
     #[test]
     fn low_balance_warns_only_the_owner_of_the_account() {

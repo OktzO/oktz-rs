@@ -1,21 +1,16 @@
-//! `plugins/user/bataldaftar.js` — batalkan sesi pendaftaran yang aktif.
+//! Batalkan sesi pendaftaran yang aktif.
 //!
-//! `clearRegistrationSession` menghapus `global.registrationSessions[key]`,
-//! jadi padanannya persis satu `ctx.session_take(key)` yang mengembalikan
-//! `Some` kalau memang ada sesinya.
-//!
-//! `ponytail:` `getRegistrationSessionKey` di JS menormalkan `@lid` lebih dulu
-//! lewat `lidToJid` (`src/lib/lid.js` — butuh cache file + `onigis`), jadi
-//! kunci di sini cukup digit dari `m.sender` penuh (suffix `:device` ikut
-//! terhitung, sama seperti `replace(/[^0-9]/g,"")`). Plugin `daftar` yang
-//! menulis sesi harus memakai kunci yang sama; lihat `ponytail:` di modul itu.
+//! `Keterbatasan:` `getRegistrationSessionKey` di versi awal menormalkan `@lid` lebih dulu
+//! lewat `lidToJid`, jadi kunci di sini cukup digit dari `m.sender` penuh (suffix `:device`
+//! ikut terhitung, sama seperti `replace(/[^0-9]/g,"")`). Plugin `daftar` yang menulis sesi
+//! harus memakai kunci yang sama; lihat `Keterbatasan:` di modul itu.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const NONE: &str = "❌ Kamu tidak punya sesi pendaftaran aktif.";
 
-/// `getRegistrationSessionKey` (daftar.js:90) + kunci legacy yang dicoba
-/// `getRegistrationSessionEntry` (daftar.js:108).
+/// `getRegistrationSessionKey` + kunci legacy yang dicoba
+/// `getRegistrationSessionEntry`.
 fn keys_for(ctx: &Ctx) -> Vec<String> {
     let raw = ctx.sender.trim();
     let digits: String = raw.chars().filter(char::is_ascii_digit).collect();
@@ -164,7 +159,7 @@ mod tests {
         assert!(store.lock().unwrap().contains_key("628999"));
     }
 
-    // `getRegistrationSessionKey` = `jid.replace(/[^0-9]/g, "")` Applied ke
+    // `getRegistrationSessionKey` = `jid.replace(/[^0-9]/g, "")` Applied
     // JID PENUH, jadi `628111:5@s.whatsapp.net` → `6281115`, bukan `628111`.
     #[test]
     fn the_key_is_digits_only_so_a_device_suffix_shifts_it() {
@@ -194,7 +189,7 @@ mod tests {
         assert_eq!(clear(store), NONE, "suffix device menggeser kunci, bukan diabaikan");
     }
 
-    // `getRegistrationSessionEntry` (daftar.js:108) jatuh ke kunci legacy
+    // `getRegistrationSessionEntry` jatuh ke kunci legacy
     // berupa JID mentah apa adanya kalau kunci digit tidak ada.
     #[test]
     fn a_session_stored_under_the_raw_jid_is_still_found() {

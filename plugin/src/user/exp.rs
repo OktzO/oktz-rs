@@ -1,8 +1,4 @@
-//! `plugins/user/exp.js` — baca `users[sender].exp`.
-//!
-//! `calculateLevel` / `getRole` di JS diambil dari `src/lib/level.js`, yang
-//! salinannya identik dengan `plugins/user/level.js` — dipakai dua file,
-//! jadi didefinisikan sekali di sini.
+//! Baca `users[sender].exp`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -15,7 +11,7 @@ pub(crate) fn calculate_level(exp: i64) -> i64 {
     exp.div_euclid(EXP_PER_LEVEL) + 1
 }
 
-/// `getRole` (`level.js:19-27`) — ambang dari yang tertinggi.
+/// `getRole` — ambang dari yang tertinggi.
 pub(crate) fn role_of(level: i64) -> &'static str {
     if level >= 100 {
         "🐉 Mythic"
@@ -34,7 +30,7 @@ pub(crate) fn role_of(level: i64) -> &'static str {
     }
 }
 
-/// `formatNumber` (`exp.js:11-15`) — B/M/K dengan satu desimal, lalu ribuan
+/// `formatNumber` — B/M/K dengan satu desimal, lalu ribuan
 /// bertitik di bawah 1000.
 pub(crate) fn format_exp(num: i64) -> String {
     let n = num as f64;
@@ -78,8 +74,8 @@ pub fn exp(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    /// `find("exp")` ambigu: `exp` juga alias plugin `expedition.js`, dan
-    /// `find` mengembalikan siapa pun yang terdaftar lebih dulu di
+    /// `find("exp")` ambigu: `exp` juga alias plugin,
+    /// `find` mengembalikan siapa pun yang terdaftar lebih dulu
     /// `distributed_slice`. Cari lewat `meta.name` supaya test ini selalu
     /// menguji plugin yang namanya `exp`.
     fn plugin() -> &'static oktz_plugin_api::registry::PluginEntry {
@@ -137,7 +133,7 @@ mod tests {
 
     #[test]
     fn negative_exp_floors_like_javascript_math_floor() {
-        // `Math.floor(-1 / 10000)` = -1 -> level 0. `div_euclid` memang sama
+        // `Math.floor(-1 / 10000)` = -1 -> level 0. `div_euclid` memang
         // untuk pembagi positif, tapi test ini menahan regresi ke truncate.
         assert_eq!(calculate_level(-1), 0);
         assert_eq!(calculate_level(-10_000), 0);

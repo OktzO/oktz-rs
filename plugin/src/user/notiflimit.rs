@@ -1,7 +1,4 @@
-//! `plugins/user/notiflimit.js` — toggle global notifikasi potong limit.
-//!
-//! File-nya ada di `plugins/user/` jadi modulnya ikut ke `src/user/`, tapi
-//! `pluginConfig.category` tetap `"owner"` dan itu yang ditulis ke manifest.
+//! Toggle global notifikasi potong limit.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;

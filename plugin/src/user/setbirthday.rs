@@ -1,13 +1,10 @@
-//! `plugins/user/setbirthday.js` — `users[sender].birthday` (format `DD-MM`).
-//!
-//! Validasi memakai tabel hari-per-bulan dengan Februari = 29 SELALU:
-//! `daysInMonth` di JS tidak tahu tahun, jadi `29-02` diterima setiap tahun.
+//! `users[sender].birthday` (format `DD-MM`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::MONTHS_ID;
 
-/// `daysInMonth` (`setbirthday.js:57`) — indeks 0 = Januari.
+/// `daysInMonth` — indeks 0 = Januari.
 pub(crate) const DAYS_IN_MONTH: [u32; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /// `^(\d{1,2})[-/](\d{1,2})$` → `(day, month)`. Pemisah `-` atau `/`.
@@ -129,7 +126,7 @@ mod tests {
     }
 
     fn mentions_of(r: &Reply) -> &Vec<String> {
-        // Reply ini dibungkus `Mutate`, jadi `mentions` ada di balasan yang
+        // Reply ini dibungkus `Mutate`, jadi `mentions` ada di balasan
         // sudah dilepas mutasinya.
         match r.without_mutations() {
             Reply::Text { mentions, .. } => mentions,

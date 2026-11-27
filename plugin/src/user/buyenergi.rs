@@ -1,9 +1,9 @@
-//! `plugins/user/buyenergi.js` — tukar koin jadi energi (1 energi = 100 koin).
+//! Tukar koin jadi energi (1 energi = 100 koin).
 //!
-//! `ponytail:` `config.energi.premium` tidak dibaca. Default-nya `99999999`,
-//! bukan `-1`, jadi `db.updateEnergi` tidak pernah mengembalikan unlimited ke
-//! premium; hanya owner (`config.energi.owner = -1`) yang dapat, dan itu
-//! dicerminkan di `unlimited_energi()`.
+//! `Keterbatasan:` `config.energi.premium` tidak dibaca. Default-nya `99999999`, bukan
+//! `-1`, jadi `db.updateEnergi` tidak pernah mengembalikan unlimited ke premium; hanya
+//! owner (`config.energi.owner = -1`) yang dapat, dan itu dicerminkan di
+//! `unlimited_energi()`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
@@ -14,10 +14,10 @@ use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const PRICE_PER_ENERGI: i64 = 100;
 
-/// `MAX_KOIN` (`database.js:650`) — ceiling `db.updateKoin`.
+/// `MAX_KOIN` — ceiling `db.updateKoin`.
 const MAX_KOIN: i64 = 9_000_000_000_000;
 
-/// `formatNumber` (`buyenergi.js:20-22`) — pemisah ribuan titik. `thousands_id`
+/// `formatNumber` — pemisah ribuan titik. `thousands_id`
 /// membuang tanda minus, jadi `-1` (koin tak terbatas) dirakit ulang di sini.
 fn format_number(n: i64) -> String {
     if n < 0 {
@@ -28,12 +28,12 @@ fn format_number(n: i64) -> String {
 }
 
 /// `config.energi.owner === -1` + `config.isOwner(jid)` di `updateEnergi`
-/// (`database.js:632-638`). Premium tidak masuk: default-nya bukan `-1`.
+/// . Premium tidak masuk: default-nya bukan `-1`.
 fn unlimited_energi(ctx: &Ctx) -> bool {
     ctx.is_owner
 }
 
-/// `m.reply(...)` untuk `amount <= 0` (`buyenergi.js:31-39`).
+/// `m.reply(...)` untuk `amount <= 0`.
 fn help(ctx: &Ctx, koin: i64) -> String {
     format!(
         "🛒 *ʙᴜʏ ᴇɴᴇʀɢɪ*\n\n\
@@ -48,7 +48,7 @@ fn help(ctx: &Ctx, koin: i64) -> String {
     )
 }
 
-/// `m.reply(...)` saat koin kurang (`buyenergi.js:46-52`).
+/// `m.reply(...)` saat koin kurang.
 fn insufficient(total: i64, koin: i64) -> String {
     format!(
         "❌ *ɢᴀɢᴀʟ*\n\n\
@@ -60,9 +60,9 @@ fn insufficient(total: i64, koin: i64) -> String {
     )
 }
 
-/// `m.reply(...)` untuk `user.energi === -1` (`buyenergi.js:57-63`).
+/// `m.reply(...)` untuk `user.energi === -1`.
 ///
-/// `ponytail:` teks JS menjanjikan "Koin dikembalikan" tapi tidak ada
+/// `Keterbatasan:` teks versi awal menjanjikan "Koin dikembalikan" tapi tidak ada
 /// pengembalian — `db.updateKoin` sudah dijalankan baris sebelumnya. Bug itu
 /// ikut dip-port apa adanya; perbaikannya berarti mengubah store, bukan
 /// cuma teks, jadi harus lewat keputusan-porting terpisah.
@@ -70,7 +70,7 @@ const UNLIMITED_BALASAN: &str = "✅ *ᴘᴇᴍʙᴇʟɪᴀɴ ʙᴇʀʜᴀsɪʟ*
      > Tapi kamu sudah punya unlimited energi!\n\
      > Koin dikembalikan.";
 
-/// `m.reply(...)` setelah pembelian (`buyenergi.js:70-80`).
+/// `m.reply(...)` setelah pembelian.
 fn success(amount: i64, total: i64, new_energi: i64, new_koin: i64) -> String {
     format!(
         "✅ *ᴘᴇᴍʙᴇʟɪᴀɴ ʙᴇʀʜᴀsɪʟ*\n\n\
@@ -177,7 +177,7 @@ mod tests {
     }
 
     /// `true` kalau reply ini bereaksi `✅` lalu mengirim teks — persis urutan
-    /// `m.react('✅')` + `m.reply(...)` di JS.
+    /// `m.react('✅')` + `m.reply(...)` di versi awal.
     fn is_check(r: &Reply) -> bool {
         let mut cur = r.without_mutations();
         let mut seen = false;
@@ -217,7 +217,7 @@ mod tests {
         }
     }
 
-    // -- format angka ------------------------------------------------------
+    // - format angka ------------------------------------------------------
 
     #[test]
     fn format_number_matches_the_js_regex() {
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(format_number(-1), "-1", "koin tak terbatas");
     }
 
-    // -- cabang help -------------------------------------------------------
+    // - cabang help -------------------------------------------------------
 
     #[test]
     fn no_argument_shows_the_price_and_the_balance_without_touching_the_store() {
@@ -262,7 +262,7 @@ mod tests {
         assert!(text_of(&run(&["-5"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒"));
     }
 
-    // -- cabang gagal ------------------------------------------------------
+    // - cabang gagal ------------------------------------------------------
 
     #[test]
     fn an_underfunded_purchase_lists_both_sides_without_writing() {
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn an_unlimited_koin_balance_reads_as_minus_one_and_looks_broke() {
         // `user.koin === -1` selalu `< totalPrice`, jadi plugin menolak meski
-        // saldo tak terbatas — sama seperti JS.
+        // saldo tak terbatas — sama seperti versi awal.
         let r = run(&["10"], serde_json::json!({"koin": -1, "energi": 0}), false);
         assert_eq!(
             text_of(&r),
@@ -301,7 +301,7 @@ mod tests {
         assert!(r.mutations().is_empty());
     }
 
-    // -- cabang berhasil ---------------------------------------------------
+    // - cabang berhasil ---------------------------------------------------
 
     #[test]
     fn a_successful_purchase_moves_both_koin_and_energi() {
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn an_unlimited_energi_user_is_refused_but_pays_anyway() {
-        // Bug JS yang ikut dip-port: `db.updateKoin` jalan sebelum cek
+        // Bug versi awal yang ikut dip-port: `db.updateKoin` jalan sebelum cek
         // unlimited dan tidak ada pengembalian, meski teks bilang dikembalikan.
         let r = run(&["5"], serde_json::json!({"koin": 5_000, "energi": -1}), false);
         assert_eq!(

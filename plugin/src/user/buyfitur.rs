@@ -1,14 +1,9 @@
-//! `plugins/user/buyfitur.js` — beli fitur premium dengan koin (3000/fitur).
+//! Beli fitur premium dengan koin (3000/fitur).
 //!
-//! `ponytail:` `config.isPremium(m.sender)` TIDAK di-port: itu memanggil
-//! `config.js`, bukan store, dan `Ctx` hanya membawa `is_owner` (kepemilikan
-//! bot). Jadi hanya pemeriksaan `user.isPremium` yang tersisa — user premium
-//! yang secondhand diabaikan, dan angka koinnya tidak terpakai.
-//!
-//! `db.updateKoin(jid, -3000)` tidak ada di `Mutation`; `SetUser` menulis
-//! objek partial dengan operator `??` di JS, jadi `koin` yang dikirim di sini
-//! harus berupa ANGKA LENGAP, bukan `{"$dec": 3000}` — kalau tidak, field itu
-//! tidak akan pernah berkurang.
+//! `Keterbatasan:` `config.isPremium(m.sender)` TIDAK diimplementasikan: itu memanggil,
+//! bukan store, dan `Ctx` hanya membawa `is_owner` (kepemilikan bot). Jadi hanya
+//! pemeriksaan `user.isPremium` yang tersisa — user premium yang secondhand diabaikan, dan
+//! angka koinnya tidak terpakai.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
@@ -263,7 +258,7 @@ mod tests {
 
     #[test]
     fn an_unknown_feature_id_is_reported_and_nothing_is_charged() {
-        // Balasan JS memakai `featureName` yang sudah `toLowerCase()`, jadi
+        // Balasan versi awal memakai `featureName` yang sudah `toLowerCase()`, jadi
         // `STICKERX` dibalas `stickerx`.
         for (input, echoed) in [
             ("gakada", "gakada"),

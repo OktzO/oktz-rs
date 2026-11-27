@@ -1,22 +1,22 @@
-//! `plugins/user/profile.js` — profil lengkap user dengan RPG stats.
+//! Profil lengkap user dengan RPG stats.
 //!
-//! `ponytail:` Sembilan panggilan `sock`/lib JS dibungkus `safe()` di JS —
+//! `Keterbatasan:` Sembilan panggilan `sock`/lib versi awal dibungkus `safe()` di versi awal —
 //! gagal berarti `null` dan barisnya tetap dicetak dengan nilai kosong.
-//! Di `Ctx::sock` hanya dua yang tersedia, sisanya dianggap gagal seperti
+//! Di `Ctx::sock` hanya dua yang tersedia, sisanya dianggap gagal
 //! `safe()` yang error (baris tampil `-` / nilai default):
 //! - `sock.onWhatsApp` → `sock().ada_whatsapp` (Eksistensi WA + JID kanonik).
 //! - `sock.profilePictureUrl` → `sock().foto_profil` (avatar + `ppMedia`).
 //! - `fetchStatus`, `getBusinessProfile`, `getCatalog`, `getCollections`,
-//!   `getLidFromJid`, `getContact`, `getDevice` → tidak ada di `Sock`
-//!   (Bio, Business Info, LID, Device ID, "Bot WhatsApp" selalu `null`).
+//! `getLidFromJid`, `getContact`, `getDevice` → tidak ada di `Sock`
+//! (Bio, Business Info, LID, Device ID, "Bot WhatsApp" selalu `null`).
 //! - `m.key?.id` (Device ID) dan `sock.user?.id` / `platform` / Node
-//!   `process.version` (Bot Viewpoint) tidak diekspos `Ctx`.
-//! - `user.rpg` yang JS tulis-ulang (level/health/mana/stamina) dikirim
-//!   lewat `Mutation::SetUser` dengan objek `rpg` utuh dari snapshot store.
-//! - `config.isOwner`/`config.isPremium` untuk TARGET ditiru dari
-//!   `config().owner.number` + `db.data.owner` + flag `isPremium` user +
-//!   `settings.premiumUsers` (salinan `config.js:364-446` yang
-//!   terjangkau `Ctx`).
+//! `process.version` (Bot Viewpoint) tidak diekspos `Ctx`.
+//! - `user.rpg` yang versi awal tulis-ulang (level/health/mana/stamina) dikirim
+//! lewat `Mutation::SetUser` dengan objek `rpg` utuh dari snapshot store.
+//! - `config.isOwner`/`config.isPremium` untuk TARGET ditiru
+//! `config().owner.number` + `db.data.owner` + flag `isPremium` user +
+//! `settings.premiumUsers` (salinan
+//! terjangkau `Ctx`).
 
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -24,15 +24,15 @@ use serde_json::Value;
 use crate::store::done::date_ke_ms;
 use crate::user::exp::{EXP_PER_LEVEL, role_of};
 
-/// `config.assets["pp-kosong"]` tidak terisi → fallback JS (`profile.js:135`).
+/// `config.assets["pp-kosong"]` tidak terisi → fallback versi awal.
 pub(crate) const PP_KOSONG: &str = "https://i.imgur.com/TuItj4L.png";
 
-/// `formatNumber` (`profile.js:24-26`) — `toLocaleString("id-ID")`.
+/// `formatNumber` — `toLocaleString("id-ID")`.
 pub(crate) fn format_number(num: i64) -> String {
     crate::tools::kalkulatormbg::thousands_id(num as f64)
 }
 
-/// `getLevelBar` (`profile.js:29-38`) — 10 kotak ▰/▱.
+/// `getLevelBar` — 10 kotak ▰/▱.
 pub(crate) fn level_bar(current: i64, target: i64) -> String {
     let total_bars = 10;
     let filled = if target > 0 {
@@ -45,12 +45,12 @@ pub(crate) fn level_bar(current: i64, target: i64) -> String {
     "▰".repeat(filled) + &"▱".repeat(empty)
 }
 
-/// Nomor bersih dari jid: split `@` lalu split `:` (`profile.js:60`).
+/// Nomor bersih dari jid: split `@` lalu split `:`.
 fn phone_of(jid: &str) -> &str {
     jid.split('@').next().unwrap_or("").split(':').next().unwrap_or("")
 }
 
-/// `config.isOwner(target)` (`config.js:364`) — bagian yang terjangkau Ctx.
+/// `config.isOwner(target)` — bagian yang terjangkau Ctx.
 fn target_owner(ctx: &Ctx, target: &str) -> bool {
     let nomor = phone_of(target);
     ctx.config()
@@ -63,7 +63,7 @@ fn target_owner(ctx: &Ctx, target: &str) -> bool {
         })
 }
 
-/// `config.isPremium(target)` (`config.js:406`) — owner, flag user, atau
+/// `config.isPremium(target)` — owner, flag user,
 /// daftar `settings.premiumUsers`.
 fn target_premium(ctx: &Ctx, target: &str, user: &Value) -> bool {
     if target_owner(ctx, target) {
@@ -114,7 +114,7 @@ fn user_of(ctx: &Ctx, target: &str) -> Value {
     is_private = false
 )]
 pub fn profile(ctx: Ctx) -> Reply {
-    // `m.mentionedJid?.[0] || m.quoted?.sender || m.sender` (`profile.js:55`).
+    // `m.mentionedJid?.[0] || m.quoted?.sender || m.sender`.
     let target = ctx
         .mentioned
         .first()
@@ -148,7 +148,7 @@ pub fn profile(ctx: Ctx) -> Reply {
     let is_owner_user = target_owner(&ctx, &target);
     let is_premium_user = target_premium(&ctx, &target, &user);
 
-    // ---- RPG stats yang JS tulis-ulang ke db (`profile.js:120-129`) ----
+    // --- RPG stats yang versi awal tulis-ulang ke db ----
     let user_exp = user.get("exp").and_then(Value::as_i64).unwrap_or(0);
     let user_level = user_exp.div_euclid(EXP_PER_LEVEL) + 1;
     let mut rpg = user.get("rpg").cloned().unwrap_or(Value::Null);
@@ -173,7 +173,7 @@ pub fn profile(ctx: Ctx) -> Reply {
     let exp_needed = level_up_exp - current_level_exp;
     let role = role_of(user_level);
 
-    // ---- caption (`profile.js:137-244`) ----
+    // --- caption ----
     let mut caption = String::new();
     caption.push_str(&format!("Halo kak @{phone}! 👋\n"));
     caption.push_str("Ini adalah rincian lengkap dari profil, status, dan seluruh aset yang kakak miliki saat ini di dalam sistem bot:\n\n");
@@ -204,7 +204,7 @@ pub fn profile(ctx: Ctx) -> Reply {
     }
     caption.push_str(&format!("- *Tag / Mention:* @{}\n", target.split('@').next().unwrap_or("")));
 
-    // `${isOwnerUser ? "👑 Owner" : isPremiumUser ? "💎 Premium" : "🆓 Free User"}`
+    // `${isOwnerUser ? "👑 Owner": isPremiumUser ? "💎 Premium": "🆓 Free User"}`
     let status_akun = if is_owner_user {
         "👑 Owner"
     } else if is_premium_user {
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn alias_stats_kalah_dari_main_stats_seperti_js() {
-        // `stats` milik `main/stats.js` (command) — lookup commands dulu.
+        // `stats` milik (command) — lookup commands dulu.
         assert_eq!(
             oktz_plugin_api::find("stats").map(|p| p.meta.name.as_str()),
             Some("stats")

@@ -1,25 +1,14 @@
-//! `plugins/user/birthdaylist.js` — daftar ulang tahun member grup.
+//! Daftar ulang tahun member grup.
 //!
-//! Sumbernya `m.groupMetadata.participants`, lalu `db.getUser(jid)` per
-//! peserta. Di `Ctx` baris user hanya ada untuk `sender` dan anggota roster,
-//! jadi member yang TIDAK ada di store tidak bisa punya `birthday` — daftar
-//! bisa lebih pendek dari roster, persis seperti di port `owner/addenergi.rs`.
-//!
-//! `ponytail:` `ctx.roster.participants[i].data` dipakai, bukan `db.getUser`:
-//! pipeline mengisi `data` hanya untuk baris yang ada di store, jadi
-//! `Value::Null` = "user belum pernah ada" seperti `db.getUser` mengembalikan
-//! `undefined`.
-//!
-//! Pengurutan bukan "belum ulang tahun dulu" sederhana: `aNext`/`bNext` di JS
-//! menandai ulang tahun yang sudahLewat tahun ini, jadi yang lewat masih
-//! ikut — hanya tertinggal di bawah yang belum. Comparing dua-duanya menghasilkan
-//! urutan yang sama seperti pengurutan JS, dan itu yang dipakai di sini.
+//! `Keterbatasan:` `ctx.roster.participants[i].data` dipakai, bukan `db.getUser`: pipeline
+//! mengisi `data` hanya untuk baris yang ada di store, jadi `Value::Null` = "user belum
+//! pernah ada" seperti `db.getUser` mengembalikan `undefined`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
 use crate::common::{jid_number, jakarta_parts, now_ms};
 
-/// `months` (`birthdaylist.js:60`) — bulan 3 huruf, berbeda dari
+/// `months` — bulan 3 huruf, berbeda
 /// `common::MONTHS_ID` yang memanjang.
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
@@ -39,16 +28,16 @@ const NONE: &str = "❌ *ᴛɪᴅᴀᴋ ᴀᴅᴀ ᴅᴀᴛᴀ*\n\n\
      > Gunakan: .setbirthday DD-MM";
 
 /// `user.birthday.split('-').map(Number)` → `(day, month)`. Field yang rusak
-/// (bukan `DD-MM`) menghasilkan `NaN` di JS, yang membuat baris itu tidak
+/// (bukan `DD-MM`) menghasilkan `NaN` di versi awal, yang membuat baris itu tidak
 /// pernah sama dengan `currentDay/currentMonth` — di sini diabaikan, hasil
-///_visible identik karena baris rusak tidak akan pernah ditandai "HARI INI".
+/// _visible identik karena baris rusak tidak akan pernah ditandai "HARI INI".
 fn parse(value: Option<&str>) -> Option<(u32, u32)> {
     let v = value?;
     let (d, m) = v.split_once('-')?;
     Some((d.trim().parse().ok()?, m.trim().parse().ok()?))
 }
 
-/// `aNext`/`bNext` di JS, lalu `month`, lalu `day`. `sort` di JS stabil,
+/// `aNext`/`bNext` di versi awal, lalu `month`, lalu `day`. `sort` di versi awal stabil,
 /// jadi urutan roster dipertahankan untuk kunci yang sama.
 fn collect(ctx: &Ctx) -> (Vec<Birthday>, u32, u32) {
     let (_, month_now, day_now, ..) = jakarta_parts(now_ms());
@@ -220,7 +209,7 @@ mod tests {
         assert_eq!(mentioned(&r), ["628111@s.whatsapp.net"]);
     }
 
-    // `birthdays.sort` di JS (birthdaylist.js:49) menaruh yang BELUM ulang tahun
+    // `birthdays.sort` di versi awal menaruh yang BELUM ulang tahun
     // tahun ini di depan, baru bulan lalu tanggal. Karena tiap baris punya
     // status "belum" sendiri, urutannya memang bergantung tanggal hari test
     // jalan — jadi harapan dihitung dari helper yang sama, bukan angka tebakan.

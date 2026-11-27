@@ -1,10 +1,9 @@
-//! `plugins/user/unreg.js` — hapus data pendaftaran dari store.
+//! Hapus data pendaftaran dari store.
 //!
-//! `ponytail:` `getDatabase()`, `db.setUser()`, dan `db.save()` tidak diekspos
-//! ke plugin di registry Rust. Tidak ada store user yang dapat dibaca atau
-//! ditulis. Handler di bawah hanya melaporkan "belum terdaftar" (karena store
-//! selalu kosong) dan jatuh ke error untuk cabang sukses yang seharusnya
-//! menyimpan.
+//! `Keterbatasan:` `getDatabase()`, `db.setUser()`, dan `db.save()` tidak diekspos ke
+//! plugin di registry Rust. Tidak ada store user yang dapat dibaca atau ditulis. Handler di
+//! bawah hanya melaporkan "belum terdaftar" (karena store selalu kosong) dan jatuh ke error
+//! untuk cabang sukses yang seharusnya menyimpan.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -25,7 +24,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_bot_admin = false
 )]
 pub fn unreg(ctx: Ctx) -> Reply {
-    // `ponytail:` `db.getUser(m.sender)` tidak tersedia; tanpa store, user
+    // `Keterbatasan:` `db.getUser(m.sender)` tidak tersedia; tanpa store, user
     // selalu dianggap belum terdaftar.
     Reply::text(crate::common::error_template(&ctx))
 }
