@@ -1,12 +1,10 @@
 //! Bekerja untuk mendapatkan uang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
-use crate::rpg::jualan::{
-    apply_exp, or_default, rpg_int, rpg_map, roll_incl,
-};
+use crate::rpg::jualan::{apply_exp, or_default, roll_incl, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 10;
@@ -143,7 +141,11 @@ mod tests {
         assert!(r.mutations().is_empty());
 
         let r = run(serde_json::json!({"rpg": {"stamina": 0}, "koin": 0, "exp": 0}));
-        assert_eq!(written(&r)["rpg"]["stamina"], serde_json::json!(90), "0 || 100 -> 100 - 10");
+        assert_eq!(
+            written(&r)["rpg"]["stamina"],
+            serde_json::json!(90),
+            "0 || 100 -> 100 - 10"
+        );
     }
 
     #[test]
@@ -200,11 +202,17 @@ mod tests {
             assert_eq!(semua.len(), 2, "dua pesan: {semua:?}");
             let (_, bare, _, _) = JOBS
                 .iter()
-                .find(|(_, bare, _, _)| semua[0] == format!("Otw berangkat kerja jadi *{bare}* dulu kak! 🏃💼💨"))
+                .find(|(_, bare, _, _)| {
+                    semua[0] == format!("Otw berangkat kerja jadi *{bare}* dulu kak! 🏃💼💨")
+                })
                 .copied()
                 .unwrap_or_else(|| panic!("profesi tak dikenal: {}", semua[0]));
             assert!(!bare.is_empty());
-            assert!(semua[1].starts_with("CIE YANG ABIS KERJA! 💸✨"), "{}", semua[1]);
+            assert!(
+                semua[1].starts_with("CIE YANG ABIS KERJA! 💸✨"),
+                "{}",
+                semua[1]
+            );
         }
     }
 }

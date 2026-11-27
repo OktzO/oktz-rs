@@ -70,7 +70,11 @@ pub(crate) fn url_hasil(bentuk: &Value) -> String {
 /// Backend lokal — `photoai.imglarger.com`.
 fn lewat_photoai(ctx: &Ctx, path: &str) -> Option<String> {
     let unggahan = oktz_scraper::hd::upload(ctx.http.as_ref(), path).ok()?;
-    let code = unggahan.get("code").and_then(Value::as_str)?.trim().to_string();
+    let code = unggahan
+        .get("code")
+        .and_then(Value::as_str)?
+        .trim()
+        .to_string();
     if code.is_empty() {
         return None;
     }

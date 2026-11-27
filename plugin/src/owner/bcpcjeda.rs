@@ -54,8 +54,7 @@ fn help(ctx: &Ctx, current: i64) -> String {
     )
 }
 
-pub(crate) const BAD_FORMAT: &str =
-    "❌ Format salah. Contoh: `5s`, `2m`, `1h`, `1d`";
+pub(crate) const BAD_FORMAT: &str = "❌ Format salah. Contoh: `5s`, `2m`, `1h`, `1d`";
 
 #[plugin(
     name = "bcpcjeda",
@@ -76,7 +75,11 @@ pub fn bcpcjeda(ctx: Ctx) -> Reply {
     // `db.setting('jedaBcpc') || 5000` — nilai 0 ikut menjadi 5000 karena
     // `||`, bukan `??`.
     let stored = ctx.setting_i64("jedaBcpc").unwrap_or(0);
-    let current = if stored == 0 { DEFAULT_DELAY_MS } else { stored };
+    let current = if stored == 0 {
+        DEFAULT_DELAY_MS
+    } else {
+        stored
+    };
 
     let input = ctx.text.trim();
     if input.is_empty() {

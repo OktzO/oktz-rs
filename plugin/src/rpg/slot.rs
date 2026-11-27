@@ -6,7 +6,7 @@
 //! hasil yang terkirim — teksnya sama persis dengan.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::heal::{math_random, or_default};
 use crate::tools::kalkulatormbg::thousands_id;
@@ -196,8 +196,7 @@ mod tests {
         for bad in ["999", "0", "-1000", "abc", ""] {
             let r = run(99_999, Some(bad));
             assert!(
-                text_of(&r)
-                    .starts_with("Taruhan minimal buat narik tuas slot ini *Rp 1.000* bro!"),
+                text_of(&r).starts_with("Taruhan minimal buat narik tuas slot ini *Rp 1.000* bro!"),
                 "bet {bad}"
             );
             assert!(text_of(&r).ends_with("Contoh: `.slot 5000`"), "bet {bad}");
@@ -209,7 +208,11 @@ mod tests {
     #[test]
     fn a_numeric_prefix_bet_is_accepted() {
         let r = run(99_999, Some("1000abc"));
-        assert!(text_of(&r).starts_with("🎰 *HASIL MESIN SLOT*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("🎰 *HASIL MESIN SLOT*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -234,7 +237,10 @@ mod tests {
             let after = koin_after(&r);
             if t.contains("Uang Cair: *+Rp ") {
                 wins += 1;
-                assert!(after >= 10_000, "menang tidak boleh mengurangi koin: {after}");
+                assert!(
+                    after >= 10_000,
+                    "menang tidak boleh mengurangi koin: {after}"
+                );
             } else {
                 zonks += 1;
                 assert!(t.contains("ZONK!! Duit lu ditelan mesin slot! 😭💸"), "{t}");
@@ -249,22 +255,39 @@ mod tests {
     #[test]
     fn the_payout_table_matches_the_js_multipliers() {
         for (result, multiplier, text) in [
-            (["7️⃣", "7️⃣", "7️⃣"], 10.0, "GILA!! JACKPOT 777!! 🎉💸 (10x Lipat)"),
-            (["💎", "💎", "💎"], 5.0, "MANTAP! SUPER DIAMOND!! 💎✨ (5x Lipat)"),
-            (["🍒", "🍒", "🍒"], 3.0, "ASIK! TRIPLE COMBO!! 🍒🎰 (3x Lipat)"),
-            (["🍋", "🍋", "🍊"], 1.5, "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)"),
+            (
+                ["7️⃣", "7️⃣", "7️⃣"],
+                10.0,
+                "GILA!! JACKPOT 777!! 🎉💸 (10x Lipat)",
+            ),
+            (
+                ["💎", "💎", "💎"],
+                5.0,
+                "MANTAP! SUPER DIAMOND!! 💎✨ (5x Lipat)",
+            ),
+            (
+                ["🍒", "🍒", "🍒"],
+                3.0,
+                "ASIK! TRIPLE COMBO!! 🍒🎰 (3x Lipat)",
+            ),
+            (
+                ["🍋", "🍋", "🍊"],
+                1.5,
+                "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)",
+            ),
             // versi awal memakai `||` untuk pasangan, jadi cermin (`a == c`) juga
             // dihitung DOUBLE — bukan ZONK seperti dugaan awal test ini.
-            (["7️⃣", "💎", "7️⃣"], 1.5, "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)"),
+            (
+                ["7️⃣", "💎", "7️⃣"],
+                1.5,
+                "LUMAYAN LAH! DOUBLE!! 👍 (1.5x Lipat)",
+            ),
         ] {
             let (got, label) = payout(&result);
             assert_eq!(got, multiplier, "{result:?}");
             assert_eq!(label, Some(text), "{result:?}");
         }
-        for result in [
-            ["🍒", "🍋", "🍊"],
-            ["🍇", "💎", "7️⃣"],
-        ] {
+        for result in [["🍒", "🍋", "🍊"], ["🍇", "💎", "7️⃣"]] {
             assert_eq!(payout(&result), (0.0, None), "{result:?} harus ZONK");
         }
     }
@@ -292,7 +315,11 @@ mod tests {
     fn a_very_long_bet_string_does_not_panic() {
         let long = "9".repeat(400);
         let r = run(99_999, Some(&long));
-        assert!(text_of(&r).starts_with("Taruhan minimal"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("Taruhan minimal"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -306,7 +333,11 @@ mod tests {
                 seen.push(s);
             }
         }
-        assert_eq!(seen.len(), SYMBOLS.len(), "ada simbol yang tidak pernah keluar: {seen:?}");
+        assert_eq!(
+            seen.len(),
+            SYMBOLS.len(),
+            "ada simbol yang tidak pernah keluar: {seen:?}"
+        );
     }
 
     #[test]

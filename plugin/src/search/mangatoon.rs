@@ -96,7 +96,7 @@ pub(crate) fn caption(items: &[Value], data: &Value, query: &str) -> String {
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 pub(crate) fn interp(value: Option<&Value>) -> String {
     match value {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -159,14 +159,11 @@ pub fn mangatoon(ctx: Ctx) -> Reply {
 
     // `axios.get` melempar untuk status >= 400 dan error transport; keduanya
     // ditangkap `catch` yang sama.
-    let Ok(res) = ctx
-        .http
-        .call(
-            &oktz_plugin_api::HttpCall::get(api_url(query, &ctx.config().api_keys.cuki))
-                .header("x-api-key", &ctx.config().api_keys.cuki)
-                .header("user-agent", "Mozilla/5.0"),
-        )
-    else {
+    let Ok(res) = ctx.http.call(
+        &oktz_plugin_api::HttpCall::get(api_url(query, &ctx.config().api_keys.cuki))
+            .header("x-api-key", &ctx.config().api_keys.cuki)
+            .header("user-agent", "Mozilla/5.0"),
+    ) else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
 
@@ -183,10 +180,8 @@ pub fn mangatoon(ctx: Ctx) -> Reply {
 
     let items = flat_items(data);
     if items.is_empty() {
-        return Reply::text(format!(
-            "❌ Tidak ditemukan komik Mangatoon untuk: {query}"
-        ))
-        .with_reaction("❌");
+        return Reply::text(format!("❌ Tidak ditemukan komik Mangatoon untuk: {query}"))
+            .with_reaction("❌");
     }
 
     let cap = caption(&items, data, query);
@@ -362,7 +357,10 @@ mod tests {
         assert_eq!(trim_text(None, 60), "-");
         assert_eq!(trim_text(Some(""), 60), "-");
         assert_eq!(trim_text(Some("   \n\t "), 60), "-");
-        assert_eq!(trim_text(Some("  One   Piece \n Vol 1 "), 60), "One Piece Vol 1");
+        assert_eq!(
+            trim_text(Some("  One   Piece \n Vol 1 "), 60),
+            "One Piece Vol 1"
+        );
         assert_eq!(trim_text(Some("pendek"), 60), "pendek");
     }
 
@@ -398,7 +396,10 @@ mod tests {
             "{t}"
         );
         assert!(t.contains("*1.* Love Story\n   ├ https://a/1\n"), "{t}");
-        assert!(t.ends_with("*3.* Love 3\n   ├ https://a/3"), "caption di-trim: {t:?}");
+        assert!(
+            t.ends_with("*3.* Love 3\n   ├ https://a/3"),
+            "caption di-trim: {t:?}"
+        );
     }
 
     #[test]
@@ -407,20 +408,26 @@ mod tests {
         let items = flat_items(&data);
         assert!(items.is_empty());
         let t = caption(&items, &data, "cari");
-        assert!(t.contains("🔎 *Query:* cari\n"), "query kosong -> fallback: {t}");
-        assert!(t.contains("📦 *Total:* 0\n"), "total 0 -> panjang items: {t}");
+        assert!(
+            t.contains("🔎 *Query:* cari\n"),
+            "query kosong -> fallback: {t}"
+        );
+        assert!(
+            t.contains("📦 *Total:* 0\n"),
+            "total 0 -> panjang items: {t}"
+        );
         // Tanpa item, baris terakhir adalah `Source` dan caption sudah di-trim,
         // jadi tanpa newline penutup.
         assert!(t.ends_with("🌐 *Source:* mangatoon.mobi"), "{t}");
     }
 
     #[test]
-    fn an_item_without_a_link_prints_undefined() {
+    fn an_item_without_a_link_prints_a_dash() {
         let data = serde_json::json!({ "results": { "komik": [ { "items": [ { "title": "Tanpa link" } ] } ] } });
         let items = flat_items(&data);
         let t = caption(&items, &data, "q");
-        assert!(t.ends_with("*1.* Tanpa link\n   ├ undefined"), "`item.link` undefined: {t}");
-        assert_eq!(interp(None), "undefined");
+        assert!(t.ends_with("*1.* Tanpa link\n   ├ -"), "{t}");
+        assert_eq!(interp(None), "-");
         assert_eq!(interp(Some(&Value::Null)), "null");
     }
 

@@ -3,13 +3,15 @@
 //! `Keterbatasan:` hanya handler `.antilinkall` yang dipindah. Deteksi per-pesan ada di
 //! middleware dan butuh `sock.sendMessage` untuk menghapus pesan — `Ctx` tidak punya itu.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 pub(crate) const ON: &str = "✅ *Antilink All Aktif*\n\n> Semua link akan dideteksi otomatis\n> Mendeteksi domain extension, bukan hanya http/https";
 pub(crate) const OFF: &str = "❌ *Antilink All Nonaktif*\n\n> Link tidak akan difilter lagi";
-pub(crate) const MODE_KICK: &str = "✅ *Antilink All — Mode Kick*\n\n> User yang kirim link akan di-kick";
-pub(crate) const MODE_DELETE: &str = "✅ *Antilink All — Mode Delete*\n\n> Pesan dengan link akan dihapus";
+pub(crate) const MODE_KICK: &str =
+    "✅ *Antilink All — Mode Kick*\n\n> User yang kirim link akan di-kick";
+pub(crate) const MODE_DELETE: &str =
+    "✅ *Antilink All — Mode Delete*\n\n> Pesan dengan link akan dihapus";
 pub(crate) const BAD_METHOD: &str = "❌ *Metode Tidak Valid*\n\n> Gunakan *kick* atau *remove*\n> Contoh: *.antilinkall metode kick*";
 pub(crate) const BAD_OPTION: &str =
     "❌ *Opsi Tidak Valid*\n\n> Gunakan *on*, *off*, *metode kick*, atau *metode remove*";
@@ -65,7 +67,11 @@ pub fn antilinkall(ctx: Ctx) -> Reply {
              > *{p}antilinkall off* — Nonaktifkan\n\
              > *{p}antilinkall metode kick* — Mode kick user\n\
              > *{p}antilinkall metode remove* — Mode hapus pesan",
-            if status == "on" { "Aktif ✅" } else { "Nonaktif ❌" },
+            if status == "on" {
+                "Aktif ✅"
+            } else {
+                "Nonaktif ❌"
+            },
             mode.to_uppercase(),
             p = ctx.prefix,
         ));
@@ -80,7 +86,11 @@ pub fn antilinkall(ctx: Ctx) -> Reply {
     }
 
     if option.starts_with("metode") {
-        let method = ctx.args.get(1).map(|a| a.to_lowercase()).unwrap_or_default();
+        let method = ctx
+            .args
+            .get(1)
+            .map(|a| a.to_lowercase())
+            .unwrap_or_default();
         return match method.as_str() {
             "kick" => write(&ctx, MODE_KICK, "on", Some("kick")),
             "remove" | "delete" => write(&ctx, MODE_DELETE, "on", Some("remove")),
@@ -156,15 +166,26 @@ mod tests {
     #[test]
     fn no_argument_reports_the_stored_state_without_writing() {
         let r = run(serde_json::json!({}), "");
-        assert!(text_of(&r).contains("> Status: *Nonaktif ❌*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Status: *Nonaktif ❌*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("> Mode: *REMOVE*"), "{}", text_of(&r));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn an_active_setting_is_reported_as_active() {
-        let r = run(serde_json::json!({"antilinkall": "on", "antilinkallMode": "kick"}), "");
-        assert!(text_of(&r).contains("> Status: *Aktif ✅*"), "{}", text_of(&r));
+        let r = run(
+            serde_json::json!({"antilinkall": "on", "antilinkallMode": "kick"}),
+            "",
+        );
+        assert!(
+            text_of(&r).contains("> Status: *Aktif ✅*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("> Mode: *KICK*"), "{}", text_of(&r));
     }
 
@@ -215,8 +236,16 @@ mod tests {
     #[test]
     fn an_unknown_method_is_refused_and_nothing_is_written() {
         let r = run(serde_json::json!({}), "metode blok");
-        assert!(text_of(&r).starts_with("❌ *Metode Tidak Valid*"), "{}", text_of(&r));
-        assert!(text_of(&r).contains(".antilinkall metode kick"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("❌ *Metode Tidak Valid*"),
+            "{}",
+            text_of(&r)
+        );
+        assert!(
+            text_of(&r).contains(".antilinkall metode kick"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 

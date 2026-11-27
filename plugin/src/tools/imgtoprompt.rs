@@ -70,10 +70,7 @@ pub fn imgtoprompt(ctx: Ctx) -> Reply {
         .media
         .as_ref()
         .is_some_and(|m| m.kind == oktz_plugin_api::IncomingKind::Image)
-        || ctx
-            .quoted
-            .as_ref()
-            .is_some_and(|q| q.kind.is_image());
+        || ctx.quoted.as_ref().is_some_and(|q| q.kind.is_image());
 
     if !is_image {
         return Reply::text(BUKAN_GAMBAR);
@@ -115,7 +112,11 @@ pub fn imgtoprompt(ctx: Ctx) -> Reply {
 
 /// Unduh byte gambar: pesan pemicu (image) → quoted (image).
 fn gambar_bytes(ctx: &Ctx) -> Option<Vec<u8>> {
-    if ctx.media.as_ref().is_some_and(|m| m.kind == oktz_plugin_api::IncomingKind::Image) {
+    if ctx
+        .media
+        .as_ref()
+        .is_some_and(|m| m.kind == oktz_plugin_api::IncomingKind::Image)
+    {
         return ctx.download_media().ok();
     }
     if let Some(q) = &ctx.quoted
@@ -133,7 +134,9 @@ fn gambar_bytes(ctx: &Ctx) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, MediaError, MediaFetch, MediaOrigin};
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpGet, HttpResponse, MediaError, MediaFetch, MediaOrigin,
+    };
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -241,8 +244,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             },
             ..Ctx::default()
         }
@@ -277,7 +280,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]

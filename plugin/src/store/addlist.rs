@@ -60,10 +60,14 @@ pub fn addlist(ctx: Ctx) -> Reply {
     let content = text[pipe + 1..].trim().replace(";;", "\n");
 
     if name.chars().count() < 2 {
-        return Reply::text("❌ *Nama terlalu pendek.*\n\nMinimal 2 karakter diperlukan agar mudah dikenali 📝");
+        return Reply::text(
+            "❌ *Nama terlalu pendek.*\n\nMinimal 2 karakter diperlukan agar mudah dikenali 📝",
+        );
     }
     if content.chars().count() < 3 {
-        return Reply::text("❌ *Isi informasi terlalu pendek.*\n\nMinimal 3 karakter diperlukan ✍️");
+        return Reply::text(
+            "❌ *Isi informasi terlalu pendek.*\n\nMinimal 3 karakter diperlukan ✍️",
+        );
     }
 
     let mut lists: Vec<serde_json::Value> = ctx.setting_list("storeLists").to_vec();
@@ -149,7 +153,10 @@ mod tests {
 
     #[test]
     fn aliases_resolve() {
-        assert_eq!(oktz_plugin_api::find("addinfo").unwrap().meta.name, "addlist");
+        assert_eq!(
+            oktz_plugin_api::find("addinfo").unwrap().meta.name,
+            "addlist"
+        );
     }
 
     // -- cabang yang tidak menulis apa pun ------------------------------
@@ -158,7 +165,10 @@ mod tests {
     fn the_group_branch_is_rejected_and_writes_nothing() {
         let r = run(serde_json::json!({}), "S&K|isi", true);
         assert!(text_of(&r).starts_with("🚫 *Akses Ditolak*"));
-        assert!(r.mutations().is_empty(), "command di grup tidak boleh menulis");
+        assert!(
+            r.mutations().is_empty(),
+            "command di grup tidak boleh menulis"
+        );
     }
 
     #[test]
@@ -170,11 +180,19 @@ mod tests {
 
     #[test]
     fn a_too_short_name_or_body_is_rejected_before_touching_the_store() {
-        let short_name = run(serde_json::json!({"storeLists": [{"name": "lama"}]}), "a|isi panjang", false);
+        let short_name = run(
+            serde_json::json!({"storeLists": [{"name": "lama"}]}),
+            "a|isi panjang",
+            false,
+        );
         assert!(text_of(&short_name).contains("Nama terlalu pendek."));
         assert!(short_name.mutations().is_empty());
 
-        let short_body = run(serde_json::json!({"storeLists": [{"name": "lama"}]}), "Nama|ab", false);
+        let short_body = run(
+            serde_json::json!({"storeLists": [{"name": "lama"}]}),
+            "Nama|ab",
+            false,
+        );
         assert!(text_of(&short_body).contains("Isi informasi terlalu pendek."));
         assert!(short_body.mutations().is_empty());
     }
@@ -183,7 +201,11 @@ mod tests {
 
     #[test]
     fn a_new_entry_is_appended_and_the_whole_list_is_written_back() {
-        let r = run(serde_json::json!({"storeLists": [{"name": "lama", "content": "x"}]}), "S&K|baris1;;baris2", false);
+        let r = run(
+            serde_json::json!({"storeLists": [{"name": "lama", "content": "x"}]}),
+            "S&K|baris1;;baris2",
+            false,
+        );
         let stored = setting_of(&r, "storeLists");
         assert_eq!(stored.as_array().unwrap().len(), 2, "entri lama harus utuh");
         let added = &stored.as_array().unwrap()[1];

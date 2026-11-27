@@ -1,12 +1,10 @@
 //! Ngamen di jalanan untuk mencari koin.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
-use crate::rpg::jualan::{
-    apply_exp, coalesce, or_default, roll_incl, rpg_int, rpg_map,
-};
+use crate::rpg::jualan::{apply_exp, coalesce, or_default, roll_incl, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 pub(crate) const STAMINA_COST: i64 = 10;

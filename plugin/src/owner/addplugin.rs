@@ -64,9 +64,7 @@ pub(crate) fn tanpa_quote(nama: &str) -> String {
 
 ///
 pub(crate) fn terlalu_pendek(nama: &str) -> String {
-    format!(
-        "Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid."
-    )
+    format!("Maaf *{nama}*, proses gagal karena kode terlalu pendek atau tidak valid.")
 }
 
 ///
@@ -113,9 +111,10 @@ pub(crate) fn sukses(file: &str, folder: &str, ukuran: usize) -> String {
 fn kode_dari_ctx(ctx: &Ctx) -> String {
     if let Some(q) = ctx.quoted() {
         if q.kind.is_media()
-            && let Ok(byte) = ctx.download_quoted_media() {
-                return String::from_utf8_lossy(&byte).to_string();
-            }
+            && let Ok(byte) = ctx.download_quoted_media()
+        {
+            return String::from_utf8_lossy(&byte).to_string();
+        }
         return q.text.clone();
     }
     String::new()
@@ -203,8 +202,7 @@ pub fn addplugin(ctx: Ctx) -> Reply {
     let file_path = format!("{folder_path}/{file_name}.js");
 
     if ctx.berkas().ada(&file_path) {
-        return Reply::text(sudah_ada(nama, &file_name, &folder_name))
-            .with_reaction("❌");
+        return Reply::text(sudah_ada(nama, &file_name, &folder_name)).with_reaction("❌");
     }
 
     let _ = ctx.berkas().buat_folder(&folder_path);
@@ -212,8 +210,7 @@ pub fn addplugin(ctx: Ctx) -> Reply {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
 
-    Reply::text(success_text(&file_name, &folder_name, kode.len()))
-        .with_reaction("✅")
+    Reply::text(success_text(&file_name, &folder_name, kode.len())).with_reaction("✅")
 }
 
 /// Pesan sukses — dipisah agar bisa diuji tanpa efek samping berkas.
@@ -244,7 +241,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Default::default()
         }
@@ -328,8 +325,14 @@ mod tests {
             ambil_label("name: 'demo', category: 'owner'", "category:").as_deref(),
             Some("owner")
         );
-        assert_eq!(ambil_label("name: \"demo\"", "name:").as_deref(), Some("demo"));
-        assert_eq!(ambil_label("name: `demo`", "name:").as_deref(), Some("demo"));
+        assert_eq!(
+            ambil_label("name: \"demo\"", "name:").as_deref(),
+            Some("demo")
+        );
+        assert_eq!(
+            ambil_label("name: `demo`", "name:").as_deref(),
+            Some("demo")
+        );
         assert_eq!(ambil_label("NAME  :  'demo'", "name:").as_deref(), None);
         assert_eq!(ambil_label("tidak ada", "name:"), None);
     }

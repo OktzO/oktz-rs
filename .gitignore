@@ -15,3 +15,6 @@ node_modules/
 # Worktree agent.
 /.worktrees
 /.superpowers
+/.env.swo
+/.env.swp
+/Rubby-MD

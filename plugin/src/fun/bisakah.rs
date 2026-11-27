@@ -59,7 +59,9 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body().expect("plugin harus membalas teks").to_string()
+        r.text_body()
+            .expect("plugin harus membalas teks")
+            .to_string()
     }
 
     #[test]

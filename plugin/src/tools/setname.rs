@@ -171,7 +171,11 @@ mod tests {
 
     #[test]
     fn the_length_window_is_one_to_twenty_five() {
-        assert_eq!(run(&"a".repeat(MAX)), sukses(&"a".repeat(MAX)), "tepat 25 masih sah");
+        assert_eq!(
+            run(&"a".repeat(MAX)),
+            sukses(&"a".repeat(MAX)),
+            "tepat 25 masih sah"
+        );
         assert_eq!(run(&"a".repeat(MAX + 1)), out_of_range());
         // `""` sudah ditangkap kartu usage lebih dulu — `length < 1` di versi awal
         // tidak bisa terjadi karena `!newName` sudah keluar duluan.
@@ -181,7 +185,10 @@ mod tests {
     #[test]
     fn the_length_window_counts_utf16_units() {
         // U+1F642 = 2 unit: 12 emoji = 24 (sah), 13 = 26 (tolak).
-        assert_eq!(run(&"\u{1F642}".repeat(12)), sukses(&"\u{1F642}".repeat(12)));
+        assert_eq!(
+            run(&"\u{1F642}".repeat(12)),
+            sukses(&"\u{1F642}".repeat(12))
+        );
         assert_eq!(run(&"\u{1F642}".repeat(13)), out_of_range());
     }
 
@@ -195,7 +202,10 @@ mod tests {
     #[test]
     fn sock_failure_carries_the_error_message() {
         let t = run_with(
-            Arc::new(SockUji { nama: Mutex::new(Vec::new()), gagal: true }),
+            Arc::new(SockUji {
+                nama: Mutex::new(Vec::new()),
+                gagal: true,
+            }),
             "Foto-AI",
         );
         assert_eq!(t, gagal("IQ gagal: timeout"));

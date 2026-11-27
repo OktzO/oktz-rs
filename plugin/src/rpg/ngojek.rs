@@ -1,11 +1,11 @@
 //! Narik ojek untuk mendapat uang.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
-    apply_exp, coalesce, math_random, or_default, rpg_int, rpg_map, roll_incl,
+    apply_exp, coalesce, math_random, or_default, roll_incl, rpg_int, rpg_map,
 };
 use crate::tools::kalkulatormbg::thousands_id;
 
@@ -66,10 +66,7 @@ pub fn ngojek(ctx: Ctx) -> Reply {
         thousands_id(earning as f64)
     );
     if tips > 0 {
-        txt += &format!(
-            "🎁 Tips Customer: *+Rp {}*\n",
-            thousands_id(tips as f64)
-        );
+        txt += &format!("🎁 Tips Customer: *+Rp {}*\n", thousands_id(tips as f64));
     }
     txt += &format!(
         "📈 EXP: *+{exp_gain}*\n\
@@ -188,7 +185,10 @@ mod tests {
             assert_eq!(written(&r)["exp"], serde_json::json!(koin / 20), "{t}");
             if t.contains("Tips Customer") {
                 with += 1;
-                assert!((fare_of(t) + 1000..=fare_of(t) + 5999).contains(&koin), "{t}");
+                assert!(
+                    (fare_of(t) + 1000..=fare_of(t) + 5999).contains(&koin),
+                    "{t}"
+                );
             } else {
                 without += 1;
                 assert_eq!(koin, fare_of(t), "tanpa tip total = tarif: {t}");

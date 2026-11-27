@@ -68,8 +68,7 @@ pub(crate) fn gagal(ctx: &Ctx) -> Reply {
 
 /// `m.isImage || (m.quoted && m.quoted.isImage)`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image())
+    ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image())
 }
 
 #[plugin(
@@ -121,11 +120,11 @@ pub fn fakestory(ctx: Ctx) -> Reply {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use oktz_plugin_api::sock::{AdaWhatsapp, AksiPeserta};
     use oktz_plugin_api::{
         HttpBody, HttpCall, HttpError, HttpResponse, IncomingMedia, MediaError, MediaFetch,
         MediaOrigin, Sock, SockError,
     };
-    use oktz_plugin_api::sock::{AdaWhatsapp, AksiPeserta};
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -161,7 +160,11 @@ pub(crate) mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unreachable!()
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unreachable!()
         }
     }
@@ -225,7 +228,7 @@ pub(crate) mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -267,7 +270,9 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn http_pp_example() -> Arc<dyn oktz_plugin_api::HttpGet> {
-        Arc::new(StubHttp { pp: Some(b"PP".to_vec()) })
+        Arc::new(StubHttp {
+            pp: Some(b"PP".to_vec()),
+        })
     }
 
     fn ctx_of(text: &str) -> Ctx {
@@ -306,7 +311,10 @@ pub(crate) mod tests {
         assert_eq!(p.meta.name, "fakestory");
         assert_eq!(p.meta.alias, ["fstory", "fakeinsta"]);
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(p.meta.description, "Membuat fake Instagram story dengan 2 gambar");
+        assert_eq!(
+            p.meta.description,
+            "Membuat fake Instagram story dengan 2 gambar"
+        );
         assert_eq!(p.meta.usage, ".fakestory <nama>");
         assert_eq!(p.meta.example, ".fakestory Misaki (reply 2 gambar)");
         assert_eq!(p.meta.cooldown, 10);
@@ -320,7 +328,10 @@ pub(crate) mod tests {
     fn avatar_gagal_membalas_template_error_dan_radiasi() {
         // SockMati default + aset kosong → getAvatarBuffer throw → catch.
         let r = run(ctx_of("Misaki"));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakestory")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -342,7 +353,10 @@ pub(crate) mod tests {
         ctx.media = media_gambar();
         ctx.media_fetch = Arc::new(Unduh(Ok(b"IMG".to_vec())));
         let r = run(ctx);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "fakestory"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "fakestory")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -352,7 +366,9 @@ pub(crate) mod tests {
         ctx.http = http_pp_example();
         ctx.sock = sock_pp_example();
         ctx.media = media_gambar();
-        ctx.media_fetch = Arc::new(Unduh(Err(MediaError { message: "gagal".into() })));
+        ctx.media_fetch = Arc::new(Unduh(Err(MediaError {
+            message: "gagal".into(),
+        })));
         let r = run(ctx);
         assert_eq!(teks(&r), GAGAL_UNDUH);
         assert_eq!(reaksi(&r), Some("❌".into()));

@@ -50,7 +50,11 @@ pub fn autojoingc(ctx: Ctx) -> Reply {
     Reply::text(format!(
         "{} Auto join group *{}*",
         if enabled { "✅" } else { "❌" },
-        if enabled { "diaktifkan" } else { "dinonaktifkan" }
+        if enabled {
+            "diaktifkan"
+        } else {
+            "dinonaktifkan"
+        }
     ))
     .with_mutation(Mutation::SetSetting {
         key: "autoJoinGc".into(),
@@ -119,7 +123,11 @@ mod tests {
 
     #[test]
     fn an_unset_flag_reads_as_off() {
-        for settings in [serde_json::json!({}), serde_json::json!({"autoJoinGc": false}), serde_json::json!({"autoJoinGc": null})] {
+        for settings in [
+            serde_json::json!({}),
+            serde_json::json!({"autoJoinGc": false}),
+            serde_json::json!({"autoJoinGc": null}),
+        ] {
             let r = run("", settings.clone());
             assert!(text_of(&r).contains("Status: *OFF ❌*"), "input {settings}");
             assert!(r.mutations().is_empty(), "input {settings}");
@@ -128,28 +136,45 @@ mod tests {
 
     #[test]
     fn a_stored_true_reads_as_on() {
-        assert!(text_of(&run("", serde_json::json!({"autoJoinGc": true}))).contains("Status: *ON ✅*"));
+        assert!(
+            text_of(&run("", serde_json::json!({"autoJoinGc": true}))).contains("Status: *ON ✅*")
+        );
     }
 
     #[test]
     fn any_argument_other_than_on_or_off_only_shows_status() {
         for bad in ["", "enable", "1", "yes", "of"] {
             let r = run(bad, serde_json::json!({}));
-            assert!(text_of(&r).starts_with("🔗 *AUTO JOIN GROUP*"), "input {bad:?}");
+            assert!(
+                text_of(&r).starts_with("🔗 *AUTO JOIN GROUP*"),
+                "input {bad:?}"
+            );
             assert!(r.mutations().is_empty(), "input {bad:?}");
         }
     }
 
     #[test]
     fn on_and_off_write_their_own_boolean() {
-        assert_eq!(stored(&run("on", serde_json::json!({}))), serde_json::json!(true));
-        assert_eq!(stored(&run("off", serde_json::json!({"autoJoinGc": true}))), serde_json::json!(false));
+        assert_eq!(
+            stored(&run("on", serde_json::json!({}))),
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            stored(&run("off", serde_json::json!({"autoJoinGc": true}))),
+            serde_json::json!(false)
+        );
     }
 
     #[test]
     fn the_switch_is_case_insensitive() {
-        assert_eq!(stored(&run("ON", serde_json::json!({}))), serde_json::json!(true));
-        assert_eq!(stored(&run("Off", serde_json::json!({}))), serde_json::json!(false));
+        assert_eq!(
+            stored(&run("ON", serde_json::json!({}))),
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            stored(&run("Off", serde_json::json!({}))),
+            serde_json::json!(false)
+        );
     }
 
     #[test]

@@ -203,14 +203,21 @@ mod tests {
         let p = oktz_plugin_api::find("dpsteai").unwrap();
         assert_eq!(p.meta.alias, ["dpste", "dipasteai"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(p.meta.usage, ".dpsteai <pertanyaan> atau .dpsteai reset (untuk hapus sesi)");
+        assert_eq!(
+            p.meta.usage,
+            ".dpsteai <pertanyaan> atau .dpsteai reset (untuk hapus sesi)"
+        );
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
     }
 
     #[test]
     fn tanpa_teks_membalas_kartu_pakai_tanpa_reaksi() {
-        let r = dpsteai(ctx_of(Arc::new(BerkasPalsu::baru()), HttpRangkaian::offline(), ""));
+        let r = dpsteai(ctx_of(
+            Arc::new(BerkasPalsu::baru()),
+            HttpRangkaian::offline(),
+            "",
+        ));
         assert_eq!(teks(&r), help("."));
         assert!(reaksi(&r).is_empty());
     }
@@ -240,7 +247,10 @@ mod tests {
         assert_eq!(http.terlihat()[0], "https://dipastebin.web.id/api/ai/chat");
         // Sesi tersimpan ke berkas yang sama dengan versi awal, pretty-print 2 spasi.
         let isi = b.baca_teks(FILE_SESI).expect("sesi harus tersimpan");
-        assert!(isi.contains("\"628111@s.whatsapp.net\": \"dpste_ai_baru\""), "{isi}");
+        assert!(
+            isi.contains("\"628111@s.whatsapp.net\": \"dpste_ai_baru\""),
+            "{isi}"
+        );
         assert!(isi.contains("\n  \""), "harus indentasi 2 spasi: {isi}");
     }
 

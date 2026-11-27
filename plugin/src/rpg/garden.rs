@@ -6,14 +6,7 @@ use serde_json::{Map, Value};
 use crate::rpg::heal::{apply_exp, inventory_map, or_default, rpg_map};
 
 /// `(key, name, growTime_ms, exp, sellPrice, seedPrice)`.
-type Crop = (
-    &'static str,
-    &'static str,
-    i64,
-    i64,
-    i64,
-    i64,
-);
+type Crop = (&'static str, &'static str, i64, i64, i64, i64);
 
 const CROPS: [Crop; 8] = [
     ("carrot", "🥕 Wortel", 300_000, 50, 30, 10),
@@ -46,7 +39,8 @@ fn format_time(ms: i64) -> String {
 
 /// `Math.max(1, parseInt(args[2]) || 1)`.
 fn buy_qty(raw: Option<&String>) -> i64 {
-    raw.map_or(0, |a| crate::common::parse_int(a).unwrap_or(0)).max(1)
+    raw.map_or(0, |a| crate::common::parse_int(a).unwrap_or(0))
+        .max(1)
 }
 
 fn seed_key(crop: &str) -> String {
@@ -139,7 +133,10 @@ pub fn garden(ctx: Ctx) -> Reply {
                     } else {
                         format!("Tumbuh dalam ⏳ {}", format_time(left))
                     };
-                    txt.push_str(&format!("\n📍 Plot {}: *{name}*\n└ Status: {status}\n", i + 1));
+                    txt.push_str(&format!(
+                        "\n📍 Plot {}: *{name}*\n└ Status: {status}\n",
+                        i + 1
+                    ));
                 }
             }
             Reply::text(txt)
@@ -232,7 +229,9 @@ pub fn garden(ctx: Ctx) -> Reply {
                 .cloned()
                 .unwrap_or_default();
             garden_obj.insert("plots".into(), Value::Array(all));
-            garden_obj.entry("maxPlots").or_insert(serde_json::json!(MAX_PLOTS));
+            garden_obj
+                .entry("maxPlots")
+                .or_insert(serde_json::json!(MAX_PLOTS));
             rpg.insert("garden".into(), Value::Object(garden_obj));
 
             Reply::text(format!(
@@ -293,7 +292,9 @@ pub fn garden(ctx: Ctx) -> Reply {
                 .cloned()
                 .unwrap_or_default();
             garden_obj.insert("plots".into(), Value::Array(pending));
-            garden_obj.entry("maxPlots").or_insert(serde_json::json!(MAX_PLOTS));
+            garden_obj
+                .entry("maxPlots")
+                .or_insert(serde_json::json!(MAX_PLOTS));
             rpg.insert("garden".into(), Value::Object(garden_obj));
 
             let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
@@ -315,7 +316,6 @@ pub fn garden(ctx: Ctx) -> Reply {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -392,8 +392,16 @@ mod tests {
             assert!(t.starts_with("Halo Juragan Kebun!"), "args {args:?}: {t}");
             for (key, name, grow, _, sell, seed) in CROPS {
                 assert!(t.contains(&format!("*{name}*")), "{key} hilang");
-                assert!(t.contains(&format!("⏳ Waktu Tumbuh: {}", format_time(grow))), "{key}");
-                assert!(t.contains(&format!("💰 Harga Jual: Rp {sell} | 🌱 Harga Bibit: Rp {seed}")), "{key}");
+                assert!(
+                    t.contains(&format!("⏳ Waktu Tumbuh: {}", format_time(grow))),
+                    "{key}"
+                );
+                assert!(
+                    t.contains(&format!(
+                        "💰 Harga Jual: Rp {sell} | 🌱 Harga Bibit: Rp {seed}"
+                    )),
+                    "{key}"
+                );
             }
             assert!(r.mutations().is_empty(), "args {args:?}");
         }
@@ -501,7 +509,10 @@ mod tests {
 
     #[test]
     fn the_last_seed_leaves_the_bag_entirely() {
-        let r = run(serde_json::json!({ "inventory": { "carrotseed": 1 } }), &["plant", "carrot"]);
+        let r = run(
+            serde_json::json!({ "inventory": { "carrotseed": 1 } }),
+            &["plant", "carrot"],
+        );
         let inv = write_of(&r)["inventory"].as_object().unwrap().clone();
         assert!(!inv.contains_key("carrotseed"), "1 - 1 = 0 -> dihapus");
     }
@@ -509,15 +520,15 @@ mod tests {
     #[test]
     fn the_status_report_lists_every_plot_with_its_remaining_time() {
         let now = crate::common::now_ms();
-        let r = run(
-            planted("carrot", now - 400_000),
-            &["status"],
-        );
+        let r = run(planted("carrot", now - 400_000), &["status"]);
         let t = text_of(&r);
         assert!(t.starts_with("Cek Lahan Kebun... 🚜🌱"), "{t}");
         assert!(t.contains("*Kapasitas Tanah:* 1 dari 3 terisi."), "{t}");
         assert!(t.contains("📍 Plot 1: *🥕 Wortel*"), "{t}");
-        assert!(t.contains("✨ SIAP PANEN! ✨"), "300.000 - 400.000 <= 0: {t}");
+        assert!(
+            t.contains("✨ SIAP PANEN! ✨"),
+            "300.000 - 400.000 <= 0: {t}"
+        );
     }
 
     #[test]
@@ -530,7 +541,10 @@ mod tests {
 
     #[test]
     fn an_empty_garden_says_it_is_bare() {
-        let r = run(serde_json::json!({ "rpg": { "garden": { "plots": [], "maxPlots": 3 } } }), &["status"]);
+        let r = run(
+            serde_json::json!({ "rpg": { "garden": { "plots": [], "maxPlots": 3 } } }),
+            &["status"],
+        );
         let t = text_of(&r);
         assert!(t.contains("*Kapasitas Tanah:* 0 dari 3 terisi."), "{t}");
         assert!(t.contains("kebun kamu masih gersang kak!"), "{t}");

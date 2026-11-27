@@ -115,14 +115,20 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("cappremium").unwrap().meta.name, "capprem");
+        assert_eq!(
+            oktz_plugin_api::find("cappremium").unwrap().meta.name,
+            "capprem"
+        );
     }
 
     #[test]
     fn no_argument_shows_help_and_writes_nothing() {
         for text in ["", "   "] {
             let r = run(text, serde_json::json!({}));
-            assert!(text_of(&r).starts_with("💎 *SISTEM CAP PREMIUM*"), "input {text:?}");
+            assert!(
+                text_of(&r).starts_with("💎 *SISTEM CAP PREMIUM*"),
+                "input {text:?}"
+            );
             assert!(r.mutations().is_empty(), "input {text:?}");
         }
     }
@@ -135,7 +141,9 @@ mod tests {
         assert!(t.contains("Berhasil (PREMIUM 💎):"), "{t}");
         assert!(t.contains("- cekbaik"), "{t}");
         assert!(
-            t.contains("_Fitur di atas (yang berhasil) sekarang hanya bisa diakses oleh member Premium._"),
+            t.contains(
+                "_Fitur di atas (yang berhasil) sekarang hanya bisa diakses oleh member Premium._"
+            ),
             "{t}"
         );
     }
@@ -153,7 +161,11 @@ mod tests {
     fn an_unknown_feature_only_appears_in_the_failed_list() {
         let r = run("tidakada", serde_json::json!({}));
         assert_eq!(stored(&r), serde_json::json!({}));
-        assert!(text_of(&r).contains("Gagal (Tidak ditemukan):"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Gagal (Tidak ditemukan):"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -163,7 +175,11 @@ mod tests {
         let settings = serde_json::json!({ "capprem": { "cekweit": false } });
         let __balasan = run("baik", settings);
         let s = stored(&__balasan);
-        assert_eq!(s["cekweit"], serde_json::json!(false), "override gratis lain hilang");
+        assert_eq!(
+            s["cekweit"],
+            serde_json::json!(false),
+            "override gratis lain hilang"
+        );
         assert_eq!(s["cekbaik"], serde_json::json!(true));
     }
 

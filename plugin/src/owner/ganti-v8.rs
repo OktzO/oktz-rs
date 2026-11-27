@@ -50,7 +50,10 @@ mod tests {
         assert_eq!(p.meta.name, "ganti-v8.jpg");
         assert_eq!(p.meta.alias, ["gantiv8", "setv8"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Ganti gambar v8.jpg (thumbnail welcome)");
+        assert_eq!(
+            p.meta.description,
+            "Ganti gambar v8.jpg (thumbnail welcome)"
+        );
         assert_eq!(p.meta.usage, ".ganti-v8.jpg (reply/kirim gambar)");
         assert_eq!(p.meta.example, ".ganti-v8.jpg");
         assert_eq!(p.meta.cooldown, 5);
@@ -124,7 +127,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
             ..Ctx::default()

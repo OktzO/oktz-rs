@@ -57,7 +57,7 @@ pub fn antisticker(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -122,7 +122,11 @@ mod tests {
         assert!(r.mutations().is_empty());
 
         let on = run(serde_json::json!({"antisticker": true}), "");
-        assert!(text_of(&on).contains("> Status: *✅ ON*"), "{}", text_of(&on));
+        assert!(
+            text_of(&on).contains("> Status: *✅ ON*"),
+            "{}",
+            text_of(&on)
+        );
         assert!(on.mutations().is_empty());
     }
 

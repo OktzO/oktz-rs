@@ -8,7 +8,7 @@
 //! efek yang sama, tanpa pengusir yang berjalan sendiri.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 /// `TIMEOUT` — 90 detik.
 pub(crate) const TIMEOUT_MS: i64 = 90_000;
@@ -186,7 +186,10 @@ mod tests {
         assert_eq!(p.meta.name, "suitpvp");
         assert_eq!(p.meta.alias, ["suit", "rps", "janken"]);
         assert_eq!(p.meta.category, "game");
-        assert_eq!(p.meta.description, "Main suit (batu gunting kertas) dengan player lain");
+        assert_eq!(
+            p.meta.description,
+            "Main suit (batu gunting kertas) dengan player lain"
+        );
         assert_eq!(p.meta.usage, ".suit @tag");
         assert_eq!(p.meta.example, ".suit @628xxx");
         assert_eq!(p.meta.cooldown, 10);
@@ -214,14 +217,18 @@ mod tests {
         // Urutan guard di versi awal: "masih dalam game" diperiksa lebih dulu, jadi
         // comando tanpa target pun tetap kena_branch ini.
         let now = crate::common::now_ms();
-        let r = run(ctx_with(serde_json::json!({ "suit_1": room(SENDER, OTHER, now) })));
+        let r = run(ctx_with(
+            serde_json::json!({ "suit_1": room(SENDER, OTHER, now) }),
+        ));
         assert_eq!(text_of(&r), BUSY);
     }
 
     #[test]
     fn a_room_left_by_its_opponent_still_blocks_the_sender() {
         let now = crate::common::now_ms();
-        let r = run(ctx_with(serde_json::json!({ "suit_1": room(OTHER, SENDER, now) })));
+        let r = run(ctx_with(
+            serde_json::json!({ "suit_1": room(OTHER, SENDER, now) }),
+        ));
         assert_eq!(text_of(&r), BUSY, "pemain kedua juga sedang duel");
     }
 
@@ -233,7 +240,8 @@ mod tests {
         assert_eq!(text_of(&r), SELF);
         assert!(
             ctx.session_get(GAMES_KEY)
-                .map_or(0, |v| v.as_object().map_or(0, |o| o.len())) == 0,
+                .map_or(0, |v| v.as_object().map_or(0, |o| o.len()))
+                == 0,
             "kamar tidak boleh dibuat"
         );
     }
@@ -241,12 +249,18 @@ mod tests {
     #[test]
     fn a_target_already_duelling_someone_else_is_refused() {
         let now = crate::common::now_ms();
-        let mut ctx = ctx_with(serde_json::json!({ "suit_1": room("628000@s.whatsapp.net", OTHER, now) }));
+        let mut ctx =
+            ctx_with(serde_json::json!({ "suit_1": room("628000@s.whatsapp.net", OTHER, now) }));
         ctx.mentioned = vec![OTHER.into()];
         let r = run(ctx.clone());
         assert_eq!(text_of(&r), TARGET_BUSY);
         assert!(
-            ctx.session_get(GAMES_KEY).unwrap().as_object().unwrap().len() == 1,
+            ctx.session_get(GAMES_KEY)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .len()
+                == 1,
             "kamar lama tidak boleh ditambahi"
         );
     }
@@ -316,7 +330,11 @@ mod tests {
         let r = run(ctx.clone());
         assert!(text_of(&r).starts_with("Kamu menantang"), "{}", text_of(&r));
         assert_eq!(
-            ctx.session_get(GAMES_KEY).unwrap().as_object().unwrap().len(),
+            ctx.session_get(GAMES_KEY)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .len(),
             2,
             "kamar basi masih ada tapi tidak lagi memblokir"
         );

@@ -144,11 +144,7 @@ fn indeks_nol_atau_nilai(v: &Value) -> Value {
             .unwrap_or(Value::Null),
         _ => Value::Null,
     };
-    if truthy(&pertama) {
-        pertama
-    } else {
-        v.clone()
-    }
+    if truthy(&pertama) { pertama } else { v.clone() }
 }
 
 // ---------------------------------------------------------------------------
@@ -589,15 +585,21 @@ fn handle_instagram(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         }
     }
     let mut out = Map::new();
-    out.insert("platform".to_string(), Value::String("instagram".to_string()));
+    out.insert(
+        "platform".to_string(),
+        Value::String("instagram".to_string()),
+    );
     out.insert(
         "title".to_string(),
-        Value::String(teks_atau(result.get("title"), &teks_atau(
-            result.get("username"),
-            "Instagram"
-        ))),
+        Value::String(teks_atau(
+            result.get("title"),
+            &teks_atau(result.get("username"), "Instagram"),
+        )),
     );
-    out.insert("thumbnail".to_string(), teks_atau_null(result.get("thumbnail")));
+    out.insert(
+        "thumbnail".to_string(),
+        teks_atau_null(result.get("thumbnail")),
+    );
     out.insert("media".to_string(), Value::Array(media));
     Ok(Value::Object(out))
 }
@@ -675,7 +677,10 @@ fn handle_facebook(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     );
 
     let mut out = Map::new();
-    out.insert("platform".to_string(), Value::String("facebook".to_string()));
+    out.insert(
+        "platform".to_string(),
+        Value::String("facebook".to_string()),
+    );
     // `fbdown` tidak pernah mengembalikan `title`/`thumbnail`, jadi bawaan dan
     // `null` ini yang practically selalu terpakai.
     out.insert(
@@ -686,7 +691,10 @@ fn handle_facebook(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         "thumbnail".to_string(),
         teks_atau_null(data.get("thumbnail")),
     );
-    out.insert("media".to_string(), Value::Array(vec![Value::Object(media)]));
+    out.insert(
+        "media".to_string(),
+        Value::Array(vec![Value::Object(media)]),
+    );
     Ok(Value::Object(out))
 }
 
@@ -718,7 +726,10 @@ fn handle_capcut(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         "thumbnail".to_string(),
         teks_atau_null(data.get("thumbnail")),
     );
-    out.insert("media".to_string(), Value::Array(vec![Value::Object(media)]));
+    out.insert(
+        "media".to_string(),
+        Value::Array(vec![Value::Object(media)]),
+    );
     Ok(Value::Object(out))
 }
 
@@ -740,7 +751,10 @@ fn handle_pinterest(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         }));
     }
     let mut out = Map::new();
-    out.insert("platform".to_string(), Value::String("pinterest".to_string()));
+    out.insert(
+        "platform".to_string(),
+        Value::String("pinterest".to_string()),
+    );
     out.insert(
         "title".to_string(),
         Value::String(teks_atau(result.get("title"), "Pinterest")),
@@ -765,14 +779,20 @@ fn try_tikwm(http: &dyn HttpGet, u: &str) -> Result<Value, HttpError> {
     let res = http.call(
         &HttpCall::post(&alamat)
             .header("accept", "application/json, text/javascript, */*; q=0.01")
-            .header("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+            .header(
+                "content-type",
+                "application/x-www-form-urlencoded; charset=UTF-8",
+            )
             .header("origin", "https://www.tikwm.com")
             .header("referer", "https://www.tikwm.com/")
             .header("user-agent", UA_TIKWM)
             .header("x-requested-with", "XMLHttpRequest")
             // `data: {}` axios — body-nya object kosong, tapi content-type
             // ditulis eksplisit jadi menimpa bawaan axios.
-            .raw(b"{}".to_vec(), "application/x-www-form-urlencoded; charset=UTF-8"),
+            .raw(
+                b"{}".to_vec(),
+                "application/x-www-form-urlencoded; charset=UTF-8",
+            ),
     )?;
     // axios mem-parse JSON; body lain dianggap string oleh axios, dan string
     // tidak punya `code`/`data` sehingga jatuh ke jalur "no media".
@@ -854,9 +874,8 @@ fn try_tikwm(http: &dyn HttpGet, u: &str) -> Result<Value, HttpError> {
 
 /// `trySaveTT(u)` (`aio.js:121-177`) — bagian kedua `handleTiktok`.
 fn try_savett(http: &dyn HttpGet, u: &str) -> Result<Value, HttpError> {
-    let token_res = http.call(
-        &HttpCall::get("https://savett.cc/en1/download").header("user-agent", UA_SAVETT),
-    )?;
+    let token_res = http
+        .call(&HttpCall::get("https://savett.cc/en1/download").header("user-agent", UA_SAVETT))?;
     let html = token_res.text();
     let csrf = pola()
         .csrf
@@ -940,7 +959,8 @@ fn try_savett(http: &dyn HttpGet, u: &str) -> Result<Value, HttpError> {
             // `[...json.URL].sort((a, b) => String(b).length - String(a).length)[0]`
             let mut urls: Vec<String> = daftar.iter().map(teks_js).collect();
             urls.sort_by_key(|s| std::cmp::Reverse(s.len()));
-            media.push(json!({ "type": "image", "url": urls.first().cloned().unwrap_or_default() }));
+            media
+                .push(json!({ "type": "image", "url": urls.first().cloned().unwrap_or_default() }));
         }
         // MP3 dari `formatselect` untuk unggahan foto.
         for el in &opsi {
@@ -1023,7 +1043,10 @@ fn handle_savefbs(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         &HttpCall::post(format!("{base}/html"))
             .header("accept", "*/*")
             .header("content-type", "application/json")
-            .header("referer", "https://savefbs.com/all-in-one-video-downloader/")
+            .header(
+                "referer",
+                "https://savefbs.com/all-in-one-video-downloader/",
+            )
             .header("user-agent", UA_SAVEFBS)
             .terima_semua_status()
             .json(&json!({ "vid": url, "prefix": "savefbs.com", "ex": "", "format": "" })),
@@ -1082,7 +1105,10 @@ fn handle_savefbs(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         &HttpCall::post(format!("{base}/download"))
             .header("accept", "*/*")
             .header("content-type", "application/json")
-            .header("referer", "https://savefbs.com/all-in-one-video-downloader/")
+            .header(
+                "referer",
+                "https://savefbs.com/all-in-one-video-downloader/",
+            )
             .header("user-agent", UA_SAVEFBS)
             .terima_semua_status()
             .json(&json!({ "token": token, "format": format })),
@@ -1131,7 +1157,10 @@ fn handle_savefbs(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
             None => Value::Null,
         },
     );
-    out.insert("media".to_string(), Value::Array(vec![Value::Object(media)]));
+    out.insert(
+        "media".to_string(),
+        Value::Array(vec![Value::Object(media)]),
+    );
     Ok(Value::Object(out))
 }
 
@@ -1244,10 +1273,19 @@ mod tests {
             detect_platform(&h, "https://WWW.Instagram.com/p/abc"),
             Some("instagram")
         );
-        assert_eq!(detect_platform(&h, "https://vt.tiktok.com/x/"), Some("tiktok"));
-        assert_eq!(detect_platform(&h, "https://fb.watch/abc/"), Some("facebook"));
+        assert_eq!(
+            detect_platform(&h, "https://vt.tiktok.com/x/"),
+            Some("tiktok")
+        );
+        assert_eq!(
+            detect_platform(&h, "https://fb.watch/abc/"),
+            Some("facebook")
+        );
         assert_eq!(detect_platform(&h, "https://pin.it/abc"), Some("pinterest"));
-        assert_eq!(detect_platform(&h, "https://x.com/a/status/1"), Some("twitter"));
+        assert_eq!(
+            detect_platform(&h, "https://x.com/a/status/1"),
+            Some("twitter")
+        );
         assert_eq!(detect_platform(&h, "https://t.co/a"), None);
         // Instagram diperiksa lebih dulu, jadi URL gabungan tetap instagram.
         assert_eq!(
@@ -1289,8 +1327,11 @@ mod tests {
         let http = stub(&[
             r#"{"status":true,"title":"Template","thumbnail":"https://c/cover.jpg","originalVideoUrl":"https://c/v.mp4"}"#,
         ]);
-        let hasil = aiodl(&http, "https://www.capcut.com/template-detail/7299286607478181121")
-            .unwrap();
+        let hasil = aiodl(
+            &http,
+            "https://www.capcut.com/template-detail/7299286607478181121",
+        )
+        .unwrap();
         assert_eq!(hasil["platform"], "capcut");
         assert_eq!(hasil["title"], "Template");
         assert_eq!(hasil["thumbnail"], "https://c/cover.jpg");
@@ -1315,7 +1356,9 @@ mod tests {
 
     #[test]
     fn tikwm_dipakai_dulu_sebelum_savett() {
-        let http = stub(&[r#"{"code":0,"data":{"title":"Viral","duration":12,"hdplay":"/v/hd.mp4","play":"/v/no.mp4","cover":"/c.jpg","author":{"nickname":"omag"}}}"#]);
+        let http = stub(&[
+            r#"{"code":0,"data":{"title":"Viral","duration":12,"hdplay":"/v/hd.mp4","play":"/v/no.mp4","cover":"/c.jpg","author":{"nickname":"omag"}}}"#,
+        ]);
         let hasil = aiodl(&http, "https://vt.tiktok.com/ZSkGPK9Kj/").unwrap();
         assert_eq!(hasil["platform"], "tiktok");
         assert_eq!(hasil["title"], "Viral");
@@ -1330,7 +1373,10 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
-        assert!(p[0].url.starts_with("https://www.tikwm.com/api/?url=https%3A%2F%2Fvt.tiktok.com"));
+        assert!(
+            p[0].url
+                .starts_with("https://www.tikwm.com/api/?url=https%3A%2F%2Fvt.tiktok.com")
+        );
         assert!(p[0].url.contains("&count=12&cursor=0&web=1&hd=1"));
         assert_eq!(
             p[0].body,
@@ -1401,8 +1447,7 @@ mod tests {
         let halaman_token =
             r#"<html><body><input type="hidden" name="csrf_token" value="abc"></body></html>"#;
         // Halaman hasil SaveTT tanpa media yang bisa diambil.
-        let tanpa_media =
-            r#"<html><body><select id="formatselect"><option value="{&quot;URL&quot;:[...]}">MP4</option></select></body></html>"#;
+        let tanpa_media = r#"<html><body><select id="formatselect"><option value="{&quot;URL&quot;:[...]}">MP4</option></select></body></html>"#;
         let tombol = r#"<html><body><h3 class="text-sm"> Judul Savefbs </h3>
              <img class="aio-thumbnail" src="https://f/t.jpg">
              <button class="aio-format-btn" data-loader-id="TOK" onclick="dl('360')"></button>
@@ -1449,7 +1494,9 @@ mod tests {
 
     #[test]
     fn savefbs_tanpa_token_melempar_teks_js() {
-        let http = stub(&["<html><body><button class=\"aio-format-btn\" onclick=\"dl('360')\"></button></body></html>"]);
+        let http = stub(&[
+            "<html><body><button class=\"aio-format-btn\" onclick=\"dl('360')\"></button></body></html>",
+        ]);
         let err = aiodl(&http, "https://x.com/satu/status/1").unwrap_err();
         assert_eq!(err.message, "Savefbs returned no data");
     }
@@ -1470,7 +1517,13 @@ mod tests {
         assert_eq!(hasil["thumbnail"], json!(null));
         let media = hasil["media"].as_array().unwrap();
         assert_eq!(media.len(), 2);
-        assert_eq!(media[0], json!({"type": "video", "url": "https://konv/v.mp4", "quality": "mp4"}));
-        assert_eq!(media[1], json!({"type": "audio", "url": "https://konv/a.mp3", "quality": "mp3"}));
+        assert_eq!(
+            media[0],
+            json!({"type": "video", "url": "https://konv/v.mp4", "quality": "mp4"})
+        );
+        assert_eq!(
+            media[1],
+            json!({"type": "audio", "url": "https://konv/a.mp3", "quality": "mp3"})
+        );
     }
 }

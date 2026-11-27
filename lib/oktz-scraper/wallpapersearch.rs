@@ -56,7 +56,8 @@ pub fn wallpaper_scraper(http: &dyn HttpGet, query: &str) -> Result<Value, HttpE
     let mut results: Vec<Value> = Vec::new();
     let mut pos = 0usize;
     while let Some(el) = elemen_mulai(&html, pos, html.len(), &|nama, isi| {
-        nama.eq_ignore_ascii_case("li") && atribut(isi, "itemprop").as_deref() == Some("associatedMedia")
+        nama.eq_ignore_ascii_case("li")
+            && atribut(isi, "itemprop").as_deref() == Some("associatedMedia")
     }) {
         let title = elemen_mulai(&html, el.isi_awal, el.akhir, &|nama, isi| {
             nama.eq_ignore_ascii_case("figcaption")
@@ -212,8 +213,8 @@ fn elemen_mulai(
             break;
         }
         if !nama.is_empty() && !isi_tag.starts_with('/') && cocok(&nama, &isi_tag) {
-            let kosong = isi_tag.ends_with('/')
-                || TAG_KOSONG.iter().any(|t| nama.eq_ignore_ascii_case(t));
+            let kosong =
+                isi_tag.ends_with('/') || TAG_KOSONG.iter().any(|t| nama.eq_ignore_ascii_case(t));
             let akhir = if kosong {
                 isi_awal
             } else {
@@ -253,10 +254,17 @@ fn buang_tag(s: &str) -> String {
 
 /// `String#trim` JS (termasuk NBSP dan spasi Unicode lain).
 fn spasi_js(c: char) -> bool {
-    matches!(c,
-        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}'
-        | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}'
-        | '\u{3000}' | '\u{FEFF}')
+    matches!(
+        c,
+        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
 }
 
 fn trim_js(s: &str) -> &str {
@@ -325,10 +333,7 @@ mod tests {
         ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma GET")
         }
-        fn call(
-            &self,
-            req: &HttpCall,
-        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn call(&self, req: &HttpCall) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             self.permintaan.lock().unwrap().push(req.clone());
             Ok(dummy_res(self.status, &self.balasan))
         }
@@ -383,10 +388,11 @@ mod tests {
             p[0].url,
             "https://www.wallpaperflare.com/search?wallpaper=gunung"
         );
-        assert!(p[0]
-            .headers
-            .iter()
-            .any(|(k, v)| k.eq_ignore_ascii_case("user-agent") && v.contains("Chrome/120.0.0.0")));
+        assert!(
+            p[0].headers.iter().any(
+                |(k, v)| k.eq_ignore_ascii_case("user-agent") && v.contains("Chrome/120.0.0.0")
+            )
+        );
     }
 
     #[test]
@@ -394,7 +400,11 @@ mod tests {
         let http = StubHttp::baru(200, HALAMAN);
         wallpaper_scraper(&http, "gunung laut").unwrap();
         let p = http.permintaan.lock().unwrap();
-        assert!(p[0].url.ends_with("?wallpaper=gunung%20laut"), "{}", p[0].url);
+        assert!(
+            p[0].url.ends_with("?wallpaper=gunung%20laut"),
+            "{}",
+            p[0].url
+        );
     }
 
     #[test]
@@ -428,7 +438,9 @@ mod tests {
         let dok = "<div class=\"res\">abc<br>def</div><p>luar</p>";
         let el = elemen_mulai(dok, 0, dok.len(), &|_, isi| punya_kelas(isi, "res")).unwrap();
         assert_eq!(teks_elemen(dok, &el), "abcdef");
-        let img = elemen_mulai(dok, 0, dok.len(), &|nama, _| nama.eq_ignore_ascii_case("img"));
+        let img = elemen_mulai(dok, 0, dok.len(), &|nama, _| {
+            nama.eq_ignore_ascii_case("img")
+        });
         assert!(img.is_none(), "dokumen uji tidak punya img");
     }
 }

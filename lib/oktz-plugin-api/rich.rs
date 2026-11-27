@@ -129,9 +129,18 @@ use crate::airich::KodeToken;
 /// tabel (`messageType: 4`), kode (`messageType: 5`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AiSubMessage {
-    Teks { teks: String },
-    Tabel { judul: String, baris: Vec<Vec<String>>, heading: bool },
-    Kode { bahasa: String, blok: Vec<KodeToken> },
+    Teks {
+        teks: String,
+    },
+    Tabel {
+        judul: String,
+        baris: Vec<Vec<String>>,
+        heading: bool,
+    },
+    Kode {
+        bahasa: String,
+        blok: Vec<KodeToken>,
+    },
 }
 
 /// AI rich memakai kontrak ruby-baileys/rich-webui/play2 yang terbukti render:
@@ -259,7 +268,12 @@ mod tests {
             baris: vec![vec!["a".into()]],
             heading: true,
         };
-        let AiSubMessage::Tabel { judul, baris: rows, heading } = &s else {
+        let AiSubMessage::Tabel {
+            judul,
+            baris: rows,
+            heading,
+        } = &s
+        else {
             panic!("tabel harus terisi");
         };
         assert_eq!(judul, "J");

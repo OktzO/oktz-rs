@@ -123,7 +123,10 @@ mod tests {
     }
 
     fn body(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn full() -> serde_json::Value {
@@ -137,12 +140,12 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("addcmdsticker").unwrap();
         assert_eq!(p.meta.name, "addcmdsticker");
-        assert_eq!(
-            p.meta.alias,
-            ["addstickercmd", "setsticker", "stickeradd"]
-        );
+        assert_eq!(p.meta.alias, ["addstickercmd", "setsticker", "stickeradd"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Jadikan sticker sebagai shortcut command");
+        assert_eq!(
+            p.meta.description,
+            "Jadikan sticker sebagai shortcut command"
+        );
         assert_eq!(p.meta.usage, ".addcmdsticker <command> (reply sticker)");
         assert_eq!(p.meta.example, ".addcmdsticker menu");
         assert_eq!(p.meta.cooldown, 10);
@@ -167,12 +170,21 @@ mod tests {
 
     #[test]
     fn no_argument_shows_the_help_without_the_active_card() {
-        for s in [serde_json::json!({}), serde_json::json!({"stickerCommands": {}})] {
+        for s in [
+            serde_json::json!({}),
+            serde_json::json!({"stickerCommands": {}}),
+        ] {
             let __balasan = run(&[], s.clone(), None);
             let t = body(&__balasan);
             assert!(t.starts_with("🖼️ *sᴛɪᴄᴋᴇʀ ᴛᴏ ᴄᴏᴍᴍᴀɴᴅ*"), "{s}: {t}");
-            assert!(t.contains("> Reply sticker, lalu ketik:\n> `.addcmdsticker menu`"), "{t}");
-            assert!(!t.contains("ᴀᴋᴛɪꜰ"), "kartu hanya muncul kalau ada entri: {t}");
+            assert!(
+                t.contains("> Reply sticker, lalu ketik:\n> `.addcmdsticker menu`"),
+                "{t}"
+            );
+            assert!(
+                !t.contains("ᴀᴋᴛɪꜰ"),
+                "kartu hanya muncul kalau ada entri: {t}"
+            );
             assert!(run(&[], s, None).mutations().is_empty());
         }
     }
@@ -198,14 +210,20 @@ mod tests {
         let s = serde_json::json!({"stickerCommands": map});
         let __balasan = run(&[], s.clone(), None);
         let t = body(&__balasan);
-        assert!(t.contains("┃ 🖼️ → `cmd09`\n"), "10 terakhir yang tampil: {t}");
+        assert!(
+            t.contains("┃ 🖼️ → `cmd09`\n"),
+            "10 terakhir yang tampil: {t}"
+        );
         assert!(!t.contains("`cmd10`"), "potong di 10: {t}");
         assert!(t.contains("┃ ... dan 3 lainnya\n"), "13 - 10 = 3: {t}");
 
         // Tepat 10 → tidak ada baris overflow.
         let mut map10 = serde_json::Map::new();
         for i in 0..10 {
-            map10.insert(format!("h{i}"), serde_json::json!({"command": format!("c{i}")}));
+            map10.insert(
+                format!("h{i}"),
+                serde_json::json!({"command": format!("c{i}")}),
+            );
         }
         let __balasan = run(&[], serde_json::json!({ "stickerCommands": map10 }), None);
         let t = body(&__balasan);

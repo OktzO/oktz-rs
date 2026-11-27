@@ -84,7 +84,7 @@ pub fn whatrolethis(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::Ctx;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(args: &[&str]) -> String {
         run_with(args, serde_json::json!({}))
@@ -126,8 +126,14 @@ mod tests {
         assert_eq!(p.meta.name, "whatrolethis");
         assert_eq!(p.meta.alias, ["whatrole", "cekrole", "cekakses"]);
         assert_eq!(p.meta.category, "info");
-        assert_eq!(p.meta.description, "Cek persyaratan akses banyak fitur sekaligus");
-        assert_eq!(p.meta.usage, ".whatrolethis <nama_fitur1> <nama_fitur2> ...");
+        assert_eq!(
+            p.meta.description,
+            "Cek persyaratan akses banyak fitur sekaligus"
+        );
+        assert_eq!(
+            p.meta.usage,
+            ".whatrolethis <nama_fitur1> <nama_fitur2> ..."
+        );
         assert_eq!(p.meta.example, ".whatrolethis hd jpm warn");
         assert_eq!(p.meta.cooldown, 5);
         assert!(!p.meta.is_private && !p.meta.is_group && p.meta.is_enabled);
@@ -258,9 +264,23 @@ mod tests {
     #[test]
     fn the_whole_new_batch_is_probeable_through_the_plugin() {
         let out = run(&[
-            "tagall", "listadmin", "listantilink", "listtoxic", "listwarn", "topchat", "intro",
-            "rulesgrup", "inventory", "koin", "exp", "level", "energi", "birthday",
-            "howmuchenergy", "whatrolethis", "fiturpremium",
+            "tagall",
+            "listadmin",
+            "listantilink",
+            "listtoxic",
+            "listwarn",
+            "topchat",
+            "intro",
+            "rulesgrup",
+            "inventory",
+            "koin",
+            "exp",
+            "level",
+            "energi",
+            "birthday",
+            "howmuchenergy",
+            "whatrolethis",
+            "fiturpremium",
         ]);
         assert!(!out.contains("Tidak ditemukan"), "salah nama/alias:\n{out}");
         assert_eq!(out.matches("✅ *").count(), 17);
@@ -295,13 +315,19 @@ mod tests {
     fn capprem_false_removes_the_premium_line_from_a_premium_command() {
         let meta = oktz_plugin_api::find("cekprem").unwrap().meta.clone();
         assert!(meta.is_premium, "premis test: cekprem harus plugin premium");
-        assert!(!meta.is_group && !meta.is_private, "satu-satunya syaratnya premium");
+        assert!(
+            !meta.is_group && !meta.is_private,
+            "satu-satunya syaratnya premium"
+        );
         assert_eq!(
             run_with(&["cekprem"], serde_json::json!({})),
             "🔍 *DETAIL AKSES FITUR*\n\n✅ *cekprem*\n  - Premium 💎"
         );
         assert_eq!(
-            run_with(&["cekprem"], serde_json::json!({"capprem": {"cekprem": false}})),
+            run_with(
+                &["cekprem"],
+                serde_json::json!({"capprem": {"cekprem": false}})
+            ),
             "🔍 *DETAIL AKSES FITUR*\n\n✅ *cekprem*\n  - Free / Semua Orang 🆓",
             "`capprem[cekprem] = false` mematikan satu-satunya role"
         );
@@ -311,9 +337,20 @@ mod tests {
     fn a_falsy_but_present_override_wins_over_the_plugin_meta() {
         // `overrides[name] !== undefined` benar-benar dipakai di versi awal, jadi nilai
         // falsy yang tersimpan tetap mengalahkan `isPremium`.
-        for value in [serde_json::json!(false), serde_json::json!(null), serde_json::json!(0), serde_json::json!("")] {
-            let out = run_with(&["cekprem"], serde_json::json!({ "capprem": { "cekprem": value } }));
-            assert!(out.ends_with("  - Free / Semua Orang 🆓"), "override {value}: {out}");
+        for value in [
+            serde_json::json!(false),
+            serde_json::json!(null),
+            serde_json::json!(0),
+            serde_json::json!(""),
+        ] {
+            let out = run_with(
+                &["cekprem"],
+                serde_json::json!({ "capprem": { "cekprem": value } }),
+            );
+            assert!(
+                out.ends_with("  - Free / Semua Orang 🆓"),
+                "override {value}: {out}"
+            );
         }
     }
 
@@ -321,7 +358,10 @@ mod tests {
     fn capprem_is_keyed_by_canonical_name_not_by_alias() {
         // `cekrole` = alias dari whatrolethis, jadi override "cekrole" tidak
         // pernah dibaca; yang dipakai adalah meta plugin itu sendiri.
-        let by_alias = run_with(&["cekrole"], serde_json::json!({"capprem": {"cekrole": true}}));
+        let by_alias = run_with(
+            &["cekrole"],
+            serde_json::json!({"capprem": {"cekrole": true}}),
+        );
         assert!(
             by_alias.contains("Free / Semua Orang 🆓"),
             "override by alias diabaikan: {by_alias}"
@@ -336,10 +376,7 @@ mod tests {
     #[test]
     fn only_the_probe_branch_carries_a_reaction() {
         let help_reply = handler(&[], serde_json::json!({}));
-        assert!(matches!(
-            help_reply.without_mutations(),
-            Reply::Text { .. }
-        ));
+        assert!(matches!(help_reply.without_mutations(), Reply::Text { .. }));
 
         let probed = handler(&["dare"], serde_json::json!({}));
         let mut cur = probed.without_mutations();

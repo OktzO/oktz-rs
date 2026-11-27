@@ -45,11 +45,7 @@ fn next_energy(current: i64, amount: i64) -> i64 {
 )]
 pub fn addlimitall(ctx: Ctx) -> Reply {
     // `parseInt(m.args[0])` — tanpa argumen `undefined` jadi `NaN`.
-    let amount = ctx
-        .args
-        .first()
-        .and_then(|a| parse_int(a))
-        .unwrap_or(0);
+    let amount = ctx.args.first().and_then(|a| parse_int(a)).unwrap_or(0);
     if amount <= 0 {
         return Reply::text(bad_input(&ctx.prefix));
     }
@@ -227,7 +223,10 @@ mod tests {
             participants: vec![member("628111@s.whatsapp.net", serde_json::json!(-1))],
             is_bot_admin: false,
         };
-        assert_eq!(writes(&run("50", roster)), [("628111@s.whatsapp.net".to_string(), -1)]);
+        assert_eq!(
+            writes(&run("50", roster)),
+            [("628111@s.whatsapp.net".to_string(), -1)]
+        );
     }
 
     #[test]

@@ -38,11 +38,7 @@ fn bersihkan_nomor(arg: &str) -> Option<String> {
         Some(sisa) => format!("62{sisa}"),
         None => num,
     };
-    if num.len() >= 10 {
-        Some(num)
-    } else {
-        None
-    }
+    if num.len() >= 10 { Some(num) } else { None }
 }
 
 /// `arg.match(/chat\.whatsapp\.com\/([a-zA-Z0-9]+)/)` — kode undangan.
@@ -124,7 +120,10 @@ pub fn add(ctx: Ctx) -> Reply {
             `.add <nomor> <link_grup>`",
         );
     };
-    let subject = meta.get("subject").and_then(|v| v.as_str()).unwrap_or("grup");
+    let subject = meta
+        .get("subject")
+        .and_then(|v| v.as_str())
+        .unwrap_or("grup");
 
     // Bot harus admin — padanan cek `botParticipant.admin`.
     if !ctx.roster.is_bot_admin {
@@ -144,12 +143,7 @@ pub fn add(ctx: Ctx) -> Reply {
     let mut already_in_group: Vec<String> = Vec::new();
     for num in &target_numbers {
         let jid = format!("{num}@s.whatsapp.net");
-        if ctx
-            .roster
-            .participants
-            .iter()
-            .any(|p| p.jid == jid)
-        {
+        if ctx.roster.participants.iter().any(|p| p.jid == jid) {
             already_in_group.push(num.clone());
         } else {
             valid_numbers.push(jid);
@@ -191,13 +185,10 @@ pub fn add(ctx: Ctx) -> Reply {
             let mut mentions: Vec<String> = valid_numbers.clone();
             mentions.extend(already_in_group.iter().cloned());
             mentions.push(ctx.sender.clone());
-            Reply::text(result_text)
-                .with_reaction("✅")
+            Reply::text(result_text).with_reaction("✅")
         }
-        Err(_) => Reply::text(
-            "❌ *ɢᴀɢᴀʟ*\n\n> Bot tidak memiliki izin untuk menambah member!",
-        )
-        .with_reaction("❌"),
+        Err(_) => Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Bot tidak memiliki izin untuk menambah member!")
+            .with_reaction("❌"),
     }
 }
 
@@ -240,14 +231,20 @@ mod tests {
             peserta: &[String],
             _aksi: AksiPeserta,
         ) -> Result<(), SockError> {
-            self.seen_add.lock().unwrap().push((jid.to_string(), peserta.to_vec()));
+            self.seen_add
+                .lock()
+                .unwrap()
+                .push((jid.to_string(), peserta.to_vec()));
             if self.add_err {
                 Err(SockError::baru("gagal"))
             } else {
                 Ok(())
             }
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -286,7 +283,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -311,12 +308,7 @@ mod tests {
         })
     }
 
-    fn run(
-        sock: Arc<StubSock>,
-        roster: Vec<Participant>,
-        args: &[&str],
-        is_group: bool,
-    ) -> Reply {
+    fn run(sock: Arc<StubSock>, roster: Vec<Participant>, args: &[&str], is_group: bool) -> Reply {
         let ctx = Ctx {
             sender: ME.into(),
             chat: "628gc@g.us".into(),
@@ -335,7 +327,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaction_of(r: &Reply) -> Option<String> {
@@ -372,7 +367,12 @@ mod tests {
             meta: Some(meta_with_participants("Grup Test", &[])),
             ..Default::default()
         });
-        let r = run(sock.clone(), vec![], &["6281234567890", "https://chat.whatsapp.com/abc"], true);
+        let r = run(
+            sock.clone(),
+            vec![],
+            &["6281234567890", "https://chat.whatsapp.com/abc"],
+            true,
+        );
         assert!(text_of(&r).contains("berhasil ditambahkan"));
         assert_eq!(reaction_of(&r), Some("✅".to_string()));
         let seen = sock.seen_add.lock().unwrap().clone();
@@ -393,10 +393,22 @@ mod tests {
         }];
         let sock = Arc::new(StubSock {
             invite_id: Some("628gc@g.us".to_string()),
-            meta: Some(meta_with_participants("Grup Test", &["6281234567890@s.whatsapp.net"])),
+            meta: Some(meta_with_participants(
+                "Grup Test",
+                &["6281234567890@s.whatsapp.net"],
+            )),
             ..Default::default()
         });
-        let r = run(sock, roster, &["https://chat.whatsapp.com/abc", "6281234567890", "628999000111"], true);
+        let r = run(
+            sock,
+            roster,
+            &[
+                "https://chat.whatsapp.com/abc",
+                "6281234567890",
+                "628999000111",
+            ],
+            true,
+        );
         assert!(text_of(&r).contains("sᴜᴅᴀʜ ᴅɪ ɢʀᴜᴘ"));
         assert!(text_of(&r).contains("berhasil ditambahkan"));
     }
@@ -428,8 +440,14 @@ mod tests {
 
     #[test]
     fn bersihkan_nomor_menghapus_awalan_nol() {
-        assert_eq!(bersihkan_nomor("081234567890"), Some("6281234567890".to_string()));
-        assert_eq!(bersihkan_nomor("6281234567890"), Some("6281234567890".to_string()));
+        assert_eq!(
+            bersihkan_nomor("081234567890"),
+            Some("6281234567890".to_string())
+        );
+        assert_eq!(
+            bersihkan_nomor("6281234567890"),
+            Some("6281234567890".to_string())
+        );
         assert_eq!(bersihkan_nomor("0812"), None);
         assert_eq!(bersihkan_nomor("abc"), None);
     }

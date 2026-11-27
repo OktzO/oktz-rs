@@ -37,7 +37,10 @@ pub fn render_brat(teks: &str, tema: BratTema, _blur: u8) -> Result<Vec<u8>, Str
     let canvas = render_rgba(teks, tema)?;
     let mut buf = Vec::new();
     DynamicImage::ImageRgba8(canvas)
-        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageOutputFormat::Png)
+        .write_to(
+            &mut std::io::Cursor::new(&mut buf),
+            image::ImageOutputFormat::Png,
+        )
         .map_err(|e| format!("gagal encode brat: {e}"))?;
     Ok(buf)
 }
@@ -70,7 +73,9 @@ struct TataLetak {
 
 fn ukur(font: &FontArc, ukuran: f32, teks: &str) -> f32 {
     let scaled = font.as_scaled(ukuran);
-    teks.chars().map(|c| scaled.h_advance(font.glyph_id(c))).sum()
+    teks.chars()
+        .map(|c| scaled.h_advance(font.glyph_id(c)))
+        .sum()
 }
 
 fn tinggi_baris(font: &FontArc, ukuran: f32) -> f32 {
@@ -102,7 +107,8 @@ fn bungkus(font: &FontArc, ukuran: f32, teks: &str, max_w: f32) -> Vec<String> {
 
 impl TataLetak {
     fn baru(teks: &str) -> Result<Self, String> {
-        let font = FontArc::try_from_slice(FONT).map_err(|_| "font brat tidak bisa dibaca".to_string())?;
+        let font =
+            FontArc::try_from_slice(FONT).map_err(|_| "font brat tidak bisa dibaca".to_string())?;
         let max_w = KANVAS as f32 - PAD * 2.0;
 
         // Auto-fit: ukuran terbesar yang seluruh baris + tingginya muat.
@@ -162,7 +168,8 @@ fn gambar(tata: &TataLetak, tema: BratTema, alpha: &[f32], geser: &[f32]) -> Rgb
         let mut x = kata.x;
         for karakter in kata.teks.chars() {
             let id = tata.font.glyph_id(karakter);
-            let glyph = id.with_scale_and_position(tata.ukuran, ab_glyph::point(x, kata.baseline + dy));
+            let glyph =
+                id.with_scale_and_position(tata.ukuran, ab_glyph::point(x, kata.baseline + dy));
             if let Some(outline) = tata.font.outline_glyph(glyph) {
                 let bounds = outline.px_bounds();
                 outline.draw(|px, py, coverage| {
@@ -244,10 +251,7 @@ pub struct BratProgresif {
 
 impl BratProgresif {
     pub fn baru(teks: &str) -> Result<Self, String> {
-        let kata: Vec<String> = teks
-            .split_whitespace()
-            .map(str::to_string)
-            .collect();
+        let kata: Vec<String> = teks.split_whitespace().map(str::to_string).collect();
         if kata.is_empty() {
             return Err("teks kosong".to_string());
         }
@@ -268,7 +272,6 @@ impl BratProgresif {
     }
 }
 
-
 pub fn render_frame_raw(teks: &str, width: u32, height: u32) -> Vec<u8> {
     let Ok(png) = render_brat(teks, BratTema::Putih, 0) else {
         return Vec::new();
@@ -286,7 +289,6 @@ pub fn render_frame_raw(teks: &str, width: u32, height: u32) -> Vec<u8> {
         .into_raw()
 }
 
-
 pub fn is_blank(buf: &[u8]) -> bool {
     if buf.len() < 100 {
         return true;
@@ -295,7 +297,8 @@ pub fn is_blank(buf: &[u8]) -> bool {
         return true;
     };
     let img = img.to_rgba8();
-    let small = DynamicImage::ImageRgba8(img).resize_exact(50, 50, image::imageops::FilterType::Triangle);
+    let small =
+        DynamicImage::ImageRgba8(img).resize_exact(50, 50, image::imageops::FilterType::Triangle);
     let small = small.to_rgba8();
     let pertama = small.pixels().next().copied();
     let Some(pertama) = pertama else {
@@ -322,7 +325,10 @@ mod tests {
         let img = image::RgbaImage::from_fn(100, 100, |_x, _y| image::Rgba([255, 255, 255, 255]));
         let mut buf = Vec::new();
         image::DynamicImage::ImageRgba8(img)
-            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageOutputFormat::Png)
+            .write_to(
+                &mut std::io::Cursor::new(&mut buf),
+                image::ImageOutputFormat::Png,
+            )
             .unwrap();
         assert!(is_blank(&buf));
         assert!(!is_blank(&render_brat("halo", BratTema::Putih, 0).unwrap()));

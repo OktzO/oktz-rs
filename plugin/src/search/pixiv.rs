@@ -18,7 +18,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''`.
@@ -47,7 +47,7 @@ pub(crate) fn api_url(query: &str) -> String {
 /// `${value}` di versi awal.
 fn interp(value: Option<&Value>) -> String {
     match value {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -67,10 +67,7 @@ pub(crate) fn artworks(data: &Value) -> Vec<Value> {
 pub(crate) fn caption(results: &[Value], query: &str) -> String {
     let mut cap = String::from("🎨 *ᴘɪxɪᴠ sᴇᴀʀᴄʜ*\n");
     cap.push_str(&format!("📝 *ᴋᴜᴇʀʛ:* {query}\n"));
-    cap.push_str(&format!(
-        "📊 *ʜᴀsɪʟ:* {} artwork\n\n",
-        results.len()
-    ));
+    cap.push_str(&format!("📊 *ʜᴀsɪʟ:* {} artwork\n\n", results.len()));
     for (i, art) in results.iter().enumerate() {
         let ai_label = if art.get("aiType").and_then(Value::as_i64) == Some(2) {
             " 🤖"
@@ -123,9 +120,7 @@ fn number_at_least_one(value: Option<&Value>) -> bool {
 /// `!data.status || !data.data || data.data.length === 0`.
 pub(crate) fn kosong(data: &Value) -> bool {
     !js_truthy(data.get("status"))
-        || data
-            .get("data")
-            .map_or(true, |d| !js_truthy(Some(d)))
+        || data.get("data").map_or(true, |d| !js_truthy(Some(d)))
         || artworks(data).is_empty()
 }
 
@@ -205,7 +200,9 @@ mod tests {
             let v = self
                 .body
                 .clone()
-                .ok_or_else(|| oktz_plugin_api::HttpError { message: "offline".into() })?;
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -309,8 +306,16 @@ mod tests {
         let r = run(http.clone(), "rem");
         let t = text_of(&r);
         assert_eq!(reaction_of(&r), Some("🎨"), "🔍 digantikan 🎨");
-        assert!(t.starts_with("🎨 *ᴘɪxɪᴠ sᴇᴀʀᴄʜ*\n📝 *ᴋᴜᴇʀʛ:* rem\n📊 *ʜᴀsɪʟ:* 1 artwork\n\n"), "{t}");
-        assert!(t.contains("*1.* Fanart\n   👤 Seniman\n   📐 1000x1500 • 📄 2 page\n   🔗 https://p/1\n\n"), "{t}");
+        assert!(
+            t.starts_with("🎨 *ᴘɪxɪᴠ sᴇᴀʀᴄʜ*\n📝 *ᴋᴜᴇʀʛ:* rem\n📊 *ʜᴀsɪʟ:* 1 artwork\n\n"),
+            "{t}"
+        );
+        assert!(
+            t.contains(
+                "*1.* Fanart\n   👤 Seniman\n   📐 1000x1500 • 📄 2 page\n   🔗 https://p/1\n\n"
+            ),
+            "{t}"
+        );
         assert!(t.ends_with("> 🎨 Powered by Pixiv"), "{t}");
         assert_eq!(
             http.seen.lock().unwrap()[0],
@@ -372,7 +377,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "rem");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pixiv"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pixiv")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -387,18 +395,24 @@ mod tests {
     #[test]
     fn odd_and_very_long_queries_do_not_panic() {
         for input in ["<b>", "a|b", "🎨", "'\"", "a\u{202e}b", "%zz"] {
-            let r = run(Stub::with(serde_json::json!({ "status": true, "data": [] })), input);
+            let r = run(
+                Stub::with(serde_json::json!({ "status": true, "data": [] })),
+                input,
+            );
             assert!(text_of(&r).contains("Tidak ditemukan"), "input {input:?}");
         }
         let panjang = "a".repeat(5000);
         let r = run(Stub::offline(), &panjang);
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pixiv"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pixiv")
+        );
     }
 
     #[test]
-    fn missing_artwork_fields_print_undefined() {
+    fn missing_artwork_fields_print_a_dash() {
         let body = serde_json::json!({ "status": true, "data": [ {} ] });
         let t = caption(&artworks(&body), "q");
-        assert!(t.contains("*1.* undefined\n   👤 undefined\n   📐 undefinedxundefined"), "{t}");
+        assert!(t.contains("*1.* -\n   👤 -\n   📐 -x-"), "{t}");
     }
 }

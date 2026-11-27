@@ -53,15 +53,14 @@ pub fn list(ctx: Ctx) -> Reply {
     // `parseInt(input) - 1`. `parseInt` membaca AWALAN
     // angka lalu membuang sisa non-digit, jadi "1abc" tetap 1 — beda
     // `parseInt` versi ketat yang akan menolak.
-    if let Some(idx) = js_parse_int(ctx.text.trim())
-        .and_then(|n| n.checked_sub(1))
+    if let Some(idx) = js_parse_int(ctx.text.trim()).and_then(|n| n.checked_sub(1))
         && (idx as usize) < lists.len()
     {
         let item = &lists[idx as usize];
         let txt = item
             .get("content")
             .and_then(Value::as_str)
-            .unwrap_or("undefined")
+            .unwrap_or("-")
             .to_string();
         // : image → `Reply::Image` dengan URL; video TIDAK
         // punya padanan Reply (tidak ada variant video) dan `ctx` tidak
@@ -86,14 +85,11 @@ pub fn list(ctx: Ctx) -> Reply {
             "*{}.* {} *{}*\n",
             i + 1,
             media_icon(item),
-            item.get("name").and_then(Value::as_str).unwrap_or("undefined")
+            item.get("name").and_then(Value::as_str).unwrap_or("-")
         ));
     }
     txt.push('\n');
-    txt.push_str(&format!(
-        "{FOOTER}{}list <nomor>{FOOTER_TAIL}",
-        ctx.prefix
-    ));
+    txt.push_str(&format!("{FOOTER}{}list <nomor>{FOOTER_TAIL}", ctx.prefix));
     Reply::text(txt)
 }
 
@@ -174,7 +170,10 @@ mod tests {
 
     #[test]
     fn a_present_but_empty_list_shows_the_same_empty_branch() {
-        assert_eq!(text_of(&run(serde_json::json!({"storeLists": []}), "")), EMPTY);
+        assert_eq!(
+            text_of(&run(serde_json::json!({"storeLists": []}), "")),
+            EMPTY
+        );
     }
 
     #[test]

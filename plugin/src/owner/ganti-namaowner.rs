@@ -72,7 +72,13 @@ fn nama_owner(ctx: &Ctx, nomor: &str) -> String {
 /// `if (!input[0]) {... }`.
 fn daftar_owner(ctx: &Ctx) -> String {
     // `config.owner?.number?.[0] || ""`.
-    let nomor_utama = ctx.config().owner.number.first().cloned().unwrap_or_default();
+    let nomor_utama = ctx
+        .config()
+        .owner
+        .number
+        .first()
+        .cloned()
+        .unwrap_or_default();
     let mut list = String::from("👤 *ᴏᴡɴᴇʀ ɴᴀᴍᴇ ʟɪsᴛ*\n\n");
     list.push_str(&format!("👑 Main: *{}* ({nomor_utama})\n", nama_utama(ctx)));
     let mut ada = false;
@@ -214,7 +220,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn peta_owner(r: &Reply) -> Option<Value> {
@@ -247,7 +256,11 @@ mod tests {
     #[test]
     fn semua_alias_menunjuk_ke_plugin_ini() {
         for a in ["setnamaowner", "setnameowner", "setownername"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("ganti-namaowner"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("ganti-namaowner"),
+                "{a}"
+            );
         }
     }
 
@@ -280,13 +293,21 @@ mod tests {
     #[test]
     fn nama_utama_kosong_di_config_pakai_fallback_owner() {
         let r = run_dengan(&[], Value::Null, runtime("", &["6285608953677"]));
-        assert!(text_of(&r).contains("👑 Main: *Owner* (6285608953677)"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("👑 Main: *Owner* (6285608953677)"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
     fn nomor_utama_kosong_ditulis_kurung_kosong() {
         let r = run_dengan(&[], Value::Null, runtime("Oktz", &[]));
-        assert!(text_of(&r).contains("👑 Main: *Oktz* ()\n"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("👑 Main: *Oktz* ()\n"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -304,7 +325,11 @@ mod tests {
     #[test]
     fn main_tanpa_nama_dan_config_kosong_pakai_strip() {
         let r = run_dengan(&["MAIN"], Value::Null, runtime("", &[]));
-        assert!(text_of(&r).contains("> Nama saat ini: *-*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Nama saat ini: *-*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -366,10 +391,18 @@ mod tests {
         assert!(peta_owner(&r).is_none(), "tanpa nama baru tidak menyimpan");
 
         let r = run(&["6281234567890"], Value::Null);
-        assert!(text_of(&r).contains("6281234567890: *Owner*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("6281234567890: *Owner*"),
+            "{}",
+            text_of(&r)
+        );
 
         let r = run(&["6285608953677"], Value::Null);
-        assert!(text_of(&r).contains("6285608953677: *Oktz*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("6285608953677: *Oktz*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

@@ -74,7 +74,10 @@ mod tests {
     fn registers_with_js_plugin_config() {
         let p = oktz_plugin_api::find("cekschedule").unwrap();
         assert_eq!(p.meta.name, "cekschedule");
-        assert_eq!(p.meta.alias, ["cekscheduler", "schedulerstatus", "schedstatus"]);
+        assert_eq!(
+            p.meta.alias,
+            ["cekscheduler", "schedulerstatus", "schedstatus"]
+        );
         assert_eq!(p.meta.category, "owner");
         assert!(p.meta.is_owner);
     }

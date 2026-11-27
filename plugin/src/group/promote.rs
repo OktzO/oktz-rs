@@ -60,8 +60,11 @@ pub fn promote(ctx: Ctx) -> Reply {
         std::slice::from_ref(&p.jid),
         AksiPeserta::Naikkan,
     ) {
-        Ok(()) => Reply::text(format!("✅ @{number} sekarang menjadi admin!"))
-            .with_mentions(crate::common::mention_jid(&ctx, &target).into_iter().collect()),
+        Ok(()) => Reply::text(format!("✅ @{number} sekarang menjadi admin!")).with_mentions(
+            crate::common::mention_jid(&ctx, &target)
+                .into_iter()
+                .collect(),
+        ),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }
@@ -199,7 +202,10 @@ mod tests {
                 ..Default::default()
             }),
         ));
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "promote"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "promote")
+        );
     }
 
     #[test]

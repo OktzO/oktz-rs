@@ -34,8 +34,8 @@ use std::sync::{Mutex, MutexGuard};
 
 use oktz_plugin_api::PluginMeta;
 use oktz_router::gates::{
-    EnergiBalance, EnergiDecision, EnergiSettings, InMemoryCooldowns, InMemoryEnergi, charge_energi,
-    check_cooldown, set_cooldown,
+    EnergiBalance, EnergiDecision, EnergiSettings, InMemoryCooldowns, InMemoryEnergi,
+    charge_energi, check_cooldown, set_cooldown,
 };
 use serde_json::Value;
 
@@ -93,22 +93,10 @@ impl GateState {
 
     /// `db.setCooldown` (`handler.js:1922-1924`) — dipanggil SETELAH handler
     /// selesai, jadi command yang gagal di tengah tidak membekukan cooldown.
-    pub fn start_cooldown(
-        &self,
-        caller: &Caller,
-        cmd_key: &str,
-        cooldown_secs: u32,
-        now_ms: i64,
-    ) {
+    pub fn start_cooldown(&self, caller: &Caller, cmd_key: &str, cooldown_secs: u32, now_ms: i64) {
         let mut data = self.lock();
         data.cooldowns.prune_expired(now_ms);
-        set_cooldown(
-            &mut data.cooldowns,
-            caller,
-            cmd_key,
-            cooldown_secs,
-            now_ms,
-        );
+        set_cooldown(&mut data.cooldowns, caller, cmd_key, cooldown_secs, now_ms);
     }
 
     /// Gate energi (`handler.js:1851-1890`) termasuk potongannya.
@@ -196,10 +184,7 @@ fn custom_rules_from(entry: &Value) -> Vec<oktz_router::group::CustomRule> {
                             .and_then(Value::as_str)
                             .unwrap_or_default()
                             .to_string(),
-                        action: r
-                            .get("action")
-                            .and_then(Value::as_str)
-                            .map(str::to_string),
+                        action: r.get("action").and_then(Value::as_str).map(str::to_string),
                         flags: r.get("flags").and_then(Value::as_str).map(str::to_string),
                     })
                 })
@@ -241,9 +226,18 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
             .get("antidocument")
             .and_then(Value::as_bool)
             .unwrap_or(false),
-        antimedia: entry.get("antimedia").and_then(Value::as_bool).unwrap_or(false),
-        antisticker: entry.get("antisticker").and_then(Value::as_bool).unwrap_or(false),
-        antibot: entry.get("antibot").and_then(Value::as_bool).unwrap_or(false),
+        antimedia: entry
+            .get("antimedia")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        antisticker: entry
+            .get("antisticker")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        antibot: entry
+            .get("antibot")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         mute: entry.get("mute").and_then(Value::as_bool).unwrap_or(false),
         muted_members: entry
             .get("mutedMembers")
@@ -255,17 +249,17 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
                     .collect()
             })
             .unwrap_or_default(),
-        mutegc: entry.get("mutegc").and_then(Value::as_bool).unwrap_or(false),
+        mutegc: entry
+            .get("mutegc")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         anticustom: g("anticustom"),
         anticustom_mode: g("anticustomMode"),
         anticustom_rules: custom_rules_from(entry),
         slowmode: entry.get("slowmode").map(|sm| Slowmode {
             enabled: sm.get("enabled").and_then(Value::as_bool).unwrap_or(false),
             delay_secs: sm.get("delay").and_then(Value::as_u64),
-            mode: sm
-                .get("mode")
-                .and_then(Value::as_str)
-                .map(str::to_string),
+            mode: sm.get("mode").and_then(Value::as_str).map(str::to_string),
         }),
     }
 }
@@ -283,7 +277,9 @@ pub fn group_settings_from(entry: &Value) -> oktz_router::group::GroupSettings {
 /// `is_admin` sudah digabung oleh upstream: `roster_from` memakai
 /// `is_admin()`, yang true untuk admin maupun superadmin
 /// (`features/groups.rs:246`).
-pub fn participants_from(roster: &oktz_plugin_api::registry::GroupRoster) -> Vec<oktz_router::group::Participant> {
+pub fn participants_from(
+    roster: &oktz_plugin_api::registry::GroupRoster,
+) -> Vec<oktz_router::group::Participant> {
     roster
         .participants
         .iter()
@@ -328,7 +324,9 @@ mod tests {
         assert!(s.antilink.is_none(), "boolean true bukan \"on\"");
         assert_eq!(s.antilink_mode.as_deref(), Some("kick"));
         assert_eq!(
-            group_settings_from(&json!({"antilink": "on"})).antilink.as_deref(),
+            group_settings_from(&json!({"antilink": "on"}))
+                .antilink
+                .as_deref(),
             Some("on")
         );
     }

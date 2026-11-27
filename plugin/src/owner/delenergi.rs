@@ -11,7 +11,10 @@ const UNLIMITED: i64 = -1;
 /// Ribuan bertitik, tanda minus ikut (`-1234` → `-1.234`).
 fn thousands(n: i64) -> String {
     if n < 0 {
-        format!("-{}", crate::tools::kalkulatormbg::thousands_id(n.unsigned_abs() as f64))
+        format!(
+            "-{}",
+            crate::tools::kalkulatormbg::thousands_id(n.unsigned_abs() as f64)
+        )
     } else {
         crate::tools::kalkulatormbg::thousands_id(n as f64)
     }
@@ -136,11 +139,11 @@ pub fn delenergi(ctx: Ctx) -> Reply {
     let new_energi = (base - amount).max(0);
 
     Reply::text(detail(jid_number(&target), amount_label, new_energi))
-    .with_reaction("✅")
-    .with_mutation(Mutation::SetUser {
-        jid: target,
-        data: serde_json::json!({ "energi": new_energi }),
-    })
+        .with_reaction("✅")
+        .with_mutation(Mutation::SetUser {
+            jid: target,
+            data: serde_json::json!({ "energi": new_energi }),
+        })
 }
 
 #[cfg(test)]
@@ -243,7 +246,11 @@ mod tests {
         // `db.getUser(targetJid)` null → guard "tidak ditemukan". Baris `{}`
         // ADA di store (object versi awal truthy), jadi bukan kasus ini.
         let r = run("50", serde_json::json!(null), None);
-        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("User tidak ditemukan di database"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -260,7 +267,11 @@ mod tests {
         // `db.getUser(targetJid)` yang `null` untuk user yang tak pernah
         // terdaftar. Barisnya ditulis ke JID target, bukan ke sender.
         let r = run("50", serde_json::json!({ "energi": 200 }), Some(OTHER));
-        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("User tidak ditemukan di database"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty(), "tidak boleh menulis");
     }
 
@@ -283,12 +294,16 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             ..Default::default()
         };
         let r = (oktz_plugin_api::find("delenergi").unwrap().handler)(ctx);
-        assert!(text_of(&r).contains("User tidak ditemukan di database"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("User tidak ditemukan di database"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

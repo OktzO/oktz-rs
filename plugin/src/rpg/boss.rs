@@ -1,7 +1,7 @@
 //! Raid boss, 15 ronde, crit 10%.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::heal::{
     apply_exp, coalesce, inventory_map, math_random, or_default, rpg_int, rpg_map, thousands_en,
@@ -24,17 +24,76 @@ type Boss = (
 );
 
 const BOSSES: [Boss; 7] = [
-    ("🐉 Elder Dragon", 500, 50, 10, 2000, 5000, &["dragonscale", "dragonbone"]),
-    ("👹 Demon Lord", 400, 60, 15, 2500, 7000, &["demonsoul", "cursedgem"]),
-    ("🧟 Undead King", 350, 45, 8, 1500, 4000, &["soulstone", "ancientbone"]),
-    ("🦑 Kraken", 600, 40, 12, 2200, 6000, &["krakententacle", "seagem"]),
-    ("🌋 Volcanic Titan", 700, 55, 20, 3000, 10000, &["titancore", "lavagem"]),
-    ("❄️ Frost Queen", 450, 50, 18, 2800, 8000, &["frostheart", "icecrown"]),
-    ("⚡ Thunder God", 550, 65, 25, 4000, 15000, &["thunderstone", "divinecore"]),
+    (
+        "🐉 Elder Dragon",
+        500,
+        50,
+        10,
+        2000,
+        5000,
+        &["dragonscale", "dragonbone"],
+    ),
+    (
+        "👹 Demon Lord",
+        400,
+        60,
+        15,
+        2500,
+        7000,
+        &["demonsoul", "cursedgem"],
+    ),
+    (
+        "🧟 Undead King",
+        350,
+        45,
+        8,
+        1500,
+        4000,
+        &["soulstone", "ancientbone"],
+    ),
+    (
+        "🦑 Kraken",
+        600,
+        40,
+        12,
+        2200,
+        6000,
+        &["krakententacle", "seagem"],
+    ),
+    (
+        "🌋 Volcanic Titan",
+        700,
+        55,
+        20,
+        3000,
+        10000,
+        &["titancore", "lavagem"],
+    ),
+    (
+        "❄️ Frost Queen",
+        450,
+        50,
+        18,
+        2800,
+        8000,
+        &["frostheart", "icecrown"],
+    ),
+    (
+        "⚡ Thunder God",
+        550,
+        65,
+        25,
+        4000,
+        15000,
+        &["thunderstone", "divinecore"],
+    ),
 ];
 
 fn available(level: i64) -> Vec<&'static Boss> {
-    BOSSES.iter().filter(|(_, _, _, min, ..)| level >= *min).collect()
+    BOSSES
+        .iter()
+        .filter(|(_, _, _, min, ..)| level >= *min)
+        .collect()
 }
 
 /// `BOSSES.reduce((a, b) => (a.minLevel < b.minLevel ? a: b))` — tabel sudah
@@ -85,9 +144,16 @@ fn fight(user_attack: i64, user_defense: i64, max_hp: i64, boss: &Boss) -> Fight
         }
         let boss_dmg = (boss.2 - user_defense + crate::common::roll(15) as i64).max(10);
         user_hp -= boss_dmg;
-        log.push(format!("> 👹 Boss mengamuk dan memukul mundur: *-{boss_dmg} HP*"));
+        log.push(format!(
+            "> 👹 Boss mengamuk dan memukul mundur: *-{boss_dmg} HP*"
+        ));
     }
-    Fight { my_hp: user_hp, boss_hp, rounds: round, log }
+    Fight {
+        my_hp: user_hp,
+        boss_hp,
+        rounds: round,
+        log,
+    }
 }
 
 fn log_block(f: &Fight) -> String {
@@ -230,7 +296,6 @@ pub fn boss(ctx: Ctx) -> Reply {
     })
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,7 +361,10 @@ mod tests {
         ] {
             let r = run(user.clone());
             let t = text_of(&r);
-            assert!(t.starts_with("Aduh kak, level kamu masih terlalu rendah"), "input {user}");
+            assert!(
+                t.starts_with("Aduh kak, level kamu masih terlalu rendah"),
+                "input {user}"
+            );
             assert!(t.contains("Minimal level yang dibutuhkan: *8*"), "{t}");
             assert!(r.mutations().is_empty(), "input {user}");
         }
@@ -315,7 +383,10 @@ mod tests {
         for stamina in [0, 49] {
             let r = run(serde_json::json!({ "level": 10, "rpg": { "stamina": stamina } }));
             let t = text_of(&r);
-            assert!(t.starts_with("⚡ Yahh stamina kamu habis"), "stamina {stamina}: {t}");
+            assert!(
+                t.starts_with("⚡ Yahh stamina kamu habis"),
+                "stamina {stamina}: {t}"
+            );
             assert!(t.contains(&format!("sisa: *{stamina}*")), "{t}");
             assert!(r.mutations().is_empty(), "stamina {stamina}");
         }
@@ -325,7 +396,9 @@ mod tests {
     fn a_win_pays_the_boss_rewards_plus_random_rolls_and_marks_a_reaction() {
         let mut won = 0;
         for _ in 0..400 {
-            let r = run(serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }));
+            let r = run(
+                serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }),
+            );
             let t = text_of(&r);
             if !t.contains("🏆 *BOSS BERHASIL DIKALAHKAN!!*") {
                 continue;
@@ -333,7 +406,10 @@ mod tests {
             won += 1;
             let data = write_of(&r);
             let semua = crate::rpg::heal::reply_texts(&r);
-            assert!(semua[1].starts_with("⚔️ *Sengitnya Pertarungan..."), "{semua:?}");
+            assert!(
+                semua[1].starts_with("⚔️ *Sengitnya Pertarungan..."),
+                "{semua:?}"
+            );
             assert!(data["koin"].as_i64().unwrap() >= 4000);
             assert!(data["exp"].as_i64().unwrap() >= 1500);
             assert_eq!(data["rpg"]["stamina"], serde_json::json!(50));
@@ -352,14 +428,20 @@ mod tests {
         // Level 8 = satu-satunya boss yang terbuka (Undead King, atk 45):
         // serangan pemain mustahil menghabiskan 350 HP dalam 15 ronde, jadi
         // kalah bisa terjadi dan cabang penalti ikut teruji.
-        let r = run(serde_json::json!({ "level": 8, "rpg": { "stamina": 100, "attack": 1, "defense": 1, "health": 100 }, "koin": 10_000, "exp": 0 }));
+        let r = run(
+            serde_json::json!({ "level": 8, "rpg": { "stamina": 100, "attack": 1, "defense": 1, "health": 100 }, "koin": 10_000, "exp": 0 }),
+        );
         let t = text_of(&r);
         assert!(t.contains("💀 *YAH... KAMU TERPURUK...*"), "{t}");
         assert!(t.contains("💸 Koin Terjatuh: *-Rp 1,500*"), "{t}");
         let data = write_of(&r);
         assert_eq!(data["rpg"]["health"], serde_json::json!(50));
         assert_eq!(data["koin"], serde_json::json!(8_500), "15% dari 10.000");
-        assert_eq!(data["rpg"]["stamina"], serde_json::json!(50), "stamina tetap kepotong saat kalah");
+        assert_eq!(
+            data["rpg"]["stamina"],
+            serde_json::json!(50),
+            "stamina tetap kepotong saat kalah"
+        );
         assert!(data.get("exp").is_none(), "kalah tak memberi exp");
         assert!(data.get("inventory").is_none(), "kalah tak melepas loot");
     }
@@ -377,7 +459,9 @@ mod tests {
         // pertama — lantai 1 HP benar-benar tertulis ke store.
         // (`attack` 1 + level 8 * 3 = 25, damage minimal 20 per ronde, jadi
         // 350 HP boss mustahil habis dalam 15 ronde.)
-        let r = run(serde_json::json!({ "level": 8, "rpg": { "stamina": 100, "attack": 1, "defense": 1, "health": 1 }, "koin": 0 }));
+        let r = run(
+            serde_json::json!({ "level": 8, "rpg": { "stamina": 100, "attack": 1, "defense": 1, "health": 1 }, "koin": 0 }),
+        );
         assert!(text_of(&r).contains("TERPURUK"), "{}", text_of(&r));
         assert_eq!(write_of(&r)["rpg"]["health"], serde_json::json!(1));
     }
@@ -393,10 +477,30 @@ mod tests {
     #[test]
     fn the_boss_table_keeps_every_js_row() {
         assert_eq!(BOSSES.len(), 7);
-        assert_eq!(BOSSES[0], ("🐉 Elder Dragon", 500, 50, 10, 2000, 5000,
-            &["dragonscale", "dragonbone"] as &[&str]));
-        assert_eq!(BOSSES[6], ("⚡ Thunder God", 550, 65, 25, 4000, 15000,
-            &["thunderstone", "divinecore"] as &[&str]));
+        assert_eq!(
+            BOSSES[0],
+            (
+                "🐉 Elder Dragon",
+                500,
+                50,
+                10,
+                2000,
+                5000,
+                &["dragonscale", "dragonbone"] as &[&str]
+            )
+        );
+        assert_eq!(
+            BOSSES[6],
+            (
+                "⚡ Thunder God",
+                550,
+                65,
+                25,
+                4000,
+                15000,
+                &["thunderstone", "divinecore"] as &[&str]
+            )
+        );
         assert_eq!(lowest().3, 8, "Undead King adalah minLevel paling rendah");
     }
 
@@ -404,12 +508,31 @@ mod tests {
     /// teks persis sama seperti versi awal.
     #[test]
     fn output_sama_dengan_js() {
-        let r = run(serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }));
+        let r = run(
+            serde_json::json!({ "level": 30, "rpg": { "stamina": 100, "attack": 5_000, "defense": 5_000, "health": 100 }, "koin": 0, "exp": 0 }),
+        );
         let semua = crate::rpg::heal::reply_texts(&r);
         assert_eq!(semua.len(), 3, "tiga pesan: {semua:?}");
-        assert!(semua[0].starts_with("⚠️ *PERINGATAN BAHAYA!* ⚠️\n\nAura kegelapan menyelimuti arena... *"), "{}", semua[0]);
-        assert!(semua[0].ends_with("_Siapkan senjatamu kak! Pertarungan dimulai..._"), "{}", semua[0]);
-        assert!(semua[1].starts_with("⚔️ *Sengitnya Pertarungan...*\n\n> "), "{}", semua[1]);
-        assert!(semua[2].starts_with("🏆 *BOSS BERHASIL DIKALAHKAN!!* 🎉\n\n"), "{}", semua[2]);
+        assert!(
+            semua[0]
+                .starts_with("⚠️ *PERINGATAN BAHAYA!* ⚠️\n\nAura kegelapan menyelimuti arena... *"),
+            "{}",
+            semua[0]
+        );
+        assert!(
+            semua[0].ends_with("_Siapkan senjatamu kak! Pertarungan dimulai..._"),
+            "{}",
+            semua[0]
+        );
+        assert!(
+            semua[1].starts_with("⚔️ *Sengitnya Pertarungan...*\n\n> "),
+            "{}",
+            semua[1]
+        );
+        assert!(
+            semua[2].starts_with("🏆 *BOSS BERHASIL DIKALAHKAN!!* 🎉\n\n"),
+            "{}",
+            semua[2]
+        );
     }
 }

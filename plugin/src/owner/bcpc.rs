@@ -96,7 +96,11 @@ mod tests {
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    fn run(teks: &str, settings: serde_json::Value, sessions: &oktz_plugin_api::SessionStore) -> Reply {
+    fn run(
+        teks: &str,
+        settings: serde_json::Value,
+        sessions: &oktz_plugin_api::SessionStore,
+    ) -> Reply {
         bcpc(Ctx {
             text: teks.into(),
             args: teks.split_whitespace().map(str::to_string).collect(),
@@ -111,7 +115,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<&str> {
@@ -127,7 +134,10 @@ mod tests {
         assert_eq!(p.meta.name, "bcpc");
         assert_eq!(p.meta.alias, ["broadcastpc", "bcprivate"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Broadcast pesan ke semua kontak private chat");
+        assert_eq!(
+            p.meta.description,
+            "Broadcast pesan ke semua kontak private chat"
+        );
         assert_eq!(p.meta.usage, ".bcpc <pesan>");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);
@@ -149,18 +159,20 @@ mod tests {
         let t = teks(&r);
         assert!(t.starts_with("📱 *BROADCAST PRIVATE CHAT*"), "{t}");
         assert!(t.contains("Jeda: 5000ms (5.0s)"), "{t}");
-        assert!(t.contains("• `.bcpc <pesan>` — Kirim ke semua kontak"), "{t}");
-        assert!(t.contains("⚠️ *Peringatan:* Bot akan mengirim pesan ke semua kontak yang tersimpan!"), "{t}");
+        assert!(
+            t.contains("• `.bcpc <pesan>` — Kirim ke semua kontak"),
+            "{t}"
+        );
+        assert!(
+            t.contains("⚠️ *Peringatan:* Bot akan mengirim pesan ke semua kontak yang tersimpan!"),
+            "{t}"
+        );
     }
 
     #[test]
     fn jeda_dari_setting_dipakai() {
         let s = oktz_plugin_api::new_session_store();
-        let r = run(
-            "",
-            serde_json::json!({ "jedaBcpc": 2500 }),
-            &s,
-        );
+        let r = run("", serde_json::json!({ "jedaBcpc": 2500 }), &s);
         assert!(teks(&r).contains("Jeda: 2500ms (2.5s)"), "{}", teks(&r));
     }
 

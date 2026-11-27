@@ -37,7 +37,11 @@ pub(crate) fn applied(is_enable: bool) -> String {
     };
     format!(
         "✅ Berhasil *{}* fitur RPG di grup ini!\n\n{tail}",
-        if is_enable { "MENGAKTIFKAN" } else { "MENONAKTIFKAN" },
+        if is_enable {
+            "MENGAKTIFKAN"
+        } else {
+            "MENONAKTIFKAN"
+        },
     )
 }
 
@@ -145,7 +149,12 @@ mod tests {
 
     #[test]
     fn the_help_branch_never_reads_the_stored_flag() {
-        for g in [serde_json::json!({"rpg": true}), serde_json::json!({"rpg": false}), serde_json::json!({}), serde_json::json!(null)] {
+        for g in [
+            serde_json::json!({"rpg": true}),
+            serde_json::json!({"rpg": false}),
+            serde_json::json!({}),
+            serde_json::json!(null),
+        ] {
             assert!(
                 text_of(&run(g.clone(), "")).starts_with("⚔️ *FITUR RPG GRUP*"),
                 "input {g}"
@@ -212,7 +221,11 @@ mod tests {
         }
         for arg in ["OFF", "Off", "off"] {
             let r = run(serde_json::json!({"rpg": true}), arg);
-            assert_eq!(group_write(&r)["rpg"], serde_json::json!(false), "arg {arg:?}");
+            assert_eq!(
+                group_write(&r)["rpg"],
+                serde_json::json!(false),
+                "arg {arg:?}"
+            );
         }
     }
 

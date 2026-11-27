@@ -28,8 +28,10 @@ pub(crate) fn applied(prefix: &str) -> String {
 
 /// Daftar `publicGroups` dengan `chat` ditambahkan kalau belum ada.
 pub(crate) fn public_groups_after(ctx: &Ctx) -> Vec<serde_json::Value> {
-    let mut list: Vec<serde_json::Value> =
-        public_groups(ctx).into_iter().map(serde_json::Value::String).collect();
+    let mut list: Vec<serde_json::Value> = public_groups(ctx)
+        .into_iter()
+        .map(serde_json::Value::String)
+        .collect();
     if !list.iter().any(|v| v.as_str() == Some(ctx.chat.as_str())) {
         list.push(serde_json::Value::String(ctx.chat.clone()));
     }
@@ -82,7 +84,7 @@ pub fn publicthisgc(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value) -> Reply {
         let ctx = Ctx {
@@ -124,15 +126,9 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("publicthisgc").unwrap();
         assert_eq!(p.meta.name, "publicthisgc");
-        assert_eq!(
-            p.meta.alias,
-            ["publicgc", "publicgroup", "publicthisgroup"]
-        );
+        assert_eq!(p.meta.alias, ["publicgc", "publicgroup", "publicthisgroup"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(
-            p.meta.description,
-            "Aktifkan mode public hanya di grup ini"
-        );
+        assert_eq!(p.meta.description, "Aktifkan mode public hanya di grup ini");
         assert_eq!(p.meta.usage, ".publicthisgc");
         assert_eq!(p.meta.example, ".publicthisgc");
         assert_eq!(p.meta.cooldown, 3);
@@ -144,10 +140,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["publicgc", "publicgroup", "publicthisgroup"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "publicthisgc"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "publicthisgc");
         }
     }
 
@@ -166,7 +159,10 @@ mod tests {
             "publicGroups": ["120363@g.us"],
             "selfGroups": ["120363@g.us", "a@g.us"],
         }));
-        assert!(!text_of(&r).starts_with("ℹ️"), "harus lanjut, bukan berhenti");
+        assert!(
+            !text_of(&r).starts_with("ℹ️"),
+            "harus lanjut, bukan berhenti"
+        );
         assert_eq!(list_of(&setting_of(&r, "selfGroups")), ["a@g.us"]);
         assert_eq!(list_of(&setting_of(&r, "publicGroups")), ["120363@g.us"]);
     }
@@ -188,7 +184,11 @@ mod tests {
 
     #[test]
     fn both_settings_are_always_written_together() {
-        for s in [serde_json::json!({}), serde_json::json!({"publicGroups": []}), serde_json::json!({"selfGroups": []})] {
+        for s in [
+            serde_json::json!({}),
+            serde_json::json!({"publicGroups": []}),
+            serde_json::json!({"selfGroups": []}),
+        ] {
             assert_eq!(run(s.clone()).mutations().len(), 2, "input {s}");
         }
     }

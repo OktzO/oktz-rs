@@ -83,7 +83,7 @@ pub fn setaudioallmenu(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(text: &str, settings: Value) -> Reply {
         let ctx = Ctx {
@@ -146,14 +146,20 @@ mod tests {
         let __balasan = run("", serde_json::json!({"allmenuAudioStyle": 3}));
         let t = body(&__balasan);
         assert!(t.starts_with("⚠️ *PENGATURAN AUDIO ALL MENU*"), "{t}");
-        assert!(t.contains("Saat ini All Menu menggunakan varian: *3*"), "{t}");
+        assert!(
+            t.contains("Saat ini All Menu menggunakan varian: *3*"),
+            "{t}"
+        );
         assert!(run("", serde_json::json!({})).mutations().is_empty());
     }
 
     #[test]
     fn a_falsy_stored_style_is_displayed_as_one() {
         // `db.setting(...) || 1` — `0` dan `null` jadi 1.
-        for s in [serde_json::json!({"allmenuAudioStyle": 0}), serde_json::json!({"allmenuAudioStyle": null})] {
+        for s in [
+            serde_json::json!({"allmenuAudioStyle": 0}),
+            serde_json::json!({"allmenuAudioStyle": null}),
+        ] {
             assert!(
                 body(&run("", s.clone())).contains("menggunakan varian: *1*"),
                 "{s}"
@@ -177,7 +183,11 @@ mod tests {
     fn a_style_out_of_range_is_rejected_without_writing() {
         for input in ["0", "5", "-1", "99"] {
             let r = run(input, serde_json::json!({}));
-            assert!(body(&r).starts_with("❌ *GAGAL*"), "input {input}: {}", body(&r));
+            assert!(
+                body(&r).starts_with("❌ *GAGAL*"),
+                "input {input}: {}",
+                body(&r)
+            );
             assert!(
                 body(&r).contains("harus berupa angka 1 sampai 4"),
                 "input {input}"
@@ -192,7 +202,11 @@ mod tests {
         // `"1-4"` bukan salah satunya, dia mulai dari `1`.
         for input in ["abc", "x2", "--3", "e4", "+"] {
             let r = run(input, serde_json::json!({}));
-            assert!(body(&r).starts_with("❌ *GAGAL*"), "input {input}: {}", body(&r));
+            assert!(
+                body(&r).starts_with("❌ *GAGAL*"),
+                "input {input}: {}",
+                body(&r)
+            );
             assert!(r.mutations().is_empty(), "input {input}");
         }
     }

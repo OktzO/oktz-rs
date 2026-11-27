@@ -63,11 +63,9 @@ pub fn banchat(ctx: Ctx) -> Reply {
     let banned_now = crate::common::js_truthy(ctx.group_field("isBanned"));
     let group = subject_or_unknown(&ctx);
     let sender_num = jid_number(&ctx.sender);
-    let write = |value: bool| {
-        Mutation::SetGroup {
-            jid: ctx.chat.clone(),
-            data: serde_json::json!({ "isBanned": value }),
-        }
+    let write = |value: bool| Mutation::SetGroup {
+        jid: ctx.chat.clone(),
+        data: serde_json::json!({ "isBanned": value }),
     };
 
     if is_unban(&ctx.command) {
@@ -95,7 +93,7 @@ pub fn banchat(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(command: &str, group: Value) -> Reply {
         let ctx = Ctx {
@@ -134,7 +132,10 @@ mod tests {
     }
 
     fn quoted(r: &Reply) -> bool {
-        matches!(r.without_mutations().tanpa_reaksi(), Reply::TextQuoted { .. })
+        matches!(
+            r.without_mutations().tanpa_reaksi(),
+            Reply::TextQuoted { .. }
+        )
     }
 
     #[test]
@@ -154,7 +155,10 @@ mod tests {
         assert_eq!(p.meta.example, ".banchat");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
-        assert!(p.meta.is_owner, "isOwner: true — satu-satunya plugin group ini");
+        assert!(
+            p.meta.is_owner,
+            "isOwner: true — satu-satunya plugin group ini"
+        );
         assert!(p.meta.is_group && !p.meta.is_private);
         assert!(!p.meta.is_admin, "isAdmin tidak ada di JS");
         assert!(!p.meta.is_bot_admin && !p.meta.is_premium);
@@ -200,8 +204,16 @@ mod tests {
 
     #[test]
     fn a_group_that_is_already_banned_is_left_alone() {
-        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
-            let r = run("bangroup", serde_json::json!({ "isBanned": truthy.clone() }));
+        for truthy in [
+            serde_json::json!(true),
+            serde_json::json!(1),
+            serde_json::json!("ya"),
+            serde_json::json!({}),
+        ] {
+            let r = run(
+                "bangroup",
+                serde_json::json!({ "isBanned": truthy.clone() }),
+            );
             assert_eq!(body(&r), already_banned(), "isBanned={truthy}");
             assert!(r.mutations().is_empty(), "isBanned={truthy}");
         }
@@ -209,7 +221,10 @@ mod tests {
 
     #[test]
     fn unbanning_a_banned_group_writes_false_and_quotes_the_command() {
-        let r = run("unbanchat", serde_json::json!({ "name": "Grup Diskusi", "isBanned": true }));
+        let r = run(
+            "unbanchat",
+            serde_json::json!({ "name": "Grup Diskusi", "isBanned": true }),
+        );
         let text = body(&r);
         assert_eq!(text, unbanned("Grup Diskusi", "628111"));
         for part in [

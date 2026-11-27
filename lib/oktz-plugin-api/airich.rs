@@ -1,6 +1,6 @@
 // Port `extractIE` — builder.js:40-212.
-use serde_json::{Map, Value, json};
 use crate::rich::{AiSubMessage, RichAi};
+use serde_json::{Map, Value, json};
 
 /// Flag jenis inline entity yang diekstrak (default semua aktif).
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +13,12 @@ pub struct Flag {
 
 impl Default for Flag {
     fn default() -> Self {
-        Self { extract: true, hyperlink: true, citation: true, latex: true }
+        Self {
+            extract: true,
+            hyperlink: true,
+            citation: true,
+            latex: true,
+        }
     }
 }
 
@@ -28,19 +33,28 @@ fn angka_js(v: f64) -> Value {
     if v.fract() == 0.0 && v.abs() <= 9_007_199_254_740_992.0 {
         Value::from(v as i64)
     } else {
-        serde_json::Number::from_f64(v).map(Value::Number).unwrap_or(Value::Null)
+        serde_json::Number::from_f64(v)
+            .map(Value::Number)
+            .unwrap_or(Value::Null)
     }
 }
 
 /// `Number(x) || default` JS (builder.js:83-87).
 fn angka(s: &str, def: f64) -> f64 {
-    s.trim().parse::<f64>().ok().filter(|v| *v != 0.0 && v.is_finite()).unwrap_or(def)
+    s.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|v| *v != 0.0 && v.is_finite())
+        .unwrap_or(def)
 }
 
 pub fn extract_ie(teks: &str, flag: &Flag) -> HasilEkstrak {
     if !flag.extract {
         // builder.js:41-47 — teks apa adanya.
-        return HasilEkstrak { teks: teks.to_string(), entities: Vec::new() };
+        return HasilEkstrak {
+            teks: teks.to_string(),
+            entities: Vec::new(),
+        };
     }
 
     let chars: Vec<char> = teks.chars().collect();
@@ -59,7 +73,10 @@ pub fn extract_ie(teks: &str, flag: &Flag) -> HasilEkstrak {
             stack.push(i);
         } else if chars[i] == ']' && i + 1 < n && (chars[i + 1] == '(' || chars[i + 1] == '<') {
             // builder.js:107-109
-            let Some(start) = stack.pop() else { i += 1; continue };
+            let Some(start) = stack.pop() else {
+                i += 1;
+                continue;
+            };
 
             let open = chars[i + 1];
             let close = if open == '(' { ')' } else { '>' };
@@ -170,7 +187,10 @@ pub fn extract_ie(teks: &str, flag: &Flag) -> HasilEkstrak {
     }
 
     teks_hasil.push_str(&potong(&chars, last, chars.len()));
-    HasilEkstrak { teks: teks_hasil, entities }
+    HasilEkstrak {
+        teks: teks_hasil,
+        entities,
+    }
 }
 
 fn potong(chars: &[char], a: usize, b: usize) -> String {
@@ -213,39 +233,194 @@ pub struct KodeToken {
 fn kata_kunci(lang_lower: &str) -> &'static [&'static str] {
     match lang_lower {
         "javascript" => &[
-            "break", "case", "catch", "continue", "debugger", "delete", "do", "else", "finally",
-            "for", "function", "if", "in", "instanceof", "new", "return", "switch", "this",
-            "throw", "try", "typeof", "var", "void", "while", "with", "true", "false", "null",
-            "undefined", "class", "const", "let", "super", "extends", "export", "import", "yield",
-            "static", "constructor", "async", "await", "get", "set",
+            "break",
+            "case",
+            "catch",
+            "continue",
+            "debugger",
+            "delete",
+            "do",
+            "else",
+            "finally",
+            "for",
+            "function",
+            "if",
+            "in",
+            "instanceof",
+            "new",
+            "return",
+            "switch",
+            "this",
+            "throw",
+            "try",
+            "typeof",
+            "var",
+            "void",
+            "while",
+            "with",
+            "true",
+            "false",
+            "null",
+            "undefined",
+            "class",
+            "const",
+            "let",
+            "super",
+            "extends",
+            "export",
+            "import",
+            "yield",
+            "static",
+            "constructor",
+            "async",
+            "await",
+            "get",
+            "set",
         ],
         "typescript" => &[
-            "abstract", "any", "as", "asserts", "bigint", "boolean", "declare", "enum",
-            "implements", "infer", "interface", "is", "keyof", "module", "namespace", "never",
-            "readonly", "require", "number", "object", "override", "private", "protected",
-            "public", "satisfies", "string", "symbol", "type", "unknown", "using", "from",
-            "break", "case", "catch", "continue", "do", "else", "finally", "for", "function",
-            "if", "new", "return", "switch", "this", "throw", "try", "var", "void", "while",
-            "class", "const", "let", "extends", "import", "export", "async", "await",
+            "abstract",
+            "any",
+            "as",
+            "asserts",
+            "bigint",
+            "boolean",
+            "declare",
+            "enum",
+            "implements",
+            "infer",
+            "interface",
+            "is",
+            "keyof",
+            "module",
+            "namespace",
+            "never",
+            "readonly",
+            "require",
+            "number",
+            "object",
+            "override",
+            "private",
+            "protected",
+            "public",
+            "satisfies",
+            "string",
+            "symbol",
+            "type",
+            "unknown",
+            "using",
+            "from",
+            "break",
+            "case",
+            "catch",
+            "continue",
+            "do",
+            "else",
+            "finally",
+            "for",
+            "function",
+            "if",
+            "new",
+            "return",
+            "switch",
+            "this",
+            "throw",
+            "try",
+            "var",
+            "void",
+            "while",
+            "class",
+            "const",
+            "let",
+            "extends",
+            "import",
+            "export",
+            "async",
+            "await",
         ],
         "python" => &[
             "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class",
-            "continue", "def", "del", "elif", "else", "except", "finally", "for", "from",
-            "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass",
-            "raise", "return", "try", "while", "with", "yield",
+            "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global",
+            "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise",
+            "return", "try", "while", "with", "yield",
         ],
         "java" => &[
-            "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class",
-            "const", "continue", "default", "do", "double", "else", "enum", "extends", "final",
-            "finally", "float", "for", "goto", "if", "implements", "import", "instanceof", "int",
-            "interface", "long", "native", "new", "package", "private", "protected", "public",
-            "return", "short", "static", "strictfp", "super", "switch", "synchronized", "this",
-            "throw", "throws", "transient", "try", "void", "volatile", "while",
+            "abstract",
+            "assert",
+            "boolean",
+            "break",
+            "byte",
+            "case",
+            "catch",
+            "char",
+            "class",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extends",
+            "final",
+            "finally",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "implements",
+            "import",
+            "instanceof",
+            "int",
+            "interface",
+            "long",
+            "native",
+            "new",
+            "package",
+            "private",
+            "protected",
+            "public",
+            "return",
+            "short",
+            "static",
+            "strictfp",
+            "super",
+            "switch",
+            "synchronized",
+            "this",
+            "throw",
+            "throws",
+            "transient",
+            "try",
+            "void",
+            "volatile",
+            "while",
         ],
         "golang" => &[
-            "break", "case", "chan", "const", "continue", "default", "defer", "else",
-            "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map",
-            "package", "range", "return", "select", "struct", "switch", "type", "var",
+            "break",
+            "case",
+            "chan",
+            "const",
+            "continue",
+            "default",
+            "defer",
+            "else",
+            "fallthrough",
+            "for",
+            "func",
+            "go",
+            "goto",
+            "if",
+            "import",
+            "interface",
+            "map",
+            "package",
+            "range",
+            "return",
+            "select",
+            "struct",
+            "switch",
+            "type",
+            "var",
         ],
         "c" => &[
             "auto", "break", "case", "char", "const", "continue", "default", "do", "double",
@@ -254,34 +429,136 @@ fn kata_kunci(lang_lower: &str) -> &'static [&'static str] {
             "union", "unsigned", "void", "volatile", "while",
         ],
         "cpp" => &[
-            "alignas", "alignof", "and", "auto", "bool", "break", "case", "catch", "class",
-            "const", "constexpr", "continue", "delete", "do", "double", "else", "enum",
-            "explicit", "export", "extern", "false", "float", "for", "friend", "if", "inline",
-            "int", "long", "mutable", "namespace", "new", "noexcept", "nullptr", "operator",
-            "private", "protected", "public", "return", "short", "signed", "sizeof", "static",
-            "struct", "switch", "template", "this", "throw", "true", "try", "typedef",
-            "typename", "union", "unsigned", "using", "virtual", "void", "while",
+            "alignas",
+            "alignof",
+            "and",
+            "auto",
+            "bool",
+            "break",
+            "case",
+            "catch",
+            "class",
+            "const",
+            "constexpr",
+            "continue",
+            "delete",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "explicit",
+            "export",
+            "extern",
+            "false",
+            "float",
+            "for",
+            "friend",
+            "if",
+            "inline",
+            "int",
+            "long",
+            "mutable",
+            "namespace",
+            "new",
+            "noexcept",
+            "nullptr",
+            "operator",
+            "private",
+            "protected",
+            "public",
+            "return",
+            "short",
+            "signed",
+            "sizeof",
+            "static",
+            "struct",
+            "switch",
+            "template",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "typedef",
+            "typename",
+            "union",
+            "unsigned",
+            "using",
+            "virtual",
+            "void",
+            "while",
         ],
         "php" => &[
-            "abstract", "and", "array", "as", "break", "callable", "case", "catch", "class",
-            "clone", "const", "continue", "declare", "default", "do", "echo", "else", "elseif",
-            "empty", "enddeclare", "endfor", "endforeach", "endif", "endswitch", "endwhile",
-            "extends", "final", "finally", "fn", "for", "foreach", "function", "global", "goto",
-            "if", "implements", "include", "include_once", "instanceof", "interface", "match",
-            "namespace", "new", "null", "or", "private", "protected", "public", "require",
-            "require_once", "return", "static", "switch", "throw", "trait", "try", "use", "var",
-            "while", "yield",
+            "abstract",
+            "and",
+            "array",
+            "as",
+            "break",
+            "callable",
+            "case",
+            "catch",
+            "class",
+            "clone",
+            "const",
+            "continue",
+            "declare",
+            "default",
+            "do",
+            "echo",
+            "else",
+            "elseif",
+            "empty",
+            "enddeclare",
+            "endfor",
+            "endforeach",
+            "endif",
+            "endswitch",
+            "endwhile",
+            "extends",
+            "final",
+            "finally",
+            "fn",
+            "for",
+            "foreach",
+            "function",
+            "global",
+            "goto",
+            "if",
+            "implements",
+            "include",
+            "include_once",
+            "instanceof",
+            "interface",
+            "match",
+            "namespace",
+            "new",
+            "null",
+            "or",
+            "private",
+            "protected",
+            "public",
+            "require",
+            "require_once",
+            "return",
+            "static",
+            "switch",
+            "throw",
+            "trait",
+            "try",
+            "use",
+            "var",
+            "while",
+            "yield",
         ],
         "rust" => &[
-            "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false",
-            "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut",
-            "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait",
-            "true", "type", "unsafe", "use", "where", "while",
+            "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn",
+            "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
+            "return", "self", "Self", "static", "struct", "super", "trait", "true", "type",
+            "unsafe", "use", "where", "while",
         ],
         "html" => &[
             "html", "head", "body", "div", "span", "p", "a", "img", "video", "audio", "script",
-            "style", "link", "meta", "form", "input", "button", "table", "tr", "td", "th",
-            "ul", "ol", "li", "section", "article", "header", "footer", "nav", "main",
+            "style", "link", "meta", "form", "input", "button", "table", "tr", "td", "th", "ul",
+            "ol", "li", "section", "article", "header", "footer", "nav", "main",
         ],
         "bash" => &[
             "if", "then", "else", "elif", "fi", "for", "while", "do", "done", "case", "esac",
@@ -297,8 +574,14 @@ fn kata_kunci(lang_lower: &str) -> &'static [&'static str] {
 fn spasi_js(c: char) -> bool {
     matches!(
         c,
-        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}'
-            | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
+        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200a}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
     )
 }
 
@@ -308,14 +591,20 @@ fn dorong(tokens: &mut Vec<KodeToken>, isi: &str, jenis: Highlight) {
     }
     match tokens.last_mut() {
         Some(t) if t.jenis == jenis => t.isi.push_str(isi),
-        _ => tokens.push(KodeToken { isi: isi.to_string(), jenis }),
+        _ => tokens.push(KodeToken {
+            isi: isi.to_string(),
+            jenis,
+        }),
     }
 }
 
 pub fn tokenize_kode(kode: &str, bahasa: &str) -> Vec<KodeToken> {
     // builder.js:2025-2040 — perbandingan `lang` MENTAH (peka huruf besar).
     if bahasa.is_empty() || bahasa == "txt" || bahasa == "text" || bahasa == "plaintext" {
-        return vec![KodeToken { isi: kode.into(), jenis: Highlight::Default }];
+        return vec![KodeToken {
+            isi: kode.into(),
+            jenis: Highlight::Default,
+        }];
     }
 
     // builder.js:2051 — lookup keyword pakai lowercase.
@@ -447,7 +736,6 @@ pub fn tokenize_kode(kode: &str, bahasa: &str) -> Vec<KodeToken> {
     tokens
 }
 
-
 // builder.js:2253-2261 — newLayout('Single', primitive).
 fn new_layout(primitive: Value) -> Value {
     json!({
@@ -462,13 +750,18 @@ impl RichAi {
     // builder.js:1037-1064
     pub fn teks(&mut self, teks: &str) -> &mut Self {
         let h = extract_ie(teks, &Flag::default());
-        self.submessages.push(AiSubMessage::Teks { teks: h.teks.clone() });
+        self.submessages.push(AiSubMessage::Teks {
+            teks: h.teks.clone(),
+        });
         let mut prim: Map<String, Value> = Map::new();
         prim.insert("text".into(), Value::String(h.teks));
         if !h.entities.is_empty() {
             prim.insert("inline_entities".into(), Value::Array(h.entities));
         }
-        prim.insert("__typename".into(), Value::String("GenAIMarkdownTextUXPrimitive".into()));
+        prim.insert(
+            "__typename".into(),
+            Value::String("GenAIMarkdownTextUXPrimitive".into()),
+        );
         self.sections.push(new_layout(Value::Object(prim)));
         self
     }
@@ -476,14 +769,21 @@ impl RichAi {
     // builder.js:1066-1090
     pub fn kode(&mut self, bahasa: &str, kode: &str) -> &mut Self {
         let blok = tokenize_kode(kode, bahasa);
-        self.submessages.push(AiSubMessage::Kode { bahasa: bahasa.into(), blok: blok.clone() });
-        let code_blocks: Vec<Value> = blok.iter().map(|t| {
-            json!({"content": t.isi, "type": t.jenis.nama()})
-        }).collect();
+        self.submessages.push(AiSubMessage::Kode {
+            bahasa: bahasa.into(),
+            blok: blok.clone(),
+        });
+        let code_blocks: Vec<Value> = blok
+            .iter()
+            .map(|t| json!({"content": t.isi, "type": t.jenis.nama()}))
+            .collect();
         let mut prim: Map<String, Value> = Map::new();
         prim.insert("language".into(), Value::String(bahasa.into()));
         prim.insert("code_blocks".into(), Value::Array(code_blocks));
-        prim.insert("__typename".into(), Value::String("GenAICodeUXPrimitive".into()));
+        prim.insert(
+            "__typename".into(),
+            Value::String("GenAICodeUXPrimitive".into()),
+        );
         self.sections.push(new_layout(Value::Object(prim)));
         self
     }
@@ -519,21 +819,28 @@ impl RichAi {
         // bangun unified_rows — is_header → cells → markdown_cells (bila ada entity)
         let mut unified_rows: Vec<Value> = Vec::new();
         let buat_row = |is_header: bool, cells: &Vec<String>| -> Value {
-            let markdown_cells: Vec<Value> = cells.iter().map(|sel| {
-                let h = extract_ie(sel, &Flag::default());
-                let mut m: Map<String, Value> = Map::new();
-                m.insert("text".into(), Value::String(h.teks));
-                if !h.entities.is_empty() {
-                    m.insert("inline_entities".into(), Value::Array(h.entities));
-                }
-                Value::Object(m)
-            }).collect();
+            let markdown_cells: Vec<Value> = cells
+                .iter()
+                .map(|sel| {
+                    let h = extract_ie(sel, &Flag::default());
+                    let mut m: Map<String, Value> = Map::new();
+                    m.insert("text".into(), Value::String(h.teks));
+                    if !h.entities.is_empty() {
+                        m.insert("inline_entities".into(), Value::Array(h.entities));
+                    }
+                    Value::Object(m)
+                })
+                .collect();
             let ada_entity = markdown_cells.iter().any(|c| {
-                c.get("inline_entities").is_some_and(|v| !v.as_array().unwrap().is_empty())
+                c.get("inline_entities")
+                    .is_some_and(|v| !v.as_array().unwrap().is_empty())
             });
             let mut row: Map<String, Value> = Map::new();
             row.insert("is_header".into(), Value::Bool(is_header));
-            row.insert("cells".into(), Value::Array(cells.iter().map(|s| Value::String(s.clone())).collect()));
+            row.insert(
+                "cells".into(),
+                Value::Array(cells.iter().map(|s| Value::String(s.clone())).collect()),
+            );
             if ada_entity {
                 row.insert("markdown_cells".into(), Value::Array(markdown_cells));
             }
@@ -546,7 +853,10 @@ impl RichAi {
 
         let mut prim: Map<String, Value> = Map::new();
         prim.insert("rows".into(), Value::Array(unified_rows));
-        prim.insert("__typename".into(), Value::String("GenATableUXPrimitive".into()));
+        prim.insert(
+            "__typename".into(),
+            Value::String("GenATableUXPrimitive".into()),
+        );
         self.sections.push(new_layout(Value::Object(prim)));
         self
     }
@@ -613,7 +923,11 @@ mod tests {
         cek(
             ".a { color: red; }",
             "css",
-            &[(".a { ", Highlight::Default), ("color", Highlight::Keyword), (": red; }", Highlight::Default)],
+            &[
+                (".a { ", Highlight::Default),
+                ("color", Highlight::Keyword),
+                (": red; }", Highlight::Default),
+            ],
         );
         cek(
             "<div class=\"x\">hi</div>",
@@ -630,11 +944,40 @@ mod tests {
         );
         cek("halo", "text", &[("halo", Highlight::Default)]);
         cek("", "text", &[("", Highlight::Default)]);
-        cek("let x = \"1\"", "zzz", &[("let x = ", Highlight::Default), ("\"1\"", Highlight::Str)]);
-        cek("a() color: x", "js", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
-        cek("a() color: x", "Text", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
-        cek("a() color: x", "text", &[("a() color: x", Highlight::Default)]);
-        cek("a() color: x", "CSS", &[("a", Highlight::Method), ("() color: x", Highlight::Default)]);
+        cek(
+            "let x = \"1\"",
+            "zzz",
+            &[("let x = ", Highlight::Default), ("\"1\"", Highlight::Str)],
+        );
+        cek(
+            "a() color: x",
+            "js",
+            &[
+                ("a", Highlight::Method),
+                ("() color: x", Highlight::Default),
+            ],
+        );
+        cek(
+            "a() color: x",
+            "Text",
+            &[
+                ("a", Highlight::Method),
+                ("() color: x", Highlight::Default),
+            ],
+        );
+        cek(
+            "a() color: x",
+            "text",
+            &[("a() color: x", Highlight::Default)],
+        );
+        cek(
+            "a() color: x",
+            "CSS",
+            &[
+                ("a", Highlight::Method),
+                ("() color: x", Highlight::Default),
+            ],
+        );
         cek(
             "a() color: x",
             "css",
@@ -648,14 +991,10 @@ mod tests {
         cek("a  b", "javascript", &[("a  b", Highlight::Default)]);
     }
 
-
     fn cek(input: &str, flag: Flag, teks: &str, entities: &str) {
         let h = extract_ie(input, &flag);
         assert_eq!(h.teks, teks);
-        assert_eq!(
-            serde_json::to_string(&h.entities).unwrap(),
-            entities
-        );
+        assert_eq!(serde_json::to_string(&h.entities).unwrap(), entities);
     }
 
     #[test]
@@ -732,25 +1071,37 @@ mod tests {
     fn flag_mematikan_jenis() {
         cek(
             "[Vue](https://vuejs.org) sisa",
-            Flag { hyperlink: false, ..Flag::default() },
+            Flag {
+                hyperlink: false,
+                ..Flag::default()
+            },
             "[Vue](https://vuejs.org) sisa",
             "[]",
         );
         cek(
             "[x|10]<https://l>",
-            Flag { latex: false, ..Flag::default() },
+            Flag {
+                latex: false,
+                ..Flag::default()
+            },
             "[x|10]<https://l>",
             "[]",
         );
         cek(
             "[](https://a.b)",
-            Flag { citation: false, ..Flag::default() },
+            Flag {
+                citation: false,
+                ..Flag::default()
+            },
             "[](https://a.b)",
             "[]",
         );
         cek(
             "[a](https://x)",
-            Flag { extract: false, ..Flag::default() },
+            Flag {
+                extract: false,
+                ..Flag::default()
+            },
             "[a](https://x)",
             "[]",
         );
@@ -800,13 +1151,20 @@ mod tests {
 
     // --- builder RichAi ---
 
-    fn sj(v: &Value) -> String { serde_json::to_string(v).unwrap() }
+    fn sj(v: &Value) -> String {
+        serde_json::to_string(v).unwrap()
+    }
 
     #[test]
     fn builder_teks_polos() {
         let mut r = RichAi::default();
         r.teks("Halo dunia");
-        assert_eq!(r.submessages, vec![AiSubMessage::Teks { teks: "Halo dunia".into() }]);
+        assert_eq!(
+            r.submessages,
+            vec![AiSubMessage::Teks {
+                teks: "Halo dunia".into()
+            }]
+        );
         let want = r#"{"view_model":{"primitive":{"text":"Halo dunia","__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
         assert_eq!(sj(&r.sections[0]), want);
     }
@@ -817,16 +1175,23 @@ mod tests {
         r.teks("[Vue](https://vuejs.org) bagus");
         let want = r#"{"view_model":{"primitive":{"text":"{{NIXEL_HYPERLINK_0}}https://vuejs.org{{/NIXEL_HYPERLINK_0}} bagus","inline_entities":[{"key":"NIXEL_HYPERLINK_0","metadata":{"display_name":"Vue","is_trusted":true,"url":"https://vuejs.org","__typename":"GenAIInlineLinkItem"}}],"__typename":"GenAIMarkdownTextUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
         assert_eq!(sj(&r.sections[0]), want);
-        assert!(matches!(&r.submessages[0], AiSubMessage::Teks { teks } if teks.contains("NIXEL_HYPERLINK_0")));
+        assert!(
+            matches!(&r.submessages[0], AiSubMessage::Teks { teks } if teks.contains("NIXEL_HYPERLINK_0"))
+        );
     }
 
     #[test]
     fn builder_kode() {
         let mut r = RichAi::default();
         r.kode("js", "const app = createApp({});");
-        let AiSubMessage::Kode { bahasa, blok } = &r.submessages[0] else { panic!() };
+        let AiSubMessage::Kode { bahasa, blok } = &r.submessages[0] else {
+            panic!()
+        };
         assert_eq!(bahasa, "js");
-        assert!(blok.iter().any(|t| t.isi == "createApp" && t.jenis == Highlight::Method));
+        assert!(
+            blok.iter()
+                .any(|t| t.isi == "createApp" && t.jenis == Highlight::Method)
+        );
         let want = r#"{"view_model":{"primitive":{"language":"js","code_blocks":[{"content":"const app = ","type":"DEFAULT"},{"content":"createApp","type":"METHOD"},{"content":"({});","type":"DEFAULT"}],"__typename":"GenAICodeUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
         assert_eq!(sj(&r.sections[0]), want);
     }
@@ -834,15 +1199,15 @@ mod tests {
     #[test]
     fn builder_tabel_padding() {
         let mut r = RichAi::default();
-        r.tabel(vec![
-            vec!["A".into(), "B".into()],
-            vec!["1".into()],
-        ]);
-        assert_eq!(r.submessages, vec![AiSubMessage::Tabel {
-            judul: "".into(),
-            baris: vec![vec!["A".into(), "B".into()], vec!["1".into(), "".into()]],
-            heading: true,
-        }]);
+        r.tabel(vec![vec!["A".into(), "B".into()], vec!["1".into()]]);
+        assert_eq!(
+            r.submessages,
+            vec![AiSubMessage::Tabel {
+                judul: "".into(),
+                baris: vec![vec!["A".into(), "B".into()], vec!["1".into(), "".into()]],
+                heading: true,
+            }]
+        );
         let want = r#"{"view_model":{"primitive":{"rows":[{"is_header":true,"cells":["A","B"]},{"is_header":false,"cells":["1",""]}],"__typename":"GenATableUXPrimitive"},"__typename":"GenAISingleLayoutViewModel"}}"#;
         assert_eq!(sj(&r.sections[0]), want);
     }

@@ -32,7 +32,7 @@ const MISSING_PAYLOAD: &str = "Cannot read properties of undefined (reading 'Sha
 /// sebagai `undefined`, bukan sebagai string kosong.
 pub(crate) fn js_str(v: Option<&Value>) -> String {
     match v {
-        None | Some(Value::Null) => String::from("undefined"),
+        None | Some(Value::Null) => String::from("-"),
         Some(Value::String(s)) => s.clone(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => n.to_string(),
@@ -74,8 +74,7 @@ fn gagal(pesan: &str) -> Reply {
     } else {
         pesan
     };
-    Reply::text(format!("❌ *Gagal mengambil data gempa*\n\n> {pesan}"))
-        .with_reaction("☢")
+    Reply::text(format!("❌ *Gagal mengambil data gempa*\n\n> {pesan}")).with_reaction("☢")
 }
 
 #[plugin(
@@ -101,7 +100,11 @@ pub fn gempa(ctx: Ctx) -> Reply {
         Err(e) => return gagal(&e.message),
     };
     let payload = response.json();
-    let Some(g) = payload.as_ref().and_then(|v| v.pointer("/Infogempa/gempa")).cloned() else {
+    let Some(g) = payload
+        .as_ref()
+        .and_then(|v| v.pointer("/Infogempa/gempa"))
+        .cloned()
+    else {
         return gagal(MISSING_PAYLOAD);
     };
 
@@ -123,7 +126,7 @@ pub fn gempa(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpResponse, HttpGet};
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
     use std::sync::Arc;
 
     #[derive(Debug)]
@@ -199,7 +202,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().expect("harus ada teks").to_string()
+        r.without_mutations()
+            .text_body()
+            .expect("harus ada teks")
+            .to_string()
     }
 
     #[test]
@@ -267,7 +273,10 @@ mod tests {
         let r = run(Stub::with(
             r#"{"Infogempa":{"gempa":{"Tanggal":"X","Shakemap":""}}}"#,
         ));
-        assert!(!r.has_media(), "string kosong itu falsy -> tidak ada gambar");
+        assert!(
+            !r.has_media(),
+            "string kosong itu falsy -> tidak ada gambar"
+        );
         assert!(teks(&r).ends_with("_Sumber: BMKG Indonesia_"));
     }
 
@@ -279,11 +288,11 @@ mod tests {
     }
 
     #[test]
-    fn missing_fields_interpolate_as_undefined_not_as_empty_text() {
+    fn missing_fields_render_as_dash_not_empty_text() {
         let r = run(Stub::with(r#"{"Infogempa":{"gempa":{}}}"#));
         let t = teks(&r);
-        assert!(t.contains("> 📅 Tanggal: *undefined*\n"), "{t}");
-        assert!(t.contains("> 🏠 Dirasakan: *undefined*\n"), "{t}");
+        assert!(t.contains("> 📅 Tanggal: *-*\n"), "{t}");
+        assert!(t.contains("> 🏠 Dirasakan: *-*\n"), "{t}");
         assert!(!r.has_media());
     }
 
@@ -327,9 +336,12 @@ mod tests {
 
     #[test]
     fn js_str_mirrors_string_coercion_for_the_shapes_bmkg_can_send() {
-        assert_eq!(js_str(None), "undefined");
-        assert_eq!(js_str(Some(&Value::Null)), "undefined");
-        assert_eq!(js_str(Some(&serde_json::json!("-7.42, 110.12"))), "-7.42, 110.12");
+        assert_eq!(js_str(None), "-");
+        assert_eq!(js_str(Some(&Value::Null)), "-");
+        assert_eq!(
+            js_str(Some(&serde_json::json!("-7.42, 110.12"))),
+            "-7.42, 110.12"
+        );
         assert_eq!(js_str(Some(&serde_json::json!(4))), "4");
         assert_eq!(js_str(Some(&serde_json::json!(true))), "true");
         assert_eq!(js_str(Some(&serde_json::json!([1, "a", null]))), "1,a,");
@@ -341,7 +353,10 @@ mod tests {
         // Tidak ada `slice`; BMKG yang memotong.
         let panjang = "x".repeat(500);
         let body = format!(r#"{{"Infogempa":{{"gempa":{{"Wilayah":"{panjang}"}}}}}}"#);
-        assert!(body.starts_with(r#"{"Infogempa":{"gempa":{"Wilayah":""#), "{body}");
+        assert!(
+            body.starts_with(r#"{"Infogempa":{"gempa":{"Wilayah":""#),
+            "{body}"
+        );
         let t = teks(&run(Stub::with(&body)));
         assert!(t.contains(&format!("> 🗺️ Wilayah: *{panjang}*\n")), "{t}");
     }

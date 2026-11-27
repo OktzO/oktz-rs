@@ -45,8 +45,7 @@ fn api_url(number: &str) -> String {
 }
 
 /// `❌ Nomor yang kamu masukkan tidak valid...`.
-const INVALID: &str =
-    "❌ Nomor yang kamu masukkan tidak valid, pastikan nomor tersebut merupakan nomor XL atau Axis yang benar ya";
+const INVALID: &str = "❌ Nomor yang kamu masukkan tidak valid, pastikan nomor tersebut merupakan nomor XL atau Axis yang benar ya";
 
 /// `❌ Tidak bisa mengecek nomor *{cleanNum}*, pastikan... XL atau Axis yang aktif`.
 fn not_found(clean_num: &str) -> String {
@@ -72,7 +71,11 @@ fn not_found(clean_num: &str) -> String {
     is_bot_admin = false
 )]
 pub fn cekxl(ctx: Ctx) -> Reply {
-    let input = ctx.args.first().cloned().unwrap_or_else(|| ctx.text.trim().to_string());
+    let input = ctx
+        .args
+        .first()
+        .cloned()
+        .unwrap_or_else(|| ctx.text.trim().to_string());
     if input.trim().is_empty() {
         return Reply::text(help(&ctx.prefix));
     }
@@ -82,9 +85,10 @@ pub fn cekxl(ctx: Ctx) -> Reply {
         return Reply::text(INVALID);
     }
 
-    let Ok(res) = ctx.http.call(
-        &HttpCall::get(api_url(&clean_num)).header("Accept", "application/json"),
-    ) else {
+    let Ok(res) = ctx
+        .http
+        .call(&HttpCall::get(api_url(&clean_num)).header("Accept", "application/json"))
+    else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let data = res.json().unwrap_or(Value::Null);
@@ -177,8 +181,14 @@ pub fn cekxl(ctx: Ctx) -> Reply {
 
     if data.get("packages").is_none() && data.get("result").is_none() {
         let skip = [
-            "error", "status", "msisdn", "activeDate", "expireDate", "graceDate",
-            "balance", "pulsa",
+            "error",
+            "status",
+            "msisdn",
+            "activeDate",
+            "expireDate",
+            "graceDate",
+            "balance",
+            "pulsa",
         ];
         let extra: Vec<&str> = data
             .as_object()
@@ -355,11 +365,7 @@ mod tests {
             Value::Null,
         ] {
             let r = run(Stub::body(body.clone()), "083150850721");
-            assert_eq!(
-                text_of(&r),
-                not_found("6283150850721"),
-                "body {body:?}"
-            );
+            assert_eq!(text_of(&r), not_found("6283150850721"), "body {body:?}");
             assert_eq!(reaction_of(&r), Some("❌"), "body {body:?}");
         }
     }

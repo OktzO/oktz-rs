@@ -242,9 +242,8 @@ mod tests {
     fn dengan_api_key_gambar_dikirim_dengan_caption_prompt() {
         let mut cfg = oktz_plugin_api::config::Runtime::default();
         cfg.api_keys.firefly = "KEY-FIREFLY".into();
-        let http = Stub::ok(
-            r#"{"status":true,"data":{"data":{"output_url":"https://cdn/x.png"}}}"#,
-        );
+        let http =
+            Stub::ok(r#"{"status":true,"data":{"data":{"output_url":"https://cdn/x.png"}}}"#);
         let ctx = Ctx {
             text: "kucinglucu".into(),
             args: vec!["kucinglucu".into()],
@@ -286,7 +285,10 @@ mod tests {
             ..ctx_dasar()
         };
         let r = (oktz_plugin_api::find("text2img").unwrap().handler)(ctx);
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "text2img"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "text2img")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

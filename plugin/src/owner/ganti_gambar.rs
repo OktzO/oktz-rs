@@ -106,9 +106,10 @@ fn ambil_buffer(ctx: &Ctx) -> Option<Vec<u8>> {
 /// (`./assets/<folder>/<file>`).
 pub(crate) fn jalur_aset(ctx: &Ctx, a: &Aset) -> String {
     if let Some(p) = ctx.config().assets.get(a.key)
-        && !p.is_empty() {
-            return p.to_string();
-        }
+        && !p.is_empty()
+    {
+        return p.to_string();
+    }
     let folder = if a.nama_file.ends_with(".mp4") {
         "video"
     } else if a.nama_file.ends_with(".mp3") {

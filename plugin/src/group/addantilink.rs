@@ -63,10 +63,7 @@ pub fn addantilink(ctx: Ctx) -> Reply {
     }
 
     let existing = ctx.group_list("antilinkList");
-    if existing
-        .iter()
-        .any(|v| v.as_str() == Some(link.as_str()))
-    {
+    if existing.iter().any(|v| v.as_str() == Some(link.as_str())) {
         return Reply::text(already_exists(&link));
     }
 
@@ -137,7 +134,11 @@ mod tests {
 
     #[test]
     fn an_empty_link_shows_help_and_writes_nothing() {
-        for g in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"antilinkList": ["a.com"]})] {
+        for g in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"antilinkList": ["a.com"]}),
+        ] {
             let r = run(g.clone(), "");
             assert!(text_of(&r).starts_with("🔗 *ᴀᴅᴅ ᴀɴᴛɪʟɪɴᴋ*"), "input {g}");
             assert!(r.mutations().is_empty());
@@ -163,7 +164,10 @@ mod tests {
 
     #[test]
     fn an_existing_link_is_refused_and_nothing_is_written() {
-        let r = run(serde_json::json!({"antilinkList": ["tiktok.com"]}), "tiktok.com");
+        let r = run(
+            serde_json::json!({"antilinkList": ["tiktok.com"]}),
+            "tiktok.com",
+        );
         assert_eq!(text_of(&r), already_exists("tiktok.com"));
         assert!(r.mutations().is_empty(), "duplikat tidak boleh ditulis");
     }
@@ -172,7 +176,10 @@ mod tests {
     fn the_link_is_lowercased_before_the_duplicate_check() {
         // `m.text?.toLowerCase()` terjadi SEBELUM `includes`, jadi "TikTok.com"
         // dianggap duplikat dari "tiktok.com".
-        let r = run(serde_json::json!({"antilinkList": ["tiktok.com"]}), "TikTok.com");
+        let r = run(
+            serde_json::json!({"antilinkList": ["tiktok.com"]}),
+            "TikTok.com",
+        );
         assert!(text_of(&r).starts_with("⚠️ Link"));
         assert!(r.mutations().is_empty());
 
@@ -199,7 +206,11 @@ mod tests {
         let r2 = run(serde_json::json!({"antilinkList": [1, null]}), "x.com");
         let list = list_write(&r2);
         assert_eq!(list.len(), 3);
-        assert_eq!(list[0], serde_json::json!(1), "entri non-string harus ikut tersimpan");
+        assert_eq!(
+            list[0],
+            serde_json::json!(1),
+            "entri non-string harus ikut tersimpan"
+        );
         assert_eq!(list[1], serde_json::json!(null));
     }
 

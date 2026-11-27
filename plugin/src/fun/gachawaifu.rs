@@ -1894,7 +1894,7 @@ fn balas(
 /// untuk field hilang — bukan string kosong.
 pub(crate) fn js_str(v: Option<&Value>) -> String {
     match v {
-        None | Some(Value::Null) => "undefined".to_string(),
+        None | Some(Value::Null) => "-".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => fmt_num(n.as_f64().unwrap_or(f64::NAN)),

@@ -6,7 +6,14 @@ use serde_json::{Map, Value};
 use crate::rpg::jualan::{inventory_map, roll_incl, rpg_map};
 
 /// `(kunci, nama, attack, defense, luck, evolusi)`; `None` = bentuk sempurna.
-pub(crate) type PetType = (&'static str, &'static str, i64, i64, i64, Option<&'static str>);
+pub(crate) type PetType = (
+    &'static str,
+    &'static str,
+    i64,
+    i64,
+    i64,
+    Option<&'static str>,
+);
 
 /// `PET_TYPES`.
 pub(crate) const PET_TYPES: [PetType; 10] = [
@@ -168,7 +175,10 @@ pub fn pet(ctx: Ctx) -> Reply {
             } else {
                 inv.insert(key.clone(), serde_json::json!(left));
             }
-            pet.insert("hunger".into(), serde_json::json!((num(&pet, "hunger") + hunger).min(100)));
+            pet.insert(
+                "hunger".into(),
+                serde_json::json!((num(&pet, "hunger") + hunger).min(100)),
+            );
             pet.insert("exp".into(), serde_json::json!(num(&pet, "exp") + food_exp));
             let msg = level_up(&mut pet, base, "WOHOO!");
             let full = num(&pet, "hunger");
@@ -191,7 +201,10 @@ pub fn pet(ctx: Ctx) -> Reply {
                     "Tega bener nyuruh latihan pas lagi kelaparan! 😭\nSi {name} perutnya keroncongan tuh, kasih makan dulu!"
                 ));
             }
-            pet.insert("hunger".into(), serde_json::json!((num(&pet, "hunger") - 15).max(0)));
+            pet.insert(
+                "hunger".into(),
+                serde_json::json!((num(&pet, "hunger") - 15).max(0)),
+            );
             let gained = roll_incl(20, 39);
             pet.insert("exp".into(), serde_json::json!(num(&pet, "exp") + gained));
             let msg = level_up(&mut pet, base, "MANTAP!");
@@ -302,7 +315,10 @@ pub fn pet(ctx: Ctx) -> Reply {
         ctx.prefix,
     );
     if evolve.is_some() {
-        txt += &format!("👉 `{}pet evolve` - Berevolusi (Bila cukup syarat)\n", ctx.prefix);
+        txt += &format!(
+            "👉 `{}pet evolve` - Berevolusi (Bila cukup syarat)\n",
+            ctx.prefix
+        );
     }
     Reply::text(txt)
 }
@@ -383,11 +399,21 @@ mod tests {
 
     #[test]
     fn without_a_pet_the_plugin_points_at_the_three_ways_to_get_one() {
-        for user in [serde_json::json!({}), serde_json::json!({"rpg": {}}), serde_json::json!({"rpg": {"pet": null}})] {
+        for user in [
+            serde_json::json!({}),
+            serde_json::json!({"rpg": {}}),
+            serde_json::json!({"rpg": {"pet": null}}),
+        ] {
             let r = run(&["status"], user.clone());
             let t = text_of(&r);
-            assert!(t.starts_with("Kamu belum punya hewan peliharaan kak!"), "{user}: {t}");
-            assert!(t.contains("`.petshop`") && t.contains("`.breeding`"), "{user}: {t}");
+            assert!(
+                t.starts_with("Kamu belum punya hewan peliharaan kak!"),
+                "{user}: {t}"
+            );
+            assert!(
+                t.contains("`.petshop`") && t.contains("`.breeding`"),
+                "{user}: {t}"
+            );
             assert!(r.mutations().is_empty(), "{user}");
         }
     }
@@ -399,7 +425,10 @@ mod tests {
         assert!(t.starts_with("🐾 *Buku Identitas Peliharaan*"), "{t}");
         assert!(t.contains("• Spesies: *🐱 Kucing*"), "{t}");
         assert!(t.contains("• Level: *1*\n• EXP: *0 / 100*"), "{t}");
-        assert!(t.contains("⚔️ Attack: *5*\n🛡️ Defense: *3*\n🍀 Luck: *5*"), "{t}");
+        assert!(
+            t.contains("⚔️ Attack: *5*\n🛡️ Defense: *3*\n🍀 Luck: *5*"),
+            "{t}"
+        );
         assert!(t.contains("• Perut: *50/100* (😐 Biasa Aja)"), "{t}");
         assert!(t.contains("`.pet evolve`"), "kucing bisa evolusi: {t}");
         assert!(r.mutations().is_empty());
@@ -428,10 +457,16 @@ mod tests {
     fn feeding_without_a_food_name_lists_the_larder() {
         let r = run(&["feed"], with_pet(serde_json::json!({})));
         let t = text_of(&r);
-        assert!(t.starts_with("Si Kucing lagi ngeliatin kamu sambil jilat bibir..."), "{t}");
+        assert!(
+            t.starts_with("Si Kucing lagi ngeliatin kamu sambil jilat bibir..."),
+            "{t}"
+        );
         for (key, name, hunger, exp) in FOODS {
             assert!(t.contains(&format!("*{name}* (Punya: 0x)")), "{key}: {t}");
-            assert!(t.contains(&format!("🍖 Kenyang: +{hunger} | ✨ EXP: +{exp}")), "{key}: {t}");
+            assert!(
+                t.contains(&format!("🍖 Kenyang: +{hunger} | ✨ EXP: +{exp}")),
+                "{key}: {t}"
+            );
             assert!(t.contains(&format!("`.pet feed {key}`")), "{key}: {t}");
         }
         assert!(r.mutations().is_empty());
@@ -443,13 +478,21 @@ mod tests {
             &["feed", "meat"],
             serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing", "level": 1, "exp": 0, "hunger": 50}}, "inventory": {}}),
         );
-        assert!(text_of(&r).contains("Kamu nggak punya *🍖 Daging* di tasmu!"), "{:?}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Kamu nggak punya *🍖 Daging* di tasmu!"),
+            "{:?}",
+            text_of(&r)
+        );
 
         let r = run(
             &["feed", "meat"],
             serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing", "level": 1, "exp": 0, "hunger": 100}}, "inventory": {"meat": 3}}),
         );
-        assert!(text_of(&r).contains("Perut si Kucing udah kepenuhan kak!"), "{:?}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Perut si Kucing udah kepenuhan kak!"),
+            "{:?}",
+            text_of(&r)
+        );
 
         let r = run(
             &["feed", "batu"],
@@ -465,7 +508,11 @@ mod tests {
             serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing", "level": 1, "exp": 0, "hunger": 10}}, "inventory": {"bread": 1, "fish": 4}}),
         );
         let d = written(&r);
-        assert_eq!(d["inventory"], serde_json::json!({"fish": 4}), "1 - 1 = 0 -> dihapus");
+        assert_eq!(
+            d["inventory"],
+            serde_json::json!({"fish": 4}),
+            "1 - 1 = 0 -> dihapus"
+        );
         assert_eq!(d["rpg"]["pet"]["hunger"], serde_json::json!(20), "10 + 10");
         assert_eq!(d["rpg"]["pet"]["exp"], serde_json::json!(5));
         assert!(text_of(&r).contains("🍖 Perutnya keisi *+10* (20/100)"));
@@ -478,7 +525,11 @@ mod tests {
             serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing", "level": 1, "exp": 0, "hunger": 90}}, "inventory": {"premium_food": 9}}),
         );
         let d = written(&r);
-        assert_eq!(d["rpg"]["pet"]["hunger"], serde_json::json!(100), "90 + 50 di-clamp");
+        assert_eq!(
+            d["rpg"]["pet"]["hunger"],
+            serde_json::json!(100),
+            "90 + 50 di-clamp"
+        );
         assert!(text_of(&r).contains("(100/100)"));
     }
 
@@ -517,7 +568,11 @@ mod tests {
         let p = &written(&r)["rpg"]["pet"];
         assert_eq!(p["level"], serde_json::json!(2));
         assert_eq!(p["exp"], serde_json::json!(5), "105 - 100");
-        assert_eq!(p["stats"], serde_json::json!({"attack": 7, "defense": 4, "luck": 6}), "5+2 / 3+1 / 5+1");
+        assert_eq!(
+            p["stats"],
+            serde_json::json!({"attack": 7, "defense": 4, "luck": 6}),
+            "5+2 / 3+1 / 5+1"
+        );
         assert!(text_of(&r).contains("Si Kucing LEVEL UP jadi Level 2!"));
     }
 
@@ -542,14 +597,20 @@ mod tests {
         let t = text_of(&r);
         assert!(t.contains("Sekarang panggil dia *Oyen Merah*!"), "{t}");
         assert!(t.contains("(Sebelumnya: Kucing)"), "{t}");
-        assert_eq!(written(&r)["rpg"]["pet"]["name"], serde_json::json!("Oyen Merah"));
+        assert_eq!(
+            written(&r)["rpg"]["pet"]["name"],
+            serde_json::json!("Oyen Merah")
+        );
 
         for args in [
             vec!["rename", "a"],
             vec!["rename"],
             vec!["rename", "abcdefghijklmnopq"],
         ] {
-            let r = run(&args, serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing"}}}));
+            let r = run(
+                &args,
+                serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing"}}}),
+            );
             assert!(text_of(&r).contains("2-15 karakter"), "{args:?}");
             assert!(r.mutations().is_empty(), "{args:?}");
         }
@@ -561,7 +622,11 @@ mod tests {
             &["evolve"],
             serde_json::json!({"rpg": {"pet": {"type": "cat", "name": "Kucing", "level": 9, "exp": 400, "hunger": 50}}}),
         );
-        assert!(text_of(&r).contains("Minimal *Level 10*"), "{:?}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Minimal *Level 10*"),
+            "{:?}",
+            text_of(&r)
+        );
 
         let r = run(
             &["evolve"],
@@ -569,7 +634,11 @@ mod tests {
         );
         let p = &written(&r)["rpg"]["pet"];
         assert_eq!(p["type"], serde_json::json!("lion"));
-        assert_eq!(p["stats"], serde_json::json!({"attack": 15, "defense": 10, "luck": 8}), "di-reset ke base singa");
+        assert_eq!(
+            p["stats"],
+            serde_json::json!({"attack": 15, "defense": 10, "luck": 8}),
+            "di-reset ke base singa"
+        );
         assert_eq!(p["level"], serde_json::json!(1));
         assert_eq!(p["exp"], serde_json::json!(0));
         assert!(text_of(&r).contains("jadi *🦁 Singa* yang gagah!"));
@@ -577,8 +646,15 @@ mod tests {
 
     #[test]
     fn an_unknown_species_is_reported_instead_of_crashing_the_handler() {
-        let r = run(&["status"], serde_json::json!({"rpg": {"pet": {"type": "unicorn", "name": "Mane"}}}));
-        assert!(text_of(&r).contains("tidak dikenal databasenya"), "{:?}", text_of(&r));
+        let r = run(
+            &["status"],
+            serde_json::json!({"rpg": {"pet": {"type": "unicorn", "name": "Mane"}}}),
+        );
+        assert!(
+            text_of(&r).contains("tidak dikenal databasenya"),
+            "{:?}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 }

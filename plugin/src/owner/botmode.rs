@@ -9,14 +9,26 @@ pub(crate) const VALID_MODES: [&str; 6] = ["md", "cpanel", "store", "pushkontak"
 /// `MODE_DESCRIPTIONS` dalam urutan deklarasi — versi awal
 /// mengiterasi `Object.entries`, jadi urutan ini yang tampil.
 pub(crate) const MODE_DESCRIPTIONS: [(&str, &str); 6] = [
-    ("md", "Mode default, semua fitur kecuali panel/store/pushkontak"),
-    ("cpanel", "Mode panel, main + group + sticker + owner + tools + panel"),
-    ("store", "Mode store manual, main + group + sticker + owner + store"),
+    (
+        "md",
+        "Mode default, semua fitur kecuali panel/store/pushkontak",
+    ),
+    (
+        "cpanel",
+        "Mode panel, main + group + sticker + owner + tools + panel",
+    ),
+    (
+        "store",
+        "Mode store manual, main + group + sticker + owner + store",
+    ),
     (
         "pushkontak",
         "Mode pushkontak, main + group + sticker + owner + pushkontak",
     ),
-    ("otp", "Mode OTP service, main + group + sticker + owner + otp"),
+    (
+        "otp",
+        "Mode OTP service, main + group + sticker + owner + otp",
+    ),
     ("all", "Mode full, SEMUA fitur dari semua mode bisa diakses"),
 ];
 
@@ -231,7 +243,12 @@ mod tests {
 
     #[test]
     fn the_current_mode_is_the_only_one_marked_active() {
-        let r = run("", false, serde_json::json!({}), serde_json::json!({ "botMode": "store" }));
+        let r = run(
+            "",
+            false,
+            serde_json::json!({}),
+            serde_json::json!({ "botMode": "store" }),
+        );
         let t = text_of(&r);
         assert_eq!(t.matches(" ✅").count(), 1, "tepat satu mode aktif: {t}");
         assert!(t.contains("┃ ㊗ *STORE* ✅"), "{t}");
@@ -251,7 +268,10 @@ mod tests {
     fn an_unknown_mode_is_refused_and_writes_nothing() {
         for bad in ["nope", "1", "stor"] {
             let r = run(bad, false, serde_json::json!({}), serde_json::json!({}));
-            assert!(text_of(&r).starts_with("❌ *ᴍᴏᴅᴇ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*"), "input {bad:?}");
+            assert!(
+                text_of(&r).starts_with("❌ *ᴍᴏᴅᴇ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*"),
+                "input {bad:?}"
+            );
             assert!(text_of(&r).contains("md, cpanel, store, pushkontak, otp, all"));
             assert!(r.mutations().is_empty(), "input {bad:?}");
         }
@@ -261,22 +281,36 @@ mod tests {
     fn a_private_chat_writes_the_global_setting() {
         let r = run("store", false, serde_json::json!({}), serde_json::json!({}));
         assert_eq!(setting(&r), serde_json::json!("store"));
-        assert!(text_of(&r).contains("> _Mode global diubah._"), "{}", text_of(&r));
-        assert!(!text_of(&r).contains("Manual mode"), "catatan store hanya di grup");
+        assert!(
+            text_of(&r).contains("> _Mode global diubah._"),
+            "{}",
+            text_of(&r)
+        );
+        assert!(
+            !text_of(&r).contains("Manual mode"),
+            "catatan store hanya di grup"
+        );
     }
 
     #[test]
     fn a_group_writes_the_group_record_instead() {
         let r = run("md", true, serde_json::json!({}), serde_json::json!({}));
         assert_eq!(group_write(&r), serde_json::json!({ "botMode": "md" }));
-        assert!(text_of(&r).contains("> _Mode grup ini juga diubah._"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> _Mode grup ini juga diubah._"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
     fn store_mode_in_a_group_adds_the_manual_note_and_seeds_products() {
         let r = run("store", true, serde_json::json!({}), serde_json::json!({}));
         assert!(text_of(&r).contains("📋 *Manual mode*"), "{}", text_of(&r));
-        assert_eq!(group_write(&r)["storeConfig"], serde_json::json!({ "products": [] }));
+        assert_eq!(
+            group_write(&r)["storeConfig"],
+            serde_json::json!({ "products": [] })
+        );
     }
 
     #[test]
@@ -291,14 +325,34 @@ mod tests {
 
     #[test]
     fn a_group_status_shows_inherit_when_no_group_mode_is_stored() {
-        let r = run("", true, serde_json::json!({ "botMode": null }), serde_json::json!({ "botMode": "md" }));
-        assert!(text_of(&r).contains("┃ ㊗ ɢʀᴜᴘ: *INHERIT*"), "{}", text_of(&r));
-        assert!(text_of(&r).contains("┃ ㊗ *MD* ✅"), "mode global yang aktif");
+        let r = run(
+            "",
+            true,
+            serde_json::json!({ "botMode": null }),
+            serde_json::json!({ "botMode": "md" }),
+        );
+        assert!(
+            text_of(&r).contains("┃ ㊗ ɢʀᴜᴘ: *INHERIT*"),
+            "{}",
+            text_of(&r)
+        );
+        assert!(
+            text_of(&r).contains("┃ ㊗ *MD* ✅"),
+            "mode global yang aktif"
+        );
     }
 
     #[test]
     fn the_mode_argument_is_lowercased_before_matching() {
-        assert_eq!(setting(&run("STORE", false, serde_json::json!({}), serde_json::json!({}))), serde_json::json!("store"));
+        assert_eq!(
+            setting(&run(
+                "STORE",
+                false,
+                serde_json::json!({}),
+                serde_json::json!({})
+            )),
+            serde_json::json!("store")
+        );
     }
 
     #[test]

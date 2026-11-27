@@ -371,7 +371,11 @@ mod tests {
         assert!(is_track_url("https://open.spotify.com/album/abc"));
         assert!(is_track_url("https://open.spotify.com/playlist/abc"));
         assert!(is_track_url("https://open.spotify.com/intl-id/track/abc"));
-        for bad in ["https://spotify.com/track/abc", "https://open.spotify.com/", ""] {
+        for bad in [
+            "https://spotify.com/track/abc",
+            "https://open.spotify.com/",
+            "",
+        ] {
             assert!(!is_track_url(bad), "harus ditolak: {bad}");
         }
     }
@@ -379,7 +383,12 @@ mod tests {
     #[test]
     fn a_missing_or_non_track_link_is_refused_without_a_request() {
         let http = Stub::body(ok_body());
-        for text in ["", "   ", "https://open.spotify.com/", "https://spotify.com/track/x"] {
+        for text in [
+            "",
+            "   ",
+            "https://open.spotify.com/",
+            "https://spotify.com/track/x",
+        ] {
             assert_eq!(text_of(&run(http.clone(), text)), BAD_URL, "input {text:?}");
         }
         assert!(http.seen.lock().unwrap().is_empty());
@@ -525,10 +534,17 @@ mod tests {
         });
         let http = Stub::nexray_gagal_izuka_ok(izuka);
         let r = run(http.clone(), "https://open.spotify.com/track/x");
-        assert!(audio_dari(isi(&r)).is_some(), "izuka harus menutup kegagalan nexray");
+        assert!(
+            audio_dari(isi(&r)).is_some(),
+            "izuka harus menutup kegagalan nexray"
+        );
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 3, "POST lokal + nexray + izuka");
-        assert!(seen[2].url.contains("izuka"), "backend ketiga: {}", seen[2].url);
+        assert!(
+            seen[2].url.contains("izuka"),
+            "backend ketiga: {}",
+            seen[2].url
+        );
     }
 
     #[test]

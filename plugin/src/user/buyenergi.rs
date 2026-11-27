@@ -9,8 +9,8 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
 use crate::common::{int_field, parse_int};
-use crate::user::energi::UNLIMITED;
 use crate::tools::kalkulatormbg::thousands_id;
+use crate::user::energi::UNLIMITED;
 
 pub(crate) const PRICE_PER_ENERGI: i64 = 100;
 
@@ -193,12 +193,12 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("buyenergi").unwrap();
         assert_eq!(p.meta.name, "buyenergi");
-        assert_eq!(
-            p.meta.alias,
-            ["belienergi", "purchaseenergi", "buyenergy"]
-        );
+        assert_eq!(p.meta.alias, ["belienergi", "purchaseenergi", "buyenergy"]);
         assert_eq!(p.meta.category, "user");
-        assert_eq!(p.meta.description, "Beli energi dengan koin (1 energi = 100 koin)");
+        assert_eq!(
+            p.meta.description,
+            "Beli energi dengan koin (1 energi = 100 koin)"
+        );
         assert_eq!(p.meta.usage, ".buyenergi <jumlah>");
         assert_eq!(p.meta.example, ".buyenergi 10");
         assert_eq!(p.meta.cooldown, 5);
@@ -244,7 +244,11 @@ mod tests {
 
     #[test]
     fn a_missing_user_row_reads_zero_koin() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"koin": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"koin": null}),
+        ] {
             let __balasan = run(&[], user.clone(), false);
             let out = text_of(&__balasan);
             assert!(out.contains("┃ 💰 ᴋᴏɪɴ ᴋᴀᴍᴜ: *0*\n"), "{user}");
@@ -254,19 +258,31 @@ mod tests {
     #[test]
     fn parse_int_semantics_decide_the_branch() {
         // `parseInt('10abc')` = 10, jadi ini bukan cabang help.
-        let bought = run(&["10abc"], serde_json::json!({"koin": 5_000, "energi": 0}), false);
+        let bought = run(
+            &["10abc"],
+            serde_json::json!({"koin": 5_000, "energi": 0}),
+            false,
+        );
         assert!(text_of(&bought).contains("┃ ⚡ ᴇɴᴇʀɢɪ: *+10*"));
         // `parseInt('abc')` = NaN → `|| 0` → help.
-        assert!(text_of(&run(&["abc"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒"));
+        assert!(
+            text_of(&run(&["abc"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒")
+        );
         assert!(text_of(&run(&["0"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒"));
-        assert!(text_of(&run(&["-5"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒"));
+        assert!(
+            text_of(&run(&["-5"], serde_json::json!({"koin": 5_000}), false)).starts_with("🛒")
+        );
     }
 
     // - cabang gagal ------------------------------------------------------
 
     #[test]
     fn an_underfunded_purchase_lists_both_sides_without_writing() {
-        let r = run(&["10"], serde_json::json!({"koin": 500, "energi": 3}), false);
+        let r = run(
+            &["10"],
+            serde_json::json!({"koin": 500, "energi": 3}),
+            false,
+        );
         assert_eq!(
             text_of(&r),
             "❌ *ɢᴀɢᴀʟ*\n\n> Koin tidak cukup!\n> Butuh: *1.000*\n> Kamu punya: *500*"
@@ -278,7 +294,11 @@ mod tests {
     #[test]
     fn exactly_enough_koin_is_enough_not_one_more() {
         // 1000 koin = tepat 10 energi; sisa 0 berarti energi tidak negatif.
-        let r = run(&["10"], serde_json::json!({"koin": 1_000, "energi": 0}), false);
+        let r = run(
+            &["10"],
+            serde_json::json!({"koin": 1_000, "energi": 0}),
+            false,
+        );
         let data = write_of(&r).expect("harus menulis");
         assert_eq!(data["koin"], serde_json::json!(0));
         assert_eq!(data["energi"], serde_json::json!(10));
@@ -286,7 +306,10 @@ mod tests {
 
     #[test]
     fn one_koin_short_falls_into_the_gagal_branch() {
-        assert!(text_of(&run(&["10"], serde_json::json!({"koin": 999}), false)).starts_with("❌ *ɢᴀɢᴀʟ*"));
+        assert!(
+            text_of(&run(&["10"], serde_json::json!({"koin": 999}), false))
+                .starts_with("❌ *ɢᴀɢᴀʟ*")
+        );
     }
 
     #[test]
@@ -305,7 +328,11 @@ mod tests {
 
     #[test]
     fn a_successful_purchase_moves_both_koin_and_energi() {
-        let r = run(&["10"], serde_json::json!({"koin": 9_000, "energi": 12}), false);
+        let r = run(
+            &["10"],
+            serde_json::json!({"koin": 9_000, "energi": 12}),
+            false,
+        );
         assert_eq!(
             text_of(&r),
             concat!(
@@ -328,7 +355,11 @@ mod tests {
 
     #[test]
     fn stored_energi_is_added_to_the_bought_amount() {
-        let r = run(&["7"], serde_json::json!({"koin": 700, "energi": 100_000}), false);
+        let r = run(
+            &["7"],
+            serde_json::json!({"koin": 700, "energi": 100_000}),
+            false,
+        );
         assert!(text_of(&r).contains("┃ ⚡ ᴇɴᴇʀɢɪ: *100.007*"));
         assert_eq!(write_of(&r).unwrap()["energi"], serde_json::json!(100_007));
     }
@@ -337,14 +368,21 @@ mod tests {
     fn an_unlimited_energi_user_is_refused_but_pays_anyway() {
         // Bug versi awal yang ikut dip-port: `db.updateKoin` jalan sebelum cek
         // unlimited dan tidak ada pengembalian, meski teks bilang dikembalikan.
-        let r = run(&["5"], serde_json::json!({"koin": 5_000, "energi": -1}), false);
+        let r = run(
+            &["5"],
+            serde_json::json!({"koin": 5_000, "energi": -1}),
+            false,
+        );
         assert_eq!(
             text_of(&r),
             "✅ *ᴘᴇᴍʙᴇʟɪᴀɴ ʙᴇʀʜᴀsɪʟ*\n\n> Tapi kamu sudah punya unlimited energi!\n> Koin dikembalikan."
         );
         let data = write_of(&r).expect("koin tetap dipotong");
         assert_eq!(data["koin"], serde_json::json!(4_500));
-        assert!(data.get("energi").is_none(), "energi tak terbatas tak diubah");
+        assert!(
+            data.get("energi").is_none(),
+            "energi tak terbatas tak diubah"
+        );
         assert!(is_check(&r));
     }
 
@@ -352,7 +390,10 @@ mod tests {
     fn an_owner_gets_unlimited_energi_without_the_store_write() {
         // `config.energi.owner = -1` → `db.updateEnergi` return -1, tak setUser.
         let r = run(&["3"], serde_json::json!({"koin": 300, "energi": 4}), true);
-        assert!(text_of(&r).contains("┃ ⚡ ᴇɴᴇʀɢɪ: *-1*\n"), "formatNumber(-1)");
+        assert!(
+            text_of(&r).contains("┃ ⚡ ᴇɴᴇʀɢɪ: *-1*\n"),
+            "formatNumber(-1)"
+        );
         assert!(text_of(&r).contains("┃ 💰 ᴋᴏɪɴ: *0*\n"));
         let data = write_of(&r).unwrap();
         assert_eq!(data["koin"], serde_json::json!(0));

@@ -41,7 +41,7 @@ pub fn howmuchenergy(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::Ctx;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(args: &[&str]) -> String {
         run_with(args, serde_json::json!({}))
@@ -77,7 +77,10 @@ mod tests {
             p.meta.description,
             "Mengecek penggunaan energi banyak fitur sekaligus"
         );
-        assert_eq!(p.meta.usage, ".howmuchenergy <nama_fitur1> <nama_fitur2> ...");
+        assert_eq!(
+            p.meta.usage,
+            ".howmuchenergy <nama_fitur1> <nama_fitur2> ..."
+        );
         assert_eq!(p.meta.example, ".howmuchenergy hd jpm");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
@@ -217,7 +220,10 @@ mod tests {
             by_alias.ends_with("✅ *kalkulatormbg* : 1 Energi"),
             "override by alias diabaikan: {by_alias}"
         );
-        let by_name = run_with(&["kkmbg"], serde_json::json!({"capenergi": {"kalkulatormbg": 9}}));
+        let by_name = run_with(
+            &["kkmbg"],
+            serde_json::json!({"capenergi": {"kalkulatormbg": 9}}),
+        );
         assert!(by_name.ends_with("✅ *kalkulatormbg* : 9 Energi"));
     }
 
@@ -225,10 +231,7 @@ mod tests {
     fn only_the_probe_branch_carries_a_reaction() {
         // versi awal bereaksi "🕕" lalu "✅", tapi hanya setelah guard args.length === 0.
         let help_reply = handler(&[], serde_json::json!({}));
-        assert!(matches!(
-            help_reply.without_mutations(),
-            Reply::Text { .. }
-        ));
+        assert!(matches!(help_reply.without_mutations(), Reply::Text { .. }));
 
         let probed = handler(&["readmore"], serde_json::json!({}));
         let mut cur = probed.without_mutations();

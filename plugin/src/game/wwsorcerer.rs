@@ -67,7 +67,10 @@ mod tests {
         assert_eq!(p.meta.name, "wwsorcerer");
         assert_eq!(p.meta.alias, ["sorcerer", "wws"]);
         assert_eq!(p.meta.category, "game");
-        assert_eq!(p.meta.description, "Sorcerer night action - Check if target is Seer");
+        assert_eq!(
+            p.meta.description,
+            "Sorcerer night action - Check if target is Seer"
+        );
         assert_eq!(p.meta.usage, ".wwsorcerer <nomor>");
         assert_eq!(p.meta.example, ".wwsorcerer 3");
         assert_eq!(p.meta.cooldown, 0);
@@ -117,8 +120,16 @@ mod tests {
         let r = (oktz_plugin_api::find("wwsorcerer").unwrap().handler)(ctx.clone());
         assert!(text_of(&r).contains("adalah SEER"));
         let g = ctx.session_get(GAMES_KEY).unwrap_or_default();
-        assert!(g["120363@g.us"]["nightActions"].as_object().unwrap().is_empty());
-        assert_eq!(g["120363@g.us"]["players"][0]["skillUsed"], serde_json::json!(true));
+        assert!(
+            g["120363@g.us"]["nightActions"]
+                .as_object()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            g["120363@g.us"]["players"][0]["skillUsed"],
+            serde_json::json!(true)
+        );
     }
 
     #[test]

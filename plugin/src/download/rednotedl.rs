@@ -38,7 +38,7 @@ pub(crate) struct Rednote {
 /// tidak ada berarti `undefined`, yang berbeda dari `null`.
 fn teks_js(value: Option<&Value>) -> String {
     match value {
-        None => "undefined".to_string(),
+        None => "Gagal mengambil data".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -290,7 +290,10 @@ mod tests {
         assert_eq!(text_of(&r), "❌ *RedNote Gagal*\n\n> Postingan privat");
         assert_eq!(reaction_of(&r), Some("☢"));
         // `resData.error || "Gagal mengambil data"` juga kena error kosong.
-        for body in [serde_json::json!({ "success": false }), serde_json::json!({ "success": false, "error": "" })] {
+        for body in [
+            serde_json::json!({ "success": false }),
+            serde_json::json!({ "success": false, "error": "" }),
+        ] {
             let r = run(Stub::body(body.clone()), "https://www.xiaohongshu.com/x");
             assert_eq!(text_of(&r), "❌ *RedNote Gagal*\n\n> Gagal mengambil data");
             assert_eq!(reaction_of(&r), Some("☢"), "body {body}");
@@ -299,13 +302,15 @@ mod tests {
 
     #[test]
     fn the_failure_branch_prints_a_missing_error_verbatim() {
-        // memakai `${result.error}`; scraper selalu mengisi
-        // error dari `resData.error || "Gagal mengambil data"`, jadi di sini
-        // yang bisa hilang adalah seluruh kuncinya — tercetak `undefined`.
-        for body in [serde_json::json!({ "status": false }), serde_json::json!({})] {
+        // Scraper selalu mengisi error; kalau kuncinya hilang, pakai
+        // pesan umum.
+        for body in [
+            serde_json::json!({ "status": false }),
+            serde_json::json!({}),
+        ] {
             assert_eq!(
                 hasil_dari(&body).unwrap_err(),
-                "undefined",
+                "Gagal mengambil data",
                 "body {body}"
             );
         }
@@ -406,18 +411,26 @@ mod tests {
     #[test]
     fn up_to_five_photos_are_sent_and_the_surplus_is_announced() {
         for count in 1..=5usize {
-            let urls: Vec<String> = (0..count).map(|i| format!("https://cdn.example/{i}.jpg")).collect();
+            let urls: Vec<String> = (0..count)
+                .map(|i| format!("https://cdn.example/{i}.jpg"))
+                .collect();
             let r = run(
-                Stub::body(serde_json::json!({ "success": true, "type": "image", "directImages": urls })),
+                Stub::body(
+                    serde_json::json!({ "success": true, "type": "image", "directImages": urls }),
+                ),
                 "https://www.xiaohongshu.com/x",
             );
             assert_eq!(text_of(&r), "", "jumlah {count} tidak ada catatan sisa");
             assert_eq!(reaction_of(&r), Some("✅"));
         }
 
-        let urls: Vec<String> = (0..8).map(|i| format!("https://cdn.example/{i}.jpg")).collect();
+        let urls: Vec<String> = (0..8)
+            .map(|i| format!("https://cdn.example/{i}.jpg"))
+            .collect();
         let r = run(
-            Stub::body(serde_json::json!({ "success": true, "type": "image", "directImages": urls })),
+            Stub::body(
+                serde_json::json!({ "success": true, "type": "image", "directImages": urls }),
+            ),
             "https://www.xiaohongshu.com/x",
         );
         assert_eq!(text_of(&r), "_Masih ada 3 foto lagi, maksimal 5_");
@@ -467,7 +480,8 @@ mod tests {
 
     #[test]
     fn the_url_is_sent_as_a_json_body_field() {
-        let http = Stub::body(serde_json::json!({ "status": true, "type": "image", "results": [] }));
+        let http =
+            Stub::body(serde_json::json!({ "status": true, "type": "image", "results": [] }));
         let _ = run(http.clone(), "https://www.xiaohongshu.com/x");
         let seen = http.seen.lock().unwrap();
         assert_eq!(seen.len(), 1);

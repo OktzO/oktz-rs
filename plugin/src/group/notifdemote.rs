@@ -76,7 +76,10 @@ mod tests {
         assert_eq!(p.meta.name, "notifdemote");
         assert!(p.meta.alias.is_empty(), "alias di JS kosong");
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Toggle notifikasi saat ada yang dicopot dari admin");
+        assert_eq!(
+            p.meta.description,
+            "Toggle notifikasi saat ada yang dicopot dari admin"
+        );
         assert_eq!(p.meta.usage, ".notifdemote on/off");
         assert_eq!(p.meta.example, ".notifdemote on");
         assert_eq!(p.meta.cooldown, 5);
@@ -113,7 +116,10 @@ mod tests {
             text_of(&run(serde_json::json!({}), Some("off"), true)),
             "❌ *ɴᴏᴛɪꜰ ᴅᴇᴍᴏᴛᴇ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*"
         );
-        assert_eq!(group_write(&run(serde_json::json!({}), Some("off"), true)), &serde_json::json!({"notifDemote": false}));
+        assert_eq!(
+            group_write(&run(serde_json::json!({}), Some("off"), true)),
+            &serde_json::json!({"notifDemote": false})
+        );
     }
 
     #[test]

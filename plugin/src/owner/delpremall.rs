@@ -4,7 +4,13 @@ use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 pub(crate) const NO_MEMBER: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Tidak ada member di grup ini";
 
-fn report(total: usize, removed: usize, not_prem: usize, premium_total: usize, subject: &str) -> String {
+fn report(
+    total: usize,
+    removed: usize,
+    not_prem: usize,
+    premium_total: usize,
+    subject: &str,
+) -> String {
     format!(
         "🗑️ *ᴅᴇʟ ᴘʀᴇᴍɪᴜᴍ ᴀʟʟ*\n\n\
          ╭┈┈⬡「 📋 *ʜᴀsɪʟ* 」\n\
@@ -176,14 +182,24 @@ mod tests {
             "{}",
             text_of(&r)
         );
-        assert!(text_of(&r).contains("┃ 💎 sɪsᴀ ᴘʀᴇᴍɪᴜᴍ: `1`"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("┃ 💎 sɪsᴀ ᴘʀᴇᴍɪᴜᴍ: `1`"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
     fn a_non_premium_member_is_counted_but_never_written() {
         let r = run(roster(vec![
-            member("628111@s.whatsapp.net", serde_json::json!({ "isPremium": true })),
-            member("628222@s.whatsapp.net", serde_json::json!({ "isPremium": false })),
+            member(
+                "628111@s.whatsapp.net",
+                serde_json::json!({ "isPremium": true }),
+            ),
+            member(
+                "628222@s.whatsapp.net",
+                serde_json::json!({ "isPremium": false }),
+            ),
         ]));
         assert_eq!(writes(&r).len(), 1, "hanya member premium yang ditulis");
         assert!(text_of(&r).contains("┃ ✅ ᴅɪʜᴀᴘᴜs: `1`"), "{}", text_of(&r));
@@ -199,10 +215,7 @@ mod tests {
         // versi awal bisa punya nomor di `premium.json` tanpa record di `users.json`
         // dan tetap menghitungnya terhapus; dengan flag `isPremium` sebagai
         // pengganti, record yang tidak ada otomatis berarti bukan premium.
-        let r = run(roster(vec![member(
-            "628111@s.whatsapp.net",
-            Value::Null,
-        )]));
+        let r = run(roster(vec![member("628111@s.whatsapp.net", Value::Null)]));
         assert!(r.mutations().is_empty());
         assert!(
             text_of(&r).contains("┃ ⏭️ ʙᴜᴋᴀɴ ᴘʀᴇᴍɪᴜᴍ: `1`"),
@@ -213,14 +226,17 @@ mod tests {
 
     #[test]
     fn a_participant_without_digits_is_skipped_entirely() {
-        let r = run(roster(vec![member("@lid", serde_json::json!({ "isPremium": true }))]));
+        let r = run(roster(vec![member(
+            "@lid",
+            serde_json::json!({ "isPremium": true }),
+        )]));
         assert!(r.mutations().is_empty());
-        assert!(text_of(&r).contains("┃ 👥 ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀ: `1`"), "{}", text_of(&r));
         assert!(
-            text_of(&r).contains("┃ ✅ ᴅɪʜᴀᴘᴜs: `0`"),
+            text_of(&r).contains("┃ 👥 ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀ: `1`"),
             "{}",
             text_of(&r)
         );
+        assert!(text_of(&r).contains("┃ ✅ ᴅɪʜᴀᴘᴜs: `0`"), "{}", text_of(&r));
         assert!(
             text_of(&r).contains("┃ ⏭️ ʙᴜᴋᴀɴ ᴘʀᴇᴍɪᴜᴍ: `0`"),
             "{}",
@@ -239,7 +255,10 @@ mod tests {
 
     #[test]
     fn the_report_names_the_group_and_falls_back_when_absent() {
-        let r = run(roster(vec![member("1@s.whatsapp.net", serde_json::json!({}))]));
+        let r = run(roster(vec![member(
+            "1@s.whatsapp.net",
+            serde_json::json!({}),
+        )]));
         assert!(text_of(&r).contains("> Grup: Grup Uji"));
         let ctx = Ctx {
             prefix: ".".into(),
@@ -249,12 +268,19 @@ mod tests {
             ..Default::default()
         };
         let bare = (oktz_plugin_api::find("delpremall").unwrap().handler)(ctx);
-        assert!(text_of(&bare).contains("> Grup: Grup"), "{}", text_of(&bare));
+        assert!(
+            text_of(&bare).contains("> Grup: Grup"),
+            "{}",
+            text_of(&bare)
+        );
     }
 
     #[test]
     fn the_final_reaction_is_the_delete_one_from_the_js_order() {
-        let r = run(roster(vec![member("1@s.whatsapp.net", serde_json::json!({}))]));
+        let r = run(roster(vec![member(
+            "1@s.whatsapp.net",
+            serde_json::json!({}),
+        )]));
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "🗑️"),
             other => panic!("harus Reaction, dapat {other:?}"),

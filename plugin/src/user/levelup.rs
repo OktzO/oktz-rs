@@ -2,8 +2,8 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-use crate::common::js_truthy_value;
 use crate::common::first_keyword;
+use crate::common::js_truthy_value;
 
 /// `user.settings.levelupNotif !== false`.
 pub(crate) fn current_enabled(ctx: &Ctx) -> bool {
@@ -47,7 +47,11 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
 }
 
 pub(crate) fn status_label(ctx: &Ctx) -> &'static str {
-    if current_enabled(ctx) { "ON ✅" } else { "OFF ❌" }
+    if current_enabled(ctx) {
+        "ON ✅"
+    } else {
+        "OFF ❌"
+    }
 }
 
 #[plugin(
@@ -79,7 +83,7 @@ pub fn levelup(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value, arg: &str) -> Reply {
         let ctx = Ctx {
@@ -88,7 +92,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -136,8 +144,15 @@ mod tests {
     fn the_default_when_the_flag_is_absent_is_on() {
         // `user.settings.levelupNotif !== false` — undefined !== false.
         assert!(current_enabled(&Ctx::default()));
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"settings": {}})] {
-            assert!(text_of(&run(user.clone(), "")).contains("ON ✅"), "input {user}");
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"settings": {}}),
+        ] {
+            assert!(
+                text_of(&run(user.clone(), "")).contains("ON ✅"),
+                "input {user}"
+            );
             assert!(run(user.clone(), "").mutations().is_empty());
         }
     }
@@ -154,9 +169,15 @@ mod tests {
 
     #[test]
     fn on_and_off_write_their_own_boolean() {
-        assert_eq!(settings_of(&run(serde_json::json!({}), "on"))["levelupNotif"], serde_json::json!(true));
         assert_eq!(
-            settings_of(&run(serde_json::json!({"settings": {"levelupNotif": false}}), "off"))["levelupNotif"],
+            settings_of(&run(serde_json::json!({}), "on"))["levelupNotif"],
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            settings_of(&run(
+                serde_json::json!({"settings": {"levelupNotif": false}}),
+                "off"
+            ))["levelupNotif"],
             serde_json::json!(false)
         );
     }
@@ -166,7 +187,11 @@ mod tests {
         let user = serde_json::json!({"settings": {"rpgLevelupNotif": false, "lain": 7}});
         let __balasan = run(user.clone(), "on");
         let s = settings_of(&__balasan);
-        assert_eq!(s["rpgLevelupNotif"], serde_json::json!(false), "field lain harus utuh");
+        assert_eq!(
+            s["rpgLevelupNotif"],
+            serde_json::json!(false),
+            "field lain harus utuh"
+        );
         assert_eq!(s["lain"], serde_json::json!(7));
         assert_eq!(s["levelupNotif"], serde_json::json!(true));
     }
@@ -184,9 +209,15 @@ mod tests {
 
     #[test]
     fn no_argument_shows_status_and_writes_nothing() {
-        for user in [serde_json::json!({}), serde_json::json!({"settings": {"levelupNotif": true}})] {
+        for user in [
+            serde_json::json!({}),
+            serde_json::json!({"settings": {"levelupNotif": true}}),
+        ] {
             let r = run(user.clone(), "");
-            assert!(text_of(&r).starts_with("🔔 *ʟᴇᴠᴇʟ ᴜᴘ ɴᴏᴛɪꜰ*"), "input {user}");
+            assert!(
+                text_of(&r).starts_with("🔔 *ʟᴇᴠᴇʟ ᴜᴘ ɴᴏᴛɪꜰ*"),
+                "input {user}"
+            );
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -195,7 +226,10 @@ mod tests {
     fn an_unknown_option_shows_status_and_writes_nothing() {
         for bad in ["maybe", "1", "ON!", "yes"] {
             let r = run(serde_json::json!({}), bad);
-            assert!(text_of(&r).starts_with("🔔 *ʟᴇᴠᴇʟ ᴜᴘ ɴᴏᴛɪꜰ*"), "input {bad}");
+            assert!(
+                text_of(&r).starts_with("🔔 *ʟᴇᴠᴇʟ ᴜᴘ ɴᴏᴛɪꜰ*"),
+                "input {bad}"
+            );
             assert!(r.mutations().is_empty(), "input {bad}");
         }
     }

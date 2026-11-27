@@ -108,7 +108,7 @@ pub fn listproduk(ctx: Ctx) -> Reply {
         txt.push_str(&format!(
             "*{}.* {type_icon} {}\n",
             i + 1,
-            p.get("name").and_then(Value::as_str).unwrap_or("undefined")
+            p.get("name").and_then(Value::as_str).unwrap_or("-")
         ));
         txt.push_str(&format!(
             "   💰 {original}{}\n",
@@ -203,7 +203,11 @@ mod tests {
             "",
             false,
         );
-        assert!(text_of(&r).contains("📊 Stok: 2 akun ✅"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("📊 Stok: 2 akun ✅"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("📊 Stok: 8 pcs ✅"));
     }
 
@@ -272,7 +276,10 @@ mod tests {
     #[test]
     fn the_group_branch_sends_the_same_text() {
         let s = serde_json::json!({"storeProducts": [{"name": "A", "price": 1000, "stock": 1}]});
-        assert_eq!(text_of(&run(s.clone(), "", true)), text_of(&run(s.clone(), "", false)));
+        assert_eq!(
+            text_of(&run(s.clone(), "", true)),
+            text_of(&run(s.clone(), "", false))
+        );
     }
 
     #[test]

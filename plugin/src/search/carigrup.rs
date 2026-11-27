@@ -8,7 +8,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.cuki || ''` = `process.env.APIKEY_CUKI || ""`.
@@ -44,7 +44,7 @@ pub(crate) fn not_found(text: &str) -> String {
 /// `common.rs`.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -89,10 +89,7 @@ pub(crate) fn found_groups(data: &Value) -> Option<(&Value, &[Value])> {
 /// Hasil pencarian.
 pub(crate) fn format_result(head: &Value, groups: &[Value]) -> String {
     let mut result = String::from("🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n");
-    result.push_str(&format!(
-        "📌 Keyword: *{}*\n",
-        interp(head.get("query"))
-    ));
+    result.push_str(&format!("📌 Keyword: *{}*\n", interp(head.get("query"))));
     result.push_str(&format!(
         "📊 Total: *{}* grup ditemukan\n",
         interp(head.get("total"))
@@ -179,9 +176,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -265,7 +265,11 @@ mod tests {
     fn a_blank_keyword_shows_the_usage_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -305,9 +309,19 @@ mod tests {
         });
         let groups = head["groups"].as_array().unwrap();
         let out = format_result(&head, groups);
-        assert!(out.starts_with("🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n📌 Keyword: *gb isian*\n📊 Total: *2* grup ditemukan\n"), "{out}");
+        assert!(
+            out.starts_with(
+                "🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n📌 Keyword: *gb isian*\n📊 Total: *2* grup ditemukan\n"
+            ),
+            "{out}"
+        );
         assert!(out.contains("\n━━━━━━━━━━━━━━━\n*1. Grup A*\n📅 2024-01-01\n🏷️ Edukasi\n📝 Deskripsi pendek\n🔗 https://chat.whatsapp.com/a"), "{out}");
-        assert!(out.contains("*2. Grup B*\n📅 2024-02-02\n🏷️ Game\n📝 -\n🔗 https://chat.whatsapp.com/b"), "{out}");
+        assert!(
+            out.contains(
+                "*2. Grup B*\n📅 2024-02-02\n🏷️ Game\n📝 -\n🔗 https://chat.whatsapp.com/b"
+            ),
+            "{out}"
+        );
     }
 
     #[test]
@@ -327,16 +341,13 @@ mod tests {
     }
 
     #[test]
-    fn missing_fields_are_interpolated_as_undefined_like_js() {
+    fn missing_fields_are_interpolated_as_dash() {
         let group = serde_json::json!({});
         assert_eq!(short_description(&group), "-");
         let out = format_result(&serde_json::json!({}), std::slice::from_ref(&group));
-        assert!(out.contains("📌 Keyword: *undefined*"), "{out}");
-        assert!(out.contains("📊 Total: *undefined* grup ditemukan"), "{out}");
-        assert!(
-            out.contains("*1. undefined*\n📅 undefined\n🏷️ undefined\n📝 -\n🔗 undefined"),
-            "{out}"
-        );
+        assert!(out.contains("📌 Keyword: *-*"), "{out}");
+        assert!(out.contains("📊 Total: *-* grup ditemukan"), "{out}");
+        assert!(out.contains("*1. -*\n📅 -\n🏷️ -\n📝 -\n🔗 -"), "{out}");
     }
 
     #[test]
@@ -360,7 +371,8 @@ mod tests {
 
     #[test]
     fn a_filled_group_list_passes_the_guard() {
-        let data = serde_json::json!({"status": true, "data": {"query": "q", "groups": [{"title": "A"}]}});
+        let data =
+            serde_json::json!({"status": true, "data": {"query": "q", "groups": [{"title": "A"}]}});
         let (head, groups) = found_groups(&data).unwrap();
         assert_eq!(groups.len(), 1);
         assert_eq!(head.get("query").and_then(Value::as_str), Some("q"));
@@ -368,9 +380,19 @@ mod tests {
 
     #[test]
     fn the_renderer_never_panics_on_strange_values() {
-        let groups = [serde_json::json!("bukan objek"), serde_json::json!(null), serde_json::json!({"title": 7})];
-        let out = format_result(&serde_json::json!({"query": "🚀 \u{0}", "total": 3}), &groups);
-        assert!(out.starts_with("🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n📌 Keyword: *🚀 \u{0}*"), "{out}");
+        let groups = [
+            serde_json::json!("bukan objek"),
+            serde_json::json!(null),
+            serde_json::json!({"title": 7}),
+        ];
+        let out = format_result(
+            &serde_json::json!({"query": "🚀 \u{0}", "total": 3}),
+            &groups,
+        );
+        assert!(
+            out.starts_with("🔍 *ᴄᴀʀɪ ɢʀᴜᴘ ᴡᴀ*\n\n📌 Keyword: *🚀 \u{0}*"),
+            "{out}"
+        );
         assert!(out.contains("*3. 7*\n"), "{out}");
     }
 }

@@ -86,10 +86,7 @@ pub(crate) fn kode_invite(teks: &str) -> Vec<String> {
 pub(crate) fn petakan_error(pesan: &str) -> String {
     if pesan.contains("not-authorized") {
         "Link sudah tidak valid atau expired".to_string()
-    } else if pesan.contains("gone")
-        || pesan.contains("item-not-found")
-        || pesan.contains("404")
-    {
+    } else if pesan.contains("gone") || pesan.contains("item-not-found") || pesan.contains("404") {
         "Grup tidak ditemukan (link ngasal/sudah direvoke)".to_string()
     } else if pesan.contains("conflict") {
         "Bot sudah menjadi member".to_string()
@@ -177,9 +174,10 @@ pub fn join(ctx: Ctx) -> Reply {
     let input = ctx.args.join(" ").trim().to_string();
     let mut sumber = input;
     if sumber.is_empty()
-        && let Some(q) = ctx.quoted() {
-            sumber = q.text.clone();
-        }
+        && let Some(q) = ctx.quoted()
+    {
+        sumber = q.text.clone();
+    }
 
     if sumber.is_empty() {
         return Reply::text(bantuan(&ctx.prefix));
@@ -218,7 +216,11 @@ pub fn join(ctx: Ctx) -> Reply {
             ));
         } else if hasil.error == "Bot sudah menjadi member" {
             sudah += 1;
-            teks.push_str(&format!("*.{}* {} — ⚠️ Sudah member\n", i + 1, hasil.subjek));
+            teks.push_str(&format!(
+                "*.{}* {} — ⚠️ Sudah member\n",
+                i + 1,
+                hasil.subjek
+            ));
         } else {
             gagal += 1;
             let potong: String = kode.chars().take(12).collect();
@@ -257,7 +259,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Default::default()
         };
@@ -281,7 +283,10 @@ mod tests {
             p.meta.description,
             "Bot join ke grup via link invite, support reply pesan yang mengandung link"
         );
-        assert_eq!(p.meta.usage, ".join <link> / .join (reply pesan berisi link)");
+        assert_eq!(
+            p.meta.usage,
+            ".join <link> / .join (reply pesan berisi link)"
+        );
         assert_eq!(p.meta.example, ".join https://chat.whatsapp.com/xxx");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);

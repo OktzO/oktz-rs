@@ -128,7 +128,10 @@ mod tests {
     #[test]
     fn both_aliases_resolve_to_the_same_plugin() {
         assert_eq!(oktz_plugin_api::find("tagall2").unwrap().meta.name, "totag");
-        assert_eq!(oktz_plugin_api::find("mentionall").unwrap().meta.name, "totag");
+        assert_eq!(
+            oktz_plugin_api::find("mentionall").unwrap().meta.name,
+            "totag"
+        );
     }
 
     #[test]

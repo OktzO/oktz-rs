@@ -40,7 +40,7 @@ fn status(droplet: &Value) -> String {
     let s = droplet
         .get("status")
         .map(|v| crate::vps::js_str(Some(v)))
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
     if s == "active" {
         "🟢 Active".to_string()
     } else {
@@ -51,13 +51,17 @@ fn status(droplet: &Value) -> String {
 /// `droplet.region?.name || droplet.region?.slug`.
 fn region(droplet: &Value) -> String {
     let r = droplet.get("region");
-    let name = r.and_then(|x| x.get("name")).map(|v| crate::vps::js_str(Some(v)));
-    let slug = r.and_then(|x| x.get("slug")).map(|v| crate::vps::js_str(Some(v)));
+    let name = r
+        .and_then(|x| x.get("name"))
+        .map(|v| crate::vps::js_str(Some(v)));
+    let slug = r
+        .and_then(|x| x.get("slug"))
+        .map(|v| crate::vps::js_str(Some(v)));
     match name {
-        Some(n) if !n.is_empty() && n != "undefined" => n,
+        Some(n) if !n.is_empty() && n != "-" => n,
         _ => match slug {
-            Some(s) if !s.is_empty() && s != "undefined" => s,
-            _ => "undefined".to_string(),
+            Some(s) if !s.is_empty() && s != "-" => s,
+            _ => "-".to_string(),
         },
     }
 }
@@ -69,16 +73,16 @@ fn teks_detail(droplet: &Value) -> String {
         .get("image")
         .and_then(|i| i.get("distribution"))
         .map(|v| crate::vps::js_str(Some(v)))
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
     let nama_img = droplet
         .get("image")
         .and_then(|i| i.get("name"))
         .map(|v| crate::vps::js_str(Some(v)))
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
     let created = droplet
         .get("created_at")
         .map(|v| crate::vps::js_str(Some(v)))
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
 
     let mut t = String::from("📋 *ᴅᴇᴛᴀɪʟ ᴠᴘs*\n\n");
     t.push_str("╭─「 🖥️ *ɪɴꜰᴏ* 」\n");
@@ -135,7 +139,8 @@ pub fn cekvps(ctx: Ctx) -> Reply {
     }
 
     let url = format!("https://api.digitalocean.com/v2/droplets/{droplet_id}");
-    let call = oktz_plugin_api::HttpCall::get(url).header("Authorization", format!("Bearer {token}"));
+    let call =
+        oktz_plugin_api::HttpCall::get(url).header("Authorization", format!("Bearer {token}"));
     let response = match ctx.http.call(&call) {
         Ok(r) => r,
         Err(_) => return Reply::text(error_template(&ctx)),
@@ -253,7 +258,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().expect("harus ada teks").to_string()
+        r.without_mutations()
+            .text_body()
+            .expect("harus ada teks")
+            .to_string()
     }
 
     #[test]
@@ -310,7 +318,10 @@ mod tests {
         let stub = Stub::with(CONTOH);
         let r = run(stub.clone(), "123456789");
         assert_eq!(teks(&r), "⚠️ *ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ ʙᴇʟᴜᴍ ᴅɪsᴇᴛᴜᴘ*");
-        assert!(stub.seen.lock().unwrap().is_empty(), "tidak boleh request tanpa token");
+        assert!(
+            stub.seen.lock().unwrap().is_empty(),
+            "tidak boleh request tanpa token"
+        );
     }
 
     #[test]
@@ -321,8 +332,17 @@ mod tests {
 
     #[test]
     fn format_tanggal_memakai_waktu_jakarta() {
-        assert_eq!(format_tanggal("2024-01-15T03:30:00Z"), "15 Januari 2024 10:30:00");
-        assert_eq!(format_tanggal("2024-12-31T17:00:00Z"), "01 Januari 2025 00:00:00");
-        assert_eq!(format_tanggal("2024-06-30T00:00:00Z"), "30 Juni 2024 07:00:00");
+        assert_eq!(
+            format_tanggal("2024-01-15T03:30:00Z"),
+            "15 Januari 2024 10:30:00"
+        );
+        assert_eq!(
+            format_tanggal("2024-12-31T17:00:00Z"),
+            "01 Januari 2025 00:00:00"
+        );
+        assert_eq!(
+            format_tanggal("2024-06-30T00:00:00Z"),
+            "30 Juni 2024 07:00:00"
+        );
     }
 }

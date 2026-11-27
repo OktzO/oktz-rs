@@ -21,7 +21,7 @@ pub(crate) const FAILED: &str = "Terjadi kesalahan saat mengambil data GAG. Coba
 /// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -87,7 +87,7 @@ pub(crate) fn render(stock: &Value) -> Result<String, String> {
 
     txt.push_str(&item_list(stock.get("seeds"), "SEEDS")?);
     txt.push_str(&item_list(stock.get("gear"), "GEAR")?);
-    let crates = item_list(stock.get("crates"), "CRATES")?;    // Blok terakhir JS tidak menambah baris kosong sebelum `reply(txt)`.
+    let crates = item_list(stock.get("crates"), "CRATES")?; // Blok terakhir JS tidak menambah baris kosong sebelum `reply(txt)`.
     txt.push_str(crates.trim_end_matches('\n'));
     Ok(txt)
 }
@@ -129,7 +129,6 @@ pub fn gagwatch(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     fn run() -> Reply {
         let ctx = Ctx {
@@ -194,8 +193,7 @@ mod tests {
 
     #[test]
     fn the_header_uses_a_dash_when_the_value_is_falsy() {
-        let s =
-            serde_json::json!({"message": "", "restockInLabel": null, "seeds": [], "gear": [], "crates": []});
+        let s = serde_json::json!({"message": "", "restockInLabel": null, "seeds": [], "gear": [], "crates": []});
         assert_eq!(
             render(&s).unwrap(),
             "🌱 *GAG2 STOCK MONITOR*\n\n\

@@ -5,11 +5,11 @@
 //! membawa teksnya, jadi tombol (judul, deskripsi, `id` untuk `filmget`) dan thumbnail
 //! tidak ikut — persis teks.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::{CardList, CardRow, CardSection, InteractiveButton};
+use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
@@ -48,7 +48,7 @@ pub(crate) fn not_found(query: &str) -> String {
 /// `common.rs`.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -128,14 +128,17 @@ pub fn film(ctx: Ctx) -> Reply {
     let rows: Vec<CardRow> = films
         .iter()
         .map(|f| {
-            CardRow::new(interp(f.get("title")), format!("{}filmget {}", ctx.prefix, interp(f.get("url"))))
-                .description(format!(
-                    "⭐ {} | {} | {}",
-                    interp(f.get("rating")),
-                    interp(f.get("quality")),
-                    interp(f.get("release"))
-                ))
-                .header("")
+            CardRow::new(
+                interp(f.get("title")),
+                format!("{}filmget {}", ctx.prefix, interp(f.get("url"))),
+            )
+            .description(format!(
+                "⭐ {} | {} | {}",
+                interp(f.get("rating")),
+                interp(f.get("quality")),
+                interp(f.get("release"))
+            ))
+            .header("")
         })
         .collect();
     let list = CardList::new(
@@ -179,9 +182,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -294,7 +300,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["nonton", "lk21"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "film", "alias {a}");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "film",
+                "alias {a}"
+            );
         }
     }
 
@@ -302,7 +312,11 @@ mod tests {
     fn a_blank_title_shows_the_usage_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -313,7 +327,9 @@ mod tests {
         let r = run(http.clone(), "civil war");
         let body = body_of(&r);
         assert!(
-            body.starts_with("🎬 *ʜᴀsɪʟ ᴘᴇɴᴄᴀʀɪᴀɴ*\n\n> Ditemukan *2* film untuk \"civil war\"\n\n"),
+            body.starts_with(
+                "🎬 *ʜᴀsɪʟ ᴘᴇɴᴄᴀʀɪᴀɴ*\n\n> Ditemukan *2* film untuk \"civil war\"\n\n"
+            ),
             "{body}"
         );
         assert!(
@@ -324,9 +340,15 @@ mod tests {
             body.contains("*2. Dune*\n> ⭐ 8.5 | 📺 FHD | 📅 2021\n\n"),
             "{body}"
         );
-        assert!(body.ends_with("> _Pilih film dari list di bawah_"), "{body}");
+        assert!(
+            body.ends_with("> _Pilih film dari list di bawah_"),
+            "{body}"
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Interactive { .. }));
+        assert!(matches!(
+            r.without_mutations().tanpa_reaksi(),
+            Reply::Interactive { .. }
+        ));
         assert_eq!(
             http.seen.lock().unwrap()[0],
             "https://api.neoxr.eu/api/film?q=civil%20war&apikey="
@@ -338,7 +360,10 @@ mod tests {
         let films: Vec<Value> = (0..14)
             .map(|i| serde_json::json!({"title": format!("Film {i}")}))
             .collect();
-        let body = format!("{{\"status\": true, \"data\": {}}}", serde_json::json!(films));
+        let body = format!(
+            "{{\"status\": true, \"data\": {}}}",
+            serde_json::json!(films)
+        );
         let out = body_of(&run(Stub::new(&body), "film"));
         assert!(out.contains("> Ditemukan *10* film"), "{out}");
         assert!(out.contains("*10. Film 9*"), "{out}");
@@ -346,11 +371,11 @@ mod tests {
     }
 
     #[test]
-    fn a_missing_field_is_interpolated_as_undefined_like_js() {
+    fn a_missing_field_is_interpolated_as_dash() {
         let body = r#"{"status": true, "data": [{"title": "Tanpa Data"}]}"#;
         let out = body_of(&run(Stub::new(body), "x"));
         assert!(
-            out.contains("*1. Tanpa Data*\n> ⭐ undefined | 📺 undefined | 📅 undefined\n\n"),
+            out.contains("*1. Tanpa Data*\n> ⭐ - | 📺 - | 📅 -\n\n"),
             "{out}"
         );
     }
@@ -372,7 +397,10 @@ mod tests {
     #[test]
     fn a_non_array_payload_hits_the_catch_branch_like_the_foreach_type_error() {
         let r = run(Stub::new(r#"{"status": true, "data": "x"}"#), "q");
-        assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "film"));
+        assert_eq!(
+            body_of(&r),
+            crate::common::error_template_bawaan(".", "film")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

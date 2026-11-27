@@ -81,7 +81,10 @@ pub fn txt2img(ctx: Ctx) -> Reply {
     };
     let data = res.json().unwrap_or(Value::Null);
 
-    let Some(url_hasil) = data.get("data").and_then(|d| d.get("url")).and_then(Value::as_str)
+    let Some(url_hasil) = data
+        .get("data")
+        .and_then(|d| d.get("url"))
+        .and_then(Value::as_str)
     else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
@@ -213,7 +216,11 @@ mod tests {
     #[test]
     fn tanpa_input_menghasilkan_kartu_pakai_dan_style_list() {
         let r = run_tanpa_kunci(Stub::offline(), "");
-        assert!(text_of(&r).starts_with("🎨 *ᴛᴇxᴛ ᴛᴏ ɪᴍᴀɢᴇ*"), "{:?}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("🎨 *ᴛᴇxᴛ ᴛᴏ ɪᴍᴀɢᴇ*"),
+            "{:?}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains("photorealistic"));
         assert!(text_of(&r).contains("vintage"));
         assert_eq!(reaction_of(&r), None);
@@ -235,7 +242,11 @@ mod tests {
         let _r = run(http.clone(), "indah sekali | anime");
         let seen = http.seen.lock().unwrap();
         assert!(seen[0].contains("prompt=indah%20sekali"), "{:?}", seen[0]);
-        assert!(!seen[0].contains("anime"), "style tidak ikut ke prompt: {:?}", seen[0]);
+        assert!(
+            !seen[0].contains("anime"),
+            "style tidak ikut ke prompt: {:?}",
+            seen[0]
+        );
     }
 
     #[test]
@@ -283,7 +294,10 @@ mod tests {
     #[test]
     fn kegagalan_jaringan_menggunakan_error_template() {
         let r = run(Stub::offline(), "sunset");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "txt2img"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "txt2img")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 }

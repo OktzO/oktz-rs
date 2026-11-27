@@ -8,16 +8,65 @@ use rand::Rng as _;
 const API_BASE: &str = "https://api.neoxr.eu/api/asupan";
 
 const USERNAMES: &[&str] = &[
-    "natajadeh", "aletaanovianda", "faisafch", "0rbby", "cindyanastt", "awaa.an",
-    "nadineabgail", "ciloqciliq", "carluskiey", "wuxiaturuxia", "joomblo", "hxszys",
-    "indomeysleramu", "anindthrc", "m1cel", "chrislin.chrislin", "brocolee__", "dxzdaa",
-    "toodlesprunky", "wasawho", "paphricia", "queenzlyjlita", "apol1yon", "eliceannabella",
-    "aintyrbaby", "christychriselle", "natalienovita", "glennvmi", "_rgtaaa", "felicialrnz",
-    "zahraazzhri", "mdy.li", "jeyiiiii_", "bbytiffs", "irenefennn", "mellyllyyy", "xsta_xstar",
-    "n0_0ella", "kutubuku6690", "cesiann", "gaby.rosse", "charrvm_", "bilacml04", "whosyoraa",
-    "ishaangelica", "heresthekei", "gemoy.douyin", "nathasyaest", "jasmine.mat", "akuallyaa",
-    "meycoco22", "baby_sya66", "knzymyln__", "rin.channn", "audicamy", "franzeskaedelyn",
-    "shiraishi.ito", "itsceceh", "senpai_cj7",
+    "natajadeh",
+    "aletaanovianda",
+    "faisafch",
+    "0rbby",
+    "cindyanastt",
+    "awaa.an",
+    "nadineabgail",
+    "ciloqciliq",
+    "carluskiey",
+    "wuxiaturuxia",
+    "joomblo",
+    "hxszys",
+    "indomeysleramu",
+    "anindthrc",
+    "m1cel",
+    "chrislin.chrislin",
+    "brocolee__",
+    "dxzdaa",
+    "toodlesprunky",
+    "wasawho",
+    "paphricia",
+    "queenzlyjlita",
+    "apol1yon",
+    "eliceannabella",
+    "aintyrbaby",
+    "christychriselle",
+    "natalienovita",
+    "glennvmi",
+    "_rgtaaa",
+    "felicialrnz",
+    "zahraazzhri",
+    "mdy.li",
+    "jeyiiiii_",
+    "bbytiffs",
+    "irenefennn",
+    "mellyllyyy",
+    "xsta_xstar",
+    "n0_0ella",
+    "kutubuku6690",
+    "cesiann",
+    "gaby.rosse",
+    "charrvm_",
+    "bilacml04",
+    "whosyoraa",
+    "ishaangelica",
+    "heresthekei",
+    "gemoy.douyin",
+    "nathasyaest",
+    "jasmine.mat",
+    "akuallyaa",
+    "meycoco22",
+    "baby_sya66",
+    "knzymyln__",
+    "rin.channn",
+    "audicamy",
+    "franzeskaedelyn",
+    "shiraishi.ito",
+    "itsceceh",
+    "senpai_cj7",
 ];
 
 #[plugin(
@@ -67,10 +116,7 @@ pub fn asupantiktok(ctx: Ctx) -> Reply {
         .and_then(|v| v.get("url"))
         .and_then(Value::as_str)
         .unwrap_or("");
-    let caption = data
-        .get("caption")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let caption = data.get("caption").and_then(Value::as_str).unwrap_or("");
 
     Reply::video(MediaSource::url(video_url), caption.to_string()).with_reaction("✅")
 }
@@ -187,9 +233,13 @@ mod tests {
 
     #[test]
     fn tanpa_query_pakai_username_random_dan_tanpa_request() {
-        let http = Stub::body(json!({"data": {"video": {"url": "https://v/1.mp4"}, "caption": "c"}}));
+        let http =
+            Stub::body(json!({"data": {"video": {"url": "https://v/1.mp4"}, "caption": "c"}}));
         let r = run(http.clone(), "");
-        assert!(!http.seen.lock().unwrap().is_empty(), "random butuh request HTTP");
+        assert!(
+            !http.seen.lock().unwrap().is_empty(),
+            "random butuh request HTTP"
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
     }
 
@@ -220,7 +270,12 @@ mod tests {
 
     #[test]
     fn data_null_menghasilkan_teks_tidak_ditemukan() {
-        for body in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"data": null}), serde_json::json!({"status": false})] {
+        for body in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"data": null}),
+            serde_json::json!({"status": false}),
+        ] {
             let r = run_dengan_kunci(Stub::body(body.clone()), "natajadeh");
             assert_eq!(
                 text_of(&r),

@@ -352,7 +352,10 @@ mod tests {
         assert_eq!(m.adv_secret_key_len, 32);
         assert!(m.has_routing_info);
         assert_eq!(doc["registered"], true);
-        assert_eq!(c.me.as_ref().unwrap().lid.as_deref(), Some("188412430651393:59@lid"));
+        assert_eq!(
+            c.me.as_ref().unwrap().lid.as_deref(),
+            Some("188412430651393:59@lid")
+        );
     }
 
     /// Regresi sesi "pesan masuk hilang": ekspor pairing DULU membuang
@@ -382,13 +385,22 @@ mod tests {
         let raw = serde_json::to_string(&doc).unwrap();
         let (_m, c) = inspect_creds(&raw).expect("ekspor dengan account harus sah");
         let a = c.account.expect("account wajib ikut terekspor");
-        assert_eq!(a.details.as_deref(), Some(b64_encode(&[0x0a, 0x01, 0x02]).as_str()));
+        assert_eq!(
+            a.details.as_deref(),
+            Some(b64_encode(&[0x0a, 0x01, 0x02]).as_str())
+        );
         assert_eq!(
             a.account_signature_key.as_deref(),
             Some(b64_encode(&[0x09u8; 32]).as_str())
         );
-        assert_eq!(a.account_signature.as_deref(), Some(b64_encode(&[0x08u8; 64]).as_str()));
-        assert_eq!(a.device_signature.as_deref(), Some(b64_encode(&[0x07u8; 64]).as_str()));
+        assert_eq!(
+            a.account_signature.as_deref(),
+            Some(b64_encode(&[0x08u8; 64]).as_str())
+        );
+        assert_eq!(
+            a.device_signature.as_deref(),
+            Some(b64_encode(&[0x07u8; 64]).as_str())
+        );
     }
 
     /// creds.json produksi nyata, disanitasi: nilai kripto diganti dummy

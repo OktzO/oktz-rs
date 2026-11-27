@@ -121,10 +121,7 @@ pub fn toaudio(ctx: Ctx) -> Reply {
     let buffer = match unduhan {
         Ok(b) if !b.is_empty() => b,
         _ => {
-            return Reply::sequence(vec![
-                Reply::text(memproses()),
-                Reply::text(unduh_gagal()),
-            ]);
+            return Reply::sequence(vec![Reply::text(memproses()), Reply::text(unduh_gagal())]);
         }
     };
 
@@ -178,10 +175,7 @@ pub fn toaudio(ctx: Ctx) -> Reply {
         Err(e) => {
             let _ = ctx.berkas().hapus(&input_path);
             let _ = ctx.berkas().hapus(&output_path);
-            return Reply::sequence(vec![
-                Reply::text(memproses()),
-                Reply::text(error(&e)),
-            ]);
+            return Reply::sequence(vec![Reply::text(memproses()), Reply::text(error(&e))]);
         }
     };
 

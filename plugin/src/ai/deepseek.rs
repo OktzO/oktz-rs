@@ -11,8 +11,7 @@
 //! bukan `❌ *DeepSeek Gagal*`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Value};
-
+use serde_json::Value;
 
 use super::aiassist::uuid_v4;
 
@@ -126,13 +125,13 @@ pub fn deepseek(ctx: Ctx) -> Reply {
     let raw = match ctx.http.post_json(ENDPOINT, &body) {
         Ok(r) => r.text(),
         Err(_) => {
-            return Reply::text(crate::common::error_template(&ctx))
-                .with_reaction("☢");
+            return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
         }
     };
     let (answer, reasoning) = parse_sse(&raw);
     if answer.is_empty() && reasoning.is_empty() {
-        return Reply::text("❌ *DeepSeek Gagal*\n\n> Gagal mendapatkan respons").with_reaction("☢");
+        return Reply::text("❌ *DeepSeek Gagal*\n\n> Gagal mendapatkan respons")
+            .with_reaction("☢");
     }
 
     let mut reply = String::new();
@@ -149,10 +148,10 @@ pub fn deepseek(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
-    use serde_json::Value;
     use super::*;
+    use oktz_plugin_api::HttpGet;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -239,7 +238,10 @@ mod tests {
         assert_eq!(p.meta.name, "deepseek");
         assert_eq!(p.meta.alias, ["ds", "dsv4", "deepthink"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(p.meta.description, "Chat dengan DeepSeek V4 (thinking/reasoning)");
+        assert_eq!(
+            p.meta.description,
+            "Chat dengan DeepSeek V4 (thinking/reasoning)"
+        );
         assert_eq!(p.meta.usage, ".deepseek <pertanyaan>");
         assert_eq!(p.meta.example, ".deepseek Jelaskan black hole");
         assert_eq!(p.meta.cooldown, 10);
@@ -283,7 +285,8 @@ mod tests {
 
     #[test]
     fn a_done_flag_stops_the_loop_but_false_does_not() {
-        let (a, _) = parse_sse("data: {\"text\":\"a\"}\ndata: {\"done\":true}\ndata: {\"text\":\"b\"}\n");
+        let (a, _) =
+            parse_sse("data: {\"text\":\"a\"}\ndata: {\"done\":true}\ndata: {\"text\":\"b\"}\n");
         assert_eq!(a, "a", "setelah done parsing berhenti");
         let (a2, _) = parse_sse("data: {\"text\":\"a\",\"done\":false}\ndata: {\"text\":\"b\"}\n");
         assert_eq!(a2, "ab", "done:false bukan break");
@@ -297,7 +300,9 @@ mod tests {
 
     #[test]
     fn a_normal_reply_puts_the_reasoning_block_before_the_answer() {
-        let http = Stub::ok("data: {\"reasoning\":\"langkah 1\\nlangkah 2\"}\ndata: {\"text\":\"Jawaban\"}\n");
+        let http = Stub::ok(
+            "data: {\"reasoning\":\"langkah 1\\nlangkah 2\"}\ndata: {\"text\":\"Jawaban\"}\n",
+        );
         let t = body(&run(http.clone(), "Jelaskan black hole")).to_string();
         assert_eq!(
             t,
@@ -348,7 +353,10 @@ mod tests {
     #[test]
     fn an_empty_sse_body_is_the_gagal_branch() {
         let r = run(Stub::ok("data: [DONE]\n"), "x");
-        assert_eq!(body(&r), "❌ *DeepSeek Gagal*\n\n> Gagal mendapatkan respons");
+        assert_eq!(
+            body(&r),
+            "❌ *DeepSeek Gagal*\n\n> Gagal mendapatkan respons"
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"
@@ -358,7 +366,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "halo");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "deepseek"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "deepseek")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"

@@ -14,10 +14,11 @@ use crate::common::{jid_number, random_index};
 #[cfg(test)]
 pub(crate) const COMMANDS: [&str; 52] = [
     "bego", "goblok", "janda", "perawan", "babi", "tolol", "pekok", "jancok", "pinter", "pintar",
-    "asu", "bodoh", "gay", "lesby", "bajingan", "anjing", "anjg", "anjj", "anj", "ngentod", "ngentot",
-    "monyet", "mastah", "newbie", "bangsat", "bangke", "sange", "sangean", "dakjal", "horny", "wibu",
-    "puki", "puqi", "peak", "pantex", "pantek", "setan", "iblis", "cacat", "yatim", "piatu", "ganteng",
-    "cantik", "jelek", "keren", "cupu", "noob", "pro", "sultan", "miskin", "kaya", "siapa",
+    "asu", "bodoh", "gay", "lesby", "bajingan", "anjing", "anjg", "anjj", "anj", "ngentod",
+    "ngentot", "monyet", "mastah", "newbie", "bangsat", "bangke", "sange", "sangean", "dakjal",
+    "horny", "wibu", "puki", "puqi", "peak", "pantex", "pantek", "setan", "iblis", "cacat",
+    "yatim", "piatu", "ganteng", "cantik", "jelek", "keren", "cupu", "noob", "pro", "sultan",
+    "miskin", "kaya", "siapa",
 ];
 
 /// `positiveWords.includes(command)` — Only these get the "Yang paling" label.
@@ -63,7 +64,12 @@ pub fn siapa(ctx: Ctx) -> Reply {
     }
     let picked = &members[random_index(members.len())];
     Reply::Text {
-        text: format!("*{} {} di sini adalah* @{}", label(&command), command, jid_number(picked)),
+        text: format!(
+            "*{} {} di sini adalah* @{}",
+            label(&command),
+            command,
+            jid_number(picked)
+        ),
         mentions: vec![picked.clone()],
     }
     .with_reaction("✅")
@@ -180,13 +186,23 @@ mod tests {
 
     #[test]
     fn a_chosen_member_is_mentioned_by_its_bare_number() {
-        let r = run("ganteng", &["628111@s.whatsapp.net", "628222@s.whatsapp.net"]);
+        let r = run(
+            "ganteng",
+            &["628111@s.whatsapp.net", "628222@s.whatsapp.net"],
+        );
         let t = body(&r);
-        assert!(t.starts_with("*Yang paling ganteng di sini adalah* @"), "{t}");
+        assert!(
+            t.starts_with("*Yang paling ganteng di sini adalah* @"),
+            "{t}"
+        );
         let m = mentions(&r);
         assert_eq!(m.len(), 1, "tepat satu mention: {m:?}");
         let num = t.rsplit('@').next().unwrap();
-        assert_eq!(m[0], format!("{num}@s.whatsapp.net"), "mention harus JID penuh");
+        assert_eq!(
+            m[0],
+            format!("{num}@s.whatsapp.net"),
+            "mention harus JID penuh"
+        );
         assert!(!num.contains('@'), "teks hanya nomor: {num}");
     }
 
@@ -198,7 +214,10 @@ mod tests {
         for c in ["bego", "ngentod", "jelek", "siapa"] {
             let __balasan = run(c, &["628111@s.whatsapp.net"]);
             let t = body(&__balasan);
-            assert!(t.contains(&format!("*Anak {c} di sini adalah*")), "{c}: {t}");
+            assert!(
+                t.contains(&format!("*Anak {c} di sini adalah*")),
+                "{c}: {t}"
+            );
         }
     }
 
@@ -222,6 +241,10 @@ mod tests {
         let mut ctx = ctx_of("GANTENG", &["628111@s.whatsapp.net"]);
         ctx.command = "GANTENG".into();
         let r = (entry().handler)(ctx);
-        assert!(body(&r).starts_with("*Yang paling ganteng di sini adalah*"), "{}", body(&r));
+        assert!(
+            body(&r).starts_with("*Yang paling ganteng di sini adalah*"),
+            "{}",
+            body(&r)
+        );
     }
 }

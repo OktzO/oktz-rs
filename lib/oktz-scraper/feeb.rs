@@ -98,11 +98,7 @@ fn teks_js(v: &Value) -> String {
 }
 
 /// `FeelBetter(prompt, options = {})` (`feeb.js:43-109`).
-pub fn feel_better(
-    http: &dyn HttpGet,
-    prompt: &str,
-    options: &Value,
-) -> Result<Value, HttpError> {
+pub fn feel_better(http: &dyn HttpGet, prompt: &str, options: &Value) -> Result<Value, HttpError> {
     let memory_id = opsi_teks(options, "memoryId").unwrap_or_else(id_memori_acak);
     let history = options.get("history").and_then(Value::as_array);
 
@@ -331,7 +327,10 @@ mod tests {
         assert_eq!(pesan[1]["role"], "assistant");
         assert_eq!(pesan[1]["content"], PEMBUKA);
         assert_eq!(pesan[2], json!({"role": "user", "content": "halo"}));
-        assert_eq!(pesan[3], json!({"role": "assistant", "content": "hai juga"}));
+        assert_eq!(
+            pesan[3],
+            json!({"role": "assistant", "content": "hai juga"})
+        );
         assert_eq!(pesan[4], json!({"role": "user", "content": "hai"}));
     }
 
@@ -344,7 +343,10 @@ mod tests {
         assert_eq!(bagian.len(), 3, "id tak berpola: {id}");
         assert!(!bagian[0].is_empty() && !bagian[1].is_empty());
         let angka: u32 = bagian[2].parse().unwrap();
-        assert!((1000..=9999).contains(&angka), "angka di luar rentang: {id}");
+        assert!(
+            (1000..=9999).contains(&angka),
+            "angka di luar rentang: {id}"
+        );
         // Cookie memakai id yang sama dengan hasil.
         let p = http.permintaan.lock().unwrap();
         assert_eq!(

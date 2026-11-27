@@ -57,9 +57,9 @@ pub fn text2img2(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
     use super::*;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -210,7 +210,10 @@ mod tests {
     fn a_body_shorter_than_one_hundred_bytes_falls_into_the_catch_branch() {
         // 99 byte sudah ditolak, 100 byte lolos.
         let r = run(Stub::ok(vec![7u8; 99]), "kucing");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "text2img2"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "text2img2")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "❌"
@@ -226,7 +229,10 @@ mod tests {
             run(Stub::ok(Vec::new()), "kucing"),
             run(Stub::offline(), "kucing"),
         ] {
-            assert_eq!(body(&r), crate::common::error_template_bawaan(".", "text2img2"));
+            assert_eq!(
+                body(&r),
+                crate::common::error_template_bawaan(".", "text2img2")
+            );
             assert!(matches!(
                 r.without_mutations(),
                 Reply::Reaction { emoji, .. } if emoji == "❌"

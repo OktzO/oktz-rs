@@ -125,14 +125,12 @@ pub fn smeme(ctx: Ctx) -> Reply {
 
     // Unggah ke Telegraph.
     let png = ke_png(&media);
-    let Ok(res) = ctx.http.call(
-        &HttpCall::post("https://telegra.ph/upload").multipart(vec![MultipartPart::file(
-            "file",
-            "meme.png",
-            png,
-        )
-        .with_mimetype("image/png")]),
-    ) else {
+    let Ok(res) = ctx
+        .http
+        .call(&HttpCall::post("https://telegra.ph/upload").multipart(vec![
+            MultipartPart::file("file", "meme.png", png).with_mimetype("image/png"),
+        ]))
+    else {
         return Reply::text(GAGAL_UPLOAD).with_reaction("❌");
     };
     let body = res.json().unwrap_or(Value::Null);
@@ -141,12 +139,13 @@ pub fn smeme(ctx: Ctx) -> Reply {
     };
 
     // Unduh meme jadi sticker.
-    let Ok(res) = ctx.http.call(
-        &HttpCall::get(url_meme(&top, &bottom, &background)).header(
+    let Ok(res) = ctx
+        .http
+        .call(&HttpCall::get(url_meme(&top, &bottom, &background)).header(
             "User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        ),
-    ) else {
+        ))
+    else {
         return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let buf = res.body.bytes().to_vec();
@@ -176,7 +175,10 @@ pub fn smeme(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, IncomingMedia, MediaError, MediaFetch, MediaOrigin};
+    use oktz_plugin_api::{
+        HttpBody, HttpError, HttpGet, HttpResponse, IncomingMedia, MediaError, MediaFetch,
+        MediaOrigin,
+    };
     use std::sync::{Arc, Mutex};
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -400,7 +402,11 @@ mod tests {
             fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
                 unimplemented!()
             }
-            fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+            fn post_multipart(
+                &self,
+                _: &str,
+                _: &[(&str, HttpBody)],
+            ) -> Result<HttpResponse, HttpError> {
                 unimplemented!()
             }
             fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
@@ -430,7 +436,11 @@ mod tests {
                         MediaSource::Bytes { data, .. } => data.clone(),
                         m => panic!("harus bytes: {m:?}"),
                     };
-                    assert!(bytes.starts_with(b"RIFF"), "harus WebP, dapat {bytes:?}", bytes = &bytes[..16.min(bytes.len())]);
+                    assert!(
+                        bytes.starts_with(b"RIFF"),
+                        "harus WebP, dapat {bytes:?}",
+                        bytes = &bytes[..16.min(bytes.len())]
+                    );
                 }
                 lain => panic!("harus sticker, dapat {lain:?}"),
             },

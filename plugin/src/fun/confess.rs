@@ -116,7 +116,9 @@ pub fn confess(ctx: Ctx) -> Reply {
     }
 
     if target_number == sender_number {
-        return Reply::text("Ih masa ngirim menfess buat diri sendiri sih kak? Kasih buat orang lain dong! 😂");
+        return Reply::text(
+            "Ih masa ngirim menfess buat diri sendiri sih kak? Kasih buat orang lain dong! 😂",
+        );
     }
 
     let target_jid = format!("{target_number}@s.whatsapp.net");
@@ -147,11 +149,15 @@ pub fn confess(ctx: Ctx) -> Reply {
     }
 
     if message.len() < 5 {
-        return Reply::text("Pesannya kependekan kak! Minimal 5 karakter ya biar lebih bermakna. 📝");
+        return Reply::text(
+            "Pesannya kependekan kak! Minimal 5 karakter ya biar lebih bermakna. 📝",
+        );
     }
 
     if message.len() > 1000 {
-        return Reply::text("Wah pesannya kepanjangan kak! Maksimal 1000 karakter ya biar bacanya nggak pusing. 📜");
+        return Reply::text(
+            "Wah pesannya kepanjangan kak! Maksimal 1000 karakter ya biar bacanya nggak pusing. 📜",
+        );
     }
 
     let message_id = std::time::SystemTime::now()
@@ -279,7 +285,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }

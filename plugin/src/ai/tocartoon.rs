@@ -25,10 +25,7 @@ pub(crate) fn pakai(prefix: &str) -> String {
 
 /// `isImage` — trigger atau quoted adalah gambar.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_image())
+    ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image())
 }
 
 /// Unduh buffer media: quoted dulu, baru trigger.
@@ -91,7 +88,12 @@ mod tests {
     impl StubHttp {
         fn urutan(daftar: Vec<(u16, &str)>) -> StubHttp {
             StubHttp {
-                balasan: Mutex::new(daftar.into_iter().map(|(s, t)| (s, t.to_string())).collect()),
+                balasan: Mutex::new(
+                    daftar
+                        .into_iter()
+                        .map(|(s, t)| (s, t.to_string()))
+                        .collect(),
+                ),
                 hitung: Mutex::new(0),
             }
         }
@@ -126,7 +128,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::HttpGet for StubHttp {
-        fn get(&self, _: &str) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+        fn get(
+            &self,
+            _: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
             self.jawaban()
         }
         fn call(
@@ -142,7 +147,11 @@ mod tests {
         ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
             unimplemented!()
         }
-        fn post_form(&self, _: &str, _: &str) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+        fn post_form(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
             unimplemented!()
         }
         fn post_multipart(
@@ -161,7 +170,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::MediaFetch for StubFetch {
-        fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
+        fn download(
+            &self,
+            _: oktz_plugin_api::MediaOrigin,
+        ) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
             if self.ok {
                 Ok(self.bytes.clone())
             } else {
@@ -193,8 +205,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        })
+                timestamp: 0,
+            })
         } else {
             None
         };
@@ -203,10 +215,16 @@ mod tests {
             StubHttp::offline()
         } else {
             StubHttp::urutan(vec![
-                (200, r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#),
+                (
+                    200,
+                    r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#,
+                ),
                 (200, ""),
                 (200, r#"{"result":{"url":"https://s/x.jpg"}}"#),
-                (200, r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#),
+                (
+                    200,
+                    r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#,
+                ),
                 (200, "CARTOON"),
             ])
         };

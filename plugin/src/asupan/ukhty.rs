@@ -23,7 +23,11 @@ fn muat_data(berkas: &dyn oktz_plugin_api::berkas::Berkas) -> Vec<String> {
         return Vec::new();
     };
     arr.iter()
-        .filter_map(|item| item.get("url").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .filter_map(|item| {
+            item.get("url")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
         .collect()
 }
 

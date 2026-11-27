@@ -1,7 +1,7 @@
 //! Mencuri dari NPC demi emas.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::int_field;
 use crate::rpg::jualan::{
@@ -199,7 +199,11 @@ mod tests {
         assert!(t.starts_with("Level lu masih bocil (Level 1)."), "{t}");
         assert!(t.contains("minimal butuh *Level 3*"), "{t}");
         let d = written(&r);
-        assert_eq!(d["rpg"]["stamina"], serde_json::json!(85), "db.save() di cabang ini");
+        assert_eq!(
+            d["rpg"]["stamina"],
+            serde_json::json!(85),
+            "db.save() di cabang ini"
+        );
         assert!(d.get("koin").is_none());
     }
 
@@ -222,7 +226,8 @@ mod tests {
     #[test]
     fn a_heist_reports_its_target_and_never_breaks_its_own_range() {
         for _ in 0..1000 {
-            let r = run(serde_json::json!({"level": 20, "rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
+            let r =
+                run(serde_json::json!({"level": 20, "rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
             let t = text_of(&r);
             let d = written(&r);
             assert_eq!(d["rpg"]["stamina"], serde_json::json!(85));
@@ -244,7 +249,9 @@ mod tests {
     fn getting_caught_costs_a_tenth_of_the_purse_and_blood_but_no_exp() {
         let mut seen = 0;
         for _ in 0..6000 {
-            let r = run(serde_json::json!({"level": 18, "rpg": {"stamina": 100}, "koin": 1000, "exp": 42}));
+            let r = run(
+                serde_json::json!({"level": 18, "rpg": {"stamina": 100}, "koin": 1000, "exp": 42}),
+            );
             let d = written(&r);
             let t = text_of(&r);
             if !t.starts_with("SIAAALLLL") {
@@ -257,7 +264,11 @@ mod tests {
                 .copied()
                 .unwrap_or_else(|| panic!("target tak dikenal: {t}"));
             assert_eq!(d["koin"], serde_json::json!(900), "10% dari 1000");
-            assert_eq!(d["rpg"]["health"], serde_json::json!(100 - (10 + difficulty * 5)), "{t}");
+            assert_eq!(
+                d["rpg"]["health"],
+                serde_json::json!(100 - (10 + difficulty * 5)),
+                "{t}"
+            );
             assert!(d.get("exp").is_none(), "exp utuh");
         }
         assert!(seen > 0, "cabang ketahuan harus muncul");
@@ -266,7 +277,11 @@ mod tests {
     #[test]
     fn a_streak_of_luck_never_pushes_the_catch_chance_below_five_percent() {
         assert_eq!(catch_chance(60, 5), 50, "luck default 5 -> bonus 10");
-        assert_eq!(catch_chance(60, 0), 60, "`rpg.luck || 5`, nol jadi 5 bukan 0");
+        assert_eq!(
+            catch_chance(60, 0),
+            60,
+            "`rpg.luck || 5`, nol jadi 5 bukan 0"
+        );
         assert_eq!(catch_chance(10, 100), 5, "dijepit di lantai 5");
         assert_eq!(catch_chance(10, 9999), 5, "luck gila tetap 5");
     }
@@ -275,7 +290,8 @@ mod tests {
     fn the_bonus_loot_only_lands_on_the_four_named_items() {
         let mut seen = false;
         for _ in 0..3000 {
-            let r = run(serde_json::json!({"level": 18, "rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
+            let r =
+                run(serde_json::json!({"level": 18, "rpg": {"stamina": 100}, "koin": 0, "exp": 0}));
             let t = text_of(&r);
             if t.contains("Bonus Jarahan") {
                 seen = true;

@@ -108,7 +108,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::QuotedKind;
     use oktz_plugin_api::registry::{GroupRoster, Participant};
-    use serde_json::{Value};
+    use serde_json::Value;
 
     const ME: &str = "628111@s.whatsapp.net";
     const THEM: &str = "628222@s.whatsapp.net";
@@ -202,7 +202,11 @@ mod tests {
         });
         ctx.mentioned = vec!["628999@s.whatsapp.net".into()];
         ctx.args = vec!["628333".into()];
-        assert_eq!(resolve_target(&ctx), (THEM.to_string(), true), "quoted menang");
+        assert_eq!(
+            resolve_target(&ctx),
+            (THEM.to_string(), true),
+            "quoted menang"
+        );
 
         ctx.quoted = None;
         assert_eq!(
@@ -227,7 +231,13 @@ mod tests {
             let (target, is_other) = resolve_target(&ctx);
             assert_eq!(is_other, expected_other, "arg {arg}");
             if expected_other {
-                assert_eq!(target, format!("{}@s.whatsapp.net", arg.chars().filter(char::is_ascii_digit).collect::<String>()));
+                assert_eq!(
+                    target,
+                    format!(
+                        "{}@s.whatsapp.net",
+                        arg.chars().filter(char::is_ascii_digit).collect::<String>()
+                    )
+                );
             } else {
                 assert_eq!(target, ME);
             }
@@ -257,7 +267,10 @@ mod tests {
     fn a_one_sided_pair_is_reported_as_hanging() {
         let ctx = Ctx {
             user_data: serde_json::json!({ "fun": { "pasangan": THEM } }),
-            roster: roster(&[(THEM, serde_json::json!({ "fun": { "pasangan": "999@s.whatsapp.net" } }))]),
+            roster: roster(&[(
+                THEM,
+                serde_json::json!({ "fun": { "pasangan": "999@s.whatsapp.net" } }),
+            )]),
             ..base()
         };
         let (emoji, text) = text_and_reaction(&run(ctx.clone()));
@@ -269,7 +282,11 @@ mod tests {
 
     #[test]
     fn without_a_partner_it_says_so_and_mentions_nobody() {
-        for data in [serde_json::json!({}), serde_json::json!({ "fun": {} }), serde_json::json!({ "fun": { "pasangan": null } })] {
+        for data in [
+            serde_json::json!({}),
+            serde_json::json!({ "fun": {} }),
+            serde_json::json!({ "fun": { "pasangan": null } }),
+        ] {
             let ctx = Ctx {
                 user_data: data.clone(),
                 ..base()
@@ -280,10 +297,15 @@ mod tests {
                 text.starts_with("💔 *sᴛᴀᴛᴜs ʜᴜʙᴜɴɢᴀɴ*\n\n*Kamu* tidak punya pasangan."),
                 "{data} -> {text}"
             );
-            assert!(text.contains("TIP: Cari pasangan dulu dengan `.tembak @tag`"), "{text}");
+            assert!(
+                text.contains("TIP: Cari pasangan dulu dengan `.tembak @tag`"),
+                "{text}"
+            );
             match run(ctx.clone()).without_mutations() {
                 Reply::Reaction { reply, .. } => match reply.as_ref() {
-                    Reply::Text { mentions, .. } => assert!(mentions.is_empty(), "diri sendiri tidak di-mention"),
+                    Reply::Text { mentions, .. } => {
+                        assert!(mentions.is_empty(), "diri sendiri tidak di-mention")
+                    }
                     other => panic!("harus Text, dapat {other:?}"),
                 },
                 other => panic!("harus Reaction, dapat {other:?}"),
@@ -300,7 +322,10 @@ mod tests {
             ..base()
         };
         let (_, text) = text_and_reaction(&run(ctx.clone()));
-        assert!(text.contains("*@628222* sedang pacaran dengan @628111! 🥳"), "{text}");
+        assert!(
+            text.contains("*@628222* sedang pacaran dengan @628111! 🥳"),
+            "{text}"
+        );
         match run(ctx.clone()).without_mutations() {
             Reply::Reaction { reply, .. } => match reply.as_ref() {
                 Reply::Text { mentions, .. } => {
@@ -318,7 +343,11 @@ mod tests {
             prefix: "!".into(),
             ..base()
         };
-        assert!(text_and_reaction(&run(ctx.clone())).1.contains("`!tembak @tag`"));
+        assert!(
+            text_and_reaction(&run(ctx.clone()))
+                .1
+                .contains("`!tembak @tag`")
+        );
     }
 
     #[test]

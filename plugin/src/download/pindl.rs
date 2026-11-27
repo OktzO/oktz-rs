@@ -178,7 +178,7 @@ pub(crate) fn pilih_varian(master_url: &str, manifest: &str) -> Varian {
                 // `u?.startsWith("http") ? u: baseUrl + u` — `u` boleh `undefined` kalau
                 // manifestnya berakhir tepat di baris `#EXT-X-STREAM-INF`, dan `baseUrl +
                 // undefined` di versi awal menghasilkan teks `"undefined"`, bukan string kosong.
-                let candidate = lines.get(i + 1).copied().unwrap_or("undefined");
+                let candidate = lines.get(i + 1).copied().unwrap_or("-");
                 varian.video = Some(jadi_absolut(candidate, &base));
             }
         }
@@ -770,7 +770,7 @@ mod tests {
     }
 
     #[test]
-    fn a_manifest_ending_on_the_variant_line_yields_the_js_undefined_url() {
+    fn a_manifest_ending_on_the_variant_line_yields_a_dash_url() {
         // versi awal membaca `lines[i + 1]` tanpa cek batas; `undefined?.startsWith`
         // falsy, jadi `baseUrl + undefined` -> teks `"undefined"`.
         let master = "https://cdn/pin/master.m3u8";
@@ -778,7 +778,7 @@ mod tests {
             pilih_varian(master, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=9999\n")
                 .video
                 .as_deref(),
-            Some("https://cdn/pin/undefined")
+            Some("https://cdn/pin/-")
         );
         assert_eq!(pilih_varian(master, ""), Varian::default());
         assert_eq!(pilih_varian(master, "   \n\n  \n"), Varian::default());

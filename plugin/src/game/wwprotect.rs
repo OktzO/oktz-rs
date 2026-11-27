@@ -97,9 +97,15 @@ mod tests {
         assert!(t.contains("🛡️ *TARGET DILINDUNGI*"), "{t}");
         assert!(t.contains("Melindungi: @628999"), "{t}");
         let g = ctx.session_get(crate::game::wwkill::GAMES_KEY).unwrap();
-        assert_eq!(g["120363@g.us"]["nightActions"]["protect"], serde_json::json!(OTHER));
+        assert_eq!(
+            g["120363@g.us"]["nightActions"]["protect"],
+            serde_json::json!(OTHER)
+        );
         assert!(g["120363@g.us"]["nightActions"].get("kill").is_none());
-        assert_eq!(g["120363@g.us"]["players"][0]["skillUsed"], serde_json::json!(true));
+        assert_eq!(
+            g["120363@g.us"]["players"][0]["skillUsed"],
+            serde_json::json!(true)
+        );
         match r.without_mutations() {
             Reply::Text { mentions, .. } => assert_eq!(mentions, &[OTHER.to_string()]),
             other => panic!("harus Text, dapat {other:?}"),
@@ -135,6 +141,10 @@ mod tests {
             ]),
         );
         let r = run("3", Some(g));
-        assert!(text_of(&r).contains("Role kamu: Werewolf"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Role kamu: Werewolf"),
+            "{}",
+            text_of(&r)
+        );
     }
 }

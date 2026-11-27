@@ -62,7 +62,11 @@ fn base64(data: &[u8]) -> String {
     const ABJAD: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for blok in data.chunks(3) {
-        let b = [blok[0], *blok.get(1).unwrap_or(&0), *blok.get(2).unwrap_or(&0)];
+        let b = [
+            blok[0],
+            *blok.get(1).unwrap_or(&0),
+            *blok.get(2).unwrap_or(&0),
+        ];
         let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
         out.push(ABJAD[(n >> 18) as usize & 63] as char);
         out.push(ABJAD[(n >> 12) as usize & 63] as char);
@@ -180,9 +184,15 @@ mod tests {
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
         assert_eq!(p[0].url, "https://imageprompt.org/api/ai/prompts/image");
-        assert_eq!(cari_header(&p[0], "user-agent"), Some("Mozilla/5.0 (Linux; Android 10)"));
+        assert_eq!(
+            cari_header(&p[0], "user-agent"),
+            Some("Mozilla/5.0 (Linux; Android 10)")
+        );
         assert_eq!(cari_header(&p[0], "content-type"), Some("application/json"));
-        assert_eq!(cari_header(&p[0], "origin"), Some("https://imageprompt.org"));
+        assert_eq!(
+            cari_header(&p[0], "origin"),
+            Some("https://imageprompt.org")
+        );
         assert_eq!(
             cari_header(&p[0], "referer"),
             Some("https://imageprompt.org/image-to-prompt")

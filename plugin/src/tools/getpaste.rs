@@ -4,8 +4,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 const BASE: &str = "https://pastebin.com/raw/";
 
-pub(crate) const USAGE_TMPL: &str =
-    "📋 *ɢᴇᴛ ᴘᴀsᴛᴇʙɪɴ*\n\n> Masukkan link Pastebin yang valid\n\n> Contoh: `{prefix}getpaste https://pastebin.com/Gu8RZaqv`";
+pub(crate) const USAGE_TMPL: &str = "📋 *ɢᴇᴛ ᴘᴀsᴛᴇʙɪɴ*\n\n> Masukkan link Pastebin yang valid\n\n> Contoh: `{prefix}getpaste https://pastebin.com/Gu8RZaqv`";
 
 /// Ekstrak ID paste dari link, padanan `_id` di versi awal:
 /// `/pastebin\.com\/(?:raw\/)?([a-zA-Z0-9]+)/` — kalau tidak cocok, pakai
@@ -20,11 +19,7 @@ pub(crate) fn paste_id(link: &str) -> String {
         .chars()
         .take_while(|c| c.is_ascii_alphanumeric())
         .collect();
-    if id.is_empty() {
-        link.to_string()
-    } else {
-        id
-    }
+    if id.is_empty() { link.to_string() } else { id }
 }
 
 pub(crate) fn usage(prefix: &str) -> String {
@@ -173,10 +168,7 @@ mod tests {
     #[test]
     fn id_diekstrak_dari_link_lengkap_dan_raw() {
         assert_eq!(paste_id("https://pastebin.com/Gu8RZaqv"), "Gu8RZaqv");
-        assert_eq!(
-            paste_id("https://pastebin.com/raw/Gu8RZaqv"),
-            "Gu8RZaqv"
-        );
+        assert_eq!(paste_id("https://pastebin.com/raw/Gu8RZaqv"), "Gu8RZaqv");
         assert_eq!(paste_id("https://pastebin.com/abc123 extra"), "abc123");
         assert_eq!(paste_id("tidak ada link"), "tidak ada link");
     }

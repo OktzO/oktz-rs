@@ -166,7 +166,7 @@ fn kontrol(ctx: Ctx, command: &str) -> Reply {
         .as_ref()
         .and_then(|v| v.pointer("/action/status"))
         .map(|v| js_str(Some(v)))
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
 
     Reply::sequence(vec![
         progres,
@@ -181,8 +181,8 @@ fn kontrol(ctx: Ctx, command: &str) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::Arc;
 
     #[derive(Debug)]

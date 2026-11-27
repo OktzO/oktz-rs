@@ -85,14 +85,16 @@ pub fn dafont(ctx: Ctx) -> Reply {
     let hasil = match oktz_scraper::dafont::dafont(&*ctx.http, &text) {
         Ok(v) => v,
         Err(e) => {
-            return Reply::text(format!("❌ *DaFont Gagal*\n\n> {}", e.message))
-                .with_reaction("☢");
+            return Reply::text(format!("❌ *DaFont Gagal*\n\n> {}", e.message)).with_reaction("☢");
         }
     };
 
     if !crate::common::js_truthy(hasil.get("status")) {
         // `m.react("☢")` + `❌ *DaFont Gagal*\n\n> ${result.error}`.
-        let error = hasil.get("error").and_then(Value::as_str).unwrap_or_default();
+        let error = hasil
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         return Reply::text(format!("❌ *DaFont Gagal*\n\n> {error}")).with_reaction("☢");
     }
 
@@ -111,7 +113,10 @@ pub fn dafont(ctx: Ctx) -> Reply {
             "   ├ 📥 Downloads: {}\n",
             atau_strip(v.get("downloads"))
         ));
-        txt.push_str(&format!("   └ 📜 License: {}\n", atau_strip(v.get("license"))));
+        txt.push_str(&format!(
+            "   └ 📜 License: {}\n",
+            atau_strip(v.get("license"))
+        ));
     }
     txt.push_str("\n_Reply pesan ini dengan nomor font buat download file-nya_");
 
@@ -346,7 +351,9 @@ mod tests {
         let sesi = oktz_plugin_api::new_session_store();
         let r = dafont(ctx_of(&sesi, "font", StubHttp::baru(&halaman)));
         assert!(
-            r.text_body().unwrap().contains("*DaFont — 12 Font Ditemukan*"),
+            r.text_body()
+                .unwrap()
+                .contains("*DaFont — 12 Font Ditemukan*"),
             "{}",
             r.text_body().unwrap()
         );
@@ -381,7 +388,9 @@ mod tests {
         let sesi = oktz_plugin_api::new_session_store();
         let r = dafont(ctx_of(&sesi, "arial", Arc::new(oktz_plugin_api::NoHttp)));
         assert!(
-            r.text_body().unwrap().starts_with("❌ *DaFont Gagal*\n\n> "),
+            r.text_body()
+                .unwrap()
+                .starts_with("❌ *DaFont Gagal*\n\n> "),
             "{}",
             r.text_body().unwrap()
         );
@@ -478,7 +487,10 @@ mod tests {
         let mut ctx = balasan_dari(&sesi, "1");
         ctx.chat = "120363@g.us".into();
         assert!(dafont_answer(&ctx).is_none());
-        assert!(sesi_mentah(&sesi).is_some(), "chat lain tidak menghapus sesi");
+        assert!(
+            sesi_mentah(&sesi).is_some(),
+            "chat lain tidak menghapus sesi"
+        );
     }
 
     #[test]
@@ -494,9 +506,12 @@ mod tests {
 
         // Mundurkan `startedAt` sampai tepat TTL; `setTimeout` versi awal sudah
         // menghapus sesi pada titik ini.
-        sesi.lock().unwrap().entry(kunci_sesi(ME).to_string()).and_modify(|s| {
-            s["startedAt"] = json!(crate::common::now_ms() - SESSION_TIMEOUT_MS);
-        });
+        sesi.lock()
+            .unwrap()
+            .entry(kunci_sesi(ME).to_string())
+            .and_modify(|s| {
+                s["startedAt"] = json!(crate::common::now_ms() - SESSION_TIMEOUT_MS);
+            });
 
         assert!(dafont_answer(&balasan_dari(&sesi, "1")).is_none());
         assert!(sesi_mentah(&sesi).is_none(), "sesi basi ikut dibuang");
@@ -506,9 +521,12 @@ mod tests {
     fn pencarian_baru_mengganti_sesi_lama() {
         let sesi = oktz_plugin_api::new_session_store();
         dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
-        sesi.lock().unwrap().entry(kunci_sesi(ME).to_string()).and_modify(|s| {
-            s["startedAt"] = json!(0);
-        });
+        sesi.lock()
+            .unwrap()
+            .entry(kunci_sesi(ME).to_string())
+            .and_modify(|s| {
+                s["startedAt"] = json!(0);
+            });
 
         dafont(ctx_of(&sesi, "bebas neue", StubHttp::baru(HALAMAN)));
         let s = sesi_mentah(&sesi).unwrap();

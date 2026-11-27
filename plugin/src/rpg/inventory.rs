@@ -40,7 +40,10 @@ pub(crate) const ITEMS: [(&str, &str, &str); 27] = [
 
 /// `categories`, urutan object literal = urutan tampil.
 pub(crate) const CATEGORIES: [(&str, &[&str]); 6] = [
-    ("📦 *Koleksi Crates*", &["common", "uncommon", "mythic", "legendary"]),
+    (
+        "📦 *Koleksi Crates*",
+        &["common", "uncommon", "mythic", "legendary"],
+    ),
     (
         "⛏️ *Hasil Tambang*",
         &["rock", "coal", "iron", "gold", "diamond", "emerald"],
@@ -169,10 +172,16 @@ mod tests {
 
     #[test]
     fn an_absent_user_row_shows_defaults_and_an_empty_bag() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"rpg": null, "inventory": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"rpg": null, "inventory": null}),
+        ] {
             let out = run(user.clone());
             assert!(
-                out.starts_with("🎒 *Isi Tas Kamu Nih Kak!* ✨\n\n❤️ HP: *100*\n💸 Koin: *0*\n📈 EXP: *0*\n\n"),
+                out.starts_with(
+                    "🎒 *Isi Tas Kamu Nih Kak!* ✨\n\n❤️ HP: *100*\n💸 Koin: *0*\n📈 EXP: *0*\n\n"
+                ),
                 "input {user}"
             );
             assert!(out.ends_with("Loh, tas kamu masih kosong melompong kak! 🕸️\nYuk main command RPG lain buat dapetin item seru! 🚀\n"));
@@ -220,7 +229,10 @@ mod tests {
             serde_json::json!({"inventory": {"common": 1, "iron": 1, "fish": 1, "herb": 1, "potion": 1, "kunai": 1}}),
         );
         for (name, _) in CATEGORIES {
-            assert!(out.contains(&format!("{name}\n")), "kategori hilang: {name}");
+            assert!(
+                out.contains(&format!("{name}\n")),
+                "kategori hilang: {name}"
+            );
         }
         assert_eq!(
             out.matches("\n\n").count(),
@@ -243,7 +255,10 @@ mod tests {
     fn table_and_categories_stay_in_sync() {
         for (_, keys) in CATEGORIES {
             for k in keys {
-                assert!(item(k).is_some(), "kategori menyebut kunci tanpa entri: {k}");
+                assert!(
+                    item(k).is_some(),
+                    "kategori menyebut kunci tanpa entri: {k}"
+                );
             }
         }
         for (k, _, _) in ITEMS {
@@ -257,7 +272,10 @@ mod tests {
     #[test]
     fn a_non_integer_quantity_is_read_as_absent() {
         let out = run(serde_json::json!({"inventory": {"fish": "3"}}));
-        assert!(!out.contains("Ikan"), "bukan angka -> `|| 0` -> disembunyikan");
+        assert!(
+            !out.contains("Ikan"),
+            "bukan angka -> `|| 0` -> disembunyikan"
+        );
         assert!(out.contains("Loh, tas kamu masih kosong"));
     }
 }

@@ -3,8 +3,8 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 use crate::common::{jid_number, parse_int};
-use crate::user::exp::{EXP_PER_LEVEL, calculate_level, role_of};
 use crate::tools::kalkulatormbg::thousands_id;
+use crate::user::exp::{EXP_PER_LEVEL, calculate_level, role_of};
 
 /// `db.updateExp` juga punya plafon 9 miliar.
 const MAX_EXP: i64 = 9_000_000_000;
@@ -211,7 +211,11 @@ mod tests {
 
         // 900.000 exp = level 91; +1 level → 910.000 = level 92, tetap Mythic.
         let high = run("1", serde_json::json!({ "exp": 900_000 }), None);
-        assert!(text_of(&high).contains("Level Sekarang: *92*"), "{}", text_of(&high));
+        assert!(
+            text_of(&high).contains("Level Sekarang: *92*"),
+            "{}",
+            text_of(&high)
+        );
     }
 
     #[test]

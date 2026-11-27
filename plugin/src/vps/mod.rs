@@ -31,7 +31,7 @@ pub(crate) fn has_access(ctx: &oktz_plugin_api::Ctx) -> bool {
 pub(crate) fn js_str(v: Option<&serde_json::Value>) -> String {
     use serde_json::Value;
     match v {
-        None | Some(Value::Null) => String::from("undefined"),
+        None | Some(Value::Null) => String::from("-"),
         Some(Value::String(s)) => s.clone(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => n.to_string(),
@@ -51,7 +51,7 @@ pub(crate) fn js_str(v: Option<&serde_json::Value>) -> String {
 /// yang tidak berbunga nol.
 pub(crate) fn fmt_num(n: f64) -> String {
     if n.is_nan() {
-        return "NaN".to_string();
+        return "-".to_string();
     }
     if n.is_infinite() {
         return if n > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
@@ -69,8 +69,18 @@ pub(crate) fn fmt_num(n: f64) -> String {
 /// Nama bulan panjang bahasa Indonesia — `Intl.DateTimeFormat('id-ID', {
 /// month: 'long' })`.
 pub(crate) const BULAN: [&str; 12] = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September",
-    "Oktober", "November", "Desember",
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
 ];
 
 /// Ubah timestamp ISO-8601 menjadi bagian waktu Asia/Jakarta (UTC+7).

@@ -9,9 +9,7 @@ Keep the original identity, high detail, cinematic, photorealistic.";
 
 /// Kartu pakai saat tidak ada gambar.
 pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "🏝️ *ᴛᴏ ɪsʟᴀɴᴅ*\n\n> Kirim/reply gambar untuk suasana pulau\n\n`{prefix}toisland`"
-    )
+    format!("🏝️ *ᴛᴏ ɪsʟᴀɴᴅ*\n\n> Kirim/reply gambar untuk suasana pulau\n\n`{prefix}toisland`")
 }
 
 /// Ambil byte media dari pesan pemicu atau pesan yang di-reply, sama urutan
@@ -191,8 +189,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             } else {
                 None
             },
@@ -204,7 +202,11 @@ mod tests {
 
     fn text_of(r: &Reply) -> String {
         match r.without_mutations() {
-            Reply::Sequence(v) => v.iter().map(text_of).find(|t| !t.is_empty()).unwrap_or_default(),
+            Reply::Sequence(v) => v
+                .iter()
+                .map(text_of)
+                .find(|t| !t.is_empty())
+                .unwrap_or_default(),
             lain => lain.text_body().unwrap_or("").to_string(),
         }
     }

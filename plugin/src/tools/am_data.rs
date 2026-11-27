@@ -44,10 +44,7 @@ fn fmt_size(b: &Value) -> String {
 /// format yang dihasilkan adalah representasi yang sama secara struktur
 /// (`DD Month YYYY`). Bulan dalam Bahasa Indonesia.
 fn fmt_date(ts: &Value) -> String {
-    let seconds = ts
-        .get("_seconds")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let seconds = ts.get("_seconds").and_then(Value::as_i64).unwrap_or(0);
     if seconds == 0 {
         return "-".to_string();
     }
@@ -130,16 +127,16 @@ pub fn am_data(ctx: Ctx) -> Reply {
 
     let title = info.get("title").and_then(Value::as_str).unwrap_or("-");
     let size = fmt_size(&info.get("size").cloned().unwrap_or(Value::Null));
-    let downloads = info
-        .get("downloads")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let downloads = info.get("downloads").and_then(Value::as_i64).unwrap_or(0);
     let likes = info.get("likes").and_then(Value::as_i64).unwrap_or(0);
     let am_version = info
         .get("amVersionString")
         .and_then(Value::as_str)
         .unwrap_or("-");
-    let am_platform = info.get("amPlatform").and_then(Value::as_str).unwrap_or("-");
+    let am_platform = info
+        .get("amPlatform")
+        .and_then(Value::as_str)
+        .unwrap_or("-");
     let max_ff = info.get("maxFFVer").and_then(Value::as_str).unwrap_or("-");
     let share_date = fmt_date(&info.get("shareDate").cloned().unwrap_or(Value::Null));
 
@@ -172,9 +169,9 @@ pub fn am_data(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::{HttpError, HttpGet};
     use super::*;
     use oktz_plugin_api::{HttpBody, HttpResponse};
+    use oktz_plugin_api::{HttpError, HttpGet};
     use std::sync::{Arc, Mutex};
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -326,7 +323,10 @@ mod tests {
             serde_json::json!({ "status": true, "data": {} }),
             Value::Null,
         ] {
-            let r = run(Stub::body(body.clone()), "https://alightcreative.com/am/share/abc");
+            let r = run(
+                Stub::body(body.clone()),
+                "https://alightcreative.com/am/share/abc",
+            );
             assert_eq!(text_of(&r), GAGAL, "body {body:?}");
             assert_eq!(reaction_of(&r), Some("❌"), "body {body:?}");
         }
@@ -339,7 +339,10 @@ mod tests {
         assert_eq!(fmt_size(&serde_json::json!(2048)), "2.0 KB");
         assert_eq!(fmt_size(&serde_json::json!(1_500_000)), "1.4 MB");
         // 1767225600 detik = 2026-01-01 Asia/Jakarta
-        assert_eq!(fmt_date(&serde_json::json!({ "_seconds": 1767225600 })), "1 Januari 2026");
+        assert_eq!(
+            fmt_date(&serde_json::json!({ "_seconds": 1767225600 })),
+            "1 Januari 2026"
+        );
         assert_eq!(fmt_date(&serde_json::json!({})), "-");
         assert_eq!(fmt_date(&serde_json::json!({ "_seconds": 0 })), "-");
     }
@@ -407,7 +410,10 @@ mod tests {
     #[test]
     fn kegagalan_jaringan_menggunakan_error_template() {
         let r = run(Stub::offline(), "https://alightcreative.com/am/share/abc");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "am-data"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "am-data")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 }

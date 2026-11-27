@@ -17,7 +17,7 @@
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey.neoxr` = `process.env.APIKEY_NEOXR || ""`.
@@ -31,7 +31,7 @@ pub(crate) const NEOXR_APIKEY: &str = "";
 /// `null`, string apa adanya, nilai lain sebagai JSON kompak.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -137,8 +137,7 @@ pub fn android1(ctx: Ctx) -> Reply {
     };
     let apps = &apps[..apps.len().min(10)];
 
-    Reply::interactive(format_list(apps, text))
-    .with_reaction("✅")
+    Reply::interactive(format_list(apps, text)).with_reaction("✅")
 }
 
 #[cfg(test)]
@@ -171,9 +170,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -240,7 +242,10 @@ mod tests {
         assert_eq!(p.meta.name, "android1");
         assert_eq!(p.meta.alias, ["an1"]);
         assert_eq!(p.meta.category, "search");
-        assert_eq!(p.meta.description, "Cari dan download APK MOD dari Android1");
+        assert_eq!(
+            p.meta.description,
+            "Cari dan download APK MOD dari Android1"
+        );
         assert_eq!(p.meta.usage, ".android1 <query>");
         assert_eq!(p.meta.example, ".android1 Subway Surfer");
         assert_eq!(p.meta.cooldown, 10);
@@ -259,7 +264,11 @@ mod tests {
     fn an_empty_query_shows_the_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -279,9 +288,15 @@ mod tests {
             body.contains("*2.* Shadow Fight 2\n   ├ 👤 NEKKI\n   └ ⭐ 4.7/5\n\n"),
             "{body}"
         );
-        assert!(body.ends_with("> Pilih angka untuk download langsung"), "{body}");
+        assert!(
+            body.ends_with("> Pilih angka untuk download langsung"),
+            "{body}"
+        );
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Interactive { .. }));
+        assert!(matches!(
+            r.without_mutations().tanpa_reaksi(),
+            Reply::Interactive { .. }
+        ));
 
         assert_eq!(
             http.seen.lock().unwrap()[0],
@@ -294,7 +309,10 @@ mod tests {
         let apps: Vec<Value> = (0..14)
             .map(|i| serde_json::json!({"name": format!("App {i}"), "developer": "D", "rating": 4}))
             .collect();
-        let body = format!("{{\"status\": true, \"data\": {}}}", serde_json::json!(apps));
+        let body = format!(
+            "{{\"status\": true, \"data\": {}}}",
+            serde_json::json!(apps)
+        );
         let out = body_of(&run(Stub::new(&body), "app"));
         assert!(out.contains("*10* aplikasi ditemukan"), "{out}");
         assert!(out.contains("*10.* App 9"), "{out}");
@@ -302,10 +320,13 @@ mod tests {
     }
 
     #[test]
-    fn a_missing_field_is_interpolated_as_undefined_like_js() {
+    fn a_missing_field_is_interpolated_as_dash() {
         let body = r#"{"status": true, "data": [{"name": "Cuma Nama"}]}"#;
         let out = body_of(&run(Stub::new(body), "x"));
-        assert!(out.contains("*1.* Cuma Nama\n   ├ 👤 undefined\n   └ ⭐ undefined/5\n\n"), "{out}");
+        assert!(
+            out.contains("*1.* Cuma Nama\n   ├ 👤 -\n   └ ⭐ -/5\n\n"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -333,7 +354,11 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::empty(), "q");
-        assert!(body_of(&r).contains("command `.android1`"), "{}", body_of(&r));
+        assert!(
+            body_of(&r).contains("command `.android1`"),
+            "{}",
+            body_of(&r)
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -353,12 +378,20 @@ mod tests {
         let http = Stub::new(TWO_APPS);
         let _ = run(http.clone(), &query);
         let seen = http.seen.lock().unwrap();
-        assert!(seen[0].contains(&"a".repeat(4_000)), "query utuh: {}", seen[0].len());
+        assert!(
+            seen[0].contains(&"a".repeat(4_000)),
+            "query utuh: {}",
+            seen[0].len()
+        );
     }
 
     #[test]
     fn the_list_helper_never_panics_on_strange_values() {
-        let apps = [serde_json::json!("bukan objek"), serde_json::json!(null), serde_json::json!({"name": 7})];
+        let apps = [
+            serde_json::json!("bukan objek"),
+            serde_json::json!(null),
+            serde_json::json!({"name": 7}),
+        ];
         let out = format_list(&apps, "🚀 \u{0} utf8 ñ");
         assert!(out.contains("*3* aplikasi ditemukan"), "{out}");
     }

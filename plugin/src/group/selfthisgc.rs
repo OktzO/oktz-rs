@@ -2,7 +2,6 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-
 /// `db.setting("selfGroups") || []` dan `db.setting("publicGroups") || []`.
 pub(crate) fn self_groups(ctx: &Ctx) -> Vec<String> {
     crate::common::string_list(ctx.setting("selfGroups"))
@@ -13,9 +12,7 @@ pub(crate) fn public_groups(ctx: &Ctx) -> Vec<String> {
 }
 
 pub(crate) fn is_self_group(ctx: &Ctx) -> bool {
-    self_groups(ctx)
-        .iter()
-        .any(|g| g == &ctx.chat)
+    self_groups(ctx).iter().any(|g| g == &ctx.chat)
 }
 
 pub(crate) fn already_self(prefix: &str) -> String {
@@ -39,8 +36,10 @@ pub(crate) fn applied(prefix: &str) -> String {
 
 /// Daftar `selfGroups` dengan `chat` ditambahkan kalau belum ada.
 pub(crate) fn self_groups_after(ctx: &Ctx) -> Vec<serde_json::Value> {
-    let mut list: Vec<serde_json::Value> =
-        self_groups(ctx).into_iter().map(serde_json::Value::String).collect();
+    let mut list: Vec<serde_json::Value> = self_groups(ctx)
+        .into_iter()
+        .map(serde_json::Value::String)
+        .collect();
     if !list.iter().any(|v| v.as_str() == Some(ctx.chat.as_str())) {
         list.push(serde_json::Value::String(ctx.chat.clone()));
     }
@@ -89,7 +88,7 @@ pub fn selfthisgc(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value) -> Reply {
         let ctx = Ctx {
@@ -153,13 +152,19 @@ mod tests {
     fn a_group_already_in_self_mode_is_left_alone() {
         let r = run(serde_json::json!({"selfGroups": ["120363@g.us"]}));
         assert!(text_of(&r).starts_with("ℹ️ *ɢʀᴜᴘ ɪɴɪ sᴜᴅᴀʜ ᴍᴏᴅᴇ sᴇʟꜰ*"));
-        assert!(r.mutations().is_empty(), "sudah self = tidak ada yang ditulis");
+        assert!(
+            r.mutations().is_empty(),
+            "sudah self = tidak ada yang ditulis"
+        );
     }
 
     #[test]
     fn the_chat_is_added_to_self_groups_when_absent() {
         let r = run(serde_json::json!({"selfGroups": ["a@g.us"]}));
-        assert_eq!(list_of(&setting_of(&r, "selfGroups")), ["a@g.us", "120363@g.us"]);
+        assert_eq!(
+            list_of(&setting_of(&r, "selfGroups")),
+            ["a@g.us", "120363@g.us"]
+        );
         assert!(text_of(&r).starts_with("🔒 *ᴍᴏᴅᴇ sᴇʟꜰ ᴀᴋᴛɪꜰ*"));
     }
 
@@ -197,7 +202,10 @@ mod tests {
             "selfGroups": ["x@g.us"],
             "publicGroups": ["y@g.us", "120363@g.us", "z@g.us"],
         }));
-        assert_eq!(list_of(&setting_of(&r, "selfGroups")), ["x@g.us", "120363@g.us"]);
+        assert_eq!(
+            list_of(&setting_of(&r, "selfGroups")),
+            ["x@g.us", "120363@g.us"]
+        );
         assert_eq!(
             list_of(&setting_of(&r, "publicGroups")),
             ["y@g.us", "z@g.us"],
@@ -231,7 +239,10 @@ mod tests {
     #[test]
     fn self_and_public_group_toggles_keep_separate_keys() {
         for (name, keys) in [
-            ("selfthisgc", &["selfthisgc", "selfgc", "selfgroup", "selfthisgroup"][..]),
+            (
+                "selfthisgc",
+                &["selfthisgc", "selfgc", "selfgroup", "selfthisgroup"][..],
+            ),
             (
                 "publicthisgc",
                 &["publicthisgc", "publicgc", "publicgroup", "publicthisgroup"][..],

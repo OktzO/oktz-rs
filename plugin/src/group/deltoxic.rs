@@ -134,8 +134,14 @@ mod tests {
 
     #[test]
     fn a_word_present_in_the_list_is_removed() {
-        let r = run(serde_json::json!({"toxicWords": ["satu", "dua", "tiga"]}), "dua");
-        assert_eq!(list_write(&r), &vec![serde_json::json!("satu"), serde_json::json!("tiga")]);
+        let r = run(
+            serde_json::json!({"toxicWords": ["satu", "dua", "tiga"]}),
+            "dua",
+        );
+        assert_eq!(
+            list_write(&r),
+            &vec![serde_json::json!("satu"), serde_json::json!("tiga")]
+        );
         assert!(text_of(&r).contains("`2` kata"), "{}", text_of(&r));
     }
 
@@ -168,7 +174,10 @@ mod tests {
 
     #[test]
     fn multi_token_input_is_joined_with_spaces_before_lookup() {
-        let r = run(serde_json::json!({"toxicWords": ["kata kasar"]}), "Kata  Kasar");
+        let r = run(
+            serde_json::json!({"toxicWords": ["kata kasar"]}),
+            "Kata  Kasar",
+        );
         assert!(list_write(&r).is_empty());
     }
 

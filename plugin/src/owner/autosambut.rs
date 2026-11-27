@@ -7,7 +7,7 @@
 //! router mau keduanya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::{js_truthy, js_truthy_value, parse_int, string_list};
 
@@ -139,7 +139,11 @@ fn mutasi(ctx: &Ctx, auto: &Auto) -> Mutation {
 }
 
 fn usage(ctx: &Ctx, auto: &Auto) -> String {
-    let status = if auto.enabled { "Aktif ✅" } else { "Nonaktif ❌" };
+    let status = if auto.enabled {
+        "Aktif ✅"
+    } else {
+        "Nonaktif ❌"
+    };
     format!(
         "⚠️ *SISTEM AUTO SAMBUT*\n\n\
          Sistem otomatis menyambut owner di grup secara acak ketika owner muncul setelah lama idle.\n\
@@ -382,7 +386,10 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("sambutowner").unwrap().meta.name, "autosambut");
+        assert_eq!(
+            oktz_plugin_api::find("sambutowner").unwrap().meta.name,
+            "autosambut"
+        );
     }
 
     #[test]
@@ -393,7 +400,10 @@ mod tests {
         assert_eq!(w[0]["delayMs"], serde_json::json!(DEFAULT_DELAY_MS));
         assert_eq!(w[0]["pesanList"], serde_json::json!([DEFAULT_PESAN]));
         assert_eq!(w[1]["enabled"], serde_json::json!(true));
-        assert_eq!(final_write(&run(serde_json::json!({}), &["on"]))["enabled"], serde_json::json!(true));
+        assert_eq!(
+            final_write(&run(serde_json::json!({}), &["on"]))["enabled"],
+            serde_json::json!(true)
+        );
     }
 
     #[test]
@@ -425,12 +435,17 @@ mod tests {
     fn an_existing_group_is_not_reseeded() {
         let r = run(with_pesan(&["a"]), &[]);
         assert!(writes(&r).is_empty(), "sudah ada = tidak ada seed");
-        assert_eq!(writes(&run(with_pesan(&["a"]), &["on"])).len(), 1, "hanya status");
+        assert_eq!(
+            writes(&run(with_pesan(&["a"]), &["on"])).len(),
+            1,
+            "hanya status"
+        );
     }
 
     #[test]
     fn the_legacy_single_pesan_key_is_migrated_into_the_list() {
-        let g = serde_json::json!({"autoSambut": {"enabled": true, "delayMs": 1000, "pesan": "halo"}});
+        let g =
+            serde_json::json!({"autoSambut": {"enabled": true, "delayMs": 1000, "pesan": "halo"}});
         let __balasan = run(g.clone(), &[]);
         let w = writes(&__balasan);
         assert_eq!(w.len(), 1);
@@ -458,7 +473,11 @@ mod tests {
             ("1y", 31_536_000_000),
         ] {
             let r = run(serde_json::json!({}), &["delay", input]);
-            assert_eq!(final_write(&r)["delayMs"], serde_json::json!(ms), "input {input}");
+            assert_eq!(
+                final_write(&r)["delayMs"],
+                serde_json::json!(ms),
+                "input {input}"
+            );
             assert!(
                 text_of(&r).contains(&format!("selama *{}*", format_time(ms))),
                 "input {input}: {}",
@@ -470,7 +489,10 @@ mod tests {
     #[test]
     fn delay_without_an_argument_or_with_garbage_is_refused() {
         let r = run(serde_json::json!({}), &["delay"]);
-        assert_eq!(text_of(&r), "Tolong berikan waktu! Contoh: `.autosambut delay 2h`");
+        assert_eq!(
+            text_of(&r),
+            "Tolong berikan waktu! Contoh: `.autosambut delay 2h`"
+        );
         assert_eq!(writes(&r).len(), 1, "hanya seed");
 
         for bad in ["2", "h", "2x", "2 jam", "abc"] {
@@ -480,7 +502,11 @@ mod tests {
                 "input {bad}: {}",
                 text_of(&r)
             );
-            assert_eq!(final_write(&r)["delayMs"], serde_json::json!(DEFAULT_DELAY_MS), "input {bad}");
+            assert_eq!(
+                final_write(&r)["delayMs"],
+                serde_json::json!(DEFAULT_DELAY_MS),
+                "input {bad}"
+            );
         }
     }
 
@@ -490,13 +516,21 @@ mod tests {
         assert_eq!(format_time(90_000), "1.5 menit");
         assert_eq!(format_time(7_200_000), "2 jam");
         assert_eq!(format_time(172_800_000), "2 hari");
-        assert_eq!(format_time(604_800_000), "7 hari", ">= 1 minggu tetap 'hari'");
+        assert_eq!(
+            format_time(604_800_000),
+            "7 hari",
+            ">= 1 minggu tetap 'hari'"
+        );
     }
 
     #[test]
     fn parse_time_matches_the_js_regex_and_unit_prefix() {
         assert_eq!(parse_time("1.5h"), Some(5_400_000));
-        assert_eq!(parse_time("30M"), Some(1_800_000), "satuan case-insensitive");
+        assert_eq!(
+            parse_time("30M"),
+            Some(1_800_000),
+            "satuan case-insensitive"
+        );
         assert_eq!(parse_time("menit"), None, "huruf sebelum angka bukan unit");
         assert_eq!(parse_time("2 jam"), None, "spasi tidak diizinkan");
         assert_eq!(parse_time("2x"), None, "satuan tak dikenal");
@@ -529,7 +563,10 @@ mod tests {
             text_of(&r),
             "💬 *Pesan Baru Berhasil Ditambahkan!*\nKini ada 2 sapaan acak di dalam daftar."
         );
-        assert_eq!(final_write(&r)["pesanList"], serde_json::json!(["lama", "halo dunia"]));
+        assert_eq!(
+            final_write(&r)["pesanList"],
+            serde_json::json!(["lama", "halo dunia"])
+        );
     }
 
     #[test]
@@ -539,7 +576,11 @@ mod tests {
             text_of(&r),
             "Tolong masukkan teks sambutan.\nContoh: `.autosambut add Halo bosku {user}!`"
         );
-        assert_eq!(final_write(&r)["pesanList"], serde_json::json!([DEFAULT_PESAN]), "hanya seed");
+        assert_eq!(
+            final_write(&r)["pesanList"],
+            serde_json::json!([DEFAULT_PESAN]),
+            "hanya seed"
+        );
     }
 
     #[test]
@@ -584,7 +625,11 @@ mod tests {
             "{}",
             text_of(&r)
         );
-        assert!(text_of(&r).contains("`.autosambut add <teks>`"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("`.autosambut add <teks>`"),
+            "{}",
+            text_of(&r)
+        );
 
         let r = run(serde_json::json!({}), &["ngapain"]);
         assert_eq!(
@@ -597,7 +642,10 @@ mod tests {
     fn an_empty_or_missing_pesan_list_falls_back_to_the_default_greeting() {
         // Fallback versi awal hanya mengubah objek di memori — tidak ada `setGroup`,
         // jadi balasan tampilannya benar sementara store tidak tersentuh.
-        for g in [serde_json::json!({}), serde_json::json!({"autoSambut": {"delayMs": 1}})] {
+        for g in [
+            serde_json::json!({}),
+            serde_json::json!({"autoSambut": {"delayMs": 1}}),
+        ] {
             let r = run(g.clone(), &["list"]);
             assert!(
                 text_of(&r).contains("*1.* Halo {user}!"),
@@ -610,7 +658,11 @@ mod tests {
                 "input {g}: seed hanya kalau autoSambut belum ada"
             );
             if let Some(last) = w.last() {
-                assert_eq!(last["pesanList"], serde_json::json!([DEFAULT_PESAN]), "input {g}");
+                assert_eq!(
+                    last["pesanList"],
+                    serde_json::json!([DEFAULT_PESAN]),
+                    "input {g}"
+                );
             }
         }
     }
@@ -632,6 +684,9 @@ mod tests {
     #[test]
     fn the_written_payload_always_carries_a_fresh_last_chats_map() {
         let g = serde_json::json!({"autoSambut": {"delayMs": 1, "lastChats": {"x": 1}, "pesanList": ["a"]}});
-        assert_eq!(final_write(&run(g.clone(), &["on"]))["lastChats"], serde_json::json!({}));
+        assert_eq!(
+            final_write(&run(g.clone(), &["on"]))["lastChats"],
+            serde_json::json!({})
+        );
     }
 }

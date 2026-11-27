@@ -266,9 +266,9 @@ pub fn google(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
     use super::*;
     use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -397,7 +397,10 @@ mod tests {
             t.starts_with("🔍 *Google News*\n\n> Pencarian: *gempa*\n\n"),
             "{t}"
         );
-        assert!(t.contains("*1.* Gempa 5,9 SR Magnitude\n   ├ 📰 Example News\n"), "{t}");
+        assert!(
+            t.contains("*1.* Gempa 5,9 SR Magnitude\n   ├ 📰 Example News\n"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -436,7 +439,10 @@ mod tests {
         let s = stub(FEED);
         let r = run(s.clone(), "gempa");
         let t = text_of(&r);
-        assert!(t.starts_with("🔍 *Google News*\n\n> Pencarian: *gempa*\n\n"), "{t}");
+        assert!(
+            t.starts_with("🔍 *Google News*\n\n> Pencarian: *gempa*\n\n"),
+            "{t}"
+        );
         assert!(t.contains("*1.* Gempa 5,9 SR Magnitude"), "{t}");
         assert!(t.contains("   ├ 📰 Example News"), "{t}");
         assert!(t.contains("   ├ 🕐 Tue, 14 Oct 2026 09:00:00 GMT"), "{t}");

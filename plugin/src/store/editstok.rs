@@ -191,7 +191,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value, text: &str, is_group: bool) -> Reply {
         let ctx = Ctx {
@@ -241,7 +241,10 @@ mod tests {
             p.meta.description,
             "✏️ Edit stok item produk (hanya di private chat)"
         );
-        assert_eq!(p.meta.usage, ".editstok <nomor_produk> <nomor_item>|<detail_baru>");
+        assert_eq!(
+            p.meta.usage,
+            ".editstok <nomor_produk> <nomor_item>|<detail_baru>"
+        );
         assert_eq!(
             p.meta.example,
             ".editstok 1 3|Email: baru@mail.com;;Password: newpass"
@@ -254,7 +257,10 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_back_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("editstock").unwrap().meta.name, "editstok");
+        assert_eq!(
+            oktz_plugin_api::find("editstock").unwrap().meta.name,
+            "editstok"
+        );
     }
 
     #[test]
@@ -267,9 +273,15 @@ mod tests {
 
     #[test]
     fn an_empty_product_list_is_reported_and_nothing_is_written() {
-        for s in [serde_json::json!({}), serde_json::json!({"storeProducts": []})] {
+        for s in [
+            serde_json::json!({}),
+            serde_json::json!({"storeProducts": []}),
+        ] {
             let r = run(s.clone(), "1 1|baru", false);
-            assert!(text_of(&r).starts_with("📭 *Belum ada produk.*"), "input {s}");
+            assert!(
+                text_of(&r).starts_with("📭 *Belum ada produk.*"),
+                "input {s}"
+            );
             assert!(r.mutations().is_empty(), "input {s}");
         }
     }
@@ -291,9 +303,16 @@ mod tests {
     #[test]
     fn a_valid_edit_replaces_the_detail_and_stamps_updated_at() {
         let r = run(sample(), "1 2|baru@mail.com", false);
-        let items = products_write(&r)[0]["stockItems"].as_array().unwrap().clone();
+        let items = products_write(&r)[0]["stockItems"]
+            .as_array()
+            .unwrap()
+            .clone();
         assert_eq!(items.len(), 2);
-        assert_eq!(items[0]["detail"], serde_json::json!("lama1@mail"), "yang lain utuh");
+        assert_eq!(
+            items[0]["detail"],
+            serde_json::json!("lama1@mail"),
+            "yang lain utuh"
+        );
         assert_eq!(items[1]["detail"], serde_json::json!("baru@mail.com"));
         assert!(
             items[1]["updatedAt"].as_str().unwrap().ends_with('Z'),
@@ -348,7 +367,11 @@ mod tests {
     #[test]
     fn a_physical_product_is_redirected_to_editproduk() {
         let r = run(sample(), "2 1|apa saja", false);
-        assert!(text_of(&r).starts_with("📦 *Produk Fisik*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).starts_with("📦 *Produk Fisik*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(text_of(&r).contains(".editproduk 2 stok"));
         assert!(r.mutations().is_empty());
     }
@@ -382,7 +405,10 @@ mod tests {
     #[test]
     fn exactly_three_characters_is_accepted() {
         let r = run(sample(), "1 1|abc", false);
-        assert_eq!(products_write(&r)[0]["stockItems"][0]["detail"], serde_json::json!("abc"));
+        assert_eq!(
+            products_write(&r)[0]["stockItems"][0]["detail"],
+            serde_json::json!("abc")
+        );
     }
 
     #[test]

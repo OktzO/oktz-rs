@@ -166,11 +166,8 @@ pub(crate) const MASUK_MIMPI: &str = "🌙 *Memasuki alam dream...*";
 pub fn mimpi(ctx: Ctx) -> Reply {
     // versi awal mengirim dua pesan berurutan: "Memasuki alam dream..." lalu kartunya,
     // dengan reaksi `🌙` di awal.
-    Reply::sequence(vec![
-        Reply::text(MASUK_MIMPI),
-        Reply::text(reply_for(&ctx)),
-    ])
-    .with_reaction("🌙")
+    Reply::sequence(vec![Reply::text(MASUK_MIMPI), Reply::text(reply_for(&ctx))])
+        .with_reaction("🌙")
 }
 
 #[cfg(test)]
@@ -260,15 +257,11 @@ mod tests {
                 match reply.as_ref() {
                     Reply::Sequence(pesan) => {
                         assert_eq!(pesan.len(), 2, "dua pesan berurutan");
-                        assert_eq!(
-                            pesan[0].text_body(),
-                            Some("🌙 *Memasuki alam dream...*")
-                        );
+                        assert_eq!(pesan[0].text_body(), Some("🌙 *Memasuki alam dream...*"));
                         assert!(
-                            pesan[1]
-                                .text_body()
-                                .unwrap()
-                                .starts_with("╭═══❯ *🌙 DREAM WORLD* ❮═══\n│ 👤 *Explorer:* Keisya\n"),
+                            pesan[1].text_body().unwrap().starts_with(
+                                "╭═══❯ *🌙 DREAM WORLD* ❮═══\n│ 👤 *Explorer:* Keisya\n"
+                            ),
                             "{}",
                             pesan[1].text_body().unwrap()
                         );
@@ -294,8 +287,14 @@ mod tests {
         // `mod` (bukan `random_index`) wajib dipakai.
         for name in ["", "a", "Keisya", "😀 emoji", "nama panjang sekali"] {
             let seed = seed_num(name);
-            assert!(DREAM_LEVELS.contains(pick_by_seed(&DREAM_LEVELS, seed)), "{name}");
-            assert!(DREAM_QUALITIES.contains(pick_by_seed(&DREAM_QUALITIES, seed)), "{name}");
+            assert!(
+                DREAM_LEVELS.contains(pick_by_seed(&DREAM_LEVELS, seed)),
+                "{name}"
+            );
+            assert!(
+                DREAM_QUALITIES.contains(pick_by_seed(&DREAM_QUALITIES, seed)),
+                "{name}"
+            );
             assert!(MESSAGES.contains(pick_by_seed(&MESSAGES, seed)), "{name}");
         }
     }
@@ -306,8 +305,14 @@ mod tests {
         let out1 = render("Keisya");
         let out2 = render("Keisya");
         for row in [
-            format!("│ ⭐ *Level:* {}", pick_by_seed(&DREAM_LEVELS, seed_num("Keisya"))),
-            format!("│ 💫 *Quality:* {}", pick_by_seed(&DREAM_QUALITIES, seed_num("Keisya"))),
+            format!(
+                "│ ⭐ *Level:* {}",
+                pick_by_seed(&DREAM_LEVELS, seed_num("Keisya"))
+            ),
+            format!(
+                "│ 💫 *Quality:* {}",
+                pick_by_seed(&DREAM_QUALITIES, seed_num("Keisya"))
+            ),
             format!("│ {}", pick_by_seed(&MESSAGES, seed_num("Keisya"))),
         ] {
             assert!(out1.contains(&row), "baris seed hilang: {row}\n{out1}");
@@ -329,7 +334,10 @@ mod tests {
             .flat_map(|_| DREAM_LEVELS)
             .filter(|l| (0..40).any(|i| render(&format!("user{i}")).contains(*l)))
             .collect();
-        assert!(levels.len() > 1, "seed tidak memengaruhi pilihan: {levels:?}");
+        assert!(
+            levels.len() > 1,
+            "seed tidak memengaruhi pilihan: {levels:?}"
+        );
     }
 
     // - struktur kartu ---------------------------------------------------
@@ -416,7 +424,12 @@ mod tests {
 
     #[test]
     fn the_registered_handler_always_answers_with_text() {
-        for args in [vec![], vec!["Keisya"], vec!["a", "long", "name"], vec!["😀"]] {
+        for args in [
+            vec![],
+            vec!["Keisya"],
+            vec!["a", "long", "name"],
+            vec!["😀"],
+        ] {
             let reply = mimpi(ctx_of(&args));
             let body = match reply.without_mutations().tanpa_reaksi() {
                 Reply::Sequence(list) => list.last().and_then(Reply::text_body),

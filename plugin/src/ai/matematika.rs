@@ -77,10 +77,10 @@ pub fn matematika(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
-    use serde_json::Value;
     use super::*;
+    use oktz_plugin_api::HttpGet;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -163,10 +163,7 @@ mod tests {
         assert_eq!(p.meta.name, "matematika");
         assert_eq!(p.meta.alias, ["mathgpt", "math", "mathsolver"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(
-            p.meta.description,
-            "AI untuk menyelesaikan soal matematika"
-        );
+        assert_eq!(p.meta.description, "AI untuk menyelesaikan soal matematika");
         assert_eq!(p.meta.usage, ".matematika <soal>");
         assert_eq!(p.meta.example, ".matematika 2+2 berapa?");
         assert_eq!(p.meta.cooldown, 10);
@@ -243,7 +240,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "2+2 berapa?");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "matematika"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "matematika")
+        );
         assert!(matches!(
             r.without_mutations(),
             Reply::Reaction { emoji, .. } if emoji == "☢"
@@ -253,6 +253,9 @@ mod tests {
     #[test]
     fn a_non_json_body_lands_in_the_catch_branch() {
         let r = run(Stub::ok("<html>gateway</html>"), "soal");
-        assert_eq!(body(&r), crate::common::error_template_bawaan(".", "matematika"));
+        assert_eq!(
+            body(&r),
+            crate::common::error_template_bawaan(".", "matematika")
+        );
     }
 }

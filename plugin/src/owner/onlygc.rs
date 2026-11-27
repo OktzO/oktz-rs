@@ -31,7 +31,8 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
     )
 }
 
-pub(crate) const ON_MSG: &str = "🏘️ *Only Group Aktif*\n\n> Bot hanya bisa diakses di grup\n> Mode Only Private dinonaktifkan";
+pub(crate) const ON_MSG: &str =
+    "🏘️ *Only Group Aktif*\n\n> Bot hanya bisa diakses di grup\n> Mode Only Private dinonaktifkan";
 pub(crate) const OFF_MSG: &str = "🏘️ *Only Group Nonaktif*\n\n> Bot bisa diakses di mana saja";
 
 pub(crate) fn invalid(prefix: &str) -> String {
@@ -44,14 +45,15 @@ pub(crate) fn set_only_gc(enabled: bool) -> Reply {
     let reply = if enabled { ON_MSG } else { OFF_MSG };
     let mut r = Reply::text(reply).with_reaction(if enabled { "✅" } else { "❌" });
     if enabled {
-        r = r.with_mutation(Mutation::SetSetting {
-            key: "onlyGc".into(),
-            value: serde_json::Value::Bool(true),
-        })
-        .with_mutation(Mutation::SetSetting {
-            key: "onlyPc".into(),
-            value: serde_json::Value::Bool(false),
-        });
+        r = r
+            .with_mutation(Mutation::SetSetting {
+                key: "onlyGc".into(),
+                value: serde_json::Value::Bool(true),
+            })
+            .with_mutation(Mutation::SetSetting {
+                key: "onlyPc".into(),
+                value: serde_json::Value::Bool(false),
+            });
     } else {
         r = r.with_mutation(Mutation::SetSetting {
             key: "onlyGc".into(),
@@ -86,7 +88,7 @@ pub fn onlygc(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value, text: &str) -> Reply {
         let mut args: Vec<String> = text.split_whitespace().map(str::to_string).collect();
@@ -246,13 +248,19 @@ mod tests {
 
     #[test]
     fn the_invalid_option_reply_carries_the_prefix() {
-        assert_eq!(invalid("!"), "❌ *Opsi Tidak Valid*\n\n> Gunakan *!onlygc on* atau *!onlygc off*");
+        assert_eq!(
+            invalid("!"),
+            "❌ *Opsi Tidak Valid*\n\n> Gunakan *!onlygc on* atau *!onlygc off*"
+        );
     }
 
     #[test]
     fn matching_is_case_insensitive_because_the_command_is_lowercased() {
         // versi awal: `m.text?.toLowerCase()` — jadi "ON" dan "on" sama.
-        assert_eq!(setting_of(&run(serde_json::json!({}), "ON"), "onlyGc"), Some(serde_json::json!(true)));
+        assert_eq!(
+            setting_of(&run(serde_json::json!({}), "ON"), "onlyGc"),
+            Some(serde_json::json!(true))
+        );
         assert_eq!(
             setting_of(&run(serde_json::json!({}), "Off"), "onlyGc"),
             Some(serde_json::json!(false))

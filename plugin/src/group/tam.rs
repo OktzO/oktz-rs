@@ -64,7 +64,10 @@ fn statistik(ctx: &Ctx) -> Vec<(String, i64, Option<String>)> {
 ///
 /// `Array.prototype.sort` di versi awal stabil, jadi urutan asli dipertahankan
 /// jumlah suara yang sama — `sort_by` Rust juga stabil.
-fn urutkan(mut data: Vec<(String, i64, Option<String>)>, limit: usize) -> Vec<(String, i64, Option<String>)> {
+fn urutkan(
+    mut data: Vec<(String, i64, Option<String>)>,
+    limit: usize,
+) -> Vec<(String, i64, Option<String>)> {
     data.sort_by(|a, b| b.1.cmp(&a.1));
     data.truncate(limit);
     data
@@ -93,9 +96,7 @@ pub fn tam(ctx: Ctx) -> Reply {
 
     if sorted.is_empty() {
         // `m.reply` (mengutip pemicu).
-        return Reply::text(
-            "📊 *ᴛᴏᴘ ᴀᴄᴛɪᴠᴇ ᴍᴇᴍʙᴇʀ*\n\n- Belum ada data aktivitas di grup ini",
-        );
+        return Reply::text("📊 *ᴛᴏᴘ ᴀᴄᴛɪᴠᴇ ᴍᴇᴍʙᴇʀ*\n\n- Belum ada data aktivitas di grup ini");
     }
 
     let mut text = judul(limit, &chat_name);
@@ -154,7 +155,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -176,7 +180,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
         for a in ["topactive", "topmember"] {
-            assert_eq!(find(a).map(|p| p.meta.name.as_str()), Some("tam"), "alias {a}");
+            assert_eq!(
+                find(a).map(|p| p.meta.name.as_str()),
+                Some("tam"),
+                "alias {a}"
+            );
         }
     }
 
@@ -197,7 +205,10 @@ mod tests {
         ]);
         let r = tam(ctx_dengan(Some(stats), Some("Grup Aktif"), "10"));
         let t = teks(&r);
-        assert!(t.starts_with("top 10 member active all time!\nat Grup Aktif"), "{t}");
+        assert!(
+            t.starts_with("top 10 member active all time!\nat Grup Aktif"),
+            "{t}"
+        );
         // Ranking ditentukan jumlah suara, bukan urutan sisip.
         assert!(t.contains("\n1. 628222 🏆 — 9"), "{t}");
         assert!(t.contains("\n2. Budi — 5"), "{t}");
@@ -236,6 +247,9 @@ mod tests {
         let r = tam(ctx_dengan(Some(stats), None, "50"));
         let t = teks(&r);
         assert!(t.contains("top 20 member active all time!"), "{t}");
-        assert!(!t.contains("628029"), "peserta ke-21 tidak boleh muncul: {t}");
+        assert!(
+            !t.contains("628029"),
+            "peserta ke-21 tidak boleh muncul: {t}"
+        );
     }
 }

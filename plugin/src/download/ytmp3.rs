@@ -222,9 +222,10 @@ pub(crate) fn format_dilaporkan(isi: &Value, url: &str) -> Option<String> {
 /// tidak punya `status` sama sekali.
 pub(crate) fn normalize(raw: &Value) -> Result<AudioDownload, ()> {
     if let Some(status) = raw.get("status")
-        && status.as_bool() != Some(true) {
-            return Err(());
-        }
+        && status.as_bool() != Some(true)
+    {
+        return Err(());
+    }
     let isi = match raw.get("result") {
         Some(r) if r.is_object() => r,
         _ => raw,
@@ -439,8 +440,8 @@ fn unduh_ytdl(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
 /// Bentuknya `{title, format, url}` tanpa `status`, jadi [`normalize`]
 /// membukanya langsung lewat cabang `url` polos.
 fn unduh_savetube(http: &dyn HttpGet, kanonik: &str) -> Result<AudioDownload, ()> {
-    let v =
-        oktz_scraper::youtube::get_youtube_direct_url(http, kanonik, Some("mp3")).map_err(|_| ())?;
+    let v = oktz_scraper::youtube::get_youtube_direct_url(http, kanonik, Some("mp3"))
+        .map_err(|_| ())?;
     normalize(&v)
 }
 
@@ -460,12 +461,8 @@ pub(crate) fn unduh_audio(ctx: &Ctx, url: &str) -> Result<AudioDownload, ()> {
     let kanonik = kanonik(url)?;
     let http = ctx.http.clone();
     let (tx, rx) = std::sync::mpsc::channel();
-    let backend: [fn(&dyn HttpGet, &str) -> Result<AudioDownload, ()>; 4] = [
-        unduh_ytdl,
-        unduh_savetube,
-        unduh_izuka,
-        unduh_nexray,
-    ];
+    let backend: [fn(&dyn HttpGet, &str) -> Result<AudioDownload, ()>; 4] =
+        [unduh_ytdl, unduh_savetube, unduh_izuka, unduh_nexray];
     for f in backend {
         let tx = tx.clone();
         let http = http.clone();

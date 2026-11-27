@@ -86,9 +86,7 @@ pub fn fuckmylife(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{
-        HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store,
-    };
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store};
     use std::sync::{Arc, Mutex};
 
     /// Stub HTTP: satu body JSON untuk semua URL, atau `Err` kalau `None`.
@@ -186,7 +184,9 @@ mod tests {
 
     #[test]
     fn a_successful_response_is_replied_verbatim_and_reacts_success() {
-        let r = run(Stub::json(r#"{"status":true,"data":{"text":"FML hari ini"}}"#));
+        let r = run(Stub::json(
+            r#"{"status":true,"data":{"text":"FML hari ini"}}"#,
+        ));
         assert_eq!(text_of(&r), "FML hari ini");
         assert_eq!(reaction_of(&r), "✅");
     }
@@ -238,7 +238,10 @@ mod tests {
     #[test]
     fn the_error_template_keeps_the_js_fallbacks_for_empty_prefix_and_command() {
         // `prefix || '.'` dan `command || '?'`.
-        assert!(error_reply("", "").contains("command `.?`"), "prefix/command kosong");
+        assert!(
+            error_reply("", "").contains("command `.?`"),
+            "prefix/command kosong"
+        );
         assert!(
             error_reply("!", "fml").contains("command `!fml`"),
             "prefix non-kosong dipakai apa adanya"

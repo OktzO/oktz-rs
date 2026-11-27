@@ -84,8 +84,8 @@ pub fn spamngl(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    use serde_json::Value;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     // `HttpGet` butuh `Debug` pada implementor.
@@ -120,7 +120,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
     }

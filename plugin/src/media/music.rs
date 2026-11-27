@@ -7,10 +7,8 @@
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
-
 /// Kartu saat nomor lagu di luar 1..65.
-pub(crate) const DAFTAR: &str =
-    "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
+pub(crate) const DAFTAR: &str = "🎵 *ᴍᴜsɪᴄ ᴄᴏʟʟᴇᴄᴛɪᴏɴ*\n\n> Tersedia: .music1 - .music65";
 
 /// Gagal mengambil lagu.
 #[cfg(test)]

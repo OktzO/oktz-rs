@@ -305,7 +305,8 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .rsplit_once('.')
         .map(|(_, e)| e.to_ascii_lowercase())
         .unwrap_or_default();
-    let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
+    let is_image =
+        ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
     // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
     // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
@@ -504,23 +505,23 @@ pub fn profileig(ctx: Ctx) -> Reply {
     }
 
     // Gambar pemicu ATAU gambar yang di-reply.
-    let is_image = ctx.is_media_kind(IncomingKind::Image)
-        || ctx.quoted().is_some_and(|q| q.kind.is_image());
+    let is_image =
+        ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image());
 
     // Keterbatasan: reaksi 🕕 hilang — `Reply` hanya membawa
     // satu reaksi, jadi hanya reaksi penutup di bawah yang dikirim.
 
     // SEMUA kegagalan (unduh, unggah, API, kirim) masuk
     // catch yang sama: template error + reaksi ❌.
-    let gagal = || {
-        Reply::text(crate::common::error_template(&ctx)).with_reaction("❌")
-    };
+    let gagal = || Reply::text(crate::common::error_template(&ctx)).with_reaction("❌");
 
     let Ok(img_url) = gambar_atau_pp(&ctx, is_image) else {
         return gagal();
     };
 
-    let alamat = api_url(&img_url, pengikut, mengikuti, postingan, username, bio, verif);
+    let alamat = api_url(
+        &img_url, pengikut, mengikuti, postingan, username, bio, verif,
+    );
     let Ok(res) = ctx.http.call(
         &HttpCall::get(&alamat)
             .header("User-Agent", UA_PROFILIG)
@@ -566,7 +567,10 @@ mod tests {
     }
 
     impl Stub {
-        fn baru(balasan: Vec<(u16, Vec<u8>)>, hasil_unduh: Result<Vec<u8>, MediaError>) -> Arc<Stub> {
+        fn baru(
+            balasan: Vec<(u16, Vec<u8>)>,
+            hasil_unduh: Result<Vec<u8>, MediaError>,
+        ) -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(balasan),
                 hitung: Mutex::new(0),
@@ -609,7 +613,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -681,7 +689,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -729,8 +737,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             http: http.clone(),
             media_fetch: http,
             sock,
@@ -739,7 +747,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<String> {
@@ -875,7 +886,10 @@ mod tests {
         assert_eq!(*sock.dipanggil.lock().unwrap(), 0, "PP tidak dipakai");
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan.len(), 2);
-        assert_eq!(panggilan[0].url, "https://litterbox.catbox.moe/resources/internals/api.php");
+        assert_eq!(
+            panggilan[0].url,
+            "https://litterbox.catbox.moe/resources/internals/api.php"
+        );
         assert_eq!(
             panggilan[1].url,
             api_url(
@@ -890,8 +904,16 @@ mod tests {
         );
         // UA + Content-Type dikirim apa adanya.
         let headers = &panggilan[1].headers;
-        assert!(headers.iter().any(|(k, v)| k == "User-Agent" && v == UA_PROFILIG));
-        assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "User-Agent" && v == UA_PROFILIG)
+        );
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "Content-Type" && v == "application/json")
+        );
     }
 
     #[test]
@@ -933,7 +955,10 @@ mod tests {
             media_gambar(),
             Some(QuotedKind::Text),
         ));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "profileig"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "profileig")
+        );
         assert_eq!(reaksi(&r), Some("❌".into()));
         assert_eq!(*http.unduhan.lock().unwrap(), [MediaOrigin::Quoted]);
         assert_eq!(*sock.dipanggil.lock().unwrap(), 0);
@@ -955,16 +980,17 @@ mod tests {
         assert_eq!(reaksi(&r), Some("✅".into()));
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan.len(), 1, "PP langsung dipakai, tanpa unggah");
-        assert!(panggilan[0].url.contains("url=https%3A%2F%2Fpp.example%2Fa.jpg"));
+        assert!(
+            panggilan[0]
+                .url
+                .contains("url=https%3A%2F%2Fpp.example%2Fa.jpg")
+        );
         assert_eq!(*sock.dipanggil.lock().unwrap(), 1);
     }
 
     #[test]
     fn foto_profil_error_atau_null_pakai_url_default() {
-        for hasil in [
-            Err(SockError::baru("gaada pp")),
-            Ok(None),
-        ] {
+        for hasil in [Err(SockError::baru("gaada pp")), Ok(None)] {
             let http = Stub::baru(vec![resp(200, ISI_API)], Ok(Vec::new()));
             let sock = Arc::new(StubSock::default());
             *sock.foto.lock().unwrap() = Some(hasil);
@@ -1006,7 +1032,10 @@ mod tests {
             media_gambar(),
             None,
         ));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "profileig"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "profileig")
+        );
         assert_eq!(reaksi(&r), Some("❌".into()));
         assert_eq!(http.panggilan.lock().unwrap().len(), 8);
     }
@@ -1014,7 +1043,10 @@ mod tests {
     #[test]
     fn api_non_2xx_membalas_template_error_dan_silang() {
         let http = Stub::baru(
-            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(500, b"")],
+            vec![
+                resp(200, b"https://litterbox.example/img.jpg"),
+                resp(500, b""),
+            ],
             Ok(GAMBAR.to_vec()),
         );
         let sock = Arc::new(StubSock::default());
@@ -1025,7 +1057,10 @@ mod tests {
             media_gambar(),
             None,
         ));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "profileig"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "profileig")
+        );
         assert_eq!(reaksi(&r), Some("❌".into()));
     }
 

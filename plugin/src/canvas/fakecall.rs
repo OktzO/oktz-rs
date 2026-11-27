@@ -4,8 +4,8 @@
 //! reaksi, jadi yang dipegang adalah yang terakhir. versi awal gagal API tetap kirim
 //! `m.quoted.download()` sebagai gambar; ini balas error template.
 
-use oktz_scraper::common::encode_uri_component;
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
+use oktz_scraper::common::encode_uri_component;
 
 /// Avatar cadangan.
 pub(crate) const AVATAR_CADANGAN: &str = "https://files.catbox.moe/nwvkbt.png";
@@ -195,7 +195,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<&str> {
@@ -277,7 +280,10 @@ mod tests {
     fn gagal_jaringan_menggunakan_error_template_dan_reaksi_sil() {
         let http = Stub::offline();
         let r = run(http.clone(), "fakecall", "Zann | 03:33");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "fakecall"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "fakecall")
+        );
         assert_eq!(reaksi(&r), Some("❌"));
     }
 
@@ -285,7 +291,10 @@ mod tests {
     fn balasan_json_error_bukan_gambar() {
         let http = Stub::json_error();
         let r = run(http.clone(), "fakecall", "Zann | 03:33");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "fakecall"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "fakecall")
+        );
         assert_eq!(reaksi(&r), Some("❌"));
     }
 

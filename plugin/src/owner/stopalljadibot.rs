@@ -45,10 +45,7 @@ mod tests {
     fn meta_sama_dengan_js() {
         let p = oktz_plugin_api::find("stopalljadibot").unwrap();
         assert_eq!(p.meta.name, "stopalljadibot");
-        assert_eq!(
-            p.meta.alias,
-            ["stopsemuajadibot", "killalljadibots"]
-        );
+        assert_eq!(p.meta.alias, ["stopsemuajadibot", "killalljadibots"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 0);

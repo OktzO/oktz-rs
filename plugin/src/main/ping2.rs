@@ -15,21 +15,9 @@ use std::time::Instant;
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `os.platform()` + `os.arch()` dengan nama versi Node (`darwin`, `x64`).
+/// Platform dan arsitektur dari Rust.
 fn platform() -> String {
-    let os = match std::env::consts::OS {
-        "macos" => "darwin",
-        "windows" => "win32",
-        lain => lain,
-    };
-    let arch = match std::env::consts::ARCH {
-        "x86_64" => "x64",
-        "aarch64" => "arm64",
-        "x86" => "ia32",
-        "arm" => "arm",
-        lain => lain,
-    };
-    format!("{os} {arch}")
+    format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)
 }
 
 /// `fmtSize` — satu desimal, `0 B` untuk nol; di luar `TB`
@@ -38,14 +26,14 @@ fn fmt_size(b: u64) -> String {
     if b == 0 {
         return "0 B".to_string();
     }
-    let satuan = ["B", "KB", "MB", "GB", "TB"];
+    let satuan = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
     let angka = b as f64;
     let i = (angka.ln() / 1024f64.ln()).floor() as usize;
     let nilai = angka / 1024f64.powi(i as i32);
     format!(
         "{:.1} {}",
         (nilai * 10.0).round() / 10.0,
-        satuan.get(i).copied().unwrap_or("undefined")
+        satuan.get(i).copied().unwrap_or("-")
     )
 }
 
@@ -110,6 +98,9 @@ fn potong_model(model: &str) -> String {
 
 /// `Math.max(1, Math.min(100, os.loadavg()[0] / cpus.length * 100)).toFixed(1)`.
 fn cpu_persen(load: f64, cores: usize) -> String {
+    if cores == 0 {
+        return "0.0".to_string();
+    }
     let mentah = load / cores as f64 * 100.0;
     let pct = mentah.clamp(1.0, 100.0);
     format!("{:.1}", (pct * 10.0).round() / 10.0)
@@ -198,8 +189,14 @@ fn baca_disk() -> (u64, u64) {
         return (0, 0);
     };
     let mut kolom = baris.split_whitespace();
-    let total = kolom.next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
-    let dipakai = kolom.next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
+    let total = kolom
+        .next()
+        .and_then(|n| n.parse::<u64>().ok())
+        .unwrap_or(0);
+    let dipakai = kolom
+        .next()
+        .and_then(|n| n.parse::<u64>().ok())
+        .unwrap_or(0);
     (dipakai.saturating_mul(1024), total.saturating_mul(1024))
 }
 
@@ -294,14 +291,8 @@ fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
     t = t.with_table_row(["Users".to_string(), users.to_string()]);
     t = t.with_table_row(["Premium".to_string(), premium.to_string()]);
     t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
-    t = t.with_table_row([
-        "Uptime Bot".to_string(),
-        fmt_up(ctx.uptime_secs as f64),
-    ]);
-    t = t.with_table_row([
-        "Uptime Server".to_string(),
-        fmt_up(baca_uptime_server()),
-    ]);
+    t = t.with_table_row(["Uptime Bot".to_string(), fmt_up(ctx.uptime_secs as f64)]);
+    t = t.with_table_row(["Uptime Server".to_string(), fmt_up(baca_uptime_server())]);
 
     t.with_table_footer("🍃 Realtime Monitoring")
 }
@@ -460,7 +451,10 @@ mod tests {
         let t = tabel_dari(&balasan);
         for kunci in ["Users", "Premium", "Groups"] {
             assert_eq!(
-                t.baris.iter().find(|b| b[0] == kunci).map(|b| b[1].as_str()),
+                t.baris
+                    .iter()
+                    .find(|b| b[0] == kunci)
+                    .map(|b| b[1].as_str()),
                 Some("0"),
                 "{kunci}"
             );
@@ -499,7 +493,7 @@ mod tests {
         assert_eq!(cpu_persen(0.5, 4), "12.5");
         assert_eq!(cpu_persen(8.0, 4), "100.0");
         assert_eq!(cpu_persen(0.0, 4), "1.0");
-        assert_eq!(cpu_persen(0.0, 0), "NaN");
+        assert_eq!(cpu_persen(0.0, 0), "0.0");
     }
 
     #[test]

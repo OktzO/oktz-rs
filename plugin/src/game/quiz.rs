@@ -827,12 +827,14 @@ mod tests {
     fn jawaban_butuh_reply_ke_pesan_bot() {
         let ctx = ctx_jawab("kucing");
         set_sesi(&ctx, now_ms() + 60_000);
-        assert!(answer(&CFG_TEKS, &ctx).is_none(), "tanpa reply tidak dijawab");
+        assert!(
+            answer(&CFG_TEKS, &ctx).is_none(),
+            "tanpa reply tidak dijawab"
+        );
         let mut c2 = ctx.clone();
         c2.quoted = Some(quote_bot(&c2.chat));
         assert!(answer(&CFG_TEKS, &c2).is_some(), "reply ke bot dijawab");
     }
-
 
     // ----------------------------------------------- unit engine
 

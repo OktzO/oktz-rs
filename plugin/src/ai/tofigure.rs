@@ -83,10 +83,10 @@ pub fn tofigure(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
     use oktz_plugin_api::{
         HttpBody, HttpError, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin, QuotedMessage,
     };
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     const ME: &str = "628111@s.whatsapp.net";
@@ -188,7 +188,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             http: http.clone(),
             media_fetch: http,
@@ -206,7 +206,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaksi(r: &Reply) -> Option<String> {
@@ -316,7 +319,10 @@ mod tests {
         let balasan: Vec<(u16, Vec<u8>)> = (0..8).map(|_| (500, Vec::new())).collect();
         let http = Stub::baru(balasan, Ok(b"gambar-asli".to_vec()));
         let r = tofigure(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigure"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "tofigure")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 
@@ -330,7 +336,10 @@ mod tests {
             Ok(b"gambar-asli".to_vec()),
         );
         let r = tofigure(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigure"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "tofigure")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(
@@ -349,7 +358,10 @@ mod tests {
             Ok(b"gambar-asli".to_vec()),
         );
         let r = tofigure(ctx_stub(http.clone(), media_gambar(), None, "."));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "tofigure"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "tofigure")
+        );
         assert_eq!(reaksi(&r), Some("☢".into()));
     }
 }

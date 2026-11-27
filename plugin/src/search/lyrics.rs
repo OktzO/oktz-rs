@@ -30,11 +30,14 @@ pub(crate) fn help(prefix: &str) -> String {
 
 /// Lirik tidak ketemu.
 pub(crate) fn not_found(query: &str) -> String {
-    format!("Waduh, maaf banget kak 🥺 lirik lagu *{query}* nggak ketemu nih di database. Coba pakai kata kunci atau judul yang lebih spesifik ya! 💔")
+    format!(
+        "Waduh, maaf banget kak 🥺 lirik lagu *{query}* nggak ketemu nih di database. Coba pakai kata kunci atau judul yang lebih spesifik ya! 💔"
+    )
 }
 
 /// Pesan server tidak merespons.
-pub(crate) const SERVER_DOWN: &str = "Yah, server liriknya lagi ngambek nih kak 😭 Coba lagi nanti ya! 🛠️✨";
+pub(crate) const SERVER_DOWN: &str =
+    "Yah, server liriknya lagi ngambek nih kak 😭 Coba lagi nanti ya! 🛠️✨";
 
 /// Ambil nilai di jalur titik — padanan `a?.b?.c`.
 fn dig<'a>(v: &'a Value, path: &str) -> Option<&'a Value> {
@@ -52,7 +55,7 @@ fn dig<'a>(v: &'a Value, path: &str) -> Option<&'a Value> {
 /// `common.rs`.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -189,9 +192,12 @@ mod tests {
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -273,7 +279,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["lyric", "lyrics", "liriklagu"] {
-            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "lirik", "alias {a}");
+            assert_eq!(
+                oktz_plugin_api::find(a).unwrap().meta.name,
+                "lirik",
+                "alias {a}"
+            );
         }
     }
 
@@ -281,7 +291,11 @@ mod tests {
     fn a_blank_title_shows_the_friendly_hint_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   "] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -295,13 +309,18 @@ mod tests {
             Some(&MediaSource::url("https://cdn/cover.jpg"))
         );
         let body = body_of(&r);
-        assert!(body.starts_with("Ketemu nih liriknya! 🎉\n\n🎵 *Judul:* Sempurna\n"), "{body}");
+        assert!(
+            body.starts_with("Ketemu nih liriknya! 🎉\n\n🎵 *Judul:* Sempurna\n"),
+            "{body}"
+        );
         assert!(
             body.contains("🎤 *Artis:* Andra and The Backbone\n\n"),
             "{body}"
         );
         assert!(
-            body.contains("Ini dia lirik lengkapnya buat kamu:\n\nMungkin kau ingin\nTersenyum\n\n"),
+            body.contains(
+                "Ini dia lirik lengkapnya buat kamu:\n\nMungkin kau ingin\nTersenyum\n\n"
+            ),
             "{body}"
         );
         assert!(body.ends_with("Selamat bernyanyi ria, kak! 🎧💖"), "{body}");
@@ -314,10 +333,13 @@ mod tests {
 
     #[test]
     fn the_artist_falls_back_to_the_lyrics_object_then_to_a_placeholder() {
-        let data = serde_json::json!({"lyrics": {"artist_name": "Dari Lyrics", "plain_lyrics": "x"}});
-        assert!(lyrics_text(&data, "q")
-            .unwrap()
-            .contains("🎤 *Artis:* Dari Lyrics\n"));
+        let data =
+            serde_json::json!({"lyrics": {"artist_name": "Dari Lyrics", "plain_lyrics": "x"}});
+        assert!(
+            lyrics_text(&data, "q")
+                .unwrap()
+                .contains("🎤 *Artis:* Dari Lyrics\n")
+        );
 
         let data = serde_json::json!({"title": "", "lyrics": {"plain_lyrics": "x"}});
         let text = lyrics_text(&data, "judulku").unwrap();
@@ -361,7 +383,11 @@ mod tests {
         let r = run(Stub::new(&root.to_string()), "laguku");
         assert!(!r.has_media());
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(body_of(&r).starts_with("Ketemu nih liriknya! 🎉"), "{}", body_of(&r));
+        assert!(
+            body_of(&r).starts_with("Ketemu nih liriknya! 🎉"),
+            "{}",
+            body_of(&r)
+        );
     }
 
     #[test]

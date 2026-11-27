@@ -89,8 +89,13 @@ mod tests {
         assert_eq!(
             p.meta.alias,
             [
-                "broadcastgc", "bcgroup", "jedabcgc", "delaybcgc",
-                "setjedabcgc", "stopbcgc", "stopbroadcastgc"
+                "broadcastgc",
+                "bcgroup",
+                "jedabcgc",
+                "delaybcgc",
+                "setjedabcgc",
+                "stopbcgc",
+                "stopbroadcastgc"
             ]
         );
         assert_eq!(p.meta.category, "owner");
@@ -116,13 +121,25 @@ mod tests {
 
     #[test]
     fn format_delay_mirip_js() {
-        assert_eq!(format_delay(90_000), "2 menit", "1,5 menit dibulatkan ke atas");
+        assert_eq!(
+            format_delay(90_000),
+            "2 menit",
+            "1,5 menit dibulatkan ke atas"
+        );
         assert_eq!(format_delay(86_400_000), "1 hari");
         assert_eq!(format_delay(3_600_000), "1 jam");
         assert_eq!(format_delay(7_200_000), "2 jam");
         assert_eq!(format_delay(60_000), "1 menit");
-        assert_eq!(format_delay(150_000), "3 menit", "2,5 menit dibulatkan ke atas");
-        assert_eq!(format_delay(1_500), "2 detik", "1,5 detik dibulatkan ke atas");
+        assert_eq!(
+            format_delay(150_000),
+            "3 menit",
+            "2,5 menit dibulatkan ke atas"
+        );
+        assert_eq!(
+            format_delay(1_500),
+            "2 detik",
+            "1,5 detik dibulatkan ke atas"
+        );
         assert_eq!(format_delay(1_000), "1 detik");
         assert_eq!(format_delay(0), "0 detik");
     }

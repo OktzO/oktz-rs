@@ -213,7 +213,10 @@ mod tests {
     #[test]
     fn encode_uri_component_spasi_jadi_persen20() {
         assert_eq!(encode_uri_component("a b"), "a%20b");
-        assert_eq!(encode_uri_component("https://x/y?a=1&b=2"), "https%3A%2F%2Fx%2Fy%3Fa%3D1%26b%3D2");
+        assert_eq!(
+            encode_uri_component("https://x/y?a=1&b=2"),
+            "https%3A%2F%2Fx%2Fy%3Fa%3D1%26b%3D2"
+        );
         // Tanda yang DIBIARKAN `encodeURIComponent` — salah satu ini lolos
         // pernah bikin URL beda dari JS.
         assert_eq!(encode_uri_component("!'()*-._~"), "!'()*-._~");

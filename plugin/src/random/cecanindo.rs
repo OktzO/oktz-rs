@@ -75,7 +75,10 @@ mod tests {
     fn the_normal_branch_sends_the_indonesia_endpoint_as_an_image() {
         let r = run();
         assert!(r.has_media(), "harus image, bukan teks");
-        assert_eq!(r.media_source().map(MediaSource::label).as_deref(), Some("url"));
+        assert_eq!(
+            r.media_source().map(MediaSource::label).as_deref(),
+            Some("url")
+        );
         match r.media_source().expect("sumber media") {
             MediaSource::Url { url, .. } => assert_eq!(url, CECANINDO_URL),
             other => panic!("sumber harus Url, dapat {other:?}"),

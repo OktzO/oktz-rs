@@ -7,8 +7,7 @@ const TMP_OUT: &str = "tmp/tovideo_out.mp4";
 
 fn is_animated_webp(buffer: &[u8]) -> bool {
     buffer.len() >= 50
-        && (buffer.windows(4).any(|w| w == b"ANIM")
-            || buffer.windows(4).any(|w| w == b"ANMF"))
+        && (buffer.windows(4).any(|w| w == b"ANIM") || buffer.windows(4).any(|w| w == b"ANMF"))
 }
 
 #[plugin(
@@ -28,12 +27,8 @@ fn is_animated_webp(buffer: &[u8]) -> bool {
     is_bot_admin = false
 )]
 pub fn tovideo(ctx: Ctx) -> Reply {
-    let self_is_sticker = ctx
-        .media_type()
-        .is_some_and(|t| t == "stickerMessage");
-    let quoted_is_sticker = ctx
-        .quoted()
-        .is_some_and(|q| q.kind.is_sticker());
+    let self_is_sticker = ctx.media_type().is_some_and(|t| t == "stickerMessage");
+    let quoted_is_sticker = ctx.quoted().is_some_and(|q| q.kind.is_sticker());
 
     let origin = if self_is_sticker {
         oktz_plugin_api::MediaOrigin::Trigger
@@ -120,12 +115,16 @@ pub fn tovideo(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{berkas::BerkasPalsu, QuotedMessage};
+    use oktz_plugin_api::{QuotedMessage, berkas::BerkasPalsu};
     use std::sync::Arc;
 
     const ME: &str = "628111@s.whatsapp.net";
 
-    fn run(berkas: BerkasPalsu, media: Option<oktz_plugin_api::IncomingMedia>, quoted: Option<QuotedMessage>) -> Reply {
+    fn run(
+        berkas: BerkasPalsu,
+        media: Option<oktz_plugin_api::IncomingMedia>,
+        quoted: Option<QuotedMessage>,
+    ) -> Reply {
         let ctx = Ctx {
             sender: ME.into(),
             chat: ME.into(),
@@ -169,7 +168,9 @@ mod tests {
     #[test]
     fn is_animated_webp_mendeteksi_penanda() {
         // menolak buffer < 50 byte walau penandanya ada.
-        assert!(!is_animated_webp(&[0, 0, 0, 0, b'A', b'N', b'I', b'M', 0, 0]));
+        assert!(!is_animated_webp(&[
+            0, 0, 0, 0, b'A', b'N', b'I', b'M', 0, 0
+        ]));
 
         // `Buffer.includes` versi awal memindai seluruh buffer,
         // bukan hanya offset 0.

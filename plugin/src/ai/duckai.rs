@@ -4,8 +4,8 @@
 //! untuk 4 template yang pernah muncul. Template baru dari DDG bikin angka challenge salah
 //! (server balas 418, bukan crash); tambahkan satu baris di `__tpl` saat itu terjadi.
 
-use oktz_plugin_api::{plugin, Ctx, HttpCall, HttpGet, Reply};
-use serde_json::{json, Value};
+use oktz_plugin_api::{Ctx, HttpCall, HttpGet, Reply, plugin};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const STATUS: &str = "https://duckduckgo.com/duckchat/v1/status";

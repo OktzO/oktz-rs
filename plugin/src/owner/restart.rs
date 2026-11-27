@@ -121,9 +121,20 @@ mod tests {
             panic!("harus Sequence");
         };
         assert_eq!(list.len(), 4);
-        assert!(matches!(list[0].without_mutations(), Reply::Reaction { .. }));
-        assert!(list[1].text_body().unwrap().starts_with("🔄 *ʀᴇsᴛᴀʀᴛɪɴɢ ʙᴏᴛ...*"));
-        assert!(matches!(list[2].without_mutations(), Reply::Reaction { .. }));
+        assert!(matches!(
+            list[0].without_mutations(),
+            Reply::Reaction { .. }
+        ));
+        assert!(
+            list[1]
+                .text_body()
+                .unwrap()
+                .starts_with("🔄 *ʀᴇsᴛᴀʀᴛɪɴɢ ʙᴏᴛ...*")
+        );
+        assert!(matches!(
+            list[2].without_mutations(),
+            Reply::Reaction { .. }
+        ));
         assert_eq!(
             list[3].text_body(),
             Some(crate::common::error_template_bawaan(".", "restart").as_str())

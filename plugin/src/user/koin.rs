@@ -124,7 +124,11 @@ mod tests {
         assert_eq!(format_koin(999), "999");
         assert_eq!(format_koin(1_000), "1.00K");
         assert_eq!(format_koin(12_345), "12.35K");
-        assert_eq!(format_koin(999_999), "1000.00K", "kurang dari 1M, belum naik satuan");
+        assert_eq!(
+            format_koin(999_999),
+            "1000.00K",
+            "kurang dari 1M, belum naik satuan"
+        );
         assert_eq!(format_koin(1_000_000), "1.00M");
         assert_eq!(format_koin(1_500_000_000), "1.50B");
         assert_eq!(format_koin(2_000_000_000_000), "2.00T");
@@ -134,7 +138,11 @@ mod tests {
 
     #[test]
     fn an_absent_user_row_reads_zero_and_free() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"koin": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"koin": null}),
+        ] {
             let out = run(user.clone(), vec![], false);
             assert!(out.starts_with("*〔 💰 KOIN INFO 〕*\n\n*〔 👤 User 〕* Kamu\n*〔 💰 Koin 〕* 0\n*〔 💎 Status 〕* Free\n"), "{user}");
         }
@@ -149,8 +157,13 @@ mod tests {
 
     #[test]
     fn premium_and_owner_both_replace_free_in_the_status_line() {
-        assert!(run(serde_json::json!({"isPremium": true}), vec![], false).contains("Status 〕* Premium"));
-        assert!(run(serde_json::json!({"isPremium": true}), vec![], true).contains("Status 〕* Owner"));
+        assert!(
+            run(serde_json::json!({"isPremium": true}), vec![], false)
+                .contains("Status 〕* Premium")
+        );
+        assert!(
+            run(serde_json::json!({"isPremium": true}), vec![], true).contains("Status 〕* Owner")
+        );
         assert!(
             run(serde_json::json!({"isPremium": false}), vec![], false).contains("Status 〕* Free"),
             "`false` harus tetap Free, bukan `undefined`"
@@ -165,7 +178,11 @@ mod tests {
         assert!(self_out.contains("〔 🛒 SHOP 〕"));
         assert!(self_out.ends_with("_🎮 Main game untuk dapat koin!_"));
 
-        let other_out = run(serde_json::json!({"koin": 5}), vec!["628999@s.whatsapp.net"], false);
+        let other_out = run(
+            serde_json::json!({"koin": 5}),
+            vec!["628999@s.whatsapp.net"],
+            false,
+        );
         assert!(!other_out.contains("🛒 SHOP"));
         assert!(other_out.contains("*〔 👤 User 〕* 628999\n"));
         assert!(other_out.ends_with("*〔 💎 Status 〕* Free\n"));

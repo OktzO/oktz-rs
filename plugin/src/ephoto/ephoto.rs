@@ -138,7 +138,10 @@ pub(crate) const EFEK: [(&str, &str); 32] = [
         "rainytext",
         "https://en.ephoto360.com/foggy-rainy-text-effect-75.html",
     ),
-    ("lighteffects", "https://en.ephoto360.com/light-effects-74.html"),
+    (
+        "lighteffects",
+        "https://en.ephoto360.com/light-effects-74.html",
+    ),
 ];
 
 /// `name` (efek pertama) + sisa array `name` + alias versi awal `ephoto` — urutan ini
@@ -190,8 +193,7 @@ const ENDPOINT_CREATE: &str = "https://en.ephoto360.com/effect/create-image";
 
 /// `EFFECT_URLS[command]`.
 pub(crate) fn url_efek(command: &str) -> Option<&'static str> {
-    EFEK
-        .iter()
+    EFEK.iter()
         .find(|(nama, _)| *nama == command)
         .map(|(_, url)| *url)
 }
@@ -309,32 +311,36 @@ fn decode_entities(s: &str) -> String {
     let mut i = 0;
     while i < s.len() {
         if s.as_bytes()[i] == b'&'
-            && let Some(semi) = s[i + 1..].find(';').map(|p| p + i + 1).filter(|&p| p - i <= 10) {
-                let ent = &s[i + 1..semi];
-                let ganti = match ent {
-                    "quot" => Some('"'),
-                    "amp" => Some('&'),
-                    "lt" => Some('<'),
-                    "gt" => Some('>'),
-                    "apos" => Some('\''),
-                    "nbsp" => Some('\u{a0}'),
-                    _ => ent.strip_prefix('#').and_then(|num| {
-                        let code = if let Some(hex) =
-                            num.strip_prefix('x').or_else(|| num.strip_prefix('X'))
-                        {
-                            u32::from_str_radix(hex, 16).ok()
-                        } else {
-                            num.parse::<u32>().ok()
-                        };
-                        code.and_then(char::from_u32)
-                    }),
-                };
-                if let Some(ch) = ganti {
-                    out.push(ch);
-                    i = semi + 1;
-                    continue;
-                }
+            && let Some(semi) = s[i + 1..]
+                .find(';')
+                .map(|p| p + i + 1)
+                .filter(|&p| p - i <= 10)
+        {
+            let ent = &s[i + 1..semi];
+            let ganti = match ent {
+                "quot" => Some('"'),
+                "amp" => Some('&'),
+                "lt" => Some('<'),
+                "gt" => Some('>'),
+                "apos" => Some('\''),
+                "nbsp" => Some('\u{a0}'),
+                _ => ent.strip_prefix('#').and_then(|num| {
+                    let code = if let Some(hex) =
+                        num.strip_prefix('x').or_else(|| num.strip_prefix('X'))
+                    {
+                        u32::from_str_radix(hex, 16).ok()
+                    } else {
+                        num.parse::<u32>().ok()
+                    };
+                    code.and_then(char::from_u32)
+                }),
+            };
+            if let Some(ch) = ganti {
+                out.push(ch);
+                i = semi + 1;
+                continue;
             }
+        }
         let ch = s[i..].chars().next().unwrap();
         out.push(ch);
         i += ch.len_utf8();
@@ -387,11 +393,7 @@ fn js_string(v: &Value) -> String {
         }
         Value::Null => "null".into(),
         // `String([1,2])` = `"1,2"` — elemen array dikoersi satu per satu.
-        Value::Array(a) => a
-            .iter()
-            .map(js_string)
-            .collect::<Vec<_>>()
-            .join(","),
+        Value::Array(a) => a.iter().map(js_string).collect::<Vec<_>>().join(","),
         Value::Object(_) => "[object Object]".into(),
     }
 }
@@ -450,8 +452,8 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
     let token = input_value(&html, "token").ok_or("input token tidak ditemukan")?;
     let build_server =
         input_value(&html, "build_server").ok_or("input build_server tidak ditemukan")?;
-    let build_server_id = input_value(&html, "build_server_id")
-        .ok_or("input build_server_id tidak ditemukan")?;
+    let build_server_id =
+        input_value(&html, "build_server_id").ok_or("input build_server_id tidak ditemukan")?;
 
     // Langkah 2: POST multipart ke URL yang sama.
     // `formData.append('text[]', textInput)` dulu, baru token dst — urutan
@@ -495,10 +497,7 @@ fn ephoto(http: &dyn HttpGet, url: &str, text: &str) -> Result<String, String> {
     }
     // `obj.text` yang hilang jadi `undefined` → `"undefined"` setelah
     // koersi `URLSearchParams`.
-    let teks_akhir = obj
-        .get("text")
-        .map(js_string)
-        .unwrap_or_else(|| "undefined".into());
+    let teks_akhir = obj.get("text").map(js_string).unwrap_or_else(|| "-".into());
     pasangan.push(("text[]".into(), teks_akhir));
 
     // Langkah 3: POST urlencoded ke endpoint create-image.
@@ -756,7 +755,10 @@ mod tests {
 
     fn stub() -> ScraperStub {
         ScraperStub {
-            cookie: vec![("set-cookie", "PHPSESSID=abc123; path=/"), ("set-cookie", "lang=en")],
+            cookie: vec![
+                ("set-cookie", "PHPSESSID=abc123; path=/"),
+                ("set-cookie", "lang=en"),
+            ],
             // `{"text":"Foto-AI","token":"tok-123"}` dalam bentuk ter-escape.
             nilai_form: "{&quot;text&quot;:&quot;Foto-AI&quot;,&quot;token&quot;:&quot;tok-123&quot;}",
             image: Some("image/2024/10/abcd.jpg"),
@@ -778,7 +780,10 @@ mod tests {
         );
         assert_eq!(p.meta.alias, ["ephoto"]);
         assert_eq!(p.meta.category, "ephoto");
-        assert_eq!(p.meta.description, "Buat efek text keren dengan berbagai style");
+        assert_eq!(
+            p.meta.description,
+            "Buat efek text keren dengan berbagai style"
+        );
         assert_eq!(p.meta.usage, ".<effect> <text>");
         assert_eq!(p.meta.example, ".glitchtext Foto-AI");
         assert_eq!(p.meta.cooldown, 10);
@@ -812,7 +817,10 @@ mod tests {
         assert_eq!(EFEK[31].1, "https://en.ephoto360.com/light-effects-74.html");
         // `1917style` bukan identifier Rust — masih harus terbaca sebagai efek.
         assert_eq!(EFEK[24].0, "1917style");
-        assert_eq!(EFEK[24].1, "https://en.ephoto360.com/1917-style-text-effect-523.html");
+        assert_eq!(
+            EFEK[24].1,
+            "https://en.ephoto360.com/1917-style-text-effect-523.html"
+        );
         assert_eq!(url_efek("1917style"), Some(EFEK[24].1));
         assert_eq!(url_efek("glitchtext"), Some(EFEK[0].1));
         assert_eq!(url_efek("writetext"), Some(EFEK[1].1));
@@ -838,38 +846,134 @@ mod tests {
     #[test]
     fn every_effect_url_matches_the_js_table_verbatim() {
         let js: &[(&str, &str)] = &[
-            ("glitchtext", "https://en.ephoto360.com/create-digital-glitch-text-effects-online-767.html"),
-            ("writetext", "https://en.ephoto360.com/write-text-on-wet-glass-online-589.html"),
-            ("advancedglow", "https://en.ephoto360.com/advanced-glow-effects-74.html"),
-            ("typographytext", "https://en.ephoto360.com/create-typography-text-effect-on-pavement-online-774.html"),
-            ("pixelglitch", "https://en.ephoto360.com/create-pixel-glitch-text-effect-online-769.html"),
-            ("neonglitch", "https://en.ephoto360.com/create-impressive-neon-glitch-text-effects-online-768.html"),
-            ("flagtext", "https://en.ephoto360.com/nigeria-3d-flag-text-effect-online-free-753.html"),
-            ("flag3dtext", "https://en.ephoto360.com/free-online-american-flag-3d-text-effect-generator-725.html"),
-            ("deletingtext", "https://en.ephoto360.com/create-eraser-deleting-text-effect-online-717.html"),
-            ("blackpinkstyle", "https://en.ephoto360.com/online-blackpink-style-logo-maker-effect-711.html"),
-            ("glowingtext", "https://en.ephoto360.com/create-glowing-text-effects-online-706.html"),
-            ("underwatertext", "https://en.ephoto360.com/3d-underwater-text-effect-online-682.html"),
-            ("logomaker", "https://en.ephoto360.com/free-bear-logo-maker-online-673.html"),
-            ("cartoonstyle", "https://en.ephoto360.com/create-a-cartoon-style-graffiti-text-effect-online-668.html"),
-            ("papercutstyle", "https://en.ephoto360.com/multicolor-3d-paper-cut-style-text-effect-658.html"),
-            ("watercolortext", "https://en.ephoto360.com/create-a-watercolor-text-effect-online-655.html"),
-            ("effectclouds", "https://en.ephoto360.com/write-text-effect-clouds-in-the-sky-online-619.html"),
-            ("blackpinklogo", "https://en.ephoto360.com/create-blackpink-logo-online-free-607.html"),
-            ("gradienttext", "https://en.ephoto360.com/create-3d-gradient-text-effect-online-600.html"),
-            ("summerbeach", "https://en.ephoto360.com/write-in-sand-summer-beach-online-free-595.html"),
-            ("luxurygold", "https://en.ephoto360.com/create-a-luxury-gold-text-effect-online-594.html"),
-            ("multicoloredneon", "https://en.ephoto360.com/create-multicolored-neon-light-signatures-591.html"),
-            ("sandsummer", "https://en.ephoto360.com/write-in-sand-summer-beach-online-576.html"),
-            ("galaxywallpaper", "https://en.ephoto360.com/create-galaxy-wallpaper-mobile-online-528.html"),
-            ("1917style", "https://en.ephoto360.com/1917-style-text-effect-523.html"),
-            ("makingneon", "https://en.ephoto360.com/making-neon-light-text-effect-with-galaxy-style-521.html"),
-            ("royaltext", "https://en.ephoto360.com/royal-text-effect-online-free-471.html"),
-            ("freecreate", "https://en.ephoto360.com/free-create-a-3d-hologram-text-effect-441.html"),
-            ("galaxystyle", "https://en.ephoto360.com/create-galaxy-style-free-name-logo-438.html"),
-            ("amongustext", "https://en.ephoto360.com/create-a-cover-image-for-the-game-among-us-online-762.html"),
-            ("rainytext", "https://en.ephoto360.com/foggy-rainy-text-effect-75.html"),
-            ("lighteffects", "https://en.ephoto360.com/light-effects-74.html"),
+            (
+                "glitchtext",
+                "https://en.ephoto360.com/create-digital-glitch-text-effects-online-767.html",
+            ),
+            (
+                "writetext",
+                "https://en.ephoto360.com/write-text-on-wet-glass-online-589.html",
+            ),
+            (
+                "advancedglow",
+                "https://en.ephoto360.com/advanced-glow-effects-74.html",
+            ),
+            (
+                "typographytext",
+                "https://en.ephoto360.com/create-typography-text-effect-on-pavement-online-774.html",
+            ),
+            (
+                "pixelglitch",
+                "https://en.ephoto360.com/create-pixel-glitch-text-effect-online-769.html",
+            ),
+            (
+                "neonglitch",
+                "https://en.ephoto360.com/create-impressive-neon-glitch-text-effects-online-768.html",
+            ),
+            (
+                "flagtext",
+                "https://en.ephoto360.com/nigeria-3d-flag-text-effect-online-free-753.html",
+            ),
+            (
+                "flag3dtext",
+                "https://en.ephoto360.com/free-online-american-flag-3d-text-effect-generator-725.html",
+            ),
+            (
+                "deletingtext",
+                "https://en.ephoto360.com/create-eraser-deleting-text-effect-online-717.html",
+            ),
+            (
+                "blackpinkstyle",
+                "https://en.ephoto360.com/online-blackpink-style-logo-maker-effect-711.html",
+            ),
+            (
+                "glowingtext",
+                "https://en.ephoto360.com/create-glowing-text-effects-online-706.html",
+            ),
+            (
+                "underwatertext",
+                "https://en.ephoto360.com/3d-underwater-text-effect-online-682.html",
+            ),
+            (
+                "logomaker",
+                "https://en.ephoto360.com/free-bear-logo-maker-online-673.html",
+            ),
+            (
+                "cartoonstyle",
+                "https://en.ephoto360.com/create-a-cartoon-style-graffiti-text-effect-online-668.html",
+            ),
+            (
+                "papercutstyle",
+                "https://en.ephoto360.com/multicolor-3d-paper-cut-style-text-effect-658.html",
+            ),
+            (
+                "watercolortext",
+                "https://en.ephoto360.com/create-a-watercolor-text-effect-online-655.html",
+            ),
+            (
+                "effectclouds",
+                "https://en.ephoto360.com/write-text-effect-clouds-in-the-sky-online-619.html",
+            ),
+            (
+                "blackpinklogo",
+                "https://en.ephoto360.com/create-blackpink-logo-online-free-607.html",
+            ),
+            (
+                "gradienttext",
+                "https://en.ephoto360.com/create-3d-gradient-text-effect-online-600.html",
+            ),
+            (
+                "summerbeach",
+                "https://en.ephoto360.com/write-in-sand-summer-beach-online-free-595.html",
+            ),
+            (
+                "luxurygold",
+                "https://en.ephoto360.com/create-a-luxury-gold-text-effect-online-594.html",
+            ),
+            (
+                "multicoloredneon",
+                "https://en.ephoto360.com/create-multicolored-neon-light-signatures-591.html",
+            ),
+            (
+                "sandsummer",
+                "https://en.ephoto360.com/write-in-sand-summer-beach-online-576.html",
+            ),
+            (
+                "galaxywallpaper",
+                "https://en.ephoto360.com/create-galaxy-wallpaper-mobile-online-528.html",
+            ),
+            (
+                "1917style",
+                "https://en.ephoto360.com/1917-style-text-effect-523.html",
+            ),
+            (
+                "makingneon",
+                "https://en.ephoto360.com/making-neon-light-text-effect-with-galaxy-style-521.html",
+            ),
+            (
+                "royaltext",
+                "https://en.ephoto360.com/royal-text-effect-online-free-471.html",
+            ),
+            (
+                "freecreate",
+                "https://en.ephoto360.com/free-create-a-3d-hologram-text-effect-441.html",
+            ),
+            (
+                "galaxystyle",
+                "https://en.ephoto360.com/create-galaxy-style-free-name-logo-438.html",
+            ),
+            (
+                "amongustext",
+                "https://en.ephoto360.com/create-a-cover-image-for-the-game-among-us-online-762.html",
+            ),
+            (
+                "rainytext",
+                "https://en.ephoto360.com/foggy-rainy-text-effect-75.html",
+            ),
+            (
+                "lighteffects",
+                "https://en.ephoto360.com/light-effects-74.html",
+            ),
         ];
         assert_eq!(EFEK.as_slice(), js);
     }
@@ -973,10 +1077,7 @@ mod tests {
             Some("PHPSESSID=abc123; path=/; lang=en")
         );
         assert_eq!(header_dari(post, "Accept"), Some("*/*"));
-        assert_eq!(
-            header_dari(post, "Accept-Language"),
-            Some("en-US,en;q=0.9")
-        );
+        assert_eq!(header_dari(post, "Accept-Language"), Some("en-US,en;q=0.9"));
         let Some(HttpBody::Multipart(parts)) = &post.body else {
             panic!("langkah 2 harus multipart");
         };

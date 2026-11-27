@@ -46,16 +46,10 @@ fn caption(data: &Value, query: &str) -> String {
         players.len()
     );
     for (i, p) in players.iter().enumerate() {
-        let display = p
-            .get("displayName")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let display = p.get("displayName").and_then(Value::as_str).unwrap_or("");
         let name = p.get("name").and_then(Value::as_str).unwrap_or("");
         let id = p.get("id").and_then(Value::as_str).unwrap_or("");
-        let verified = if p
-            .get("hasVerifiedBadge")
-            .is_some_and(js_truthy_value)
-        {
+        let verified = if p.get("hasVerifiedBadge").is_some_and(js_truthy_value) {
             "Ya"
         } else {
             "Tidak"
@@ -74,9 +68,7 @@ fn caption(data: &Value, query: &str) -> String {
         }
         text.push_str("╰┈┈⬡\n\n");
     }
-    text.push_str(
-        "> _Gunakan `.robloxstalk <username>` untuk info detail_",
-    );
+    text.push_str("> _Gunakan `.robloxstalk <username>` untuk info detail_");
     text
 }
 
@@ -114,15 +106,12 @@ pub fn robloxplayer(ctx: Ctx) -> Reply {
     };
     let body = res.json().unwrap_or(Value::Null);
 
-    let status_ok = body
-        .get("status")
-        .is_some_and(js_truthy_value);
+    let status_ok = body.get("status").is_some_and(js_truthy_value);
     let Some(data) = body
         .get("data")
         .filter(|v| status_ok && !v.is_null() && v.as_array().is_some_and(|a| !a.is_empty()))
     else {
-        return Reply::text(NOT_FOUND.replace("{query}", query))
-            .with_reaction("❌");
+        return Reply::text(NOT_FOUND.replace("{query}", query)).with_reaction("❌");
     };
 
     Reply::text(caption(data, query)).with_reaction("✅")

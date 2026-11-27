@@ -92,8 +92,18 @@ mod tests {
             is_group: true,
             roster: GroupRoster {
                 participants: vec![
-                    Participant { jid: "628111@s.whatsapp.net".into(), is_admin: true, is_owner: true, data: Default::default() },
-                    Participant { jid: "628999@lid".into(), is_admin: false, is_owner: false, data: Default::default() },
+                    Participant {
+                        jid: "628111@s.whatsapp.net".into(),
+                        is_admin: true,
+                        is_owner: true,
+                        data: Default::default(),
+                    },
+                    Participant {
+                        jid: "628999@lid".into(),
+                        is_admin: false,
+                        is_owner: false,
+                        data: Default::default(),
+                    },
                 ],
                 is_bot_admin: true,
             },
@@ -154,7 +164,11 @@ mod tests {
         assert_eq!(body(&r), "Pengumuman penting!", "fullArgs di-trim");
         assert_eq!(mentions(&r), ["628111@s.whatsapp.net", "628999@lid"]);
         assert!(r.mutations().is_empty());
-        assert_eq!(reaction(&r), Some("✅"), "reaction ✅ dipakai untuk mode teks");
+        assert_eq!(
+            reaction(&r),
+            Some("✅"),
+            "reaction ✅ dipakai untuk mode teks"
+        );
     }
 
     #[test]

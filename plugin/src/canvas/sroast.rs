@@ -10,9 +10,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 /// Kartu pakai saat input kosong.
 pub(crate) fn help(prefix: &str, command: &str) -> String {
-    format!(
-        "⚠️ Harap masukkan teks!\nContoh: `{prefix}{command} aku | JELEK | banget`"
-    )
+    format!("⚠️ Harap masukkan teks!\nContoh: `{prefix}{command} aku | JELEK | banget`")
 }
 
 /// `Keterbatasan:` Implementasi canvas asli (createCanvas, wrapText, drawText,

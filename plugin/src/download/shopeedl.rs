@@ -38,7 +38,7 @@ pub(crate) const SEND_FAILED: &str = "😔 Gagal mengunduh video dari Shopee.";
 /// tercetak `null`.
 fn template_value(value: Option<&Value>) -> String {
     match value {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),

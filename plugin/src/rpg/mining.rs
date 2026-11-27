@@ -1,10 +1,10 @@
 //! Menambang untuk mendapatkan ores dan gems.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::jualan::{
-    apply_exp, inventory_map, math_random, or_default, rpg_int, rpg_map, roll_incl,
+    apply_exp, inventory_map, math_random, or_default, roll_incl, rpg_int, rpg_map,
 };
 
 pub(crate) const STAMINA_COST: i64 = 20;
@@ -56,7 +56,9 @@ pub fn mining(ctx: Ctx) -> Reply {
         }
     }
     if results.is_empty() {
-        let slot = inv.entry("rock".to_string()).or_insert(serde_json::json!(0));
+        let slot = inv
+            .entry("rock".to_string())
+            .or_insert(serde_json::json!(0));
         let have = slot.as_i64().unwrap_or(0);
         *slot = serde_json::json!(have + 1);
         results.push(("🪨 Batu", 1));
@@ -66,7 +68,8 @@ pub fn mining(ctx: Ctx) -> Reply {
     let old_exp = or_default(ctx.user_field("exp").and_then(Value::as_i64), 0);
     let new_exp = apply_exp(&mut rpg, old_exp, exp_gain);
 
-    let mut txt = String::from("CROOT! BATUNYA PECAH KAK! ⛏️✨\n\nKamu berhasil dapetin material ini:\n");
+    let mut txt =
+        String::from("CROOT! BATUNYA PECAH KAK! ⛏️✨\n\nKamu berhasil dapetin material ini:\n");
     for (name, qty) in &results {
         txt += &format!("• {name}: *+{qty}*\n");
     }
@@ -129,7 +132,10 @@ mod tests {
         assert_eq!(p.meta.name, "mining");
         assert_eq!(p.meta.alias, ["mine", "tambang"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(p.meta.description, "Menambang untuk mendapatkan ores dan gems");
+        assert_eq!(
+            p.meta.description,
+            "Menambang untuk mendapatkan ores dan gems"
+        );
         assert_eq!(p.meta.usage, ".mining");
         assert_eq!(p.meta.example, ".mining");
         assert_eq!(p.meta.cooldown, 60);
@@ -150,14 +156,21 @@ mod tests {
         let r = run(serde_json::json!({"rpg": {"stamina": 0}, "exp": 0}));
         let t = text_of(&r);
         assert!(!t.starts_with("Aduh kak"), "0 || 100 -> 100: {t}");
-        assert_eq!(written(&r)["rpg"]["stamina"], serde_json::json!(80), "100 - 20");
+        assert_eq!(
+            written(&r)["rpg"]["stamina"],
+            serde_json::json!(80),
+            "100 - 20"
+        );
     }
 
     #[test]
     fn nineteen_stamina_is_not_enough() {
         let r = run(serde_json::json!({"rpg": {"stamina": 19}}));
         let t = text_of(&r);
-        assert!(t.starts_with("Aduh kak, badan kamu udah remuk duluan!"), "{t}");
+        assert!(
+            t.starts_with("Aduh kak, badan kamu udah remuk duluan!"),
+            "{t}"
+        );
         assert!(t.contains("Stamina kamu sisa *19* doang"), "{t}");
         assert!(r.mutations().is_empty());
     }
@@ -173,7 +186,9 @@ mod tests {
     #[test]
     fn the_reply_lines_always_match_the_written_inventory() {
         for _ in 0..400 {
-            let r = run(serde_json::json!({"rpg": {"stamina": 100}, "exp": 0, "inventory": {"rock": 5}}));
+            let r = run(
+                serde_json::json!({"rpg": {"stamina": 100}, "exp": 0, "inventory": {"rock": 5}}),
+            );
             let t = text_of(&r);
             let inv = written(&r)["inventory"].as_object().unwrap().clone();
             for (item, name, _, min, max) in DROPS {
@@ -191,8 +206,7 @@ mod tests {
                         // `rock` punya dua sumber: drop 2..=5, atau fallback
                         // qty 1 kalau TIDAK ADA drop sama sekali.
                         assert!(
-                            (min..=max).contains(&qty)
-                                || (item == "rock" && qty == 1),
+                            (min..=max).contains(&qty) || (item == "rock" && qty == 1),
                             "{item}: {qty} di luar {min}..={max}"
                         );
                         assert_eq!(

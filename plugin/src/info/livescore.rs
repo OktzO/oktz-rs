@@ -23,7 +23,7 @@ pub(crate) const NO_SCORE: &str = "❌ *GAGAL MENGAMBIL SKOR*\n\n\
 /// `${value}` di versi awal — `undefined` untuk field yang hilang, `null` untuk null.
 fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -224,7 +224,6 @@ fn failed(message: &str) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run() -> Reply {
         let ctx = Ctx {
             command: "livescore".into(),
@@ -340,17 +339,14 @@ mod tests {
         ] {
             assert_eq!(status_indo(Some(&serde_json::json!(wire))), indo, "{wire}");
         }
-        assert_eq!(
-            status_indo(None),
-            "undefined",
-            "sama seperti ${{undefined}}"
-        );
+        assert_eq!(status_indo(None), "-", "field hilang");
         assert_eq!(status_indo(Some(&Value::Null)), "null");
     }
 
     #[test]
     fn an_object_score_walks_the_chain_current_normal_time_score() {
-        let m = serde_json::json!({"score": {"teamA": {"normalTime": "1-0"}, "teamB": {"score": 2}}});
+        let m =
+            serde_json::json!({"score": {"teamA": {"normalTime": "1-0"}, "teamB": {"score": 2}}});
         assert_eq!(score_side(&m, "teamA"), "1-0");
         assert_eq!(score_side(&m, "teamB"), "2");
         let m = serde_json::json!({"score": {"teamA": {"current": 3, "normalTime": "1-0", "score": 9}}});
@@ -359,12 +355,18 @@ mod tests {
 
     #[test]
     fn a_scalar_or_missing_score_falls_back_to_itself_then_to_a_dash() {
-        assert_eq!(score_side(&serde_json::json!({"score": {"teamA": 0}}), "teamA"), "0");
+        assert_eq!(
+            score_side(&serde_json::json!({"score": {"teamA": 0}}), "teamA"),
+            "0"
+        );
         assert_eq!(
             score_side(&serde_json::json!({"score": {"teamA": "menang"}}), "teamA"),
             "menang"
         );
-        assert_eq!(score_side(&serde_json::json!({"score": {"teamA": null}}), "teamA"), "-");
+        assert_eq!(
+            score_side(&serde_json::json!({"score": {"teamA": null}}), "teamA"),
+            "-"
+        );
         assert_eq!(score_side(&serde_json::json!({"score": {}}), "teamA"), "-");
         assert_eq!(score_side(&serde_json::json!({}), "teamA"), "-");
         let empty: Value = serde_json::json!({"score": {"teamA": {}}});
@@ -383,7 +385,11 @@ mod tests {
         assert_eq!(period(&m), "B2");
         let m = serde_json::json!({"period": "HT"});
         assert_eq!(period(&m), "HT");
-        assert_eq!(period(&serde_json::json!({"period": ""})), "", "falsy → string kosong");
+        assert_eq!(
+            period(&serde_json::json!({"period": ""})),
+            "",
+            "falsy → string kosong"
+        );
         assert_eq!(period(&serde_json::json!({})), "");
         assert_eq!(period(&serde_json::json!({"period": {}})), "-");
     }

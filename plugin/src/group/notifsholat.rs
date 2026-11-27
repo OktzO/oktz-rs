@@ -25,7 +25,10 @@ fn group_auto(ctx: &Ctx) -> bool {
 fn kota(ctx: &Ctx) -> Value {
     ctx.group_field("autoSholatKota")
         .filter(|v| crate::common::js_truthy_value(v))
-        .or_else(|| ctx.setting("autoSholatKota").filter(|v| crate::common::js_truthy_value(v)))
+        .or_else(|| {
+            ctx.setting("autoSholatKota")
+                .filter(|v| crate::common::js_truthy_value(v))
+        })
         .cloned()
         .unwrap_or_else(|| serde_json::json!({ "nama": "KOTA JAKARTA" }))
 }
@@ -35,11 +38,15 @@ fn kota_nama(ctx: &Ctx) -> String {
         .get("nama")
         .and_then(Value::as_str)
         .map(str::to_string)
-        .unwrap_or_else(|| "undefined".to_string())
+        .unwrap_or_else(|| "-".to_string())
 }
 
 fn overview(ctx: Ctx) -> Reply {
-    let status_global = if group_auto(&ctx) { "✅ AKTIF" } else { "❌ NONAKTIF" };
+    let status_global = if group_auto(&ctx) {
+        "✅ AKTIF"
+    } else {
+        "❌ NONAKTIF"
+    };
     let status_grup = if ctx.group_data.get("notifSholat").and_then(Value::as_bool) == Some(false) {
         "❌ NONAKTIF"
     } else {
@@ -161,23 +168,37 @@ mod tests {
         assert_eq!(p.meta.name, "notifsholat");
         assert_eq!(p.meta.alias, ["notifsolat"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Toggle notifikasi sholat untuk grup ini");
+        assert_eq!(
+            p.meta.description,
+            "Toggle notifikasi sholat untuk grup ini"
+        );
         assert_eq!(p.meta.usage, ".notifsholat on/off");
         assert_eq!(p.meta.example, ".notifsholat on");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 0);
         assert!(p.meta.is_group && !p.meta.is_private);
-        assert!(!p.meta.is_admin && !p.meta.is_bot_admin, "tidak ada di pluginConfig JS");
+        assert!(
+            !p.meta.is_admin && !p.meta.is_bot_admin,
+            "tidak ada di pluginConfig JS"
+        );
     }
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("notifsolat").unwrap().meta.name, "notifsholat");
+        assert_eq!(
+            oktz_plugin_api::find("notifsolat").unwrap().meta.name,
+            "notifsholat"
+        );
     }
 
     #[test]
     fn a_member_who_is_neither_admin_nor_owner_is_rejected() {
-        let r = run(serde_json::json!({}), serde_json::json!({}), Some("on"), false);
+        let r = run(
+            serde_json::json!({}),
+            serde_json::json!({}),
+            Some("on"),
+            false,
+        );
         assert_eq!(text_of(&r), ADMIN_ONLY);
         assert!(r.mutations().is_empty());
     }
@@ -187,7 +208,10 @@ mod tests {
         let r = run(serde_json::json!({}), serde_json::json!({}), None, true);
         let t = text_of(&r);
         assert!(t.starts_with("🕌 *PENGINGAT WAKTU SHOLAT*"), "{t}");
-        assert!(t.contains("Status Pengingat (grup ini): *❌ NONAKTIF*"), "{t}");
+        assert!(
+            t.contains("Status Pengingat (grup ini): *❌ NONAKTIF*"),
+            "{t}"
+        );
         assert!(t.contains("Status Grup: *✅ AKTIF*"), "{t}");
         assert!(t.contains("Lokasi: *KOTA JAKARTA*"), "default kota: {t}");
         assert!(r.mutations().is_empty());
@@ -209,9 +233,17 @@ mod tests {
     #[test]
     fn an_explicit_false_in_the_group_is_not_overwritten_by_the_global_value() {
         // `??` di versi awal: `false` bukan nullish, jadi tetap nonaktif walau global aktif.
-        let r = run(serde_json::json!({"autoSholat": false}), serde_json::json!({"autoSholat": true}), None, true);
+        let r = run(
+            serde_json::json!({"autoSholat": false}),
+            serde_json::json!({"autoSholat": true}),
+            None,
+            true,
+        );
         let t = text_of(&r);
-        assert!(t.contains("Status Pengingat (grup ini): *❌ NONAKTIF*"), "{t}");
+        assert!(
+            t.contains("Status Pengingat (grup ini): *❌ NONAKTIF*"),
+            "{t}"
+        );
     }
 
     #[test]
@@ -224,7 +256,10 @@ mod tests {
         ] {
             let r = run(stored.clone(), serde_json::json!({}), None, true);
             let t = text_of(&r);
-            assert!(t.contains(&format!("Status Grup: *{expected}*")), "input {stored}: {t}");
+            assert!(
+                t.contains(&format!("Status Grup: *{expected}*")),
+                "input {stored}: {t}"
+            );
         }
     }
 
@@ -247,15 +282,29 @@ mod tests {
 
     #[test]
     fn off_writes_false_and_says_nothing_about_the_location() {
-        let r = run(serde_json::json!({}), serde_json::json!({}), Some("off"), true);
+        let r = run(
+            serde_json::json!({}),
+            serde_json::json!({}),
+            Some("off"),
+            true,
+        );
         assert_eq!(text_of(&r), "❌ *ɴᴏᴛɪꜰ sʜᴏʟᴀᴛ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*");
         assert_eq!(group_write(&r), &serde_json::json!({"notifSholat": false}));
     }
 
     #[test]
     fn an_unknown_keyword_shows_the_overview_instead_of_writing() {
-        let r = run(serde_json::json!({}), serde_json::json!({}), Some("nyanyi"), true);
-        assert!(text_of(&r).starts_with("🕌 *PENGINGAT WAKTU SHOLAT*"), "{}", text_of(&r));
+        let r = run(
+            serde_json::json!({}),
+            serde_json::json!({}),
+            Some("nyanyi"),
+            true,
+        );
+        assert!(
+            text_of(&r).starts_with("🕌 *PENGINGAT WAKTU SHOLAT*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -263,8 +312,14 @@ mod tests {
     fn the_overview_help_uses_the_live_prefix() {
         let r = run(serde_json::json!({}), serde_json::json!({}), None, true);
         let t = text_of(&r);
-        assert!(t.contains("• *.notifsholat on* — Aktifkan notif di grup ini"), "{t}");
-        assert!(t.contains("• *.notifsholat off* — Nonaktifkan notif di grup ini"), "{t}");
+        assert!(
+            t.contains("• *.notifsholat on* — Aktifkan notif di grup ini"),
+            "{t}"
+        );
+        assert!(
+            t.contains("• *.notifsholat off* — Nonaktifkan notif di grup ini"),
+            "{t}"
+        );
         assert!(t.contains("perintah *.autosholat* di grup ini"), "{t}");
     }
 }

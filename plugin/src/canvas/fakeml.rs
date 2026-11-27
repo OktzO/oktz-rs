@@ -305,7 +305,8 @@ fn upload_ee(http: &dyn HttpGet, buffer: &[u8]) -> Result<String, String> {
         .rsplit_once('.')
         .map(|(_, e)| e.to_ascii_lowercase())
         .unwrap_or_default();
-    let is_image = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
+    let is_image =
+        ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"].contains(&ext.as_str());
 
     // Pemanasan GET — versi awal tidak memeriksa status, hanya gagal jaringan.
     // `terima_semua_status` = `fetch` versi awal yang tidak melempar untuk 4xx/5xx.
@@ -553,7 +554,10 @@ mod tests {
     }
 
     impl Stub {
-        fn baru(balasan: Vec<(u16, Vec<u8>)>, hasil_unduh: Result<Vec<u8>, MediaError>) -> Arc<Stub> {
+        fn baru(
+            balasan: Vec<(u16, Vec<u8>)>,
+            hasil_unduh: Result<Vec<u8>, MediaError>,
+        ) -> Arc<Stub> {
             Arc::new(Stub {
                 balasan: Mutex::new(balasan),
                 hitung: Mutex::new(0),
@@ -596,7 +600,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!("pakai call")
         }
     }
@@ -669,7 +677,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<Value>, SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -718,8 +726,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             http: http.clone(),
             media_fetch: http,
             sock,
@@ -742,7 +750,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn urutan_teks(r: &Reply) -> Vec<String> {
@@ -816,7 +827,11 @@ mod tests {
             assert_eq!(reaksi(&r), None, "input {text:?}");
         }
         assert!(http.panggilan.lock().unwrap().is_empty());
-        assert_eq!(*sock.dipanggil.lock().unwrap(), 0, "foto profil tidak dipanggil");
+        assert_eq!(
+            *sock.dipanggil.lock().unwrap(),
+            0,
+            "foto profil tidak dipanggil"
+        );
     }
 
     #[test]
@@ -938,16 +953,23 @@ mod tests {
         );
         let sock = Arc::new(StubSock::default());
         *sock.foto.lock().unwrap() = Some(Ok(Some("https://pp.example/a.jpg".into())));
-        let r = fakeml(ctx_stub(http.clone(), sock.clone(), ".", "Misaki", None, None));
+        let r = fakeml(ctx_stub(
+            http.clone(),
+            sock.clone(),
+            ".",
+            "Misaki",
+            None,
+            None,
+        ));
         assert_eq!(bytes_gambar(&r), ISI_API);
         assert_eq!(reaksi(&r), Some("✅".into()));
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan[0].url, "https://pp.example/a.jpg");
+        assert_eq!(panggilan[0].method, oktz_plugin_api::HttpMethod::Get);
         assert_eq!(
-            panggilan[0].method,
-            oktz_plugin_api::HttpMethod::Get
+            panggilan[1].url,
+            "https://litterbox.catbox.moe/resources/internals/api.php"
         );
-        assert_eq!(panggilan[1].url, "https://litterbox.catbox.moe/resources/internals/api.php");
         assert_eq!(
             panggilan[2].url,
             api_url("https://litterbox.example/pp.jpg", "Misaki")
@@ -975,7 +997,10 @@ mod tests {
         assert_eq!(bytes_gambar(&r), ISI_API);
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan.len(), 2, "tidak ada GET foto profil");
-        assert_eq!(panggilan[0].url, "https://litterbox.catbox.moe/resources/internals/api.php");
+        assert_eq!(
+            panggilan[0].url,
+            "https://litterbox.catbox.moe/resources/internals/api.php"
+        );
         match &panggilan[0].body {
             Some(HttpBody::Multipart(parts)) => {
                 let berkas = parts.iter().find(|p| p.name == "fileToUpload").unwrap();
@@ -1027,7 +1052,10 @@ mod tests {
         assert_eq!(bytes_gambar(&r), ISI_API);
         let panggilan = http.panggilan.lock().unwrap();
         assert_eq!(panggilan[0].url, "https://pp.example/a.jpg");
-        assert_eq!(panggilan[1].url, "https://litterbox.catbox.moe/resources/internals/api.php");
+        assert_eq!(
+            panggilan[1].url,
+            "https://litterbox.catbox.moe/resources/internals/api.php"
+        );
     }
 
     #[test]
@@ -1054,7 +1082,10 @@ mod tests {
     #[test]
     fn api_non_2xx_membalas_coba_lagi_dan_reaksi_silang() {
         let http = Stub::baru(
-            vec![resp(200, b"https://litterbox.example/img.jpg"), resp(500, b"")],
+            vec![
+                resp(200, b"https://litterbox.example/img.jpg"),
+                resp(500, b""),
+            ],
             Ok(GAMBAR.to_vec()),
         );
         let sock = Arc::new(StubSock::default());

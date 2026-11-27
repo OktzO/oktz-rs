@@ -56,7 +56,7 @@ pub(crate) fn league_emoji(league: &str) -> &'static str {
 /// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -194,7 +194,6 @@ fn error_branch(ctx: &Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run(filter: &str) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
@@ -265,10 +264,7 @@ mod tests {
 
     #[test]
     fn the_api_url_carries_the_config_key() {
-        assert_eq!(
-            url("KUNCI"),
-            "https://api.neoxr.eu/api/bola?apikey=KUNCI"
-        );
+        assert_eq!(url("KUNCI"), "https://api.neoxr.eu/api/bola?apikey=KUNCI");
         // `Ctx::default()` config-nya kosong, jadi jalurINI tetap menghasilkan
         // `apikey=` persis seperti `process.env.APIKEY_NEOXR || ""`.
         assert_eq!(url(""), "https://api.neoxr.eu/api/bola?apikey=");
@@ -361,12 +357,12 @@ mod tests {
     }
 
     #[test]
-    fn missing_match_fields_are_interpolated_as_undefined() {
+    fn missing_match_fields_are_interpolated_as_dash() {
         let all = vec![serde_json::json!({"league": "LigaItalia"})];
         let out = render(&all, "").unwrap();
-        assert!(out.contains("⏰ undefined"), "{out}");
-        assert!(out.contains("🏠 undefined"), "{out}");
-        assert!(out.contains("🆚 undefined"), "{out}");
+        assert!(out.contains("⏰ -"), "{out}");
+        assert!(out.contains("🏠 -"), "{out}");
+        assert!(out.contains("🆚 -"), "{out}");
     }
 
     #[test]
@@ -377,18 +373,18 @@ mod tests {
         // `"champions league".includes("liga champions")`
         // `"liga champions".includes("champions league")` sama-sama false,
         // jadi versi awal jatuh ke `⚽`.
-        assert_eq!(league_emoji("Champions League"), "⚽", "urut kata tidak sama");
+        assert_eq!(
+            league_emoji("Champions League"),
+            "⚽",
+            "urut kata tidak sama"
+        );
         // `lower.includes(key)` menang lebih dulu: "Liga Italia" memuat
         // "liga italia", dan urutan peta menempatkan Italia sebelum Spanyol.
         assert_eq!(league_emoji("Liga Italia"), "🇮🇹");
         // `key.includes(lower)` — arah `includes` yang terbalik: "champ" bukan
         // substring dari "liga champions", tapi sebaliknya benar.
         assert_eq!(league_emoji("Champ"), "🏆");
-        assert_eq!(
-            league_emoji("Liga"),
-            "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-            "string pendek → kunci pertama"
-        );
+        assert_eq!(league_emoji("Liga"), "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "string pendek → kunci pertama");
         assert_eq!(league_emoji("Liga nowhere"), "⚽", "tidak ada yang cocok");
     }
 }

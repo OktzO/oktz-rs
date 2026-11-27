@@ -36,12 +36,12 @@ pub mod wormgpt;
 // Ditambahkan.
 
 // Ditambahkan.
+pub mod efek;
 pub mod toanime;
 pub mod tofigure;
 pub mod tohijab;
 pub mod tojapanese;
 pub mod tooilpainting;
-pub mod efek;
 
 // Ditambahkan.
 pub mod toblack;

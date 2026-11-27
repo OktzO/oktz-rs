@@ -299,7 +299,10 @@ mod tests {
         assert_eq!(trim_text(None, DEFAULT_MAX), "-");
         assert_eq!(trim_text(Some(&Value::Null), DEFAULT_MAX), "-");
         assert_eq!(trim_text(Some(&serde_json::json!(12)), DEFAULT_MAX), "12");
-        assert_eq!(trim_text(Some(&serde_json::json!(true)), DEFAULT_MAX), "true");
+        assert_eq!(
+            trim_text(Some(&serde_json::json!(true)), DEFAULT_MAX),
+            "true"
+        );
         assert_eq!(
             trim_text(Some(&serde_json::json!({"a": 1})), DEFAULT_MAX),
             "[object Object]",

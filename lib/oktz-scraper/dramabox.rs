@@ -39,25 +39,31 @@ fn pola_next_data() -> &'static Regex {
     })
 }
 
-/// `String(v)` di dalam template literal — `undefined` jadi `"undefined"`.
+/// `String(v)` di dalam template literal; field hilang jadi `-`.
 fn teks_js(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::Bool(b)) => b.to_string(),
         Some(Value::Number(n)) => n.to_string(),
-        Some(Value::Array(a)) => a.iter().map(|v| teks_js(Some(v))).collect::<Vec<_>>().join(","),
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|v| teks_js(Some(v)))
+            .collect::<Vec<_>>()
+            .join(","),
         Some(Value::Object(_)) => "[object Object]".to_string(),
     }
 }
 
 /// `dramaboxsearch(q)` tanpa `try/catch` — bagian yang dibungkus `err`.
 fn dramabox_inti(http: &dyn HttpGet, q: &str) -> Result<Value, HttpError> {
-    let html = http.call(&HttpCall::get(format!(
-        "https://www.dramabox.com/search?searchValue={}",
-        encode_uri_component(q)
-    )))?.text();
+    let html = http
+        .call(&HttpCall::get(format!(
+            "https://www.dramabox.com/search?searchValue={}",
+            encode_uri_component(q)
+        )))?
+        .text();
 
     // `.match(...)[1]` di JS: kalau tidak cocok, `null[1]` melempar TypeError.
     let Some(captures) = pola_next_data().captures(&html) else {
@@ -220,7 +226,9 @@ mod tests {
     }
 
     fn halaman(data_json: &str) -> String {
-        format!(r#"<!DOCTYPE html><html><body><script id="__NEXT_DATA__" type="application/json">{data_json}</script></body></html>"#)
+        format!(
+            r#"<!DOCTYPE html><html><body><script id="__NEXT_DATA__" type="application/json">{data_json}</script></body></html>"#
+        )
     }
 
     #[test]
@@ -239,7 +247,10 @@ mod tests {
         let hasil = dramabox_search(&http, "drama dua").unwrap();
         assert_eq!(hasil["query"], "drama dua");
         assert_eq!(hasil["total"], 2);
-        assert!(hasil.get("status").is_none(), "jalur sukses tidak punya status");
+        assert!(
+            hasil.get("status").is_none(),
+            "jalur sukses tidak punya status"
+        );
 
         let hasil = hasil.as_object().unwrap();
         let results = hasil["results"].as_array().unwrap();
@@ -273,8 +284,10 @@ mod tests {
     }
 
     #[test]
-    fn field_yang_hilang_tidak_ikut_tapi_play_url_jadi_teks_undefined() {
-        let http = stub(&halaman(r#"{"props":{"pageProps":{"bookList":[{"bookId":"bk9"}]}}}"#));
+    fn field_yang_hilang_tidak_ikut_tapi_play_url_pakai_placeholder() {
+        let http = stub(&halaman(
+            r#"{"props":{"pageProps":{"bookList":[{"bookId":"bk9"}]}}}"#,
+        ));
         let hasil = dramabox_search(&http, "x").unwrap();
         let item = &hasil["results"][0];
         assert_eq!(item["id"], "bk9");
@@ -284,7 +297,7 @@ mod tests {
         assert!(item.get("cover").is_none(), "dua cover kosong");
         assert_eq!(
             item["play_url"],
-            "https://www.dramabox.com/video/bk9_undefined/undefined_Episode-1"
+            "https://www.dramabox.com/video/bk9_-/-_Episode-1"
         );
     }
 
@@ -307,10 +320,7 @@ mod tests {
         let http = stub("<html><body>halaman lain</body></html>");
         let hasil = dramabox_search(&http, "x").unwrap();
         assert_eq!(hasil["status"], "eror");
-        assert_eq!(
-            hasil["msg"],
-            "Cannot read properties of null (reading '1')"
-        );
+        assert_eq!(hasil["msg"], "Cannot read properties of null (reading '1')");
     }
 
     #[test]
@@ -364,7 +374,9 @@ mod tests {
         struct Mati;
         impl oktz_plugin_api::HttpGet for Mati {
             fn get(&self, _: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
-                Err(HttpError { message: "HTTP 503".into() })
+                Err(HttpError {
+                    message: "HTTP 503".into(),
+                })
             }
             fn post_json(
                 &self,
@@ -391,7 +403,9 @@ mod tests {
                 &self,
                 _: &oktz_plugin_api::HttpCall,
             ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
-                Err(HttpError { message: "HTTP 503".into() })
+                Err(HttpError {
+                    message: "HTTP 503".into(),
+                })
             }
         }
         let hasil = dramabox_search(&Mati, "x").unwrap();

@@ -5,7 +5,8 @@ use serde_json::Value;
 
 use crate::store::listproduk::index_arg;
 
-const EMPTY: &str = "📭 *Belum ada informasi.*\n\nTambahkan informasi terlebih dahulu: `{PREFIX}addlist` ➕";
+const EMPTY: &str =
+    "📭 *Belum ada informasi.*\n\nTambahkan informasi terlebih dahulu: `{PREFIX}addlist` ➕";
 
 #[plugin(
     name = "hapuslist",
@@ -28,10 +29,14 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
 
     // Tanpa nomor valid → tampilkan daftar pilihan.
     let Some(idx) = index_arg(&ctx, lists.len()) else {
-        let mut txt =
-            String::from("🗑️ *Pilih Informasi yang Dihapus*\n\nKetik `{PREFIX}hapuslist <nomor>`\n\n");
+        let mut txt = String::from(
+            "🗑️ *Pilih Informasi yang Dihapus*\n\nKetik `{PREFIX}hapuslist <nomor>`\n\n",
+        );
         for (i, l) in lists.iter().enumerate() {
-            let icon = match (l.get("image").is_some_and(|v| !v.is_null()), l.get("video").is_some_and(|v| !v.is_null())) {
+            let icon = match (
+                l.get("image").is_some_and(|v| !v.is_null()),
+                l.get("video").is_some_and(|v| !v.is_null()),
+            ) {
                 (true, _) => "🖼️",
                 (_, true) => "🎬",
                 _ => "📝",
@@ -39,7 +44,7 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
             txt.push_str(&format!(
                 "{icon} *{}.* {}\n",
                 i + 1,
-                l.get("name").and_then(Value::as_str).unwrap_or("undefined")
+                l.get("name").and_then(Value::as_str).unwrap_or("-")
             ));
         }
         return Reply::text(txt.replace("{PREFIX}", &ctx.prefix));
@@ -52,7 +57,7 @@ pub fn hapuslist(ctx: Ctx) -> Reply {
     let name = deleted
         .get("name")
         .and_then(Value::as_str)
-        .unwrap_or("undefined")
+        .unwrap_or("-")
         .to_string();
 
     // versi awal: `await m.react('✅')` lalu `m.reply(...)`.
@@ -168,7 +173,11 @@ mod tests {
         let after = stored(&r);
         assert_eq!(after.len(), 2);
         assert_eq!(after[0]["name"].as_str(), Some("A"));
-        assert_eq!(after[1]["name"].as_str(), Some("C"), "index 1 (nomor 2) dihapus");
+        assert_eq!(
+            after[1]["name"].as_str(),
+            Some("C"),
+            "index 1 (nomor 2) dihapus"
+        );
         assert!(text_of(&r).contains("Nama: *B*"));
         // versi awal: `await m.react('✅')` — reaksi, bukan teks.
         // Assert emoji di `Reply::Reaction`, bukan di teks balasan.

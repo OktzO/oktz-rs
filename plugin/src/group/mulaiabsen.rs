@@ -6,9 +6,11 @@
 //! yang ditulis versi awal).
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
-use crate::common::{JAKARTA_OFFSET_SECS, days_from_civil, jakarta_parts, jid_number, js_truthy_value, now_ms};
+use crate::common::{
+    JAKARTA_OFFSET_SECS, days_from_civil, jakarta_parts, jid_number, js_truthy_value, now_ms,
+};
 
 /// Kunci session untuk `global.absensi`.
 pub(crate) const ABSENSI: &str = "absensi";
@@ -52,10 +54,7 @@ fn iso_ms(s: &str) -> Option<i64> {
     if t.next().is_some() {
         return None;
     }
-    Some(
-        days_from_civil(y, mo as u32, d as u32) * 86_400_000
-            + (h * 3_600 + mi * 60 + sec) * 1000,
-    )
+    Some(days_from_civil(y, mo as u32, d as u32) * 86_400_000 + (h * 3_600 + mi * 60 + sec) * 1000)
 }
 
 /// `pruneAbsensi()` — buang entri yang sudah lebih tua
@@ -183,7 +182,10 @@ mod tests {
     }
 
     fn session_of(s: &SessionStore, chat: &str) -> Option<Value> {
-        s.lock().unwrap().get(ABSENSI).and_then(|v| v.get(chat).cloned())
+        s.lock()
+            .unwrap()
+            .get(ABSENSI)
+            .and_then(|v| v.get(chat).cloned())
     }
 
     #[test]
@@ -214,9 +216,15 @@ mod tests {
         let r = run(s.clone(), "Rapat Mingguan");
         let entry = session_of(&s, CHAT).expect("sesi harus tersimpan");
         assert_eq!(entry["keterangan"], serde_json::json!("Rapat Mingguan"));
-        assert_eq!(entry["createdBy"], serde_json::json!("628111@s.whatsapp.net"));
+        assert_eq!(
+            entry["createdBy"],
+            serde_json::json!("628111@s.whatsapp.net")
+        );
         assert_eq!(entry["peserta"], serde_json::json!([]));
-        assert!(entry["createdAt"].as_str().unwrap().ends_with('Z'), "{entry}");
+        assert!(
+            entry["createdAt"].as_str().unwrap().ends_with('Z'),
+            "{entry}"
+        );
         assert!(r.mutations().is_empty(), "absensi bukan data store");
     }
 
@@ -251,7 +259,9 @@ mod tests {
             )
         );
         match r.without_mutations() {
-            Reply::Text { mentions, .. } => assert_eq!(mentions, &["628111@s.whatsapp.net".to_string()]),
+            Reply::Text { mentions, .. } => {
+                assert_eq!(mentions, &["628111@s.whatsapp.net".to_string()])
+            }
             other => panic!("harus Text, dapat {other:?}"),
         }
     }
@@ -312,10 +322,25 @@ mod tests {
             ..Default::default()
         };
         prune_absensi(&ctx);
-        let left = s.lock().unwrap().get(ABSENSI).unwrap().as_object().unwrap().len();
-        assert_eq!(left, MAX_CHATS, "satu entri basi harus hilang, sisanya tetap");
+        let left = s
+            .lock()
+            .unwrap()
+            .get(ABSENSI)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .len();
+        assert_eq!(
+            left, MAX_CHATS,
+            "satu entri basi harus hilang, sisanya tetap"
+        );
         assert!(
-            s.lock().unwrap().get(ABSENSI).unwrap().get("chat0@g.us").is_none(),
+            s.lock()
+                .unwrap()
+                .get(ABSENSI)
+                .unwrap()
+                .get("chat0@g.us")
+                .is_none(),
             "entri paling lama justru yang dibuang"
         );
     }

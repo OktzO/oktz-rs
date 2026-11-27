@@ -145,7 +145,12 @@ mod tests {
         for a in ["all", "everyone"] {
             assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "tagall");
         }
-        assert!(!oktz_plugin_api::find("tagall").unwrap().meta.matches("all2"));
+        assert!(
+            !oktz_plugin_api::find("tagall")
+                .unwrap()
+                .meta
+                .matches("all2")
+        );
     }
 
     // - cabang roster -----------------------------------------------------
@@ -234,8 +239,10 @@ mod tests {
             p("628222@s.whatsapp.net", false, false),
         ]);
         c.text = "mulai rapat *sekarang*".into();
-        assert!(text_of(&run(c.clone()))
-            .starts_with("*Pesan:* mulai rapat *sekarang*\n\n```━━━ 1 MEMBER TOTAL"));
+        assert!(
+            text_of(&run(c.clone()))
+                .starts_with("*Pesan:* mulai rapat *sekarang*\n\n```━━━ 1 MEMBER TOTAL")
+        );
     }
 
     #[test]

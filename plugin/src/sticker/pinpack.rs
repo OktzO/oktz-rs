@@ -50,9 +50,7 @@ pub(crate) const PACK_GAGAL: &str = "── .✦ ──\n\n> Pack gagal, mengiri
 
 /// Berhasil mengirim sebagian sticker.
 pub(crate) fn berhasil_kirim(jumlah: usize, packname: &str) -> String {
-    format!(
-        "── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖"
-    )
+    format!("── .✦ ──\n\n> Berhasil kirim *{jumlah}* sticker dari *{packname}* .☘︎ ݁˖")
 }
 
 /// Gagal mengirim sticker.
@@ -234,10 +232,7 @@ mod tests {
             mengunduh(3),
             "── .✦ ──\n\n> Mengunduh *3* gambar dari Pinterest\n> Lalu dikonversi ke sticker pack... .☘︎ ݁˖"
         );
-        assert_eq!(
-            UNDUH_GAGAL,
-            "── .✦ ──\n\n> Gagal mendownload gambar .☘︎ ݁˖"
-        );
+        assert_eq!(UNDUH_GAGAL, "── .✦ ──\n\n> Gagal mendownload gambar .☘︎ ݁˖");
         assert_eq!(
             PACK_GAGAL,
             "── .✦ ──\n\n> Pack gagal, mengirim satu per satu... .☘︎ ݁˖"
@@ -246,10 +241,7 @@ mod tests {
             berhasil_kirim(2, "Pinterest: kucing"),
             "── .✦ ──\n\n> Berhasil kirim *2* sticker dari *Pinterest: kucing* .☘︎ ݁˖"
         );
-        assert_eq!(
-            KIRIM_GAGAL,
-            "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖"
-        );
+        assert_eq!(KIRIM_GAGAL, "── .✦ ──\n\n> Gagal mengirim sticker .☘︎ ݁˖");
     }
 
     #[test]

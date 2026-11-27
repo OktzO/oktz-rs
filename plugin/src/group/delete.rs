@@ -92,8 +92,8 @@ pub fn delete(ctx: Ctx) -> Reply {
         return Reply::text(NO_QUOTE);
     };
 
-    let is_own_message =
-        quoted.from_me || is_same_group_member(&ctx.roster.participants, &quoted.sender, &ctx.sender);
+    let is_own_message = quoted.from_me
+        || is_same_group_member(&ctx.roster.participants, &quoted.sender, &ctx.sender);
     // `botJids.includes(...)` butuh `sock.user` — lihat `Keterbatasan:` modul.
     let is_bot_message = quoted.from_me;
 
@@ -110,7 +110,10 @@ pub fn delete(ctx: Ctx) -> Reply {
     // `participant` = `rawParticipant || quotedSender`; di Rust `sender`
     // sudah `ci.participant` (lihat `quoted_of` pipeline).
     // Sukses: reaksi ✅.
-    match ctx.sock().hapus_pesan(&ctx.chat, &quoted.id, &quoted.sender, quoted.from_me) {
+    match ctx
+        .sock()
+        .hapus_pesan(&ctx.chat, &quoted.id, &quoted.sender, quoted.from_me)
+    {
         Ok(()) => Reply::reaction("✅"),
         Err(e) if pesan_hilang(&e.pesan) => Reply::text(GAGAL_HILANG),
         // Selain itu hanya reaksi ❌.
@@ -132,7 +135,13 @@ mod tests {
     }
 
     impl Sock for StubSock {
-        fn hapus_pesan(&self, chat: &str, message_id: &str, participant: &str, from_me: bool) -> Result<(), SockError> {
+        fn hapus_pesan(
+            &self,
+            chat: &str,
+            message_id: &str,
+            participant: &str,
+            from_me: bool,
+        ) -> Result<(), SockError> {
             self.seen.lock().unwrap().push((
                 chat.to_string(),
                 message_id.to_string(),
@@ -144,7 +153,10 @@ mod tests {
                 None => Ok(()),
             }
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -156,7 +168,12 @@ mod tests {
         fn semua_grup(&self) -> Result<serde_json::Value, SockError> {
             Err(SockError::baru("x"))
         }
-        fn ubah_peserta(&self, _: &str, _: &[String], _: oktz_plugin_api::AksiPeserta) -> Result<(), SockError> {
+        fn ubah_peserta(
+            &self,
+            _: &str,
+            _: &[String],
+            _: oktz_plugin_api::AksiPeserta,
+        ) -> Result<(), SockError> {
             Err(SockError::baru("x"))
         }
         fn set_foto_profil(&self, _: &str, _: &[u8]) -> Result<(), SockError> {
@@ -253,8 +270,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: o.from_me,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             ..Default::default()
         }
     }
@@ -369,17 +386,36 @@ mod tests {
     }
 
     #[test]
-    fn participant_matching_follows_the_js_number_rules() {        let roster = vec![p("628999@lid", false)];
+    fn participant_matching_follows_the_js_number_rules() {
+        let roster = vec![p("628999@lid", false)];
         assert!(is_same_participant("628999@s.whatsapp.net", "628999@lid"));
-        assert!(is_same_participant("628999:5@s.whatsapp.net", "628999@s.whatsapp.net"));
-        assert!(!is_same_participant("628999@s.whatsapp.net", "628111@s.whatsapp.net"));
+        assert!(is_same_participant(
+            "628999:5@s.whatsapp.net",
+            "628999@s.whatsapp.net"
+        ));
+        assert!(!is_same_participant(
+            "628999@s.whatsapp.net",
+            "628111@s.whatsapp.net"
+        ));
         assert!(!is_same_participant("", "628999@s.whatsapp.net"));
         // Berbeda di roster tapi nomornya sama → tetap member yang sama.
-        assert!(is_same_group_member(&roster, "628999@s.whatsapp.net", "628999:3@s.whatsapp.net"));
-        assert!(!is_same_group_member(&roster, "628999@s.whatsapp.net", "628111@s.whatsapp.net"));
+        assert!(is_same_group_member(
+            &roster,
+            "628999@s.whatsapp.net",
+            "628999:3@s.whatsapp.net"
+        ));
+        assert!(!is_same_group_member(
+            &roster,
+            "628999@s.whatsapp.net",
+            "628111@s.whatsapp.net"
+        ));
         // Roster kosong tidak mengubah apa pun: `isSameParticipant` memutuskan
         // lebih dulu, persis seperti versi awal sebelum menyentuh participants.
-        assert!(is_same_group_member(&[], "628999@s.whatsapp.net", "628999@lid"));
+        assert!(is_same_group_member(
+            &[],
+            "628999@s.whatsapp.net",
+            "628999@lid"
+        ));
         assert!(!is_same_group_member(&[], "628999@s.whatsapp.net", ""));
     }
 
@@ -393,7 +429,10 @@ mod tests {
                 sender_admin: true,
                 is_owner: false,
             },
-            Arc::new(StubSock { err: Some("sendMessage{delete}: not found".into()), ..StubSock::default() }),
+            Arc::new(StubSock {
+                err: Some("sendMessage{delete}: not found".into()),
+                ..StubSock::default()
+            }),
         ));
         assert_eq!(body(&r), GAGAL_HILANG);
     }
@@ -408,7 +447,10 @@ mod tests {
                 sender_admin: true,
                 is_owner: false,
             },
-            Arc::new(StubSock { err: Some("lainnya".into()), ..StubSock::default() }),
+            Arc::new(StubSock {
+                err: Some("lainnya".into()),
+                ..StubSock::default()
+            }),
         ));
         assert!(
             matches!(r.without_mutations(), Reply::Reaction { emoji, .. } if emoji == "❌"),

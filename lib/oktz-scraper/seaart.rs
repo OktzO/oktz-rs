@@ -37,7 +37,10 @@ fn header_dasar(req: HttpCall) -> HttpCall {
         .header("Accept-Language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7")
         .header("Origin", "https://imgupscaler.ai")
         .header("Referer", "https://imgupscaler.ai/")
-        .header("sec-ch-ua", "\"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"")
+        .header(
+            "sec-ch-ua",
+            "\"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"",
+        )
         .header("sec-ch-ua-mobile", "?0")
         .header("sec-ch-ua-platform", "\"Linux\"")
         .header("sec-fetch-dest", "empty")
@@ -78,9 +81,10 @@ fn teks_js(v: &Value) -> String {
 fn pesan_galat(data: &Value) -> String {
     for kunci in ["message", "error"] {
         if let Some(v) = data.get(kunci)
-            && truthy(v) {
-                return teks_js(v);
-            }
+            && truthy(v)
+        {
+            return teks_js(v);
+        }
     }
     "Gagal membuat gambar".to_string()
 }
@@ -112,7 +116,7 @@ fn upload_buf(http: &dyn HttpGet, buf: &[u8]) -> Result<String, HttpError> {
         .get("result")
         .and_then(|r| r.get("object_name"))
         .map(teks_js)
-        .unwrap_or_else(|| "undefined".to_string());
+        .unwrap_or_else(|| "-".to_string());
 
     // `axios.put(uploadUrl, buf, { headers: { "Content-Type": "image/jpeg" } })`
     http.call(&HttpCall::put(url_unggah).raw(buf.to_vec(), "image/jpeg"))?;
@@ -274,7 +278,8 @@ mod tests {
         vec![
             (
                 200,
-                r#"{"result":{"url":"https://unggah.example/x","object_name":"obj/1"}}"#.to_string(),
+                r#"{"result":{"url":"https://unggah.example/x","object_name":"obj/1"}}"#
+                    .to_string(),
             ),
             (200, String::new()),
             (
@@ -313,7 +318,10 @@ mod tests {
         assert_eq!(parts[0].file_name, None);
         let nama = String::from_utf8(parts[0].body.bytes().to_vec()).unwrap();
         assert!(nama.ends_with(".jpg"), "nama berkas aneh: {nama}");
-        assert!(uuid_berpola(&nama[..nama.len() - 4]), "bukan UUID v4: {nama}");
+        assert!(
+            uuid_berpola(&nama[..nama.len() - 4]),
+            "bukan UUID v4: {nama}"
+        );
         assert_eq!(
             cari_header(&p[0], "sec-fetch-site"),
             Some("same-site".to_string())
@@ -322,7 +330,11 @@ mod tests {
             cari_header(&p[0], "origin"),
             Some("https://imgupscaler.ai".to_string())
         );
-        assert!(cari_header(&p[0], "user-agent").unwrap().contains("Chrome/137"));
+        assert!(
+            cari_header(&p[0], "user-agent")
+                .unwrap()
+                .contains("Chrome/137")
+        );
 
         // 2. PUT byte gambar mentah dengan content-type image/jpeg.
         assert_eq!(p[1].method, oktz_plugin_api::HttpMethod::Put);

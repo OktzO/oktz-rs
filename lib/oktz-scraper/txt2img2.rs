@@ -44,7 +44,9 @@ const NEXT_ACTION: &str = "315bc26dade9ed14e1a168a4d9f7cea08869133d";
 
 /// `crypto.randomBytes(8).toString("hex")` — 16 digit heksa.
 fn session_hash() -> String {
-    (0..8).map(|_| format!("{:02x}", rand::random::<u8>())).collect()
+    (0..8)
+        .map(|_| format!("{:02x}", rand::random::<u8>()))
+        .collect()
 }
 
 /// `extractUrl(output)` (`txt2img2.js:125-143`). `JSON.stringify(output || "")`
@@ -96,11 +98,7 @@ fn read_queue_sse(raw: &str, event_id: &Value) -> Result<String, String> {
             // `on("data")` meneruskannya apa adanya ke promise yang ditolak.
             return Err(format!("SyntaxError: JSON tidak terbaca: {payload}"));
         };
-        if json
-            .get("event_id")
-            .is_some_and(truthy)
-            && json.get("event_id") != Some(event_id)
-        {
+        if json.get("event_id").is_some_and(truthy) && json.get("event_id") != Some(event_id) {
             continue;
         }
         match json.get("msg").and_then(Value::as_str) {
@@ -262,7 +260,8 @@ mod tests {
         }
 
         fn balas(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            let Some((_, status, body)) = self.rute.iter().find(|(f, _, _)| url.contains(f.as_str()))
+            let Some((_, status, body)) =
+                self.rute.iter().find(|(f, _, _)| url.contains(f.as_str()))
             else {
                 return Err(HttpError {
                     message: "koneksi ditolak".to_string(),
@@ -416,7 +415,10 @@ mod tests {
         let mut http = stub_sse(SSE_SUKSES);
         http.rute.retain(|(f, _, _)| f != UPSAMPLER_URL);
         let hasil = txt2img2(&http, "kucing").unwrap();
-        assert_eq!(hasil["status"], true, "cek prompt gagal tidak boleh menggagalkan");
+        assert_eq!(
+            hasil["status"], true,
+            "cek prompt gagal tidak boleh menggagalkan"
+        );
     }
 
     #[test]
@@ -428,7 +430,11 @@ mod tests {
         let hasil = txt2img2(&http, "kucing").unwrap();
         assert_eq!(hasil["code"], 500);
         assert_eq!(hasil["error"], "event_id tidak ditemukan");
-        assert_eq!(http.permintaan.lock().unwrap().len(), 2, "tidak baca antrean");
+        assert_eq!(
+            http.permintaan.lock().unwrap().len(),
+            2,
+            "tidak baca antrean"
+        );
     }
 
     #[test]
@@ -501,7 +507,8 @@ mod tests {
 
     #[test]
     fn blok_sse_terakhir_tanpa_baris_kosong_dibuang_seperti_pop() {
-        let sse = "data: {\"msg\":\"process_completed\",\"output\":{\"url\":\"/tmp/gradio/a.png\"}}";
+        let sse =
+            "data: {\"msg\":\"process_completed\",\"output\":{\"url\":\"/tmp/gradio/a.png\"}}";
         assert_eq!(
             read_queue_sse(sse, &json!("evt-1")).unwrap_err(),
             "Stream selesai tanpa hasil"
@@ -523,7 +530,9 @@ mod tests {
         // mencari `https://`; `replaceAll("\/","/")` di `txt2img2.js:132` juga
         // tidak menolong karena `"\/"` sudah sama dengan `"/"`. Hasilnya kosong,
         // sama seperti yang diberi Node untuk masukan ini.
-        let terbalik = json!("https:\\/\\/black-forest-labs-flux-2-klein-4b.hf.space\\/gradio_api\\/file=z.webp");
+        let terbalik = json!(
+            "https:\\/\\/black-forest-labs-flux-2-klein-4b.hf.space\\/gradio_api\\/file=z.webp"
+        );
         assert_eq!(extract_url(&terbalik), "");
         assert_eq!(extract_url(&json!("tidak ada url")), "");
     }

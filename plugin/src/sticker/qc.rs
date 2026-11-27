@@ -100,10 +100,7 @@ pub(crate) fn terlalu_panjang(panjang: usize) -> String {
 
 /// Cari hex warna; `None` kalau nama warnanya tidak dikenal.
 pub(crate) fn hex_warna(nama: &str) -> Option<&'static str> {
-    WARNA
-        .iter()
-        .find(|(n, _)| *n == nama)
-        .map(|(_, hex)| *hex)
+    WARNA.iter().find(|(n, _)| *n == nama).map(|(_, hex)| *hex)
 }
 
 #[plugin(
@@ -140,13 +137,14 @@ pub fn qc(ctx: Ctx) -> Reply {
     // `if (m.quoted && !message) message = m.quoted.text || m.quoted.body || ''`
     //
     if pesan.is_empty()
-        && let Some(q) = ctx.quoted() {
-            pesan = if q.text.is_empty() {
-                String::new()
-            } else {
-                q.text.clone()
-            };
-        }
+        && let Some(q) = ctx.quoted()
+    {
+        pesan = if q.text.is_empty() {
+            String::new()
+        } else {
+            q.text.clone()
+        };
+    }
 
     if pesan.is_empty() {
         return Reply::text(TEKS_KOSONG);
@@ -182,7 +180,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             ..Ctx::default()
         }

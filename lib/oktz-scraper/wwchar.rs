@@ -66,7 +66,10 @@ pub fn scrape_wuthering_waves_character(
         .and_then(|t| clean(&t));
 
     let mut profile = Map::new();
-    for e in els.iter().filter(|e| e.kelas("pi-item") && e.kelas("pi-data")) {
+    for e in els
+        .iter()
+        .filter(|e| e.kelas("pi-item") && e.kelas("pi-data"))
+    {
         let label = els
             .iter()
             .find(|x| dalam_isi(x, e) && x.kelas("pi-data-label"))
@@ -107,13 +110,14 @@ pub fn scrape_wuthering_waves_character(
             .filter(|s| !s.is_empty())
             .or_else(|| e.attr("srcset").filter(|s| !s.is_empty()));
         if src.is_none()
-            && let Some(ss) = &srcset {
-                src = ss
-                    .split(',')
-                    .next()
-                    .and_then(|p| p.split(' ').next())
-                    .map(|s| s.to_string());
-            }
+            && let Some(ss) = &srcset
+        {
+            src = ss
+                .split(',')
+                .next()
+                .and_then(|p| p.split(' ').next())
+                .map(|s| s.to_string());
+        }
         let Some(src) = src else { continue };
         if !src.contains("static.wikia.nocookie.net") {
             continue;

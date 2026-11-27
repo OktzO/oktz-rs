@@ -61,9 +61,15 @@ impl UreqHttp {
             })
             .collect();
         let mut body = res.into_body();
-        let data = body.with_config().limit((MAX_BODY + 1) as u64).read_to_vec().map_err(to_err)?;
+        let data = body
+            .with_config()
+            .limit((MAX_BODY + 1) as u64)
+            .read_to_vec()
+            .map_err(to_err)?;
         if data.len() > MAX_BODY {
-            return Err(HttpError { message: "response terlalu besar".into() });
+            return Err(HttpError {
+                message: "response terlalu besar".into(),
+            });
         }
         Ok(HttpResponse {
             status,
@@ -112,7 +118,8 @@ impl UreqHttp {
         if !ada_tipe {
             match &req.body {
                 Some(HttpBody::Form(_)) => {
-                    permintaan = permintaan.header("content-type", "application/x-www-form-urlencoded");
+                    permintaan =
+                        permintaan.header("content-type", "application/x-www-form-urlencoded");
                 }
                 Some(HttpBody::Bytes {
                     mimetype: Some(m), ..
@@ -238,8 +245,9 @@ impl HttpGet for UreqHttp {
                             Ok(text) => ureq::unversioned::multipart::Part::text(text),
                             Err(_) => ureq::unversioned::multipart::Part::bytes(data),
                         },
-                        Some(nama_berkas) => ureq::unversioned::multipart::Part::bytes(data)
-                            .file_name(nama_berkas),
+                        Some(nama_berkas) => {
+                            ureq::unversioned::multipart::Part::bytes(data).file_name(nama_berkas)
+                        }
                     };
                     let part = match mimetype {
                         Some(m) => part.mime_str(m).map_err(to_err)?,
@@ -373,7 +381,10 @@ mod tests {
         let lower = req.to_lowercase();
         assert!(lower.starts_with("put /x "), "{req}");
         assert!(lower.contains("user-agent: klien-lain/1.0"), "{req}");
-        assert!(!lower.contains("chrome/120"), "UA bawaan tidak boleh ikut: {req}");
+        assert!(
+            !lower.contains("chrome/120"),
+            "UA bawaan tidak boleh ikut: {req}"
+        );
         assert!(lower.contains("content-type: text/plain"), "{req}");
     }
 
@@ -392,13 +403,10 @@ mod tests {
     fn call_multipart_mengirim_nama_berkas_dan_field_biasa() {
         let (alamat, handle) = server_sekali("{\"ok\":1}");
         let http = UreqHttp::new();
-        http.call(
-            &HttpCall::post(format!("{alamat}/upload")).multipart(vec![
-                MultipartPart::file("file", "foto.jpg", vec![1u8, 2, 3, 4])
-                    .with_mimetype("image/jpeg"),
-                MultipartPart::field("type", "13"),
-            ]),
-        )
+        http.call(&HttpCall::post(format!("{alamat}/upload")).multipart(vec![
+            MultipartPart::file("file", "foto.jpg", vec![1u8, 2, 3, 4]).with_mimetype("image/jpeg"),
+            MultipartPart::field("type", "13"),
+        ]))
         .unwrap();
         let req = handle.join().unwrap();
         let lower = req.to_lowercase();

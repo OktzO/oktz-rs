@@ -33,7 +33,7 @@ mod tests {
 
     use crate::group::notifclosegroup::ADMIN_ONLY;
     use oktz_plugin_api::{Mutation, Participant};
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, arg: Option<&str>, owner: bool) -> Reply {
         let ctx = Ctx {
@@ -77,7 +77,10 @@ mod tests {
         assert_eq!(p.meta.name, "notifpromote");
         assert!(p.meta.alias.is_empty(), "alias di JS kosong");
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Toggle notifikasi saat ada yang dijadikan admin");
+        assert_eq!(
+            p.meta.description,
+            "Toggle notifikasi saat ada yang dijadikan admin"
+        );
         assert_eq!(p.meta.usage, ".notifpromote on/off");
         assert_eq!(p.meta.example, ".notifpromote on");
         assert_eq!(p.meta.cooldown, 5);
@@ -103,12 +106,18 @@ mod tests {
             text_of(&run(serde_json::json!({}), Some("on"), true)),
             "✅ *ɴᴏᴛɪꜰ ᴘʀᴏᴍᴏᴛᴇ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*"
         );
-        assert_eq!(group_write(&run(serde_json::json!({}), Some("on"), true)), &serde_json::json!({"notifPromote": true}));
+        assert_eq!(
+            group_write(&run(serde_json::json!({}), Some("on"), true)),
+            &serde_json::json!({"notifPromote": true})
+        );
         assert_eq!(
             text_of(&run(serde_json::json!({}), Some("off"), true)),
             "❌ *ɴᴏᴛɪꜰ ᴘʀᴏᴍᴏᴛᴇ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*"
         );
-        assert_eq!(group_write(&run(serde_json::json!({}), Some("off"), true)), &serde_json::json!({"notifPromote": false}));
+        assert_eq!(
+            group_write(&run(serde_json::json!({}), Some("off"), true)),
+            &serde_json::json!({"notifPromote": false})
+        );
     }
 
     #[test]

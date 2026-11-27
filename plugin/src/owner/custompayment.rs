@@ -113,10 +113,7 @@ mod tests {
             p.meta.description,
             "Atur teks custom untuk .payment dengan placeholder"
         );
-        assert_eq!(
-            p.meta.usage,
-            ".custompayment <teks> / .custompayment reset"
-        );
+        assert_eq!(p.meta.usage, ".custompayment <teks> / .custompayment reset");
         // `pluginConfig` versi awal tidak punya `example`.
         assert_eq!(p.meta.example, "");
         assert_eq!(p.meta.cooldown, 5);
@@ -128,10 +125,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["setpayment", "setpaytext"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "custompayment"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "custompayment");
         }
     }
 
@@ -153,7 +147,10 @@ mod tests {
 
     #[test]
     fn the_stored_text_is_shown_verbatim() {
-        let r = run("", serde_json::json!({ "customPaymentText": "Halo {owner}" }));
+        let r = run(
+            "",
+            serde_json::json!({ "customPaymentText": "Halo {owner}" }),
+        );
         let t = text_of(&r);
         assert!(t.contains("Teks saat ini:\nHalo {owner}"), "{t}");
         assert!(!t.contains("belum diatur"), "{t}");

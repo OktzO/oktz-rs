@@ -79,7 +79,10 @@ mod tests {
     #[test]
     fn the_image_has_no_caption_because_js_passes_none() {
         let r = run();
-        assert_eq!(r.media_source().map(MediaSource::label).as_deref(), Some("url"));
+        assert_eq!(
+            r.media_source().map(MediaSource::label).as_deref(),
+            Some("url")
+        );
         assert_eq!(r.text_body(), Some(""), "sock.sendMedia(.., caption=null)");
     }
 

@@ -6,7 +6,7 @@
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-use crate::common::{jid_number, jakarta_parts, now_ms};
+use crate::common::{jakarta_parts, jid_number, now_ms};
 
 /// `months` — bulan 3 huruf, berbeda
 /// `common::MONTHS_ID` yang memanjang.
@@ -52,12 +52,10 @@ fn collect(ctx: &Ctx) -> (Vec<Birthday>, u32, u32) {
         }
     }
     let next = |b: &Birthday| b.month > month_now || (b.month == month_now && b.day >= day_now);
-    out.sort_by(|a, b| {
-        match (next(a), next(b)) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.month.cmp(&b.month).then(a.day.cmp(&b.day)),
-        }
+    out.sort_by(|a, b| match (next(a), next(b)) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.month.cmp(&b.month).then(a.day.cmp(&b.day)),
     });
     (out, day_now, month_now)
 }
@@ -80,13 +78,9 @@ pub fn birthdaylist(ctx: Ctx) -> Reply {
         return Reply::text(NONE);
     }
 
-    let mut text = String::from(
-        "╭━━━━━━━━━━━━━━━━━╮\n┃  🎂 *ᴅᴀғᴛᴀʀ ᴜʟᴛᴀʜ*\n╰━━━━━━━━━━━━━━━━━╯\n\n",
-    );
-    text.push_str(&format!(
-        "╭┈┈⬡「 📋 *{} ᴍᴇᴍʙᴇʀ* 」\n",
-        list.len()
-    ));
+    let mut text =
+        String::from("╭━━━━━━━━━━━━━━━━━╮\n┃  🎂 *ᴅᴀғᴛᴀʀ ᴜʟᴛᴀʜ*\n╰━━━━━━━━━━━━━━━━━╯\n\n");
+    text.push_str(&format!("╭┈┈⬡「 📋 *{} ᴍᴇᴍʙᴇʀ* 」\n", list.len()));
 
     let mut mentions = Vec::with_capacity(list.len().min(SHOWN));
     for b in list.iter().take(SHOWN) {
@@ -114,7 +108,7 @@ mod tests {
     use super::*;
     use oktz_plugin_api::Participant;
     use oktz_plugin_api::registry::GroupRoster;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(participants: Vec<(&str, Value)>) -> Reply {
         let ctx = Ctx {
@@ -151,10 +145,7 @@ mod tests {
     }
 
     fn with_bday<'a>(jid: &'a str, b: &'a str) -> (&'a str, Value) {
-        (
-            jid,
-            serde_json::json!({"name": "Someone", "birthday": b}),
-        )
+        (jid, serde_json::json!({"name": "Someone", "birthday": b}))
     }
 
     #[test]
@@ -185,7 +176,10 @@ mod tests {
     #[test]
     fn a_roster_without_any_birthday_says_there_is_no_data() {
         let r = run(vec![
-            ("628111@s.whatsapp.net", serde_json::json!({"name": "Tanpa"})),
+            (
+                "628111@s.whatsapp.net",
+                serde_json::json!({"name": "Tanpa"}),
+            ),
             ("628222@s.whatsapp.net", Value::Null),
         ]);
         assert_eq!(text_of(&r), NONE);
@@ -263,12 +257,10 @@ mod tests {
                 )
             })
             .collect();
-        let t = text_of(&run(
-            participants
-                .into_iter()
-                .map(|(j, d)| (Box::leak(j.into_boxed_str()) as &str, d))
-                .collect(),
-        ));
+        let t = text_of(&run(participants
+            .into_iter()
+            .map(|(j, d)| (Box::leak(j.into_boxed_str()) as &str, d))
+            .collect()));
         assert!(t.contains("20 ᴍᴇᴍʙᴇʀ"), "jumlah di header tetap total: {t}");
         assert!(t.contains("┃ ... dan 5 lainnya"), "{t}");
         assert_eq!(
@@ -282,7 +274,10 @@ mod tests {
     fn a_malformed_birthday_value_is_skipped_instead_of_panicking() {
         let r = run(vec![
             with_bday("1@s.whatsapp.net", "25-12"),
-            ("2@s.whatsapp.net", serde_json::json!({"birthday": "bukan-angka"})),
+            (
+                "2@s.whatsapp.net",
+                serde_json::json!({"birthday": "bukan-angka"}),
+            ),
             ("3@s.whatsapp.net", serde_json::json!({"birthday": "25"})),
             ("4@s.whatsapp.net", serde_json::json!({"birthday": 2512})),
         ]);

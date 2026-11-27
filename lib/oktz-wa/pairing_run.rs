@@ -1343,7 +1343,10 @@ mod tests {
     async fn purge_handler_blocking_menulis_penanda_logout_dan_hapus_main() {
         let dir = scratch("marker-logout");
         seed(&dir);
-        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
         let conn = db.connect().unwrap();
         let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
@@ -1362,7 +1365,10 @@ mod tests {
             None,
             "main harus sudah terhapus saat handler selesai"
         );
-        assert!(logout_marker_path(&creds).exists(), "penanda logout ditulis");
+        assert!(
+            logout_marker_path(&creds).exists(),
+            "penanda logout ditulis"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

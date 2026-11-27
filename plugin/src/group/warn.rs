@@ -5,7 +5,7 @@
 //! dengan `kick.rs`/`delete.rs`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::common::{now_ms, parse_int};
 use crate::group::kick::find_participant;
@@ -72,7 +72,9 @@ fn buang_awalan_warn(s: &str) -> String {
 
 /// Alasan pada jalur mention — tanpa kutipan.
 fn alasan_dari_teks(text: &str) -> String {
-    let r = buang_awalan_warn(&buang_mention_angka(text)).trim().to_string();
+    let r = buang_awalan_warn(&buang_mention_angka(text))
+        .trim()
+        .to_string();
     if r.is_empty() {
         "Tidak ada alasan".to_string()
     } else {
@@ -165,9 +167,7 @@ pub fn warn(ctx: Ctx) -> Reply {
     // Gerbang admin target: `participant?.admin` truthy =
     // admin atau superadmin. Roster kosong = metadata tidak terbaca; versi awal
     // menelan errornya lewat catch kosong dan melanjutkan.
-    if find_participant(&ctx.roster.participants, &target)
-        .is_some_and(|p| p.is_admin)
-    {
+    if find_participant(&ctx.roster.participants, &target).is_some_and(|p| p.is_admin) {
         return Reply::text("❌ Tidak bisa memberikan warning kepada admin grup.");
     }
 
@@ -205,7 +205,9 @@ pub fn warn(ctx: Ctx) -> Reply {
              _{} warning lagi = KICK OTOMATIS_",
             max - count
         ),
-        mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
+        mentions: crate::common::mention_jid(&ctx, &target)
+            .into_iter()
+            .collect(),
     }
     .with_mutation(mutation)
 }
@@ -260,7 +262,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -313,10 +318,7 @@ mod tests {
             vec!["max".to_string(), "abc".to_string()],
             vec!["max".to_string()],
         ] {
-            let ctx = Ctx {
-                args,
-                ..ctx_base()
-            };
+            let ctx = Ctx { args, ..ctx_base() };
             let r = run(ctx);
             assert!(
                 text_of(&r).contains("harus berupa angka 1-20"),
@@ -382,7 +384,10 @@ mod tests {
             other => panic!("harus SetGroup, dapat {other:?}"),
         };
         assert!(
-            map.get("warnings").unwrap().get("628999@s.whatsapp.net").is_some(),
+            map.get("warnings")
+                .unwrap()
+                .get("628999@s.whatsapp.net")
+                .is_some(),
             "kunci warnings = pengirim kutipan: {map:?}"
         );
     }
@@ -398,7 +403,10 @@ mod tests {
         let r = run(ctx);
         let t = text_of(&r);
         assert!(t.starts_with("⚠️ *PERINGATAN DIBERIKAN*"), "{t}");
-        assert!(t.contains("@628999 telah menerima Surat Peringatan (SP1)!"), "{t}");
+        assert!(
+            t.contains("@628999 telah menerima Surat Peringatan (SP1)!"),
+            "{t}"
+        );
         assert!(t.contains("> Warning ke: *1/3*"), "{t}");
         assert!(t.contains("> Alasan: *spam*"), "{t}");
         assert!(t.contains("_2 warning lagi = KICK OTOMATIS_"), "{t}");
@@ -413,11 +421,18 @@ mod tests {
             other => panic!("harus SetGroup, dapat {other:?}"),
         };
         let warnings = map.get("warnings").unwrap().as_object().unwrap();
-        let list = warnings.get("628999@s.whatsapp.net").unwrap().as_array().unwrap();
+        let list = warnings
+            .get("628999@s.whatsapp.net")
+            .unwrap()
+            .as_array()
+            .unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0]["reason"], "spam");
         assert_eq!(list[0]["by"], "628111@s.whatsapp.net");
-        assert!(list[0]["time"].as_i64().unwrap_or(0) > 0, "time = Date.now()");
+        assert!(
+            list[0]["time"].as_i64().unwrap_or(0) > 0,
+            "time = Date.now()"
+        );
     }
 
     #[test]
@@ -444,12 +459,22 @@ mod tests {
         };
         let warnings = map.get("warnings").unwrap().as_object().unwrap();
         assert_eq!(
-            warnings.get("628000@s.whatsapp.net").unwrap().as_array().unwrap().len(),
+            warnings
+                .get("628000@s.whatsapp.net")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
             1,
             "entri member lain tidak boleh hilang"
         );
         assert_eq!(
-            warnings.get("628999@s.whatsapp.net").unwrap().as_array().unwrap().len(),
+            warnings
+                .get("628999@s.whatsapp.net")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
             2
         );
     }
@@ -470,7 +495,10 @@ mod tests {
             ..ctx_base()
         };
         let r = run(ctx);
-        assert_eq!(text_of(&r), "❌ Tidak bisa memberikan warning kepada admin grup.");
+        assert_eq!(
+            text_of(&r),
+            "❌ Tidak bisa memberikan warning kepada admin grup."
+        );
         assert!(r.mutations().is_empty(), "tidak ada yang dicatat");
     }
 

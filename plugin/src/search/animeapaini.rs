@@ -14,13 +14,14 @@ use oktz_plugin_api::{
 };
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 
 /// Endpoint cek anime.
 const ENDPOINT: &str = "https://my.izuka-api.xyz/api/anime/anime-checker";
 
 /// Unduhan gambar gagal.
-const DOWNLOAD_FAILED: &str = "Maaf, sistem gagal mengunduh gambar yang kamu berikan. Silakan coba kirim ulang gambarnya!";
+const DOWNLOAD_FAILED: &str =
+    "Maaf, sistem gagal mengunduh gambar yang kamu berikan. Silakan coba kirim ulang gambarnya!";
 
 /// Judul tidak ketemu.
 const NOT_FOUND: &str = "Maaf, judul anime tidak ditemukan. Coba dengan screenshot adegan yang lebih jelas atau karakter yang lebih spesifik.";
@@ -98,7 +99,7 @@ pub(crate) fn parse_float(raw: &str) -> Option<f64> {
 /// `common.rs`.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -116,7 +117,10 @@ pub(crate) fn similarity_of(result: &Value, matched: &Value) -> String {
     let raw = if js_truthy(own) {
         own.and_then(Value::as_str).and_then(parse_float)
     } else {
-        matched.get("similarity").and_then(Value::as_f64).map(|v| v * 100.0)
+        matched
+            .get("similarity")
+            .and_then(Value::as_f64)
+            .map(|v| v * 100.0)
     };
     match raw {
         Some(v) => format!("{v:.2}"),
@@ -129,11 +133,17 @@ pub(crate) fn format_text(result: &Value, matched: &Value) -> String {
     let mut txt = String::from("🔍 *ANIME DITEMUKAN!*\n\n");
     txt.push_str(&format!(
         "🎬 *Judul Romaji:* {}\n",
-        interp(or(result.get("title_romaji"), dig(matched, "anilist.title.romaji")))
+        interp(or(
+            result.get("title_romaji"),
+            dig(matched, "anilist.title.romaji")
+        ))
     ));
     txt.push_str(&format!(
         "🇯🇵 *Judul Asli:* {}\n",
-        interp(or(result.get("title_native"), dig(matched, "anilist.title.native")))
+        interp(or(
+            result.get("title_native"),
+            dig(matched, "anilist.title.native")
+        ))
     ));
     txt.push_str(&format!(
         "📺 *Episode:* {}\n",
@@ -186,10 +196,7 @@ pub(crate) fn guard_ok(data: &Value) -> bool {
 /// `matches[0].anilist` melempar TypeError dan masuk `catch` — keduanya
 /// `None` di sini.
 pub(crate) fn first_match(data: &Value) -> Option<&Value> {
-    data.get("result")?
-        .get("full_matches")?
-        .as_array()?
-        .first()
+    data.get("result")?.get("full_matches")?.as_array()?.first()
 }
 
 /// Body multipart — `form.append("image", buffer, { filename: "image.jpg",
@@ -304,9 +311,12 @@ mod tests {
         }
         fn call(&self, req: &HttpCall) -> Result<HttpResponse, HttpError> {
             self.seen.lock().unwrap().push(req.clone());
-            let body = self.body.clone().ok_or_else(|| oktz_plugin_api::HttpError {
-                message: "offline".into(),
-            })?;
+            let body = self
+                .body
+                .clone()
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -506,7 +516,10 @@ mod tests {
         let api = Api::new(COCOK);
         let r = run(api.clone(), false, Some(quoted(QuotedKind::Image)));
         let body = body_of(&r);
-        assert!(body.contains("🎬 *Judul Romaji:* Kimi no Na wa.\n"), "{body}");
+        assert!(
+            body.contains("🎬 *Judul Romaji:* Kimi no Na wa.\n"),
+            "{body}"
+        );
         assert!(body.contains("🇯🇵 *Judul Asli:* Твоё имя\n"), "{body}");
         assert!(body.contains("📺 *Episode:* 1\n"), "{body}");
         assert!(body.contains("📊 *Kemiripan:* 92.50%\n"), "{body}");
@@ -533,7 +546,10 @@ mod tests {
         let matched = first_match(&data).unwrap();
         let text = format_text(data.get("result").unwrap(), matched);
         assert!(text.starts_with("🔍 *ANIME DITEMUKAN!*\n\n"), "{text}");
-        assert!(text.contains("🎬 *Judul Romaji:* Fallback Title\n"), "{text}");
+        assert!(
+            text.contains("🎬 *Judul Romaji:* Fallback Title\n"),
+            "{text}"
+        );
         assert!(text.contains("🇯🇵 *Judul Asli:* Nama Fallback\n"), "{text}");
         assert!(text.contains("📺 *Episode:* 3\n"), "{text}");
         assert!(
@@ -554,8 +570,9 @@ mod tests {
             "result": {"is_adult": 1, "full_matches": [{"anilist": {"id": 1, "siteUrl": "u"}}]}
         });
         let matched = first_match(&data).unwrap();
-        assert!(format_text(data.get("result").unwrap(), matched)
-            .contains("🔞 *Dewasa (18+):* Ya\n"));
+        assert!(
+            format_text(data.get("result").unwrap(), matched).contains("🔞 *Dewasa (18+):* Ya\n")
+        );
     }
 
     #[test]
@@ -566,21 +583,33 @@ mod tests {
         assert_eq!(parse_float(""), None);
 
         assert_eq!(
-            similarity_of(&serde_json::json!({"similarity": "92.5%"}), &serde_json::json!({})),
+            similarity_of(
+                &serde_json::json!({"similarity": "92.5%"}),
+                &serde_json::json!({})
+            ),
             "92.50"
         );
         assert_eq!(
-            similarity_of(&serde_json::json!({"similarity": "bukan angka"}), &serde_json::json!({})),
+            similarity_of(
+                &serde_json::json!({"similarity": "bukan angka"}),
+                &serde_json::json!({})
+            ),
             "bukan angka",
             "`parseFloat` NaN -> nilai aslinya ikut tampil"
         );
         assert_eq!(
-            similarity_of(&serde_json::json!({"similarity": 0}), &serde_json::json!({})),
+            similarity_of(
+                &serde_json::json!({"similarity": 0}),
+                &serde_json::json!({})
+            ),
             "0",
             "0 falsy -> bukan sumber, `match.similarity` juga tidak ada"
         );
         assert_eq!(
-            similarity_of(&serde_json::json!({}), &serde_json::json!({"similarity": 0.875})),
+            similarity_of(
+                &serde_json::json!({}),
+                &serde_json::json!({"similarity": 0.875})
+            ),
             "87.50"
         );
     }
@@ -607,7 +636,11 @@ mod tests {
             r#"{"status": true, "result": {"full_matches": "ab"}}"#,
         ] {
             let r = run(Api::new(body), true, None);
-            assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "animeapaini"), "{body}");
+            assert_eq!(
+                body_of(&r),
+                crate::common::error_template_bawaan(".", "animeapaini"),
+                "{body}"
+            );
             assert_eq!(reaction_of(&r), Some("☢"), "{body}");
         }
     }
@@ -615,7 +648,11 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Api::empty(), true, None);
-        assert!(body_of(&r).contains("command `.animeapaini`"), "{}", body_of(&r));
+        assert!(
+            body_of(&r).contains("command `.animeapaini`"),
+            "{}",
+            body_of(&r)
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

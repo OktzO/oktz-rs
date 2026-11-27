@@ -20,7 +20,7 @@ pub(crate) const FAILED: &str = "😔 Terjadi kesalahan saat mengambil data hari
 /// `${value}` di versi awal — `undefined` untuk field yang hilang.
 fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -105,7 +105,6 @@ pub fn harilibur(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     fn run() -> Reply {
         let ctx = Ctx {

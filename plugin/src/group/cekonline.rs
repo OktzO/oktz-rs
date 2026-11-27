@@ -62,14 +62,11 @@ fn tanpa_member_online() -> String {
 /// `None` kalau metadata tidak terbaca; di versi awal ini melempar dan jatuh
 /// cabang `catch` (`te(...)`).
 fn subject_grup(ctx: &Ctx) -> Option<String> {
-    ctx.sock()
-        .metadata_grup(&ctx.chat)
-        .ok()
-        .and_then(|meta| {
-            meta.get("subject")
-                .and_then(|v| v.as_str())
-                .map(str::to_string)
-        })
+    ctx.sock().metadata_grup(&ctx.chat).ok().and_then(|meta| {
+        meta.get("subject")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+    })
 }
 
 /// Daftar member yang terdeteksi online.
@@ -147,7 +144,10 @@ mod tests {
                 None => Err(SockError::baru("tidak ada metadata")),
             }
         }
-        fn ada_whatsapp(&self, _: &[String]) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
+        fn ada_whatsapp(
+            &self,
+            _: &[String],
+        ) -> Result<Vec<oktz_plugin_api::AdaWhatsapp>, SockError> {
             Err(SockError::baru("x"))
         }
         fn foto_profil(&self, _: &str, _: &str) -> Result<Option<String>, SockError> {
@@ -197,7 +197,7 @@ mod tests {
         fn profil_bisnis(&self, _: &str) -> Result<Option<serde_json::Value>, SockError> {
             Err(SockError::baru("x"))
         }
-    
+
         fn set_bio(&self, _: &str) -> Result<(), SockError> {
             Err(SockError::baru("tidak dipakai"))
         }
@@ -212,11 +212,7 @@ mod tests {
         }
     }
 
-    fn ctx_dengan(
-        sock: Arc<StubSock>,
-        jumlah_member: usize,
-        push_name: &str,
-    ) -> Ctx {
+    fn ctx_dengan(sock: Arc<StubSock>, jumlah_member: usize, push_name: &str) -> Ctx {
         Ctx {
             prefix: ".".into(),
             command: "cekonline".into(),
@@ -321,7 +317,10 @@ mod tests {
         assert!(t.contains("┃ 👤 ᴛᴏᴛᴀʟ: `3` member"), "{t}");
         assert!(t.contains("┃ 🟢 ᴏɴʟɪɴᴇ: `0` member"), "{t}");
         assert!(t.contains("╰┈┈⬡"), "{t}");
-        assert!(t.contains("> _Tidak ada member yang terdeteksi online_"), "{t}");
+        assert!(
+            t.contains("> _Tidak ada member yang terdeteksi online_"),
+            "{t}"
+        );
         assert!(t.contains("> _Pastikan member telah membuka WA_"), "{t}");
         assert_eq!(reaksi(&r), Some("✅".to_string()));
     }
@@ -344,7 +343,10 @@ mod tests {
         assert!(t.contains("┃ 🟢 @628000 👑"), "{t}");
         assert!(t.contains("┃ 🟢 @628001"), "{t}");
         assert!(t.contains("┃ ... dan 10 member lainnya"), "{t}");
-        assert!(t.ends_with("> 🟢 Online | ⌨️ Mengetik | 🎤 Rekam Audio"), "{t}");
+        assert!(
+            t.ends_with("> 🟢 Online | ⌨️ Mengetik | 🎤 Rekam Audio"),
+            "{t}"
+        );
     }
 
     #[test]

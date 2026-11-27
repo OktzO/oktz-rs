@@ -70,7 +70,6 @@ pub fn mutegc(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run(group: Value) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
@@ -142,7 +141,12 @@ mod tests {
     #[test]
     fn a_group_already_muted_is_left_alone() {
         // `if (groupData.mutegc)` = `!m0`, jadi `1`/`"ya"`/`{}` ikut truthy.
-        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
+        for truthy in [
+            serde_json::json!(true),
+            serde_json::json!(1),
+            serde_json::json!("ya"),
+            serde_json::json!({}),
+        ] {
             let r = run(serde_json::json!({"mutegc": truthy.clone(), "name": "G"}));
             assert_eq!(text_of(&r), already_on("."), "input mutegc={truthy}");
             assert!(
@@ -154,15 +158,28 @@ mod tests {
 
     #[test]
     fn a_falsy_stored_flag_still_lets_the_write_through() {
-        for falsy in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
+        for falsy in [
+            serde_json::json!(false),
+            serde_json::json!(0),
+            serde_json::json!(""),
+            serde_json::json!(null),
+        ] {
             let r = run(serde_json::json!({"mutegc": falsy.clone()}));
-            assert_eq!(group_write(&r), &serde_json::json!({"mutegc": true}), "mutegc={falsy}");
+            assert_eq!(
+                group_write(&r),
+                &serde_json::json!({"mutegc": true}),
+                "mutegc={falsy}"
+            );
         }
     }
 
     #[test]
     fn a_group_row_without_a_name_falls_back_instead_of_printing_undefined() {
-        for row in [serde_json::json!({}), serde_json::json!({"name": ""}), serde_json::json!({"name": 5})] {
+        for row in [
+            serde_json::json!({}),
+            serde_json::json!({"name": ""}),
+            serde_json::json!({"name": 5}),
+        ] {
             let r = run(row.clone());
             assert!(
                 text_of(&r).contains(&format!("> Grup: *{NO_GROUP_NAME}*")),
@@ -186,13 +203,32 @@ mod tests {
 
     #[test]
     fn the_exported_helper_matches_the_truthiness_the_handler_uses() {
-        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
-            assert!(is_mutegc(&serde_json::json!({ "mutegc": truthy.clone() })), "{truthy}");
+        for truthy in [
+            serde_json::json!(true),
+            serde_json::json!(1),
+            serde_json::json!("ya"),
+            serde_json::json!({}),
+        ] {
+            assert!(
+                is_mutegc(&serde_json::json!({ "mutegc": truthy.clone() })),
+                "{truthy}"
+            );
         }
-        for falsy in [serde_json::json!(false), serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
-            assert!(!is_mutegc(&serde_json::json!({ "mutegc": falsy.clone() })), "{falsy}");
+        for falsy in [
+            serde_json::json!(false),
+            serde_json::json!(0),
+            serde_json::json!(""),
+            serde_json::json!(null),
+        ] {
+            assert!(
+                !is_mutegc(&serde_json::json!({ "mutegc": falsy.clone() })),
+                "{falsy}"
+            );
         }
-        assert!(!is_mutegc(&serde_json::json!({})), "grup tanpa field = tidak aktif");
+        assert!(
+            !is_mutegc(&serde_json::json!({})),
+            "grup tanpa field = tidak aktif"
+        );
         assert!(
             !is_mutegc(&Value::Null),
             "grup belum pernah ada = tidak aktif"

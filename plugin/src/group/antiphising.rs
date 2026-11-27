@@ -3,8 +3,8 @@
 //! `Keterbatasan:` hanya handler `.antiphising` yang dipindah; deteksi per-pesan ada di
 //! middleware dan butuh `sock.sendMessage` untuk menghapus pesan.
 
-use serde_json::Value;
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
+use serde_json::Value;
 
 pub(crate) const ON: &str = "✅ *AntiPhising diaktifkan*";
 pub(crate) const OFF: &str = "❌ *AntiPhising dinonaktifkan*";
@@ -75,7 +75,11 @@ pub fn antiphising(ctx: Ctx) -> Reply {
     }
 
     if option.starts_with("metode") {
-        let method = ctx.args.get(1).map(|a| a.to_lowercase()).unwrap_or_default();
+        let method = ctx
+            .args
+            .get(1)
+            .map(|a| a.to_lowercase())
+            .unwrap_or_default();
         return match method.as_str() {
             "kick" => write(&ctx, MODE_KICK, "on", Some("kick")),
             "remove" | "delete" => write(&ctx, MODE_DELETE, "on", Some("remove")),
@@ -124,10 +128,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("antiphising").unwrap();
         assert_eq!(p.meta.name, "antiphising");
-        assert_eq!(
-            p.meta.alias,
-            ["antiphishing", "antiscamlink", "nophising"]
-        );
+        assert_eq!(p.meta.alias, ["antiphishing", "antiscamlink", "nophising"]);
         assert_eq!(p.meta.description, "Deteksi konten phising di grup");
         assert_eq!(p.meta.usage, ".antiphising <on/off/metode> [kick/remove]");
         assert_eq!(p.meta.example, ".antiphising on");
@@ -154,7 +155,10 @@ mod tests {
 
     #[test]
     fn a_stored_setting_is_uppercased() {
-        let r = run(serde_json::json!({"antiphising": "on", "antiphisingMode": "kick"}), "");
+        let r = run(
+            serde_json::json!({"antiphising": "on", "antiphisingMode": "kick"}),
+            "",
+        );
         assert!(text_of(&r).contains("> Status: *ON*"), "{}", text_of(&r));
         assert!(text_of(&r).contains("> Mode: *KICK*"), "{}", text_of(&r));
     }

@@ -6,7 +6,7 @@
 //! diproses sebagai gambar; upgrade path: ekspos `isAnimated` di `IncomingMedia` untuk
 //! menyarankan `.tovideo` seperti versi awal.
 
-use oktz_plugin_api::{plugin, Ctx, IncomingKind, MediaOrigin, Reply};
+use oktz_plugin_api::{Ctx, IncomingKind, MediaOrigin, Reply, plugin};
 
 fn no_sticker(prefix: &str) -> String {
     // Ctx::default() punya prefix kosong (test); produksi selalu terisi.
@@ -98,15 +98,11 @@ mod tests {
 
     // PNG 32x32 valid (>100 byte) — fixture tanpa crate `image` di tests.
     const PNG_FIXTURE: &[u8] = &[
-        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13,
-        73, 72, 68, 82, 0, 0, 0, 32, 0, 0, 0, 32,
-        8, 6, 0, 0, 0, 115, 122, 122, 244, 0, 0, 0,
-        45, 73, 68, 65, 84, 120, 156, 237, 206, 33, 1, 0,
-        0, 12, 2, 48, 210, 190, 127, 3, 30, 3, 51, 49,
-        191, 228, 218, 41, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 129, 117, 224, 1, 104, 106,
-        144, 136, 110, 58, 132, 145, 0, 0, 0, 0, 73, 69,
-        78, 68, 174, 66, 96, 130,
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 32, 0, 0, 0, 32, 8,
+        6, 0, 0, 0, 115, 122, 122, 244, 0, 0, 0, 45, 73, 68, 65, 84, 120, 156, 237, 206, 33, 1, 0,
+        0, 12, 2, 48, 210, 190, 127, 3, 30, 3, 51, 49, 191, 228, 218, 41, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 129, 117, 224, 1, 104, 106, 144, 136, 110, 58, 132, 145, 0, 0, 0, 0, 73,
+        69, 78, 68, 174, 66, 96, 130,
     ];
     /// Stub unduhan: mencatat origin, mengembalikan hasil tetap.
     #[derive(Debug, Clone)]
@@ -132,7 +128,9 @@ mod tests {
     fn stub_err(msg: &str) -> Stub {
         Stub {
             unduhan: Arc::new(Mutex::new(Vec::new())),
-            hasil: Err(MediaError { message: msg.to_string() }),
+            hasil: Err(MediaError {
+                message: msg.to_string(),
+            }),
         }
     }
 
@@ -190,7 +188,10 @@ mod tests {
         let r = run(ctx);
         assert_eq!(*stub.unduhan.lock().unwrap(), vec![MediaOrigin::Quoted]);
         match r.without_mutations() {
-            R::Image { media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }), .. } => {
+            R::Image {
+                media: Some(oktz_plugin_api::MediaSource::Bytes { data, mimetype }),
+                ..
+            } => {
                 assert!(data.len() > 100, "hasil re-encode harus PNG valid");
                 assert_eq!(&data[..4], &[0x89, b'P', b'N', b'G'], "harus PNG");
                 assert_eq!(mimetype.as_deref(), Some("image/png"));

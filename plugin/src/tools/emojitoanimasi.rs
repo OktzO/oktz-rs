@@ -63,8 +63,7 @@ pub fn emojitoanimasi(ctx: Ctx) -> Reply {
 
     let apikey = ctx.config().api_keys.neoxr.clone();
     let Ok(res) = ctx.http.get(&api_url(emoji, &apikey)) else {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     let data = res.json().unwrap_or(Value::Null);
     if !respons_valid(&data) {
@@ -73,13 +72,11 @@ pub fn emojitoanimasi(ctx: Ctx) -> Reply {
 
     let webp_url = data["data"]["url"].as_str().unwrap_or("");
     let Ok(webp_res) = ctx.http.get(webp_url) else {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     };
     // axios melempar untuk 4xx/5xx; di sini status dicek manual.
     if !(200..300).contains(&webp_res.status) {
-        return Reply::text(crate::common::error_template(&ctx))
-            .with_reaction("☢");
+        return Reply::text(crate::common::error_template(&ctx)).with_reaction("☢");
     }
     let bytes = webp_res.body.bytes().to_vec();
 
@@ -193,10 +190,7 @@ mod tests {
     fn meta_dan_alias() {
         let p = oktz_plugin_api::find("emojitoanimasi").unwrap();
         assert_eq!(p.meta.name, "emojitoanimasi");
-        assert_eq!(
-            p.meta.alias,
-            ["emoji2sticker", "emojisticker", "e2s"]
-        );
+        assert_eq!(p.meta.alias, ["emoji2sticker", "emojisticker", "e2s"]);
         assert_eq!(p.meta.category, "tools");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 1);
@@ -277,9 +271,17 @@ mod tests {
     fn respons_valid_miripkan_js() {
         assert!(!respons_valid(&serde_json::json!({})));
         assert!(!respons_valid(&serde_json::json!({ "status": true })));
-        assert!(!respons_valid(&serde_json::json!({ "status": true, "data": {} })));
-        assert!(respons_valid(&serde_json::json!({ "status": true, "data": { "url": "https://x.webp" } })));
-        assert!(!respons_valid(&serde_json::json!({ "status": true, "data": { "url": "" } })));
-        assert!(!respons_valid(&serde_json::json!({ "status": false, "data": { "url": "https://x.webp" } })));
+        assert!(!respons_valid(
+            &serde_json::json!({ "status": true, "data": {} })
+        ));
+        assert!(respons_valid(
+            &serde_json::json!({ "status": true, "data": { "url": "https://x.webp" } })
+        ));
+        assert!(!respons_valid(
+            &serde_json::json!({ "status": true, "data": { "url": "" } })
+        ));
+        assert!(!respons_valid(
+            &serde_json::json!({ "status": false, "data": { "url": "https://x.webp" } })
+        ));
     }
 }

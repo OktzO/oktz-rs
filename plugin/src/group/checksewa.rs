@@ -9,7 +9,7 @@
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
-use serde_json::{Value};
+use serde_json::Value;
 
 /// Key global tempat `db.db.data.sewa` dipetakan.
 const SEWA_KEY: &str = "sewa";
@@ -27,12 +27,10 @@ fn sewa(ctx: &Ctx) -> Value {
 
 /// `if (!db.db.data.sewa) { db.db.data.sewa = {...}; db.db.write() }`.
 fn init_if_missing(ctx: &Ctx) -> Option<Mutation> {
-    sewa(ctx)
-        .is_null()
-        .then(|| Mutation::SetSetting {
-            key: SEWA_KEY.to_string(),
-            value: serde_json::json!({ "enabled": false, "groups": {} }),
-        })
+    sewa(ctx).is_null().then(|| Mutation::SetSetting {
+        key: SEWA_KEY.to_string(),
+        value: serde_json::json!({ "enabled": false, "groups": {} }),
+    })
 }
 
 /// `new Date(x)` -> epoch ms. `None` berarti `Invalid Date` di versi awal,
@@ -77,7 +75,11 @@ fn tanggal(ms: i64) -> String {
 
 /// `fromTimestamp(ts, 'D MMMM YYYY HH:mm')`.
 fn tanggal_jam(ms: i64) -> String {
-    format!("{} {}", crate::common::date_long(ms), crate::common::time_hm(ms))
+    format!(
+        "{} {}",
+        crate::common::date_long(ms),
+        crate::common::time_hm(ms)
+    )
 }
 
 fn lifetime_text(group_name: &str, added: &str) -> String {
@@ -161,7 +163,9 @@ pub fn checksewa(ctx: Ctx) -> Reply {
     let entry = entry.cloned().unwrap_or(Value::Null);
 
     let group_name = match entry.get("name") {
-        Some(name) if crate::common::js_truthy_value(name) => name.as_str().unwrap_or("").to_string(),
+        Some(name) if crate::common::js_truthy_value(name) => {
+            name.as_str().unwrap_or("").to_string()
+        }
         _ => crate::common::jid_number(&ctx.chat).to_string(),
     };
     let added = match entry.get("addedAt") {
@@ -188,16 +192,19 @@ pub fn checksewa(ctx: Ctx) -> Reply {
     let expired_str = tanggal_jam(expired_at);
 
     if is_expired {
-        return with_init(
-            Reply::text(expired_text(&group_name, &expired_str)),
-            init,
-        );
+        return with_init(Reply::text(expired_text(&group_name, &expired_str)), init);
     }
 
     let almost = ((expired_at - now) as f64) <= ALMOST_MS;
     let emoji = if almost { "⚠️" } else { "⏱️" };
-    let reply = Reply::text(active_text(&group_name, &countdown, &expired_str, &added, almost))
-        .with_reaction(emoji);
+    let reply = Reply::text(active_text(
+        &group_name,
+        &countdown,
+        &expired_str,
+        &added,
+        almost,
+    ))
+    .with_reaction(emoji);
     with_init(reply, init)
 }
 
@@ -221,7 +228,10 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn init_written(r: &Reply) -> Option<Value> {
@@ -259,7 +269,11 @@ mod tests {
     #[test]
     fn every_alias_resolves_back_to_this_plugin() {
         for a in ["ceksewa", "sisasewa"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("checksewa"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("checksewa"),
+                "{a}"
+            );
         }
     }
 
@@ -270,18 +284,27 @@ mod tests {
             text_of(&r),
             "ℹ️ Sistem sewa tidak aktif\n\nBot ini bisa digunakan di semua grup."
         );
-        assert_eq!(init_written(&r), Some(serde_json::json!({ "enabled": false, "groups": {} })));
+        assert_eq!(
+            init_written(&r),
+            Some(serde_json::json!({ "enabled": false, "groups": {} }))
+        );
     }
 
     #[test]
     fn an_existing_table_is_never_rewritten() {
         let r = run(CHAT, with_sewa(false, serde_json::json!({})));
-        assert!(init_written(&r).is_none(), "tabel sudah ada -> jangan tulis ulang");
+        assert!(
+            init_written(&r).is_none(),
+            "tabel sudah ada -> jangan tulis ulang"
+        );
     }
 
     #[test]
     fn an_unknown_group_is_told_it_is_not_registered() {
-        let r = run(CHAT, with_sewa(true, serde_json::json!({ "other@g.us": {} })));
+        let r = run(
+            CHAT,
+            with_sewa(true, serde_json::json!({ "other@g.us": {} })),
+        );
         assert_eq!(
             text_of(&r),
             "❌ Grup ini tidak terdaftar dalam sistem sewa\n\nHubungi owner bot untuk info sewa."
@@ -292,7 +315,9 @@ mod tests {
     fn a_lifetime_tenant_reacts_with_the_infinity_sign() {
         let r = run(
             CHAT,
-            tenant(serde_json::json!({ "name": "Grupku", "isLifetime": true, "addedAt": 1_700_000_000_000i64 })),
+            tenant(
+                serde_json::json!({ "name": "Grupku", "isLifetime": true, "addedAt": 1_700_000_000_000i64 }),
+            ),
         );
         let t = text_of(&r);
         assert!(t.starts_with("♾️ *STATUS SEWA*"), "{t}");
@@ -309,12 +334,19 @@ mod tests {
     #[test]
     fn a_missing_added_at_falls_back_to_a_dash() {
         let r = run(CHAT, tenant(serde_json::json!({ "isLifetime": true })));
-        assert!(text_of(&r).contains("Terdaftar sejak: *-*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Terdaftar sejak: *-*"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
     fn an_expired_tenant_gets_the_expired_card() {
-        let r = run(CHAT, tenant(serde_json::json!({ "expiredAt": 1_700_000_000_000i64 })));
+        let r = run(
+            CHAT,
+            tenant(serde_json::json!({ "expiredAt": 1_700_000_000_000i64 })),
+        );
         let t = text_of(&r);
         assert!(t.starts_with("❌ *SEWA EXPIRED*"), "{t}");
         assert!(t.contains("Berakhir: *15 November 2023 05:13*"), "{t}");
@@ -328,12 +360,21 @@ mod tests {
         let minute = 60_000i64;
         let day = 86_400_000i64;
         // `minutes` hanya ikut kalau `days === 0`.
-        assert_eq!(format_countdown(now + 24 * hour + 30 * minute, now).0, "1 hari");
-        assert_eq!(format_countdown(now + day + 5 * hour + 30 * minute, now).0, "1 hari 5 jam");
+        assert_eq!(
+            format_countdown(now + 24 * hour + 30 * minute, now).0,
+            "1 hari"
+        );
+        assert_eq!(
+            format_countdown(now + day + 5 * hour + 30 * minute, now).0,
+            "1 hari 5 jam"
+        );
         assert_eq!(format_countdown(now + 3 * hour, now).0, "3 jam");
         assert_eq!(format_countdown(now + 90 * minute, now).0, "1 jam 30 menit");
         assert_eq!(format_countdown(now, now), ("EXPIRED".to_string(), true));
-        assert_eq!(format_countdown(now - 1, now), ("EXPIRED".to_string(), true));
+        assert_eq!(
+            format_countdown(now - 1, now),
+            ("EXPIRED".to_string(), true)
+        );
     }
 
     #[test]

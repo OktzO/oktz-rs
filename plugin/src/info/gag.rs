@@ -21,7 +21,7 @@ pub(crate) const FAILED: &str = "😔 Terjadi kesalahan saat mengambil data GAG.
 /// `"null"`. `Value::to_string` sudah benar untuk angka dan string.
 fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -108,7 +108,6 @@ pub fn gag(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run() -> Reply {
         let ctx = Ctx {
             command: "gag".into(),
@@ -166,15 +165,28 @@ mod tests {
     #[test]
     fn an_empty_or_missing_section_disappears_entirely() {
         assert_eq!(format_stock(None, "⚙️ Gear Stock"), "");
-        assert_eq!(format_stock(Some(&serde_json::json!([])), "⚙️ Gear Stock"), "");
-        assert_eq!(format_stock(Some(&serde_json::json!({})), "⚙️ Gear Stock"), "");
-        assert_eq!(format_stock(Some(&serde_json::json!(null)), "⚙️ Gear Stock"), "");
-        assert_eq!(format_stock(Some(&serde_json::json!(5)), "⚙️ Gear Stock"), "");
+        assert_eq!(
+            format_stock(Some(&serde_json::json!([])), "⚙️ Gear Stock"),
+            ""
+        );
+        assert_eq!(
+            format_stock(Some(&serde_json::json!({})), "⚙️ Gear Stock"),
+            ""
+        );
+        assert_eq!(
+            format_stock(Some(&serde_json::json!(null)), "⚙️ Gear Stock"),
+            ""
+        );
+        assert_eq!(
+            format_stock(Some(&serde_json::json!(5)), "⚙️ Gear Stock"),
+            ""
+        );
     }
 
     #[test]
     fn a_section_renders_one_line_per_item_with_a_blank_line_after() {
-        let arr = serde_json::json!([{"name": "watering_can", "value": 3}, {"name": "hoe", "value": 0}]);
+        let arr =
+            serde_json::json!([{"name": "watering_can", "value": 3}, {"name": "hoe", "value": 0}]);
         assert_eq!(
             format_stock(Some(&arr), "⚙️ Gear Stock"),
             "*⚙️ Gear Stock*\n- watering_can: 3\n- hoe: 0\n\n"
@@ -247,7 +259,7 @@ mod tests {
 
     #[test]
     fn a_missing_field_is_interpolated_the_way_javascript_does_it() {
-        assert_eq!(interp(None), "undefined");
+        assert_eq!(interp(None), "-");
         assert_eq!(interp(Some(&Value::Null)), "null");
         assert_eq!(interp(Some(&serde_json::json!("x"))), "x");
         assert_eq!(interp(Some(&serde_json::json!(7))), "7");

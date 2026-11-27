@@ -95,22 +95,22 @@ fn rs_ec(data: &[u8], ec_len: usize) -> Vec<u8> {
 
 /// `CODEWORDS_COUNT` — total codeword per versi.
 const TOTAL_CODEWORDS: [u16; 41] = [
-    0, 26, 44, 70, 100, 134, 172, 196, 242, 292, 346, 404, 466, 532, 581, 655, 733, 815, 901,
-    991, 1085, 1156, 1258, 1364, 1474, 1588, 1706, 1828, 1921, 2051, 2185, 2323, 2465, 2611,
-    2761, 2876, 3034, 3196, 3362, 3532, 3706,
+    0, 26, 44, 70, 100, 134, 172, 196, 242, 292, 346, 404, 466, 532, 581, 655, 733, 815, 901, 991,
+    1085, 1156, 1258, 1364, 1474, 1588, 1706, 1828, 1921, 2051, 2185, 2323, 2465, 2611, 2761, 2876,
+    3034, 3196, 3362, 3532, 3706,
 ];
 
 /// `EC_BLOCKS_TABLE` kolom H — jumlah blok.
 const BLOK_H: [u16; 40] = [
-    1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35,
-    37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81,
+    1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35, 37,
+    40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81,
 ];
 
 /// `EC_CODEWORDS_TABLE` kolom H — EC per blok.
 const EC_H: [u16; 40] = [
-    17, 28, 44, 64, 88, 112, 130, 156, 192, 224, 264, 308, 352, 384, 432, 480, 532, 588, 650,
-    700, 750, 816, 900, 960, 1050, 1110, 1200, 1260, 1350, 1440, 1530, 1620, 1710, 1800, 1890,
-    1980, 2100, 2220, 2310, 2430,
+    17, 28, 44, 64, 88, 112, 130, 156, 192, 224, 264, 308, 352, 384, 432, 480, 532, 588, 650, 700,
+    750, 816, 900, 960, 1050, 1110, 1200, 1260, 1350, 1440, 1530, 1620, 1710, 1800, 1890, 1980,
+    2100, 2220, 2310, 2430,
 ];
 
 /// `getSymbolTotalCodewords`.
@@ -721,7 +721,10 @@ pub(crate) fn kartu_pakai(prefix: &str) -> String {
 ///
 pub(crate) fn caption_qr(data: &str) -> String {
     let potong: String = data.chars().take(50).collect();
-    format!("📱 *QR Code*\n> {potong}{}", if data.chars().count() > 50 { "..." } else { "" })
+    format!(
+        "📱 *QR Code*\n> {potong}{}",
+        if data.chars().count() > 50 { "..." } else { "" }
+    )
 }
 
 #[plugin(
@@ -831,8 +834,7 @@ mod tests {
         match bagian[1].media_source().unwrap() {
             MediaSource::Bytes { data, .. } => {
                 assert_eq!(&data[..8], b"\x89PNG\r\n\x1a\n");
-                let (w, h) =
-                    oktz_plugin_api::kanvas::Kanvas::ukuran_png(data).expect("PNG valid");
+                let (w, h) = oktz_plugin_api::kanvas::Kanvas::ukuran_png(data).expect("PNG valid");
                 // Versi 3 = 29 modul + margin 4 = 33; scale = 512/33 = 15.
                 assert_eq!((w, h), (495, 495), "ukuran PNG 512 dipetakan ke grid");
             }
@@ -847,7 +849,10 @@ mod tests {
     #[test]
     fn caption_dipotong_50_karakter_dengan_ellipsis() {
         let data = "a".repeat(80);
-        assert_eq!(caption_qr(&data), format!("📱 *QR Code*\n> {}...", "a".repeat(50)));
+        assert_eq!(
+            caption_qr(&data),
+            format!("📱 *QR Code*\n> {}...", "a".repeat(50))
+        );
         assert_eq!(caption_qr("abc"), "📱 *QR Code*\n> abc");
     }
 
@@ -863,10 +868,25 @@ mod tests {
         ];
         for (data, versi, mask, bits) in fixtures {
             let (m, m_mask) = matriks_qr(data).unwrap();
-            assert_eq!(m.size, versi * 4 + 17, "{:?} ukuran", std::str::from_utf8(data).unwrap_or("?"));
-            assert_eq!(m_mask, mask, "{:?} mask", std::str::from_utf8(data).unwrap_or("?"));
+            assert_eq!(
+                m.size,
+                versi * 4 + 17,
+                "{:?} ukuran",
+                std::str::from_utf8(data).unwrap_or("?")
+            );
+            assert_eq!(
+                m_mask,
+                mask,
+                "{:?} mask",
+                std::str::from_utf8(data).unwrap_or("?")
+            );
             let hex: String = m.data.iter().map(|&b| if b { '1' } else { '0' }).collect();
-            assert_eq!(hex, bits, "{:?} matriks", std::str::from_utf8(data).unwrap_or("?"));
+            assert_eq!(
+                hex,
+                bits,
+                "{:?} matriks",
+                std::str::from_utf8(data).unwrap_or("?")
+            );
         }
     }
 

@@ -3,7 +3,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Map, Value};
 
-use crate::rpg::heal::{apply_exp, or_default, rpg_int, rpg_map, roll_incl, roll_percent};
+use crate::rpg::heal::{apply_exp, or_default, roll_incl, roll_percent, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 const LOCATIONS: [&str; 6] = [
@@ -100,7 +100,9 @@ pub fn adventure(ctx: Ctx) -> Reply {
         );
         Some(or_default(ctx.user_field("exp").and_then(Value::as_i64), 0) / 2)
     } else {
-        msg.push_str("Untung kamu masih sempet kabur kak! Mending istirahat dulu buat ngeheal ya! 🏃💨");
+        msg.push_str(
+            "Untung kamu masih sempet kabur kak! Mending istirahat dulu buat ngeheal ya! 🏃💨",
+        );
         None
     };
 
@@ -209,7 +211,11 @@ mod tests {
 
     #[test]
     fn an_absent_health_reads_as_one_hundred_and_is_never_blocked() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "rpg": null })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "rpg": null }),
+        ] {
             let r = run(user.clone());
             assert!(
                 !text_of(&r).starts_with("Aduh kak, HP kamu sekarat"),
@@ -229,13 +235,26 @@ mod tests {
             }
             won = true;
             let data = write_of(&r);
-            assert_eq!(data["rpg"], serde_json::json!({ "health": 100 }), "k menang tak boleh dikurangi HP");
+            assert_eq!(
+                data["rpg"],
+                serde_json::json!({ "health": 100 }),
+                "k menang tak boleh dikurangi HP"
+            );
             let gained_koin = data["koin"].as_i64().unwrap() - 500;
             let gained_exp = data["exp"].as_i64().unwrap();
-            assert!((2_000..=11_999).contains(&gained_koin), "koin {gained_koin}");
+            assert!(
+                (2_000..=11_999).contains(&gained_koin),
+                "koin {gained_koin}"
+            );
             assert!((500..=2_499).contains(&gained_exp), "exp {gained_exp}");
-            assert!(t.contains(&format!("+Rp {}", thousands_id(gained_koin as f64))), "{t}");
-            assert!(t.contains(&format!("*+{}*", thousands_id(gained_exp as f64))), "{t}");
+            assert!(
+                t.contains(&format!("+Rp {}", thousands_id(gained_koin as f64))),
+                "{t}"
+            );
+            assert!(
+                t.contains(&format!("*+{}*", thousands_id(gained_exp as f64))),
+                "{t}"
+            );
         }
         assert!(won, "dalam 400 percobaan harus ada yang menang");
     }
@@ -274,8 +293,15 @@ mod tests {
             died = true;
             let data = write_of(&r);
             assert_eq!(data["rpg"]["health"], serde_json::json!(0));
-            assert_eq!(data["exp"], serde_json::json!(450), "Math.floor(901 / 2), bukan 451");
-            assert!(data.get("koin").is_none(), "kalah tak menulis koin sama sekali");
+            assert_eq!(
+                data["exp"],
+                serde_json::json!(450),
+                "Math.floor(901 / 2), bukan 451"
+            );
+            assert!(
+                data.get("koin").is_none(),
+                "kalah tak menulis koin sama sekali"
+            );
         }
         assert!(died, "dalam 400 percobaan harus ada yang mati");
     }
@@ -307,9 +333,7 @@ mod tests {
                 "{}",
                 semua[0]
             );
-            assert!(semua[0].ends_with(
-                "... ⚔️🗺️\nHati-hati ya kak, auranya lumayan mencekam!"
-            ));
+            assert!(semua[0].ends_with("... ⚔️🗺️\nHati-hati ya kak, auranya lumayan mencekam!"));
             let hasil = &semua[1];
             assert!(
                 hasil.starts_with("🗡️ *PETUALANGAN BERHASIL!!* 🗡️")

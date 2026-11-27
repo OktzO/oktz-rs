@@ -5,9 +5,7 @@ use serde_json::Value;
 
 /// Teks balasan saat query kosong.
 pub(crate) fn help(prefix: &str) -> String {
-    format!(
-        "🎵 *PLAY TIKTOK*\n\n> Contoh:\n`{prefix}playtiktok cewe tiktok`"
-    )
+    format!("🎵 *PLAY TIKTOK*\n\n> Contoh:\n`{prefix}playtiktok cewe tiktok`")
 }
 
 /// `formatNumber(n)`.
@@ -226,7 +224,10 @@ mod tests {
     }
 
     fn caption_of(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn reaction_of(r: &Reply) -> Option<&str> {
@@ -250,7 +251,10 @@ mod tests {
     #[test]
     fn hasil_berhasil_mengirim_video_dengan_caption() {
         let r = run(Stub::body(contoh()), "cewe tiktok");
-        assert_eq!(video_url(&r), Some("https://www.tiktok.com/@budi/video/1".into()));
+        assert_eq!(
+            video_url(&r),
+            Some("https://www.tiktok.com/@budi/video/1".into())
+        );
         assert!(caption_of(&r).contains("*Judul:* Video Lucu"));
         assert!(caption_of(&r).contains("*Author:* Budi"));
         assert!(caption_of(&r).contains("👀 *Views:* 1.2M"));
@@ -283,10 +287,7 @@ mod tests {
     #[test]
     fn gagal_jaringan_menampilkan_tidak_ditemukan() {
         let r = run(Stub::offline(), "x");
-        assert_eq!(
-            caption_of(&r),
-            "❌ Tidak ditemukan video untuk: x"
-        );
+        assert_eq!(caption_of(&r), "❌ Tidak ditemukan video untuk: x");
         assert_eq!(reaction_of(&r), Some("❌"));
     }
 

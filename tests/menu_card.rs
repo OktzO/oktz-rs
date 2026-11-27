@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex};
 use oktz_router::command::ParseOptions;
 use oktz_store::json_store::JsonStore;
 use oktz_wa::{
-    ImOneof, InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node, Outcome,
-    Pipeline, SendBox, StoreContext,
+    ImOneof, InboundMessage, Jid, Message, MessageInfo, MessageSender, MessageSource, Node,
+    Outcome, Pipeline, SendBox, StoreContext,
 };
 
 // Tanpa rujukan ini `oktz_plugins` tidak ter-link ke binari test dan
@@ -122,10 +122,20 @@ async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
     assert!(biz.attrs.is_empty(), "biz tidak boleh punya attrs bisnis");
 
     // Kartu dibungkus `viewOnceMessage` (tipe `FutureProofMessage`).
-    let view = pesan.view_once_message.as_option().expect("viewOnceMessage");
+    let view = pesan
+        .view_once_message
+        .as_option()
+        .expect("viewOnceMessage");
     let inner = view.message.as_option().expect("isi viewOnceMessage");
-    let im = inner.interactive_message.as_option().expect("interactiveMessage");
-    let body = im.body.as_option().and_then(|b| b.text.clone()).unwrap_or_default();
+    let im = inner
+        .interactive_message
+        .as_option()
+        .expect("interactiveMessage");
+    let body = im
+        .body
+        .as_option()
+        .and_then(|b| b.text.clone())
+        .unwrap_or_default();
     assert!(body.contains("Hello Brother"), "body kartu: {body}");
     assert!(body.contains("BOT INFORMATION"), "body kartu: {body}");
 
@@ -137,7 +147,11 @@ async fn menu_dikirim_sebagai_kartu_native_flow_dengan_node_biz() {
         .iter()
         .map(|b| b.name.as_deref().unwrap_or(""))
         .collect();
-    assert_eq!(aksi, vec!["single_select", "quick_reply", "quick_reply"], "tombol kartu: {aksi:?}");
+    assert_eq!(
+        aksi,
+        vec!["single_select", "quick_reply", "quick_reply"],
+        "tombol kartu: {aksi:?}"
+    );
 
     // `deviceListMetadata` + versi 2 = syarat WA merender kartu.
     let mci = inner

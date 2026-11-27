@@ -69,8 +69,7 @@ fn angka_acak(jumlah: usize) -> String {
 /// `Buffer.from(x).toString("base64")` (`deepseek.js:23`) — tidak ada crate
 /// base64 di `Cargo.toml`, jadi tabel RFC 4648 ditulis di sini.
 fn base64(bytes: &[u8]) -> String {
-    const TABEL: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TABEL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::new();
     for blok in bytes.chunks(3) {
         let b0 = blok[0] as u32;
@@ -104,7 +103,10 @@ fn sbox_guid() -> String {
 fn cookie_header() -> String {
     let now = detik_sekarang();
     [
-        format!("_ga_PFX3BRW5RQ=GS2.1.s{now}$o1$g0$t{now}$j60$l0$h{}", angka_acak(9)),
+        format!(
+            "_ga_PFX3BRW5RQ=GS2.1.s{now}$o1$g0$t{now}$j60$l0$h{}",
+            angka_acak(9)
+        ),
         format!("_ga=GA1.2.{}.{now}", angka_acak(9)),
         format!("_gid=GA1.2.{}.{now}", angka_acak(9)),
         "_gat_gtag_UA_252982427_14=1".to_string(),
@@ -229,12 +231,15 @@ pub fn deepseek_thinking(
 
     let mut out = Map::new();
     out.insert("status".to_string(), Value::from(res.status));
+    out.insert("success".to_string(), Value::Bool(!kosong));
     out.insert(
-        "success".to_string(),
-        Value::Bool(!kosong),
+        "conversation_id".to_string(),
+        Value::String(conversation_id),
     );
-    out.insert("conversation_id".to_string(), Value::String(conversation_id));
-    out.insert("model".to_string(), Value::String("deepseek-v4-flash".into()));
+    out.insert(
+        "model".to_string(),
+        Value::String("deepseek-v4-flash".into()),
+    );
     out.insert("chat_mode".to_string(), Value::String("deep_think".into()));
     out.insert("prompt".to_string(), Value::String(prompt.to_string()));
     out.insert("answer".to_string(), Value::String(answer));
@@ -363,7 +368,11 @@ mod tests {
         let c = cookie_header();
         let bagian: Vec<&str> = c.split("; ").collect();
         assert_eq!(bagian.len(), 6, "cookie: {c}");
-        assert!(bagian[0].starts_with("_ga_PFX3BRW5RQ=GS2.1.s"), "{}", bagian[0]);
+        assert!(
+            bagian[0].starts_with("_ga_PFX3BRW5RQ=GS2.1.s"),
+            "{}",
+            bagian[0]
+        );
         assert!(bagian[0].contains("$o1$g0$t"), "{}", bagian[0]);
         assert!(bagian[1].starts_with("_ga=GA1.2."), "{}", bagian[1]);
         assert!(bagian[2].starts_with("_gid=GA1.2."), "{}", bagian[2]);
@@ -398,7 +407,10 @@ mod tests {
             parse_sse("data: {\"text\":\"a\",\"done\":false}\ndata: {\"text\":\"b\"}\n").0,
             "ab"
         );
-        assert_eq!(parse_sse("data: bukan json\ndata: {\"text\":\"x\"}\n").0, "x");
+        assert_eq!(
+            parse_sse("data: bukan json\ndata: {\"text\":\"x\"}\n").0,
+            "x"
+        );
         // `text` non-string tapi truthy tetap disambung lewat `ToString`.
         assert_eq!(parse_sse("data: {\"text\":5}\n").0, "5");
         assert_eq!(parse_sse("data: {\"text\":\"\"}\n").0, "");
@@ -421,7 +433,10 @@ mod tests {
         assert_eq!(hasil["answer"], "Jawaban");
         assert_eq!(hasil["reasoning"], "langkah ");
         assert_eq!(hasil["history_used"], 0);
-        assert!(hasil.get("raw").is_none(), "raw tidak ikut saat ada jawaban");
+        assert!(
+            hasil.get("raw").is_none(),
+            "raw tidak ikut saat ada jawaban"
+        );
         assert_eq!(
             hasil["conversation_id"].as_str().unwrap().len(),
             36,
@@ -433,8 +448,14 @@ mod tests {
         assert_eq!(p[0].method, oktz_plugin_api::HttpMethod::Post);
         assert_eq!(p[0].url, "https://notegpt.io/api/v2/chat/stream");
         assert!(p[0].terima_semua_status, "validateStatus: () => true");
-        assert_eq!(cari_header(&p[0], "content-type").as_deref(), Some("application/json"));
-        assert_eq!(cari_header(&p[0], "origin").as_deref(), Some("https://notegpt.io"));
+        assert_eq!(
+            cari_header(&p[0], "content-type").as_deref(),
+            Some("application/json")
+        );
+        assert_eq!(
+            cari_header(&p[0], "origin").as_deref(),
+            Some("https://notegpt.io")
+        );
         assert_eq!(
             cari_header(&p[0], "referer").as_deref(),
             Some("https://notegpt.io/chat-deepseek")
@@ -448,7 +469,10 @@ mod tests {
             cari_header(&p[0], "sec-fetch-dest").as_deref(),
             Some("empty")
         );
-        assert_eq!(cari_header(&p[0], "accept-language").as_deref(), Some("id-ID,id;q=0.9"));
+        assert_eq!(
+            cari_header(&p[0], "accept-language").as_deref(),
+            Some("id-ID,id;q=0.9")
+        );
         // `Accept-Encoding` sengaja tidak ikut: ureq yang mengurus pemampatan.
         assert!(cari_header(&p[0], "accept-encoding").is_none());
         let cookie = cari_header(&p[0], "cookie").expect("cookie wajib ada");
@@ -494,7 +518,11 @@ mod tests {
         let p = http.permintaan.lock().unwrap();
         let pesan = body_json(&p[0])["history_messages"].clone();
         let pesan = pesan.as_array().unwrap();
-        assert_eq!(pesan[0], json!({"role": "user"}), "content undefined hilang");
+        assert_eq!(
+            pesan[0],
+            json!({"role": "user"}),
+            "content undefined hilang"
+        );
         assert_eq!(pesan[1], json!({"role": "assistant"}));
         assert_eq!(pesan[2], json!({"role": "user", "content": "u"}));
     }

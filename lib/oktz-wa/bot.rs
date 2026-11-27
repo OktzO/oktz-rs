@@ -939,10 +939,7 @@ pub async fn snapshot_session_to_turso(
 /// Sidik creds aktif HANYA kalau cocok dengan isi marker `<db>.ident`.
 /// `None` = creds tak terbaca / marker hilang/beda (sesi sudah di-purge atau
 /// creds sudah dirotasi) → jangan sentuh Turso.
-fn sidik_aktif_dengan_marker(
-    creds_path: &Path,
-    db_path: &Path,
-) -> anyhow::Result<Option<String>> {
+fn sidik_aktif_dengan_marker(creds_path: &Path, db_path: &Path) -> anyhow::Result<Option<String>> {
     let Some(sidik) = sidik_creds_aktif(creds_path)? else {
         return Ok(None);
     };
@@ -1188,19 +1185,28 @@ mod tests {
             if ident.len() == 32 {
                 ident.insert(0, 0x05);
             }
-            format!("{}:{}", c.registration_id, ident.iter().map(|b| format!("{b:02x}")).collect::<String>())
+            format!(
+                "{}:{}",
+                c.registration_id,
+                ident.iter().map(|b| format!("{b:02x}")).collect::<String>()
+            )
         };
         std::fs::write(db_path.with_extension("ident"), &sidik).unwrap();
         let creds_path = dir.join("creds.json");
         std::fs::write(&creds_path, &creds_json).unwrap();
         unsafe { std::env::set_var(CREDS_ENV, &creds_path) };
 
-        let db = libsql::Builder::new_local(":memory:").build().await.unwrap();
+        let db = libsql::Builder::new_local(":memory:")
+            .build()
+            .await
+            .unwrap();
         let conn = db.connect().unwrap();
         let t = oktz_store::turso::TursoStore::with_conn(conn.clone());
         t.ensure_tables(&conn).await.unwrap();
 
-        let ok = snapshot_session_to_turso(&t, &conn, &db_path).await.unwrap();
+        let ok = snapshot_session_to_turso(&t, &conn, &db_path)
+            .await
+            .unwrap();
         assert!(!ok, "db hilang → jangan snapshot");
         assert!(!db_path.exists(), "db kosong tidak boleh dibuat");
         assert_eq!(t.get_session_state(&conn, "main").await.unwrap(), None);

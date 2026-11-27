@@ -174,10 +174,18 @@ mod tests {
     fn pencarian_valid_miripkan_js() {
         assert!(!pencarian_valid(&serde_json::json!({})));
         assert!(!pencarian_valid(&serde_json::json!({ "status": true })));
-        assert!(!pencarian_valid(&serde_json::json!({ "status": true, "data": null })));
-        assert!(!pencarian_valid(&serde_json::json!({ "status": true, "data": [] })));
-        assert!(!pencarian_valid(&serde_json::json!({ "status": false, "data": [{ "name": "x" }] })));
-        assert!(pencarian_valid(&serde_json::json!({ "status": true, "data": [{ "name": "x" }] })));
+        assert!(!pencarian_valid(
+            &serde_json::json!({ "status": true, "data": null })
+        ));
+        assert!(!pencarian_valid(
+            &serde_json::json!({ "status": true, "data": [] })
+        ));
+        assert!(!pencarian_valid(
+            &serde_json::json!({ "status": false, "data": [{ "name": "x" }] })
+        ));
+        assert!(pencarian_valid(
+            &serde_json::json!({ "status": true, "data": [{ "name": "x" }] })
+        ));
     }
 
     #[test]
@@ -203,7 +211,10 @@ mod tests {
 
     #[test]
     fn tidak_ditemukan_serupa_js() {
-        assert_eq!(tidak_ditemukan("ayam"), "Maaf, resep untuk \"ayam\" tidak ditemukan. Coba kata kunci lain.");
+        assert_eq!(
+            tidak_ditemukan("ayam"),
+            "Maaf, resep untuk \"ayam\" tidak ditemukan. Coba kata kunci lain."
+        );
     }
 
     #[test]
@@ -221,7 +232,9 @@ mod tests {
         assert!(out.contains("⏱️ *Waktu:* 30 menit"));
         assert!(out.contains("🍽️ *Porsi:* 2 porsi"));
         assert!(out.contains("*🥬 BAHAN-BAHAN:*\n- ayam\n- tepung"));
-        assert!(out.contains("*🍳 CARA MEMBUAT:*\n*1.* siapkan ayam\n\n*2.* baluri tepung\n\n*3.* goreng\n\n"));
+        assert!(out.contains(
+            "*🍳 CARA MEMBUAT:*\n*1.* siapkan ayam\n\n*2.* baluri tepung\n\n*3.* goreng\n\n"
+        ));
     }
 
     #[test]
@@ -260,11 +273,9 @@ mod tests {
             r.without_mutations().text_body().unwrap(),
             crate::common::error_template_bawaan(".", "resep")
         );
-        assert!(
-            matches!(
-                r.without_mutations(),
-                Reply::Reaction { emoji, .. } if emoji == "☢"
-            )
-        );
+        assert!(matches!(
+            r.without_mutations(),
+            Reply::Reaction { emoji, .. } if emoji == "☢"
+        ));
     }
 }

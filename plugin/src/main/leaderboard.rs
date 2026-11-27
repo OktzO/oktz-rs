@@ -98,8 +98,8 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
     {
         users.extend(m);
     }
-    if let Some(m) = read_json(ctx, &format!("{dir}/users.json"))
-        .and_then(|r| r.as_object().cloned())
+    if let Some(m) =
+        read_json(ctx, &format!("{dir}/users.json")).and_then(|r| r.as_object().cloned())
     {
         for (k, v) in m {
             users.entry(k).or_insert(v);
@@ -110,7 +110,7 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
     for (jid, data) in &users {
         let is_lid = jid.starts_with("lid:");
         let clean = key_number(jid);
-        if clean.is_empty() || clean == "undefined" {
+        if clean.is_empty() || clean == "-" {
             continue;
         }
         // Kunci LID dilewatkan utuh (dulu dibuang karena `jid.len() > 15` saat
@@ -177,7 +177,8 @@ fn load_users(ctx: &Ctx) -> Vec<UserRow> {
 pub fn leaderboard(ctx: Ctx) -> Reply {
     let cmd = ctx.command.to_lowercase();
     let mut typ = "overview".to_string();
-    if cmd.contains("koin") || cmd.contains("coin") || cmd.contains("bal") || cmd.contains("money") {
+    if cmd.contains("koin") || cmd.contains("coin") || cmd.contains("bal") || cmd.contains("money")
+    {
         typ = "koin".to_string();
     } else if cmd.contains("exp") || cmd.contains("xp") || cmd.contains("level") {
         typ = "exp".to_string();
@@ -196,7 +197,9 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
 
     let users = load_users(&ctx);
     if users.is_empty() {
-        return Reply::text("📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database.".to_string());
+        return Reply::text(
+            "📊 *ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ*\n\n> Belum ada data user terdaftar di database.".to_string(),
+        );
     }
 
     let peta = peta_lid(&ctx, &users);
@@ -209,16 +212,31 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
             .iter()
             .filter_map(|u| sebutan(&ctx, u, &peta).1)
             .collect::<Vec<_>>();
-        let text = "🏆 *LEADERBOARD OVERVIEW* 🏆\n\n_Pilih tombol di bawah untuk melihat ranking!_".to_string();
+        let text = "🏆 *LEADERBOARD OVERVIEW* 🏆\n\n_Pilih tombol di bawah untuk melihat ranking!_"
+            .to_string();
         // tombol quick_reply
         let buttons = vec![
-            Tombol::baru(oktz_plugin_api::AksiTombol::BalasanCepat, serde_json::json!({"display_text":"💰 Top Koin","id":format!("{}topkoin", ctx.prefix)})),
-            Tombol::baru(oktz_plugin_api::AksiTombol::BalasanCepat, serde_json::json!({"display_text":"✨ Top EXP","id":format!("{}topexp", ctx.prefix)})),
-            Tombol::baru(oktz_plugin_api::AksiTombol::BalasanCepat, serde_json::json!({"display_text":"⚡ Top Energi","id":format!("{}topenergi", ctx.prefix)})),
+            Tombol::baru(
+                oktz_plugin_api::AksiTombol::BalasanCepat,
+                serde_json::json!({"display_text":"💰 Top Koin","id":format!("{}topkoin", ctx.prefix)}),
+            ),
+            Tombol::baru(
+                oktz_plugin_api::AksiTombol::BalasanCepat,
+                serde_json::json!({"display_text":"✨ Top EXP","id":format!("{}topexp", ctx.prefix)}),
+            ),
+            Tombol::baru(
+                oktz_plugin_api::AksiTombol::BalasanCepat,
+                serde_json::json!({"display_text":"⚡ Top Energi","id":format!("{}topenergi", ctx.prefix)}),
+            ),
         ];
         let mut kartu = oktz_plugin_api::kartu::Kartu::baru(&text);
-        for b in buttons { kartu.buttons.push(b); }
-        return Reply::Interactive { kartu: Box::new(kartu) }.with_mentions(mentions);
+        for b in buttons {
+            kartu.buttons.push(b);
+        }
+        return Reply::Interactive {
+            kartu: Box::new(kartu),
+        }
+        .with_mentions(mentions);
     }
 
     let (title, emoji, field) = match typ.as_str() {
@@ -229,14 +247,32 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
 
     let mut sorted = users.clone();
     sorted.sort_by(|a, b| {
-        let va = match field { "koin" => a.koin, "exp" => a.exp, _ => a.energi };
-        let vb = match field { "koin" => b.koin, "exp" => b.exp, _ => b.energi };
+        let va = match field {
+            "koin" => a.koin,
+            "exp" => a.exp,
+            _ => a.energi,
+        };
+        let vb = match field {
+            "koin" => b.koin,
+            "exp" => b.exp,
+            _ => b.energi,
+        };
         vb.cmp(&va)
     });
     let top10: Vec<_> = sorted.iter().take(10).cloned().collect();
-    let total_field: i64 = sorted.iter().map(|u| match field { "koin" => u.koin, "exp" => u.exp, _ => u.energi }).sum();
+    let total_field: i64 = sorted
+        .iter()
+        .map(|u| match field {
+            "koin" => u.koin,
+            "exp" => u.exp,
+            _ => u.energi,
+        })
+        .sum();
 
-    let mut text = format!("🏆 *{}* 🏆\n\nPeringkat para penguasa tertinggi saat ini!\n\n╭┈┈⬡「 {} *RANKING* 」\n", title, emoji);
+    let mut text = format!(
+        "🏆 *{}* 🏆\n\nPeringkat para penguasa tertinggi saat ini!\n\n╭┈┈⬡「 {} *RANKING* 」\n",
+        title, emoji
+    );
     let mut mentions = Vec::new();
     for (i, u) in top10.iter().enumerate() {
         let medal = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
@@ -248,7 +284,11 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
             "exp" => format!("Lv. {} ({}) XP", u.level, format_number(u.exp)),
             _ => format!("{} Energi", format_number(u.energi)),
         };
-        let v = match field { "koin" => u.koin, "exp" => u.exp, _ => u.energi };
+        let v = match field {
+            "koin" => u.koin,
+            "exp" => u.exp,
+            _ => u.energi,
+        };
         let pct = if total_field > 0 {
             format!("{:.1}", (v as f64 / total_field as f64) * 100.0)
         } else {
@@ -307,8 +347,8 @@ fn peta_lid(ctx: &Ctx, users: &[UserRow]) -> std::collections::HashMap<String, S
             }
         }
     }
-    if let Some(cache) = read_json(ctx, &format!("{}/lid-cache.json", db_dir()))
-        .and_then(|v| v.as_object().cloned())
+    if let Some(cache) =
+        read_json(ctx, &format!("{}/lid-cache.json", db_dir())).and_then(|v| v.as_object().cloned())
     {
         for (k, v) in cache {
             let Some(pn) = v.as_str() else { continue };
@@ -367,7 +407,11 @@ fn sebutan(
         .filter(|n| nama_layak(n, &kunci).is_some())
         .map(str::to_string)
         .or_else(|| nama_layak(&u.name, &kunci).map(str::to_string))
-        .or_else(|| pn.as_deref().map(crate::common::jid_number).map(str::to_string))
+        .or_else(|| {
+            pn.as_deref()
+                .map(crate::common::jid_number)
+                .map(str::to_string)
+        })
         // LID tanpa nama/PN: tetap cetak nomornya supaya baris bisa di-tag
         // (klien LID bisa me-resolve-nya); jangan sembunyikan jadi "Pengguna".
         .unwrap_or_else(|| kunci.clone());
@@ -472,12 +516,18 @@ mod tests {
         );
         let r = leaderboard(ctx);
         let t = r.text_body().unwrap();
-        assert!(!t.contains("Unknown"), "placeholder tidak boleh tampil: {t}");
+        assert!(
+            !t.contains("Unknown"),
+            "placeholder tidak boleh tampil: {t}"
+        );
         assert!(t.contains("@628222"), "LID harus dipetakan ke PN: {t}");
         assert!(t.contains("Budi"), "nama asli dipakai: {t}");
         match r {
             Reply::Text { mentions, .. } => {
-                assert!(mentions.contains(&"628222@s.whatsapp.net".to_string()), "{mentions:?}");
+                assert!(
+                    mentions.contains(&"628222@s.whatsapp.net".to_string()),
+                    "{mentions:?}"
+                );
                 assert!(
                     !mentions.iter().any(|m| m.ends_with("@lid")),
                     "mention LID tidak boleh dikirim: {mentions:?}"
@@ -539,7 +589,10 @@ mod tests {
     fn mention_lid_pakai_domain_lid() {
         assert_eq!(mention_jid("lid:123"), "123@lid");
         assert_eq!(mention_jid("628111"), "628111@s.whatsapp.net");
-        assert_eq!(mention_jid("628111@s.whatsapp.net"), "628111@s.whatsapp.net");
+        assert_eq!(
+            mention_jid("628111@s.whatsapp.net"),
+            "628111@s.whatsapp.net"
+        );
         assert_eq!(key_number("lid:123456789012345"), "123456789012345");
     }
 }

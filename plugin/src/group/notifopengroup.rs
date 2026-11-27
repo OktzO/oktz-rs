@@ -33,7 +33,7 @@ mod tests {
 
     use crate::group::notifclosegroup::ADMIN_ONLY;
     use oktz_plugin_api::{Mutation, Participant};
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, arg: Option<&str>) -> Reply {
         let ctx = Ctx {
@@ -88,7 +88,10 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("notifopen").unwrap().meta.name, "notifopengroup");
+        assert_eq!(
+            oktz_plugin_api::find("notifopen").unwrap().meta.name,
+            "notifopengroup"
+        );
     }
 
     #[test]
@@ -109,18 +112,28 @@ mod tests {
             text_of(&run(serde_json::json!({}), Some("on"))),
             "✅ *ɴᴏᴛɪꜰ ᴏᴘᴇɴ ɢʀᴏᴜᴘ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*"
         );
-        assert_eq!(group_write(&run(serde_json::json!({}), Some("on"))), &serde_json::json!({"notifOpenGroup": true}));
+        assert_eq!(
+            group_write(&run(serde_json::json!({}), Some("on"))),
+            &serde_json::json!({"notifOpenGroup": true})
+        );
         assert_eq!(
             text_of(&run(serde_json::json!({}), Some("off"))),
             "❌ *ɴᴏᴛɪꜰ ᴏᴘᴇɴ ɢʀᴏᴜᴘ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*"
         );
-        assert_eq!(group_write(&run(serde_json::json!({}), Some("off"))), &serde_json::json!({"notifOpenGroup": false}));
+        assert_eq!(
+            group_write(&run(serde_json::json!({}), Some("off"))),
+            &serde_json::json!({"notifOpenGroup": false})
+        );
     }
 
     #[test]
     fn a_stored_non_bool_never_reports_aktif() {
         let r = run(serde_json::json!({"notifOpenGroup": "true"}), None);
-        assert!(text_of(&r).contains("> Status: ❌ Nonaktif"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Status: ❌ Nonaktif"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]

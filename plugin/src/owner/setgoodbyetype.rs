@@ -3,26 +3,55 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 
 const VARIANTS: &[(&str, &str, &str, &str)] = &[
-    ("1", "Canvas Image", "🎨", "Gambar canvas dengan foto profil"),
-    ("2", "Carousel Cards", "🃏", "Kartu carousel interaktif dengan tombol"),
+    (
+        "1",
+        "Canvas Image",
+        "🎨",
+        "Gambar canvas dengan foto profil",
+    ),
+    (
+        "2",
+        "Carousel Cards",
+        "🃏",
+        "Kartu carousel interaktif dengan tombol",
+    ),
     ("3", "Text Only", "📝", "Pesan teks minimalis tanpa gambar"),
     ("4", "Group", "👥", "ContextInfo group style"),
     ("5", "Simple", "✨", "Pesan teks simple + foto profile"),
     ("6", "Video", "🎥", "Kirim video ucapan selamat tinggal"),
-    ("7", "Interactive Quoted", "💬", "Interactive message dengan fake quoted"),
-    ("8", "Super Simple", "👋", "Pesan teks sangat singkat tanpa hiasan"),
+    (
+        "7",
+        "Interactive Quoted",
+        "💬",
+        "Interactive message dengan fake quoted",
+    ),
+    (
+        "8",
+        "Super Simple",
+        "👋",
+        "Pesan teks sangat singkat tanpa hiasan",
+    ),
 ];
 
 fn variant_nama(id: &str) -> Option<&'static str> {
-    VARIANTS.iter().find(|(i, ..)| *i == id).map(|(_, n, ..)| *n)
+    VARIANTS
+        .iter()
+        .find(|(i, ..)| *i == id)
+        .map(|(_, n, ..)| *n)
 }
 
 fn variant_desc(id: &str) -> Option<&'static str> {
-    VARIANTS.iter().find(|(i, ..)| *i == id).map(|(_, _, _, d)| *d)
+    VARIANTS
+        .iter()
+        .find(|(i, ..)| *i == id)
+        .map(|(_, _, _, d)| *d)
 }
 
 fn variant_emoji(id: &str) -> Option<&'static str> {
-    VARIANTS.iter().find(|(i, ..)| *i == id).map(|(_, _, e, _)| *e)
+    VARIANTS
+        .iter()
+        .find(|(i, ..)| *i == id)
+        .map(|(_, _, e, _)| *e)
 }
 
 fn daftar_varian(prefix: &str, current: i64) -> String {

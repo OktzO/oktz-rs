@@ -27,8 +27,7 @@ pub(crate) fn help(prefix: &str) -> String {
 }
 
 /// Pesan cabang `catch`.
-pub(crate) const GAGAL: &str =
-    "❌ *GAGAL MEMPROSES QUOTE*\n\nMaaf, terjadi kesalahan saat mencoba membuat gambar quote pink. Silakan coba lagi beberapa saat.";
+pub(crate) const GAGAL: &str = "❌ *GAGAL MEMPROSES QUOTE*\n\nMaaf, terjadi kesalahan saat mencoba membuat gambar quote pink. Silakan coba lagi beberapa saat.";
 
 /// `text || (m.quoted && m.quoted.text ? m.quoted.text: "")`
 ///
@@ -137,7 +136,10 @@ mod tests {
         assert_eq!(p.meta.name, "iqcpink");
         assert!(p.meta.alias.is_empty());
         assert_eq!(p.meta.category, "canvas");
-        assert_eq!(p.meta.description, "Membuat Fake Quote iOS style versi pink.");
+        assert_eq!(
+            p.meta.description,
+            "Membuat Fake Quote iOS style versi pink."
+        );
         assert_eq!(p.meta.usage, ".iqcpink [text/reply]");
         assert_eq!(p.meta.cooldown, 5);
         assert_eq!(p.meta.energi, 2);
@@ -212,10 +214,7 @@ mod tests {
         #[derive(Debug)]
         struct Gagal;
         impl oktz_plugin_api::MediaFetch for Gagal {
-            fn download(
-                &self,
-                _: oktz_plugin_api::MediaOrigin,
-            ) -> Result<Vec<u8>, MediaError> {
+            fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, MediaError> {
                 Err(MediaError {
                     message: "gagal".into(),
                 })

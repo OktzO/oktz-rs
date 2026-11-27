@@ -109,8 +109,18 @@ mod tests {
             is_group: true,
             roster: GroupRoster {
                 participants: vec![
-                    Participant { jid: "628111@s.whatsapp.net".into(), is_admin: true, is_owner: true, data: Default::default() },
-                    Participant { jid: "628999@lid".into(), is_admin: false, is_owner: false, data: Default::default() },
+                    Participant {
+                        jid: "628111@s.whatsapp.net".into(),
+                        is_admin: true,
+                        is_owner: true,
+                        data: Default::default(),
+                    },
+                    Participant {
+                        jid: "628999@lid".into(),
+                        is_admin: false,
+                        is_owner: false,
+                        data: Default::default(),
+                    },
                 ],
                 is_bot_admin: false,
             },
@@ -159,7 +169,10 @@ mod tests {
             oktz_plugin_api::find("hidetagpremium").unwrap().meta.name,
             "htpremium"
         );
-        assert_eq!(oktz_plugin_api::find("htprem").unwrap().meta.name, "htpremium");
+        assert_eq!(
+            oktz_plugin_api::find("htprem").unwrap().meta.name,
+            "htpremium"
+        );
     }
 
     #[test]
@@ -167,7 +180,10 @@ mod tests {
         // `split('|')` tanpa trim: spasi setelah `|` ikut terbawa,
         // seperti di versi awal.
         let r = run("everyone | hai semua", None);
-        assert!(matches!(r, Reply::TextQuoted { .. }), "mode teks meng-quote m");
+        assert!(
+            matches!(r, Reply::TextQuoted { .. }),
+            "mode teks meng-quote m"
+        );
         assert_eq!(body(&r), "@120363@g.us  hai semua ");
         assert_eq!(mentions(&r), ["628111@s.whatsapp.net", "628999@lid"]);
     }
@@ -193,8 +209,14 @@ mod tests {
 
     #[test]
     fn reply_mode_prefers_the_text_after_the_pipe() {
-        let r = run("everyone | baru", Some(quoted(QuotedKind::Text, "pesan lama")));
-        assert!(matches!(r, Reply::Text { .. }), "reply-mode tidak meng-quote m");
+        let r = run(
+            "everyone | baru",
+            Some(quoted(QuotedKind::Text, "pesan lama")),
+        );
+        assert!(
+            matches!(r, Reply::Text { .. }),
+            "reply-mode tidak meng-quote m"
+        );
         assert_eq!(body(&r), " baru");
         assert_eq!(mentions(&r), ["628111@s.whatsapp.net", "628999@lid"]);
     }

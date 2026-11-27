@@ -75,10 +75,10 @@ pub fn gita(ctx: Ctx) -> Reply {
 
 #[cfg(test)]
 mod tests {
-    use oktz_plugin_api::HttpGet;
-    use serde_json::Value;
     use super::*;
+    use oktz_plugin_api::HttpGet;
     use oktz_plugin_api::{HttpBody, HttpError, HttpResponse};
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug)]
@@ -161,7 +161,10 @@ mod tests {
         assert_eq!(p.meta.name, "gita");
         assert_eq!(p.meta.alias, ["gitagpt", "bhagavadgita"]);
         assert_eq!(p.meta.category, "ai");
-        assert_eq!(p.meta.description, "Chat dengan Gita GPT (Bhagavad Gita AI)");
+        assert_eq!(
+            p.meta.description,
+            "Chat dengan Gita GPT (Bhagavad Gita AI)"
+        );
         assert_eq!(p.meta.usage, ".gita <pertanyaan>");
         assert_eq!(p.meta.example, ".gita What is dharma?");
         assert_eq!(p.meta.cooldown, 5);
@@ -204,7 +207,10 @@ mod tests {
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 1, "cuki tidak boleh dipanggil");
         assert_eq!(seen[0], format!("{ENDPOINT}?text=What%20is%20dharma%3F"));
-        assert!(!seen[0].starts_with("https://api.cuki.biz.id"), "cuki tak bisa dipakai");
+        assert!(
+            !seen[0].starts_with("https://api.cuki.biz.id"),
+            "cuki tak bisa dipakai"
+        );
     }
 
     #[test]
@@ -227,7 +233,11 @@ mod tests {
             r#"{"status":true}"#,
         ] {
             let r = run(Stub::ok(payload), "dharma");
-            assert_eq!(body(&r), crate::common::error_template_bawaan(".", "gita"), "{payload}");
+            assert_eq!(
+                body(&r),
+                crate::common::error_template_bawaan(".", "gita"),
+                "{payload}"
+            );
             assert!(matches!(
                 r.without_mutations(),
                 Reply::Reaction { emoji, .. } if emoji == "☢"

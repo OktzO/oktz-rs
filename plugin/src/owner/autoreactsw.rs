@@ -35,7 +35,11 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
          > `{}autoreactsw on` — Aktifkan (emoji default {d})\n\
          > `{}autoreactsw on 😍` — Aktifkan dengan emoji\n\
          > `{}autoreactsw off` — Matikan",
-        if current_enabled(ctx) { "✅ ON" } else { "❌ OFF" },
+        if current_enabled(ctx) {
+            "✅ ON"
+        } else {
+            "❌ OFF"
+        },
         current_emoji(ctx),
         ctx.prefix,
         ctx.prefix,
@@ -60,7 +64,11 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
 pub fn autoreactsw(ctx: Ctx) -> Reply {
     let action = first_keyword(&ctx);
     // `args[1] || '🔥'` — argumen kedua, default emoji bila kosong.
-    let emoji = ctx.args.get(1).cloned().unwrap_or_else(|| DEFAULT_EMOJI.to_string());
+    let emoji = ctx
+        .args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_EMOJI.to_string());
 
     match action.as_deref() {
         Some("on") => {
@@ -92,7 +100,7 @@ pub fn autoreactsw(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -127,10 +135,7 @@ mod tests {
     fn registers_with_the_js_plugin_config() {
         let p = oktz_plugin_api::find("autoreactsw").unwrap();
         assert_eq!(p.meta.name, "autoreactsw");
-        assert_eq!(
-            p.meta.alias,
-            ["autoreaksi", "reactsw", "autoreactstory"]
-        );
+        assert_eq!(p.meta.alias, ["autoreaksi", "reactsw", "autoreactstory"]);
         assert_eq!(p.meta.category, "owner");
         assert_eq!(p.meta.description, "Auto react semua status/story WA");
         assert_eq!(p.meta.usage, ".autoreactsw on/off [emoji]");
@@ -170,7 +175,10 @@ mod tests {
     fn off_preserves_the_previously_stored_emoji() {
         // `db.setting('autoReactSW', { enabled: false, emoji: current.emoji })`
         // Emoji lama ikut ditulis, bukan dikosongkan.
-        let r = run(serde_json::json!({"autoReactSW": {"enabled": true, "emoji": "😍"}}), "off");
+        let r = run(
+            serde_json::json!({"autoReactSW": {"enabled": true, "emoji": "😍"}}),
+            "off",
+        );
         assert_eq!(
             stored(&r),
             serde_json::json!({"enabled": false, "emoji": "😍"}),
@@ -194,7 +202,10 @@ mod tests {
 
     #[test]
     fn no_argument_reports_status_from_both_fields() {
-        let r = run(serde_json::json!({"autoReactSW": {"enabled": true, "emoji": "🎉"}}), "");
+        let r = run(
+            serde_json::json!({"autoReactSW": {"enabled": true, "emoji": "🎉"}}),
+            "",
+        );
         let t = text_of(&r);
         assert!(t.starts_with("👁️ *ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ sᴛᴏʀʏ*"));
         assert!(t.contains("> Status: *✅ ON*"));

@@ -60,39 +60,40 @@ fn bantuan(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn arsip(ctx: Ctx) -> Reply {
-    let action = ctx.args.first().map(|a| a.to_lowercase()).unwrap_or_default();
+    let action = ctx
+        .args
+        .first()
+        .map(|a| a.to_lowercase())
+        .unwrap_or_default();
 
     // Cabang "buka" / "unarchive".
     if action == "buka" || action == "unarchive" {
         let nomor = ctx.args.get(1).map(|s| digits_only(s)).unwrap_or_default();
         if !nomor.is_empty() {
-            return Reply::text(format!(
-                "📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {nomor}"
-            ))
-            .with_mutation(Mutation::SetUser {
-                jid: format!("{nomor}@s.whatsapp.net"),
-                data: serde_json::json!({}),
-            });
+            return Reply::text(format!("📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {nomor}")).with_mutation(
+                Mutation::SetUser {
+                    jid: format!("{nomor}@s.whatsapp.net"),
+                    data: serde_json::json!({}),
+                },
+            );
         }
         if let Some(jid) = ctx.quoted.as_ref().and_then(target_jid_dari_quoted) {
-                let target = jid.split('@').next().unwrap_or(&jid);
-                return Reply::text(format!(
-                    "📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {target}"
-                ))
-                .with_mutation(Mutation::SetUser {
+            let target = jid.split('@').next().unwrap_or(&jid);
+            return Reply::text(format!("📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {target}")).with_mutation(
+                Mutation::SetUser {
                     jid,
                     data: serde_json::json!({}),
-                });
+                },
+            );
         }
         if !ctx.is_group {
             let target = ctx.chat.split('@').next().unwrap_or(&ctx.chat);
-            return Reply::text(format!(
-                "📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {target}"
-            ))
-            .with_mutation(Mutation::SetUser {
-                jid: ctx.chat.clone(),
-                data: serde_json::json!({}),
-            });
+            return Reply::text(format!("📂 *ᴀʀsɪᴘ ᴅɪʙᴜᴋᴀ*\n\n> Target: {target}")).with_mutation(
+                Mutation::SetUser {
+                    jid: ctx.chat.clone(),
+                    data: serde_json::json!({}),
+                },
+            );
         }
         return Reply::text(bantuan(&ctx.prefix));
     }

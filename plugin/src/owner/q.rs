@@ -91,7 +91,10 @@ mod tests {
         assert_eq!(p.meta.name, "q");
         assert_eq!(p.meta.alias, ["quoted", "inspect"]);
         assert_eq!(p.meta.category, "tools", "nilai JS menang atas nama folder");
-        assert_eq!(p.meta.description, "Ambil JSON message dari pesan yang direply");
+        assert_eq!(
+            p.meta.description,
+            "Ambil JSON message dari pesan yang direply"
+        );
         assert_eq!(p.meta.usage, ".q (reply pesan)");
         assert_eq!(p.meta.cooldown, 3);
         assert_eq!(p.meta.energi, 0);

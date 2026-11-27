@@ -23,7 +23,10 @@ pub(crate) fn path_aset(ctx: &Ctx, asset_key: &str, filename: &str) -> String {
 
 /// Path relatif untuk `ctx.berkas()` — tanpa awalan `./`.
 pub(crate) fn path_berkas(local_path: &str) -> String {
-    local_path.strip_prefix("./").unwrap_or(local_path).to_string()
+    local_path
+        .strip_prefix("./")
+        .unwrap_or(local_path)
+        .to_string()
 }
 
 /// Tulis buffer ke berkas aset dan kembalikan `localPath`.
@@ -99,7 +102,13 @@ mod tests {
 
     #[test]
     fn path_berkas_membuang_awalan_dot_slash() {
-        assert_eq!(path_berkas("./assets/image/foto2.jpeg"), "assets/image/foto2.jpeg");
-        assert_eq!(path_berkas("assets/image/foto2.jpeg"), "assets/image/foto2.jpeg");
+        assert_eq!(
+            path_berkas("./assets/image/foto2.jpeg"),
+            "assets/image/foto2.jpeg"
+        );
+        assert_eq!(
+            path_berkas("assets/image/foto2.jpeg"),
+            "assets/image/foto2.jpeg"
+        );
     }
 }

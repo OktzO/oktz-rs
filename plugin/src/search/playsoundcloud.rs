@@ -1,7 +1,7 @@
 //! Cari dan download lagu SoundCloud.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
-use oktz_scraper::{soundclouddl::scdl, soundcloud::search_sound_cloud};
+use oktz_scraper::{soundcloud::search_sound_cloud, soundclouddl::scdl};
 
 /// Kartu pakai.
 pub(crate) fn pakai(prefix: &str) -> String {
@@ -16,18 +16,37 @@ pub(crate) fn pakai(prefix: &str) -> String {
 }
 
 /// `❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭`.
-pub(crate) const LAGU_TIDAK_KETEMU: &str = "❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭";
+pub(crate) const LAGU_TIDAK_KETEMU: &str =
+    "❌ Yah kak, lagunya nggak ketemu! Coba cari dengan judul lain ya. 😭";
 
 /// `contentTxt` dari downloadInfo.
 pub(crate) fn info_lagu(download_info: &serde_json::Value) -> String {
     format!(
         "🎵 *Judul :* {}\n👤 *Uploader :* {}\n⏱️ *Durasi :* {}\n👁️ *Views :* {}\n❤️ *Likes :* {}\n📦 *Ukuran :* {}",
-        download_info.get("title").and_then(|v| v.as_str()).unwrap_or("-"),
-        download_info.get("uploader").and_then(|v| v.as_str()).unwrap_or("-"),
-        download_info.get("duration").and_then(|v| v.as_str()).unwrap_or("-"),
-        download_info.get("views").and_then(|v| v.as_str()).unwrap_or("-"),
-        download_info.get("likes").and_then(|v| v.as_str()).unwrap_or("-"),
-        download_info.get("size").and_then(|v| v.as_str()).unwrap_or("-")
+        download_info
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-"),
+        download_info
+            .get("uploader")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-"),
+        download_info
+            .get("duration")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-"),
+        download_info
+            .get("views")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-"),
+        download_info
+            .get("likes")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-"),
+        download_info
+            .get("size")
+            .and_then(|v| v.as_str())
+            .unwrap_or("-")
     )
 }
 
@@ -77,10 +96,7 @@ pub fn playsoundcloud(ctx: Ctx) -> Reply {
     }
 
     let track = &results[0];
-    let track_url = track
-        .get("url")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let track_url = track.get("url").and_then(|v| v.as_str()).unwrap_or("");
 
     let Ok(download_info) = scdl(ctx.http.as_ref(), track_url) else {
         return Reply::text("❌ Gagal mengambil unduhan SoundCloud");
@@ -344,20 +360,18 @@ mod tests {
             other => panic!("harus Reaction, dapat {other:?}"),
         };
         match isi {
-            Reply::Sequence(replies) => {
-                match &replies[0] {
-                    Reply::Image { media, .. } => {
-                        assert_eq!(
-                            media,
-                            &Some(MediaSource::Url {
-                                url: "https://a/art.jpg".into(),
-                                mimetype: None,
-                            })
-                        );
-                    }
-                    other => panic!("harus Image, dapat {other:?}"),
+            Reply::Sequence(replies) => match &replies[0] {
+                Reply::Image { media, .. } => {
+                    assert_eq!(
+                        media,
+                        &Some(MediaSource::Url {
+                            url: "https://a/art.jpg".into(),
+                            mimetype: None,
+                        })
+                    );
                 }
-            }
+                other => panic!("harus Image, dapat {other:?}"),
+            },
             other => panic!("harus Sequence, dapat {other:?}"),
         }
     }

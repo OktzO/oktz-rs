@@ -55,10 +55,7 @@ fn dl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
             .header("Origin", "https://x2twitter.com")
             .header("Referer", "https://x2twitter.com/id")
             .header("User-Agent", UA)
-            .header(
-                "Cookie",
-                format!("_session={session_token}; lang=id"),
-            )
+            .header("Cookie", format!("_session={session_token}; lang=id"))
             .form(format!(
                 "q={}&lang=id&cftoken={}",
                 encode_form(url),
@@ -103,15 +100,10 @@ fn dl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
         let Ok(decoded) = serde_json::from_str::<Value>(&isi) else {
             continue;
         };
-        let filename = decoded
-            .get("filename")
-            .filter(|v| truthy(v))
-            .map(teks_js);
+        let filename = decoded.get("filename").filter(|v| truthy(v)).map(teks_js);
         // `/\.(jpg|jpeg|png)$/i.test(decoded.filename)` → `return null`.
         if let Some(f) = &filename
-            && pola()
-                .get("gambar")
-                .is_some_and(|re| re.is_match(f))
+            && pola().get("gambar").is_some_and(|re| re.is_match(f))
         {
             continue;
         }
@@ -131,18 +123,15 @@ fn dl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
 
     let audio_url = ambil(html, "audioUrl");
     let media_id = ambil(html, "mediaId");
-    let host_convert = ambil(html, "url_convert")
-        .unwrap_or_else(|| HOST_KONVERSI_BAWAAN.to_string());
+    let host_convert =
+        ambil(html, "url_convert").unwrap_or_else(|| HOST_KONVERSI_BAWAAN.to_string());
     let exp = ambil(html, "exp");
     let token_page = ambil(html, "ktoken");
 
     let mut audio = Value::Null;
-    if let (Some(media_id), Some(audio_url), Some(exp), Some(token_page)) = (
-        &media_id,
-        &audio_url,
-        &exp,
-        &token_page,
-    ) {
+    if let (Some(media_id), Some(audio_url), Some(exp), Some(token_page)) =
+        (&media_id, &audio_url, &exp, &token_page)
+    {
         let form = format!(
             "ftype=mp3&v_id={}&audioUrl={}&audioType={}&fquality=128&fname=X2Twitter.com&exp={}&token={}",
             encode_form(media_id),
@@ -312,7 +301,10 @@ fn pola() -> &'static HashMap<&'static str, Regex> {
         [
             ("img", r#"<img\s+src="([^"]+)""#),
             ("durasi", r#"<p>(\d+:\d+)</p>"#),
-            ("token", r#"href="https://dl\.snapcdn\.app/get\?token=([^"]+)""#),
+            (
+                "token",
+                r#"href="https://dl\.snapcdn\.app/get\?token=([^"]+)""#,
+            ),
             ("audioUrl", r#"data-audioUrl="([^"]+)""#),
             ("mediaId", r#"data-mediaId="([^"]+)""#),
             ("url_convert", r#"k_url_convert\s*=\s*"([^"]+)""#),
@@ -453,7 +445,10 @@ mod tests {
     /// HTML yang dipakai beberapa test: dua token video, satu gambar, satu
     /// token rusak, plus blok data audio.
     fn html_contoh() -> (String, String, String, String) {
-        let mp4 = format!("AAA.{}.CCC", base64_encode(br#"{"filename":"vid_720.mp4"}"#));
+        let mp4 = format!(
+            "AAA.{}.CCC",
+            base64_encode(br#"{"filename":"vid_720.mp4"}"#)
+        );
         let jpg = format!("BBB.{}.DDD", base64_encode(br#"{"filename":"foto.JPG"}"#));
         let rusak = format!("EEE.{}.FFF", base64_encode(b"bukan json"));
         let html = format!(
@@ -483,7 +478,10 @@ mod tests {
 
         assert_eq!(hasil["code"], 200);
         assert_eq!(hasil["status"], "success");
-        assert_eq!(hasil["metadata"]["thumbnail"], "https://pbs.twimg.com/thumb.jpg");
+        assert_eq!(
+            hasil["metadata"]["thumbnail"],
+            "https://pbs.twimg.com/thumb.jpg"
+        );
         assert_eq!(hasil["metadata"]["duration"], "1:23");
         let videos = hasil["videos"].as_array().unwrap();
         // Hanya mp4: gambar JPG dan token base64 rusak jadi `null` lalu
@@ -539,7 +537,10 @@ mod tests {
         assert_eq!(ekor, "lang=id");
         assert_eq!(sesi.len(), 32, "16 byte hex");
         assert!(sesi.chars().all(|c| c.is_ascii_hexdigit()), "{sesi}");
-        assert_eq!(cari_header(&p[0], "referer"), Some("https://x2twitter.com/id".to_string()));
+        assert_eq!(
+            cari_header(&p[0], "referer"),
+            Some("https://x2twitter.com/id".to_string())
+        );
     }
 
     #[test]
@@ -687,6 +688,9 @@ mod tests {
 
         // Spasi jadi `+` dan `~` jadi `%7E` — berbeda dari encodeURIComponent.
         assert_eq!(encode_form("a b~c*d"), "a+b%7Ec*d");
-        assert_eq!(encode_form("https://x.com/u?s=1&t=2"), "https%3A%2F%2Fx.com%2Fu%3Fs%3D1%26t%3D2");
+        assert_eq!(
+            encode_form("https://x.com/u?s=1&t=2"),
+            "https%3A%2F%2Fx.com%2Fu%3Fs%3D1%26t%3D2"
+        );
     }
 }

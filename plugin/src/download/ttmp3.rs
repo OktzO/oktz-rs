@@ -88,10 +88,8 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
         return Reply::text("❌ URL tidak valid. Gunakan link TikTok.");
     }
 
-    let gagal = |pesan: &str| {
-        Reply::text(format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> {pesan}"))
-            .with_reaction("❌")
-    };
+    let gagal =
+        |pesan: &str| Reply::text(format!("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> {pesan}")).with_reaction("❌");
 
     let Ok(hasil) = oktz_scraper::tiktok::ttdown(&*ctx.http, url) else {
         return gagal("Gagal mengambil data TikTok.");
@@ -119,15 +117,12 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
     }
 
     // Tidak ada MP3, ambil videonya lalu ekstrak audio.
-    let Some(video) = ["nowatermark_hd", "nowatermark"]
-        .iter()
-        .find_map(|tipe| {
-            unduhan(&hasil, tipe)
-                .and_then(|d| d.get("url"))
-                .and_then(Value::as_str)
-                .filter(|u| !u.is_empty())
-        })
-    else {
+    let Some(video) = ["nowatermark_hd", "nowatermark"].iter().find_map(|tipe| {
+        unduhan(&hasil, tipe)
+            .and_then(|d| d.get("url"))
+            .and_then(Value::as_str)
+            .filter(|u| !u.is_empty())
+    }) else {
         return gagal("Audio TikTok tidak ditemukan.");
     };
     let Ok(res) = ctx.http.call(
@@ -142,8 +137,7 @@ pub fn ttmp3(ctx: Ctx) -> Reply {
     }
     match ekstrak_audio(res.body.bytes()) {
         Ok(mp3) if !mp3.is_empty() => {
-            Reply::audio(MediaSource::bytes(mp3).with_mimetype("audio/mpeg"))
-                .with_reaction("✅")
+            Reply::audio(MediaSource::bytes(mp3).with_mimetype("audio/mpeg")).with_reaction("✅")
         }
         Ok(_) => gagal("Gagal mengekstrak audio TikTok"),
         Err(e) => gagal(&format!("Gagal mengekstrak audio TikTok: {e}")),
@@ -211,7 +205,10 @@ mod tests {
             origin_dari("https://www.tikwm.com/audio.mp3"),
             "https://www.tikwm.com/"
         );
-        assert_eq!(origin_dari("http://cdn.tikwm.com/a.mp3"), "http://cdn.tikwm.com/");
+        assert_eq!(
+            origin_dari("http://cdn.tikwm.com/a.mp3"),
+            "http://cdn.tikwm.com/"
+        );
     }
 
     #[test]
@@ -231,7 +228,7 @@ mod tests {
         let r = ttmp3(ctx);
         let teks = r.without_mutations().text_body().unwrap_or_default();
         assert!(
-                        teks.starts_with("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> "),
+            teks.starts_with("❌ *ɢᴀɢᴀʟ ᴍᴇɴɢᴜɴᴅᴜʜ*\n\n> "),
             "teks: {teks}"
         );
         assert!(!teks.contains("ᴍᴇɢɴᴅᴜᴅᴜʰ"), "teks: {teks}");

@@ -184,7 +184,10 @@ impl Sock for SockKlien {
         let j = ke_jid(jid, "profilePictureUrl")?;
         // Baileys: "image" (penuh) atau "preview"; selain itu dianggap preview.
         let preview = tipe != "image";
-        let pic = self.jalan(self.client.contacts().get_profile_picture(&j, preview), "profilePictureUrl")?;
+        let pic = self.jalan(
+            self.client.contacts().get_profile_picture(&j, preview),
+            "profilePictureUrl",
+        )?;
         Ok(pic.map(|p| p.url))
     }
 
@@ -195,7 +198,10 @@ impl Sock for SockKlien {
     }
 
     fn semua_grup(&self) -> Result<Value, SockError> {
-        let peta = self.jalan(self.client.groups().get_participating(), "groupFetchAllParticipating")?;
+        let peta = self.jalan(
+            self.client.groups().get_participating(),
+            "groupFetchAllParticipating",
+        )?;
         let mut out = serde_json::Map::new();
         for (j, meta) in peta {
             out.insert(j.to_string(), metadata_json(&meta));
@@ -216,16 +222,22 @@ impl Sock for SockKlien {
             .collect::<Result<_, _>>()?;
         let groups = self.client.groups();
         match aksi {
-            AksiPeserta::Tambah => self.jalan(groups.add_participants(&j, &anggota), "groupParticipantsUpdate")?,
-            AksiPeserta::Keluar => {
-                self.jalan(groups.remove_participants(&j, &anggota), "groupParticipantsUpdate")?
-            }
-            AksiPeserta::Naikkan => {
-                self.jalan(groups.promote_participants(&j, &anggota), "groupParticipantsUpdate")?
-            }
-            AksiPeserta::Turunkan => {
-                self.jalan(groups.demote_participants(&j, &anggota), "groupParticipantsUpdate")?
-            }
+            AksiPeserta::Tambah => self.jalan(
+                groups.add_participants(&j, &anggota),
+                "groupParticipantsUpdate",
+            )?,
+            AksiPeserta::Keluar => self.jalan(
+                groups.remove_participants(&j, &anggota),
+                "groupParticipantsUpdate",
+            )?,
+            AksiPeserta::Naikkan => self.jalan(
+                groups.promote_participants(&j, &anggota),
+                "groupParticipantsUpdate",
+            )?,
+            AksiPeserta::Turunkan => self.jalan(
+                groups.demote_participants(&j, &anggota),
+                "groupParticipantsUpdate",
+            )?,
         };
         Ok(())
     }
@@ -239,7 +251,10 @@ impl Sock for SockKlien {
             )?;
         } else {
             // Klien hanya bisa mengubah foto profil sendiri.
-            self.jalan(self.client.profile().set_profile_picture(isi.to_vec()), "updateProfilePicture")?;
+            self.jalan(
+                self.client.profile().set_profile_picture(isi.to_vec()),
+                "updateProfilePicture",
+            )?;
         }
         Ok(())
     }
@@ -251,25 +266,35 @@ impl Sock for SockKlien {
 
     fn kode_undangan(&self, jid: &str) -> Result<String, SockError> {
         let j = ke_jid(jid, "groupInviteCode")?;
-        self.jalan(self.client.groups().get_invite_link(j, false), "groupInviteCode")
+        self.jalan(
+            self.client.groups().get_invite_link(j, false),
+            "groupInviteCode",
+        )
     }
 
     fn info_undangan(&self, kode: &str) -> Result<Value, SockError> {
-        let meta = self.jalan(self.client.groups().get_invite_info(kode), "groupGetInviteInfo")?;
+        let meta = self.jalan(
+            self.client.groups().get_invite_info(kode),
+            "groupGetInviteInfo",
+        )?;
         Ok(metadata_json(&meta))
     }
 
     fn buat_grup(&self, subjek: &str, peserta: &[String]) -> Result<Value, SockError> {
         let mut opsi = GroupCreateOptions::new(subjek);
         for p in peserta {
-            opsi = opsi.with_participant(GroupParticipantOptions::new(jid_nomor(p, "groupCreate")?));
+            opsi =
+                opsi.with_participant(GroupParticipantOptions::new(jid_nomor(p, "groupCreate")?));
         }
         let hasil = self.jalan(self.client.groups().create_group(opsi), "groupCreate")?;
         Ok(metadata_json(&hasil.metadata))
     }
 
     fn terima_undangan(&self, kode: &str) -> Result<String, SockError> {
-        let hasil = self.jalan(self.client.groups().join_with_invite_code(kode), "groupAcceptInvite")?;
+        let hasil = self.jalan(
+            self.client.groups().join_with_invite_code(kode),
+            "groupAcceptInvite",
+        )?;
         Ok(hasil.group_jid().to_string())
     }
 
@@ -293,15 +318,18 @@ impl Sock for SockKlien {
         let j = ke_jid(jid, "sendPresenceUpdate")?;
         match jenis {
             "available" => self.jalan(self.client.presence().set_available(), "sendPresenceUpdate"),
-            "unavailable" => {
-                self.jalan(self.client.presence().set_unavailable(), "sendPresenceUpdate")
-            }
-            "composing" => {
-                self.jalan(self.client.chatstate().send_composing(&j), "sendPresenceUpdate")
-            }
-            "recording" => {
-                self.jalan(self.client.chatstate().send_recording(&j), "sendPresenceUpdate")
-            }
+            "unavailable" => self.jalan(
+                self.client.presence().set_unavailable(),
+                "sendPresenceUpdate",
+            ),
+            "composing" => self.jalan(
+                self.client.chatstate().send_composing(&j),
+                "sendPresenceUpdate",
+            ),
+            "recording" => self.jalan(
+                self.client.chatstate().send_recording(&j),
+                "sendPresenceUpdate",
+            ),
             "paused" => self.jalan(
                 self.client.chatstate().send(&j, ChatStateType::Paused),
                 "sendPresenceUpdate",
@@ -315,7 +343,9 @@ impl Sock for SockKlien {
     fn status_teks(&self, jid: &str) -> Result<Value, SockError> {
         let j = ke_jid(jid, "fetchStatus")?;
         let peta = self.jalan(
-            self.client.contacts().get_user_info(std::slice::from_ref(&j)),
+            self.client
+                .contacts()
+                .get_user_info(std::slice::from_ref(&j)),
             "fetchStatus",
         )?;
         // `setAt` tidak dikirim server lewat usync; tetap ada sebagai null.
@@ -349,12 +379,18 @@ impl Sock for SockKlien {
 
     /// `sock.updateProfileStatus(status)` — bio bot sendiri (`features/profile.rs:55`).
     fn set_bio(&self, status: &str) -> Result<(), SockError> {
-        self.jalan(self.client.profile().set_status_text(status), "updateProfileStatus")
+        self.jalan(
+            self.client.profile().set_status_text(status),
+            "updateProfileStatus",
+        )
     }
 
     /// `sock.updateProfileName(nama)` — push name bot (`features/profile.rs:77`).
     fn set_nama(&self, nama: &str) -> Result<(), SockError> {
-        self.jalan(self.client.profile().set_push_name(nama), "updateProfileName")
+        self.jalan(
+            self.client.profile().set_push_name(nama),
+            "updateProfileName",
+        )
     }
 
     /// `sock.removeProfilePicture()` — foto profil bot sendiri
@@ -381,7 +417,13 @@ impl Sock for SockKlien {
         }
     }
 
-    fn hapus_pesan(&self, chat: &str, message_id: &str, participant: &str, from_me: bool) -> Result<(), SockError> {
+    fn hapus_pesan(
+        &self,
+        chat: &str,
+        message_id: &str,
+        participant: &str,
+        from_me: bool,
+    ) -> Result<(), SockError> {
         // `sendMessage(chat, { delete: key })` (`delete.js:49`): pesan bot
         // sendiri = `RevokeType::Sender`, pesan orang lain = `Admin`.
         let to = ke_jid(chat, "sendMessage{delete}")?;
@@ -392,7 +434,10 @@ impl Sock for SockKlien {
                 original_sender: ke_jid(participant, "sendMessage{delete}")?,
             }
         };
-        self.jalan(self.client.revoke_message(to, message_id.to_string(), tipe), "sendMessage{delete}")
+        self.jalan(
+            self.client.revoke_message(to, message_id.to_string(), tipe),
+            "sendMessage{delete}",
+        )
     }
 }
 
@@ -414,7 +459,9 @@ mod tests {
             "62812345@s.whatsapp.net"
         );
         assert_eq!(
-            jid_nomor("62812345@s.whatsapp.net", "t").unwrap().to_string(),
+            jid_nomor("62812345@s.whatsapp.net", "t")
+                .unwrap()
+                .to_string(),
             "62812345@s.whatsapp.net"
         );
         assert!(jid_nomor("bukan nomor", "t").is_err());

@@ -49,10 +49,7 @@ pub(crate) struct HasilTerabox {
 fn hasil_dari(data: &Value) -> HasilTerabox {
     let teks = |k: &str| data.get(k).and_then(Value::as_str).map(str::to_string);
     HasilTerabox {
-        status: data
-            .get("status")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        status: data.get("status").and_then(Value::as_bool).unwrap_or(false),
         error: teks("error"),
         file_name: teks("file_name"),
         thumbnail: teks("thumbnail"),
@@ -71,9 +68,9 @@ pub(crate) fn caption(hasil: &HasilTerabox) -> String {
          > 📌 {}\n\
          > 📏 Size: {}\n\
          > ⏱️ Durasi: {}",
-        hasil.file_name.as_deref().unwrap_or("undefined"),
-        hasil.file_size.as_deref().unwrap_or("undefined"),
-        hasil.duration.as_deref().unwrap_or("undefined")
+        hasil.file_name.as_deref().unwrap_or("-"),
+        hasil.file_size.as_deref().unwrap_or("-"),
+        hasil.duration.as_deref().unwrap_or("-")
     )
 }
 
@@ -92,14 +89,22 @@ pub(crate) fn stream_hls(hasil: &HasilTerabox) -> bool {
 /// `undefined` diteruskan sebagai string kosong supaya `|| "video"` tetap
 /// berlaku, persis seperti di versi awal.
 pub(crate) fn nama_berkas_video(file_name: &str) -> String {
-    let dasar = if file_name.is_empty() { "video" } else { file_name };
+    let dasar = if file_name.is_empty() {
+        "video"
+    } else {
+        file_name
+    };
     format!("{}.mp4", scrub_nama_berkas(dasar))
 }
 
 /// Nama berkas unduhan biasa; `|| ".mp4"` hanya dipakai
 /// kalau `result.extension` kosong atau `null`.
 pub(crate) fn nama_berkas_unduhan(file_name: &str, extension: Option<&str>) -> String {
-    let dasar = if file_name.is_empty() { "file" } else { file_name };
+    let dasar = if file_name.is_empty() {
+        "file"
+    } else {
+        file_name
+    };
     let ext = match extension {
         Some(e) if !e.is_empty() => e,
         _ => ".mp4",
@@ -138,7 +143,7 @@ pub fn terabox(ctx: Ctx) -> Reply {
 
     if !hasil.status {
         // `result.error` boleh `undefined`.
-        let teks = hasil.error.as_deref().unwrap_or("undefined");
+        let teks = hasil.error.as_deref().unwrap_or("-");
         return Reply::text(gagal_pakai(teks)).with_reaction("☢");
     }
 
@@ -335,25 +340,22 @@ mod tests {
             "<html><body>t tanpa token</body></html>",
             r#"{"error":false,"data":[]}"#,
         );
-        assert_eq!(
-            text_of(&r),
-            "❌ *TeraBox Gagal*\n\n> CSRF Token not found"
-        );
+        assert_eq!(text_of(&r), "❌ *TeraBox Gagal*\n\n> CSRF Token not found");
         assert_eq!(reaksi(&r), Some("☢"));
     }
 
     #[test]
-    fn the_status_false_branch_prints_undefined_verbatim() {
+    fn the_status_false_branch_prints_the_fallback_message() {
         assert_eq!(
             gagal_pakai("Tidak ada data ditemukan"),
             "❌ *TeraBox Gagal*\n\n> Tidak ada data ditemukan"
         );
-        assert_eq!(gagal_pakai("undefined"), "❌ *TeraBox Gagal*\n\n> undefined");
+        assert_eq!(gagal_pakai("-"), "❌ *TeraBox Gagal*\n\n> -");
         // `TeraBoxDL` bisa mengembalikan `status:false` tanpa `error` kalau
         // pemformatan JSON-nya gagal; cetaknya tetap `undefined`.
         let kosong = hasil_dari(&serde_json::json!({}));
         assert!(!kosong.status);
-        assert_eq!(kosong.error.as_deref().unwrap_or("undefined"), "undefined");
+        assert_eq!(kosong.error.as_deref().unwrap_or("-"), "-");
     }
 
     #[test]
@@ -367,7 +369,7 @@ mod tests {
         let kosong = HasilTerabox::default();
         assert_eq!(
             caption(&kosong),
-            "📦 *TeraBox*\n\n> 📌 undefined\n> 📏 Size: undefined\n> ⏱️ Durasi: undefined"
+            "📦 *TeraBox*\n\n> 📌 -\n> 📏 Size: -\n> ⏱️ Durasi: -"
         );
     }
 
@@ -413,17 +415,17 @@ mod tests {
         assert_eq!(reaksi(&r), Some("✅"));
         match isi(&r) {
             Reply::Document {
-                file_name, caption, media, ..
+                file_name,
+                caption,
+                media,
+                ..
             } => {
                 assert_eq!(file_name, "Film HD.mp4.mp4");
                 assert_eq!(
                     caption,
                     "📦 *TeraBox*\n\n> 📌 Film HD.mp4\n> 📏 Size: 120 MB\n> ⏱️ Durasi: 00:45"
                 );
-                assert_eq!(
-                    media.as_ref().map(|m| m.label()),
-                    Some("url".to_string())
-                );
+                assert_eq!(media.as_ref().map(|m| m.label()), Some("url".to_string()));
                 assert_eq!(media.as_ref().unwrap().mimetype(), Some("video/mp4"));
             }
             lain => panic!("harus dokumen, dapat {lain:?}"),
@@ -439,17 +441,17 @@ mod tests {
         assert_eq!(reaksi(&r), Some("✅"));
         match isi(&r) {
             Reply::Document {
-                file_name, caption, media, ..
+                file_name,
+                caption,
+                media,
+                ..
             } => {
                 assert_eq!(file_name, "Arsip.zip");
                 assert_eq!(
                     caption,
                     "📦 *TeraBox*\n\n> 📌 Arsip\n> 📏 Size: 12 MB\n> ⏱️ Durasi: 00:10"
                 );
-                assert_eq!(
-                    media.as_ref().unwrap().mimetype(),
-                    Some("application/zip")
-                );
+                assert_eq!(media.as_ref().unwrap().mimetype(), Some("application/zip"));
             }
             lain => panic!("harus dokumen, dapat {lain:?}"),
         }
@@ -459,7 +461,8 @@ mod tests {
     fn a_result_without_any_media_only_reacts() {
         // Tanpa `.m3u8` dan tanpa `download_url` tidak ada
         // pesan yang dikirim.
-        let balasan = r#"{"error":false,"data":[{"file_name":"x","file_size":"1 MB","duration":"00:01"}]}"#;
+        let balasan =
+            r#"{"error":false,"data":[{"file_name":"x","file_size":"1 MB","duration":"00:01"}]}"#;
         let r = run("https://terabox.com/s/xxx", HALAMAN, balasan);
         assert_eq!(reaksi(&r), Some("✅"));
         assert!(r.without_mutations().text_body().is_none());
@@ -467,7 +470,8 @@ mod tests {
 
     #[test]
     fn the_plugin_only_reads_and_never_mutates() {
-        let balasan = r#"{"error":false,"data":[{"file_name":"x","download_url":"https://cdn/d.zip"}]}"#;
+        let balasan =
+            r#"{"error":false,"data":[{"file_name":"x","download_url":"https://cdn/d.zip"}]}"#;
         let r = run("https://terabox.com/s/x", HALAMAN, balasan);
         assert!(r.mutations().is_empty());
     }

@@ -13,7 +13,6 @@ use oktz_plugin_api::{Ctx, HttpCall, HttpGet, MediaSource, Reply, plugin};
 ///
 pub(crate) const ENDPOINT: &str = "https://api.nexray.web.id/api/search/pinterest";
 
-
 /// Kartu pakai.
 pub(crate) fn help(prefix: &str) -> String {
     format!(
@@ -101,11 +100,7 @@ pub(crate) fn resolve_pinterest(
     http: &dyn HttpGet,
 ) -> Result<Vec<serde_json::Value>, ()> {
     let target = format!("{ENDPOINT}?q={}", encode(query));
-    let body = http
-        .get(&target)
-        .ok()
-        .and_then(|r| r.json())
-        .ok_or(())?;
+    let body = http.get(&target).ok().and_then(|r| r.json()).ok_or(())?;
     normalize(&body)
 }
 
@@ -188,7 +183,7 @@ pub fn pin(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpMethod, HttpResponse, HttpGet};
+    use oktz_plugin_api::{HttpBody, HttpCall, HttpError, HttpGet, HttpMethod, HttpResponse};
     use std::sync::{Arc, Mutex};
 
     /// Stub `HttpGet`: pencarian mengembalikan `cari`, gambar `gambar_ok`
@@ -240,10 +235,7 @@ mod tests {
 
     impl HttpGet for Stub {
         fn get(&self, url: &str) -> Result<HttpResponse, HttpError> {
-            self.seen
-                .lock()
-                .unwrap()
-                .push((url.to_string(), vec![]));
+            self.seen.lock().unwrap().push((url.to_string(), vec![]));
             if url.starts_with(ENDPOINT) {
                 return self
                     .cari
@@ -366,7 +358,10 @@ mod tests {
     #[test]
     fn a_query_with_a_dead_backend_hits_the_error_branch() {
         let r = run("Zhao Lusi");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pin"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pin")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 
@@ -470,10 +465,11 @@ mod tests {
         let call = download_request("https://i.pinimg.com/originals/x.jpg");
         assert_eq!(call.method, HttpMethod::Get);
         assert_eq!(call.timeout_ms, Some(15_000));
-        assert!(call
-            .headers
-            .iter()
-            .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/"));
+        assert!(
+            call.headers
+                .iter()
+                .any(|(k, v)| k == "Referer" && v == "https://www.pinterest.com/")
+        );
     }
 
     #[test]
@@ -488,7 +484,11 @@ mod tests {
     fn pin_urls_are_collected_dropping_blanks_and_capped_at_ten() {
         let pins: Vec<serde_json::Value> = (0..13)
             .map(|i| serde_json::json!({ "image": format!("https://i.pinimg.com/{i}.jpg") }))
-            .chain([serde_json::json!({ "image": "" }), serde_json::json!({}), serde_json::json!({ "image": null })])
+            .chain([
+                serde_json::json!({ "image": "" }),
+                serde_json::json!({}),
+                serde_json::json!({ "image": null }),
+            ])
             .collect();
         let urls = pick_images(&pins);
         assert_eq!(urls.len(), 10, "slice(0, 10) sebelum filter kedua");
@@ -511,5 +511,4 @@ mod tests {
         );
         assert_eq!(GAGAL_MEMUAT, "❌ Gagal memuat gambar");
     }
-
 }

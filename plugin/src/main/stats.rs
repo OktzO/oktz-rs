@@ -13,21 +13,9 @@ use std::fs;
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `os.platform()` + `os.arch()` dengan nama versi Node (`darwin`, `x64`).
+/// Platform dan arsitektur dari Rust.
 fn platform() -> String {
-    let os = match std::env::consts::OS {
-        "macos" => "darwin",
-        "windows" => "win32",
-        lain => lain,
-    };
-    let arch = match std::env::consts::ARCH {
-        "x86_64" => "x64",
-        "aarch64" => "arm64",
-        "x86" => "ia32",
-        "arm" => "arm",
-        lain => lain,
-    };
-    format!("{os} {arch}")
+    format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)
 }
 
 /// `Number.prototype.toFixed(2)` — setengah menjauhi nol seperti versi awal, bukan
@@ -52,14 +40,14 @@ fn format_bytes(bytes: u64) -> String {
     if bytes == 0 {
         return "0 B".to_string();
     }
-    let satuan = ["B", "KB", "MB", "GB"];
+    let satuan = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
     let angka = bytes as f64;
     let i = (angka.ln() / 1024f64.ln()).floor() as usize;
     let nilai = angka / 1024f64.powi(i as i32);
     format!(
         "{} {}",
         buang_nol_ekor(&fixed2(nilai)),
-        satuan.get(i).copied().unwrap_or("undefined")
+        satuan.get(i).copied().unwrap_or("-")
     )
 }
 
@@ -201,10 +189,7 @@ fn reply(ctx: &Ctx) -> Reply {
     t = t.with_table_row(["Groups".to_string(), groups.to_string()]);
     t = t.with_table_row(["Platform".to_string(), platform()]);
     t = t.with_table_row(["Node".to_string(), "N/A".to_string()]);
-    t = t.with_table_row([
-        "CPU Load".to_string(),
-        format!("{}%", fixed2(baca_load())),
-    ]);
+    t = t.with_table_row(["CPU Load".to_string(), format!("{}%", fixed2(baca_load()))]);
     t = t.with_table_row([
         "RAM".to_string(),
         format!(
@@ -291,18 +276,8 @@ mod tests {
         assert_eq!(
             kunci,
             vec![
-                "Bot",
-                "Version",
-                "Uptime",
-                "Users",
-                "Premium",
-                "Groups",
-                "Platform",
-                "Node",
-                "CPU Load",
-                "RAM",
-                "Heap",
-                "Updated",
+                "Bot", "Version", "Uptime", "Users", "Premium", "Groups", "Platform", "Node",
+                "CPU Load", "RAM", "Heap", "Updated",
             ]
         );
         assert_eq!(t.baris.len(), 12);
@@ -314,7 +289,12 @@ mod tests {
         assert_eq!(t.baris[8][0], "CPU Load");
         assert!(t.baris[8][1].ends_with('%'));
         // Waktu Asia/Jakarta `HH.MM.SS`.
-        assert_eq!(t.baris[11][1].len(), 8, "jam-menit-detik: {}", t.baris[11][1]);
+        assert_eq!(
+            t.baris[11][1].len(),
+            8,
+            "jam-menit-detik: {}",
+            t.baris[11][1]
+        );
     }
 
     #[test]

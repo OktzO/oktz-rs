@@ -129,7 +129,10 @@ pub fn mutemember(ctx: Ctx) -> Reply {
     }
 
     let mut list = muted_members(&ctx);
-    if list.iter().any(|jid| same_number(jid_number(jid), &target_number)) {
+    if list
+        .iter()
+        .any(|jid| same_number(jid_number(jid), &target_number))
+    {
         return Reply::Text {
             text: already_muted(&target_number),
             mentions: vec![target],
@@ -155,8 +158,8 @@ pub fn mutemember(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-    use oktz_plugin_api::{Participant, QuotedMessage};
     use oktz_plugin_api::registry::GroupRoster;
+    use oktz_plugin_api::{Participant, QuotedMessage};
 
     const ADMIN: &str = "628111@s.whatsapp.net";
 
@@ -172,7 +175,13 @@ mod tests {
         }
     }
 
-    fn run(group: Value, args: &[&str], mentioned: &[&str], quoted: Option<&str>, r: GroupRoster) -> Reply {
+    fn run(
+        group: Value,
+        args: &[&str],
+        mentioned: &[&str],
+        quoted: Option<&str>,
+        r: GroupRoster,
+    ) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
             command: "mutemember".into(),
@@ -190,8 +199,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             group_data: group,
             roster: r,
             ..Default::default()
@@ -236,7 +245,10 @@ mod tests {
         assert_eq!(p.meta.name, "mutemember");
         assert_eq!(p.meta.alias, ["mutmember", "silentmember", "bisukanmember"]);
         assert_eq!(p.meta.category, "group");
-        assert_eq!(p.meta.description, "Bisukan member tertentu (pesan akan dihapus bot)");
+        assert_eq!(
+            p.meta.description,
+            "Bisukan member tertentu (pesan akan dihapus bot)"
+        );
         assert_eq!(p.meta.usage, ".mutemember <@tag/reply/nomor>");
         assert_eq!(p.meta.example, ".mutemember @user");
         assert_eq!(p.meta.cooldown, 5);
@@ -270,7 +282,10 @@ mod tests {
     #[test]
     fn a_mention_is_stored_verbatim_and_counted() {
         let r = plain(serde_json::json!({}), &[], &["628333@s.whatsapp.net"]);
-        assert_eq!(group_write(&r), serde_json::json!(["628333@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628333@s.whatsapp.net"])
+        );
         assert_eq!(
             text_of(&r),
             "🔇 *MEMBER DIMUTE*\n\n\
@@ -296,8 +311,15 @@ mod tests {
     #[test]
     fn a_bare_number_argument_gets_the_whatsapp_server_suffix() {
         let r = plain(serde_json::json!({}), &["62-812-345"], &[]);
-        assert_eq!(group_write(&r), serde_json::json!(["62812345@s.whatsapp.net"]));
-        assert!(text_of(&r).contains("👤 ᴍᴇᴍʙᴇʀ: @62812345"), "{}", text_of(&r));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["62812345@s.whatsapp.net"])
+        );
+        assert!(
+            text_of(&r).contains("👤 ᴍᴇᴍʙᴇʀ: @62812345"),
+            "{}",
+            text_of(&r)
+        );
     }
 
     #[test]
@@ -305,7 +327,10 @@ mod tests {
         // `getpp` melakukan normalisasi `0` → `62`; `mutemember` tidak,
         // teks harus mengikuti apa adanya.
         let r = plain(serde_json::json!({}), &["0812345"], &[]);
-        assert_eq!(group_write(&r), serde_json::json!(["0812345@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["0812345@s.whatsapp.net"])
+        );
     }
 
     #[test]
@@ -317,13 +342,19 @@ mod tests {
             Some("628777@s.whatsapp.net"),
             GroupRoster::default(),
         );
-        assert_eq!(group_write(&r), serde_json::json!(["628777@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628777@s.whatsapp.net"])
+        );
     }
 
     #[test]
     fn a_lid_target_is_stored_as_a_phone_jid() {
         let r = plain(serde_json::json!({}), &[], &["123456789@lid"]);
-        assert_eq!(group_write(&r), serde_json::json!(["123456789@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["123456789@s.whatsapp.net"])
+        );
     }
 
     #[test]
@@ -348,7 +379,10 @@ mod tests {
             None,
             roster("628333@s.whatsapp.net", false),
         );
-        assert_eq!(group_write(&r), serde_json::json!(["628333@s.whatsapp.net"]));
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628333@s.whatsapp.net"])
+        );
     }
 
     #[test]
@@ -392,7 +426,14 @@ mod tests {
 
     #[test]
     fn a_non_array_stored_value_reads_as_an_empty_list() {
-        let r = plain(serde_json::json!({"mutedMembers": "bukan-array"}), &[], &["628333@s.whatsapp.net"]);
-        assert_eq!(group_write(&r), serde_json::json!(["628333@s.whatsapp.net"]));
+        let r = plain(
+            serde_json::json!({"mutedMembers": "bukan-array"}),
+            &[],
+            &["628333@s.whatsapp.net"],
+        );
+        assert_eq!(
+            group_write(&r),
+            serde_json::json!(["628333@s.whatsapp.net"])
+        );
     }
 }

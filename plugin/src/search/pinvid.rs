@@ -154,7 +154,9 @@ mod tests {
             let v = self
                 .body
                 .clone()
-                .ok_or_else(|| oktz_plugin_api::HttpError { message: "offline".into() })?;
+                .ok_or_else(|| oktz_plugin_api::HttpError {
+                    message: "offline".into(),
+                })?;
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
@@ -238,7 +240,10 @@ mod tests {
     fn an_empty_query_shows_the_help_card() {
         for text in ["", "  ", "\t\n"] {
             let t = text_of(&run(Stub::offline(), text));
-            assert!(t.starts_with("📌 *ᴘɪɴᴛᴇʀᴇsᴛ ᴠɪᴅᴇᴏ sᴇᴀʀᴄʜ*"), "input {text:?}");
+            assert!(
+                t.starts_with("📌 *ᴘɪɴᴛᴇʀᴇsᴛ ᴠɪᴅᴇᴏ sᴇᴀʀᴄʜ*"),
+                "input {text:?}"
+            );
             assert!(t.contains("`.pinvid anime`"), "{t}");
         }
         assert!(help("!").contains("`!pinvid anime`"));
@@ -264,7 +269,11 @@ mod tests {
             serde_json::json!(null),
         ] {
             let r = run(Stub::with(body.clone()), "anime");
-            assert_eq!(text_of(&r), "❌ Tidak ditemukan video untuk: anime", "body {body}");
+            assert_eq!(
+                text_of(&r),
+                "❌ Tidak ditemukan video untuk: anime",
+                "body {body}"
+            );
             assert_eq!(reaction_of(&r), Some("❌"));
         }
     }
@@ -283,7 +292,10 @@ mod tests {
     #[test]
     fn a_transport_failure_reports_the_error_template() {
         let r = run(Stub::offline(), "anime");
-        assert_eq!(text_of(&r), crate::common::error_template_bawaan(".", "pinvid"));
+        assert_eq!(
+            text_of(&r),
+            crate::common::error_template_bawaan(".", "pinvid")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

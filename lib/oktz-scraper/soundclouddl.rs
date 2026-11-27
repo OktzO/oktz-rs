@@ -228,27 +228,29 @@ pub fn scdl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     // `info.view_count.toLocaleString()` dan `info.like_count.toLocaleString()`.
     let Some(view_count) = info.get("view_count") else {
         return Err(HttpError {
-            message: "Cannot read properties of undefined (reading 'toLocaleString')"
-                .to_string(),
+            message: "Cannot read properties of undefined (reading 'toLocaleString')".to_string(),
         });
     };
     let Some(like_count) = info.get("like_count") else {
         return Err(HttpError {
-            message: "Cannot read properties of undefined (reading 'toLocaleString')"
-                .to_string(),
+            message: "Cannot read properties of undefined (reading 'toLocaleString')".to_string(),
         });
     };
     let views = locale_number(view_count)?;
     let likes = locale_number(like_count)?;
 
     let durasi = ke_angka_ada(info.get("duration"));
-    let detik = angka_js(durasi % 60.0);
-    let detik = if detik.len() < 2 {
-        format!("0{detik}")
+    let duration = if durasi.is_finite() {
+        let detik = angka_js(durasi % 60.0);
+        let detik = if detik.len() < 2 {
+            format!("0{detik}")
+        } else {
+            detik
+        };
+        format!("{}:{detik}", angka_js((durasi / 60.0).floor()))
     } else {
-        detik
+        "-".to_string()
     };
-    let duration = format!("{}:{detik}", angka_js((durasi / 60.0).floor()));
 
     let mut out = Map::new();
     // `title`, `uploader`, `thumbnail`, `format` hilang kalau `undefined`;
@@ -265,12 +267,14 @@ pub fn scdl(http: &dyn HttpGet, url: &str) -> Result<Value, HttpError> {
     if let Some(v) = info.get("thumbnail") {
         out.insert("thumbnail".to_string(), v.clone());
     }
+    let ukuran = ke_angka_ada(dl.get("size")) / 1024.0 / 1024.0;
     out.insert(
         "size".to_string(),
-        Value::String(format!(
-            "{} MB",
-            fixed2(ke_angka_ada(dl.get("size")) / 1024.0 / 1024.0)
-        )),
+        Value::String(if ukuran.is_finite() {
+            format!("{} MB", fixed2(ukuran))
+        } else {
+            "-".to_string()
+        }),
     );
     if let Some(v) = dl.get("format") {
         out.insert("format".to_string(), v.clone());
@@ -322,10 +326,18 @@ mod tests {
         fn get(&self, _url: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma POST")
         }
-        fn post_json(&self, _url: &str, _body: &Value) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
-        fn post_form(&self, _url: &str, _form: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_form(
+            &self,
+            _url: &str,
+            _form: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
         fn post_multipart(
@@ -469,10 +481,13 @@ mod tests {
             r#"{"file_url":"/a.mp3"}"#,
         ]);
         let hasil = scdl(&http, "https://s/1").unwrap();
-        assert_eq!(hasil["duration"], "NaN:NaN");
-        assert_eq!(hasil["size"], "NaN MB");
+        assert_eq!(hasil["duration"], "-");
+        assert_eq!(hasil["size"], "-");
         assert_eq!(hasil["views"], "0");
-        assert_eq!(hasil["download_url"], "https://convertico.com/soundcloud-downloader//a.mp3");
+        assert_eq!(
+            hasil["download_url"],
+            "https://convertico.com/soundcloud-downloader//a.mp3"
+        );
         assert!(hasil.get("title").is_none());
         assert!(hasil.get("thumbnail").is_none());
         assert!(hasil.get("format").is_none());

@@ -15,8 +15,8 @@
 //! karena lokasi berkas store Rust tidak diekspos ke plugin; path-nya tetap ditulis supaya
 //! teksnya sama dengan versi awal.
 
-use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
+use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
 /// Prefix key session penunggu konfirmasi.
@@ -70,9 +70,10 @@ fn tabel_terlihat(ctx: &Ctx) -> Vec<(&'static str, Value)> {
         out.push(("⚙️ Settings", ctx.settings.clone()));
     }
     if let Some(sewa) = ctx.setting(DEFAULT_SEWA)
-        && crate::common::js_truthy_value(sewa) {
-            out.push(("🏪 Sewa", sewa.clone()));
-        }
+        && crate::common::js_truthy_value(sewa)
+    {
+        out.push(("🏪 Sewa", sewa.clone()));
+    }
     out
 }
 
@@ -128,10 +129,7 @@ pub fn hapusdata(ctx: Ctx) -> Reply {
         let reset_count = tabel.len();
         let total = 8;
 
-        let backup = format!(
-            "database/backups/pre-reset-{}",
-            crate::common::now_ms()
-        );
+        let backup = format!("database/backups/pre-reset-{}", crate::common::now_ms());
 
         return Reply::text(format!(
             "🗑️ *ᴅᴀᴛᴀ ᴅɪʀᴇsᴇᴛ*\n\n\
@@ -209,7 +207,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     #[test]
@@ -230,7 +231,11 @@ mod tests {
     #[test]
     fn alias_menunjuk_ke_plugin_ini() {
         for a in ["resetdata", "cleardata", "wipedata"] {
-            assert_eq!(find(a).map(|e| e.meta.name.as_str()), Some("hapusdata"), "{a}");
+            assert_eq!(
+                find(a).map(|e| e.meta.name.as_str()),
+                Some("hapusdata"),
+                "{a}"
+            );
         }
     }
 
@@ -251,13 +256,25 @@ mod tests {
 
     #[test]
     fn peringatan_menampilkan_tabel_dan_tombol() {
-        let r = run("", serde_json::json!({ "selfMode": false, "sewa": { "enabled": true } }));
+        let r = run(
+            "",
+            serde_json::json!({ "selfMode": false, "sewa": { "enabled": true } }),
+        );
         let t = teks(&r);
         assert!(t.starts_with("⚠️ *ᴘᴇʀɪɴɢᴀᴛᴀɴ — ʜᴀᴘᴜs ᴅᴀᴛᴀ*\n\n"), "{t}");
-        assert!(t.contains("Aksi ini akan menghapus *SEMUA* data berikut:"), "{t}");
+        assert!(
+            t.contains("Aksi ini akan menghapus *SEMUA* data berikut:"),
+            "{t}"
+        );
         assert!(t.contains("> ⚙️ Settings: *2* data ("), "{t}");
-        assert!(t.contains("> 💾 Backup otomatis dibuat sebelum reset"), "{t}");
-        assert!(t.contains("Ketik `.hapusdata ya` dalam 60 detik untuk melanjutkan."), "{t}");
+        assert!(
+            t.contains("> 💾 Backup otomatis dibuat sebelum reset"),
+            "{t}"
+        );
+        assert!(
+            t.contains("Ketik `.hapusdata ya` dalam 60 detik untuk melanjutkan."),
+            "{t}"
+        );
     }
 
     #[test]
@@ -274,7 +291,10 @@ mod tests {
         };
         // Langkah 1: buat permintaan.
         let _ = hapusdata(ctx.clone());
-        assert!(ctx.session_get("hapusdata:pending:628111@s.whatsapp.net").is_some());
+        assert!(
+            ctx.session_get("hapusdata:pending:628111@s.whatsapp.net")
+                .is_some()
+        );
 
         // Langkah 2: konfirmasi.
         ctx.text = "ya".into();
@@ -282,10 +302,22 @@ mod tests {
         let t = teks(&r);
         assert!(t.starts_with("🗑️ *ᴅᴀᴛᴀ ᴅɪʀᴇsᴇᴛ*"), "{t}");
         assert!(t.contains("> 📁 File direset: *1/8*"), "{t}");
-        assert!(t.contains("> 💾 Backup: `database/backups/pre-reset-"), "{t}");
-        assert!(t.contains("Semua data telah dikembalikan ke default."), "{t}");
-        assert!(t.contains("> ⚠️ Restart bot untuk memastikan data tersinkronisasi"), "{t}");
-        assert!(ctx.session_get("hapusdata:pending:628111@s.whatsapp.net").is_none());
+        assert!(
+            t.contains("> 💾 Backup: `database/backups/pre-reset-"),
+            "{t}"
+        );
+        assert!(
+            t.contains("Semua data telah dikembalikan ke default."),
+            "{t}"
+        );
+        assert!(
+            t.contains("> ⚠️ Restart bot untuk memastikan data tersinkronisasi"),
+            "{t}"
+        );
+        assert!(
+            ctx.session_get("hapusdata:pending:628111@s.whatsapp.net")
+                .is_none()
+        );
     }
 
     #[test]

@@ -27,8 +27,7 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
     )
 }
 
-pub(crate) const ON_MSG: &str =
-    "💬 *Only Private Aktif*\n\n> Bot hanya bisa diakses di private chat\n> Mode Only Group dinonaktifkan";
+pub(crate) const ON_MSG: &str = "💬 *Only Private Aktif*\n\n> Bot hanya bisa diakses di private chat\n> Mode Only Group dinonaktifkan";
 pub(crate) const OFF_MSG: &str = "💬 *Only Private Nonaktif*\n\n> Bot bisa diakses di mana saja";
 
 pub(crate) fn invalid(prefix: &str) -> String {
@@ -76,7 +75,7 @@ pub fn onlypc(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value, text: &str) -> Reply {
         let args: Vec<String> = text.split_whitespace().map(str::to_string).collect();
@@ -185,7 +184,10 @@ mod tests {
 
     #[test]
     fn keyword_matching_is_case_insensitive() {
-        assert_eq!(setting_of(&run(serde_json::json!({}), "ON"), "onlyPc"), Some(serde_json::json!(true)));
+        assert_eq!(
+            setting_of(&run(serde_json::json!({}), "ON"), "onlyPc"),
+            Some(serde_json::json!(true))
+        );
         assert_eq!(
             setting_of(&run(serde_json::json!({}), "OFF"), "onlyPc"),
             Some(serde_json::json!(false))

@@ -36,16 +36,18 @@ pub(crate) fn notif_toggle(ctx: &Ctx, t: &NotifToggle) -> Reply {
     let enabled = ctx.group_data.get(t.field).and_then(Value::as_bool) == Some(true);
 
     match arg.as_deref() {
-        Some("on") => Reply::text(format!("✅ *{} ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*", t.title)).with_mutation(Mutation::SetGroup {
-            jid: ctx.chat.clone(),
-            data: serde_json::json!({ t.field: true }),
-        }),
-        Some("off") => {
-            Reply::text(format!("❌ *{} ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*", t.title)).with_mutation(Mutation::SetGroup {
+        Some("on") => {
+            Reply::text(format!("✅ *{} ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*", t.title)).with_mutation(Mutation::SetGroup {
                 jid: ctx.chat.clone(),
-                data: serde_json::json!({ t.field: false }),
+                data: serde_json::json!({ t.field: true }),
             })
         }
+        Some("off") => Reply::text(format!("❌ *{} ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*", t.title)).with_mutation(
+            Mutation::SetGroup {
+                jid: ctx.chat.clone(),
+                data: serde_json::json!({ t.field: false }),
+            },
+        ),
         _ => Reply::text(format!(
             "{} *{}*\n\n> Status: {}\n\n*Penggunaan:*\n`{}{} on` - Aktifkan\n`{}{} off` - Nonaktifkan",
             t.emoji,
@@ -152,25 +154,37 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("notifclose").unwrap().meta.name, "notifclosegroup");
+        assert_eq!(
+            oktz_plugin_api::find("notifclose").unwrap().meta.name,
+            "notifclosegroup"
+        );
     }
 
     #[test]
     fn a_member_who_is_neither_admin_nor_owner_is_rejected() {
-        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(false, false));
+        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(
+            false, false,
+        ));
         assert_eq!(text_of(&r), ADMIN_ONLY);
-        assert!(r.mutations().is_empty(), "ditolak berarti tidak boleh menulis");
+        assert!(
+            r.mutations().is_empty(),
+            "ditolak berarti tidak boleh menulis"
+        );
     }
 
     #[test]
     fn the_owner_flag_alone_passes_the_guard() {
-        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(false, true));
+        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(
+            false, true,
+        ));
         assert_ne!(text_of(&r), ADMIN_ONLY);
     }
 
     #[test]
     fn the_roster_admin_flag_alone_passes_the_guard() {
-        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(true, false));
+        let r = (oktz_plugin_api::find("notifclosegroup").unwrap().handler)(ctx_with_roster(
+            true, false,
+        ));
         assert_ne!(text_of(&r), ADMIN_ONLY);
     }
 
@@ -188,14 +202,21 @@ mod tests {
                 "input {stored}: {}",
                 text_of(&r)
             );
-            assert!(r.mutations().is_empty(), "status tidak boleh menulis: {stored}");
+            assert!(
+                r.mutations().is_empty(),
+                "status tidak boleh menulis: {stored}"
+            );
         }
     }
 
     #[test]
     fn an_unknown_keyword_falls_through_to_the_status_branch() {
         let r = run(serde_json::json!({}), Some("ngapain"));
-        assert!(text_of(&r).contains("> Status: ❌ Nonaktif"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("> Status: ❌ Nonaktif"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
     }
 
@@ -203,12 +224,18 @@ mod tests {
     fn the_keyword_is_lowercased_before_matching() {
         let r = run(serde_json::json!({}), Some("ON"));
         assert_eq!(text_of(&r), "✅ *ɴᴏᴛɪꜰ ᴄʟᴏsᴇ ɢʀᴏᴜᴘ ᴅɪᴀᴋᴛɪꜰᴋᴀɴ*");
-        assert_eq!(group_write(&r), &serde_json::json!({"notifCloseGroup": true}));
+        assert_eq!(
+            group_write(&r),
+            &serde_json::json!({"notifCloseGroup": true})
+        );
     }
 
     #[test]
     fn on_writes_only_the_own_field() {
-        let r = run(serde_json::json!({"notifCloseGroup": false, "mute": true}), Some("on"));
+        let r = run(
+            serde_json::json!({"notifCloseGroup": false, "mute": true}),
+            Some("on"),
+        );
         assert_eq!(
             group_write(&r).as_object().unwrap().len(),
             1,
@@ -221,7 +248,10 @@ mod tests {
     fn off_writes_false_and_says_disabled() {
         let r = run(serde_json::json!({"notifCloseGroup": true}), Some("off"));
         assert_eq!(text_of(&r), "❌ *ɴᴏᴛɪꜰ ᴄʟᴏsᴇ ɢʀᴏᴜᴘ ᴅɪɴᴏɴᴀᴋᴛɪꜰᴋᴀɴ*");
-        assert_eq!(group_write(&r), &serde_json::json!({"notifCloseGroup": false}));
+        assert_eq!(
+            group_write(&r),
+            &serde_json::json!({"notifCloseGroup": false})
+        );
     }
 
     #[test]

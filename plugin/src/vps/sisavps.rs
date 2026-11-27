@@ -13,7 +13,7 @@ fn teks_kuota(account: &Value, droplets_used: usize) -> String {
     // = `8` (bukan "10 - 2"). Kalau limit bukan angka, hasilnya `NaN`.
     let remaining = match account.get("droplet_limit").and_then(Value::as_f64) {
         Some(l) => crate::vps::fmt_num(l - droplets_used as f64),
-        None => "NaN".to_string(),
+        None => "-".to_string(),
     };
     let mut t = String::from("📊 *ᴋᴜᴏᴛᴀ ᴅɪɢɪᴛᴀʟᴏᴄᴇᴀɴ*\n\n");
     t.push_str("╭─────────────\n");
@@ -67,7 +67,11 @@ pub fn sisavps(ctx: Ctx) -> Reply {
         return Reply::text(error_template(&ctx));
     };
 
-    let Some(account) = account.json().as_ref().and_then(|v| v.pointer("/account")).cloned()
+    let Some(account) = account
+        .json()
+        .as_ref()
+        .and_then(|v| v.pointer("/account"))
+        .cloned()
     else {
         return Reply::text(error_template(&ctx));
     };
@@ -165,7 +169,10 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().expect("harus ada teks").to_string()
+        r.without_mutations()
+            .text_body()
+            .expect("harus ada teks")
+            .to_string()
     }
 
     #[test]
@@ -184,7 +191,9 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js() {
-        let r = run_token(Stub::with(&[r#"{"account":{"droplet_limit":10,"email":"a@b.c","status":"active"}}"#]));
+        let r = run_token(Stub::with(&[
+            r#"{"account":{"droplet_limit":10,"email":"a@b.c","status":"active"}}"#,
+        ]));
         assert_eq!(
             teks(&r),
             concat!(

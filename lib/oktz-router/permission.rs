@@ -215,7 +215,10 @@ mod tests {
     #[test]
     fn plain_plugin_is_allowed_for_anyone() {
         let m = meta();
-        assert_eq!(check(&caller(), &UserState::default(), &input(&m, None)), Ok(()));
+        assert_eq!(
+            check(&caller(), &UserState::default(), &input(&m, None)),
+            Ok(())
+        );
     }
 
     #[test]
@@ -386,11 +389,11 @@ mod tests {
         let mut c = caller();
         c.is_group = true;
         for g in [None, Some(true)] {
-            let g = GroupState {
-                game: g,
-                rpg: None,
-            };
-            assert_eq!(check(&c, &UserState::default(), &input(&m, Some(g))), Ok(()));
+            let g = GroupState { game: g, rpg: None };
+            assert_eq!(
+                check(&c, &UserState::default(), &input(&m, Some(g))),
+                Ok(())
+            );
         }
     }
 

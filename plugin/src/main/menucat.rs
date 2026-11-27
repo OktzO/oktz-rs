@@ -387,15 +387,13 @@ fn cuaca(ctx: &Ctx) -> String {
         .get("temperature_2m")
         .and_then(|nilai| nilai.as_f64())
         .map(|nilai| nilai.round() as i64);
-    let suhu_teks = suhu.map_or_else(|| "NaN".to_string(), |nilai| nilai.to_string());
+    let suhu_teks = suhu.map_or_else(|| "-".to_string(), |nilai| nilai.to_string());
     format!("{kondisi} | 🌡️ {suhu_teks}°C\n📍 {nama}")
 }
 
 /// `geocoding-api.open-meteo.com` — `(lat, lon, nama)`.
 fn geocode(ctx: &Ctx) -> Option<(f64, f64, String)> {
-    let url = format!(
-        "https://geocoding-api.open-meteo.com/v1/search?name={KOTA_CUACA}&count=1"
-    );
+    let url = format!("https://geocoding-api.open-meteo.com/v1/search?name={KOTA_CUACA}&count=1");
     let res = ctx.http.get(&url).ok()?;
     let json = res.json()?;
     let lokasi = json
@@ -782,8 +780,12 @@ mod tests {
     /// kartu bisa dibangun.
     fn ctx_dengan_aset(variant: i64, argumen: &[&str]) -> Ctx {
         let berkas = BerkasPalsu::baru();
-        berkas.tulis("./assets/image/foto.jpeg", &[1, 2, 3]).unwrap();
-        berkas.tulis("./assets/image/foto2.jpeg", &[1, 2, 3]).unwrap();
+        berkas
+            .tulis("./assets/image/foto.jpeg", &[1, 2, 3])
+            .unwrap();
+        berkas
+            .tulis("./assets/image/foto2.jpeg", &[1, 2, 3])
+            .unwrap();
         berkas.tulis("./assets/video/mp4.mp4", &[1, 2, 3]).unwrap();
         Ctx {
             prefix: ".".into(),
@@ -807,12 +809,19 @@ mod tests {
     }
 
     fn teks(r: &Reply) -> String {
-        r.without_mutations().text_body().unwrap_or_default().to_string()
+        r.without_mutations()
+            .text_body()
+            .unwrap_or_default()
+            .to_string()
     }
 
     fn kartu(r: &Reply) -> (&str, Option<&str>, &[oktz_plugin_api::kartu::Tombol]) {
         match r.without_mutations() {
-            Reply::Interactive { kartu } => (kartu.body.as_str(), kartu.footer.as_deref(), kartu.buttons.as_slice()),
+            Reply::Interactive { kartu } => (
+                kartu.body.as_str(),
+                kartu.footer.as_deref(),
+                kartu.buttons.as_slice(),
+            ),
             other => panic!("harus kartu interaktif, dapat {other:?}"),
         }
     }
@@ -858,7 +867,7 @@ mod tests {
         .collect();
         assert_eq!(
             kotak("🤖", "KETERANGAN", &baris),
-             "╭─〔 🤖 `KETERANGAN`\n\
+            "╭─〔 🤖 `KETERANGAN`\n\
              ┃ *ⓞ = ʜᴀɴʏᴀ ᴜɴᴛᴜᴋ ᴏᴡɴᴇʀ*\n\
              ┃ *ⓟ = ʜᴀɴʏᴀ ᴜɴᴛᴜᴋ ᴘʀᴇᴍɪᴜᴍ*\n\
              ┃ *ⓛ = ᴍᴇᴍʙᴜᴛᴜʜᴋᴀɴ ʟɪᴍɪᴛ*\n\
@@ -1001,12 +1010,14 @@ mod tests {
         // Slot kosong pertama, lalu daftar kategori, lalu menu utama.
         assert_eq!(buttons.len(), 3);
         assert_eq!(buttons[0].name, "");
-        assert_eq!(buttons[0].params.nilai(), &serde_json::Value::String(String::new()));
+        assert_eq!(
+            buttons[0].params.nilai(),
+            &serde_json::Value::String(String::new())
+        );
         assert_eq!(buttons[1].params["id"], ".menucat");
         assert_eq!(buttons[2].params["id"], ".menu");
 
-        let Reply::Interactive { kartu } = r.without_mutations()
-        else {
+        let Reply::Interactive { kartu } = r.without_mutations() else {
             panic!("harus kartu");
         };
         let header = kartu.header_card.as_ref().expect("header wajib ada");
@@ -1014,9 +1025,7 @@ mod tests {
             header.media.as_ref(),
             Some(oktz_plugin_api::registry::CardMedia::Video { .. })
         ));
-        let params = kartu.params
-            .as_ref()
-            .expect("message params wajib ada");
+        let params = kartu.params.as_ref().expect("message params wajib ada");
         assert!(params["bottom_sheet"]["list_title"] == "Please select the menu");
         assert!(params["tap_target_configuration"]["domain"] == "shop.example.com");
         assert!(params["limited_time_offer"]["url"] == "Hai");
@@ -1090,15 +1099,14 @@ mod tests {
         let p = oktz_plugin_api::find("menucat").unwrap();
         assert_eq!(p.meta.name, "menucat");
         assert_eq!(
-            p.meta
-                .alias
-                .iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            p.meta.alias.iter().map(String::as_str).collect::<Vec<_>>(),
             ["menucategory", "categorymenu", "mc", "category", "cat"]
         );
         assert_eq!(p.meta.category, "main");
-        assert_eq!(p.meta.description, "Menampilkan daftar command per kategori");
+        assert_eq!(
+            p.meta.description,
+            "Menampilkan daftar command per kategori"
+        );
         assert_eq!(p.meta.usage, ".menucat <kategori>");
         assert_eq!(p.meta.example, ".menucat main");
         assert_eq!(p.meta.cooldown, 3);
@@ -1109,7 +1117,8 @@ mod tests {
     #[test]
     fn setiap_alias_menunjuk_ke_menucat() {
         for alias in ["menucategory", "categorymenu", "mc", "category", "cat"] {
-            let found = oktz_plugin_api::find(alias).unwrap_or_else(|| panic!("alias {alias} hilang"));
+            let found =
+                oktz_plugin_api::find(alias).unwrap_or_else(|| panic!("alias {alias} hilang"));
             assert_eq!(found.meta.name, "menucat", "alias {alias} salah resolve");
         }
     }

@@ -63,9 +63,7 @@ pub fn setbirthday(ctx: Ctx) -> Reply {
         return Reply::text("❌ Bulan tidak valid! (1-12)");
     }
     if day < 1 || day > DAYS_IN_MONTH[(month - 1) as usize] {
-        return Reply::text(format!(
-            "❌ Tanggal tidak valid untuk bulan {month}!"
-        ));
+        return Reply::text(format!("❌ Tanggal tidak valid untuk bulan {month}!"));
     }
 
     // `day.toString().padStart(2,'0')` — selalu dua digit.
@@ -94,7 +92,7 @@ pub fn setbirthday(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value, arg: &str) -> Reply {
         let ctx = Ctx {
@@ -103,7 +101,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -157,10 +159,18 @@ mod tests {
 
     #[test]
     fn no_argument_shows_the_format_and_writes_nothing() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"birthday": "01-01"})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"birthday": "01-01"}),
+        ] {
             let r = run(user.clone(), "");
             assert!(text_of(&r).starts_with("🎂 *sᴇᴛ ʙɪʀᴛʜᴅᴀʏ*"), "input {user}");
-            assert!(text_of(&r).contains(".setbirthday DD-MM"), "{}", text_of(&r));
+            assert!(
+                text_of(&r).contains(".setbirthday DD-MM"),
+                "{}",
+                text_of(&r)
+            );
             assert!(r.mutations().is_empty(), "input {user}");
         }
     }
@@ -175,7 +185,11 @@ mod tests {
     #[test]
     fn a_valid_date_is_stored_zero_padded() {
         assert_eq!(stored(&run(serde_json::json!({}), "25-12")), "25-12");
-        assert_eq!(stored(&run(serde_json::json!({}), "1-1")), "01-01", "padStart(2,'0')");
+        assert_eq!(
+            stored(&run(serde_json::json!({}), "1-1")),
+            "01-01",
+            "padStart(2,'0')"
+        );
         assert_eq!(stored(&run(serde_json::json!({}), "05-09")), "05-09");
     }
 
@@ -228,7 +242,11 @@ mod tests {
     fn a_malformed_date_is_rejected() {
         for bad in ["abc", "25", "25-12-01", "255-12", "25_12", "-12", "25-"] {
             let r = run(serde_json::json!({}), bad);
-            assert!(text_of(&r).starts_with("❌ Format salah!"), "input {bad}: {}", text_of(&r));
+            assert!(
+                text_of(&r).starts_with("❌ Format salah!"),
+                "input {bad}: {}",
+                text_of(&r)
+            );
             assert!(r.mutations().is_empty(), "input {bad}");
         }
     }

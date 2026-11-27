@@ -69,10 +69,7 @@ pub fn upch(ctx: Ctx) -> Reply {
 
     // `args[0]?.includes("@newsletter") ? args.shift(): config.saluran.id`
     //
-    let ch_id = if args
-        .first()
-        .is_some_and(|a| a.contains("@newsletter"))
-    {
+    let ch_id = if args.first().is_some_and(|a| a.contains("@newsletter")) {
         args.remove(0)
     } else {
         ctx.config().saluran.id.clone()
@@ -192,7 +189,10 @@ mod tests {
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus Sequence");
         };
-        assert!(matches!(list[0].without_mutations(), Reply::Reaction { .. }));
+        assert!(matches!(
+            list[0].without_mutations(),
+            Reply::Reaction { .. }
+        ));
         assert_eq!(
             list.last().unwrap().text_body(),
             Some(crate::common::error_template_bawaan(".", "upch").as_str())

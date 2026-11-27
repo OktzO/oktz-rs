@@ -38,11 +38,7 @@ pub(crate) fn kode_undangan_grup(text: &str) -> Option<String> {
             break;
         }
     }
-    if kode.is_empty() {
-        None
-    } else {
-        Some(kode)
-    }
+    if kode.is_empty() { None } else { Some(kode) }
 }
 
 /// `text.match(saluranPattern)[1]` — ID saluran, `None` kalau tidak cocok.
@@ -59,11 +55,7 @@ pub(crate) fn id_saluran(text: &str) -> Option<String> {
             break;
         }
     }
-    if id.is_empty() {
-        None
-    } else {
-        Some(id)
-    }
+    if id.is_empty() { None } else { Some(id) }
 }
 
 /// `!isNaN(text)` — `Number(text)` bukan `NaN`. String kosong
@@ -80,9 +72,7 @@ pub(crate) fn adalah_angka_js(text: &str) -> bool {
 /// Saluran valid: cocok pola, atau berakhir `@newsletter`, atau angka.
 #[cfg(test)]
 pub(crate) fn saluran_valid(text: &str) -> bool {
-    id_saluran(text).is_some()
-        || text.ends_with("@newsletter")
-        || adalah_angka_js(text)
+    id_saluran(text).is_some() || text.ends_with("@newsletter") || adalah_angka_js(text)
 }
 
 #[plugin(
@@ -173,7 +163,9 @@ mod tests {
 
     #[test]
     fn saluran_valid_miripkan_js() {
-        assert!(saluran_valid("https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"));
+        assert!(saluran_valid(
+            "https://whatsapp.com/channel/0029Vb8z7S0KrWQvCa8i0J0I"
+        ));
         assert!(saluran_valid("120363411617217441@newsletter"));
         assert!(saluran_valid("123"));
         assert!(saluran_valid(""));

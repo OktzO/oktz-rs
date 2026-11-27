@@ -28,9 +28,8 @@ pub(crate) const MAX_CLAN_NAME: usize = 20;
 /// clamp tidak pernah menghasilkan pecahan.
 pub(crate) const MAX_KOIN: i64 = 9_000_000_000_000;
 
-pub(crate) const CLAN_EMBLEMS: [&str; 10] = [
-    "🐉", "🦅", "🐺", "🦁", "🔥", "⚡", "🌙", "☀️", "💎", "🗡️",
-];
+pub(crate) const CLAN_EMBLEMS: [&str; 10] =
+    ["🐉", "🦅", "🐺", "🦁", "🔥", "⚡", "🌙", "☀️", "💎", "🗡️"];
 
 /// Peta clan global, atau map kosong kalau key belum pernah ditulis —
 /// dengan `if (!db.db.data.clans) db.db.data.clans = {}` di tiap plugin.
@@ -89,11 +88,7 @@ pub(crate) fn field_str(clan: &Value, key: &str) -> String {
 
 pub(crate) fn field_str_or(clan: &Value, key: &str, default: &str) -> String {
     let v = field_str(clan, key);
-    if v.is_empty() {
-        default.to_string()
-    } else {
-        v
-    }
+    if v.is_empty() { default.to_string() } else { v }
 }
 
 /// `Number(clan.x || 0)` — nilai non-angka jadi 0, sama seperti `|| 0`.
@@ -296,7 +291,11 @@ pub fn clancreate(ctx: Ctx) -> Reply {
     let koin = ctx
         .user_field("koin")
         .and_then(Value::as_i64)
-        .or_else(|| ctx.user_field("koin").and_then(Value::as_f64).map(|f| f as i64))
+        .or_else(|| {
+            ctx.user_field("koin")
+                .and_then(Value::as_f64)
+                .map(|f| f as i64)
+        })
         .unwrap_or(0);
     if (koin as f64) < CLAN_CREATE_COST {
         return Reply::text(not_enough(koin as f64));
@@ -423,22 +422,37 @@ mod tests {
     #[test]
     fn an_empty_name_shows_help_and_writes_nothing() {
         for msg in ["", "   "] {
-            let r = run(serde_json::json!({"koin": 100_000}), msg, serde_json::json!({}));
+            let r = run(
+                serde_json::json!({"koin": 100_000}),
+                msg,
+                serde_json::json!({}),
+            );
             assert!(text_of(&r).starts_with("⚔️ *CREATE CLAN*"), "input {msg:?}");
-            assert!(text_of(&r).contains("Biaya: *Rp 50.000*"), "{}", text_of(&r));
+            assert!(
+                text_of(&r).contains("Biaya: *Rp 50.000*"),
+                "{}",
+                text_of(&r)
+            );
             assert!(r.mutations().is_empty(), "input {msg:?}");
         }
     }
 
     #[test]
     fn a_successful_create_writes_the_clan_and_charges_koin() {
-        let r = run(serde_json::json!({"koin": 120_000}), "DragonSlayer", serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 120_000}),
+            "DragonSlayer",
+            serde_json::json!({}),
+        );
         let clans = set_clans(&r);
         assert_eq!(clans.len(), 1);
         let clan = &clans["DRA"];
         assert_eq!(clan["name"], serde_json::json!("DragonSlayer"));
         assert_eq!(clan["leader"], serde_json::json!("628111@s.whatsapp.net"));
-        assert_eq!(clan["members"], serde_json::json!(["628111@s.whatsapp.net"]));
+        assert_eq!(
+            clan["members"],
+            serde_json::json!(["628111@s.whatsapp.net"])
+        );
         assert_eq!(clan["level"], serde_json::json!(1));
         assert_eq!(clan["wins"], serde_json::json!(0));
         assert_eq!(clan["isOpen"], serde_json::json!(true));
@@ -473,7 +487,11 @@ mod tests {
 
     #[test]
     fn invalid_names_are_refused_before_anything_is_written() {
-        let r = run(serde_json::json!({"koin": 100_000}), "clan@evil", serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 100_000}),
+            "clan@evil",
+            serde_json::json!({}),
+        );
         assert_eq!(
             text_of(&r),
             "❌ Nama clan hanya boleh huruf, angka, dan spasi"
@@ -481,7 +499,11 @@ mod tests {
         assert!(r.mutations().is_empty());
 
         let long = "a".repeat(MAX_CLAN_NAME + 1);
-        let r = run(serde_json::json!({"koin": 100_000}), &long, serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 100_000}),
+            &long,
+            serde_json::json!({}),
+        );
         assert_eq!(
             text_of(&r),
             format!("❌ Nama clan maksimal {MAX_CLAN_NAME} karakter")
@@ -490,7 +512,11 @@ mod tests {
 
         // Tepat 20 huruf masih diterima.
         let ok = "a".repeat(MAX_CLAN_NAME);
-        let r = run(serde_json::json!({"koin": 100_000}), &ok, serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 100_000}),
+            &ok,
+            serde_json::json!({}),
+        );
         assert_eq!(set_clans(&r).len(), 1);
     }
 
@@ -506,21 +532,44 @@ mod tests {
     fn a_member_of_another_clan_is_refused_before_the_coin_check() {
         // `user.clanId` dicek sebelum koin, jadi guild member tanpa koin tetap
         // dapat pesan "sudah punya clan".
-        let r = run(serde_json::json!({"clanId": "XYZ"}), "Baru", serde_json::json!({}));
-        assert_eq!(text_of(&r), "❌ Kamu sudah punya clan\nKeluar dulu: *.clanleave*");
+        let r = run(
+            serde_json::json!({"clanId": "XYZ"}),
+            "Baru",
+            serde_json::json!({}),
+        );
+        assert_eq!(
+            text_of(&r),
+            "❌ Kamu sudah punya clan\nKeluar dulu: *.clanleave*"
+        );
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn not_enough_koin_reports_both_sides_and_never_deducts() {
-        let r = run(serde_json::json!({"koin": 49_999}), "Baru", serde_json::json!({}));
+        let r = run(
+            serde_json::json!({"koin": 49_999}),
+            "Baru",
+            serde_json::json!({}),
+        );
         assert_eq!(text_of(&r), not_enough(49_999.0));
-        assert!(text_of(&r).contains("Punya: *Rp 49.999*"), "{}", text_of(&r));
+        assert!(
+            text_of(&r).contains("Punya: *Rp 49.999*"),
+            "{}",
+            text_of(&r)
+        );
         assert!(r.mutations().is_empty());
 
         // Tepat cukup → boleh.
-        let r = run(serde_json::json!({"koin": 50_000}), "Baru", serde_json::json!({}));
-        assert_eq!(set_user(&r)["koin"], serde_json::json!(0), "50.000 - 50.000");
+        let r = run(
+            serde_json::json!({"koin": 50_000}),
+            "Baru",
+            serde_json::json!({}),
+        );
+        assert_eq!(
+            set_user(&r)["koin"],
+            serde_json::json!(0),
+            "50.000 - 50.000"
+        );
         assert_eq!(set_user(&r)["koin"].as_i64(), Some(0));
     }
 
@@ -534,7 +583,11 @@ mod tests {
 
     #[test]
     fn a_user_row_without_koin_is_treated_as_zero() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"koin": null})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"koin": null}),
+        ] {
             let r = run(user.clone(), "Baru", serde_json::json!({}));
             assert_eq!(text_of(&r), not_enough(0.0), "input {user}");
             assert!(r.mutations().is_empty(), "input {user}");
@@ -545,7 +598,14 @@ mod tests {
     fn missing_clan_map_reads_as_an_empty_registry() {
         let ctx = Ctx::default();
         assert!(clans(&ctx).is_empty());
-        assert_eq!(clans(&Ctx { settings: serde_json::json!("bukan object"), ..Default::default() }).len(), 0);
+        assert_eq!(
+            clans(&Ctx {
+                settings: serde_json::json!("bukan object"),
+                ..Default::default()
+            })
+            .len(),
+            0
+        );
     }
 
     #[test]

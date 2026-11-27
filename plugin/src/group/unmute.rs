@@ -45,7 +45,6 @@ pub fn unmute(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run(group: serde_json::Value) -> Reply {
         let ctx = Ctx {
             prefix: ".".into(),
@@ -91,7 +90,10 @@ mod tests {
 
     #[test]
     fn alias_resolves() {
-        assert_eq!(oktz_plugin_api::find("unbisukan").unwrap().meta.name, "unmute");
+        assert_eq!(
+            oktz_plugin_api::find("unbisukan").unwrap().meta.name,
+            "unmute"
+        );
     }
 
     #[test]
@@ -104,14 +106,21 @@ mod tests {
         );
         assert_eq!(group_write(&r), &serde_json::json!({"mute": false}));
         match r.without_mutations() {
-            Reply::Text { mentions, .. } => assert_eq!(mentions, &["628111:3@s.whatsapp.net".to_string()]),
+            Reply::Text { mentions, .. } => {
+                assert_eq!(mentions, &["628111:3@s.whatsapp.net".to_string()])
+            }
             other => panic!("harus Text, dapat {other:?}"),
         }
     }
 
     #[test]
     fn a_group_that_is_not_muted_is_left_alone() {
-        for falsy in [serde_json::json!({}), serde_json::json!({"mute": false}), serde_json::json!({"mute": 0}), serde_json::json!({"mute": ""})] {
+        for falsy in [
+            serde_json::json!({}),
+            serde_json::json!({"mute": false}),
+            serde_json::json!({"mute": 0}),
+            serde_json::json!({"mute": ""}),
+        ] {
             let r = run(falsy.clone());
             assert_eq!(text_of(&r), NOT_MUTED, "input {falsy}");
             assert!(r.mutations().is_empty(), "tidak boleh menulis: {falsy}");

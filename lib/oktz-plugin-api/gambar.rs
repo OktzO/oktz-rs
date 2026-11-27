@@ -305,7 +305,10 @@ mod tests {
             panic!("thumbnail harus menolak 8000²");
         };
         assert!(e.contains("melebihi batas"), "pesan: {e}");
-        assert!(e.contains("16777216"), "batas yang disebut batas thumb: {e}");
+        assert!(
+            e.contains("16777216"),
+            "batas yang disebut batas thumb: {e}"
+        );
     }
 
     #[test]

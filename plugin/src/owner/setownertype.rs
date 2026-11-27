@@ -19,7 +19,12 @@ pub(crate) fn owner_type_saat_ini(ctx: &Ctx) -> i64 {
 /// `/^v?[1-3]$/` → id.
 pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
     let bersih = variant.trim_start_matches('v');
-    if bersih.len() == 1 && bersih.chars().next().is_some_and(|c| matches!(c, '1' | '2' | '3')) {
+    if bersih.len() == 1
+        && bersih
+            .chars()
+            .next()
+            .is_some_and(|c| matches!(c, '1' | '2' | '3'))
+    {
         bersih.parse::<i64>().ok()
     } else {
         None
@@ -28,8 +33,12 @@ pub(crate) fn parse_varian(variant: &str) -> Option<i64> {
 
 /// Teks saat pilihan variant.
 pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
-    let varian = VARIANTS.iter().find(|(id, _, _)| id == &current.to_string());
-    let (nama, _) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("Current Design", "Tampilan default saat ini"));
+    let varian = VARIANTS
+        .iter()
+        .find(|(id, _, _)| id == &current.to_string());
+    let (nama, _) = varian
+        .map(|(_, n, d)| (*n, *d))
+        .unwrap_or(("Current Design", "Tampilan default saat ini"));
     format!(
         "🎨 *sᴇᴛ ᴏᴡɴᴇʀ ᴛʏᴘᴇ*\n\n> Type saat ini: *V{current}*\n> _{}_\n\n> Pilih variant owner:",
         nama
@@ -40,7 +49,11 @@ pub(crate) fn teks_pilihan(current: i64, _nama_bot: &str) -> String {
 pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
     let mut out = Vec::new();
     for (id, nama, _) in VARIANTS {
-        let tandai = if id.parse::<i64>().unwrap_or(0) == current { " ✓" } else { "" };
+        let tandai = if id.parse::<i64>().unwrap_or(0) == current {
+            " ✓"
+        } else {
+            ""
+        };
         out.push(format!("V{id}{tandai} - {nama}"));
     }
     out
@@ -50,9 +63,7 @@ pub(crate) fn daftar_varian(current: i64) -> Vec<String> {
 pub(crate) fn berhasil_ganti(id: i64) -> String {
     let varian = VARIANTS.iter().find(|(i, _, _)| *i == id.to_string());
     let (nama, desc) = varian.map(|(_, n, d)| (*n, *d)).unwrap_or(("", ""));
-    format!(
-        "✅ Owner type diubah ke *V{id}*\n\n> *{nama}*\n> _{desc}_"
-    )
+    format!("✅ Owner type diubah ke *V{id}*\n\n> *{nama}*\n> _{desc}_")
 }
 
 #[plugin(
@@ -112,8 +123,14 @@ mod tests {
     #[test]
     fn tabel_varian_sama_dengan_js() {
         assert_eq!(VARIANTS.len(), 2);
-        assert_eq!(VARIANTS[0], ("1", "Current Design", "Tampilan default saat ini"));
-        assert_eq!(VARIANTS[1], ("2", "Multiple Contact", "Kirim contact card semua owner"));
+        assert_eq!(
+            VARIANTS[0],
+            ("1", "Current Design", "Tampilan default saat ini")
+        );
+        assert_eq!(
+            VARIANTS[1],
+            ("2", "Multiple Contact", "Kirim contact card semua owner")
+        );
     }
 
     #[test]
@@ -164,9 +181,7 @@ mod tests {
 
     #[test]
     fn teks_pilihan_bawah_dari_varian() {
-        assert!(
-            teks_pilihan(1, "Oktz").contains("Type saat ini: *V1*")
-        );
+        assert!(teks_pilihan(1, "Oktz").contains("Type saat ini: *V1*"));
         assert!(teks_pilihan(1, "Oktz").contains("Current Design"));
     }
 
@@ -211,7 +226,12 @@ mod tests {
     #[test]
     fn arg_non_varian_jatuh_ke_daftar() {
         let r = setownertype(ctx(&["abc"]));
-        assert!(r.without_mutations().text_body().unwrap().contains("Type saat ini"));
+        assert!(
+            r.without_mutations()
+                .text_body()
+                .unwrap()
+                .contains("Type saat ini")
+        );
         assert!(r.mutations().is_empty());
     }
 }

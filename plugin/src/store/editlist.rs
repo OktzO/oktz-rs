@@ -9,8 +9,8 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-
-const NO_MEDIA: &str = "🖼️ *Reply atau kirim gambar baru.*\n\nKirim gambar lalu reply dengan command ini.";
+const NO_MEDIA: &str =
+    "🖼️ *Reply atau kirim gambar baru.*\n\nKirim gambar lalu reply dengan command ini.";
 
 #[plugin(
     name = "editlist",
@@ -27,7 +27,9 @@ const NO_MEDIA: &str = "🖼️ *Reply atau kirim gambar baru.*\n\nKirim gambar 
 )]
 pub fn editlist(ctx: Ctx) -> Reply {
     if ctx.is_group {
-        return Reply::text("🚫 *Akses Ditolak*\n\nUntuk menjaga keamanan data 🛡️, pengeditan informasi hanya dapat dilakukan di *private chat*.\n\nSilakan chat bot secara langsung 📱");
+        return Reply::text(
+            "🚫 *Akses Ditolak*\n\nUntuk menjaga keamanan data 🛡️, pengeditan informasi hanya dapat dilakukan di *private chat*.\n\nSilakan chat bot secara langsung 📱",
+        );
     }
 
     let lists = ctx.setting_list("storeLists");
@@ -71,7 +73,11 @@ pub fn editlist(ctx: Ctx) -> Reply {
                 return Reply::text("❌ *Isi terlalu pendek.* Minimal 3 karakter 📝");
             }
             let content = value.replace(";;", "\n");
-            let preview = content.chars().take(80).collect::<String>().replace('\n', " ");
+            let preview = content
+                .chars()
+                .take(80)
+                .collect::<String>()
+                .replace('\n', " ");
             obj.insert("content".into(), Value::from(content));
             // : `description` ikut dihitung ulang.
             obj.insert("description".into(), Value::from(preview));
@@ -90,13 +96,16 @@ pub fn editlist(ctx: Ctx) -> Reply {
     }
 
     let mut lists: Vec<Value> = lists.to_vec();
-    let name = item["name"].as_str().unwrap_or("undefined").to_string();
+    let name = item["name"].as_str().unwrap_or("-").to_string();
     lists[idx] = item;
 
     let mut reply = String::from("✅ *INFORMASI DIPERBARUI*\n\n");
     reply.push_str(&format!("🏷️ Nama: *{name}*\n"));
     if field == "isi" {
-        reply.push_str(&format!("📝 Isi:\n{}\n\n", lists[idx]["content"].as_str().unwrap_or("")));
+        reply.push_str(&format!(
+            "📝 Isi:\n{}\n\n",
+            lists[idx]["content"].as_str().unwrap_or("")
+        ));
     }
     reply.push_str(&format!("\n👀 _Lihat perubahan: `{}list`_", ctx.prefix));
 
@@ -146,7 +155,6 @@ fn usage(prefix: &str) -> String {
          _Gunakan `;;` untuk baris baru dalam isi_ ✍️"
     )
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -199,12 +207,19 @@ mod tests {
 
     #[test]
     fn aliases_resolve() {
-        assert_eq!(oktz_plugin_api::find("editinfo").unwrap().meta.name, "editlist");
+        assert_eq!(
+            oktz_plugin_api::find("editinfo").unwrap().meta.name,
+            "editlist"
+        );
     }
 
     #[test]
     fn the_group_branch_is_rejected_and_writes_nothing() {
-        let r = run(serde_json::json!({"storeLists": [{"name": "A"}]}), "1 nama B", true);
+        let r = run(
+            serde_json::json!({"storeLists": [{"name": "A"}]}),
+            "1 nama B",
+            true,
+        );
         assert!(text_of(&r).starts_with("🚫 *Akses Ditolak*"));
         assert!(r.mutations().is_empty());
     }
@@ -219,7 +234,11 @@ mod tests {
     #[test]
     fn text_that_does_not_match_the_pattern_shows_usage() {
         for bad in ["bukan perintah", "nama erah"] {
-            let r = run(serde_json::json!({"storeLists": [{"name": "A"}]}), bad, false);
+            let r = run(
+                serde_json::json!({"storeLists": [{"name": "A"}]}),
+                bad,
+                false,
+            );
             assert!(
                 text_of(&r).starts_with("✏️ *EDIT INFORMASI TOKO*"),
                 "input {bad:?} harus menampilkan usage"
@@ -230,7 +249,11 @@ mod tests {
 
     #[test]
     fn an_out_of_range_number_is_rejected_before_writing() {
-        let r = run(serde_json::json!({"storeLists": [{"name": "A"}]}), "5 nama B", false);
+        let r = run(
+            serde_json::json!({"storeLists": [{"name": "A"}]}),
+            "5 nama B",
+            false,
+        );
         assert!(text_of(&r).contains("Nomor tidak valid."));
         assert!(text_of(&r).contains("Rentang: 1-1"));
         assert!(r.mutations().is_empty());
@@ -296,7 +319,10 @@ mod tests {
         let settings = serde_json::json!({"storeLists": [{"name": "A", "image": "u"}]});
         let img = run(settings.clone(), "1 gambar", false);
         assert!(text_of(&img).contains("🖼️ *Reply atau kirim gambar baru.*"));
-        assert!(img.mutations().is_empty(), "tidak boleh menghapus media lama");
+        assert!(
+            img.mutations().is_empty(),
+            "tidak boleh menghapus media lama"
+        );
 
         let vid = run(settings.clone(), "1 video", false);
         assert!(text_of(&vid).contains("🎬 *Reply atau kirim video baru.*"));
@@ -309,6 +335,10 @@ mod tests {
         assert_eq!(field, "nama");
         assert_eq!(value, "Baru", "nilai harus mempertahankan kapitalisasi");
         assert_eq!(parse_edit_command("2  Isi   halo").unwrap().1, "isi");
-        assert_eq!(parse_edit_command("3isi halo").unwrap().1, "isi", "\\s* nol spasi");
+        assert_eq!(
+            parse_edit_command("3isi halo").unwrap().1,
+            "isi",
+            "\\s* nol spasi"
+        );
     }
 }

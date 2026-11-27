@@ -9,11 +9,11 @@
 //! `try {} catch {}` — hasilnya TIDAK dipakai apa pun, cuma memaksa thumbnail terunduh.
 //! Request itu tetap dilakukan di sini supaya urutan dan jumlahnya sama.
 
-use oktz_plugin_api::{Ctx, Reply, plugin};
 use oktz_plugin_api::registry::InteractiveButton;
+use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;
 
-use crate::common::{js_truthy};
+use crate::common::js_truthy;
 use crate::tools::phisingataubukan::encode_uri_component;
 
 /// `config.APIkey?.neoxr || ''` — lihat catatan `Keterbatasan:`
@@ -49,7 +49,7 @@ pub(crate) const NOT_FOUND: &str = "❌ *ɢᴀɢᴀʟ*\n\n> Film tidak ditemukan
 /// `common.rs`.
 pub(crate) fn interp(v: Option<&Value>) -> String {
     match v {
-        None => "undefined".to_string(),
+        None => "-".to_string(),
         Some(Value::Null) => "null".to_string(),
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
@@ -58,7 +58,9 @@ pub(crate) fn interp(v: Option<&Value>) -> String {
 
 /// `data.stream || []`.
 pub(crate) fn streams_of(data: &Value) -> &[Value] {
-    data.get("stream").and_then(Value::as_array).map_or(&[], Vec::as_slice)
+    data.get("stream")
+        .and_then(Value::as_array)
+        .map_or(&[], Vec::as_slice)
 }
 
 /// `data.download || []`.
@@ -153,7 +155,11 @@ pub fn filmget(ctx: Ctx) -> Reply {
 
     // `try { await axios.get(film.thumbnail, …) } catch {}` — hasilnya
     // dibuang, jadi kegagalan di sini tidak menggerakkan apa pun.
-    if let Some(thumb) = film.get("thumbnail").filter(|v| js_truthy(Some(*v))).and_then(Value::as_str) {
+    if let Some(thumb) = film
+        .get("thumbnail")
+        .filter(|v| js_truthy(Some(*v)))
+        .and_then(Value::as_str)
+    {
         let _ = ctx.http.get(thumb);
     }
 
@@ -368,7 +374,11 @@ mod tests {
     fn a_missing_or_foreign_url_shows_the_usage_card_without_a_request() {
         let http = Stub::empty();
         for text in ["", "   ", "https://lk21.com/x", "neoxr eu"] {
-            assert_eq!(body_of(&run(http.clone(), text)), help("."), "input {text:?}");
+            assert_eq!(
+                body_of(&run(http.clone(), text)),
+                help("."),
+                "input {text:?}"
+            );
         }
         assert!(http.seen.lock().unwrap().is_empty());
     }
@@ -378,15 +388,36 @@ mod tests {
         let http = Stub::new(&[(FILM, DETAIL), (THUMB, "JPG")]);
         let r = run(http.clone(), "https://tv.neoxr.eu/film/civil-war-2024");
         let body = body_of(&r);
-        assert!(body.starts_with("🎬 *Civil War*\n\n╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n"), "{body}");
-        assert!(body.contains("┃ ⭐ Rating: 8.1\n┃ 📺 Quality: HD\n┃ ⏱️ Duration: 1j 49m\n"), "{body}");
-        assert!(body.contains("┃ 🎭 Genre: Action, Drama\n┃ 🎬 Director: Alex Garland\n"), "{body}");
-        assert!(body.contains("┃ 👥 Actors: Cailee Spaeny, Kirsten Dunst\n╰┈┈┈┈┈┈┈┈⬡\n\n"), "{body}");
-        assert!(body.contains("📝 *Synopsis:*\n> Juru reporter invoke rival.\n\n"), "{body}");
-        assert!(body.contains("▶️ *Streaming:*\n> 1. Srv1\n> 2. Srv2\n\n"), "{body}");
+        assert!(
+            body.starts_with("🎬 *Civil War*\n\n╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n"),
+            "{body}"
+        );
+        assert!(
+            body.contains("┃ ⭐ Rating: 8.1\n┃ 📺 Quality: HD\n┃ ⏱️ Duration: 1j 49m\n"),
+            "{body}"
+        );
+        assert!(
+            body.contains("┃ 🎭 Genre: Action, Drama\n┃ 🎬 Director: Alex Garland\n"),
+            "{body}"
+        );
+        assert!(
+            body.contains("┃ 👥 Actors: Cailee Spaeny, Kirsten Dunst\n╰┈┈┈┈┈┈┈┈⬡\n\n"),
+            "{body}"
+        );
+        assert!(
+            body.contains("📝 *Synopsis:*\n> Juru reporter invoke rival.\n\n"),
+            "{body}"
+        );
+        assert!(
+            body.contains("▶️ *Streaming:*\n> 1. Srv1\n> 2. Srv2\n\n"),
+            "{body}"
+        );
         assert!(body.contains("📥 *Download:*\n> 1. Pixeldrain\n"), "{body}");
         assert_eq!(reaction_of(&r), Some("✅"));
-        assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Interactive { .. }));
+        assert!(matches!(
+            r.without_mutations().tanpa_reaksi(),
+            Reply::Interactive { .. }
+        ));
 
         let seen = http.seen.lock().unwrap().clone();
         assert_eq!(seen.len(), 2, "film-get lalu thumbnail: {seen:?}");
@@ -435,7 +466,10 @@ mod tests {
     #[test]
     fn a_transport_failure_on_the_endpoint_reports_the_error_template() {
         let r = run(Stub::empty(), "https://tv.neoxr.eu/film/civil-war");
-        assert_eq!(body_of(&r), crate::common::error_template_bawaan(".", "filmget"));
+        assert_eq!(
+            body_of(&r),
+            crate::common::error_template_bawaan(".", "filmget")
+        );
         assert_eq!(reaction_of(&r), Some("☢"));
     }
 

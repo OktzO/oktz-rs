@@ -86,7 +86,6 @@ pub fn autoread(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
 
-
     fn run(prefix: &str, text: &str, settings: Value) -> Reply {
         let ctx = Ctx {
             prefix: prefix.into(),
@@ -223,7 +222,12 @@ mod tests {
 
     #[test]
     fn a_stored_value_is_read_back_as_the_status() {
-        for truthy in [serde_json::json!(true), serde_json::json!(1), serde_json::json!("ya"), serde_json::json!({})] {
+        for truthy in [
+            serde_json::json!(true),
+            serde_json::json!(1),
+            serde_json::json!("ya"),
+            serde_json::json!({}),
+        ] {
             let r = run(".", "", serde_json::json!({KEY: truthy.clone()}));
             assert!(text_of(&r).contains("Status: *Aktif ✅*"), "{truthy}");
         }

@@ -430,7 +430,9 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body().expect("plugin harus membalas teks").to_string()
+        r.text_body()
+            .expect("plugin harus membalas teks")
+            .to_string()
     }
 
     #[test]
@@ -455,8 +457,14 @@ mod tests {
         // versi awal: ``` `${quote}` dengan kutip literal `"` di kedua sisi.
         for _ in 0..50 {
             let t = text_of(&run("")).to_string();
-            assert!(t.starts_with("```\""), "harus mulai dengan fence+kutip: {t}");
-            assert!(t.ends_with("```\n\n"), "harus diakhiri fence + 2 newline: {t:?}");
+            assert!(
+                t.starts_with("```\""),
+                "harus mulai dengan fence+kutip: {t}"
+            );
+            assert!(
+                t.ends_with("```\n\n"),
+                "harus diakhiri fence + 2 newline: {t:?}"
+            );
             let inner = &t[4..t.len() - 5];
             let inner = inner.strip_suffix('"').unwrap();
             assert!(BUCIN.contains(&inner), "di luar daftar JSON: {inner}");
@@ -473,7 +481,10 @@ mod tests {
     #[test]
     fn the_table_is_the_three_hundred_sixty_five_entries_of_bucin_json() {
         assert_eq!(BUCIN.len(), 365);
-        assert_eq!(BUCIN[0], "Orang bilang jadi penyair itu susah Nggak Mereka belum jatuh cinta aja");
+        assert_eq!(
+            BUCIN[0],
+            "Orang bilang jadi penyair itu susah Nggak Mereka belum jatuh cinta aja"
+        );
         assert_eq!(BUCIN[364], "Cukup antartika aja yang jauh Antarkita jangan");
     }
 }

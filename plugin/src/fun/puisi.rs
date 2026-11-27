@@ -76,9 +76,7 @@ fn error_branch(ctx: &Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{
-        HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store,
-    };
+    use oktz_plugin_api::{HttpBody, HttpError, HttpGet, HttpResponse, find, new_session_store};
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
 
@@ -179,7 +177,8 @@ mod tests {
 
     #[test]
     fn a_successful_response_is_replied_verbatim_and_reacts_success() {
-        let body = r#"{"status":true,"data":{"text":"Rindu itu,\nmenyulam malam ☾\n  tanpa bintang."}}"#;
+        let body =
+            r#"{"status":true,"data":{"text":"Rindu itu,\nmenyulam malam ☾\n  tanpa bintang."}}"#;
         let r = run(Stub::json(body));
         assert_eq!(
             text_of(&r),

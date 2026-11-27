@@ -3,7 +3,7 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-use crate::rpg::heal::{apply_exp, math_random, or_default, rpg_int, rpg_map, roll_incl};
+use crate::rpg::heal::{apply_exp, math_random, or_default, roll_incl, rpg_int, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
 
 const SUCCESS_RATE: f64 = 0.5;
@@ -109,7 +109,10 @@ mod tests {
         assert_eq!(p.meta.name, "crime");
         assert_eq!(p.meta.alias, ["jahat"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(p.meta.description, "Melakukan kejahatan membobol ATM (risiko tinggi)");
+        assert_eq!(
+            p.meta.description,
+            "Melakukan kejahatan membobol ATM (risiko tinggi)"
+        );
         assert_eq!(p.meta.usage, ".crime");
         assert_eq!(p.meta.example, ".crime");
         assert_eq!(p.meta.cooldown, 300);
@@ -133,8 +136,15 @@ mod tests {
                 win += 1;
                 let stolen = data["koin"].as_i64().unwrap() - 100_000;
                 assert!((5_000..=19_999).contains(&stolen), "curian {stolen}");
-                assert_eq!(data["exp"], serde_json::json!(stolen / 20), "exp = curian / 20");
-                assert!(t.contains(&format!("*+Rp {}*", thousands_id(stolen as f64))), "{t}");
+                assert_eq!(
+                    data["exp"],
+                    serde_json::json!(stolen / 20),
+                    "exp = curian / 20"
+                );
+                assert!(
+                    t.contains(&format!("*+Rp {}*", thousands_id(stolen as f64))),
+                    "{t}"
+                );
                 assert!(data["rpg"].get("health").is_none(), "k menang tak kena HP");
             } else {
                 caught += 1;
@@ -142,7 +152,10 @@ mod tests {
                 assert!((5_000..=14_999).contains(&fine), "denda {fine}");
                 let health = data["rpg"]["health"].as_i64().unwrap();
                 assert!((85..=100).contains(&health), "HP {health}");
-                assert!(t.contains(&format!("*-Rp {}*", thousands_id(fine as f64))), "{t}");
+                assert!(
+                    t.contains(&format!("*-Rp {}*", thousands_id(fine as f64))),
+                    "{t}"
+                );
                 assert!(data.get("exp").is_none(), "kalah tak dapat exp");
             }
         }
@@ -170,16 +183,27 @@ mod tests {
         for _ in 0..600 {
             let r = run(serde_json::json!({ "koin": 50_000, "rpg": { "health": 3 } }));
             if text_of(&r).starts_with("NGIIING") {
-                assert_eq!(write_of(&r)["rpg"]["health"], serde_json::json!(0), "Math.max(0, 3 - 15)");
+                assert_eq!(
+                    write_of(&r)["rpg"]["health"],
+                    serde_json::json!(0),
+                    "Math.max(0, 3 - 15)"
+                );
                 floored = true;
             }
         }
-        assert!(floored, "dalam 600 percobaan harus ada yang menyentuh lantai");
+        assert!(
+            floored,
+            "dalam 600 percobaan harus ada yang menyentuh lantai"
+        );
     }
 
     #[test]
     fn a_missing_user_row_never_panics() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "koin": null })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "koin": null }),
+        ] {
             let r = run(user.clone());
             assert!(!text_of(&r).is_empty(), "input {user}");
         }

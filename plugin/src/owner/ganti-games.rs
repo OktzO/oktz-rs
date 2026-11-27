@@ -50,7 +50,10 @@ mod tests {
         assert_eq!(p.meta.name, "ganti-games.jpg");
         assert_eq!(p.meta.alias, ["gantigames", "setgames"]);
         assert_eq!(p.meta.category, "owner");
-        assert_eq!(p.meta.description, "Ganti gambar games.jpg (thumbnail games)");
+        assert_eq!(
+            p.meta.description,
+            "Ganti gambar games.jpg (thumbnail games)"
+        );
         assert_eq!(p.meta.usage, ".ganti-games.jpg (reply/kirim gambar)");
         assert_eq!(p.meta.example, ".ganti-games.jpg");
         assert_eq!(p.meta.cooldown, 5);
@@ -124,7 +127,7 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
+                timestamp: 0,
             }),
             media_fetch: Arc::new(oktz_plugin_api::NoMediaFetch),
             ..Ctx::default()

@@ -218,8 +218,8 @@ fn elemen_mulai(
             break;
         }
         if !nama.is_empty() && !isi_tag.starts_with('/') && cocok(&nama, &isi_tag) {
-            let kosong = isi_tag.ends_with('/')
-                || TAG_KOSONG.iter().any(|t| nama.eq_ignore_ascii_case(t));
+            let kosong =
+                isi_tag.ends_with('/') || TAG_KOSONG.iter().any(|t| nama.eq_ignore_ascii_case(t));
             let (akhir, isi_akhir) = if kosong {
                 (isi_awal.min(sampai), isi_awal)
             } else {
@@ -267,10 +267,17 @@ fn buang_tag(s: &str) -> String {
 
 /// `String#trim` JS (termasuk NBSP dan spasi Unicode lain).
 fn spasi_js(c: char) -> bool {
-    matches!(c,
-        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}'
-        | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}'
-        | '\u{3000}' | '\u{FEFF}')
+    matches!(
+        c,
+        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
 }
 
 fn trim_js(s: &str) -> &str {

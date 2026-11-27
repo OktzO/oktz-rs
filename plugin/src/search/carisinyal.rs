@@ -88,9 +88,7 @@ fn scan_tags(html: &str) -> Vec<Tag> {
             j += 1;
         }
         let name_start = j;
-        while j < bytes.len()
-            && !matches!(bytes[j], b'>' | b'/' | b' ' | b'\t' | b'\n' | b'\r')
-        {
+        while j < bytes.len() && !matches!(bytes[j], b'>' | b'/' | b' ' | b'\t' | b'\n' | b'\r') {
             j += 1;
         }
         if j >= bytes.len() {
@@ -115,7 +113,10 @@ fn attr(attrs: &str, name: &str) -> Option<String> {
     let mut at = 0;
     while let Some(pos) = attrs[at..].find(name) {
         let s = at + pos;
-        let before_ok = attrs[..s].chars().next_back().is_some_and(char::is_whitespace);
+        let before_ok = attrs[..s]
+            .chars()
+            .next_back()
+            .is_some_and(char::is_whitespace);
         let after = attrs[s + name.len()..].chars().next();
         if before_ok && after == Some('=') {
             let rest = &attrs[s + name.len() + 1..];
@@ -133,8 +134,7 @@ fn attr(attrs: &str, name: &str) -> Option<String> {
 
 /// Token class persis — `class="oxy-post-title"` bukan `oxy-post`.
 fn has_class(attrs: &str, class: &str) -> bool {
-    attr(attrs, "class")
-        .is_some_and(|v| v.split_whitespace().any(|c| c == class))
+    attr(attrs, "class").is_some_and(|v| v.split_whitespace().any(|c| c == class))
 }
 
 /// Rentang isi elemen: dari ujung tag pembuka sampai `<` tag penutup
@@ -181,14 +181,16 @@ fn first_class(html: &str, class: &str) -> Option<(Option<String>, String)> {
     let idx = tags
         .iter()
         .position(|t| !t.closing && has_class(&t.attrs, class))?;
-    Some((attr(&tags[idx].attrs, "href"), text_content(html, &tags, idx)))
+    Some((
+        attr(&tags[idx].attrs, "href"),
+        text_content(html, &tags, idx),
+    ))
 }
 
 /// `$("h1").first().text()`.
 pub(crate) fn first_h1(html: &str) -> String {
     let tags = scan_tags(html);
-    tags
-        .iter()
+    tags.iter()
         .position(|t| !t.closing && t.name == "h1")
         .map_or(String::new(), |i| text_content(html, &tags, i))
 }
@@ -196,9 +198,10 @@ pub(crate) fn first_h1(html: &str) -> String {
 /// `$('meta[property="og:image"]').attr("content")` — `None` kalau tidak ada.
 pub(crate) fn meta_content(html: &str, attr_name: &str, wanted: &str) -> Option<String> {
     let tags = scan_tags(html);
-    tags
-        .iter()
-        .find(|t| !t.closing && t.name == "meta" && attr(&t.attrs, attr_name) == Some(wanted.to_string()))
+    tags.iter()
+        .find(|t| {
+            !t.closing && t.name == "meta" && attr(&t.attrs, attr_name) == Some(wanted.to_string())
+        })
         .and_then(|t| attr(&t.attrs, "content"))
 }
 
@@ -600,10 +603,7 @@ mod tests {
             search_url("oppo a3s"),
             "https://carisinyal.com/?s=oppo%20a3s"
         );
-        assert_eq!(
-            search_url("a&b"),
-            "https://carisinyal.com/?s=a%26b"
-        );
+        assert_eq!(search_url("a&b"), "https://carisinyal.com/?s=a%26b");
     }
 
     #[test]
@@ -624,7 +624,11 @@ mod tests {
     fn the_phone_hit_wins_over_the_first_result() {
         let hits = parse_search(DAFTAR);
         assert_eq!(hits.len(), 2);
-        assert_eq!(pick_phone(&hits).title, "OPPO A3s", "meta PONSEL harus menang");
+        assert_eq!(
+            pick_phone(&hits).title,
+            "OPPO A3s",
+            "meta PONSEL harus menang"
+        );
         assert_eq!(pick_phone(&hits[1..]).title, "OPPO A3s");
     }
 
@@ -646,9 +650,21 @@ mod tests {
         </table>"#;
         let specs = parse_specs(html);
         assert_eq!(specs.get(&["RAM"]), Some("4 GB"), "nilai kedua menimpa");
-        assert_eq!(specs.get(&["CPU"]), None, "baris dengan nilai kosong diabaikan");
-        assert_eq!(specs.get(&["Di luar"]), None, "tr tanpa class box-baris diabaikan");
-        assert_eq!(specs.get(&["Tidak ada", "RAM"]), Some("4 GB"), "kunci dicoba berurutan");
+        assert_eq!(
+            specs.get(&["CPU"]),
+            None,
+            "baris dengan nilai kosong diabaikan"
+        );
+        assert_eq!(
+            specs.get(&["Di luar"]),
+            None,
+            "tr tanpa class box-baris diabaikan"
+        );
+        assert_eq!(
+            specs.get(&["Tidak ada", "RAM"]),
+            Some("4 GB"),
+            "kunci dicoba berurutan"
+        );
     }
 
     #[test]
@@ -659,11 +675,20 @@ mod tests {
         assert!(c.contains("📅 *Rilis:* 2018/07\n"), "{c}");
         assert!(c.contains("📶 *Jaringan:* GSM / HSPA / LTE\n\n"), "{c}");
         assert!(c.contains("🖥️ *LAYAR*\n- *Tipe:* IPS LCD\n"), "{c}");
-        assert!(c.contains("⚙️ *PERFORMA & MEMORI*\n- *Chipset:* MediaTek Helio P23\n"), "{c}");
-        assert!(c.contains("📸 *KAMERA UTAMA*\n- *Jumlah:* 1 Kamera\n"), "{c}");
+        assert!(
+            c.contains("⚙️ *PERFORMA & MEMORI*\n- *Chipset:* MediaTek Helio P23\n"),
+            "{c}"
+        );
+        assert!(
+            c.contains("📸 *KAMERA UTAMA*\n- *Jumlah:* 1 Kamera\n"),
+            "{c}"
+        );
         assert!(c.contains("🔋 *BATERAI*\n- *Kapasitas:* 4230 mAh\n"), "{c}");
         assert!(c.contains("- *Sensor:* Accelerometer, proximity\n"), "{c}");
-        assert!(!c.contains("NFC"), "baris tanpa nilai tidak boleh muncul: {c}");
+        assert!(
+            !c.contains("NFC"),
+            "baris tanpa nilai tidak boleh muncul: {c}"
+        );
         assert!(c.ends_with("\n🔗 *Sumber:* Carisinyal"), "{c}");
     }
 
@@ -672,7 +697,13 @@ mod tests {
         let c = format_caption("HP Tanpa Data", &Specs::default());
         // versi awal men-uppercase judul, dan baris 159 menambah
         // satu `\n` kosong sebelum heading LAYAR meski data kosong.
-        assert_eq!(c, format!("📱 *SPESIFIKASI {}*\n\n\n🖥️ *LAYAR*\n\n⚙️ *PERFORMA & MEMORI*\n\n📸 *KAMERA UTAMA*\n\n🔋 *BATERAI*\n\n📡 *KONEKTIVITAS & LAINNYA*\n\n🔗 *Sumber:* Carisinyal", "HP TANPA DATA"));
+        assert_eq!(
+            c,
+            format!(
+                "📱 *SPESIFIKASI {}*\n\n\n🖥️ *LAYAR*\n\n⚙️ *PERFORMA & MEMORI*\n\n📸 *KAMERA UTAMA*\n\n🔋 *BATERAI*\n\n📡 *KONEKTIVITAS & LAINNYA*\n\n🔗 *Sumber:* Carisinyal",
+                "HP TANPA DATA"
+            )
+        );
     }
 
     #[test]
@@ -706,7 +737,11 @@ mod tests {
     fn a_detail_page_without_an_image_falls_back_to_plain_text() {
         let html = "<h1>HP Murahan</h1>";
         let r = run(Stub::new(DAFTAR, html), "hp");
-        assert!(body_of(&r).starts_with("📱 *SPESIFIKASI HP MURAHAN*"), "{}", body_of(&r));
+        assert!(
+            body_of(&r).starts_with("📱 *SPESIFIKASI HP MURAHAN*"),
+            "{}",
+            body_of(&r)
+        );
         assert!(!r.has_media());
         assert_eq!(reaction_of(&r), Some("✅"));
     }

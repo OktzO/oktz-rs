@@ -108,13 +108,11 @@ fn alur(http: &dyn HttpGet, path: &str, jeda_ms: u64) -> Result<Value, HttpError
         message: e.to_string(),
     })?;
 
-    let res = http.call(
-        &header_dasar(HttpCall::post(CREATE_URL)).json(&json!({
-            "model": 3,
-            "image": format!("data:image/jpeg;base64,{}", base64_encode(&img)),
-            "settings": SETTINGS,
-        })),
-    )?;
+    let res = http.call(&header_dasar(HttpCall::post(CREATE_URL)).json(&json!({
+        "model": 3,
+        "image": format!("data:image/jpeg;base64,{}", base64_encode(&img)),
+        "settings": SETTINGS,
+    })))?;
     if !(200..300).contains(&res.status) {
         return Err(HttpError {
             message: format!("Request failed with status code {}", res.status),
@@ -126,9 +124,8 @@ fn alur(http: &dyn HttpGet, path: &str, jeda_ms: u64) -> Result<Value, HttpError
     for _ in 0..PERCOBAAN {
         // `await new Promise(r => setTimeout(r, 2500))` di awal perulangan.
         std::thread::sleep(Duration::from_millis(jeda_ms));
-        let res = http.call(
-            &header_dasar(HttpCall::post(RESULT_URL)).json(&json!({ "task_id": id })),
-        )?;
+        let res =
+            http.call(&header_dasar(HttpCall::post(RESULT_URL)).json(&json!({ "task_id": id })))?;
         if !(200..300).contains(&res.status) {
             return Err(HttpError {
                 message: format!("Request failed with status code {}", res.status),
@@ -255,7 +252,10 @@ mod tests {
     fn membuat_tugas_lalu_mengembalikan_output_pada_percobaan_pertama() {
         let http = StubHttp::baru(&[
             (200, r#"{"data":{"id":"tugas-1"}}"#),
-            (200, r#"{"data":{"output":"https://out/1.png","input":"https://in/1.png"}}"#),
+            (
+                200,
+                r#"{"data":{"output":"https://out/1.png","input":"https://in/1.png"}}"#,
+            ),
         ]);
         let hasil = alur(&http, berkas_semu().to_str().unwrap(), 0).unwrap();
 
@@ -273,17 +273,29 @@ mod tests {
                 .find(|(k, _)| k.eq_ignore_ascii_case(nama))
                 .map(|(_, v)| v.clone())
         };
-        assert_eq!(cari(&p[0], "origin"), Some("https://aienhancer.ai".to_string()));
+        assert_eq!(
+            cari(&p[0], "origin"),
+            Some("https://aienhancer.ai".to_string())
+        );
         assert_eq!(
             cari(&p[0], "referer"),
             Some("https://aienhancer.ai/ai-image-upscaler".to_string())
         );
-        assert_eq!(cari(&p[0], "User-Agent"), Some("Mozilla/5.0 (Linux; Android 10)".to_string()));
+        assert_eq!(
+            cari(&p[0], "User-Agent"),
+            Some("Mozilla/5.0 (Linux; Android 10)".to_string())
+        );
         // Body create: model, data URI base64, settings apa adanya.
         let badan = String::from_utf8(p[0].body.as_ref().unwrap().bytes().to_vec()).unwrap();
         assert!(badan.contains(r#""model":3"#), "{badan}");
-        assert!(badan.contains(r#""image":"data:image/jpeg;base64,/9j/2Q=="#), "{badan}");
-        assert!(badan.contains(r#""settings":"kRpBbpnRCD2nL2RxnnuoMo7MBc0zHndTDkWMl9aW+Gw=""#), "{badan}");
+        assert!(
+            badan.contains(r#""image":"data:image/jpeg;base64,/9j/2Q=="#),
+            "{badan}"
+        );
+        assert!(
+            badan.contains(r#""settings":"kRpBbpnRCD2nL2RxnnuoMo7MBc0zHndTDkWMl9aW+Gw=""#),
+            "{badan}"
+        );
         assert_eq!(
             String::from_utf8(p[1].body.as_ref().unwrap().bytes().to_vec()).unwrap(),
             r#"{"task_id":"tugas-1"}"#

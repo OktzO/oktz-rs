@@ -17,10 +17,7 @@ pub(crate) fn settings_with(ctx: &Ctx, on: bool) -> serde_json::Value {
         .user_field("settings")
         .and_then(|v| v.as_object().cloned())
         .unwrap_or_default();
-    settings.insert(
-        "rpgLevelupNotif".to_string(),
-        serde_json::Value::Bool(on),
-    );
+    settings.insert("rpgLevelupNotif".to_string(), serde_json::Value::Bool(on));
     serde_json::Value::Object(settings)
 }
 
@@ -31,7 +28,11 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
          *📋 *ᴜsᴀɢᴇ:*\n\n\
          > > `{}leveluprpg on` - Aktifkan\n\
          > > `{}leveluprpg off` - Nonaktifkan\n",
-        if current_enabled(ctx) { "ON ✅" } else { "OFF ❌" },
+        if current_enabled(ctx) {
+            "ON ✅"
+        } else {
+            "OFF ❌"
+        },
         ctx.prefix,
         ctx.prefix
     )
@@ -72,7 +73,7 @@ pub fn leveluprpg(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(user: Value, arg: &str) -> Reply {
         let ctx = Ctx {
@@ -81,7 +82,11 @@ mod tests {
             sender: "628111@s.whatsapp.net".into(),
             chat: "628111@s.whatsapp.net".into(),
             text: arg.into(),
-            args: if arg.is_empty() { vec![] } else { vec![arg.into()] },
+            args: if arg.is_empty() {
+                vec![]
+            } else {
+                vec![arg.into()]
+            },
             user_data: user,
             ..Default::default()
         };
@@ -127,7 +132,11 @@ mod tests {
     #[test]
     fn the_default_when_the_flag_is_absent_is_on() {
         assert!(current_enabled(&Ctx::default()));
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({"settings": {}})] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"settings": {}}),
+        ] {
             assert!(
                 text_of(&run(user.clone(), "")).contains("ON ✅"),
                 "input {user}"
@@ -164,7 +173,11 @@ mod tests {
         let user = serde_json::json!({"settings": {"levelupNotif": false}});
         let __balasan = run(user.clone(), "on");
         let s = settings_of(&__balasan);
-        assert_eq!(s["levelupNotif"], serde_json::json!(false), "harus tetap false");
+        assert_eq!(
+            s["levelupNotif"],
+            serde_json::json!(false),
+            "harus tetap false"
+        );
         assert_eq!(s["rpgLevelupNotif"], serde_json::json!(true));
     }
 
@@ -198,7 +211,11 @@ mod tests {
     #[test]
     fn the_switch_reply_is_paired_with_the_write() {
         for arg in ["on", "off"] {
-            assert_eq!(run(serde_json::json!({}), arg).mutations().len(), 1, "arg {arg}");
+            assert_eq!(
+                run(serde_json::json!({}), arg).mutations().len(),
+                1,
+                "arg {arg}"
+            );
         }
     }
 

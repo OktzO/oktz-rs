@@ -9,17 +9,17 @@
 pub mod bot;
 pub(crate) mod bridge;
 pub mod cards;
-pub mod tabel;
 pub mod creds;
 pub mod grup_event;
+pub mod media_fetch;
 pub mod pairing;
 pub mod pairing_run;
-pub mod media_fetch;
 pub mod pesan_grup;
 pub mod pipeline;
 pub mod pipeline_gate;
 pub mod reply_variant;
 pub(crate) mod retry_quarantine;
+pub mod tabel;
 // Builder wire balasan rich (V2, list, AIRich, prepared rich).
 pub mod rich;
 pub mod rss;
@@ -29,11 +29,11 @@ pub mod ui;
 pub use bot::{build_device, connect_device, prepare_store};
 pub use cards::{biz_node, build_card, build_list};
 pub use creds::{DeviceMapping, inspect_creds};
+pub use pipeline::ReplyTarget;
 pub use pipeline::{
     ClientSender, Dedup, Identity, MessageSender, Outcome, PendingMedia, Pipeline, PipelineError,
     RosterSource, SendBox, SendBoxRoster, StoreContext, normalize_user_key,
 };
-pub use pipeline::ReplyTarget;
 pub use pipeline_gate::GateState;
 pub use whatsapp_rust::bot::BotHandle;
 

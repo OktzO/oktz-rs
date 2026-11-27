@@ -67,12 +67,7 @@ pub(crate) fn sisaumur_text(ctx: &Ctx, tahun: u32, bulan: u32, hari: u32) -> Str
 )]
 pub fn ceksisaumur(ctx: Ctx) -> Reply {
     Reply::Text {
-        text: sisaumur_text(
-            &ctx,
-            sisaumur_tahun(),
-            sisaumur_bulan(),
-            sisaumur_hari(),
-        ),
+        text: sisaumur_text(&ctx, sisaumur_tahun(), sisaumur_bulan(), sisaumur_hari()),
         mentions: crate::common::mention_target(&ctx),
     }
 }
@@ -172,8 +167,14 @@ mod tests {
         for _ in 0..2000 {
             let (text, _) = split(&run(ctx_with(Some(OTHER))));
             let (tahun, bulan, hari) = durasi_of(&text);
-            assert!((20..=99).contains(&tahun), "tahun di luar rentang JS: {tahun}");
-            assert!((0..=11).contains(&bulan), "bulan di luar rentang JS: {bulan}");
+            assert!(
+                (20..=99).contains(&tahun),
+                "tahun di luar rentang JS: {tahun}"
+            );
+            assert!(
+                (0..=11).contains(&bulan),
+                "bulan di luar rentang JS: {bulan}"
+            );
             assert!((0..=29).contains(&hari), "hari di luar rentang JS: {hari}");
             let hits: Vec<usize> = TIERS
                 .iter()
@@ -181,8 +182,16 @@ mod tests {
                 .filter(|(_, t)| text.contains(**t))
                 .map(|(i, _)| i)
                 .collect();
-            assert_eq!(hits.len(), 1, "harus tepat satu tier, dapat {hits:?}: {text}");
-            assert_eq!(TIERS[hits[0]], sisaumur_desc(tahun), "tier beda dari ambang: {text}");
+            assert_eq!(
+                hits.len(),
+                1,
+                "harus tepat satu tier, dapat {hits:?}: {text}"
+            );
+            assert_eq!(
+                TIERS[hits[0]],
+                sisaumur_desc(tahun),
+                "tier beda dari ambang: {text}"
+            );
         }
     }
 

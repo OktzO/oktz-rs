@@ -24,11 +24,16 @@ fn emoji_for_item(name: &str) -> &'static str {
 
 fn format_stock(d: &Value) -> String {
     let mut lines = Vec::new();
-    lines.push(format!("*{}*", d.get("message").and_then(Value::as_str).unwrap_or("")));
+    lines.push(format!(
+        "*{}*",
+        d.get("message").and_then(Value::as_str).unwrap_or("")
+    ));
     lines.push(String::new());
     lines.push(format!(
         "- ⏰ Restock in : *{}*",
-        d.get("restockInLabel").and_then(Value::as_str).unwrap_or("")
+        d.get("restockInLabel")
+            .and_then(Value::as_str)
+            .unwrap_or("")
     ));
     lines.push(format!(
         "- 🔄 Rotation   : *{} (cycle {}s)*",
@@ -40,10 +45,18 @@ fn format_stock(d: &Value) -> String {
         d.get("status").and_then(Value::as_str).unwrap_or(""),
         d.get("staleness").and_then(Value::as_str).unwrap_or("")
     ));
-    let cache = d.get("cache").and_then(Value::as_object).cloned().unwrap_or_default();
+    let cache = d
+        .get("cache")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     lines.push(format!(
         "- 💾 Cache      : *{} (age {}s/{}s)*",
-        if cache.get("servedFromCache").and_then(Value::as_bool).unwrap_or(false) {
+        if cache
+            .get("servedFromCache")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             "HIT"
         } else {
             "MISS"
@@ -54,11 +67,18 @@ fn format_stock(d: &Value) -> String {
     lines.push(String::new());
 
     if let Some(weather) = d.get("weather").and_then(Value::as_object)
-        && weather.get("active").and_then(Value::as_bool).unwrap_or(false)
+        && weather
+            .get("active")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
     {
         lines.push(format!(
             "- ⛅ *WEATHER: {}*",
-            weather.get("type").and_then(Value::as_str).unwrap_or("").to_uppercase()
+            weather
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_uppercase()
         ));
         if let Some(effects) = weather.get("effects").and_then(Value::as_array) {
             for eff in effects {
@@ -109,10 +129,7 @@ fn gag2_fetch(http: &dyn oktz_plugin_api::HttpGet) -> Result<Value, String> {
             .to_string();
         return Err(err);
     }
-    Ok(data
-        .get("data")
-        .cloned()
-        .unwrap_or(Value::Null))
+    Ok(data.get("data").cloned().unwrap_or(Value::Null))
 }
 
 #[plugin(
@@ -200,7 +217,13 @@ mod tests {
             Ok(HttpResponse {
                 status: 200,
                 body: HttpBody::Bytes {
-                    data: Arc::from(self.body.clone().unwrap_or(Value::Null).to_string().into_bytes()),
+                    data: Arc::from(
+                        self.body
+                            .clone()
+                            .unwrap_or(Value::Null)
+                            .to_string()
+                            .into_bytes(),
+                    ),
                     mimetype: None,
                 },
                 headers: Vec::new(),
@@ -212,7 +235,11 @@ mod tests {
         fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> {
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
             unimplemented!()
         }
     }
@@ -244,7 +271,10 @@ mod tests {
 
     #[test]
     fn alias_growagarden2_menunjuk_ke_gag2() {
-        assert_eq!(oktz_plugin_api::find("growagarden2").unwrap().meta.name, "gag2");
+        assert_eq!(
+            oktz_plugin_api::find("growagarden2").unwrap().meta.name,
+            "gag2"
+        );
     }
 
     #[test]

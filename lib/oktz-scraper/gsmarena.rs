@@ -35,7 +35,10 @@ const BASE: &str = "https://www.gsmarena.com";
 /// `search(query)` (`gsmarena.js:3-5` → `search.js:4`).
 pub fn search(http: &dyn HttpGet, query: &str) -> Result<Value, HttpError> {
     // `searchValue` disisipkan apa adanya — JS tidak melakukan encode.
-    let html = ambil(http, &format!("/results.php3?sQuickSearch=yes&sName={query}"))?;
+    let html = ambil(
+        http,
+        &format!("/results.php3?sQuickSearch=yes&sName={query}"),
+    )?;
     let li = di_dalam(
         &html,
         &semua_elemen(&html, 0, html.len(), &|_, isi| punya_kelas(isi, "makers")),
@@ -57,7 +60,10 @@ pub fn search(http: &dyn HttpGet, query: &str) -> Result<Value, HttpError> {
         };
         // `.html().split('<br>').join(' ')` — Unlike `getDevices` yang memakai
         // `.text()`, `<br>` di sini diganti spasi, bukan dibuang.
-        let name = html_dalam(&html, &span).split("<br>").collect::<Vec<_>>().join(" ");
+        let name = html_dalam(&html, &span)
+            .split("<br>")
+            .collect::<Vec<_>>()
+            .join(" ");
         let mut o = Map::new();
         o.insert("id".to_string(), json!(id));
         o.insert("name".to_string(), json!(name));
@@ -106,8 +112,7 @@ pub fn detail(http: &dyn HttpGet, device_id: &str) -> Result<Value, HttpError> {
         (
             "Chipset",
             teks_selector(&html, &|nama, isi| {
-                nama.eq_ignore_ascii_case("div")
-                    && atribut_bernilai(isi, "data-spec", "chipset-hl")
+                nama.eq_ignore_ascii_case("div") && atribut_bernilai(isi, "data-spec", "chipset-hl")
             }),
         ),
         (
@@ -117,8 +122,7 @@ pub fn detail(http: &dyn HttpGet, device_id: &str) -> Result<Value, HttpError> {
         (
             "Battery type",
             teks_selector(&html, &|nama, isi| {
-                nama.eq_ignore_ascii_case("div")
-                    && atribut_bernilai(isi, "data-spec", "battype-hl")
+                nama.eq_ignore_ascii_case("div") && atribut_bernilai(isi, "data-spec", "battype-hl")
             }),
         ),
     ]
@@ -172,10 +176,10 @@ pub fn detail(http: &dyn HttpGet, device_id: &str) -> Result<Value, HttpError> {
     let mut o = Map::new();
     o.insert(
         "name".to_string(),
-        json!(teks_selector(
-            &html,
-            &|_, isi| punya_kelas(isi, "specs-phone-name-title")
-        )),
+        json!(teks_selector(&html, &|_, isi| punya_kelas(
+            isi,
+            "specs-phone-name-title"
+        ))),
     );
     sisipkan_atribut(&mut o, "img", foto);
     o.insert("detailSpec".to_string(), Value::Array(detail_spec));
@@ -189,7 +193,9 @@ pub fn brands(http: &dyn HttpGet) -> Result<Value, HttpError> {
     // `$('table').find('td')` — td di dalam tabel mana pun yang cocok.
     let td = di_dalam(
         &html,
-        &semua_elemen(&html, 0, html.len(), &|nama, _| nama.eq_ignore_ascii_case("table")),
+        &semua_elemen(&html, 0, html.len(), &|nama, _| {
+            nama.eq_ignore_ascii_case("table")
+        }),
         &|nama, _| nama.eq_ignore_ascii_case("td"),
     );
 
@@ -198,10 +204,7 @@ pub fn brands(http: &dyn HttpGet) -> Result<Value, HttpError> {
         let anchors = semua_elemen(&html, e.isi_awal, e.isi_akhir, &|nama, _| {
             nama.eq_ignore_ascii_case("a")
         });
-        let Some(href) = anchors
-            .first()
-            .and_then(|a| atribut(&a.isi_tag, "href"))
-        else {
+        let Some(href) = anchors.first().and_then(|a| atribut(&a.isi_tag, "href")) else {
             return Err(tipe_error("replace", false));
         };
         let mut nama_brand: String = anchors
@@ -266,9 +269,11 @@ fn perangkat(html: &str) -> Result<Vec<Value>, HttpError> {
         o.insert("id".to_string(), json!(id));
         o.insert(
             "name".to_string(),
-            json!(span_pertama(html, &e)
-                .map(|s| teks_elemen(html, &s))
-                .unwrap_or_default()),
+            json!(
+                span_pertama(html, &e)
+                    .map(|s| teks_elemen(html, &s))
+                    .unwrap_or_default()
+            ),
         );
         sisipkan_atribut(&mut o, "img", src);
         sisipkan_atribut(&mut o, "description", title);
@@ -295,10 +300,11 @@ fn berikutnya(html: &str) -> Option<String> {
 /// `$(el).find('a').attr('href').replace('.php','')` — `attr` yang `undefined`
 /// melempar `TypeError` di JS.
 fn id_dari_a(html: &str, e: &Elemen) -> Result<String, HttpError> {
-    let href =
-        pertama_elemen(html, e.isi_awal, e.isi_akhir, &|nama, _| nama.eq_ignore_ascii_case("a"))
-            .and_then(|a| atribut(&a.isi_tag, "href"))
-            .ok_or_else(|| tipe_error("replace", false))?;
+    let href = pertama_elemen(html, e.isi_awal, e.isi_akhir, &|nama, _| {
+        nama.eq_ignore_ascii_case("a")
+    })
+    .and_then(|a| atribut(&a.isi_tag, "href"))
+    .ok_or_else(|| tipe_error("replace", false))?;
     Ok(href.replacen(".php", "", 1))
 }
 
@@ -513,7 +519,9 @@ fn span_pertama(html: &str, e: &Elemen) -> Option<Elemen> {
 
 /// `$(el).html()` — HTML dalam elemen apa adanya.
 fn html_dalam(html: &str, e: &Elemen) -> String {
-    html.get(e.isi_awal..e.isi_akhir).unwrap_or_default().to_string()
+    html.get(e.isi_awal..e.isi_akhir)
+        .unwrap_or_default()
+        .to_string()
 }
 
 /// `$(...).text()` — buang tag, dekode entitas, gabungkan semua yang cocok.
@@ -681,12 +689,10 @@ mod tests {
 
     #[test]
     fn brands_membaca_tabel_dan_membuang_angka_dari_nama() {
-        let http = stub(&[
-            r#"<table><tr>
+        let http = stub(&[r#"<table><tr>
   <td><a href="samsung.php">Samsung devices</a><span>1234 devices</span></td>
   <td><a href="xiaomi.php">Xiaomi  devices</a><span>abc devices</span></td>
-</tr></table>"#,
-        ]);
+</tr></table>"#]);
         let hasil = brands(&http).unwrap();
         let arr = hasil.as_array().unwrap();
         assert_eq!(arr.len(), 2);
@@ -784,7 +790,10 @@ mod tests {
         assert_eq!(rows[1]["value"], "147 x 70 x 7.9 mm");
 
         let p = http.permintaan.lock().unwrap();
-        assert_eq!(p[0].url, "https://www.gsmarena.com/samsung_galaxy_s24-1.php");
+        assert_eq!(
+            p[0].url,
+            "https://www.gsmarena.com/samsung_galaxy_s24-1.php"
+        );
     }
 
     #[test]

@@ -25,10 +25,7 @@ pub(crate) fn caption(items: &[String]) -> String {
         out.push('\n');
     }
     out.push_str("╰┈┈⬡\n\n");
-    out.push_str(&format!(
-        "> ᴛᴏᴛᴀʟ: `{}` ʙᴀɴɴᴇᴅ ᴜsᴇʀ",
-        items.len()
-    ));
+    out.push_str(&format!("> ᴛᴏᴛᴀʟ: `{}` ʙᴀɴɴᴇᴅ ᴜsᴇʀ", items.len()));
     out
 }
 
@@ -101,7 +98,11 @@ mod tests {
 
     #[test]
     fn an_empty_or_missing_list_shows_the_short_message() {
-        for settings in [serde_json::json!({}), serde_json::json!({"bannedUsers": []}), serde_json::json!({"bannedUsers": "x"})] {
+        for settings in [
+            serde_json::json!({}),
+            serde_json::json!({"bannedUsers": []}),
+            serde_json::json!({"bannedUsers": "x"}),
+        ] {
             let out = run(settings.clone(), ".");
             assert!(out.starts_with("🚫 *ʟɪsᴛ ʙᴀɴɴᴇᴅ*"), "{settings}");
             assert!(out.contains("> Tidak ada user yang dibanned"), "{settings}");
@@ -116,7 +117,10 @@ mod tests {
 
     #[test]
     fn entries_are_numbered_from_one_and_the_total_is_reported() {
-        let out = run(serde_json::json!({"bannedUsers": ["6281", "6282", "6283"]}), ".");
+        let out = run(
+            serde_json::json!({"bannedUsers": ["6281", "6282", "6283"]}),
+            ".",
+        );
         assert!(out.contains("╭┈┈⬡「 ⛔ *ᴜsᴇʀs* 」"));
         assert!(out.contains("┃ 1. `6281`"));
         assert!(out.contains("┃ 2. `6282`"));

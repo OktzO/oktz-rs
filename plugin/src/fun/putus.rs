@@ -76,7 +76,7 @@ pub fn putus(ctx: Ctx) -> Reply {
 mod tests {
     use super::*;
     use oktz_plugin_api::registry::{GroupRoster, Participant};
-    use serde_json::{Value};
+    use serde_json::Value;
 
     const ME: &str = "628111@s.whatsapp.net";
     const THEM: &str = "628222@s.whatsapp.net";
@@ -114,7 +114,11 @@ mod tests {
             let Mutation::SetUser { jid, data } = m else {
                 panic!("mutasi harus SetUser, dapat {m:?}");
             };
-            assert_eq!(data["fun"]["pasangan"], Value::Null, "harus mengosongkan pasangan");
+            assert_eq!(
+                data["fun"]["pasangan"],
+                Value::Null,
+                "harus mengosongkan pasangan"
+            );
             out.push(jid.clone());
         }
         out.sort();
@@ -151,7 +155,10 @@ mod tests {
 
     #[test]
     fn the_normal_branch_announces_the_breakup_and_mentions_both() {
-        let r = run(serde_json::json!({ "fun": { "pasangan": THEM } }), GroupRoster::default());
+        let r = run(
+            serde_json::json!({ "fun": { "pasangan": THEM } }),
+            GroupRoster::default(),
+        );
         let (emoji, inner) = match r.without_mutations() {
             Reply::Reaction { emoji, reply } => (emoji.clone(), reply.as_ref()),
             other => panic!("harus Reaction, dapat {other:?}"),
@@ -164,7 +171,10 @@ mod tests {
                     text.contains("@628111 dan @628222 resmi putus !!"),
                     "{text}"
                 );
-                assert!(text.ends_with("Semoga mendapat yang lebih baik! 🙏"), "{text}");
+                assert!(
+                    text.ends_with("Semoga mendapat yang lebih baik! 🙏"),
+                    "{text}"
+                );
                 assert_eq!(mentions, &[ME.to_string(), THEM.to_string()]);
             }
             other => panic!("harus Text, dapat {other:?}"),
@@ -182,7 +192,10 @@ mod tests {
     fn a_one_sided_pair_only_clears_the_sender() {
         // Mantan yang balas-follow tapi tidak ada di grup: `db.getUser` tidak
         // terbaca, jadi `isMutual` false — persis cabang tanpa `if` di versi awal.
-        let roster = member(THEM, serde_json::json!({ "fun": { "pasangan": "999@s.whatsapp.net" } }));
+        let roster = member(
+            THEM,
+            serde_json::json!({ "fun": { "pasangan": "999@s.whatsapp.net" } }),
+        );
         let r = run(serde_json::json!({ "fun": { "pasangan": THEM } }), roster);
         assert_eq!(cleared_by(&r), [ME.to_string()]);
     }

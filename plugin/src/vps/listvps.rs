@@ -35,7 +35,7 @@ fn teks_daftar(droplets: &[Value]) -> String {
         let region = d
             .pointer("/region/slug")
             .map(|v| js_str(Some(v)))
-            .filter(|s| !s.is_empty() && s != "undefined")
+            .filter(|s| !s.is_empty() && s != "-")
             .unwrap_or_else(|| "-".to_string());
         t.push_str("╭─────────────\n");
         t.push_str(&format!("┃ {status} *{}*\n", js_str(d.get("name"))));
@@ -86,10 +86,7 @@ pub fn listvps(ctx: Ctx) -> Reply {
     let response = match ctx.http.call(&call) {
         Ok(r) => r,
         Err(_) => {
-            return Reply::sequence(vec![
-                progres,
-                Reply::text(error_template(&ctx)),
-            ]);
+            return Reply::sequence(vec![progres, Reply::text(error_template(&ctx))]);
         }
     };
     let droplets: Vec<Value> = response

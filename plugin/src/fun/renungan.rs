@@ -230,7 +230,11 @@ mod tests {
     #[test]
     fn the_table_is_the_real_json_and_reacts_with_a_check_mark() {
         assert_eq!(RENUNGAN.len(), 100, "src/data/renungan.json");
-        assert!(RENUNGAN.iter().all(|u| u.starts_with("https://telegra.ph/file/")));
+        assert!(
+            RENUNGAN
+                .iter()
+                .all(|u| u.starts_with("https://telegra.ph/file/"))
+        );
         // Reaksi versi awal: `🕕` lalu `✅`/`❌`. Yang dibawa adalah reaksi terakhir.
         assert!(matches!(run().without_mutations(), Reply::Reaction { .. }));
     }

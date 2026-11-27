@@ -16,10 +16,7 @@ pub(crate) fn pakai(file: &str, _prefix: &str) -> String {
 
 /// `isImage`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_image())
+    ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image())
 }
 
 /// Unduh buffer: quoted dulu, baru trigger.
@@ -76,7 +73,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::MediaFetch for StubFetch {
-        fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
+        fn download(
+            &self,
+            _: oktz_plugin_api::MediaOrigin,
+        ) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
             if self.ok {
                 Ok(self.bytes.clone())
             } else {
@@ -108,8 +108,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        })
+                timestamp: 0,
+            })
         } else {
             None
         };
@@ -164,14 +164,20 @@ mod tests {
     #[test]
     fn quoted_gambar_dipakai_unduh() {
         let r = run(false, true, true);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "ganti-store.jpg"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "ganti-store.jpg")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
     }
 
     #[test]
     fn trigger_gambar_dipakai_unduh() {
         let r = run(true, false, true);
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "ganti-store.jpg"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "ganti-store.jpg")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
     }
 

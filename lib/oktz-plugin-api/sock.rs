@@ -60,7 +60,7 @@ pub struct AdaWhatsapp {
 pub enum AksiPeserta {
     Tambah,
     Keluar,
-    Naikkan, // promote
+    Naikkan,  // promote
     Turunkan, // demote
 }
 
@@ -157,7 +157,13 @@ pub trait Sock: Send + Sync + std::fmt::Debug {
     ///
     /// Default error: stub tanpa klien tidak bisa menghapus, dan diam berarti
     /// pesan tetap terlihat — persis alasan default `delete_message` pipeline.
-    fn hapus_pesan(&self, _chat: &str, _message_id: &str, _participant: &str, _from_me: bool) -> Result<(), SockError> {
+    fn hapus_pesan(
+        &self,
+        _chat: &str,
+        _message_id: &str,
+        _participant: &str,
+        _from_me: bool,
+    ) -> Result<(), SockError> {
         Err(SockError::baru("sock tidak mendukung hapus pesan"))
     }
 }
@@ -275,7 +281,10 @@ mod tests {
         assert!(s.foto_profil("628111@s.whatsapp.net", "image").is_err());
         assert!(s.metadata_grup("628111@g.us").is_err());
         assert!(s.semua_grup().is_err());
-        assert!(s.ubah_peserta("628111@g.us", &[], AksiPeserta::Naikkan).is_err());
+        assert!(
+            s.ubah_peserta("628111@g.us", &[], AksiPeserta::Naikkan)
+                .is_err()
+        );
         assert!(s.set_foto_profil("628111@s.whatsapp.net", b"x").is_err());
         assert!(s.keluar_grup("628111@g.us").is_err());
         assert!(s.kode_undangan("628111@g.us").is_err());
@@ -291,6 +300,9 @@ mod tests {
         assert!(s.set_nama("bot").is_err());
         assert!(s.hapus_foto_bot().is_err());
         assert!(s.blokir("628111@s.whatsapp.net", true).is_err());
-        assert!(s.hapus_pesan("120363@g.us", "ID1", "628111@s.whatsapp.net", false).is_err());
+        assert!(
+            s.hapus_pesan("120363@g.us", "ID1", "628111@s.whatsapp.net", false)
+                .is_err()
+        );
     }
 }

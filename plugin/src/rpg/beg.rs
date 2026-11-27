@@ -1,7 +1,7 @@
 //! Mengemis: 4 dari 7 hasil memberi uang, satu
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::rpg::heal::{apply_exp, or_default, rpg_map};
 use crate::tools::kalkulatormbg::thousands_id;
@@ -66,10 +66,12 @@ pub fn beg(ctx: Ctx) -> Reply {
         return Reply::sequence_text(["🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*".to_string(), text]);
     };
 
-    Reply::sequence_text(["🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*".to_string(), text]).with_mutation(Mutation::SetUser {
-        jid: ctx.sender.clone(),
-        data,
-    })
+    Reply::sequence_text(["🙏 *sᴇᴅᴀɴɢ ᴍᴇɴɢᴇᴍɪs...*".to_string(), text]).with_mutation(
+        Mutation::SetUser {
+            jid: ctx.sender.clone(),
+            data,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -112,10 +114,7 @@ mod tests {
         assert_eq!(p.meta.name, "beg");
         assert_eq!(p.meta.alias, ["ngemis"]);
         assert_eq!(p.meta.category, "rpg");
-        assert_eq!(
-            p.meta.description,
-            "Mengemis untuk mendapatkan uang receh"
-        );
+        assert_eq!(p.meta.description, "Mengemis untuk mendapatkan uang receh");
         assert_eq!(p.meta.usage, ".beg");
         assert_eq!(p.meta.example, ".beg");
         assert_eq!(p.meta.cooldown, 60);
@@ -158,7 +157,10 @@ mod tests {
             );
             if t.starts_with("🙏") {
                 win += 1;
-                assert!(t.contains("> 🚄 Exp: *+"), "exp selalu > 0 di cabang menang: {t}");
+                assert!(
+                    t.contains("> 🚄 Exp: *+"),
+                    "exp selalu > 0 di cabang menang: {t}"
+                );
                 assert_eq!(r.mutations().len(), 1);
                 assert!(t.contains("> 💰 Dapat: *+Rp "), "{t}");
             } else if t.contains("💸 Lost:") {
@@ -176,7 +178,10 @@ mod tests {
                 );
             }
         }
-        assert!(win > 0 && robbed > 0 && nothing > 0, "win={win} robbed={robbed} nothing={nothing}");
+        assert!(
+            win > 0 && robbed > 0 && nothing > 0,
+            "win={win} robbed={robbed} nothing={nothing}"
+        );
     }
 
     #[test]
@@ -190,8 +195,14 @@ mod tests {
                 continue;
             }
             let data = write_of(&r);
-            let pair = (data["koin"].as_i64().unwrap(), data["exp"].as_i64().unwrap());
-            assert!(allowed.contains(&pair), "pasangan (koin, exp) di luar tabel: {pair:?}");
+            let pair = (
+                data["koin"].as_i64().unwrap(),
+                data["exp"].as_i64().unwrap(),
+            );
+            assert!(
+                allowed.contains(&pair),
+                "pasangan (koin, exp) di luar tabel: {pair:?}"
+            );
             seen.insert(pair);
         }
         assert!(seen.len() >= 3, "hanya terlihat {seen:?}");
@@ -202,14 +213,22 @@ mod tests {
         for _ in 0..900 {
             let r = run(serde_json::json!({ "koin": 100 }));
             if text_of(&r).contains("💸 Lost:") {
-                assert_eq!(write_of(&r)["koin"], serde_json::json!(0), "Math.max(0, 100 - 500)");
+                assert_eq!(
+                    write_of(&r)["koin"],
+                    serde_json::json!(0),
+                    "Math.max(0, 100 - 500)"
+                );
             }
         }
     }
 
     #[test]
     fn a_missing_user_row_never_panics() {
-        for user in [serde_json::json!(null), serde_json::json!({}), serde_json::json!({ "koin": null })] {
+        for user in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({ "koin": null }),
+        ] {
             let r = run(user.clone());
             assert!(!text_of(&r).is_empty(), "input {user}");
         }

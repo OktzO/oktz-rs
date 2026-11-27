@@ -30,8 +30,7 @@ pub(crate) fn bantuan(prefix: &str, command: &str) -> String {
 }
 
 /// URL bukan TikTok.
-pub(crate) const URL_TIDAK_VALID: &str =
-    "❌ URL tidak valid. Gunakan link TikTok yang valid.\n\nContoh: `.tt https://vt.tiktok.com/ZSxxxx/`";
+pub(crate) const URL_TIDAK_VALID: &str = "❌ URL tidak valid. Gunakan link TikTok yang valid.\n\nContoh: `.tt https://vt.tiktok.com/ZSxxxx/`";
 
 /// UA unduhan video.
 const UA_VIDEO: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
@@ -90,11 +89,7 @@ fn field(hasil: &Value, path: &str) -> String {
 pub(crate) fn caption_video(hasil: &Value) -> String {
     let provider = {
         let p = field(hasil, "_provider");
-        if p.is_empty() {
-            "tikwm".to_string()
-        } else {
-            p
-        }
+        if p.is_empty() { "tikwm".to_string() } else { p }
     };
     format!(
         "🎵 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [{provider}]\n\n\
@@ -137,11 +132,7 @@ pub(crate) fn caption_video(hasil: &Value) -> String {
 pub(crate) fn caption_foto(hasil: &Value) -> String {
     let provider = {
         let p = field(hasil, "_provider");
-        if p.is_empty() {
-            "tikwm".to_string()
-        } else {
-            p
-        }
+        if p.is_empty() { "tikwm".to_string() } else { p }
     };
     format!(
         "📸 *𝗧 𝗜 𝗞 𝗧 𝗢 𝗞  -  𝗗 𝗢 𝗪 𝗡 𝗟 𝗢 𝗔 𝗗 𝗘 𝗥* [{provider}]\n\n\
@@ -218,19 +209,15 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         return Reply::text(URL_TIDAK_VALID).with_reaction("❌");
     }
 
-    let gagal_reply = |detail: &str| {
-        Reply::text(gagal(&ctx.prefix, detail)).with_reaction("❌")
-    };
+    let gagal_reply = |detail: &str| Reply::text(gagal(&ctx.prefix, detail)).with_reaction("❌");
 
     let Ok(hasil) = oktz_scraper::tiktok::ttdown(&*ctx.http, teks) else {
         return gagal_reply("Semua provider TikTok gagal");
     };
 
     // Tombol "Ambil Music" menunjuk ke `.ttmp3`.
-    let tombol_musik = InteractiveButton::quick_reply(
-        "🎵 Ambil Music",
-        format!("{}ttmp3 {teks}", ctx.prefix),
-    );
+    let tombol_musik =
+        InteractiveButton::quick_reply("🎵 Ambil Music", format!("{}ttmp3 {teks}", ctx.prefix));
 
     if let Some(alamat) = url_video(&hasil) {
         // `axios.get(videoItem.url, { responseType: "arraybuffer" })`
@@ -263,9 +250,10 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         // `sock.sendButton(jid, buffer, caption, m, { type: "video", buttons })`
         // Video jadi header kartu native-flow.
         return Reply::interactive(caption_video(&hasil))
-            .with_header(CardHeader::new().video(
-                Ms::bytes(res.body.bytes().to_vec()).with_mimetype(mimetype),
-            ))
+            .with_header(
+                CardHeader::new()
+                    .video(Ms::bytes(res.body.bytes().to_vec()).with_mimetype(mimetype)),
+            )
             .with_button_card(tombol_musik)
             .with_reaction("✅");
     }
@@ -284,9 +272,7 @@ pub fn tiktok(ctx: Ctx) -> Reply {
         // `download/tiktokdl2.rs`.
         return Reply::sequence(vec![
             Reply::interactive(caption_foto(&hasil))
-                .with_header(CardHeader::new().image(
-                    Ms::url(foto).with_mimetype("image/jpeg"),
-                ))
+                .with_header(CardHeader::new().image(Ms::url(foto).with_mimetype("image/jpeg")))
                 .with_button_card(tombol_musik),
             Reply::text(SLIDE_BERHASIL),
         ]);
@@ -337,7 +323,10 @@ mod tests {
         // versi awal `name: ["tiktok", "tt", "ttmp4"]` + `alias: ["tiktokdl", "ttdown"]`.
         assert_eq!(p.meta.alias, ["tt", "ttmp4", "tiktokdl", "ttdown"]);
         assert_eq!(p.meta.category, "download");
-        assert_eq!(p.meta.description, "Download video/slide TikTok tanpa watermark");
+        assert_eq!(
+            p.meta.description,
+            "Download video/slide TikTok tanpa watermark"
+        );
         assert_eq!(p.meta.usage, ".tiktok <url>");
         assert_eq!(p.meta.cooldown, 10);
         assert_eq!(p.meta.energi, 1);

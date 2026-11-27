@@ -49,7 +49,9 @@ pub(crate) fn info_video(push: &str, v: &ytsearch::Video) -> String {
 
 /// Gagal.
 pub(crate) fn gagal(push: &str) -> String {
-    format!("Maaf *{push}*, fitur putar videonya sedang ada kendala atau video tersebut terlalu besar. Silakan coba lagi nanti ya!")
+    format!(
+        "Maaf *{push}*, fitur putar videonya sedang ada kendala atau video tersebut terlalu besar. Silakan coba lagi nanti ya!"
+    )
 }
 
 #[plugin(
@@ -91,14 +93,16 @@ pub fn playvid(ctx: Ctx) -> Reply {
     let info = info_video(&push, video);
 
     // Link unduhan video.
-    let direct =
-        match oktz_scraper::youtube::get_youtube_direct_url(ctx.http.as_ref(), &video.url, Some("360"))
-        {
-            Ok(v) => v,
-            Err(_) => {
-                return Reply::text(gagal(&push)).with_reaction("❌");
-            }
-        };
+    let direct = match oktz_scraper::youtube::get_youtube_direct_url(
+        ctx.http.as_ref(),
+        &video.url,
+        Some("360"),
+    ) {
+        Ok(v) => v,
+        Err(_) => {
+            return Reply::text(gagal(&push)).with_reaction("❌");
+        }
+    };
     let Some(download_url) = direct.get("url").and_then(|v| v.as_str()) else {
         return Reply::text(gagal(&push)).with_reaction("❌");
     };

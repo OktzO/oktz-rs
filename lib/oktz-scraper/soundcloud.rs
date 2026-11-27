@@ -99,6 +99,9 @@ fn angka_js(n: f64) -> String {
 /// `track.duration` yang hilang = `undefined`, jadi `"NaN:NaN"`.
 fn format_durasi(ms: Option<&Value>) -> String {
     let total = (ke_angka_ada(ms) / 1000.0).floor();
+    if !total.is_finite() {
+        return "-".to_string();
+    }
     let menit = (total / 60.0).floor();
     let detik = total % 60.0;
     let teks = angka_js(detik);
@@ -271,10 +274,18 @@ mod tests {
         fn get(&self, _url: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("semua lewat HttpCall::call")
         }
-        fn post_json(&self, _url: &str, _body: &Value) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &Value,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma GET")
         }
-        fn post_form(&self, _url: &str, _form: &str) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
+        fn post_form(
+            &self,
+            _url: &str,
+            _form: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, HttpError> {
             unreachable!("scraper ini cuma GET")
         }
         fn post_multipart(
@@ -446,8 +457,8 @@ mod tests {
         assert_eq!(format_durasi(Some(&json!("90000"))), "1:30");
         // Tidak bisa dikonversi ke angka → `NaN` di kedua ruas, `padStart`
         // tidak menambah apa-apa karena panjangnya sudah 3.
-        assert_eq!(format_durasi(Some(&json!("abc"))), "NaN:NaN");
+        assert_eq!(format_durasi(Some(&json!("abc"))), "-");
         // `duration` hilang berarti `undefined`, bukan `null`.
-        assert_eq!(format_durasi(None), "NaN:NaN");
+        assert_eq!(format_durasi(None), "-");
     }
 }

@@ -61,17 +61,16 @@ mod tests {
     }
 
     fn text_of(r: &Reply) -> String {
-        r.text_body().expect("plugin harus membalas teks").to_string()
+        r.text_body()
+            .expect("plugin harus membalas teks")
+            .to_string()
     }
 
     #[test]
     fn registers_with_the_js_plugin_config() {
         let m = &find("installtemanebula").unwrap().meta;
         assert_eq!(m.name, "installtemanebula");
-        assert_eq!(
-            m.alias,
-            ["installthemanebula", "temanebula", "nebulatheme"]
-        );
+        assert_eq!(m.alias, ["installthemanebula", "temanebula", "nebulatheme"]);
         assert_eq!(m.category, "panel");
         assert_eq!(
             m.description,
@@ -95,7 +94,10 @@ mod tests {
             let t = text_of(&__balasan);
             assert!(t.starts_with("╭┈┈⬡「 🌌 *ɪɴsᴛᴀʟʟ ᴛᴇᴍᴀ ɴᴇʙᴜʟᴀ* 」"), "{t}");
             assert!(t.contains("`.installtemanebula <ip>|<password>`"), "{t}");
-            assert!(t.contains("Contoh: .installtemanebula 192.168.1.1|secretpass"), "{t}");
+            assert!(
+                t.contains("Contoh: .installtemanebula 192.168.1.1|secretpass"),
+                "{t}"
+            );
         }
     }
 

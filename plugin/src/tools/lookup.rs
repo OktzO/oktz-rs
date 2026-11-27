@@ -66,9 +66,7 @@ pub fn lookup(ctx: Ctx) -> Reply {
     };
 
     if !valid_domain(&domain) {
-        return Reply::text(
-            "❌ *ғᴏʀᴍᴀᴛ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*\n\n> Contoh: `google.com`",
-        );
+        return Reply::text("❌ *ғᴏʀᴍᴀᴛ ᴛɪᴅᴀᴋ ᴠᴀʟɪᴅ*\n\n> Contoh: `google.com`");
     }
 
     let dns_url = format!("https://api.hackertarget.com/dnslookup/?q={domain}");
@@ -85,7 +83,11 @@ pub fn lookup(ctx: Ctx) -> Reply {
 
     // `and_then` tidak ada pada `bool`; pilih teks hanya kalau status 200.
     let dns_data = if dns_ok { dns_text.as_deref() } else { None };
-    let whois_data = if whois_ok { whois_text.as_deref() } else { None };
+    let whois_data = if whois_ok {
+        whois_text.as_deref()
+    } else {
+        None
+    };
 
     if dns_data.is_none() && whois_data.is_none() {
         return Reply::text("❌ *ɢᴀɢᴀʟ*\n\n> Tidak dapat memproses domain");
@@ -105,7 +107,10 @@ pub fn lookup(ctx: Ctx) -> Reply {
             if parts.len() >= 2 {
                 let tipe = parts[parts.len() - 2];
                 let nilai = parts[parts.len() - 1];
-                records.entry(tipe.to_string()).or_default().push(nilai.to_string());
+                records
+                    .entry(tipe.to_string())
+                    .or_default()
+                    .push(nilai.to_string());
             }
         }
         text.push_str("╭┈┈⬡「 📋 *ᴅɴs ʀᴇᴄᴏʀᴅs* 」\n");
@@ -155,7 +160,9 @@ pub fn lookup(ctx: Ctx) -> Reply {
             .lines()
             .find_map(|l| {
                 let l = l.trim();
-                l.strip_prefix("Expir").and_then(|v| v.split(':').nth(1)).map(|v| v.trim().to_string())
+                l.strip_prefix("Expir")
+                    .and_then(|v| v.split(':').nth(1))
+                    .map(|v| v.trim().to_string())
             })
             .unwrap_or_else(|| "-".to_string());
         let ns: Vec<String> = whois

@@ -47,10 +47,7 @@ pub(crate) struct HasilDailymotion {
 fn hasil_dari(data: &Value) -> HasilDailymotion {
     let teks = |k: &str| data.get(k).and_then(Value::as_str).map(str::to_string);
     HasilDailymotion {
-        status: data
-            .get("status")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        status: data.get("status").and_then(Value::as_bool).unwrap_or(false),
         error: teks("error"),
         title: teks("title"),
         thumbnail: teks("thumbnail"),
@@ -68,9 +65,9 @@ pub(crate) fn caption(hasil: &HasilDailymotion) -> String {
          > 📌 {}\n\
          > ⏱️ Durasi: {}\n\
          > 📺 Kualitas: {}",
-        hasil.title.as_deref().unwrap_or("undefined"),
-        hasil.duration.as_deref().unwrap_or("undefined"),
-        hasil.quality.as_deref().unwrap_or("undefined")
+        hasil.title.as_deref().unwrap_or("-"),
+        hasil.duration.as_deref().unwrap_or("-"),
+        hasil.quality.as_deref().unwrap_or("-")
     )
 }
 
@@ -114,7 +111,7 @@ pub fn dailymotiondl(ctx: Ctx) -> Reply {
 
     if !hasil.status {
         // `result.error` boleh `undefined`.
-        let teks = hasil.error.as_deref().unwrap_or("undefined");
+        let teks = hasil.error.as_deref().unwrap_or("-");
         return Reply::text(gagal_pakai(teks)).with_reaction("☢");
     }
 
@@ -194,10 +191,7 @@ mod tests {
     }
 
     fn run(text: &str) -> Reply {
-        (find("dailymotiondl").unwrap().handler)(ctx_dengan(
-            text,
-            r#"{"medias":[]}"#,
-        ))
+        (find("dailymotiondl").unwrap().handler)(ctx_dengan(text, r#"{"medias":[]}"#))
     }
 
     fn reaction(r: &Reply) -> Option<&str> {
@@ -208,7 +202,7 @@ mod tests {
     }
 
     /// Isi balasan sebenarnya: `without_mutations` hanya membuang `Mutate`, jadi
-/// `Reaction { reply }` masih harus dibuka satu lapis.
+    /// `Reaction { reply }` masih harus dibuka satu lapis.
     fn isi(r: &Reply) -> &Reply {
         match r.without_mutations() {
             Reply::Reaction { reply, .. } => reply.as_ref(),
@@ -331,21 +325,21 @@ mod tests {
         assert_eq!(hasil.title, None);
         assert_eq!(hasil.quality, None);
         // Field hilang → `undefined` di caption, bukan string kosong.
-        assert!(caption(&hasil).contains("> 📌 undefined"));
+        assert!(caption(&hasil).contains("> 📌 -"));
     }
 
     #[test]
-    fn the_status_false_branch_prints_undefined_verbatim() {
+    fn the_status_false_branch_prints_the_fallback_message() {
         // memakai `${result.error}`; field yang tidak ada
         // tercetak literal sebagai "undefined" di versi awal. Bukan string kosong.
         assert_eq!(
             gagal_pakai("Tidak ada media yang tersedia"),
             "❌ *Dailymotion Gagal*\n\n> Tidak ada media yang tersedia"
         );
-        assert_eq!(gagal_pakai("undefined"), "❌ *Dailymotion Gagal*\n\n> undefined");
+        assert_eq!(gagal_pakai("-"), "❌ *Dailymotion Gagal*\n\n> -");
         assert_eq!(
-            HasilDailymotion::default().error.as_deref().unwrap_or("undefined"),
-            "undefined"
+            HasilDailymotion::default().error.as_deref().unwrap_or("-"),
+            "-"
         );
     }
 
@@ -353,10 +347,7 @@ mod tests {
     fn the_file_name_scrubs_reserved_characters() {
         assert_eq!(nama_berkas(None), "video.mp4");
         assert_eq!(nama_berkas(Some("")), "video.mp4");
-        assert_eq!(
-            nama_berkas(Some("a<b>c:d\"e/f\\g|h?i*j")),
-            "abcdefghij.mp4"
-        );
+        assert_eq!(nama_berkas(Some("a<b>c:d\"e/f\\g|h?i*j")), "abcdefghij.mp4");
         assert_eq!(nama_berkas(Some("video")), "video.mp4");
         assert_eq!(nama_berkas(Some("a b-c_d.e")), "a b-c_d.e.mp4");
         assert_eq!(scrub_nama_berkas("<>:\"/\\|?*"), "");

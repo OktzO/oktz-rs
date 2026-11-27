@@ -3,7 +3,6 @@
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
 
-
 /// `⚠️ *ᴄᴀʀᴀ ᴘᴀᴋᴀɪ*` — dua contoh perintah pakai prefix yang sedang hidup.
 pub(crate) fn no_target(prefix: &str) -> String {
     format!(
@@ -60,7 +59,9 @@ pub fn resetwarn(ctx: Ctx) -> Reply {
     if warns.is_empty() {
         return Reply::Text {
             text: format!("✅ @{name} tidak memiliki warning."),
-            mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
+            mentions: crate::common::mention_jid(&ctx, &target)
+                .into_iter()
+                .collect(),
         };
     }
 
@@ -81,7 +82,9 @@ pub fn resetwarn(ctx: Ctx) -> Reply {
              Sebelumnya: *{}/{max}*\nSekarang: *0/{max}*",
             warns.len()
         ),
-        mentions: crate::common::mention_jid(&ctx, &target).into_iter().collect(),
+        mentions: crate::common::mention_jid(&ctx, &target)
+            .into_iter()
+            .collect(),
     }
     .with_mutation(Mutation::SetGroup {
         jid: ctx.chat.clone(),
@@ -112,8 +115,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        }),
+                timestamp: 0,
+            }),
             group_data: group,
             ..Default::default()
         };
@@ -231,7 +234,10 @@ mod tests {
             &["628333@s.whatsapp.net"],
             None,
         );
-        assert!(text_of(&r).contains("Sebelumnya: *1/3*"), "0 falsy -> default 3");
+        assert!(
+            text_of(&r).contains("Sebelumnya: *1/3*"),
+            "0 falsy -> default 3"
+        );
     }
 
     #[test]

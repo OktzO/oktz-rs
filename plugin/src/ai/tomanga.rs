@@ -4,7 +4,8 @@ use oktz_plugin_api::{Ctx, IncomingKind, MediaError, MediaSource, Reply, plugin}
 
 const PROMPT: &str = "Transform this image into Japanese manga style illustration. \nApply black and white manga aesthetics with dramatic shading, speed lines, \nexpressive eyes, and detailed screentones. Keep the original composition \nbut convert it to look like a page from a Japanese manga with bold ink lines, \ndynamic poses, and that distinctive manga art style.";
 
-const HELP: &str = "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`{prefix}tomanga`";
+const HELP: &str =
+    "📖 *ᴛᴏ ᴍᴀɴɢᴀ*\n\n> Kirim/reply gambar untuk diubah ke gaya manga\n\n`{prefix}tomanga`";
 const GAGAL_DOWNLOAD: &str = "❌ Gagal mendownload gambar";
 
 /// Kartu pakai — memakai `${m.prefix}`.
@@ -60,7 +61,9 @@ pub fn tomanga(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oktz_plugin_api::{HttpBody, HttpGet, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin};
+    use oktz_plugin_api::{
+        HttpBody, HttpGet, HttpResponse, IncomingMedia, MediaFetch, MediaOrigin,
+    };
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug, Default)]
@@ -73,7 +76,12 @@ mod tests {
     impl HttpStub {
         fn urutan(daftar: Vec<(u16, &str)>) -> Arc<HttpStub> {
             Arc::new(HttpStub {
-                balasan: Mutex::new(daftar.into_iter().map(|(s, t)| (s, t.to_string())).collect()),
+                balasan: Mutex::new(
+                    daftar
+                        .into_iter()
+                        .map(|(s, t)| (s, t.to_string()))
+                        .collect(),
+                ),
                 seen: Mutex::new(Vec::new()),
                 hitung: Mutex::new(0),
             })
@@ -95,17 +103,36 @@ mod tests {
             drop(h);
             drop(b);
             let (status, teks) = self.balasan.lock().unwrap()[i].clone();
-            Ok(HttpResponse { status, body: HttpBody::Bytes { data: Arc::from(teks.into_bytes()), mimetype: None }, headers: Vec::new() })
+            Ok(HttpResponse {
+                status,
+                body: HttpBody::Bytes {
+                    data: Arc::from(teks.into_bytes()),
+                    mimetype: None,
+                },
+                headers: Vec::new(),
+            })
         }
-        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> { unimplemented!() }
-        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> { unimplemented!() }
-        fn post_multipart(&self, _: &str, _: &[(&str, HttpBody)]) -> Result<HttpResponse, HttpError> { unimplemented!() }
+        fn post_json(&self, _: &str, _: &Value) -> Result<HttpResponse, HttpError> {
+            unimplemented!()
+        }
+        fn post_form(&self, _: &str, _: &str) -> Result<HttpResponse, HttpError> {
+            unimplemented!()
+        }
+        fn post_multipart(
+            &self,
+            _: &str,
+            _: &[(&str, HttpBody)],
+        ) -> Result<HttpResponse, HttpError> {
+            unimplemented!()
+        }
     }
 
     #[derive(Debug)]
     struct MediaStub(Result<Vec<u8>, MediaError>);
     impl MediaFetch for MediaStub {
-        fn download(&self, _: MediaOrigin) -> Result<Vec<u8>, MediaError> { self.0.clone() }
+        fn download(&self, _: MediaOrigin) -> Result<Vec<u8>, MediaError> {
+            self.0.clone()
+        }
     }
 
     use oktz_plugin_api::HttpError;
@@ -119,7 +146,12 @@ mod tests {
             chat: "628111@s.whatsapp.net".into(),
             prefix: ".".into(),
             command: "tomanga".into(),
-            media: Some(IncomingMedia { kind: IncomingKind::Image, mimetype: None, file_name: None, caption: String::new() }),
+            media: Some(IncomingMedia {
+                kind: IncomingKind::Image,
+                mimetype: None,
+                file_name: None,
+                caption: String::new(),
+            }),
             media_fetch: Arc::new(MediaStub(unduh)),
             http,
             ..Ctx::default()
@@ -145,7 +177,16 @@ mod tests {
     #[test]
     fn tidak_ada_gambar_tampilkan_bantuan() {
         let http = HttpStub::urutan(vec![]);
-        let ctx = Ctx { text: ".tomanga".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: ".".into(), command: "tomanga".into(), http, ..Ctx::default() };
+        let ctx = Ctx {
+            text: ".tomanga".into(),
+            args: Vec::new(),
+            sender: "x".into(),
+            chat: "x".into(),
+            prefix: ".".into(),
+            command: "tomanga".into(),
+            http,
+            ..Ctx::default()
+        };
         let r = tomanga(ctx);
         assert_eq!(r.without_mutations().text_body().unwrap(), help("."));
     }
@@ -154,7 +195,16 @@ mod tests {
     fn kartu_pakai_memakai_prefix_ctx() {
         // memakai `${m.prefix}`, bukan titik hardcode.
         let http = HttpStub::urutan(vec![]);
-        let ctx = Ctx { text: ".tomanga".into(), args: Vec::new(), sender: "x".into(), chat: "x".into(), prefix: "!".into(), command: "tomanga".into(), http, ..Ctx::default() };
+        let ctx = Ctx {
+            text: ".tomanga".into(),
+            args: Vec::new(),
+            sender: "x".into(),
+            chat: "x".into(),
+            prefix: "!".into(),
+            command: "tomanga".into(),
+            http,
+            ..Ctx::default()
+        };
         let r = tomanga(ctx);
         assert_eq!(
             r.without_mutations().text_body().unwrap(),
@@ -165,7 +215,12 @@ mod tests {
     #[test]
     fn unduhan_gagal() {
         let http = HttpStub::urutan(vec![]);
-        let r = run(http, Err(MediaError { message: "cdn mati".into() }));
+        let r = run(
+            http,
+            Err(MediaError {
+                message: "cdn mati".into(),
+            }),
+        );
         assert_eq!(r.without_mutations().text_body().unwrap(), GAGAL_DOWNLOAD);
         match r.without_mutations() {
             Reply::Reaction { emoji, .. } => assert_eq!(emoji, "❌"),
@@ -176,10 +231,16 @@ mod tests {
     #[test]
     fn berhasil_ubah_ke_manga() {
         let http = HttpStub::urutan(vec![
-            (200, r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#),
+            (
+                200,
+                r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#,
+            ),
             (200, ""),
             (200, r#"{"result":{"url":"https://s/x.jpg"}}"#),
-            (200, r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#),
+            (
+                200,
+                r#"{"status":true,"data":{"result_url":"https://h/y.png"}}"#,
+            ),
             (200, "MANGA"),
         ]);
         let r = run(http, Ok(b"IMG".to_vec()));
@@ -193,7 +254,10 @@ mod tests {
     #[test]
     fn gagal_provider() {
         let http = HttpStub::urutan(vec![
-            (200, r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#),
+            (
+                200,
+                r#"{"result":{"url":"https://u/x","object_name":"o/1"}}"#,
+            ),
             (200, ""),
             (200, r#"{"result":{"url":"https://s/x.jpg"}}"#),
             (200, r#"{"status":false}"#),

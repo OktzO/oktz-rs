@@ -35,7 +35,12 @@ pub(crate) fn gagal_gagal(pesan: &str) -> String {
 }
 
 /// Pesan sukses.
-pub(crate) fn sukses(nama: &str, id: &str, jumlah_peserta: usize, durasi_menit: Option<i64>) -> String {
+pub(crate) fn sukses(
+    nama: &str,
+    id: &str,
+    jumlah_peserta: usize,
+    durasi_menit: Option<i64>,
+) -> String {
     let mut out = format!(
         "👥 *GRUP BERHASIL DIBUAT* 👥\n\n\
          ✨ *Nama:* {nama}\n\

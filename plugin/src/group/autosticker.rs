@@ -59,17 +59,14 @@ pub fn autosticker(ctx: Ctx) -> Reply {
                 Reply::text(ALREADY_OFF)
             }
         }
-        Some(_) => Reply::text(format!(
-            "❌ Gunakan: `{}autosticker on/off`",
-            ctx.prefix
-        )),
+        Some(_) => Reply::text(format!("❌ Gunakan: `{}autosticker on/off`", ctx.prefix)),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(group: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -125,10 +122,7 @@ mod tests {
     #[test]
     fn every_alias_resolves_to_this_plugin() {
         for a in ["autostiker", "as"] {
-            assert_eq!(
-                oktz_plugin_api::find(a).unwrap().meta.name,
-                "autosticker"
-            );
+            assert_eq!(oktz_plugin_api::find(a).unwrap().meta.name, "autosticker");
         }
     }
 
@@ -161,11 +155,7 @@ mod tests {
             ..Default::default()
         };
         let r = (oktz_plugin_api::find("autosticker").unwrap().handler)(ctx);
-        assert!(
-            text_of(&r).contains("`!autosticker on`"),
-            "{}",
-            text_of(&r)
-        );
+        assert!(text_of(&r).contains("`!autosticker on`"), "{}", text_of(&r));
         assert!(!text_of(&r).contains("`.autosticker"));
     }
 
@@ -173,7 +163,11 @@ mod tests {
     fn every_on_spelling_writes_true_once() {
         for input in ["on", "1", "aktif"] {
             let r = run(serde_json::json!({}), input);
-            assert_eq!(written(&r), &serde_json::json!({ "autosticker": true }), "{input}");
+            assert_eq!(
+                written(&r),
+                &serde_json::json!({ "autosticker": true }),
+                "{input}"
+            );
             assert_eq!(text_of(&r), TURNED_ON, "{input}");
         }
     }
@@ -182,7 +176,11 @@ mod tests {
     fn every_off_spelling_writes_false_once() {
         for input in ["off", "0", "nonaktif"] {
             let r = run(serde_json::json!({ "autosticker": true }), input);
-            assert_eq!(written(&r), &serde_json::json!({ "autosticker": false }), "{input}");
+            assert_eq!(
+                written(&r),
+                &serde_json::json!({ "autosticker": false }),
+                "{input}"
+            );
             assert_eq!(text_of(&r), TURNED_OFF, "{input}");
         }
     }
@@ -207,7 +205,10 @@ mod tests {
 
     #[test]
     fn the_spellings_are_lowercased_before_matching() {
-        assert_eq!(written(&run(serde_json::json!({}), "ON")), &serde_json::json!({ "autosticker": true }));
+        assert_eq!(
+            written(&run(serde_json::json!({}), "ON")),
+            &serde_json::json!({ "autosticker": true })
+        );
         assert_eq!(
             written(&run(serde_json::json!({ "autosticker": true }), "Nonaktif")),
             &serde_json::json!({ "autosticker": false })

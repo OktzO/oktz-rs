@@ -25,7 +25,7 @@ fn interp(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
-        None => "undefined".to_string(),
+        None => "-".to_string(),
     }
 }
 
@@ -73,10 +73,7 @@ fn render_list(list: &Value) -> String {
             "- *Jepang:* {}\n",
             interp(character.get("japanese"))
         ));
-        txt.push_str(&format!(
-            "- *Anime:* {}\n",
-            interp(character.get("anime"))
-        ));
+        txt.push_str(&format!("- *Anime:* {}\n", interp(character.get("anime"))));
         txt.push_str(&format!(
             "- *Favorit:* {} | *Votes:* {}\n\n",
             interp(character.get("favorites")),
@@ -85,7 +82,7 @@ fn render_list(list: &Value) -> String {
     }
 
     // `NaN` masuk ke template literal apa adanya.
-    let tampil = max.map_or_else(|| "NaN".to_string(), |n| n.to_string());
+    let tampil = max.map_or_else(|| "0".to_string(), |n| n.to_string());
     txt.push_str(&format!("_Menampilkan {tampil} karakter teratas._"));
     txt
 }
@@ -300,9 +297,7 @@ mod tests {
 
     #[test]
     fn at_most_ten_entries_are_rendered() {
-        let list: Vec<Value> = (1..=15)
-            .map(|i| entry(i, &format!("C{i}"), None))
-            .collect();
+        let list: Vec<Value> = (1..=15).map(|i| entry(i, &format!("C{i}"), None)).collect();
         let txt = render_list(&Value::Array(list));
         assert!(txt.contains("*10 - C10*"), "entri ke-10 ikut");
         assert!(!txt.contains("*11 - C11*"), "entri ke-11 harus terpotong");
@@ -358,25 +353,25 @@ mod tests {
     /// `list` truthy tapi bukan array tidak melempar di versi awal: `list.length`
     /// `list[0]` sama-sama `undefined`, jadi yang dicetak frame `NaN` polos.
     #[test]
-    fn a_truthy_non_array_list_renders_the_nan_frame_instead_of_throwing() {
+    fn a_truthy_non_array_list_renders_an_empty_frame() {
         let r = run(Stub::ok(r#"{"status":true,"result":{"result":{"a":1}}}"#));
         assert!(!r.has_media(), "list[0] undefined jadi tidak ada gambar");
         let t = body(&r);
-        assert!(t.ends_with("_Menampilkan NaN karakter teratas._"), "{t}");
+        assert!(t.ends_with("_Menampilkan 0 karakter teratas._"), "{t}");
         assert_eq!(emoji(&r), "✅");
 
         // String punya `.length`, jadi `Math.min(3, 10)` = 3 dan `list[0]`
         // adalah karakter — bukan objek, jadi field-nya semua `undefined`.
         let r = run(Stub::ok(r#"{"status":true,"result":{"result":"abc"}}"#));
         let t = body(&r);
-        assert!(t.contains("*undefined - undefined*"), "{t}");
+        assert!(t.contains("*- - -*"), "{t}");
         assert!(t.ends_with("_Menampilkan 3 karakter teratas._"), "{t}");
         assert!(!r.has_media());
     }
 
     #[test]
-    fn missing_fields_render_as_undefined_like_template_literal() {
+    fn missing_fields_render_with_dash_fallback() {
         let txt = render_list(&serde_json::json!([{}]));
-        assert!(txt.contains("*undefined - undefined*"), "{txt}");
+        assert!(txt.contains("*- - -*"), "{txt}");
     }
 }

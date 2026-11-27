@@ -81,11 +81,7 @@ fn teks_js(v: &Value) -> String {
         Value::Null => "null".to_string(),
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
-        Value::Array(a) => a
-            .iter()
-            .map(teks_js)
-            .collect::<Vec<_>>()
-            .join(","),
+        Value::Array(a) => a.iter().map(teks_js).collect::<Vec<_>>().join(","),
         Value::Object(_) => "[object Object]".to_string(),
     }
 }
@@ -231,7 +227,8 @@ pub fn instagram_download(http: &dyn HttpGet, url: &str) -> Result<Value, HttpEr
     let gagal = !data.get("status").is_some_and(truthy)
         || data
             .get("result")
-            .and_then(Value::as_array).is_none_or(|a| a.is_empty());
+            .and_then(Value::as_array)
+            .is_none_or(|a| a.is_empty());
     if gagal {
         return Err(HttpError {
             message: GAGAL.to_string(),
@@ -427,21 +424,27 @@ mod tests {
     fn hasil_kosong_dan_url_kosong_keduanya_melempar_teks_sama() {
         let kosong = stub("[]");
         assert_eq!(
-            instagram_download(&kosong, "https://x").unwrap_err().message,
+            instagram_download(&kosong, "https://x")
+                .unwrap_err()
+                .message,
             "Gagal mengambil media dari Instagram"
         );
 
         // `result` ada tapi semua `url`-nya kosong → habis penyaringan.
         let tanpa_url = stub(r#"[{"thumbnail":"t","url":"   "}]"#);
         assert_eq!(
-            instagram_download(&tanpa_url, "https://x").unwrap_err().message,
+            instagram_download(&tanpa_url, "https://x")
+                .unwrap_err()
+                .message,
             "Gagal mengambil media dari Instagram"
         );
 
         // Body bukan array → `for (const item of data)` melempar di dalam SDK.
         let bukan_array = stub(r#"{"status":true}"#);
         assert_eq!(
-            instagram_download(&bukan_array, "https://x").unwrap_err().message,
+            instagram_download(&bukan_array, "https://x")
+                .unwrap_err()
+                .message,
             "Gagal mengambil media dari Instagram"
         );
     }

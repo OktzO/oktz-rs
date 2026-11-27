@@ -27,9 +27,7 @@ pub(crate) const TIDAK_BISA_TENTUKAN: &str = "❌ Tidak dapat menentukan grup";
 
 ///
 pub(crate) fn tidak_terdaftar(prefix: &str) -> String {
-    format!(
-        "❌ Grup tidak terdaftar dalam sistem sewa\n\nLihat daftar: *{prefix}listsewa*"
-    )
+    format!("❌ Grup tidak terdaftar dalam sistem sewa\n\nLihat daftar: *{prefix}listsewa*")
 }
 
 ///
@@ -107,10 +105,7 @@ pub fn delsewa(ctx: Ctx) -> Reply {
         return dengan_init(Reply::text(TIDAK_BISA_TENTUKAN), init);
     }
 
-    let tabel = ctx
-        .setting(SEWA_KEY)
-        .cloned()
-        .unwrap_or(Value::Null);
+    let tabel = ctx.setting(SEWA_KEY).cloned().unwrap_or(Value::Null);
     let groups = tabel
         .get("groups")
         .and_then(Value::as_object)
@@ -122,18 +117,8 @@ pub fn delsewa(ctx: Ctx) -> Reply {
     };
 
     let nama_grup = group_name
-        .or_else(|| {
-            data.get("name")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .unwrap_or_else(|| {
-            group_id
-                .split('@')
-                .next()
-                .unwrap_or(&group_id)
-                .to_string()
-        });
+        .or_else(|| data.get("name").and_then(Value::as_str).map(str::to_string))
+        .unwrap_or_else(|| group_id.split('@').next().unwrap_or(&group_id).to_string());
 
     let mut groups_baru = groups.clone();
     groups_baru.remove(&group_id);
@@ -145,12 +130,15 @@ pub fn delsewa(ctx: Ctx) -> Reply {
         tabel_baru = serde_json::json!({ "enabled": false, "groups": groups_baru });
     }
 
-    Reply::text(dihapus(&nama_grup, group_id.split('@').next().unwrap_or(&group_id)))
-        .with_reaction("✅")
-        .with_mutation(Mutation::SetSetting {
-            key: SEWA_KEY.to_string(),
-            value: tabel_baru,
-        })
+    Reply::text(dihapus(
+        &nama_grup,
+        group_id.split('@').next().unwrap_or(&group_id),
+    ))
+    .with_reaction("✅")
+    .with_mutation(Mutation::SetSetting {
+        key: SEWA_KEY.to_string(),
+        value: tabel_baru,
+    })
 }
 
 /// Gabungkan balasan dengan mutasi inisialisasi tabel sewa.
@@ -263,7 +251,10 @@ mod tests {
         match &r.mutations()[0] {
             Mutation::SetSetting { key, value } => {
                 assert_eq!(key, SEWA_KEY);
-                assert_eq!(value, &serde_json::json!({ "enabled": false, "groups": {} }));
+                assert_eq!(
+                    value,
+                    &serde_json::json!({ "enabled": false, "groups": {} })
+                );
             }
             other => panic!("harus SetSetting, dapat {other:?}"),
         }

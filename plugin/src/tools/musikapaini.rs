@@ -41,14 +41,15 @@ const UPLOAD_GAGAL: &str = "Upload gagal";
 /// Unggah ke termai — `uploadTo0x0`.
 fn upload_termai(ctx: &Ctx, buffer: &[u8], filename: &str) -> Result<String, String> {
     let url = format!("{TERMAI}?key={}", termai_key());
-    let Ok(res) = ctx.http.call(
-        &HttpCall::post(&url).multipart(vec![MultipartPart::file(
+    let Ok(res) = ctx
+        .http
+        .call(&HttpCall::post(&url).multipart(vec![MultipartPart::file(
             "file",
             filename,
             buffer.to_vec(),
         )
-        .with_mimetype("application/octet-stream")]),
-    ) else {
+        .with_mimetype("application/octet-stream")]))
+    else {
         return Err(UPLOAD_GAGAL.to_string());
     };
     let data = res.json().unwrap_or(Value::Null);
@@ -76,13 +77,11 @@ fn upload_termai(ctx: &Ctx, buffer: &[u8], filename: &str) -> Result<String, Str
 fn upload_litterbox(ctx: &Ctx, buffer: &[u8], filename: &str) -> Option<String> {
     let res = ctx
         .http
-        .call(
-            &HttpCall::post(LITTERBOX).multipart(vec![
-                MultipartPart::field("reqtype", "fileupload"),
-                MultipartPart::field("time", "72h"),
-                MultipartPart::file("fileToUpload", filename, buffer.to_vec()),
-            ]),
-        )
+        .call(&HttpCall::post(LITTERBOX).multipart(vec![
+            MultipartPart::field("reqtype", "fileupload"),
+            MultipartPart::field("time", "72h"),
+            MultipartPart::file("fileToUpload", filename, buffer.to_vec()),
+        ]))
         .ok()?;
     let teks = res.text().trim().to_string();
     if teks.starts_with("http") {
@@ -143,7 +142,10 @@ fn tombol(music: &Value) -> Vec<InteractiveButton> {
             format!("https://open.spotify.com/track/{id}"),
         ));
     }
-    let youtube = links.get("youtube").and_then(|y| y.get("vid")).and_then(Value::as_str);
+    let youtube = links
+        .get("youtube")
+        .and_then(|y| y.get("vid"))
+        .and_then(Value::as_str);
     if let Some(vid) = youtube {
         buttons.push(InteractiveButton::url(
             "▶️ YouTube",
@@ -248,7 +250,9 @@ pub fn musikapaini(ctx: Ctx) -> Reply {
         .with_reaction("❌");
     };
 
-    let status = body.get("status").is_some_and(crate::common::js_truthy_value);
+    let status = body
+        .get("status")
+        .is_some_and(crate::common::js_truthy_value);
     let Some(music) = body.get("data").filter(|v| status && !v.is_null()) else {
         return Reply::sequence(vec![
             Reply::text(mengunggah()),
@@ -305,7 +309,10 @@ mod tests {
 
     #[test]
     fn output_sama_dengan_js_api_gagal() {
-        assert_eq!(gagal(), "❌ *ɢᴀɢᴀʟ*\n\n> Lagu tidak dikenali atau API error");
+        assert_eq!(
+            gagal(),
+            "❌ *ɢᴀɢᴀʟ*\n\n> Lagu tidak dikenali atau API error"
+        );
     }
 
     #[test]

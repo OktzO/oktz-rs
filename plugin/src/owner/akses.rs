@@ -37,7 +37,6 @@ fn parse_duration(s: &str) -> Option<i64> {
     Some(num * mult)
 }
 
-
 /// `acc.expired ? ms(acc.expired - now): "Permanent"` (bentuk pendek).
 fn format_expired(expired: Option<i64>, now: i64) -> String {
     match expired {
@@ -162,12 +161,15 @@ pub fn akses(ctx: Ctx) -> Reply {
         let active = active_access(&access, now);
         if active.len() != access.len() {
             let mut next = user_data.clone();
-            next.as_object_mut().unwrap().insert("access".to_string(), Value::Array(active.clone()));
-            return Reply::text(list_text(target_jid, &active, now))
-                .with_mutation(Mutation::SetUser {
+            next.as_object_mut()
+                .unwrap()
+                .insert("access".to_string(), Value::Array(active.clone()));
+            return Reply::text(list_text(target_jid, &active, now)).with_mutation(
+                Mutation::SetUser {
                     jid: target_jid.to_string(),
                     data: next,
-                });
+                },
+            );
         }
         return Reply::text(list_text(target_jid, &active, now));
     }
@@ -194,7 +196,9 @@ pub fn akses(ctx: Ctx) -> Reply {
 
         let mut user = ctx.user_data.clone();
         if user.get("access").is_none() {
-            user.as_object_mut().unwrap().insert("access".to_string(), Value::Array(Vec::new()));
+            user.as_object_mut()
+                .unwrap()
+                .insert("access".to_string(), Value::Array(Vec::new()));
         }
         let mut access = access_list(&user);
 
@@ -209,16 +213,23 @@ pub fn akses(ctx: Ctx) -> Reply {
             }
         };
 
-        if let Some(idx) = access.iter().position(|a| a.get("cmd").and_then(Value::as_str) == Some(command_target.as_str())) {
+        if let Some(idx) = access
+            .iter()
+            .position(|a| a.get("cmd").and_then(Value::as_str) == Some(command_target.as_str()))
+        {
             access[idx] = serde_json::json!({ "cmd": command_target, "expired": expired_time.map(Value::from) });
             let mut next = user.clone();
-            next.as_object_mut().unwrap().insert("access".to_string(), Value::Array(access));
+            next.as_object_mut()
+                .unwrap()
+                .insert("access".to_string(), Value::Array(access));
             return Reply::text(format!(
                 "✅ *ᴀᴋsᴇs ᴅɪᴘᴇʀʙᴀʀᴜɪ*\n\n\
                  Command: `{}`\n\
                  Durasi: *{}*\n\
                  Target: @{}",
-                command_target, duration_target, target_jid.split('@').next().unwrap_or(target_jid)
+                command_target,
+                duration_target,
+                target_jid.split('@').next().unwrap_or(target_jid)
             ))
             .with_mutation(Mutation::SetUser {
                 jid: target_jid.clone(),
@@ -226,15 +237,21 @@ pub fn akses(ctx: Ctx) -> Reply {
             });
         }
 
-        access.push(serde_json::json!({ "cmd": command_target, "expired": expired_time.map(Value::from) }));
+        access.push(
+            serde_json::json!({ "cmd": command_target, "expired": expired_time.map(Value::from) }),
+        );
         let mut next = user.clone();
-        next.as_object_mut().unwrap().insert("access".to_string(), Value::Array(access));
+        next.as_object_mut()
+            .unwrap()
+            .insert("access".to_string(), Value::Array(access));
         Reply::text(format!(
             "✅ *ᴀᴋsᴇs ᴅɪʙᴇʀɪᴋᴀɴ*\n\n\
              ┃ 🔑 ᴄᴍᴅ: `{}`\n\
              ┃ ⏱️ ᴅᴜʀᴀsɪ: *{}*\n\
              ┃ 👤 ᴛᴀʀɢᴇᴛ: @{}",
-            command_target, duration_target, target_jid.split('@').next().unwrap_or(target_jid)
+            command_target,
+            duration_target,
+            target_jid.split('@').next().unwrap_or(target_jid)
         ))
         .with_mutation(Mutation::SetUser {
             jid: target_jid.clone(),
@@ -255,10 +272,15 @@ pub fn akses(ctx: Ctx) -> Reply {
             .map(|a| a.to_lowercase());
 
         if let Some(cmd_name) = specific_cmd {
-            if let Some(idx) = access.iter().position(|a| a.get("cmd").and_then(Value::as_str) == Some(cmd_name.as_str())) {
+            if let Some(idx) = access
+                .iter()
+                .position(|a| a.get("cmd").and_then(Value::as_str) == Some(cmd_name.as_str()))
+            {
                 access.remove(idx);
                 let mut next = user.clone();
-                next.as_object_mut().unwrap().insert("access".to_string(), Value::Array(access));
+                next.as_object_mut()
+                    .unwrap()
+                    .insert("access".to_string(), Value::Array(access));
                 return Reply::text(format!(
                     "✅ Akses `{}` berhasil dicabut dari @{}",
                     cmd_name,
@@ -269,10 +291,7 @@ pub fn akses(ctx: Ctx) -> Reply {
                     data: next,
                 });
             }
-            return Reply::text(format!(
-                "❌ User tidak punya akses command `{}`",
-                cmd_name
-            ));
+            return Reply::text(format!("❌ User tidak punya akses command `{}`", cmd_name));
         }
 
         if active.is_empty() {
@@ -324,7 +343,13 @@ fn list_text(target: &str, active: &[Value], now: i64) -> String {
 mod tests {
     use super::*;
 
-    fn run(args: &[&str], command: &str, user_data: Value, mentioned: Option<&str>, quoted: bool) -> Reply {
+    fn run(
+        args: &[&str],
+        command: &str,
+        user_data: Value,
+        mentioned: Option<&str>,
+        quoted: bool,
+    ) -> Reply {
         let args_vec: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
         let ctx = Ctx {
             command: command.to_string(),
@@ -343,8 +368,8 @@ mod tests {
                     mimetype: None,
                     file_name: None,
                     from_me: false,
-            timestamp: 0,
-        })
+                    timestamp: 0,
+                })
             } else {
                 None
             },
@@ -375,7 +400,14 @@ mod tests {
         assert_eq!(p.meta.name, "akses");
         assert_eq!(
             p.meta.alias,
-            ["addakses", "delakses", "listakses", "addaccess", "delaccess", "listaccess"]
+            [
+                "addakses",
+                "delakses",
+                "listakses",
+                "addaccess",
+                "delaccess",
+                "listaccess"
+            ]
         );
         assert_eq!(p.meta.category, "owner");
         assert!(p.meta.is_owner);
@@ -399,33 +431,60 @@ mod tests {
 
     #[test]
     fn add_membutuhkan_target() {
-        let r = run(&["addowner", "30d"], "addakses", serde_json::json!({}), None, false);
+        let r = run(
+            &["addowner", "30d"],
+            "addakses",
+            serde_json::json!({}),
+            None,
+            false,
+        );
         assert!(body(&r).contains("Target Invalid"));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn add_format_salah_kalau_clean_args_kurang_dua() {
-        let r = run(&["6281234567890", "addowner"], "addakses", serde_json::json!({}), None, false);
+        let r = run(
+            &["6281234567890", "addowner"],
+            "addakses",
+            serde_json::json!({}),
+            None,
+            false,
+        );
         assert!(body(&r).contains("Format Salah"));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn add_durasi_salah_ditolak() {
-        let r = run(&["6281234567890", "addowner", "xyz"], "addakses", serde_json::json!({}), None, false);
+        let r = run(
+            &["6281234567890", "addowner", "xyz"],
+            "addakses",
+            serde_json::json!({}),
+            None,
+            false,
+        );
         assert!(body(&r).contains("Format durasi salah"));
         assert!(r.mutations().is_empty());
     }
 
     #[test]
     fn add_berhasil_simpan_ke_user() {
-        let r = run(&["6281234567890", "addowner", "30d"], "addakses", serde_json::json!({}), None, false);
+        let r = run(
+            &["6281234567890", "addowner", "30d"],
+            "addakses",
+            serde_json::json!({}),
+            None,
+            false,
+        );
         assert!(body(&r).contains("ᴀᴋsᴇs ᴅɪʙᴇʀɪᴋᴀɴ"));
         let data = stored(&r);
         let access = data.get("access").and_then(Value::as_array).unwrap();
         assert_eq!(access.len(), 1);
-        assert_eq!(access[0].get("cmd").and_then(Value::as_str), Some("addowner"));
+        assert_eq!(
+            access[0].get("cmd").and_then(Value::as_str),
+            Some("addowner")
+        );
         assert!(access[0].get("expired").is_some());
     }
 
@@ -434,7 +493,13 @@ mod tests {
         let existing = serde_json::json!({
             "access": [{ "cmd": "addowner", "expired": 1000 }]
         });
-        let r = run(&["6281234567890", "addowner", "1d"], "addakses", existing, None, false);
+        let r = run(
+            &["6281234567890", "addowner", "1d"],
+            "addakses",
+            existing,
+            None,
+            false,
+        );
         let data = stored(&r);
         let access = data.get("access").and_then(Value::as_array).unwrap();
         assert_eq!(access.len(), 1);
@@ -446,7 +511,13 @@ mod tests {
         let existing = serde_json::json!({
             "access": [{ "cmd": "addowner", "expired": null }]
         });
-        let r = run(&["6281234567890", "addowner"], "delakses", existing, None, false);
+        let r = run(
+            &["6281234567890", "addowner"],
+            "delakses",
+            existing,
+            None,
+            false,
+        );
         assert!(body(&r).contains("berhasil dicabut"));
         let data = stored(&r);
         let access = data.get("access").and_then(Value::as_array).unwrap();
@@ -455,7 +526,13 @@ mod tests {
 
     #[test]
     fn permanent_expired_null() {
-        let r = run(&["6281234567890", "cmdx", "permanent"], "addakses", serde_json::json!({}), None, false);
+        let r = run(
+            &["6281234567890", "cmdx", "permanent"],
+            "addakses",
+            serde_json::json!({}),
+            None,
+            false,
+        );
         let data = stored(&r);
         let access = data.get("access").and_then(Value::as_array).unwrap();
         assert_eq!(access[0].get("expired"), Some(&Value::Null));

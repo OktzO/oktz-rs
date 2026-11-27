@@ -17,10 +17,7 @@ pub(crate) fn pakai(prefix: &str) -> String {
 
 /// `isImage`.
 pub(crate) fn is_image(ctx: &Ctx) -> bool {
-    ctx.is_media_kind(IncomingKind::Image)
-        || ctx
-            .quoted()
-            .is_some_and(|q| q.kind.is_image())
+    ctx.is_media_kind(IncomingKind::Image) || ctx.quoted().is_some_and(|q| q.kind.is_image())
 }
 
 /// Unduh gambar: quoted dulu, baru trigger.
@@ -77,7 +74,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::MediaFetch for StubFetch {
-        fn download(&self, _: oktz_plugin_api::MediaOrigin) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
+        fn download(
+            &self,
+            _: oktz_plugin_api::MediaOrigin,
+        ) -> Result<Vec<u8>, oktz_plugin_api::MediaError> {
             if self.ok {
                 Ok(self.bytes.clone())
             } else {
@@ -109,8 +109,8 @@ mod tests {
                 mimetype: None,
                 file_name: None,
                 from_me: false,
-            timestamp: 0,
-        })
+                timestamp: 0,
+            })
         } else {
             None
         };

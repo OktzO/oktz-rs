@@ -200,7 +200,10 @@ mod tests {
     }
 
     impl oktz_plugin_api::HttpGet for Stub {
-        fn get(&self, url: &str) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
+        fn get(
+            &self,
+            url: &str,
+        ) -> Result<oktz_plugin_api::HttpResponse, oktz_plugin_api::HttpError> {
             self.seen.lock().unwrap().push(url.to_string());
             Err(oktz_plugin_api::HttpError {
                 message: "offline".into(),

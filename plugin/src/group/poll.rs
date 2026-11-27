@@ -131,9 +131,15 @@ mod tests {
         assert_eq!(p.meta.category, "group");
         assert_eq!(p.meta.description, "Buat polling/voting di grup");
         assert_eq!(p.meta.usage, ".poll <pertanyaan> | <opsi1>, <opsi2>, ...");
-        assert_eq!(p.meta.example, ".poll Makan apa? | Nasi Goreng, Mie Ayam, Bakso");
+        assert_eq!(
+            p.meta.example,
+            ".poll Makan apa? | Nasi Goreng, Mie Ayam, Bakso"
+        );
         assert_eq!(p.meta.cooldown, 30);
-        assert_eq!(p.meta.energi, 1, "satu-satunya plugin ini yang ambil energi");
+        assert_eq!(
+            p.meta.energi, 1,
+            "satu-satunya plugin ini yang ambil energi"
+        );
         assert!(p.meta.is_group);
         assert!(!p.meta.is_private && !p.meta.is_admin);
         assert!(!p.meta.is_bot_admin && !p.meta.is_owner && !p.meta.is_premium);
@@ -153,8 +159,14 @@ mod tests {
     fn empty_text_prints_the_full_usage() {
         for t in ["", "   ", "\t"] {
             let r = run(t);
-            assert!(body(&r).starts_with("⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n> Format tidak valid!"), "{t:?}");
-            assert!(body(&r).contains("> `.poll multi | pertanyaan | opsi1, opsi2, opsi3, dst`"), "{t:?}");
+            assert!(
+                body(&r).starts_with("⚠️ *ᴠᴀʟɪᴅᴀsɪ ɢᴀɢᴀʟ*\n\n> Format tidak valid!"),
+                "{t:?}"
+            );
+            assert!(
+                body(&r).contains("> `.poll multi | pertanyaan | opsi1, opsi2, opsi3, dst`"),
+                "{t:?}"
+            );
         }
     }
 
@@ -201,12 +213,24 @@ mod tests {
         assert_eq!(parse(two).unwrap().options.len(), 2);
         assert!(run(two).is_none(), "tepat 2 lolos validasi");
 
-        let twelve = format!("a | {}", (1..=12).map(|i| format!("o{i}")).collect::<Vec<_>>().join(", "));
+        let twelve = format!(
+            "a | {}",
+            (1..=12)
+                .map(|i| format!("o{i}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         let p = parse(&twelve).unwrap();
         assert_eq!(p.options.len(), MAX_OPTIONS);
         assert!(run(&twelve).is_none(), "tepat 12 lolos validasi");
 
-        let thirteen = format!("a | {}", (1..=13).map(|i| format!("o{i}")).collect::<Vec<_>>().join(", "));
+        let thirteen = format!(
+            "a | {}",
+            (1..=13)
+                .map(|i| format!("o{i}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         assert_eq!(parse(&thirteen).unwrap().options.len(), 13);
         assert_eq!(body(&run(&thirteen)), TOO_MANY);
     }
@@ -223,7 +247,10 @@ mod tests {
     fn the_too_many_check_runs_before_the_question_length_check() {
         // versi awal: amount > 12 dicek sebelum panjang pertanyaan.
         let long = "q".repeat(MAX_QUESTION_CHARS + 1);
-        let many = (1..=13).map(|i| format!("o{i}")).collect::<Vec<_>>().join(", ");
+        let many = (1..=13)
+            .map(|i| format!("o{i}"))
+            .collect::<Vec<_>>()
+            .join(", ");
         assert_eq!(body(&run(&format!("{long} | {many}"))), TOO_MANY);
     }
 

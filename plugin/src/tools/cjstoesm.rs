@@ -207,7 +207,10 @@ fn r1(s: &str, i: usize) -> Option<(usize, String)> {
     }
     let inner = &s[b + 1..b + 1 + rel];
     let (path, end) = require_tail(s, b + 2 + rel)?;
-    Some((end, format!("import {{ {} }} from '{path}';", named_to_import(inner))))
+    Some((
+        end,
+        format!("import {{ {} }} from '{path}';", named_to_import(inner)),
+    ))
 }
 
 /// `(?:const|let|var)\s+(\w+)\s*=\s*require\(...\)\.(\w+)\s*;?` — aturan ini
@@ -279,7 +282,9 @@ fn mod_exports(s: &str, i: usize) -> Option<usize> {
 }
 
 fn exports_prop(s: &str, i: usize) -> Option<usize> {
-    s[i..].starts_with("exports.").then_some(i + "exports.".len())
+    s[i..]
+        .starts_with("exports.")
+        .then_some(i + "exports.".len())
 }
 
 /// `module.exports\s*=\s*\{([^}]+)\}\s*;?`
@@ -302,7 +307,11 @@ fn r6(s: &str, i: usize) -> Option<(usize, String)> {
 /// `params` dikembalikan INCLUDING tanda kurung — `(\([^)]*\))` di versi awal ikut
 /// ditulis apa adanya ke hasil. `classes` menolak `class`: hanya aturan
 /// `module.exports` (r7) yang memperbolehkannya, `exports.*` (r10) tidak.
-fn decl_tail(s: &str, i: usize, classes: bool) -> Option<(&'static str, String, String, String, usize)> {
+fn decl_tail(
+    s: &str,
+    i: usize,
+    classes: bool,
+) -> Option<(&'static str, String, String, String, usize)> {
     let (aw, j) = async_prefix(s, i);
     let ty = if s[j..].starts_with("function") {
         "function"
@@ -400,7 +409,10 @@ fn r11(s: &str, i: usize) -> Option<(usize, String)> {
     if !s[e..].starts_with('{') {
         return None;
     }
-    Some((e + 1, format!("export const {} = {aw}({params}) => {{", &s[p..ke])))
+    Some((
+        e + 1,
+        format!("export const {} = {aw}({params}) => {{", &s[p..ke]),
+    ))
 }
 
 /// `exports\.(\w+)\s*=\s*(\w+)\s*;?`
@@ -433,7 +445,10 @@ fn r13(s: &str, i: usize) -> Option<(usize, String)> {
     let value = &s[j..k];
     let end = semi(s, ws_fwd(s, k));
     let trimmed = value.trim();
-    if ["async", "function", "(", "class"].iter().any(|p| trimmed.starts_with(p)) {
+    if ["async", "function", "(", "class"]
+        .iter()
+        .any(|p| trimmed.starts_with(p))
+    {
         return Some((end, s[i..end].to_string()));
     }
     Some((end, format!("export const {} = {value};", &s[p..ke])))
@@ -636,10 +651,7 @@ mod tests {
 
     #[test]
     fn a_quoted_body_wins_over_the_command_text() {
-        let r = run(
-            "diabaikan",
-            Some(quoted("const axios = require('axios')")),
-        );
+        let r = run("diabaikan", Some(quoted("const axios = require('axios')")));
         assert_eq!(text_of(&r), "import axios from 'axios';");
     }
 
@@ -648,16 +660,28 @@ mod tests {
     #[test]
     fn conversions_match_the_js_regex_pipeline() {
         for (src, want) in [
-            ("const axios = require('axios')", "import axios from 'axios';"),
+            (
+                "const axios = require('axios')",
+                "import axios from 'axios';",
+            ),
             ("const { a, b } = require('x')", "import { a, b } from 'x';"),
-            ("const { a, b: c } = require('x')", "import { a, b as c } from 'x';"),
+            (
+                "const { a, b: c } = require('x')",
+                "import { a, b as c } from 'x';",
+            ),
             // `d: e: f` punya tiga bagian, jadi aturan versi awal jatuh ke `parts[0]`.
             (
                 "var { a, b: c, d: e: f } = require('z')",
                 "import { a, b as c, d } from 'z';",
             ),
-            ("let x = require('y').default", "import { default as x } from 'y';"),
-            ("const f = require('y').join", "import { join as f } from 'y';"),
+            (
+                "let x = require('y').default",
+                "import { default as x } from 'y';",
+            ),
+            (
+                "const f = require('y').join",
+                "import { join as f } from 'y';",
+            ),
             ("require('side-effect')", "import 'side-effect';"),
             ("module.exports = { a, b: c }", "export { a, c as b };"),
             (
@@ -671,7 +695,10 @@ mod tests {
             ("module.exports = someValue", "export default someValue;"),
             // Spasi akhir ikut nilai `[^;\n]+` yang serakah.
             ("module.exports = p ", "export default p ;"),
-            ("module.exports = class Foo {\n}", "export default class Foo {\n}"),
+            (
+                "module.exports = class Foo {\n}",
+                "export default class Foo {\n}",
+            ),
             ("module.exports = {\n}", "export {  };"),
             // `{}` tidak punya isi, jadi `([^}]+)` gagal dan aturannya jatuh
             // ke `module.exports\s*=\s*([^;\n]+)`.
@@ -698,7 +725,10 @@ mod tests {
             ("exports.a = asyncThing", "export { asyncThing as a };"),
             // Aturan `exports.` tidak punya batas kata: dia ikut memotong
             // `module.exports.ok = value` jadi `module.export { … }`.
-            ("module.exports.ok = value", "module.export { value as ok };"),
+            (
+                "module.exports.ok = value",
+                "module.export { value as ok };",
+            ),
             (
                 "Object.assign(module.exports, require('./lib'))",
                 "export * from './lib';",
@@ -730,21 +760,32 @@ mod tests {
 
     #[test]
     fn dirname_helper_is_prepended_once() {
-        let out = convert_cjs_to_esm("const p = require('path')\nconst __dirname = '/x'\nmodule.exports = p");
+        let out = convert_cjs_to_esm(
+            "const p = require('path')\nconst __dirname = '/x'\nmodule.exports = p",
+        );
         assert!(
             out.starts_with("import { fileURLToPath } from 'url';\nimport { dirname } from 'path';\nconst __filename = fileURLToPath(import.meta.url);\nconst __dirname = dirname(__filename);\n\n"),
             "{out}"
         );
-        assert_eq!(out.matches("fileURLToPath").count(), 2, "helper +_import_: {out}");
+        assert_eq!(
+            out.matches("fileURLToPath").count(),
+            2,
+            "helper +_import_: {out}"
+        );
         assert!(
-            convert_cjs_to_esm("const __dirname = '/x'\nconst u = fileURLToPath(1)\nmodule.exports = u")
-                .starts_with("const __dirname"),
+            convert_cjs_to_esm(
+                "const __dirname = '/x'\nconst u = fileURLToPath(1)\nmodule.exports = u"
+            )
+            .starts_with("const __dirname"),
             "sudah punya fileURLToPath -> helper tidak ditambah"
         );
     }
 
     #[test]
     fn three_blank_lines_collapse_to_two() {
-        assert_eq!(convert_cjs_to_esm("\n\n\n\na = 1\n\n\n\nb = 2\n"), "a = 1\n\nb = 2");
+        assert_eq!(
+            convert_cjs_to_esm("\n\n\n\na = 1\n\n\n\nb = 2\n"),
+            "a = 1\n\nb = 2"
+        );
     }
 }

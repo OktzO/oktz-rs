@@ -43,8 +43,8 @@ pub(crate) fn unggah_litterbox(
     http: &dyn oktz_plugin_api::HttpGet,
     buffer: &[u8],
 ) -> Result<String, String> {
-    let req = HttpCall::post("https://litterbox.catbox.moe/resources/internals/api.php")
-        .multipart(vec![
+    let req =
+        HttpCall::post("https://litterbox.catbox.moe/resources/internals/api.php").multipart(vec![
             MultipartPart::field("reqtype", "fileupload"),
             MultipartPart::field("time", "72h"),
             MultipartPart::file("fileToUpload", "image.jpg", buffer.to_vec())
@@ -115,7 +115,9 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
     let url = url_memegenvid(&image_url, &top, &bottom, &apikey);
     if let Ok(res) = ctx.http.get(&url) {
         let body = res.json().unwrap_or(Value::Null);
-        let status_ok = body.get("status").is_some_and(crate::common::js_truthy_value);
+        let status_ok = body
+            .get("status")
+            .is_some_and(crate::common::js_truthy_value);
         let sticker_url = body
             .get("data")
             .and_then(|d| d.get("url"))
@@ -124,12 +126,13 @@ pub fn smeme_animated(ctx: Ctx) -> Reply {
             .map(String::from);
         if status_ok
             && let Some(sticker_url) = sticker_url
-                && let Ok(res) = ctx.http.get(&sticker_url) {
-                    let buf = res.body.bytes().to_vec();
-                    if !buf.is_empty() {
-                        return Reply::sticker(MediaSource::bytes(buf)).with_reaction("✅");
-                    }
-                }
+            && let Ok(res) = ctx.http.get(&sticker_url)
+        {
+            let buf = res.body.bytes().to_vec();
+            if !buf.is_empty() {
+                return Reply::sticker(MediaSource::bytes(buf)).with_reaction("✅");
+            }
+        }
     }
 
     // API gagal: kirim gambar aslinya sebagai
@@ -310,14 +313,20 @@ mod tests {
     #[test]
     fn media_gagal_diunduh_jatuh_ke_error_template() {
         let r = smeme_animated(ctx_of(Stub::baru(), true, "atas|bawah"));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "smeme-animated"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "smeme-animated")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
     }
 
     #[test]
     fn upload_gagal_jatuh_ke_error_template() {
         let r = smeme_animated(ctx_of(Stub::gagal_upload(), true, "atas|bawah"));
-        assert_eq!(teks(&r), crate::common::error_template_bawaan(".", "smeme-animated"));
+        assert_eq!(
+            teks(&r),
+            crate::common::error_template_bawaan(".", "smeme-animated")
+        );
         assert_eq!(reaksi(&r), Some("☢"));
     }
 }

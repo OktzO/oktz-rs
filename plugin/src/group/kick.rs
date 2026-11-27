@@ -91,7 +91,11 @@ pub fn kick(ctx: Ctx) -> Reply {
         Ok(()) => Reply::text(format!(
             "✅ @{target_number} telah dikeluarkan dari grup ini."
         ))
-        .with_mentions(crate::common::mention_jid(&ctx, &target).into_iter().collect()),
+        .with_mentions(
+            crate::common::mention_jid(&ctx, &target)
+                .into_iter()
+                .collect(),
+        ),
         Err(_) => Reply::text(crate::common::error_template(&ctx)),
     }
 }

@@ -21,7 +21,11 @@ pub(crate) fn status_text(ctx: &Ctx) -> String {
          *Cara pakai:*\n\
          > `{}aktifaudiomenu ya` - Aktifkan audio\n\
          > `{}aktifaudiomenu gak` - Nonaktifkan audio",
-        if current_enabled(ctx) { "✅ Aktif" } else { "❌ Nonaktif" },
+        if current_enabled(ctx) {
+            "✅ Aktif"
+        } else {
+            "❌ Nonaktif"
+        },
         ctx.prefix,
         ctx.prefix
     )
@@ -84,7 +88,7 @@ pub fn aktifaudiomenu(ctx: Ctx) -> Reply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value};
+    use serde_json::Value;
 
     fn run(settings: Value, text: &str) -> Reply {
         let ctx = Ctx {
@@ -161,7 +165,11 @@ mod tests {
             ..Default::default()
         }));
         // `!== false` berarti bentuk lain tetap "aktif".
-        for weird in [serde_json::json!(0), serde_json::json!(""), serde_json::json!(null)] {
+        for weird in [
+            serde_json::json!(0),
+            serde_json::json!(""),
+            serde_json::json!(null),
+        ] {
             assert!(
                 current_enabled(&Ctx {
                     settings: serde_json::json!({ "audioMenu": weird }),
@@ -175,10 +183,18 @@ mod tests {
     #[test]
     fn every_spelling_of_yes_activates_and_of_no_deactivates() {
         for on in ["ya", "on", "1", "aktif"] {
-            assert_eq!(stored(&run(serde_json::json!({"audioMenu": false}), on)), serde_json::json!(true), "arg {on}");
+            assert_eq!(
+                stored(&run(serde_json::json!({"audioMenu": false}), on)),
+                serde_json::json!(true),
+                "arg {on}"
+            );
         }
         for off in ["gak", "off", "0", "nonaktif"] {
-            assert_eq!(stored(&run(serde_json::json!({"audioMenu": true}), off)), serde_json::json!(false), "arg {off}");
+            assert_eq!(
+                stored(&run(serde_json::json!({"audioMenu": true}), off)),
+                serde_json::json!(false),
+                "arg {off}"
+            );
         }
     }
 

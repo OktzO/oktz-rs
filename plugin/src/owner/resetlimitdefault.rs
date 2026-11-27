@@ -72,7 +72,10 @@ mod tests {
     #[test]
     fn the_alias_resolves_back_to_this_plugin() {
         assert_eq!(
-            oktz_plugin_api::find("defaultlimitreset").unwrap().meta.name,
+            oktz_plugin_api::find("defaultlimitreset")
+                .unwrap()
+                .meta
+                .name,
             "resetlimitdefault"
         );
     }
@@ -92,6 +95,11 @@ mod tests {
 
     #[test]
     fn the_reply_names_the_config_default() {
-        assert!(run().text_body().unwrap().contains("> Default limit direset ke config: `25`"));
+        assert!(
+            run()
+                .text_body()
+                .unwrap()
+                .contains("> Default limit direset ke config: `25`")
+        );
     }
 }

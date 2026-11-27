@@ -114,7 +114,9 @@ mod tests {
             http,
             ..Default::default()
         };
-        (oktz_plugin_api::find("kecocokannamapasangan").unwrap().handler)(ctx)
+        (oktz_plugin_api::find("kecocokannamapasangan")
+            .unwrap()
+            .handler)(ctx)
     }
 
     fn reply_text(r: &Reply) -> &str {
@@ -150,7 +152,10 @@ mod tests {
             let t = reply_text(&r);
             assert!(t.starts_with("💕 *ᴋᴇᴄᴏᴄᴏᴋᴀɴ ɴᴀᴍᴀ*"), "{t}");
             assert!(t.contains("Format: nama1 nama2"), "{t}");
-            assert!(matches!(r.without_mutations().tanpa_reaksi(), Reply::Text { .. }));
+            assert!(matches!(
+                r.without_mutations().tanpa_reaksi(),
+                Reply::Text { .. }
+            ));
         }
     }
 
@@ -180,7 +185,11 @@ mod tests {
 
     #[test]
     fn a_falsy_status_or_data_gives_the_failure_message() {
-        for body in [serde_json::json!({ "data": {} }), serde_json::json!({ "status": true }), serde_json::json!({})] {
+        for body in [
+            serde_json::json!({ "data": {} }),
+            serde_json::json!({ "status": true }),
+            serde_json::json!({}),
+        ] {
             let r = run_with(Arc::new(Stub(body)), &["putu", "keyla"]);
             assert_eq!(reply_text(&r), "❌ *ɢᴀɢᴀʟ*\n\n> Gagal menganalisa");
         }

@@ -193,14 +193,20 @@ mod tests {
 
     #[test]
     fn the_alias_resolves_to_this_plugin() {
-        assert_eq!(oktz_plugin_api::find("setenergi").unwrap().meta.name, "capenergi");
+        assert_eq!(
+            oktz_plugin_api::find("setenergi").unwrap().meta.name,
+            "capenergi"
+        );
     }
 
     #[test]
     fn fewer_than_two_arguments_shows_help_and_writes_nothing() {
         for text in ["", "5", "   "] {
             let r = run(text, serde_json::json!({}));
-            assert!(text_of(&r).starts_with("⚙️ *SISTEM CAP ENERGI*"), "input {text:?}");
+            assert!(
+                text_of(&r).starts_with("⚙️ *SISTEM CAP ENERGI*"),
+                "input {text:?}"
+            );
             assert!(r.mutations().is_empty(), "input {text:?}");
         }
     }
@@ -252,7 +258,11 @@ mod tests {
         let settings = serde_json::json!({ "capenergi": { "cekbaik": 9, "cekgacha": 2 } });
         let __balasan = run("cekcantik 4", settings);
         let s = stored(&__balasan);
-        assert_eq!(s["cekbaik"], serde_json::json!(9), "override lain tidak hilang");
+        assert_eq!(
+            s["cekbaik"],
+            serde_json::json!(9),
+            "override lain tidak hilang"
+        );
         assert_eq!(s["cekgacha"], serde_json::json!(2));
         assert_eq!(s["cekcantik"], serde_json::json!(4));
     }

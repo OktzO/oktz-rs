@@ -163,7 +163,8 @@ mod tests {
     #[test]
     fn mengembalikan_oss_url_dan_mengirim_body_yang_benar() {
         let http = Stub::baru(r#"{"code":0,"data":{"oss_url":"https://cdn.example/a.mp3"}}"#);
-        let hasil = generate_custom_tts(&http, "001526de-3826-11ee-a861-00163e2ac61b", "halo").unwrap();
+        let hasil =
+            generate_custom_tts(&http, "001526de-3826-11ee-a861-00163e2ac61b", "halo").unwrap();
         assert_eq!(hasil, "https://cdn.example/a.mp3");
 
         let p = http.permintaan.lock().unwrap();
@@ -197,7 +198,10 @@ mod tests {
             Some(HttpBody::Bytes { data, .. }) => String::from_utf8(data.to_vec()).unwrap(),
             other => panic!("harus Bytes JSON, dapat {other:?}"),
         };
-        assert!(body.contains("001526de-3826-11ee-a861-00163e2ac61b"), "{body}");
+        assert!(
+            body.contains("001526de-3826-11ee-a861-00163e2ac61b"),
+            "{body}"
+        );
     }
 
     #[test]

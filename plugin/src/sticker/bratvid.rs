@@ -20,16 +20,12 @@ fn encode_mp4(raw: &[u8], width: u32, height: u32, fps: u32) -> Result<Vec<u8>, 
 /// (`muxer does not support non seekable output`) — versi awal juga menulis
 /// berkas temp. Frame dialirkan, bukan ditampung, supaya
 /// animasi 1000×1000 tidak menelan ratusan MB RAM.
-fn encode_mp4_dengan<F>(
-    width: u32,
-    height: u32,
-    fps: u32,
-    mut isi: F,
-) -> Result<Vec<u8>, String>
+fn encode_mp4_dengan<F>(width: u32, height: u32, fps: u32, mut isi: F) -> Result<Vec<u8>, String>
 where
     F: FnMut(&mut std::process::ChildStdin) -> std::io::Result<()>,
 {
-    let ffmpeg = oktz_plugin_api::ffmpeg::jalur_ffmpeg().unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
+    let ffmpeg = oktz_plugin_api::ffmpeg::jalur_ffmpeg()
+        .unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
     let keluar = oktz_plugin_api::nama_unik("oktz-bratvid", "mp4");
     let keluar_arg = keluar.to_string_lossy().to_string();
     let mut child = Command::new(ffmpeg)
@@ -74,7 +70,10 @@ where
 
     let mulai = std::time::Instant::now();
     loop {
-        match child.try_wait().map_err(|e| format!("gagal menunggu ffmpeg: {e}"))? {
+        match child
+            .try_wait()
+            .map_err(|e| format!("gagal menunggu ffmpeg: {e}"))?
+        {
             Some(_) => break,
             None if mulai.elapsed() > Duration::from_secs(120) => {
                 let _ = child.kill();
@@ -126,18 +125,34 @@ fn gagal(ctx: &Ctx) -> Reply {
 fn jadi_stiker_video(ctx: &Ctx, mp4: Vec<u8>) -> Reply {
     let cfg = ctx.config();
     let (packname, author) = (
-        if cfg.sticker.packname.is_empty() { "Sticker".to_string() } else { cfg.sticker.packname.clone() },
-        if cfg.sticker.author.is_empty() { "Bot".to_string() } else { cfg.sticker.author.clone() },
+        if cfg.sticker.packname.is_empty() {
+            "Sticker".to_string()
+        } else {
+            cfg.sticker.packname.clone()
+        },
+        if cfg.sticker.author.is_empty() {
+            "Bot".to_string()
+        } else {
+            cfg.sticker.author.clone()
+        },
     );
     let webp = match oktz_plugin_api::video_ke_stiker_webp(&mp4, &[]) {
-        Ok(webp) => oktz_plugin_api::tempel_metadata_stiker(&webp, &packname, &author, &oktz_plugin_api::EXIF_EMOJIS).unwrap_or(webp),
+        Ok(webp) => oktz_plugin_api::tempel_metadata_stiker(
+            &webp,
+            &packname,
+            &author,
+            &oktz_plugin_api::EXIF_EMOJIS,
+        )
+        .unwrap_or(webp),
         Err(_) => return gagal(ctx),
     };
     Reply::sequence(vec![
         Reply::reaction("🕐"),
         Reply::sticker_opsi(
             MediaSource::bytes(webp).with_mimetype("image/webp"),
-            oktz_plugin_api::StickerOpsi::video().with_packname(packname).with_author(author),
+            oktz_plugin_api::StickerOpsi::video()
+                .with_packname(packname)
+                .with_author(author),
         ),
         Reply::reaction("✅"),
     ])
@@ -185,12 +200,12 @@ fn run_animasi(ctx: Ctx) -> Reply {
     jadi_stiker_video(&ctx, mp4)
 }
 
-
 fn run_progresif(ctx: Ctx) -> Reply {
     let text = ctx.text.trim().to_string();
     if text.is_empty() {
         return kartu_pakai(&ctx, "bratvid");
-    }    let Ok(progresif) = oktz_plugin_api::BratProgresif::baru(&text) else {
+    }
+    let Ok(progresif) = oktz_plugin_api::BratProgresif::baru(&text) else {
         return gagal(&ctx);
     };
     let total_kata = progresif.jumlah_kata();
@@ -301,7 +316,12 @@ mod tests {
             text: String::new(),
             ..Default::default()
         };
-        assert!(run(alias, 512, 512, 15).text_body().unwrap().contains("bratgojo"));
+        assert!(
+            run(alias, 512, 512, 15)
+                .text_body()
+                .unwrap()
+                .contains("bratgojo")
+        );
     }
 
     #[test]
