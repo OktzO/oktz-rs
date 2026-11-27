@@ -1,9 +1,4 @@
-//! `plugins/game/minecraft.js` — Minecraft - Mining & Crafting Game.
-//!
-//! `NOTE (mod.rs):` `game/mod.rs` sudah memuat 8 modul lain (bukan milik
-//! tugas ini), jadi berkas ini sengaja tidak disentuh. Tambahkan baris
-//! berikut secara manual ke `game/mod.rs` saat orchestrator menyetujui:
-//!   pub mod minecraft;
+//! Minecraft - Mining & Crafting Game.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -31,21 +26,21 @@ pub(crate) fn help(prefix: &str) -> String {
     is_bot_admin = false
 )]
 pub fn minecraft(ctx: Ctx) -> Reply {
-    // `minecraft.js` (1017 baris) butuh:
-    //   1. `getDatabase()` + seluruh operasi store user (`getOrCreateMCUser`,
-    //      `db.setGroup`, `db.markDirty`, `db.getGroup`) — store tidak ada di
-    //      `Ctx`.
-    //   2. `src/lib/minecraft.js` + `src/lib/minecraft-data.js` — logika game
-    //      penuh (tambang, craft, combat, gacha, jackpot, prestige, dll.) yang
-    //      tidak ada di crate Rust.
-    //   3. `getAssetBuffer('minecraft')` — baca thumbnail dari disk, tidak ada
-    //      di `Ctx`.
-    //   4. `sock.sendPreview` — kirim preview link, I/O WA yang belum ada di
-    //      `Ctx` class A.
+    // (1017 baris) butuh:
+    // 1. `getDatabase()` + seluruh operasi store user (`getOrCreateMCUser`,
+    // `db.setGroup`, `db.markDirty`, `db.getGroup`) — store tidak ada
+    // `Ctx`.
+    // 2. + — logika game
+    // penuh (tambang, craft, combat, gacha, jackpot, prestige, dll.)
+    // tidak ada di crate Rust.
+    // 3. `getAssetBuffer('minecraft')` — baca thumbnail dari disk, tidak ada
+    // di `Ctx`.
+    // 4. `sock.sendPreview` — kirim preview link, I/O WA yang belum ada
+    // `Ctx` class A.
     //
-    // `ponytail:` sediakan akses store user/grup + asset buffer + kirim
-    // preview ke `Ctx`, lalu port seluruh logika game dari `minecraft.js` dan
-    // `minecraft-data.js` ke fungsi-fungsi di berkas ini (atau modul pembantu
+    // `Keterbatasan:` sediakan akses store user/grup + asset buffer + kirim
+    // preview ke `Ctx`, lalu port seluruh logika game
+    // ke fungsi-fungsi di berkas ini (atau modul pembantu
     // yang di-copy, karena dilarang menyentuh berkas lain).
     Reply::text(help(&ctx.prefix))
 }

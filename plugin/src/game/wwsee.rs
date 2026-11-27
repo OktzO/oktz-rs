@@ -1,8 +1,4 @@
-//! `plugins/game/wwsee.js` — aksi malam Werewolf: intip role target.
-//!
-//! Seluruh logika ada di [`crate::game::wwkill`]; file ini hanya mendaftarkan
-//! config plugin-nya, persis seperti `wwsee.js` yang hanya meneruskan ke
-//! `nightActionHandler`.
+//! Aksi malam Werewolf: intip role target.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -114,8 +110,8 @@ mod tests {
 
     #[test]
     fn an_unknown_target_role_falls_back_to_the_error_template() {
-        // JS melempar `TypeError` di `ROLES[targetPlayer.role].emoji`, dan
-        // `try/catch` di `wwsee.js` membalas template error — bukan role.
+        // versi awal melempar `TypeError` di `ROLES[targetPlayer.role].emoji`,
+        // `try/catch` membalas template error — bukan role.
         let r = run("2", Some(game("wizard")));
         let t = text_of(&r);
         assert!(t.starts_with("☢ Ehhh~ command "), "{t}");

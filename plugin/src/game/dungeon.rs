@@ -1,16 +1,12 @@
-//! `plugins/game/dungeon.js` — lobi dungeon interaktif.
-//!
-//! `dungeon.js` mengekspor `handler` DAN `dungeonAnswerHandler`; yang kedua
-//! diport sebagai `dungeon_answer` (`#[answer_handler]`) — lobi, pilihan
-//! lokasi, dan aksi tempur (`serang`/`lari`/`batal`).
+//! Lobi dungeon interaktif.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
 use serde_json::{Value, json};
 
-/// `SESSION_TIMEOUT` (`dungeon.js:147`) — 5 menit.
+/// `SESSION_TIMEOUT` — 5 menit.
 pub(crate) const SESSION_TIMEOUT_MS: i64 = 5 * 60 * 1000;
 
-/// `Date.now() - session.time > SESSION_TIMEOUT` — strict, jadi sesi yang
+/// `Date.now() - session.time > SESSION_TIMEOUT` — strict, jadi sesi
 /// umurnya persis 5 menit masih hidup. Dipisah dari handler karena batasnya
 /// hanya bisa dikunci persis kalau `now` dikontrol test; lewat handler,
 /// `now_ms()` di dalam selalu beberapa ms lebih besar dari yang dibaca test.
@@ -95,13 +91,13 @@ pub(crate) fn lobby(user_level: i64, stamina: i64) -> String {
 )]
 pub fn dungeon(ctx: Ctx) -> Reply {
     // `user.level || 1` — `0`, `null`, dan `NaN` jadi 1; level negatif
-    // TIDAK, karena angka negatif truthy di JS dan harus jatuh ke guard level.
+    // TIDAK, karena angka negatif truthy di versi awal dan harus jatuh ke guard level.
     let raw_level = crate::common::int_field(&ctx, "level");
     let user_level = if raw_level == 0 { 1 } else { raw_level };
     let rpg = ctx.user_field("rpg");
 
     // `if (!user.rpg.X) user.rpg.X = 10/100` — dievaluasi ulang di bawah saat
-    // menulis, karena JS menyimpan objeknya in-place lalu `db.save()`.
+    // menulis, karena versi awal menyimpan objeknya in-place lalu `db.save()`.
     let stamina = default_field(rpg, "stamina", 100);
 
     if let Some(session) = ctx.user_field(SESSION_FIELD)
@@ -149,7 +145,7 @@ pub fn dungeon(ctx: Ctx) -> Reply {
     })
 }
 
-/// Monster per dungeon, urut `DUNGEONS` (`dungeon.js:20-130`).
+/// Monster per dungeon, urut `DUNGEONS`.
 const MONSTERS: [&[&str]; 10] = [
     &[
         "Goblin Liar",
@@ -203,7 +199,7 @@ const MONSTERS: [&[&str]; 10] = [
     ],
 ];
 
-/// `(minReward, maxReward, dropChance)` per dungeon (`dungeon.js:20-130`).
+/// `(minReward, maxReward, dropChance)` per dungeon.
 const REWARDS: [(i64, i64, i64); 10] = [
     (100, 300, 40),
     (250, 500, 45),
@@ -217,7 +213,7 @@ const REWARDS: [(i64, i64, i64); 10] = [
     (5000, 10000, 90),
 ];
 
-/// `LOOT_TABLE` (`dungeon.js:133-141`).
+/// `LOOT_TABLE`.
 const LOOT: [(&str, &str, i64, i64, i64); 7] = [
     ("iron", "⛏️", 40, 1, 5),
     ("gold", "🪙", 20, 1, 3),
@@ -267,7 +263,7 @@ fn exp_after(ctx: &Ctx, gain: i64) -> i64 {
     }
 }
 
-/// `dungeonAnswerHandler` (`dungeon.js:209-402`) — balasan lokasi atau aksi
+/// `dungeonAnswerHandler` — balasan lokasi atau aksi
 /// tempur, bukan command.
 #[answer_handler]
 pub fn dungeon_answer(ctx: &Ctx) -> Option<Reply> {
@@ -711,7 +707,7 @@ mod tests {
 
     #[test]
     fn a_negative_level_falls_through_to_the_level_guard() {
-        // `-5 || 1` = -5 di JS, jadi level negatif bukan 1 dan guard level
+        // `-5 || 1` = -5 di versi awal, jadi level negatif bukan 1 dan guard level
         // yang menangkapnya.
         let r = run(serde_json::json!({"level": -5}));
         assert_eq!(text_of(&r), too_low(-5));

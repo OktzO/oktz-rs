@@ -1,21 +1,15 @@
-//! `plugins/game/wwkill.js` — aksi malam Werewolf: pilih target untuk dibunuh.
+//! Aksi malam Werewolf: pilih target untuk dibunuh.
 //!
-//! Keempat plugin `ww*` hanya membungkus `nightActionHandler` dari
-//! `werewolf.js`, dan itu bukan fungsi plugin — ia berbagi state global
-//! `global.werewolfGames` milik game. State itu dipetakan ke key session
-//! `werewolfGames`; nama globalnya dipertahankan supaya whoever mem-port
-//! `werewolf.js` memakai key yang sama tanpa perlu tahu pemetaan lain.
-//!
-//! `ponytail:` router hanya mendaftarkan handler plugin, bukan "answer handler"
-//! terpisah. Yang dipindah di sini murni jalur aksi malam; fase siang, vote,
-//! dan pengaturan ulang malam tetap milik `werewolf.js`.
+//! `Keterbatasan:` router hanya mendaftarkan handler plugin, bukan "answer handler"
+//! terpisah. Yang dipindah di sini murni jalur aksi malam; fase siang, vote, dan pengaturan
+//! ulang malam tetap milik.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Map, Value};
 // const dipakai jalur non-test juga; jangan disaring cfg(test).
 pub(crate) const GAMES_KEY: &str = "werewolfGames";
 
-/// `ROLES` (`werewolf.js:35`): kunci, emoji, nama, tim.
+/// `ROLES`: kunci, emoji, nama, tim.
 pub(crate) const ROLES: [(&str, &str, &str, &str); 5] = [
     ("werewolf", "🐺", "Werewolf", "wolf"),
     ("seer", "🔮", "Seer", "village"),
@@ -36,8 +30,8 @@ pub(crate) fn role_name(key: &str) -> &'static str {
     lookup(key).map_or("Unknown", |(_, name, _)| name)
 }
 
-/// `te(prefix, command, pushName)` (`src/lib/error.js:3-9`).
-/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di JS.
+/// `te(prefix, command, pushName)`.
+/// `Ctx` tidak membawa `pushName`, jadi `{pushName}` jadi `User` seperti di versi awal.
 pub(crate) fn error_reply(prefix: &str, command: &str) -> Reply {
     Reply::text(crate::common::error_template_bawaan(prefix, command))
 }
@@ -61,7 +55,7 @@ pub(crate) struct Plan {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Refusal {
     NoTarget,
-    /// `wwsee` meledak `TypeError` atas role yang tidak dikenal; `wwsee.js`
+    /// `wwsee` meledak `TypeError` atas role yang tidak dikenal;
     /// menangkapnya dan membalas template error.
     Template,
     Message(&'static str),
@@ -83,9 +77,9 @@ pub(crate) fn in_night(game: &Value, sender: &str) -> bool {
         })
 }
 
-/// `nightActionHandler` (`werewolf.js:1042`) setelah game ditemukan.
+/// `nightActionHandler` setelah game ditemukan.
 ///
-/// Urutan guard di sini persis JS dan tidak boleh ditukar: `skillUsed`
+/// Urutan guard di sini persis versi awal dan tidak boleh ditukar: `skillUsed`
 /// diperiksa SEBELUM target dibaca, jadi player yang sudah memakai skill
 /// dapat pesan "sudah menggunakan skill", bukan "Masukkan nomor target".
 pub(crate) fn plan(
@@ -572,7 +566,7 @@ mod tests {
 
     #[test]
     fn parse_int_target_semantics_follow_the_helper() {
-        // `parseInt("2abc")` = 2 di JS, bukan NaN — target-nya tetap ditemukan.
+        // `parseInt("2abc")` = 2 di versi awal, bukan NaN — target-nya tetap ditemukan.
         let ctx = night_ctx(WOLF, "wwkill", "2abc", games(Some(night_game())));
         let r = night_action(&ctx, "wwkill");
         assert!(text_of(&r).contains("TARGET TERPILIH"), "{}", text_of(&r));

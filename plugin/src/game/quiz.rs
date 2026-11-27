@@ -1,13 +1,7 @@
-//! Engine umum 22 game quiz — port `src/lib/games.js` (`FotoGames`),
-//! `src/lib/game-data.js`, dan bagian reward `src/lib/context.js`.
+//! Engine umum 22 game quiz — port (`FotoGames`),
 //!
-//! Satu engine, 22 plugin tipis: tiap game cuma memakai konstanta
-//! [`QuizGame`] + `#[plugin]`/`#[answer_handler]` wrapper, pola
-//! `family100.rs`.
-//!
-//! `ponytail:` `setSessionTimer` butuh event loop; sesi kedaluwarsa dihapus
-//! saat dibaca berikutnya (pola `family100.rs`), bukan timer yang memanggil
-//! `endSession`.
+//! `Keterbatasan:` `setSessionTimer` butuh event loop; sesi kedaluwarsa dihapus saat dibaca
+//! berikutnya (pola `family100.rs`), bukan timer yang memanggil `endSession`.
 
 use oktz_plugin_api::{Ctx, MediaSource, Mutation, Reply};
 use serde_json::{Map, Value, json};
@@ -15,21 +9,21 @@ use serde_json::{Map, Value, json};
 use crate::common::now_ms;
 use crate::rpg::heal::{apply_exp, rpg_map};
 
-/// `gameSessions` (`game-data.js:7`) — map bersama semua game, key `chatId`.
+/// `gameSessions` — map bersama semua game, key `chatId`.
 pub(crate) const SESSIONS_KEY: &str = "gameSessions";
 
 const FAST_ANSWER_THRESHOLD_MS: i64 = 4_000;
 
-/// `website` (`config.js`) — awalan caption preview seperti `sendGamePreview`.
+/// `website` — awalan caption preview seperti `sendGamePreview`.
 fn website(ctx: &Ctx) -> String {
     ctx.config().info.website.clone()
 }
 
-/// `fetchBuffer(question[imageField])` (`games.js:132`) — byte gambar, `None`
+/// `fetchBuffer(question[imageField])` — byte gambar, `None`
 /// = gagal. Pipeline mengunduh `MediaSource::Url` dengan `ureq` TANPA
 /// `User-Agent` (banyak host balas 403 → `PipelineError::Media` → template
 /// error), sedangkan `ctx.http` memasang UA browser. Prefetch di sini supaya
-/// kegagalan jadi balasan "gagal memuat gambar" persis `catch` JS.
+/// kegagalan jadi balasan "gagal memuat gambar" persis `catch` versi awal.
 fn gambar_byte(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
     if url.trim().is_empty() {
         return None;
@@ -43,7 +37,7 @@ fn gambar_byte(ctx: &Ctx, url: &str) -> Option<Vec<u8>> {
     (data.len() > 100).then_some(data)
 }
 
-/// `jpegThumbnail` `sendGamePreview` (`context.js:95`) — `config.assets.foto2`.
+/// `jpegThumbnail` `sendGamePreview` — `config.assets.foto2`.
 /// `None` = aset tak terbaca; preview tetap dikirim tanpa gambar.
 fn thumb_foto(ctx: &Ctx) -> Option<MediaSource> {
     let path = ctx
@@ -62,7 +56,7 @@ pub(crate) struct QuizGame {
     pub title: &'static str,
     pub description: &'static str,
     pub timeout_ms: i64,
-    /// `dataFile` JS — nama berkas JSON di `data/`.
+    /// `dataFile` versi awal — nama berkas JSON di `data/`.
     pub data_file: &'static str,
     /// `None` = `questionField: null` (tebakgambar).
     pub question_field: Option<&'static str>,
@@ -85,7 +79,7 @@ pub struct AnswerResult {
     pub similarity: f64,
 }
 
-/// `normalizeAnswer` (`game-data.js:57`).
+/// `normalizeAnswer`.
 pub fn normalize_answer(answer: &str) -> String {
     let mut out = String::with_capacity(answer.len());
     let mut prev_space = true;
@@ -106,7 +100,7 @@ pub fn normalize_answer(answer: &str) -> String {
     out.trim().to_string()
 }
 
-/// `levenshteinDistance` + `getSimilarity` (`game-data.js:68-93`).
+/// `levenshteinDistance` + `getSimilarity`.
 fn similarity(a: &str, b: &str) -> f64 {
     let x: Vec<char> = a.chars().collect();
     let y: Vec<char> = b.chars().collect();
@@ -131,7 +125,7 @@ fn similarity(a: &str, b: &str) -> f64 {
     (max_len - dp[y.len()]) as f64 / max_len as f64
 }
 
-/// `checkAnswerAdvanced` (`game-data.js:95`).
+/// `checkAnswerAdvanced`.
 pub fn check_answer_advanced(correct: &str, user: &str) -> AnswerResult {
     let n1 = normalize_answer(correct);
     let n2 = normalize_answer(user);
@@ -166,7 +160,7 @@ pub fn check_answer_advanced(correct: &str, user: &str) -> AnswerResult {
     }
 }
 
-/// `getHint` (`game-data.js:127`).
+/// `getHint`.
 pub fn get_hint(answer: &str, reveal_count: usize) -> String {
     answer
         .chars()
@@ -175,7 +169,7 @@ pub fn get_hint(answer: &str, reveal_count: usize) -> String {
         .collect()
 }
 
-/// `getProgressiveHint` (`game-data.js:253`) — reveal = 2 + attempts/2,
+/// `getProgressiveHint` — reveal = 2 + attempts/2,
 /// dihitung non-spasi.
 pub fn progressive_hint(answer: &str, attempts: i64) -> String {
     let total = answer.chars().filter(|c| *c != ' ').count();
@@ -196,7 +190,7 @@ pub fn progressive_hint(answer: &str, attempts: i64) -> String {
         .collect()
 }
 
-/// `isSurrender` (`game-data.js:138`) — `===` per kata, bukan `includes`.
+/// `isSurrender` — `===` per kata, bukan `includes`.
 pub fn is_surrender(text: &str) -> bool {
     const WORDS: &[&str] = &[
         "nyerah",
@@ -247,7 +241,7 @@ pub(crate) fn random_question(data_file: &str) -> Option<&'static Value> {
     b.get(rand::rng().random_range(0..b.len()))
 }
 
-/// `getRandomReward` (`game-data.js:245`) — (limit, koin, exp).
+/// `getRandomReward` — (limit, koin, exp).
 fn random_reward() -> (i64, i64, i64) {
     use rand::Rng as _;
     let mut rng = rand::rng();
@@ -301,7 +295,7 @@ fn pick_str<const N: usize>(arr: [&'static str; N]) -> &'static str {
     arr[pick(arr)]
 }
 
-/// `formatRemainingTime` (`game-data.js:219`).
+/// `formatRemainingTime`.
 fn format_remaining_time(seconds: i64) -> String {
     if seconds <= 0 {
         return String::from("0 detik");
@@ -325,11 +319,11 @@ fn question_str<'a>(q: &'a Value, field: Option<&str>) -> Option<&'a str> {
     field.and_then(|f| q.get(f)).and_then(Value::as_str)
 }
 
-/// `handler` (`games.js:80-181`) — entry command.
+/// `handler` — entry command.
 pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
     let now = now_ms();
 
-    // Cabang "ada game jalan" (`games.js:88-115`).
+    // Cabang "ada game jalan".
     if let Some(session) = session_of(&ctx) {
         if session.get("gameType").and_then(Value::as_str) == Some(cfg.name) {
             let end_time = session.get("endTime").and_then(Value::as_i64).unwrap_or(0);
@@ -400,7 +394,7 @@ pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
             .get(cfg.image_field)
             .and_then(Value::as_str)
             .unwrap_or("");
-        // `games.js:129-136` — gagal fetch → balas error, JANGAN buat sesi.
+        // Gagal fetch → balas error, JANGAN buat sesi.
         let Some(bytes) = gambar_byte(&ctx, img) else {
             return Reply::text("❌ *ɢᴀɢᴀʟ ᴍᴇᴍᴜᴀᴛ ɢᴀᴍʙᴀʀ*\n\n> Coba lagi nanti!");
         };
@@ -418,7 +412,7 @@ pub(crate) fn handler(cfg: &QuizGame, ctx: Ctx) -> Reply {
     )
 }
 
-/// `answerHandler` (`games.js:183-296`).
+/// `answerHandler`.
 pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
     let user_answer = ctx.text.trim().to_string();
     if user_answer.is_empty() || user_answer.starts_with('.') {
@@ -439,7 +433,7 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
         .unwrap_or("")
         .to_string();
 
-    // `setSessionTimer` (`games.js:178-183`) mengumumkan waktu habis lalu
+    // `setSessionTimer` mengumumkan waktu habis lalu
     // membuang sesi. Plugin tidak punya timer async, jadi pengumumannya malas:
     // pada pesan berikutnya di chat yang sama, sesi kedaluwarsa dibuang
     // SEKALI dengan teks waktu habis.
@@ -452,7 +446,7 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
         return Some(Reply::text(text));
     }
 
-    // `isSurrender` (`games.js:210-221`) — TIDAK butuh reply pesan game.
+    // `isSurrender` — TIDAK butuh reply pesan game.
     if is_surrender(&user_answer) {
         ctx.session_take(SESSIONS_KEY);
         let text = format!(
@@ -466,7 +460,7 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
         });
     }
 
-    // `isReplyToGame` (`game-data.js:227`).
+    // `isReplyToGame`.
     let replied = ctx.quoted().is_some_and(|q| {
         q.from_me || {
             let message_key = session.get("messageKey");
@@ -490,7 +484,7 @@ pub(crate) fn answer(cfg: &QuizGame, ctx: &Ctx) -> Option<Reply> {
             let (mut limit, mut koin, mut exp) = random_reward();
             let mut bonus_text = String::new();
 
-            // `checkFastAnswer` (`context.js:155`).
+            // `checkFastAnswer`.
             let start_time = session
                 .get("startTime")
                 .and_then(Value::as_i64)
@@ -840,7 +834,7 @@ mod tests {
     }
 
 
-    // ------------------------------------------------ unit engine (port game-data.js)
+    // ----------------------------------------------- unit engine
 
     fn sim(c: &str) -> String {
         normalize_answer(c)

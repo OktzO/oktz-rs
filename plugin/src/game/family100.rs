@@ -1,26 +1,19 @@
-//! `plugins/game/family100.js` — tebak jawaban teratas survei.
+//! Tebak jawaban teratas survei.
 //!
-//! `ponytail:` `family100AnswerHandler` bukan command; router global yang
-//! memanggilnya (sama seperti `kyubigameAnswerHandler` di `kyubigame.js`).
+//! `Keterbatasan:` `family100AnswerHandler` bukan command; router global yang memanggilnya.
 //! Yang dipindah di sini `handler`.
 //!
-//! Bank soal `src/data/family100.json` di-`include_str!` apa adanya, bukan
-//! disalin jadi konstanta Rust: 7152 soal / 1,6 MB jauh lebih besar dari file
-//! plugin mana pun, dan menyalinnya jadi array `const` berarti data punya dua
-//! sumber yang bisa melenceng diam-diam.
-//!
-//! `ponytail:` `setSessionTimer` butuh event loop, sedangkan `Reply` tidak
-//! punya timer. Sesi yang lewat 120 detik dianggap habis saat dibaca
-//! berikutnya — efek yang sama dengan sweeper 5-menit di `game-data.js`,
-//! tanpa timer yang benar-benar memanggil `endSession`.
+//! `Keterbatasan:` `setSessionTimer` butuh event loop, sedangkan `Reply` tidak punya timer.
+//! Sesi yang lewat 120 detik dianggap habis saat dibaca berikutnya — efek yang sama dengan
+//! sweeper 5-menit, tanpa timer yang benar-benar memanggil `endSession`.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
 use serde_json::{Value, json};
 
-/// `createSession(..., 120000)` (`family100.js:84`).
+/// `createSession(..., 120000)`.
 pub(crate) const SESSION_TIMEOUT_MS: i64 = 120_000;
 
-/// `gameSessions` di `game-data.js:7` — satu map bersama untuk semua game,
+/// `gameSessions` — satu map bersama untuk semua game,
 /// di-key `chatId`. Nama key dipertahankan supaya plugin game lain yang juga
 /// memakainya tidak membuat sesi kedua untuk chat yang sama.
 pub(crate) const SESSIONS_KEY: &str = "gameSessions";
@@ -65,7 +58,7 @@ fn bank() -> &'static Vec<Question> {
 }
 
 /// `getRandomItem("family100.json")` — `None` kalau bank kosong
-/// (`family100.js:59-63`).
+///
 pub(crate) fn random_question() -> Option<&'static Question> {
     use rand::Rng as _;
     let b = bank();
@@ -75,7 +68,7 @@ pub(crate) fn random_question() -> Option<&'static Question> {
     b.get(rand::rng().random_range(0..b.len()))
 }
 
-/// `formatRemainingTime` (`game-data.js:189`).
+/// `formatRemainingTime`.
 pub(crate) fn format_remaining_time(seconds: i64) -> String {
     if seconds <= 0 {
         return String::from("0 detik");
@@ -86,7 +79,7 @@ pub(crate) fn format_remaining_time(seconds: i64) -> String {
     format!("{}m {}s", seconds / 60, seconds % 60)
 }
 
-/// `getRemainingTime` (`game-data.js:181`) — detik, `Math.ceil`, tidak negatif.
+/// `getRemainingTime` — detik, `Math.ceil`, tidak negatif.
 pub(crate) fn remaining_time(end_time: i64, now: i64) -> i64 {
     (((end_time - now) as f64) / 1000.0).ceil().max(0.0) as i64
 }
@@ -95,7 +88,7 @@ fn session_of(ctx: &Ctx) -> Option<Value> {
     ctx.session_get(SESSIONS_KEY)?.get(&ctx.chat).cloned()
 }
 
-/// `family100.js:43-53` — kartu "sesi masih jalan".
+/// Kartu "sesi masih jalan".
 pub(crate) fn in_progress(session: &Value, remaining_secs: i64) -> String {
     let question = session.get("question");
     let soal = question
@@ -132,7 +125,7 @@ pub(crate) fn in_progress(session: &Value, remaining_secs: i64) -> String {
     text
 }
 
-/// `family100.js:67-75` — kartu soal baru.
+/// Kartu soal baru.
 pub(crate) fn question_card(question: &Question) -> String {
     let mut text = format!(
         "Waktunya main *FAMILY 100*! 🎉✨\n\n*Pertanyaan:* {}\n\nTotal Jawaban: *{}* 📝\n",
@@ -150,7 +143,7 @@ pub(crate) fn question_card(question: &Question) -> String {
     text
 }
 
-/// `family100.js:61` — bank soal kosong.
+/// Bank soal kosong.
 pub(crate) const NO_QUESTION: &str = "Yah maaf banget kak, soal gamenya lagi kosong nih 😭💔";
 
 #[plugin(
@@ -179,7 +172,7 @@ pub fn family100(ctx: Ctx) -> Reply {
         if remaining > 0 {
             return Reply::text(in_progress(&session, remaining));
         }
-        // Lewat waktu. Di JS `setSessionTimer` yang memanggil `endSession`;
+        // Lewat waktu. Di versi awal `setSessionTimer` yang memanggil `endSession`;
         // tanpa timer, sesi dibuang di sini.
         ctx.session_take(SESSIONS_KEY);
     }
@@ -190,7 +183,7 @@ pub fn family100(ctx: Ctx) -> Reply {
 
     let chat = ctx.chat.clone();
     ctx.session_update(SESSIONS_KEY, |sessions| {
-        // `session_update` memberi `Value::Null` untuk key baru, sedangkan JS
+        // `session_update` memberi `Value::Null` untuk key baru, sedangkan versi awal
         // menulis ke objek `gameSessions` yang sudah ada.
         if !sessions.is_object() {
             *sessions = serde_json::json!({});
@@ -214,7 +207,7 @@ pub fn family100(ctx: Ctx) -> Reply {
     Reply::text(question_card(question))
 }
 
-/// `isSurrender` (`game-data.js:138-147`).
+/// `isSurrender`.
 const SURRENDER_WORDS: [&str; 15] = [
     "nyerah",
     "aku nyerah",
@@ -237,7 +230,7 @@ pub(crate) fn is_surrender(text: &str) -> bool {
     SURRENDER_WORDS.contains(&text)
 }
 
-/// `getSimilarity` (`family100.js:219-243`) — Levenshtein yang dinormalkan
+/// `getSimilarity` — Levenshtein yang dinormalkan
 /// panjang kata lebih panjang.
 fn similarity(a: &str, b: &str) -> f64 {
     let (longer, shorter): (Vec<char>, Vec<char>) = if a.chars().count() > b.chars().count() {
@@ -265,7 +258,7 @@ fn similarity(a: &str, b: &str) -> f64 {
     (longer.len() - costs[shorter.len()]) as f64 / longer.len() as f64
 }
 
-/// `getRandomReward` (`game-data.js:245-251`).
+/// `getRandomReward`.
 fn random_reward() -> (i64, i64) {
     use rand::Rng as _;
     let mut rng = rand::rng();
@@ -310,7 +303,7 @@ fn soal_of(session: &Value) -> String {
         .to_string()
 }
 
-/// Kartu daftar jawaban setelah satu jawaban benar (`family100.js:196-210`).
+/// Kartu daftar jawaban setelah satu jawaban benar.
 fn correct_card(soal: &str, jawaban: &[String], answered: &[String]) -> String {
     let mut text = format!("*Pertanyaan:* {soal}\n\n");
     for (i, ans) in jawaban.iter().enumerate() {
@@ -323,7 +316,7 @@ fn correct_card(soal: &str, jawaban: &[String], answered: &[String]) -> String {
     text
 }
 
-/// `family100AnswerHandler` (`family100.js:111-217`) — jawaban main, bukan
+/// `family100AnswerHandler` — jawaban main, bukan
 /// command. `None` = `return false` (biarkan plugin lain menangani).
 #[answer_handler]
 pub fn family100_answer(ctx: &Ctx) -> Option<Reply> {
@@ -340,7 +333,7 @@ pub fn family100_answer(ctx: &Ctx) -> Option<Reply> {
     let now = crate::common::now_ms();
     let end_time = sesi.get("endTime").and_then(Value::as_i64).unwrap_or(0);
     if remaining_time(end_time, now) <= 0 {
-        // JS `setSessionTimer` mengirim kartu waktu habis; tanpa timer, sesi
+        // versi awal `setSessionTimer` mengirim kartu waktu habis; tanpa timer, sesi
         // basi dibuang di sini dan jawaban tidak dianggap milik game.
         ctx.session_take(SESSIONS_KEY);
         return None;
@@ -348,7 +341,7 @@ pub fn family100_answer(ctx: &Ctx) -> Option<Reply> {
 
     let jawaban = jawaban_of(&sesi);
     let answered = answered_of(&sesi);
-    // `isReplyToGame` (`game-data.js:227-233`) membandingkan id pesan game.
+    // `isReplyToGame` membandingkan id pesan game.
     // Id kiriman bot tidak tersedia di `Ctx`, jadi `fromMe` yang dipakai.
     let quoting = ctx.quoted().is_some_and(|q| q.from_me);
 
@@ -676,7 +669,7 @@ mod tests {
         );
     }
 
-    // `createSession` (game-data.js:149) hanya membersihkan timer sesi lama lalu
+    // `createSession` hanya membersihkan timer sesi lama lalu
     // `gameSessions.set(chatId, session)` tanpa mengecek `gameType` — sesi game
     // lain memang DITIMPA, bukan dipertahankan.
     #[test]

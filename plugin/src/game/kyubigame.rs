@@ -1,18 +1,14 @@
-//! `plugins/game/kyubigame.js` — lobi misi shinobi.
-//!
-//! `kyubigame.js` mengekspor `handler` DAN `kyubigameAnswerHandler`; yang
-//! kedua diport sebagai `kyubigame_answer` (`#[answer_handler]`) — lobi,
-//! pilihan misi, dan aksi tempur (`serang`/`lari`/`batal`).
+//! Lobi misi shinobi.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
 use serde_json::{Value, json};
 
 pub(crate) const SESSION_TIMEOUT_MS: i64 = 5 * 60 * 1000;
 
-/// `now - at <= SESSION_TIMEOUT_MS` (`kyubigame.js:214`) — `<=`, jadi sesi
+/// `now - at <= SESSION_TIMEOUT_MS` — `<=`, jadi sesi
 /// yang umurnya persis 5 menit masih aktif. Dipisah dari handler karena
 /// batasnya hanya bisa dikunci persis kalau `now` dikontrol test; lewat
-/// handler, `now_ms()` di dalam selalu beberapa ms lebih besar dari yang
+/// handler, `now_ms()` di dalam selalu beberapa ms lebih besar dari
 /// dibaca test.
 pub(crate) fn session_still_running(now: i64, at: i64) -> bool {
     now - at <= SESSION_TIMEOUT_MS
@@ -249,7 +245,7 @@ const LOKASI: [Lokasi; 7] = [
     },
 ];
 
-/// `LOOT_TABLE` (`kyubigame.js:112-118`).
+/// `LOOT_TABLE`.
 const LOOT: [(&str, &str, i64, i64, i64); 5] = [
     ("kunai", "🗡️", 40, 2, 5),
     ("shuriken", "⚔️", 35, 3, 6),
@@ -278,7 +274,7 @@ fn exp_after(ctx: &Ctx, gain: i64) -> i64 {
     }
 }
 
-/// `kyubigameAnswerHandler` (`kyubigame.js:195-388`) — balasan lokasi misi
+/// `kyubigameAnswerHandler` — balasan lokasi misi
 /// atau aksi tempur, bukan command.
 #[answer_handler]
 pub fn kyubigame_answer(ctx: &Ctx) -> Option<Reply> {
@@ -656,7 +652,7 @@ mod tests {
     #[test]
     fn a_just_short_of_the_timeout_is_dispatched_by_the_handler() {
         // Batasnya dikunci di `session_still_running`; lewat handler cukup
-        // membuktikan cabang "masih aktif" benar-benar dipilih, dengan
+        // membuktikan cabang "masih aktif" benar-benar dipilih,
         // margin 1 menit supaya jam tidak bisa ikut menentukan hasilnya.
         let fresh = crate::common::now_ms() - SESSION_TIMEOUT_MS + 60_000;
         let r = run(

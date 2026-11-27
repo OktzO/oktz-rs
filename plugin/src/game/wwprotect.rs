@@ -1,8 +1,4 @@
-//! `plugins/game/wwprotect.js` — aksi malam Werewolf: lindungi target.
-//!
-//! Seluruh logika ada di [`crate::game::wwkill`]; file ini hanya mendaftarkan
-//! config plugin-nya, persis seperti `wwprotect.js` yang hanya meneruskan ke
-//! `nightActionHandler`.
+//! Aksi malam Werewolf: lindungi target.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 

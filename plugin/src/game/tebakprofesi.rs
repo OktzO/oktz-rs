@@ -1,7 +1,4 @@
-//! `plugins/game/tebakprofesi.js` — game quiz dari engine `games.js` (`FotoGames`).
-//!
-//! Bank soal `src/data/tebakprofesi.json` di-`include_str!` apa adanya (pola
-//! `family100.rs`); handler dan answer handler di `game::quiz`.
+//! Game quiz dari engine (`FotoGames`).
 
 use crate::game::quiz::{QuizGame, answer, handler};
 use oktz_plugin_api::{Ctx, Reply, answer_handler, plugin};

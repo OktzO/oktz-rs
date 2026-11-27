@@ -1,32 +1,27 @@
-//! `plugins/game/fisch.js` — Fishit, game memancing (`fisht`).
+//! Fishit, game memancing (`fisht`).
 //!
-//! Port 1:1 dari handler JS + lib `src/lib/fisch.js` + data
-//! `src/lib/fisch-data.js`. State pemain adalah objek `user.fisch` JS, jadi
-//! port memakai `serde_json::Value` langsung (bukan struct) supaya pola
-//! `f.x = (f.x || 0) + y` dan field opsional terjaga.
-//!
-//! `ponytail:` TIGA hal JS tidak di-port:
+//! `Keterbatasan:` TIGA hal versi awal tidak diimplementasikan:
 //! - `sock.sendPreview(...)` (link preview berjudul `𝗙𝗜𝗦𝗛 𝗜𝗧 𝗚𝗔𝗠𝗘𝗦`
-//!   dengan `jpegThumbnail` aset `fishit`) tidak ada di `Reply` — semua
-//!   keluaran dikirim sebagai teks biasa. Prefix
-//!   `${config.info.website} ` dari `send()` tetap dipertahankan.
-//! - `setTimeout` jeda memancing (`fisch.js:171-176`) — hasil langsung
-//!   menyusul pesan pertama dalam satu balasan.
+//! dengan `jpegThumbnail` aset `fishit`) tidak ada di `Reply` — semua
+//! keluaran dikirim sebagai teks biasa. Prefix
+//! `${config.info.website} ` dari `send()` tetap dipertahankan.
+//! - `setTimeout` jeda memancing — hasil langsung
+//! menyusul pesan pertama dalam satu balasan.
 //! - `db.markDirty("users")` → `Mutation::SetUser` di akhir handler; jalur
-//!   yang di JS `return` lebih awal setelah refund (gacha duplikat rod)
-//!   tidak menulis apa pun, sesuai state JS akhirnya.
+//! yang di versi awal `return` lebih awal setelah refund (gacha duplikat rod)
+//! tidak menulis apa pun, sesuai state versi awal akhirnya.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::{Value, json};
 
 use crate::store::done::ms_ke_iso;
 
-/// `FC = 15` — jeda antar pancingan detik (`fisch.js:31`).
+/// `FC = 15` — jeda antar pancingan detik.
 const FC: i64 = 15;
 
-// ---------------------------------------------------------------------------
-// Data — `src/lib/fisch-data.js` (urutan entry dipertahankan seperti JS)
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Data — (urutan entry dipertahankan seperti versi awal)
+// --------------------------------------------------------------------------
 
 /// Ikan: (name, rarity, avgValue, minKg, maxKg).
 type Fish = (&'static str, &'static str, f64, f64, f64);
@@ -232,7 +227,7 @@ const RODS: &[Rod] = &[
 ];
 
 /// Enchant: (key, name, rarity, luck, mutationChance, sellMultiplier,
-/// fishSize, desc) — nilai 0.0 berarti `effect` TIDAK ada di JS
+/// fishSize, desc) — nilai 0.0 berarti `effect` TIDAK ada di versi awal
 /// (`enchant?.effect?.luck` → undefined → dilewati).
 type Enchant = (
     &'static str,
@@ -277,7 +272,7 @@ const ENCHANTS: &[Enchant] = &[
     ("apocalypse", "Apocalypse", "secret", 9.0, 0.5, 28.0, 4.0, "Kekuatan akhir zaman."),
 ];
 
-/// Mutasi: (nama, multiplier, chance) — URUTAN FILE `fisch-data.js:212-297`
+/// Mutasi: (nama, multiplier, chance) — URUTAN FILE
 /// dipertahankan karena `rollMutations` mengiterasi `Object.entries`.
 const MUTATIONS: &[(&str, f64, f64)] = &[
     ("Universe", 24.0, 0.00001), ("Frozen", 21.0, 0.00001), ("Phoenix", 19.0, 0.00001),
@@ -310,7 +305,7 @@ const MUTATIONS: &[(&str, f64, f64)] = &[
     ("Omniscient", 16.0, 0.0008), ("Transcendent", 20.0, 0.00005), ("Absolute", 30.0, 0.00001),
 ];
 
-/// `RARITY_EMOJI` (`fisch-data.js:299`).
+/// `RARITY_EMOJI`.
 fn rc(rarity: &str) -> &'static str {
     match rarity {
         "common" => "⚪", "uncommon" => "🟢", "rare" => "🔵", "epic" => "🟣",
@@ -320,7 +315,7 @@ fn rc(rarity: &str) -> &'static str {
     }
 }
 
-/// `encCost` (`fisch.js:33-42`).
+/// `encCost`.
 fn enc_cost(rarity: &str) -> f64 {
     match rarity {
         "rare" => 500000.0, "epic" => 5e6, "legendary" => 5e7, "mythic" => 5e8,
@@ -342,7 +337,7 @@ fn upgrade_of(key: &str) -> Option<&(&'static str, &'static str, &'static str, i
     UPGRADES.iter().find(|(k, ..)| *k == key)
 }
 
-/// `DAILY_REWARDS` (`fisch-data.js:308-314`) — (streak, money, tickets).
+/// `DAILY_REWARDS` — (streak, money, tickets).
 const DAILY_REWARDS: &[(i64, f64, i64)] = &[
     (1, 50000.0, 0), (2, 100000.0, 0), (3, 250000.0, 1), (4, 500000.0, 0),
     (5, 1000000.0, 2), (6, 2000000.0, 0), (7, 10000000.0, 5),
@@ -350,7 +345,7 @@ const DAILY_REWARDS: &[(i64, f64, i64)] = &[
 ];
 
 /// `TOKEN_SHOP` — (id, name, cost, type, value_str, value_i64).
-/// Rod memakai `value_str`, sisanya `value_i64` (lihat switch JS).
+/// Rod memakai `value_str`, sisanya `value_i64` (lihat switch versi awal).
 const TOKEN_SHOP: &[(&str, &str, i64, &str, &str, i64)] = &[
     ("voidrod", "🌑 Void Rod", 300, "rod", "voidrod", 0),
     ("cosmicrod", "🌌 Cosmic Rod", 800, "rod", "cosmicrod", 0),
@@ -405,7 +400,7 @@ type JackpotReward = (&'static str, f64, f64, f64);
 /// Pool jackpot: (id, name, cost, weight pool, rewards).
 type JackpotPool = (&'static str, &'static str, f64, f64, &'static [JackpotReward]);
 
-/// `JACKPOT_POOLS` (`lib/fisch.js:246-306`) — (id, name, cost, weight pool,
+/// `JACKPOT_POOLS` — (id, name, cost, weight pool,
 /// rewards); reward: (type, min, max, weight).
 const JACKPOT_POOLS: &[JackpotPool] = &[
     ("mini", "Mini Jackpot", 500000.0, 60.0, &[
@@ -433,7 +428,7 @@ const JACKPOT_POOLS: &[JackpotPool] = &[
     ]),
 ];
 
-/// Label reward jackpot (`fisch.js:785-797`).
+/// Label reward jackpot.
 fn label_jackpot(tipe: &str) -> &str {
     match tipe {
         "coins" => "Koin", "energi" => "Energi", "limit" => "Limit",
@@ -446,11 +441,11 @@ fn label_jackpot(tipe: &str) -> &str {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Lib — `src/lib/fisch.js`
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Lib —
+// --------------------------------------------------------------------------
 
-/// `formatMoney` (`lib/fisch.js:16-26`).
+/// `formatMoney`.
 pub(crate) fn format_money(n: f64) -> String {
     if !n.is_finite() || n == 0.0 {
         return "0".to_string();
@@ -473,7 +468,7 @@ pub(crate) fn format_money(n: f64) -> String {
     format!("{teks}{}", S[t as usize])
 }
 
-/// `fishingRod[key]` sebagai objek JS baru (`{ ...fishingRod.basicrod }`).
+/// `fishingRod[key]` sebagai objek versi awal baru (`{...fishingRod.basicrod }`).
 pub(crate) fn rod_def(key: &str) -> Value {
     let (_, name, luck, speed, combo, combo_mut, mut_luck, sell, price, desc, max_level) =
         RODS.iter().find(|(k, ..)| *k == key).expect("rod dikenal");
@@ -490,7 +485,7 @@ fn enchant_of(key: &str) -> Option<&Enchant> {
     ENCHANTS.iter().find(|(k, ..)| *k == key)
 }
 
-/// `getOrCreateFischUser` (`lib/fisch.js:39-82`).
+/// `getOrCreateFischUser`.
 pub(crate) fn default_fisch() -> Value {
     json!({
         "money": 200.0,
@@ -523,7 +518,7 @@ pub(crate) fn default_fisch() -> Value {
     })
 }
 
-/// Normalisasi `if (!f.fishingRods)` dst (`lib/fisch.js:75-81`).
+/// Normalisasi `if (!f.fishingRods)` dst.
 fn normalisasi(f: &mut Value) {
     if f.get("fishingRods").and_then(Value::as_object).is_none_or(|m| m.is_empty()) {
         f["fishingRods"] = json!({ "basicrod": rod_def("basicrod") });
@@ -538,7 +533,7 @@ fn normalisasi(f: &mut Value) {
     }
 }
 
-/// `getRandomFish` (`lib/fisch.js:84-159`).
+/// `getRandomFish`.
 pub(crate) fn random_fish(rod: &Value, island_key: &str) -> Option<Value> {
     use rand::Rng as _;
     let (_, _, list) = ISLANDS.iter().find(|(k, ..)| *k == island_key)?;
@@ -623,7 +618,7 @@ pub(crate) fn random_fish(rod: &Value, island_key: &str) -> Option<Value> {
     }))
 }
 
-/// `rollMutations` (`lib/fisch.js:161-169`).
+/// `rollMutations`.
 fn roll_mutations(max_count: i64, bonus: f64) -> Vec<String> {
     use rand::Rng as _;
     let mut found: Vec<String> = Vec::new();
@@ -643,7 +638,7 @@ fn roll_mutations(max_count: i64, bonus: f64) -> Vec<String> {
     }
 }
 
-/// `addRodExp` (`lib/fisch.js:171-189`) — None = tidak naik level.
+/// `addRodExp` — None = tidak naik level.
 pub(crate) fn add_rod_exp(f: &mut Value, rod_key: &str, amount: i64) -> Option<String> {
     let rod = f.get_mut("fishingRods").and_then(|r| r.get_mut(rod_key))?;
     if rod["level"].as_i64().unwrap_or(1) >= rod["maxLevel"].as_i64().unwrap_or(5) {
@@ -672,7 +667,7 @@ pub(crate) fn add_rod_exp(f: &mut Value, rod_key: &str, amount: i64) -> Option<S
     }
 }
 
-/// `addPlayerExp` (`lib/fisch.js:191-201`) — true = level up.
+/// `addPlayerExp` — true = level up.
 pub(crate) fn add_player_exp(f: &mut Value, amount: i64) -> bool {
     f["exp"] = json!(f["exp"].as_i64().unwrap_or(0) + amount);
     let mut naik = false;
@@ -687,7 +682,7 @@ pub(crate) fn add_player_exp(f: &mut Value, amount: i64) -> bool {
     naik
 }
 
-/// `getUpgradedStats` (`lib/fisch.js:203-213`) — (luck, speed, sellMultiplier).
+/// `getUpgradedStats` — (luck, speed, sellMultiplier).
 pub(crate) fn upgraded_stats(f: &Value, rod: &Value) -> (f64, f64, f64) {
     let luck_bonus = UPGRADES[0].4 * f["luckUpgrade"].as_f64().unwrap_or(0.0);
     let speed_bonus = UPGRADES[1].4 * f["speedUpgrade"].as_f64().unwrap_or(0.0);
@@ -700,7 +695,7 @@ pub(crate) fn upgraded_stats(f: &Value, rod: &Value) -> (f64, f64, f64) {
     )
 }
 
-/// `doGachaPull` (`lib/fisch.js:215-234`) — (item, isSSR, isPity).
+/// `doGachaPull` — (item, isSSR, isPity).
 pub(crate) fn gacha_pull(f: &mut Value) -> (Value, bool, bool) {
     use rand::Rng as _;
     let is_pity = f["gachaPity"].as_i64().unwrap_or(0) >= GACHA_PITY_LIMIT;
@@ -723,7 +718,7 @@ pub(crate) fn gacha_pull(f: &mut Value) -> (Value, bool, bool) {
     (json!({ "type": item.0, "value": item.1.ke_value(), "label": item.2 }), is_ssr, is_pity)
 }
 
-/// `getStreakBonus` (`lib/fisch.js:236-244`) — (mult, luckAdd).
+/// `getStreakBonus` — (mult, luckAdd).
 pub(crate) fn streak_bonus(streak: i64) -> (f64, f64) {
     match streak {
         s if s >= 100 => (3.0, 0.15),
@@ -736,7 +731,7 @@ pub(crate) fn streak_bonus(streak: i64) -> (f64, f64) {
     }
 }
 
-/// `doJackpotPull` (`lib/fisch.js:308-326`) — (reward type, value).
+/// `doJackpotPull` — (reward type, value).
 pub(crate) fn jackpot_pull(pool_id: &str) -> Option<(String, f64)> {
     use rand::Rng as _;
     let (_, _, _, _, rewards) = JACKPOT_POOLS.iter().find(|(id, ..)| *id == pool_id)?;
@@ -754,7 +749,7 @@ pub(crate) fn jackpot_pull(pool_id: &str) -> Option<(String, f64)> {
     Some((chosen.0.to_string(), value))
 }
 
-/// `applyJackpotReward` (`lib/fisch.js:328-432`) — mutasi `f` dan field user
+/// `applyJackpotReward` — mutasi `f` dan field user
 /// di luar fisch (energi/limit/premium/partner) → `(desc, fieldUser)`.
 fn apply_jackpot(f: &mut Value, user_luar: &mut Value, tipe: &str, val: f64) -> String {
     match tipe {
@@ -813,23 +808,23 @@ fn apply_jackpot(f: &mut Value, user_luar: &mut Value, tipe: &str, val: f64) -> 
     }
 }
 
-/// `new Date(value).getTime()` untuk string ISO / angka (lihat
+/// `new Date(value).getTime()` untuk string ISO / angka (
 /// `store/done.rs::date_ke_ms`).
 fn date_ms(v: &str) -> f64 {
     crate::store::done::date_ke_ms(&Value::String(v.to_string())) as f64
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Handler
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `send()` (`fisch.js:46-60`) — link preview tidak ada, teksnya saja:
+/// `send()` — link preview tidak ada, teksnya saja:
 /// `${config.info.website} ${text}`.
 fn kirim(ctx: &Ctx, text: &str) -> Reply {
     Reply::text(format!("{} {}", ctx.config().info.website, text))
 }
 
-/// Bantuan (`fisch.js:114-127`).
+/// Bantuan.
 fn bantuan(ctx: &Ctx) -> String {
     let isi = "*FISHIT GAME*\n_Sistem permainan memancing terlengkap_\n\n\
 *FISHING*\n`.fisht mancing` _Mulai memancing_\n`.fisht view` _Ambil tangkapan_\n`.fisht sell` _Jual ikan_\n`.fisht fishbook` _Koleksi ikan_\n`.fisht mutbook` _Koleksi mutasi_\n`.fisht top` _Leaderboard_\n\n\
@@ -873,7 +868,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
     let sub = ctx.args.first().map(|s| s.to_lowercase()).unwrap_or_default();
     let sa: Vec<String> = ctx.args.iter().skip(1).cloned().collect();
 
-    // ---- toggle `.fishit on/off` (`fisch.js:85-110`) ----
+    // --- toggle `.fishit on/off` ----
     if cmd == "fishit" && (sub.is_empty() || sub == "on" || sub == "off") {
         if !ctx.is_group {
             return Reply::text("_Toggle hanya di grup_");
@@ -908,7 +903,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
         return Reply::text(bantuan(&ctx));
     }
 
-    // ---- state (`getOrCreateFischUser`) ----
+    // --- state (`getOrCreateFischUser`) ----
     let mut user = if ctx.user_data.is_object() { ctx.user_data.clone() } else { json!({}) };
     if user.get("fisch").is_none_or(Value::is_null) {
         user["fisch"] = default_fisch();
@@ -920,7 +915,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
     let mut balasan_seq: Option<Reply> = None;
 
     match sub.as_str() {
-        // ---- mancing (`fisch.js:128-188`) ----
+        // --- mancing ----
         "mancing" | "fish" => {
             if f["fishingPending"].as_array().is_some_and(|a| !a.is_empty()) {
                 return Reply::text("_Masih ada tangkapan!_ `.fisht view` _dulu._");
@@ -988,11 +983,11 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 txt.push_str(&format!("\n_Streak: {streak}x_"));
             }
             txt.push_str("\n\n`.fisht view` untuk mengambil!");
-            // JS: send("Memancing...") → setTimeout → send(hasil) — dua pesan.
+            // versi awal: send("Memancing...") → setTimeout → send(hasil) — dua pesan.
             balasan_seq = Some(kirim(&ctx, &memancing));
             balasan = txt;
         }
-        // ---- view (`fisch.js:190-230`) ----
+        // --- view ----
         "view" => {
             let Some(catches) = f["fishingPending"].as_array().cloned() else {
                 return Reply::text("_Tidak ada tangkapan._ `.fisht mancing` _dulu!_");
@@ -1060,7 +1055,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             }
             balasan = txt;
         }
-        // ---- sell (`fisch.js:232-255`) ----
+        // --- sell ----
         "sell" => {
             let Some(inventory) = f["inventory"].as_array().cloned() else {
                 return Reply::text("_Inventory kosong!_ `.fisht mancing` _dulu._");
@@ -1082,7 +1077,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 format_money(money_of(&f))
             );
         }
-        // ---- me (`fisch.js:257-268`) ----
+        // --- me ----
         "me" => {
             let rod = rod_aktif(&f);
             let pulau = match f["currentIsland"].as_str() {
@@ -1113,7 +1108,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 f["sellUpgrade"].as_i64().unwrap_or(0),
             );
         }
-        // ---- stats (`fisch.js:270-282`) ----
+        // --- stats ----
         "stats" => {
             let rod = rod_aktif(&f);
             let (st_luck, st_speed, st_sell) = rod
@@ -1156,7 +1151,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             ));
             balasan = txt;
         }
-        // ---- fishbook (`fisch.js:283-298`) ----
+        // --- fishbook ----
         "fishbook" => {
             let kosong = f["fishFound"].as_array().is_none_or(|a| a.is_empty());
             if kosong {
@@ -1177,7 +1172,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             }
             balasan = txt.trim_end().to_string();
         }
-        // ---- mutbook (`fisch.js:300-310`) ----
+        // --- mutbook ----
         "mutbook" => {
             let kosong = f["mutationFound"].as_array().is_none_or(|a| a.is_empty());
             if kosong {
@@ -1192,7 +1187,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             }
             balasan = txt.trim_end().to_string();
         }
-        // ---- travel (`fisch.js:312-356`) ----
+        // --- travel ----
         "travel" => {
             if sa.is_empty() {
                 let mut txt = String::from("*DAFTAR PULAU*\n\n");
@@ -1251,7 +1246,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 );
             }
         }
-        // ---- shop (`fisch.js:358-371`) ----
+        // --- shop ----
         "shop" => {
             let mut txt = String::from("*TOKO FISHING ROD*\n\n");
             for (_, name, luck, speed, combo, _, _, _, price, desc, _) in RODS {
@@ -1267,7 +1262,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             txt.push_str("`.fisht buy <rod>`");
             balasan = txt;
         }
-        // ---- buy (`fisch.js:373-397`) ----
+        // --- buy ----
         "buy" => {
             let rk = sa.first().map(|s| s.to_lowercase()).unwrap_or_default();
             if rk.is_empty() {
@@ -1293,7 +1288,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 def.1
             );
         }
-        // ---- equip (`fisch.js:399-415`) ----
+        // --- equip ----
         "equip" => {
             let rk = sa.first().map(|s| s.to_lowercase()).unwrap_or_default();
             if rk.is_empty() {
@@ -1308,7 +1303,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 rod["name"].as_str().unwrap_or("")
             );
         }
-        // ---- rods (`fisch.js:417-435`) ----
+        // --- rods ----
         "rods" => {
             let kosong = f["fishingRods"].as_object().is_none_or(|m| m.is_empty());
             if kosong {
@@ -1338,7 +1333,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             let _ = rods.len();
             balasan = txt;
         }
-        // ---- enchant (`fisch.js:436-468`) ----
+        // --- enchant ----
         "enchant" => {
             let rk = f["usedFishingRod"].as_str().unwrap_or("basicrod").to_string();
             let Some(rod) = f["fishingRods"].get(&rk).cloned() else {
@@ -1374,7 +1369,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 format_money(cost),
             );
         }
-        // ---- enchants (`fisch.js:470-499`) ----
+        // --- enchants ----
         "enchants" => {
             let mut txt = String::from("*DAFTAR ENCHANTMENT*\n\n");
             for rarity in ["common", "rare", "epic", "legendary", "mythic", "godly", "secret"] {
@@ -1396,7 +1391,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             }
             balasan = format!("{}\n`.fisht enchant <key>`", txt.trim_end());
         }
-        // ---- rodup (`fisch.js:501-523`) ----
+        // --- rodup ----
         "rodup" => {
             let rk = f["usedFishingRod"].as_str().unwrap_or("basicrod").to_string();
             let Some(rod) = f["fishingRods"].get(&rk).cloned() else {
@@ -1419,7 +1414,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 None => format!("*ROD EXP UP!*\n\n+{xp} EXP\n_Biaya: {}_", format_money(cost as f64)),
             };
         }
-        // ---- daily (`fisch.js:525-556`) ----
+        // --- daily ----
         "daily" => {
             let now = crate::common::now_ms();
             if let Some(last) = f["lastDaily"].as_str() {
@@ -1453,7 +1448,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 format_money(money_of(&f))
             );
         }
-        // ---- gacha (`fisch.js:558-627`) ----
+        // --- gacha ----
         "gacha" => {
             let pakai_tiket = sa.first().map(|s| s.to_lowercase()).as_deref() == Some("ticket");
             if pakai_tiket {
@@ -1552,7 +1547,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
             ));
             balasan = txt;
         }
-        // ---- upgrade (`fisch.js:628-662`) ----
+        // --- upgrade ----
         "upgrade" => {
             let tipe = sa.first().map(|s| s.to_lowercase()).unwrap_or_default();
             let Some(upg) = upgrade_of(&tipe) else {
@@ -1590,7 +1585,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 upg.2
             );
         }
-        // ---- prestige (`fisch.js:664-726`) ----
+        // --- prestige ----
         "prestige" => {
             let cp = f["prestige"].as_i64().unwrap_or(0);
             let konfirm = sa.first().map(|s| s.to_lowercase()).as_deref() == Some("confirm");
@@ -1660,7 +1655,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 balasan = txt;
             }
         }
-        // ---- tokens (`fisch.js:728-773`) ----
+        // --- tokens ----
         "tokens" => {
             if sa.is_empty() {
                 let mut txt = format!(
@@ -1709,7 +1704,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 );
             }
         }
-        // ---- jackpot (`fisch.js:775-838`) ----
+        // --- jackpot ----
         "jackpot" => {
             if sa.is_empty() {
                 let mut txt = String::from(
@@ -1767,7 +1762,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
                 balasan = txt;
             }
         }
-        // ---- top (`fisch.js:840-868`) ----
+        // --- top ----
         "top" => {
             let mut rankings: Vec<(String, i64, f64, i64, i64)> = Vec::new();
             if let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json")
@@ -1811,7 +1806,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
         _ => return Reply::text("_Command fisht tidak dikenal._"),
     }
 
-    // ---- tulis state (`db.markDirty("users")`) ----
+    // --- tulis state (`db.markDirty("users")`) ----
     user["fisch"] = f;
     let mut data = json!({ "fisch": user["fisch"] });
     if user_luar.as_object().is_some_and(|m| !m.is_empty()) {
@@ -1826,7 +1821,7 @@ pub fn fisht(ctx: Ctx) -> Reply {
     akhir.mutating(vec![Mutation::SetUser { jid: ctx.sender.clone(), data }])
 }
 
-/// `${name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()}` (`fisch.js:203`).
+/// `${name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()}`.
 fn strip_emoji(nama: &str) -> String {
     nama.chars()
         .filter(|c| !('\u{1F300}'..='\u{1F9FF}').contains(c))

@@ -1,19 +1,13 @@
-//! `plugins/game/tictactoe.js` — buat/join room TicTacToe di grup.
+//! Buat/join room TicTacToe di grup.
 //!
-//! Jawaban angka 1-9 dan `nyerah` ditangani `tictactoe_answer`
-//! (`#[answer_handler]`), dipanggil router global untuk pesan non-command.
-//! Room menyimpan `cells` + `currentTurn` supaya langkah bisa dilanjutkan
-//! lintas pesan.
+//! `Keterbatasan:` versi awal menghapus room `WAITING` lewat `setTimeout(..., 300000)`.
+//! Tanpa timer, room yang sudah lewat 5 menit diabaikan saat handler dipanggil lagi — efek
+//! yang sama, tanpa pengusir yang berjalan sendiri. Room `PLAYING` tidak pernah dihapus
+//! otomatis di versi awal, jadi tidak juga di sini.
 //!
-//! `ponytail:` JS menghapus room `WAITING` lewat `setTimeout(..., 300000)`.
-//! Tanpa timer, room yang sudah lewat 5 menit diabaikan saat handler
-//! dipanggil lagi — efek yang sama, tanpa pengusir yang berjalan sendiri.
-//! Room `PLAYING` tidak pernah dihapus otomatis di JS, jadi tidak juga di
-//! sini.
-//!
-//! `ponytail:` `safeReply`/`safeReact` membungkus `m.reply`/`m.react` dengan
-//! retry rate-limit dan `delay()`. `Ctx` sinkron tanpa I/O, jadi retry itu
-//! hilang; isi pesannya tidak berubah.
+//! `Keterbatasan:` `safeReply`/`safeReact` membungkus `m.reply`/`m.react` dengan retry
+//! rate-limit dan `delay()`. `Ctx` sinkron tanpa I/O, jadi retry itu hilang; isi pesannya
+//! tidak berubah.
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, answer_handler, plugin};
 use serde_json::{Map, Value, json};
@@ -24,18 +18,18 @@ use crate::common::{jid_number, now_ms};
 /// supaya whoever mem-port router tic-tac-toe tidak perlu tahu.
 pub(crate) const GAMES_KEY: &str = "tictactoeGames";
 
-/// Awalan `roomId` (`tictactoe.js:160`, `tictactoe.js:203`) dan penentu
+/// Awalan `roomId` dan penentu
 /// "masih dalam game".
 pub(crate) const ROOM_PREFIX: &str = "ttt_";
 
-/// `setTimeout(..., 300000)` (`tictactoe.js:224`) — 5 menit.
+/// `setTimeout(..., 300000)` — 5 menit.
 pub(crate) const ROOM_TTL_MS: i64 = 300_000;
 
-/// `tictactoe.js:165` — sender sudah punya room.
+/// Sender sudah punya room.
 pub(crate) const BUSY: &str = "❌ Kamu masih dalam game!\n\n> \
     Selesaikan game kamu atau ketik *nyerah* untuk menyerah.";
 
-/// `boardSymbols` (`tictactoe.js:19-31`) — urutan tidak berpengaruh karena
+/// `boardSymbols` — urutan tidak berpengaruh karena
 /// dicari per kunci.
 const BOARD_SYMBOLS: [(&str, &str); 11] = [
     ("X", "❌"),
@@ -51,7 +45,7 @@ const BOARD_SYMBOLS: [(&str, &str); 11] = [
     ("9", "9️⃣"),
 ];
 
-/// `boardSymbols[String(cell)] || cell` (`tictactoe.js:351`).
+/// `boardSymbols[String(cell)] || cell`.
 pub(crate) fn board_symbol(cell: &str) -> String {
     BOARD_SYMBOLS
         .iter()
@@ -65,7 +59,7 @@ fn fresh_cells() -> [String; 9] {
     std::array::from_fn(|i| (i + 1).to_string())
 }
 
-/// `renderBoard(arr)` (`tictactoe.js:353-362`).
+/// `renderBoard(arr)`.
 pub(crate) fn render_board(cells: &[String; 9]) -> String {
     let c: Vec<String> = cells.iter().map(|s| board_symbol(s)).collect();
     format!(
@@ -86,7 +80,7 @@ pub(crate) fn fresh_board() -> String {
 
 /// Room `WAITING` yang lewat TTL — diperlakukan sama seperti sudah dihapus
 /// `setTimeout`. Berlaku untuk SEMUA pencarian room, bukan cuma yang mencari
-/// room kosong: di JS room basi sudah hilang dari map, jadi tidak lagi
+/// room kosong: di versi awal room basi sudah hilang dari map, jadi tidak lagi
 /// menahan pemanggil di cabang "masih dalam game" maupun bisa di-join.
 fn is_expired(room: &Value, now: i64) -> bool {
     room.get("state").and_then(Value::as_str) == Some("WAITING")
@@ -109,9 +103,9 @@ fn is_active_for(room: &Value, sender: &str, now: i64) -> bool {
         && !is_expired(room, now)
 }
 
-/// `r.state === "WAITING" && r.chat === chat && (roomName ? r.name === roomName : true)`.
+/// `r.state === "WAITING" && r.chat === chat && (roomName ? r.name === roomName: true)`.
 ///
-/// Tidak ada cek awalan `ttt_` di sini — JS juga tidak punya, jadi room
+/// Tidak ada cek awalan `ttt_` di sini — versi awal juga tidak punya, jadi room
 /// waiting milik plugin lain di chat yang sama tetap bisa di-join.
 fn is_waiting(room: &Value, chat: &str, room_name: &str, now: i64) -> bool {
     room.get("state").and_then(Value::as_str) == Some("WAITING")
@@ -120,9 +114,9 @@ fn is_waiting(room: &Value, chat: &str, room_name: &str, now: i64) -> bool {
         && !is_expired(room, now)
 }
 
-/// `const roomId = "ttt_" + Date.now()` (`tictactoe.js:203`).
+/// `const roomId = "ttt_" + Date.now()`.
 ///
-/// `Date.now()` Resolution milidetik: di JS dua room tidak mungkin dibuat pada
+/// `Date.now()` Resolution milidetik: di versi awal dua room tidak mungkin dibuat
 /// milidetik yang sama (setiap panggilan lewat jaringan), tapi handler di sini
 /// sinkon dan dua perintah berurutan bisa jatuh di milideki yang sama — key
 /// yang sama menimpa room sebelumnya. Suffix hanya dipakai kalau key-nya sudah
@@ -317,7 +311,7 @@ fn koin_of(ctx: &Ctx, jid: &str) -> i64 {
         .unwrap_or(0)
 }
 
-/// `answerHandler` (`tictactoe.js:233-334`) — balasan angka 1-9 atau
+/// `answerHandler` — balasan angka 1-9
 /// `nyerah` untuk room yang sedang berjalan.
 #[answer_handler]
 pub fn tictactoe_answer(ctx: &Ctx) -> Option<Reply> {
@@ -618,7 +612,7 @@ mod tests {
             text_of(&r)
         );
         assert_eq!(reaction_of(&r), Some("🎮"));
-        // `safeReact` lalu `safeReply` dipetakan ke `Reply::Reaction` yang
+        // `safeReact` lalu `safeReply` dipetakan ke `Reply::Reaction`
         // membungkus balasan teksnya — mention ada di balasan dalam.
         match r.without_mutations() {
             Reply::Reaction { reply, .. } => match reply.as_ref() {
@@ -702,7 +696,7 @@ mod tests {
     fn an_empty_name_matches_any_waiting_room_but_named_join_does_not() {
         let s = new_session_store();
         run(SENDER, "ruang 1", &s);
-        // Tanpa nama, filter dilewati (`roomName ? ... : true`).
+        // Tanpa nama, filter dilewati (`roomName ?...: true`).
         let r = run(OTHER, "", &s);
         assert!(
             text_of(&r).contains("Partner ditemukan!"),
@@ -761,7 +755,7 @@ mod tests {
         let s = new_session_store();
         run(SENDER, "", &s);
         run(OTHER, "", &s);
-        // Setelah join, `createdAt` dipaksa tua tapi state PLAYING — JS tidak
+        // Setelah join, `createdAt` dipaksa tua tapi state PLAYING — versi awal tidak
         // pernah menghapus room ini lewat setTimeout.
         let id = rooms(&s)[0].0.clone();
         s.lock()
@@ -777,9 +771,9 @@ mod tests {
         assert_eq!(rooms(&s).len(), 1);
     }
 
-    /// Awalan `ttt_` hanya mengecek "masih dalam game" (`tictactoe.js:158-162`).
-    /// Pencarian room yang menunggu (`tictactoe.js:173-178`) tidak memfilter
-    /// awalan sama sekali, jadi room waiting milik plugin lain di chat yang sama
+    /// Awalan `ttt_` hanya mengecek "masih dalam game".
+    /// Pencarian room yang menunggu tidak memfilter
+    /// awalan sama sekali, jadi room waiting milik plugin lain di chat yang
     /// tetap di-join.
     #[test]
     fn a_waiting_room_without_the_prefix_is_still_joinable() {

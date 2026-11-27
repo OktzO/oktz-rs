@@ -9,12 +9,12 @@ pub mod wwprotect;
 pub mod wwsee;
 pub mod wwsorcerer;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod minecraft;
 
-// Engine 22 game quiz + 22 plugin tipis (port `games.js`/`FotoGames`).
+// Engine 22 game quiz + 22 plugin tipis.
 pub mod quiz;
 pub mod tebakkata;
 pub mod tebaknegara;

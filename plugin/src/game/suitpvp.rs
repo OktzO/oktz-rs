@@ -1,32 +1,32 @@
-//! `plugins/game/suitpvp.js` — suit (batu gunting kertas) dengan player lain.
+//! Suit (batu gunting kertas) dengan player lain.
 //!
-//! `ponytail:` `answerHandler` bukan command; router global yang memanggilnya.
-//! Yang dipindah di sini `handler` saja — sama seperti `kyubigame.rs`.
+//! `Keterbatasan:` `answerHandler` bukan command; router global yang memanggilnya. Yang
+//! dipindah di sini `handler` saja — sama seperti `kyubigame.rs`.
 //!
-//! `ponytail:` JS memakai `setTimeout` untuk mengakhiri ruang duel. Tanpa
-//! timer, ruang yang sudah lewat `TIMEOUT` diabaikan saat handler dipanggil
-//! berikutnya — efek yang sama, tanpa pengusir yang berjalan sendiri.
+//! `Keterbatasan:` versi awal memakai `setTimeout` untuk mengakhiri ruang duel. Tanpa
+//! timer, ruang yang sudah lewat `TIMEOUT` diabaikan saat handler dipanggil berikutnya —
+//! efek yang sama, tanpa pengusir yang berjalan sendiri.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::{Value};
 
-/// `TIMEOUT` (`suitpvp.js:20`) — 90 detik.
+/// `TIMEOUT` — 90 detik.
 pub(crate) const TIMEOUT_MS: i64 = 90_000;
 
-/// `global.suitGames` (`suitpvp.js:18`) dipetakan ke session store dengan
+/// `global.suitGames` dipetakan ke session store
 /// nama yang sama supaya whoever mem-port router suit tidak perlu tahu.
 pub(crate) const GAMES_KEY: &str = "suitGames";
 
-/// `suitpvp.js:38` — sender masih punya duel yang belum selesai.
+/// Sender masih punya duel yang belum selesai.
 pub(crate) const BUSY: &str = "❌ Kamu masih dalam game suit!\n\n> Selesaikan game kamu dulu.";
 
-/// `suitpvp.js:59` — menantang diri sendiri.
+/// Menantang diri sendiri.
 pub(crate) const SELF: &str = "❌ Tidak bisa menantang diri sendiri!";
 
-/// `suitpvp.js:67` — target sedang duel dengan orang lain.
+/// Target sedang duel dengan orang lain.
 pub(crate) const TARGET_BUSY: &str = "❌ Orang itu sedang bermain suit dengan orang lain!";
 
-/// `suitpvp.js:51-55` — kartu penggunaan.
+/// Kartu penggunaan.
 pub(crate) fn usage() -> String {
     String::from(
         "✊✌️✋ *sᴜɪᴛ ᴘᴠᴘ*\n\n\
@@ -36,7 +36,7 @@ pub(crate) fn usage() -> String {
     )
 }
 
-/// `suitpvp.js:93-98` — teks tantangan.
+/// Teks tantangan.
 pub(crate) fn challenge(target: &str) -> String {
     format!(
         "Kamu menantang @{} untuk adu suit\n\n\
@@ -49,8 +49,8 @@ pub(crate) fn challenge(target: &str) -> String {
     )
 }
 
-/// Kamar yang masih hidup untuk `jid`, di-scan pada urutan key yang sama dengan
-/// `Object.values(global.suitGames)` di JS.
+/// Kamar yang masih hidup untuk `jid`, di-scan pada urutan key yang sama
+/// `Object.values(global.suitGames)` di versi awal.
 pub(crate) fn room_of(sessions: Option<&Value>, jid: &str, now: i64) -> Option<String> {
     let games = sessions?.as_object()?;
     for (id, room) in games {
@@ -91,7 +91,7 @@ pub fn suitpvp(ctx: Ctx) -> Reply {
         return Reply::text(BUSY);
     }
 
-    // `m.quoted.sender` menang atas mention — `suitpvp.js:43-47`.
+    // `m.quoted.sender` menang atas mention —.
     let target = ctx
         .quoted()
         .map(|q| q.sender.clone())
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn a_sender_still_in_a_room_is_refused_before_the_target_is_read() {
-        // Urutan guard di JS: "masih dalam game" diperiksa lebih dulu, jadi
+        // Urutan guard di versi awal: "masih dalam game" diperiksa lebih dulu, jadi
         // comando tanpa target pun tetap kena_branch ini.
         let now = crate::common::now_ms();
         let r = run(ctx_with(serde_json::json!({ "suit_1": room(SENDER, OTHER, now) })));
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn the_quoted_sender_wins_over_the_mention() {
-        // `suitpvp.js:43-47`: `m.quoted` dicek lebih dulu.
+        // : `m.quoted` dicek lebih dulu.
         let mut ctx = ctx_with(serde_json::json!({}));
         ctx.mentioned = vec!["628000@s.whatsapp.net".into()];
         ctx.quoted = Some(QuotedMessage {

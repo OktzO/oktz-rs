@@ -1,8 +1,4 @@
-//! `plugins/game/wwsorcerer.js` — aksi malam Werewolf: cek apakah target Seer.
-//!
-//! Seluruh logika ada di [`crate::game::wwkill`]; file ini hanya mendaftarkan
-//! config plugin-nya, persis seperti `wwsorcerer.js` yang meneruskan ke
-//! `nightActionHandler` tanpa `try/catch`.
+//! Aksi malam Werewolf: cek apakah target Seer.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -105,7 +101,7 @@ mod tests {
 
     #[test]
     fn an_unknown_target_role_does_not_fall_back_to_the_error_template() {
-        // `wwsorcerer.js` tidak punya `try/catch`, jadi role asing hanya
+        // tidak punya `try/catch`, jadi role asing hanya
         // berarti "bukan Seer" — berbeda dari `wwsee`.
         let r = run("3", Some(game("wizard")));
         assert!(text_of(&r).contains("bukan Seer"), "{}", text_of(&r));

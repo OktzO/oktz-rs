@@ -1,7 +1,4 @@
-//! `plugins/game/siapakahaku.js` — game quiz dari engine `games.js` (`FotoGames`).
-//!
-//! Bank soal `src/data/siapakahaku.json` di-`include_str!` apa adanya (pola
-//! `family100.rs`); handler dan answer handler di `game::quiz`.
+//! Game quiz dari engine (`FotoGames`).
 
 use crate::game::quiz::{QuizGame, answer, handler};
 use oktz_plugin_api::{Ctx, Reply, answer_handler, plugin};
@@ -49,7 +46,7 @@ mod tests {
     fn meta_dan_alias_terdaftar() {
         let p = find("siapakahaku").expect("terdaftar");
         assert_eq!(p.meta.name, "siapakahaku");
-        // alias `siapa` = command plugin `bego` (`siapa.js:10`) — alias hanya
+        // alias `siapa` = command plugin `bego` — alias hanya
         // dipakai kalau nama tidak ada, jadi `.siapa` selalu ke `bego`.
         for a in ["whoami"] {
             assert_eq!(find(a).unwrap().meta.name, "siapakahaku");
