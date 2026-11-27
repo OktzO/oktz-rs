@@ -1,58 +1,36 @@
-//! `plugins/main/allmenu.js` — semua command lengkap per kategori.
+//! Semua command lengkap per kategori.
 //!
-//! Port penuh: blok "Informasi User" / "Informasi Bot" / "Kelebihan Bot Ini",
-//! bracket box per kategori, simbol permission, urutan + penyaringan kategori
-//! sesuai mode bot grup, empat varian tampilan (setting `allmenuVariant`),
-//! dan audio menu (setting `audioMenu`).
-//!
-//! Yang diport apa adanya:
-//! - `pluginConfig` (`allmenu.js:24-38`).
-//! - `CATEGORY_EMOJIS` (`allmenu.js:39-68`) — 28 kunci, disalin verbatim.
-//! - `createBracketBox` (`allmenu.js:70-77`).
-//! - `getCommandSymbols` (`allmenu.js:78-89`) — `🅞 🅟 🅛 🅐 🅖 🅟🅡`.
-//!   `🅛` (limit) tidak bisa muncul: `PluginMeta` Rust tidak punya field
-//!   `limit` (`lib/oktz-plugin-api/meta.rs`), jadi hanya lima simbol lain
-//!   yang bisa ditulis — sisanya tetap urut dan sama.
-//! - `getContextInfo` (`allmenu.js:90-104`) — mention + forwarded `9999` +
-//!   info surat berita.
-//! - `categoryOrder` (`allmenu.js:158-179`) dan `MODES`
-//!   (`plugins/group/botmode.js:19-56`) yang dipakai `allmenu.js:197-207`.
-//! - Varian 1 (teks polos), 2 (kartu + header gambar + tombol "Kembali Ke
-//!   Menu Utama"), 5 (kartu native-flow + header video + quote lokasi cuaca)
-//!   dan 6 (kartu + header lokasi) (`allmenu.js:235-415`).
-//! - Audio menu yang dikirim setelah varian (`allmenu.js:419-591`).
-//!
-//! `ponytail:` yang berbeda dari JS, beserta alasannya:
-//! - "case" dari `case/foto.js` tidak ada di registry Rust, jadi hanya
-//!   plugin yang bisa dihitung. Angka "fitur" = jumlah plugin aktif saja —
-//!   persis seperti JS kalau `casesByCategory` kosong.
-//! - Urutan command di dalam satu kategori: JS memakai urutan registrasi
-//!   plugin, Rust memakai urutan alfabetis. `all_plugins()` tidak menjamin
-//!   urutan registrasi, dan hasil yang bisa diulang lebih berguna.
-//! - `createBracketBox` di JS menerima `emoji` tapi TIDAK memakainya
-//!   (`allmenu.js:71-75`) — judul kotak cuma `${title} MENU `. Parameternya
-//!   tetap dibawa di sini supaya tanda tangannya sama, tapi ditandai
-//!   `_emoji` supaya tidak ada peringatan compiler.
+//! `Keterbatasan:` yang berbeda dari versi awal, beserta alasannya:
+//! - "case" tidak ada di registry Rust, jadi hanya
+//! plugin yang bisa dihitung. Angka "fitur" = jumlah plugin aktif saja —
+//! persis seperti versi awal kalau `casesByCategory` kosong.
+//! - Urutan command di dalam satu kategori: versi awal memakai urutan registrasi
+//! plugin, Rust memakai urutan alfabetis. `all_plugins()` tidak menjamin
+//! urutan registrasi, dan hasil yang bisa diulang lebih berguna.
+//! - `createBracketBox` di versi awal menerima `emoji` tapi TIDAK memakainya
+//! Judul kotak cuma `${title} MENU `. Parameternya
+//! tetap dibawa di sini supaya tanda tangannya sama, tapi ditandai
+//! `_emoji` supaya tidak ada peringatan compiler.
 //! - Varian 2/5/6 butuh aset header (`foto` / `mp4`). Kalau asetnya hilang,
-//!   kartu tidak bisa dibangun → jatuh ke balasan cadangan, sama seperti
-//!   `catch` JS (`allmenu.js:592-606`).
-//! - Audio menu: JS mengubah MP3 jadi Opus (voice note) lewat ffmpeg untuk
-//!   gaya 1 & 2 (`allmenu.js:428-465`). Di sini MP3 dikirim apa adanya
-//!   (`Reply::audio`), yaitu cabang cadangan JS (`allmenu.js:458-464`).
+//! kartu tidak bisa dibangun → jatuh ke balasan cadangan, sama
+//! `catch` versi awal.
+//! - Audio menu: versi awal mengubah MP3 jadi Opus (voice note) lewat ffmpeg
+//! gaya 1 & 2. Di sini MP3 dikirim apa adanya
+//! (`Reply::audio`), yaitu cabang cadangan versi awal.
 //! - `Reply::Image` di API Rust tidak punya `contextInfo`, jadi forwarded +
-//!   surat berita dari `getContextInfo` tidak ikut pada balasan cadangan
-//!   gambar; mention pemicunya tetap dibawa.
+//! surat berita dari `getContextInfo` tidak ikut pada balasan cadangan
+//! gambar; mention pemicunya tetap dibawa.
 
 use oktz_plugin_api::registry::{
     CardContext, CardHeader, CardLocation, CardQuote, InteractiveButton, MediaSource, PluginEntry,
 };
 use oktz_plugin_api::{Ctx, PluginMeta, Reply, all_plugins, plugin};
 
-// ---------------------------------------------------------------------------
-// Konstanta dari JS
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Konstanta dari versi awal
+// --------------------------------------------------------------------------
 
-/// `CATEGORY_EMOJIS` (`allmenu.js:39-68`) — 28 kunci, disalin apa adanya.
+/// `CATEGORY_EMOJIS` — 28 kunci, disalin apa adanya.
 const CATEGORY_EMOJIS: &[(&str, &str)] = &[
     ("owner", "👑"),
     ("main", "🏠"),
@@ -84,9 +62,9 @@ const CATEGORY_EMOJIS: &[(&str, &str)] = &[
     ("pushkontak", "📱"),
 ];
 
-/// `categoryOrder` (`allmenu.js:158-179`) — urutan kategori di daftar menu.
-/// Kategori di luar daftar ini dapat indeks 999, sama seperti
-/// `indexOf(...) === -1 ? 999` di JS.
+/// `categoryOrder` — urutan kategori di daftar menu.
+/// Kategori di luar daftar ini dapat indeks 999, sama
+/// `indexOf(...) === -1 ? 999` di versi awal.
 const URUTAN_KATEGORI: &[&str] = &[
     "owner",
     "main",
@@ -110,10 +88,10 @@ const URUTAN_KATEGORI: &[&str] = &[
     "premium",
 ];
 
-/// `MODES` (`plugins/group/botmode.js:19-56`) yang dipakai `allmenu.js:197-207`:
+/// `MODES` yang dipakai:
 /// (mode, `allowedCategories`, `excludeCategories`).
 ///
-/// `None` berarti "tidak ada batas" — persis `null` di JS, yang berarti
+/// `None` berarti "tidak ada batas" — persis `null` di versi awal, yang berarti
 /// seluruh kategori lolos.
 type ModeKatori = (&'static str, Option<&'static [&'static str]>, Option<&'static [&'static str]>);
 
@@ -135,48 +113,48 @@ const MODE: &[ModeKatori] = &[
 ];
 
 /// `db.setting("allmenuVariant") || botConfig.ui?.allmenuVariant || 2`
-/// (`allmenu.js:231-232`). `config.ui` (`config.js:189-191`) cuma punya
+/// . `config.ui` cuma punya
 /// `menuVariant`, jadi tidak ada `allmenuVariant` — default-nya literal `2`.
 const DEFAULT_VARIANT: i64 = 2;
 
-/// Nama setting varian allmenu (`allmenu.js:231`).
+/// Nama setting varian allmenu.
 const SETTING_VARIANT: &str = "allmenuVariant";
 
-/// `db.setting("audioMenu")` (`allmenu.js:419`).
+/// `db.setting("audioMenu")`.
 const SETTING_AUDIO: &str = "audioMenu";
 
-/// `newsletterJid` cadangan (`allmenu.js:91` dan `:331`).
+/// `newsletterJid` cadangan.
 const JID_SALURAN_CADANGAN: &str = "120363400911374213@newsletter";
 
-/// Kota default untuk lookup cuaca (`allmenu.js:300`).
+/// Kota default untuk lookup cuaca.
 const KOTA_CUACA: &str = "Jakarta";
 
-/// Nama bot cadangan (`allmenu.js:136`).
+/// Nama bot cadangan.
 const NAMA_BOT_CADANGAN: &str = "Remi AI";
 
-/// Nama pengembang cadangan (`allmenu.js:137`).
+/// Nama pengembang cadangan.
 const NAMA_DEV_CADANGAN: &str = "Ell";
 
-/// Versi bot cadangan (`allmenu.js:138`).
+/// Versi bot cadangan.
 const VERSI_BOT_CADANGAN: &str = "11.0.0";
 
-/// Footer kartu varian 5 (`allmenu.js:324`).
+/// Footer kartu varian 5.
 const FOOTER_VARIAN_5: &str = "Please select the button in below";
 
-/// Label tombol "balik ke daftar kategori" (`allmenu.js:346`).
+/// Label tombol "balik ke daftar kategori".
 const TOMBOL_DAFTAR_KATEGORI: &str = "📂 Kembali Ke Daftar Kategori";
 
-/// Label tombol "balik ke menu utama" (`allmenu.js:283` dan `:350`).
+/// Label tombol "balik ke menu utama".
 const TOMBOL_MENU_UTAMA: &str = "🍅 Kembali Ke Menu Utama";
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `createBracketBox(emoji, title, lines)` (`allmenu.js:70-77`).
+/// `createBracketBox(emoji, title, lines)`.
 ///
-/// `emoji` sengaja tidak dipakai: di JS pun parameternya tidak masuk ke
-/// badan fungsi (`allmenu.js:71-75`) — kotak cuma berisi judul dan baris
+/// `emoji` sengaja tidak dipakai: di versi awal pun parameternya tidak masuk
+/// badan fungsi — kotak cuma berisi judul dan baris
 /// command.
 fn kotak(_emoji: &str, judul: &str, baris: &[String]) -> String {
     let mut teks = format!("╭➤--「{judul} MENU 」\n");
@@ -187,11 +165,11 @@ fn kotak(_emoji: &str, judul: &str, baris: &[String]) -> String {
     teks
 }
 
-/// `getCommandSymbols(cmdName)` (`allmenu.js:78-89`).
+/// `getCommandSymbols(cmdName)`.
 ///
-/// `🅛` butuh `plugin.config.limit` (`allmenu.js:84`) — `PluginMeta` Rust
+/// `🅛` butuh `plugin.config.limit` — `PluginMeta` Rust
 /// tidak punya field itu, jadi simbolnya tidak pernah ditulis. `🅟🅡`
-/// (private) ditulis sebagai SATU entri, persis seperti di JS.
+/// (private) ditulis sebagai SATU entri, persis seperti di versi awal.
 fn simbol(meta: &PluginMeta) -> String {
     let mut simbol_urut: Vec<&str> = Vec::new();
     if meta.is_owner {
@@ -215,7 +193,7 @@ fn simbol(meta: &PluginMeta) -> String {
     format!(" {}", simbol_urut.join(" "))
 }
 
-/// `CATEGORY_EMOJIS[cat] || "📋"` (`allmenu.js:223`).
+/// `CATEGORY_EMOJIS[cat] || "📋"`.
 fn emoji_kategori(kategori: &str) -> &'static str {
     CATEGORY_EMOJIS
         .iter()
@@ -224,11 +202,11 @@ fn emoji_kategori(kategori: &str) -> &'static str {
         .unwrap_or("📋")
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Koleksi kategori & command
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `getCommandsByCategory()` (`plugins.js:395-410`) — plugin aktif per
+/// `getCommandsByCategory()` — plugin aktif per
 /// kategori; plugin yang dimatikan dilewati.
 fn plugin_kategori(kategori: &str) -> Vec<&'static PluginEntry> {
     let mut daftar: Vec<&'static PluginEntry> = all_plugins()
@@ -237,13 +215,13 @@ fn plugin_kategori(kategori: &str) -> Vec<&'static PluginEntry> {
         .filter(|p| p.meta.is_enabled)
         .filter(|p| p.meta.category.eq_ignore_ascii_case(kategori))
         .collect();
-    // JS memakai urutan registrasi plugin; Rust tidak menjamin itu, jadi
+    // versi awal memakai urutan registrasi plugin; Rust tidak menjamin itu, jadi
     // diurutkan alfabetis supaya hasilnya bisa diulang.
     daftar.sort_by(|a, b| a.meta.name.cmp(&b.meta.name));
     daftar
 }
 
-/// `getCategories()` (`plugins.js:363-365`) — kategori unik yang ada di
+/// `getCategories()` — kategori unik yang ada
 /// registry.
 fn semua_kategori() -> Vec<&'static str> {
     let mut kategori: Vec<&'static str> = Vec::new();
@@ -258,7 +236,7 @@ fn semua_kategori() -> Vec<&'static str> {
     kategori
 }
 
-/// `groupData.botMode || "md"` (`allmenu.js:108-109`).
+/// `groupData.botMode || "md"`.
 fn mode_grup(ctx: &Ctx) -> String {
     if !ctx.is_group {
         return "md".to_string();
@@ -271,10 +249,10 @@ fn mode_grup(ctx: &Ctx) -> String {
 }
 
 /// `modeAllowedMap[botMode]` / `modeExcludeMap[botMode] || []`
-/// (`allmenu.js:208-209`).
+///
 ///
 /// Mode yang tidak ada di `MODES` tidak menyaring apa pun — persis
-/// `undefined` di JS yang lolos ke `includes`/`|| []`.
+/// `undefined` di versi awal yang lolos ke `includes`/`|| []`.
 fn aturan_mode(mode: &str) -> (Option<&'static [&'static str]>, &'static [&'static str]) {
     MODE.iter()
         .find(|(kunci, _, _)| *kunci == mode)
@@ -283,7 +261,7 @@ fn aturan_mode(mode: &str) -> (Option<&'static [&'static str]>, &'static [&'stat
 }
 
 /// Indeks kategori di `categoryOrder`; 999 kalau tidak ada
-/// (`allmenu.js:180-184`).
+///
 fn indeks_urutan(kategori: &str) -> i32 {
     URUTAN_KATEGORI
         .iter()
@@ -291,16 +269,16 @@ fn indeks_urutan(kategori: &str) -> i32 {
         .map_or(999, |i| i as i32)
 }
 
-/// Kategori yang boleh ditampilkan (`allmenu.js:210-218`).
+/// Kategori yang boleh ditampilkan.
 ///
-/// - `owner` hanya untuk owner (`allmenu.js:211`).
-/// - Kategori di luar `allowedCategories` dilewati (`allmenu.js:212-216`).
-/// - Kategori di `excludeCategories` dilewati (`allmenu.js:217-218`).
-/// - Kategori tanpa command aktif dilewati (`allmenu.js:222`).
+/// `owner` hanya untuk owner.
+/// Kategori di luar `allowedCategories` dilewati.
+/// Kategori di `excludeCategories` dilewati.
+/// Kategori tanpa command aktif dilewati.
 fn kategori_terlihat(ctx: &Ctx) -> Vec<&'static str> {
     let (allowed, exclude) = aturan_mode(&mode_grup(ctx));
     let mut kategori = semua_kategori();
-    // `Array.prototype.sort` di JS stabil, jadi kategori dengan indeks
+    // `Array.prototype.sort` di versi awal stabil, jadi kategori dengan indeks
     // urutan yang sama tetap ikut urutan aslinya. Rust tidak punya urutan
     // registrasi yang dijamin, jadi nama kategori jadi pemutus seri.
     kategori.sort_by(|a, b| {
@@ -332,8 +310,8 @@ fn kategori_terlihat(ctx: &Ctx) -> Vec<&'static str> {
         .collect()
 }
 
-/// `totalCommands` (`allmenu.js:113-116`) — jumlah plugin aktif di semua
-/// kategori (kategori `owner` ikut dihitung, sama seperti JS).
+/// `totalCommands` — jumlah plugin aktif di semua
+/// kategori (kategori `owner` ikut dihitung, sama seperti versi awal).
 fn total_perintah() -> usize {
     all_plugins()
         .iter()
@@ -341,11 +319,11 @@ fn total_perintah() -> usize {
         .count()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Nilai runtime
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `getTimeGreeting()` (`src/lib/formatter.js:508-515`), jam Asia/Jakarta.
+/// `getTimeGreeting()`, jam Asia/Jakarta.
 fn sapa() -> &'static str {
     match crate::common::jakarta_parts(crate::common::now_ms()).3 {
         4..=9 => "Selamat Pagi 🌅",
@@ -355,7 +333,7 @@ fn sapa() -> &'static str {
     }
 }
 
-/// `botConfig.bot?.name || "Remi AI"` (`allmenu.js:136`).
+/// `botConfig.bot?.name || "Remi AI"`.
 fn nama_bot(ctx: &Ctx) -> String {
     let nama = &ctx.config().bot.name;
     if nama.is_empty() {
@@ -365,7 +343,7 @@ fn nama_bot(ctx: &Ctx) -> String {
     }
 }
 
-/// `botConfig.bot?.developer || "Ell"` (`allmenu.js:137`).
+/// `botConfig.bot?.developer || "Ell"`.
 fn nama_dev(ctx: &Ctx) -> String {
     let nama = &ctx.config().bot.developer;
     if nama.is_empty() {
@@ -375,7 +353,7 @@ fn nama_dev(ctx: &Ctx) -> String {
     }
 }
 
-/// `botConfig.bot?.version || "11.0.0"` (`allmenu.js:138`).
+/// `botConfig.bot?.version || "11.0.0"`.
 fn versi_bot(ctx: &Ctx) -> String {
     let versi = &ctx.config().bot.version;
     if versi.is_empty() {
@@ -385,7 +363,7 @@ fn versi_bot(ctx: &Ctx) -> String {
     }
 }
 
-/// `m.pushName || "User"` (`allmenu.js:139`).
+/// `m.pushName || "User"`.
 fn nama_pengguna(ctx: &Ctx) -> String {
     if ctx.push_name.is_empty() {
         "User".to_string()
@@ -395,7 +373,7 @@ fn nama_pengguna(ctx: &Ctx) -> String {
 }
 
 /// `new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })`
-/// lalu `.replace(/\./g, ':')` (`allmenu.js:140`).
+/// lalu `.replace(/\./g, ':')`.
 ///
 /// Format `id-ID` memakai titik sebagai pemisah (`23.13.14`), jadi setelah
 /// digantititik sama dengan `HH:MM:SS`.
@@ -404,7 +382,7 @@ fn waktu_sekarang() -> String {
     format!("{jam:02}:{menit:02}:{detik:02}")
 }
 
-/// `userRole` (`allmenu.js:119-124`).
+/// `userRole`.
 fn peran_pengguna(ctx: &Ctx) -> &'static str {
     if ctx.is_owner {
         "Owner"
@@ -415,7 +393,7 @@ fn peran_pengguna(ctx: &Ctx) -> &'static str {
     }
 }
 
-/// `userLimit` (`allmenu.js:135`).
+/// `userLimit`.
 fn limit_pengguna(ctx: &Ctx) -> String {
     if ctx.is_premium || ctx.is_owner {
         return "∞ Unlimited".to_string();
@@ -427,7 +405,7 @@ fn limit_pengguna(ctx: &Ctx) -> String {
 }
 
 /// `botConfig.saluran?.id || "120363400911374213@newsletter"`
-/// (`allmenu.js:91` dan `:331`).
+///
 fn jid_saluran(ctx: &Ctx) -> String {
     let id = &ctx.config().saluran.id;
     if id.is_empty() {
@@ -438,7 +416,7 @@ fn jid_saluran(ctx: &Ctx) -> String {
 }
 
 /// `botConfig.saluran?.name || botConfig.bot?.name || "Bot"`
-/// (`allmenu.js:92-93` dan `:332`).
+///
 fn nama_saluran(ctx: &Ctx) -> String {
     let saluran = &ctx.config().saluran.name;
     if !saluran.is_empty() {
@@ -452,7 +430,7 @@ fn nama_saluran(ctx: &Ctx) -> String {
     }
 }
 
-/// `getContextInfo(botConfig, m)` (`allmenu.js:90-104`).
+/// `getContextInfo(botConfig, m)`.
 ///
 /// `mentionedJid: [m.sender]`, `forwardingScore: 9999`, dan info surat
 /// berita dengan `serverMessageId: 127`.
@@ -466,7 +444,7 @@ fn konteks_info(ctx: &Ctx) -> CardContext {
     context
 }
 
-/// `contextInfo` varian 5 & 6 (`allmenu.js:326-334` dan `:397-405`).
+/// `contextInfo` varian 5 & 6.
 ///
 /// `forwardingScore: 9` + info surat berita.
 fn konteks_saluran(ctx: &Ctx) -> CardContext {
@@ -479,9 +457,9 @@ fn konteks_saluran(ctx: &Ctx) -> CardContext {
     context
 }
 
-/// `contextInfo` varian 2 (`allmenu.js:259-269`).
+/// `contextInfo` varian 2.
 ///
-/// `fprwardingScore` di JS itu TYPO (huruf `p` kelewat), jadi skor
+/// `fprwardingScore` di versi awal itu TYPO (huruf `p` kelewat), jadi skor
 /// forwarding tidak ikut terisi di sana; di sini dipakai `9` supaya
 /// kartu tetap ditandai forwarded.
 fn konteks_varian_2(ctx: &Ctx) -> CardContext {
@@ -496,7 +474,7 @@ fn konteks_varian_2(ctx: &Ctx) -> CardContext {
 }
 
 /// `thumbnail = sharp(getAssetBuffer("foto")).resize(300, 300)`
-/// (`allmenu.js:314` dan `:379`).
+///
 ///
 /// Thumbnail 300x300 dari aset `foto`; kalau asetnya tidak ada atau bukan
 /// gambar, hasilnya `None`.
@@ -510,12 +488,12 @@ fn thumbnail(ctx: &Ctx) -> Option<Vec<u8>> {
         .ok()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks daftar command
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// Blok "Informasi User" / "Informasi Bot" / "Kelebihan Bot Ini" +
-/// bracket box per kategori terlihat (`allmenu.js:142-230`).
+/// bracket box per kategori terlihat.
 fn teks_menu(ctx: &Ctx, prefix: &str) -> String {
     let mut txt = String::new();
     txt.push_str("✦ *Informasi User*\n");
@@ -553,19 +531,19 @@ fn teks_menu(ctx: &Ctx, prefix: &str) -> String {
     txt
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Kartu per varian
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// Varian aktif: `db.setting("allmenuVariant") || config.ui?.allmenuVariant
-/// || 2` (`allmenu.js:231-232`).
+/// || 2`.
 fn variant_aktif(ctx: &Ctx) -> i64 {
     ctx.setting_i64(SETTING_VARIANT)
         .filter(|varian| *varian > 0)
         .unwrap_or(DEFAULT_VARIANT)
 }
 
-/// Body kartu varian 2 (`allmenu.js:254`).
+/// Body kartu varian 2.
 fn body_varian_2(ctx: &Ctx) -> String {
     format!(
         "> Halo *{}* 👋 Perkenalkan aku *{}*, buatan *{}* Saya siap membantu kebutuhanmu, mulai dari download video, main game, tanya jawab, nyari info/sesuatu, bikin sticker, dan lain-lain.\n\n",
@@ -577,7 +555,7 @@ fn body_varian_2(ctx: &Ctx) -> String {
 
 /// Varian 2 — kartu interaktif dengan header gambar `foto`, footer berisi
 /// seluruh daftar command, dan tombol "Kembali Ke Menu Utama"
-/// (`allmenu.js:238-293`).
+///
 fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
     let aset = ctx.config().assets.get("foto")?;
     if !ctx.berkas().ada(aset) {
@@ -612,7 +590,7 @@ fn kartu_varian_2(ctx: &Ctx, txt: &str) -> Option<Reply> {
 
 /// Varian 5 — kartu native-flow dengan header video `mp4`, tombol native
 /// (kosong + daftar kategori + menu utama), dan pesan yang dirujuk berupa
-/// lokasi cuaca (`allmenu.js:295-358`).
+/// lokasi cuaca.
 fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
     let aset = ctx.config().assets.get("mp4")?;
     if !ctx.berkas().ada(aset) {
@@ -640,7 +618,7 @@ fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
     });
 
     let mut context = konteks_saluran(ctx);
-    // `qOrder` (`allmenu.js:315-318`) — pesan palsu berisi lokasi cuaca.
+    // `qOrder` — pesan palsu berisi lokasi cuaca.
     context = context.quote(CardQuote::Location {
         latitude: 0.0,
         longitude: 0.0,
@@ -659,7 +637,7 @@ fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
             )
             .with_context(context)
             .with_message_params(params)
-            // Slot kosong pertama (`allmenu.js:343`) — WA butuh minimal satu
+            // Slot kosong pertama — WA butuh minimal satu
             // tombol yang tidak berisi aksi.
             .with_button_card(InteractiveButton::empty(""))
             .with_button_card(InteractiveButton::quick_reply(
@@ -674,7 +652,7 @@ fn kartu_varian_5(ctx: &Ctx, txt: &str) -> Option<Reply> {
 }
 
 /// Varian 6 — kartu dengan header lokasi (nama bot + alamat cuaca), tanpa
-/// tombol (`allmenu.js:360-414`).
+/// tombol.
 fn kartu_varian_6(ctx: &Ctx, txt: &str) -> Option<Reply> {
     let header = CardHeader::new().location(CardLocation {
         latitude: 0.0,
@@ -685,7 +663,7 @@ fn kartu_varian_6(ctx: &Ctx, txt: &str) -> Option<Reply> {
     });
 
     let mut context = konteks_saluran(ctx);
-    // `wrapInteractive(..., { quoted: m })` (`allmenu.js:411`) — kartu
+    // `wrapInteractive(..., { quoted: m })` — kartu
     // mengutip pesan pemicu.
     context = context.quote_trigger();
 
@@ -696,14 +674,14 @@ fn kartu_varian_6(ctx: &Ctx, txt: &str) -> Option<Reply> {
     )
 }
 
-/// Jalur cadangan `catch` (`allmenu.js:592-606`): gambar + caption kalau
+/// Jalur cadangan `catch`: gambar + caption kalau
 /// aset `foto` ada, kalau tidak teks polos.
 ///
-/// `contextInfo: getContextInfo(botConfig, m)` (`allmenu.js:600`) tidak bisa
+/// `contextInfo: getContextInfo(botConfig, m)` tidak bisa
 /// ditempelkan utuh: `Reply::Image` di API Rust tidak punya `contextInfo`.
-/// Yang bisa dibawa adalah `mentionedJid: [m.sender]`, jadi itu yang
-/// diambil dari konteks itu; `forwarded` + surat berita hilang (lihat
-/// `ponytail:` di modul).
+/// Yang bisa dibawa adalah `mentionedJid: [m.sender]`, jadi itu
+/// diambil dari konteks itu; `forwarded` + surat berita hilang (
+/// `Keterbatasan:` di modul).
 fn cadangan(ctx: &Ctx, txt: &str) -> Reply {
     let context = konteks_info(ctx);
     if let Some(aset) = ctx.config().assets.get("foto")
@@ -718,11 +696,11 @@ fn cadangan(ctx: &Ctx, txt: &str) -> Reply {
     Reply::text(txt.to_string())
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Audio menu
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `db.setting("audioMenu") !== false` (`allmenu.js:419`).
+/// `db.setting("audioMenu") !== false`.
 ///
 /// Hanya `false` yang mematikan; bentuk lain (termasuk tidak ada) lolos.
 fn audio_aktif(ctx: &Ctx) -> bool {
@@ -732,15 +710,15 @@ fn audio_aktif(ctx: &Ctx) -> bool {
     )
 }
 
-/// Audio menu dari aset `mp3` (`allmenu.js:421` dan `:523`).
+/// Audio menu dari aset `mp3`.
 fn audio_menu(ctx: &Ctx) -> Option<Reply> {
     let aset = ctx.config().assets.get("mp3")?;
     Some(Reply::audio(MediaSource::path(aset)))
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Plugin
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[plugin(
     name = "allmenu",
@@ -755,7 +733,7 @@ fn audio_menu(ctx: &Ctx) -> Option<Reply> {
     is_private = false
 )]
 pub fn allmenu(ctx: Ctx) -> Reply {
-    // `botConfig.command?.prefix || "."` (`allmenu.js:106`).
+    // `botConfig.command?.prefix || "."`.
     let prefix = if ctx.prefix.is_empty() {
         ".".to_string()
     } else {
@@ -763,17 +741,17 @@ pub fn allmenu(ctx: Ctx) -> Reply {
     };
     let txt = teks_menu(&ctx, &prefix);
 
-    // `switch (allmenuVariant)` (`allmenu.js:234-418`).
+    // `switch (allmenuVariant)`.
     let isi = match variant_aktif(&ctx) {
         1 => Reply::text(txt.clone()),
         2 => kartu_varian_2(&ctx, &txt).unwrap_or_else(|| cadangan(&ctx, &txt)),
         5 => kartu_varian_5(&ctx, &txt).unwrap_or_else(|| cadangan(&ctx, &txt)),
         6 => kartu_varian_6(&ctx, &txt).unwrap_or_else(|| cadangan(&ctx, &txt)),
-        // `default: break` (`allmenu.js:416-417`) — tidak ada yang dikirim.
+        // `default: break` — tidak ada yang dikirim.
         _ => Reply::None,
     };
 
-    // Audio menu dikirim SETELAH varian (`allmenu.js:419-591`).
+    // Audio menu dikirim SETELAH varian.
     match audio_menu(&ctx) {
         Some(audio) if audio_aktif(&ctx) => match isi {
             Reply::None => audio,
@@ -821,7 +799,7 @@ mod tests {
     }
 
     /// Konteks dengan aset sungguhan ada di `BerkasPalsu` supaya varian
-    /// kartu bisa dibangun. Audio menu aktif (default JS).
+    /// kartu bisa dibangun. Audio menu aktif (default versi awal).
     fn ctx_dengan_aset(variant: i64) -> Ctx {
         let berkas = BerkasPalsu::baru();
         berkas.tulis("./assets/image/foto.jpeg", &[1, 2, 3]).unwrap();
@@ -860,7 +838,7 @@ mod tests {
         }
     }
 
-    // -- meta ---------------------------------------------------------------
+    // - meta ---------------------------------------------------------------
 
     #[test]
     fn meta_sama_dengan_js() {
@@ -895,9 +873,9 @@ mod tests {
         }
     }
 
-    // -- teks ---------------------------------------------------------------
+    // - teks ---------------------------------------------------------------
 
-    /// `createBracketBox` JS (`allmenu.js:70-77`) — emoji tidak masuk ke
+    /// `createBracketBox` versi awal — emoji tidak masuk
     /// badan fungsi, judulnya cuma `${title} MENU `.
     #[test]
     fn bracket_box_punya_bentuk_yang_sama_dengan_js() {
@@ -943,7 +921,7 @@ mod tests {
         assert_eq!(emoji_kategori("main"), "🏠");
         assert_eq!(emoji_kategori("pushkontak"), "📱");
         assert_eq!(emoji_kategori("store"), "🏪");
-        // Kategori tak dikenal → cadangan `📋` (`allmenu.js:223`).
+        // Kategori tak dikenal → cadangan `📋`.
         assert_eq!(emoji_kategori("tidakada"), "📋");
     }
 
@@ -992,7 +970,7 @@ mod tests {
     fn variant_default_dua_bila_setting_tidak_ada() {
         // Setting yang ada dipakai apa adanya.
         assert_eq!(variant_aktif(&ctx(1)), 1);
-        // Setting 0 falsy di JS (`||`), jadi bukan varian 0.
+        // Setting 0 falsy di versi awal (`||`), jadi bukan varian 0.
         let mut c = ctx(1);
         c.settings = serde_json::json!({ "allmenuVariant": 0 });
         assert_eq!(variant_aktif(&c), DEFAULT_VARIANT);
@@ -1005,7 +983,7 @@ mod tests {
         assert_eq!(variant_aktif(&c), DEFAULT_VARIANT);
     }
 
-    // -- kartu --------------------------------------------------------------
+    // - kartu --------------------------------------------------------------
 
     #[test]
     fn varian_satu_mengirim_teks_polos() {
@@ -1134,11 +1112,11 @@ mod tests {
         assert!(teks(&r).contains("✦ *Informasi User*"));
     }
 
-    // -- audio menu ---------------------------------------------------------
+    // - audio menu ---------------------------------------------------------
 
     #[test]
     fn audio_menu_menempel_setelah_kartu() {
-        // Tanpa `audioMenu: false` → audio ikut (default JS `!== false`).
+        // Tanpa `audioMenu: false` → audio ikut (default versi awal `!== false`).
         let r = allmenu(ctx_dengan_aset(2));
         let Reply::Sequence(list) = r.without_mutations() else {
             panic!("harus sequence, dapat {:?}", r.without_mutations());
@@ -1187,7 +1165,7 @@ mod tests {
         }
     }
 
-    // -- konteks ------------------------------------------------------------
+    // - konteks ------------------------------------------------------------
 
     #[test]
     fn konteks_info_mirip_get_context_info_js() {

@@ -1,4 +1,4 @@
-//! `plugins/main/ping.js` — canvas diagnostik sistem PNG.
+//! Canvas diagnostik sistem PNG.
 
 use std::fs;
 use std::time::Instant;

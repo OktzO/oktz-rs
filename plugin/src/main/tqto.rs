@@ -1,14 +1,14 @@
-//! `plugins/main/tqto.js` — daftar kontributor bot.
+//! Daftar kontributor bot.
 //!
-//! `ponytail:` `config.bot.name` tidak ada di `Ctx`, jadi nama bot
-//! di-hardcode dari `config.js:39` — sama seperti `info/benefitpartner.rs`.
+//! `Keterbatasan:` `config.bot.name` tidak ada di `Ctx`, jadi nama bot di-hardcode — sama
+//! seperti `info/benefitpartner.rs`.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `config.bot.name` (`config.js:39`).
+/// `config.bot.name`.
 pub(crate) const BOT_NAME: &str = "Oktz Bot";
 
-/// `(name, role, icon)` dari `tqto.js:20-81`, urutan persis.
+/// `(name, role, icon)`, urutan persis.
 pub(crate) const CREDITS: [(&str, &str, &str); 61] = [
     ("hyuuOkkotsuX", "Lead Staff", "👨‍💻"),
     ("Zann", "Creator", "👨‍💻"),
@@ -154,7 +154,7 @@ mod tests {
             CREDITS.last().unwrap(),
             &("Open Source Community", "Libraries & Tools", "🌐")
         );
-        // "Ahmad" muncul dua kali di JS — duplikat itu disengaja, jadi ikut.
+        // "Ahmad" muncul dua kali di versi awal — duplikat itu disengaja, jadi ikut.
         assert_eq!(
             CREDITS.iter().filter(|(n, ..)| *n == "Ahmad").count(),
             2,
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn the_header_keeps_the_js_whitespace_between_the_title_and_the_list() {
-        // `\n        \n` di JS — spasi ikut ke pengguna.
+        // `\n \n` di versi awal — spasi ikut ke pengguna.
         let out = run();
         let idx = out.find("\n        \n").expect("jarak kosong JS hilang");
         assert!(out[idx + 10..].starts_with("*1. *hyuuOkkotsuX*"), "{out}");

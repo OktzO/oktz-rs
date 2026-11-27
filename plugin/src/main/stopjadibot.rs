@@ -1,8 +1,7 @@
-//! `plugins/main/stopjadibot.js` — hentikan sesi jadibot via `jadibot-manager`.
+//! Hentikan sesi jadibot via `jadibot-manager`.
 //!
-//! `ponytail:` `stopJadibot`, `isJadibotActive`, dan `getJadibotStatus` dari
-//! `src/lib/jadibot-manager.js` tidak diekspos ke plugin di registry Rust.
-//! Tidak ada state jadibot yang dapat dibaca atau diubah.
+//! `Keterbatasan:` `stopJadibot`, `isJadibotActive`, dan `getJadibotStatus` tidak diekspos
+//! ke plugin di registry Rust. Tidak ada state jadibot yang dapat dibaca atau diubah.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -23,7 +22,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
     is_bot_admin = false
 )]
 pub fn stopjadibot(ctx: Ctx) -> Reply {
-    // `ponytail:` Semua operasi jadibot butuh jadibot-manager yang tidak
+    // `Keterbatasan:` Semua operasi jadibot butuh jadibot-manager yang tidak
     // tersedia di registry Rust.
     Reply::text(crate::common::error_template(&ctx))
 }

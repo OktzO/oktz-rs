@@ -1,37 +1,17 @@
-//! `plugins/main/menu.js` — menu utama.
+//! Menu utama.
 //!
-//! Port penuh: sembilan varian tampilan yang dipilih lewat setting
-//! `menuVariant`, lengkap dengan kartu native-flow, tombol `single_select` /
-//! `quick_reply` / `cta_url`, header media (gambar, video, lokasi), dan
-//! pesan yang dirujuk (kontak palsu, kartu cuaca). Varian 16 adalah port
-//! menu utama `Rubby-MD/plugins/main/menu.js` (smallcaps + tombol kategori
-//! `.menu <kategori>` + tombol Owner), dipilih lewat `.setmenu v16`.
-//!
-//! Yang diport apa adanya:
-//! - `CATEGORY_EMOJIS` (`menu.js:36-73`) dan urutan kategori
-//!   (`menu.js:112-138`).
-//! - `toMonoUpperBold` (`menu.js:74-108`) — huruf mono-upper-bold unicode.
-//! - `buildMenuText` (`menu.js:174-303`) — blok INFO USER / INFO BOT /
-//!   DAFTAR MENU.
-//! - `getVerifiedQuoted` (`menu.js:305-334`) — kutipan kontak palsu.
-//! - Delapan varian tampilan (`menu.js:372-1378`).
-//!
-//! `ponytail:` yang berbeda dari JS, beserta alasannya:
-//! - "Riwayat command teratas" (`menu.js:990-1007`) dibaca dari
-//!   `database/main/stats.json`, yang tidak ada di Rust — blok "History" pada
-//!   varian 6 tidak ditulis.
+//! `Keterbatasan:` yang berbeda dari versi awal, beserta alasannya:
+//! - "Riwayat command teratas" dibaca
+//! `database/main/stats.json`, yang tidak ada di Rust — blok "History"
+//! varian 6 tidak ditulis.
 //! - Mode global `config.mode` tidak ada di `Ctx`; baris "Mode" memakai
-//!   `PUBLIC` seperti config produksi.
+//! `PUBLIC` seperti config produksi.
 //! - Varian 7 mengirim video kedua yang menempel pada kartu lewat
-//!   `messageAssociation` (`menu.js:1215-1229`). Di Rust video itu dikirim
-//!   sebagai pesan biasa setelah kartu, jadi tidak menempel.
+//! `messageAssociation`. Di Rust video itu dikirim
+//! sebagai pesan biasa setelah kartu, jadi tidak menempel.
 //! - Varian 8 memakai `prepareWAMessageMedia` + `mediaTypeOverride:
-//!   "thumbnail-link"` untuk thumbnail preview; di Rust thumbnail dikirim
-//!   sebagai gambar biasa tanpa field CDN preview.
-//!
-//! Fallback ke balasan teks polos mengikuti `try/catch` JS
-//! (`menu.js:1379-1406`): kalau aset header tidak ada, kartu tidak bisa
-//! dibangun lalu yang dikirim teksnya.
+//! "thumbnail-link"` untuk thumbnail preview; di Rust thumbnail dikirim
+//! sebagai gambar biasa tanpa field CDN preview.
 
 use std::collections::BTreeMap;
 
@@ -44,13 +24,13 @@ use serde_json::json;
 
 use crate::common::{jakarta_parts, now_ms, pad2};
 
-/// Setting yang memilih varian tampilan (`menu.js:337`).
+/// Setting yang memilih varian tampilan.
 const SETTING_VARIANT: &str = "menuVariant";
 
-/// `config.ui.menuVariant` (`config.js:189-191`) = 3.
+/// `config.ui.menuVariant` = 3.
 const DEFAULT_VARIANT: i64 = 3;
 
-/// Urutan kategori `menu.js:112-138` (sama dengan `buildMenuText`).
+/// Urutan kategori (sama dengan `buildMenuText`).
 const URUTAN: &[&str] = &[
     "owner",
     "main",
@@ -79,10 +59,10 @@ const URUTAN: &[&str] = &[
     "store",
 ];
 
-/// Kategori yang disembunyikan mode `md` (`menu.js:146`).
+/// Kategori yang disembunyikan mode `md`.
 const DISEMBUNYI_MD: &[&str] = &["panel", "pushkontak", "store"];
 
-/// `CATEGORY_EMOJIS` (`menu.js:36-73`).
+/// `CATEGORY_EMOJIS`.
 fn emoji(kategori: &str) -> &'static str {
     match kategori {
         "owner" => "👑",
@@ -125,7 +105,7 @@ fn emoji(kategori: &str) -> &'static str {
     }
 }
 
-/// `toMonoUpperBold` (`menu.js:74-108`) — A-Z → 𝗔-𝗭.
+/// `toMonoUpperBold` — A-Z → 𝗔-𝗭.
 fn mono_upper_bold(text: &str) -> String {
     const PETA: [char; 26] = [
         '𝗔', '𝗕', '𝗖', '𝗗', '𝗘', '𝗙', '𝗚', '𝗛', '𝗜', '𝗝', '𝗞', '𝗟', '𝗠', '𝗡', '𝗢', '𝗣',
@@ -144,7 +124,7 @@ fn mono_upper_bold(text: &str) -> String {
 }
 
 /// `getAssetBuffer("foto2")` + `sharp(...).resize(512, 512).webp()`
-/// (`menu.js:1144-1146`) — stiker palsu pada kutipan kartu varian 7.
+/// Stiker palsu pada kutipan kartu varian 7.
 fn stiker_fake(ctx: &Ctx) -> Option<MediaSource> {
     let aset = ctx.config().assets.get("foto2")?;
     let byte = ctx.berkas().baca(aset).ok()?;
@@ -156,7 +136,7 @@ fn stiker_fake(ctx: &Ctx) -> Option<MediaSource> {
     Some(MediaSource::bytes(webp).with_mimetype("image/webp"))
 }
 
-/// `getTimeGreeting()` (`formatter.js:508-515`), jam Asia/Jakarta.
+/// `getTimeGreeting()`, jam Asia/Jakarta.
 fn sapa() -> &'static str {
     match jakarta_parts(now_ms()).3 {
         4..=9 => "Selamat Pagi 🌅",
@@ -166,7 +146,7 @@ fn sapa() -> &'static str {
     }
 }
 
-/// `formatUptime` (`stats.js:28-42`).
+/// `formatUptime`.
 fn uptime(detik: u64) -> String {
     let hari = detik / 86_400;
     let jam = (detik % 86_400) / 3600;
@@ -189,7 +169,7 @@ fn uptime(detik: u64) -> String {
     bagian.join(" ")
 }
 
-/// `runtime(seconds)` (`menu.js:793-801`) — "2 Jam 3 Menit 4 Detik".
+/// `runtime(seconds)` — "2 Jam 3 Menit 4 Detik".
 fn runtime(detik: u64) -> String {
     let hari = detik / 86_400;
     let menit = (detik % 3600) / 60;
@@ -197,7 +177,7 @@ fn runtime(detik: u64) -> String {
     format!("{hari} Jam {menit} Menit {sisa} Detik")
 }
 
-/// `runtimeStr(seconds)` (`menu.js:1082-1092`) — "2 hari 3 jam 4 menit".
+/// `runtimeStr(seconds)` — "2 hari 3 jam 4 menit".
 fn runtime_pendek(detik: u64) -> String {
     let hari = detik / 86_400;
     if hari > 0 {
@@ -214,7 +194,7 @@ fn runtime_pendek(detik: u64) -> String {
     format!("{} detik", detik % 60)
 }
 
-/// Kategori yang punya plugin, urut seperti JS. `owner` hanya untuk owner.
+/// Kategori yang punya plugin, urut seperti versi awal. `owner` hanya untuk owner.
 pub(crate) fn kategori(ctx: &Ctx) -> Vec<(&'static str, usize)> {
     let mut hitung: BTreeMap<&'static str, usize> = BTreeMap::new();
     for p in all_plugins() {
@@ -237,9 +217,9 @@ pub(crate) fn kategori(ctx: &Ctx) -> Vec<(&'static str, usize)> {
     hasil
 }
 
-/// Kategori + command aktifnya — `getSortedCategories` (`menu.js:109-173`).
+/// Kategori + command aktifnya — `getSortedCategories`.
 ///
-/// `getCommandsByCategory()` (`plugins.js:395-410`) hanya menghitung plugin
+/// `getCommandsByCategory()` hanya menghitung plugin
 /// yang `isEnabled`, jadi plugin nonaktif tidak pernah masuk daftar.
 fn kategori_perintah(ctx: &Ctx) -> Vec<(&'static str, Vec<&'static str>)> {
     let mut hitung: BTreeMap<&'static str, Vec<&'static str>> = BTreeMap::new();
@@ -278,7 +258,7 @@ fn prefix(ctx: &Ctx) -> &str {
     }
 }
 
-/// `buildMenuText` (`menu.js:174-303`) — teks menu polos.
+/// `buildMenuText` — teks menu polos.
 fn build_menu_text(ctx: &Ctx) -> String {
     let pref = prefix(ctx);
     let (_, _, _, jam, menit, _) = jakarta_parts(now_ms());
@@ -353,7 +333,7 @@ fn build_menu_text(ctx: &Ctx) -> String {
     t
 }
 
-/// `getVerifiedQuoted` (`menu.js:305-334`) — kutipan kontak palsu.
+/// `getVerifiedQuoted` — kutipan kontak palsu.
 fn kutipan_kontak(ctx: &Ctx) -> CardQuote {
     let nomor = ctx.sender.split('@').next().unwrap_or(&ctx.sender);
     CardQuote::Contact {
@@ -364,7 +344,7 @@ fn kutipan_kontak(ctx: &Ctx) -> CardQuote {
     }
 }
 
-/// `safeThumbnail(getAssetBuffer(nama), 300)` (`asset-manager.js:79-99`).
+/// `safeThumbnail(getAssetBuffer(nama), 300)`.
 fn thumbnail(ctx: &Ctx, nama: &str) -> Option<Vec<u8>> {
     let aset = ctx.config().assets.get(nama)?;
     let byte = ctx.berkas().baca(aset).ok()?;
@@ -375,10 +355,10 @@ fn thumbnail(ctx: &Ctx, nama: &str) -> Option<Vec<u8>> {
         .ok()
 }
 
-/// `weatherMenu(city)` (`menu.js:818-838`) — cuaca open-meteo.
+/// `weatherMenu(city)` — cuaca open-meteo.
 ///
 /// Gagal jaringan tidak boleh menggagalkan command: hasilnya teks
-/// `"Cuaca tidak tersedia"` persis seperti JS.
+/// `"Cuaca tidak tersedia"` persis seperti versi awal.
 pub(crate) fn cuaca(ctx: &Ctx, kota: &str) -> String {
     let kode = |c: i64| -> &'static str {
         match c {
@@ -452,7 +432,7 @@ pub(crate) fn cuaca(ctx: &Ctx, kota: &str) -> String {
     format!("{} | 🌡️ {suhu}°C\n📍 {nama_lokasi}", kode(code))
 }
 
-/// `messageParamsJson` varian 4/5/6 (`menu.js:756-770`).
+/// `messageParamsJson` varian 4/5/6.
 fn params_bottom_sheet() -> serde_json::Value {
     json!({
         "bottom_sheet": {
@@ -472,7 +452,7 @@ fn params_bottom_sheet() -> serde_json::Value {
 }
 
 /// `limited_time_offer` + `bottom_sheet` + `tap_target_configuration`
-/// (`menu.js:902-922`).
+///
 fn params_offer(sapaan: &str) -> serde_json::Value {
     json!({
         "limited_time_offer": {
@@ -496,16 +476,16 @@ fn params_offer(sapaan: &str) -> serde_json::Value {
     })
 }
 
-/// `String.fromCharCode(8206).repeat(4001)` (`menu.js:465`).
+/// `String.fromCharCode(8206).repeat(4001)`.
 fn readmore() -> String {
     "\u{200e}".repeat(4001)
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Varian tampilan
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `menu.js:373-452` — kartu dengan dua `single_select`.
+/// Kartu dengan dua `single_select`.
 fn varian_1(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let push = if ctx.push_name.is_empty() {
@@ -611,7 +591,7 @@ Tekan tombol dibawah untuk info lebih lanjut dan untuk memilih kategori\n",
         )
 }
 
-/// `menu.js:453-534` — kartu premium: daftar command per kategori.
+/// Kartu premium: daftar command per kategori.
 fn varian_2(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -669,7 +649,7 @@ fn varian_2(ctx: &Ctx) -> Reply {
         .with_context(CardContext::new().mention(ctx.sender.clone()))
 }
 
-/// `menu.js:536-674` — kartu list menu + cuaca (varian bawaan produksi).
+/// Kartu list menu + cuaca (varian bawaan produksi).
 fn varian_3(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -744,7 +724,7 @@ fn varian_3(ctx: &Ctx) -> Reply {
         )
 }
 
-/// `menu.js:676-790` — kartu video dengan satu `single_select` per kategori.
+/// Kartu video dengan satu `single_select` per kategori.
 fn varian_4(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -807,7 +787,7 @@ Enjoy your use brother.",
         )
 }
 
-/// `menu.js:792-951` — kartu video dengan badge `limited_time_offer`.
+/// Kartu video dengan badge `limited_time_offer`.
 fn varian_5(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -861,7 +841,7 @@ _i am an automated system (WhatsApp bot) that can help to do something search an
         )
 }
 
-/// `menu.js:952-1080` — kartu dengan header lokasi.
+/// Kartu dengan header lokasi.
 fn varian_6(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -892,7 +872,7 @@ fn varian_6(ctx: &Ctx) -> Reply {
         )
 }
 
-/// `menu.js:1081-1232` — kartu inggris + video kedua.
+/// Kartu inggris + video kedua.
 fn varian_7(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -934,8 +914,8 @@ fn varian_7(ctx: &Ctx) -> Reply {
     body.push_str("╰╯");
 
     let owner = bot.owner.number.first().cloned().unwrap_or_default();
-    // `menu.js:1144-1163`/`1215-1229`: header video + video tempelan + quote
-    // stiker hanya kalau asetnya ada (JS membungkusnya `try/catch`).
+    // /`1215-1229`: header video + video tempelan + quote
+    // stiker hanya kalau asetnya ada (versi awal membungkusnya `try/catch`).
     let mut konteks = CardContext::new()
         .mention(ctx.sender.clone())
         .forwarded(99);
@@ -960,7 +940,7 @@ fn varian_7(ctx: &Ctx) -> Reply {
     }
 }
 
-/// `menu.js:1233-1375` — pratinjau tautan (bukan kartu).
+/// Pratinjau tautan (bukan kartu).
 fn varian_8(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
@@ -1013,8 +993,8 @@ Hello, my friend *\"{}\"*!\nHow are you today? You're feeling well, right?\n\nYo
     Reply::text(format!("{} {body}", bot.info.website))
 }
 
-/// Aset yang benar-benar ada di disk. JS membungkus `prepareWAMessageMedia`
-/// dengan `try/catch` lalu jatuh ke kartu tanpa header (`menu.js:1379-1406`);
+/// Aset yang benar-benar ada di disk. versi awal membungkus `prepareWAMessageMedia`
+/// dengan `try/catch` lalu jatuh ke kartu tanpa header;
 /// di Rust `MediaSource::path` yang hilang menggagalkan SELURUH kiriman, jadi
 /// header media hanya dipasang kalau berkasnya ada.
 fn aset_ada(ctx: &Ctx, nama: &str, bawaan: &str) -> Option<MediaSource> {
@@ -1022,7 +1002,7 @@ fn aset_ada(ctx: &Ctx, nama: &str, bawaan: &str) -> Option<MediaSource> {
     let jalur = ctx.config().assets.get(nama).unwrap_or(bawaan);
     match ctx.berkas().ada(jalur) {
         true => Some(MediaSource::path(jalur)),
-        // Diagnos: JS juga diam (`catch(() => null)`, menu.js:597), tapi
+        // Diagnos: versi awal juga diam (`catch(() => null)`,), tapi
         // tanpa log hilangnya header tak bisa dibedakan dari bug kirim.
         false => {
             tracing::warn!(aset = %jalur, "aset header kartu tidak ada, kartu dikirim tanpa gambar");
@@ -1055,26 +1035,26 @@ fn header_video(ctx: &Ctx) -> CardHeader {
     }
 }
 
-/// `db.setting("menuVariant") || config.ui?.menuVariant || 2` (`menu.js:337-338`).
+/// `db.setting("menuVariant") || config.ui?.menuVariant || 2`.
 fn varian_aktif(ctx: &Ctx) -> i64 {
     ctx.setting_i64(SETTING_VARIANT)
         .filter(|v| *v > 0)
         .unwrap_or(DEFAULT_VARIANT)
 }
 
-/// Varian 16 — menu utama persis `Rubby-MD/plugins/main/menu.js` (pilih
+/// Varian 16 — menu utama persis (pilih
 /// lewat `.setmenu v16`): header smallcaps + status, body "{bot} in here",
 /// menu di footer, dan tombol `single_select` kategori + quick Owner.
 ///
-/// Rubby tidak menyaring kategori berdasarkan permission — semua kategori di
+/// Rubby tidak menyaring kategori berdasarkan permission — semua kategori
 /// registry tampil (termasuk `owner`). Command per kategori diurut
-/// alfabetis seperti `formatSection` JS.
+/// alfabetis seperti `formatSection` versi awal.
 fn varian_rubby(ctx: &Ctx) -> Reply {
     let bot = ctx.config();
     let pref = prefix(ctx);
     let sub = ctx.args.first().map(|s| s.to_lowercase()).unwrap_or_default();
 
-    // smallcaps (`toSmallFont` JS, `Rubby-MD/plugins/main/menu.js:56-65`) +
+    // smallcaps +
     // emoji kategori (`categoryEmojis`).
     fn sc(teks: &str) -> String {
         const PETA: &str = "\u{1D00}\u{0299}\u{1D04}\u{1D05}\u{1D07}\u{A730}\u{0262}\u{029C}\u{026A}\u{1D0A}\u{1D0B}\u{029F}\u{1D0D}\u{0274}\u{1D0F}\u{1D18}\u{A7AF}\u{0280}\u{A731}\u{1D1B}\u{1D1C}\u{1D20}\u{1D21}x\u{028F}\u{1D22}";
@@ -1129,7 +1109,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
     }
 
     // (kategori, daftar perintah aktif serupanya) — alfabetis, tanpa filter
-    // permission (paritas Rubby). Uniq + sort per `formatSection` JS.
+    // permission (perilaku Rubby). Uniq + sort per `formatSection` versi awal.
     let registry = |c: &Ctx| -> Vec<(String, Vec<String>)> {
         let mut hitung: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for p in oktz_plugin_api::all_plugins() {
@@ -1250,7 +1230,7 @@ fn varian_rubby(ctx: &Ctx) -> Reply {
         )
     };
 
-    // Baris `single_select` — sama dengan JS (`categoryRows`).
+    // Baris `single_select` — sama dengan versi awal (`categoryRows`).
     let mut rows: Vec<CardRow> = vec![CardRow::new(
         format!("📑 {}", sc("semua menu")),
         format!("{pref}menu all"),
@@ -1411,7 +1391,7 @@ mod tests {
 
     #[test]
     fn varian_bawaan_adalah_tiga() {
-        // `config.ui.menuVariant` = 3 (`config.js:189-191`).
+        // `config.ui.menuVariant` = 3.
         assert_eq!(varian_aktif(&ctx()), 3);
         let mut c = ctx();
         c.settings = json!({ "menuVariant": 5 });
@@ -1513,7 +1493,7 @@ mod tests {
         };
         let footer = kartu.footer.as_deref().unwrap_or_default();
         assert!(footer.contains("ꜱᴇʟᴀᴍᴀᴛ"), "{footer}");
-        // Tanggal Rubby memakai emoji sendiri, bukan map menu.js oktz.
+        // Tanggal Rubby memakai emoji sendiri, bukan map oktz.
         assert!(footer.contains("🔧"), "{footer}");
     }
 

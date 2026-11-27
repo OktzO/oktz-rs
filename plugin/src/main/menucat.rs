@@ -1,53 +1,30 @@
-//! `plugins/main/menucat.js` — daftar command per kategori.
+//! Daftar command per kategori.
 //!
-//! Port penuh: teksnya (bracket box + small caps + simbol permission),
-//! legendanya, urutan kategorinya, dan empat varian tampilan yang dipilih
-//! lewat setting `menucatVariant`.
-//!
-//! Yang diport apa adanya:
-//! - `toSmallCaps` (`menucat.js:62-96`) — tabel huruf small-caps unicode.
-//! - `createBracketBox` (`menucat.js:98-105`).
-//! - `getCommandSymbols` (`menucat.js:107-118`) — urutan `Ⓞ ⓟ Ⓛ Ⓐ Ⓖ Ⓟ`.
-//!   `Ⓛ` (limit) tidak bisa muncul: `PluginMeta` Rust tidak punya field
-//!   `limit` (`lib/oktz-plugin-api/meta.rs`), jadi hanya lima simbol lain
-//!   yang bisa ditulis — sisanya tetap urut dan sama.
-//! - `CATEGORY_EMOJIS` (`menucat.js:31-60`) dan `categoryOrder`
-//!   (`menucat.js:155-181`).
-//! - Legend `KETERANGAN` (`menucat.js:203-210`).
-//! - Varian 1 (teks polos), 2 (kartu + header gambar),
-//!   5 (kartu native-flow + header video) dan 6 (kartu + header lokasi).
-//!   (`menucat.js:227-361` dan `:408-613`).
-
-//!
-//! `ponytail:` yang berbeda dari JS, beserta alasannya:
-//! - "case" dari `case/foto.js` tidak ada di registry Rust, jadi hanya
-//!   plugin yang bisa dihitung. Angka `(X plugin + Y case)`
-//!   (`menucat.js:403-405`) karena itu tidak pernah ditulis — persis seperti
-//!   JS kalau `casesByCategory` kosong.
-//! - Urutan command di dalam satu kategori: JS memakai urutan registrasi
-//!   plugin, Rust memakai urutan alfabetis. `all_plugins()` tidak menjamin
-//!   urutan registrasi, dan hasil yang bisa diulang lebih berguna.
+//! `Keterbatasan:` yang berbeda dari versi awal, beserta alasannya:
+//! - "case" tidak ada di registry Rust, jadi hanya
+//! plugin yang bisa dihitung. Angka `(X plugin + Y case)`
+//! karena itu tidak pernah ditulis — persis
+//! versi awal kalau `casesByCategory` kosong.
+//! - Urutan command di dalam satu kategori: versi awal memakai urutan registrasi
+//! plugin, Rust memakai urutan alfabetis. `all_plugins()` tidak menjamin
+//! urutan registrasi, dan hasil yang bisa diulang lebih berguna.
 //! - Cuaca gagal diambil (open-meteo tidak bisa dihubungi) → teks
-//!   `"Cuaca tidak tersedia"` (`menucat.js:307-309`) dan kartu tetap
-//!   terkirim, sama seperti JS. Command tidak pernah gagal karena jaringan.
-//! - Varian 6 di JS hanya terpasang di cabang "pakai kategori"; di sini
-//!   kedua cabangnya memakai kartu yang sama, supaya satu setting
-//!   `menucatVariant` berperilaku sama di mana pun.
-//!
-//! Fallback ke balasan teks polos mengikuti `try/catch` JS
-//! (`menucat.js:362-364`): kalau aset header tidak ada, kartu tidak bisa
-//! dibangun lalu yang dikirim teksnya.
+//! `"Cuaca tidak tersedia"` dan kartu tetap
+//! terkirim, sama seperti versi awal. Command tidak pernah gagal karena jaringan.
+//! - Varian 6 di versi awal hanya terpasang di cabang "pakai kategori"; di sini
+//! kedua cabangnya memakai kartu yang sama, supaya satu setting
+//! `menucatVariant` berperilaku sama di mana pun.
 
 use oktz_plugin_api::registry::{
     CardContext, CardHeader, CardLocation, CardQuote, InteractiveButton, MediaSource, PluginEntry,
 };
 use oktz_plugin_api::{Ctx, PluginMeta, Reply, all_plugins, plugin};
 
-// ---------------------------------------------------------------------------
-// Konstanta dari JS
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Konstanta dari versi awal
+// --------------------------------------------------------------------------
 
-/// `CATEGORY_EMOJIS` (`menucat.js:31-60`).
+/// `CATEGORY_EMOJIS`.
 const CATEGORY_EMOJIS: &[(&str, &str)] = &[
     ("owner", "👑"),
     ("main", "🏠"),
@@ -79,9 +56,9 @@ const CATEGORY_EMOJIS: &[(&str, &str)] = &[
     ("cek", "📋"),
 ];
 
-/// `categoryOrder` (`menucat.js:155-181`) — urutan kategori di daftar menu.
-/// Kategori di luar daftar ini dapat indeks 999, sama seperti
-/// `indexOf(...) === -1 ? 999` di JS.
+/// `categoryOrder` — urutan kategori di daftar menu.
+/// Kategori di luar daftar ini dapat indeks 999, sama
+/// `indexOf(...) === -1 ? 999` di versi awal.
 const URUTAN_KATEGORI: &[&str] = &[
     "owner",
     "main",
@@ -110,10 +87,10 @@ const URUTAN_KATEGORI: &[&str] = &[
     "store",
 ];
 
-/// `modeExcludeMap` — dibangun dari `MODES` `plugins/group/botmode.js:19-56`
-/// oleh `menucat.js:143-153`. Hanya mode `md` punya `excludeCategories`; mode
+/// `modeExcludeMap` — dibangun dari `MODES`
+/// oleh. Hanya mode `md` punya `excludeCategories`; mode
 /// lain bernilai `null`, jadi `modeExcludeMap[botMode] || modeExcludeMap.md`
-/// (`menucat.js:153`) selalu jatuh ke daftar `md`.
+/// selalu jatuh ke daftar `md`.
 const MODE_EXCLUDE: &[(&str, Option<&[&str]>)] = &[
     ("md", Some(&["cpanel", "pushkontak", "store"])),
     ("all", None),
@@ -123,7 +100,7 @@ const MODE_EXCLUDE: &[(&str, Option<&[&str]>)] = &[
     ("otp", None),
 ];
 
-/// `weatherCode` (`menucat.js:294-296`) — kode cuaca open-meteo ke label.
+/// `weatherCode` — kode cuaca open-meteo ke label.
 const CUACA_KODE: &[(i64, &str)] = &[
     (0, "☀️ Cerah"),
     (1, "🌤️ Cerah Berawan"),
@@ -139,47 +116,47 @@ const CUACA_KODE: &[(i64, &str)] = &[
     (95, "⛈️ Badai Petir"),
 ];
 
-/// `weatherCode[...] || "🌍 Tidak diketahui"` (`menucat.js:305`).
+/// `weatherCode[...] || "🌍 Tidak diketahui"`.
 const CUACA_TIDAK_DIKETAHUI: &str = "🌍 Tidak diketahui";
 
 /// Fallback `weatherMenu` kalau API tidak bisa dihubungi
-/// (`menucat.js:302` dan `:308`).
+///
 const CUACA_TIDAK_TERSEDIA: &str = "Cuaca tidak tersedia";
 
 /// `db.setting("menucatVariant") || config.ui?.menucatVariant || 2`
-/// (`menucat.js:127-128`). `config.ui` tidak ada di `Runtime` Rust, jadi
+/// . `config.ui` tidak ada di `Runtime` Rust, jadi
 /// default-nya `2`.
 const DEFAULT_VARIANT: i64 = 2;
 
 /// Nama setting varian menucat.
 const SETTING_VARIANT: &str = "menucatVariant";
 
-/// Footer kartu varian 2 (`menucat.js:255`).
+/// Footer kartu varian 2.
 const FOOTER_VARIAN_2: &str = "Pilih tombol dibawah untuk kembali ke menu utama";
 
-/// Footer kartu varian 5 (`menucat.js:324`).
+/// Footer kartu varian 5.
 const FOOTER_VARIAN_5: &str = "Please select the button in below";
 
-/// Label tombol "balik ke daftar kategori" (`menucat.js:460`).
+/// Label tombol "balik ke daftar kategori".
 const TOMBOL_DAFTAR_KATEGORI: &str = "📂 Kembali Ke Daftar Kategori";
 
-/// Label tombol "balik ke menu utama" (`menucat.js:279`).
+/// Label tombol "balik ke menu utama".
 const TOMBOL_MENU_UTAMA: &str = "🍅 Kembali Ke Menu Utama";
 
-/// `newsletterJid` cadangan (`menucat.js:331`).
+/// `newsletterJid` cadangan.
 const JID_SALURAN_CADANGAN: &str = "120363400911374213@newsletter";
 
-/// Kota default untuk lookup cuaca (`menucat.js:298`).
+/// Kota default untuk lookup cuaca.
 const KOTA_CUACA: &str = "Jakarta";
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `toSmallCaps(text)` (`menucat.js:62-96`).
+/// `toSmallCaps(text)`.
 ///
 /// Tabelnya disalin apa adanya — termasuk `s` dan `x` yang memang memetakan
-/// ke dirinya sendiri di JS.
+/// ke dirinya sendiri di versi awal.
 fn ke_small_caps(text: &str) -> String {
     text.to_lowercase()
         .chars()
@@ -215,7 +192,7 @@ fn ke_small_caps(text: &str) -> String {
         .collect()
 }
 
-/// `createBracketBox(emoji, title, lines)` (`menucat.js:98-105`).
+/// `createBracketBox(emoji, title, lines)`.
 fn kotak(emoji: &str, judul: &str, baris: &[String]) -> String {
     let mut teks = format!("╭─〔 {emoji} `{judul}`\n");
     for baris in baris {
@@ -225,9 +202,9 @@ fn kotak(emoji: &str, judul: &str, baris: &[String]) -> String {
     teks
 }
 
-/// `getCommandSymbols(cmdName)` (`menucat.js:107-118`).
+/// `getCommandSymbols(cmdName)`.
 ///
-/// `Ⓛ` butuh `plugin.config.limit` (`menucat.js:113`) — `PluginMeta` Rust
+/// `Ⓛ` butuh `plugin.config.limit` — `PluginMeta` Rust
 /// tidak punya field itu, jadi simbolnya tidak pernah ditulis.
 fn simbol(meta: &PluginMeta) -> String {
     let mut simbol_urut: Vec<&str> = Vec::new();
@@ -252,7 +229,7 @@ fn simbol(meta: &PluginMeta) -> String {
     format!(" {}", simbol_urut.join(" "))
 }
 
-/// `CATEGORY_EMOJIS[cat] || cadangan` (`menucat.js:217` dan `:393`).
+/// `CATEGORY_EMOJIS[cat] || cadangan`.
 fn emoji_kategori(kategori: &str, cadangan: &'static str) -> &'static str {
     CATEGORY_EMOJIS
         .iter()
@@ -261,11 +238,11 @@ fn emoji_kategori(kategori: &str, cadangan: &'static str) -> &'static str {
         .unwrap_or(cadangan)
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Koleksi kategori & command
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `getCommandsByCategory()` (`plugins.js:395-410`) — nama plugin per
+/// `getCommandsByCategory()` — nama plugin per
 /// kategori, plugin yang dimatikan dilewati.
 fn plugin_kategori(kategori: &str) -> Vec<&'static PluginEntry> {
     let mut daftar: Vec<&'static PluginEntry> = all_plugins()
@@ -274,13 +251,13 @@ fn plugin_kategori(kategori: &str) -> Vec<&'static PluginEntry> {
         .filter(|p| p.meta.is_enabled)
         .filter(|p| p.meta.category.eq_ignore_ascii_case(kategori))
         .collect();
-    // JS memakai urutan registrasi plugin; Rust tidak menjamin itu, jadi
+    // versi awal memakai urutan registrasi plugin; Rust tidak menjamin itu, jadi
     // diurutkan alfabetis supaya hasilnya bisa diulang.
     daftar.sort_by(|a, b| a.meta.name.cmp(&b.meta.name));
     daftar
 }
 
-/// `allCategories` (`menucat.js:183-185` dan `:368-370`) — kategori unik
+/// `allCategories` — kategori unik
 /// yang ada di registry.
 fn semua_kategori() -> Vec<&'static str> {
     let mut kategori: Vec<&'static str> = Vec::new();
@@ -293,14 +270,14 @@ fn semua_kategori() -> Vec<&'static str> {
 }
 
 /// `allCategories.find(c => c.toLowerCase() === categoryArg)`
-/// (`menucat.js:371`).
+///
 fn cocok_kategori(argumen: &str) -> Option<&'static str> {
     semua_kategori()
         .into_iter()
         .find(|kategori| kategori.to_lowercase() == argumen)
 }
 
-/// `modeExcludeMap[botMode] || modeExcludeMap.md` (`menucat.js:153`).
+/// `modeExcludeMap[botMode] || modeExcludeMap.md`.
 fn exclude_kategori(mode: &str) -> &'static [&'static str] {
     MODE_EXCLUDE
         .iter()
@@ -315,7 +292,7 @@ fn exclude_kategori(mode: &str) -> &'static [&'static str] {
         .unwrap_or(&[])
 }
 
-/// `groupData.botMode || "md"` (`menucat.js:132-133`).
+/// `groupData.botMode || "md"`.
 fn mode_grup(ctx: &Ctx) -> String {
     if !ctx.is_group {
         return "md".to_string();
@@ -328,7 +305,7 @@ fn mode_grup(ctx: &Ctx) -> String {
 }
 
 /// Indeks kategori di `categoryOrder`; 999 kalau tidak ada
-/// (`menucat.js:187-191`).
+///
 fn indeks_urutan(kategori: &str) -> i32 {
     URUTAN_KATEGORI
         .iter()
@@ -336,11 +313,11 @@ fn indeks_urutan(kategori: &str) -> i32 {
         .map_or(999, |i| i as i32)
 }
 
-/// `visibleCats` (`menucat.js:193-200`) — kategori yang boleh dilihat.
+/// `visibleCats` — kategori yang boleh dilihat.
 fn kategori_terlihat(ctx: &Ctx) -> Vec<&'static str> {
     let exclude = exclude_kategori(&mode_grup(ctx));
     let mut kategori = semua_kategori();
-    // `Array.prototype.sort` di JS stabil, jadi kategori dengan indeks
+    // `Array.prototype.sort` di versi awal stabil, jadi kategori dengan indeks
     // urutan yang sama tetap ikut urutan aslinya. Rust tidak punya urutan
     // registrasi yang dijamin, jadi nama kategori jadi pemutus seri.
     kategori.sort_by(|a, b| {
@@ -365,11 +342,11 @@ fn kategori_terlihat(ctx: &Ctx) -> Vec<&'static str> {
         .collect()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Cuaca & thumbnail
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// `getTimeGreeting()` (`src/lib/formatter.js:508-515`), jam Asia/Jakarta.
+/// `getTimeGreeting()`, jam Asia/Jakarta.
 fn sapa() -> &'static str {
     match crate::common::jakarta_parts(crate::common::now_ms()).3 {
         4..=9 => "Selamat Pagi 🌅",
@@ -379,7 +356,7 @@ fn sapa() -> &'static str {
     }
 }
 
-/// `weatherMenu(city)` (`menucat.js:298-310`).
+/// `weatherMenu(city)`.
 ///
 /// Kegagalan apa pun (jaringan, JSON, hasil kosong) menghasilkan
 /// `"Cuaca tidak tersedia"` — command tidak pernah gagal karena jaringan.
@@ -414,7 +391,7 @@ fn cuaca(ctx: &Ctx) -> String {
     format!("{kondisi} | 🌡️ {suhu_teks}°C\n📍 {nama}")
 }
 
-/// `geocoding-api.open-meteo.com` (`menucat.js:300`) — `(lat, lon, nama)`.
+/// `geocoding-api.open-meteo.com` — `(lat, lon, nama)`.
 fn geocode(ctx: &Ctx) -> Option<(f64, f64, String)> {
     let url = format!(
         "https://geocoding-api.open-meteo.com/v1/search?name={KOTA_CUACA}&count=1"
@@ -435,10 +412,10 @@ fn geocode(ctx: &Ctx) -> Option<(f64, f64, String)> {
     Some((lat, lon, nama))
 }
 
-/// `safeThumbnail(getAssetBuffer("foto"), 300)` (`menucat.js:312`).
+/// `safeThumbnail(getAssetBuffer("foto"), 300)`.
 ///
 /// Thumbnail 300x300 dari aset `foto`; kalau asetnya tidak ada atau bukan
-/// gambar, hasilnya `None` (JS: `safeThumbnail` mengembalikan `null`).
+/// gambar, hasilnya `None` (versi awal: `safeThumbnail` mengembalikan `null`).
 fn thumbnail(ctx: &Ctx) -> Option<Vec<u8>> {
     let aset = ctx.config().assets.get("foto")?;
     let byte = ctx.berkas().baca(aset).ok()?;
@@ -449,19 +426,19 @@ fn thumbnail(ctx: &Ctx) -> Option<Vec<u8>> {
         .ok()
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Kartu per varian
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /// Varian aktif: `db.setting("menucatVariant") || config.ui?.menucatVariant || 2`
-/// (`menucat.js:127-128`).
+///
 fn variant_aktif(ctx: &Ctx) -> i64 {
     ctx.setting_i64(SETTING_VARIANT)
         .filter(|varian| *varian > 0)
         .unwrap_or(DEFAULT_VARIANT)
 }
 
-/// Nama bot; JS pakai `config.bot?.name` (`menucat.js:262`).
+/// Nama bot; versi awal pakai `config.bot?.name`.
 fn nama_bot(ctx: &Ctx) -> String {
     let nama = &ctx.config().bot.name;
     if nama.is_empty() {
@@ -471,7 +448,7 @@ fn nama_bot(ctx: &Ctx) -> String {
     }
 }
 
-/// `newsletterJid` (`menucat.js:331`).
+/// `newsletterJid`.
 fn jid_saluran(ctx: &Ctx) -> String {
     let id = &ctx.config().saluran.id;
     if id.is_empty() {
@@ -481,7 +458,7 @@ fn jid_saluran(ctx: &Ctx) -> String {
     }
 }
 
-/// `newsletterName` (`menucat.js:332`).
+/// `newsletterName`.
 fn nama_saluran(ctx: &Ctx) -> String {
     let saluran = &ctx.config().saluran.name;
     if !saluran.is_empty() {
@@ -495,7 +472,7 @@ fn nama_saluran(ctx: &Ctx) -> String {
     }
 }
 
-/// `contextInfo` varian 2 (`menucat.js:257-265`).
+/// `contextInfo` varian 2.
 fn konteks_varian_2(ctx: &Ctx) -> CardContext {
     let mut context = CardContext::new()
         .forwarded(9)
@@ -507,7 +484,7 @@ fn konteks_varian_2(ctx: &Ctx) -> CardContext {
     context
 }
 
-/// `contextInfo` varian 5 & 6 (`menucat.js:326-334`).
+/// `contextInfo` varian 5 & 6.
 fn konteks_saluran(ctx: &Ctx) -> CardContext {
     let mut context = CardContext::new()
         .forwarded(9)
@@ -519,7 +496,7 @@ fn konteks_saluran(ctx: &Ctx) -> CardContext {
 }
 
 /// Varian 2 — kartu interaktif dengan header gambar `foto2`
-/// (`menucat.js:231-291`).
+///
 fn kartu_varian_2(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply> {
     let aset = ctx.config().assets.get("foto2")?;
     if !ctx.berkas().ada(aset) {
@@ -559,8 +536,8 @@ fn kartu_varian_2(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
     Some(reply)
 }
 
-/// Varian 5 — kartu native-flow dengan header video `mp4` dan pesan yang
-/// dirujuk berupa lokasi cuaca (`menucat.js:293-357`).
+/// Varian 5 — kartu native-flow dengan header video `mp4` dan pesan
+/// dirujuk berupa lokasi cuaca.
 fn kartu_varian_5(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply> {
     let aset = ctx.config().assets.get("mp4")?;
     if !ctx.berkas().ada(aset) {
@@ -605,7 +582,7 @@ fn kartu_varian_5(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
         )
         .with_context(context)
         .with_message_params(params)
-        // Slot kosong pertama (`menucat.js:343`) — WA butuh minimal satu
+        // Slot kosong pertama — WA butuh minimal satu
         // tombol yang tidak berisi aksi.
         .with_button_card(InteractiveButton::empty(""));
 
@@ -623,7 +600,7 @@ fn kartu_varian_5(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Option<Reply>
 }
 
 /// Varian 6 — kartu dengan header lokasi (nama bot + alamat cuaca), tanpa
-/// tombol (`menucat.js:550-609`).
+/// tombol.
 fn kartu_varian_6(ctx: &Ctx, teks: &str) -> Option<Reply> {
     let header = CardHeader::new().location(CardLocation {
         latitude: 0.0,
@@ -634,7 +611,7 @@ fn kartu_varian_6(ctx: &Ctx, teks: &str) -> Option<Reply> {
     });
 
     let mut context = konteks_saluran(ctx);
-    // JS: `wrapInteractive(..., { quoted: m })` (`menucat.js:605`) — kartu
+    // versi awal: `wrapInteractive(..., { quoted: m })` — kartu
     // mengutip pesan pemicu.
     if !ctx.text.is_empty() {
         context = context.quote(CardQuote::Text(ctx.text.clone()));
@@ -648,7 +625,7 @@ fn kartu_varian_6(ctx: &Ctx, teks: &str) -> Option<Reply> {
 }
 
 /// Kirim sesuai varian aktif; jatuh ke teks polos kalau kartu tidak bisa
-/// dibangun (aset hilang) — sama seperti `catch` JS (`menucat.js:362-364`).
+/// dibangun (aset hilang) — sama seperti `catch` versi awal.
 fn kirim(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Reply {
     let teks_polos = || Reply::text(teks.to_string());
     match variant_aktif(ctx) {
@@ -659,11 +636,11 @@ fn kirim(ctx: &Ctx, teks: &str, dengan_kategori: bool) -> Reply {
     }
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Teks daftar kategori
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-/// Legend + satu bracket box per kategori terlihat (`menucat.js:202-224`).
+/// Legend + satu bracket box per kategori terlihat.
 fn teks_semua_kategori(ctx: &Ctx, prefix: &str) -> String {
     let mut teks = kotak(
         "🤖",
@@ -696,9 +673,9 @@ fn teks_semua_kategori(ctx: &Ctx, prefix: &str) -> String {
     teks
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Plugin
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[plugin(
     name = "menucat",
@@ -713,7 +690,7 @@ fn teks_semua_kategori(ctx: &Ctx, prefix: &str) -> String {
     is_private = false
 )]
 pub fn menucat(ctx: Ctx) -> Reply {
-    // `config.command?.prefix || "."` (`menucat.js:121`).
+    // `config.command?.prefix || "."`.
     let prefix = if ctx.prefix.is_empty() {
         ".".to_string()
     } else {
@@ -726,12 +703,12 @@ pub fn menucat(ctx: Ctx) -> Reply {
         .unwrap_or_default();
 
     if argumen.is_empty() {
-        // `menucat.js:131-366` — legend + daftar kategori.
+        // Legend + daftar kategori.
         let teks = teks_semua_kategori(&ctx, &prefix);
         return kirim(&ctx, &teks, false);
     }
 
-    // `menucat.js:368-405` — satu kategori.
+    // Satu kategori.
     let Some(kategori) = cocok_kategori(&argumen) else {
         return Reply::text(format!(
             "❌ *KATEGORI TIDAK DITEMUKAN*\n\n> Kategori `{argumen}` tidak ada.\n> Ketik `{prefix}menucat` untuk list kategori."
@@ -760,7 +737,7 @@ pub fn menucat(ctx: Ctx) -> Reply {
     );
     teks.push_str(&format!("Total: `{}` commands", perintah.len()));
     // `caseCommands` tidak ada di registry Rust, jadi bagian
-    // `(X plugin + Y case)` (`menucat.js:403-405`) tidak pernah ditulis.
+    // `(X plugin + Y case)` tidak pernah ditulis.
 
     kirim(&ctx, &teks, true)
 }
@@ -840,13 +817,13 @@ mod tests {
         }
     }
 
-    // -- teks ---------------------------------------------------------------
+    // - teks ---------------------------------------------------------------
 
     #[test]
     fn small_caps_memakai_tabel_dari_js() {
         assert_eq!(ke_small_caps("abc"), "ᴀʙᴄ");
         assert_eq!(ke_small_caps("ABC"), "ᴀʙᴄ");
-        // `s` dan `x` memetakan ke dirinya sendiri di tabel JS.
+        // `s` dan `x` memetakan ke dirinya sendiri di tabel versi awal.
         assert_eq!(ke_small_caps("sx"), "sx");
         assert_eq!(ke_small_caps("tools"), "ᴛᴏᴏʟs");
         // Angka dan tanda baca tidak berubah.
@@ -862,8 +839,8 @@ mod tests {
         );
     }
 
-    /// Keluaran `createBracketBox` JS untuk legend `KETERANGAN` — diambil
-    /// dari `menucat.js:203-210` yang dijalankan di Node. `toLowerCase` ikut
+    /// Keluaran `createBracketBox` versi awal untuk legend `KETERANGAN` — diambil
+    /// yang dijalankan di Node. `toLowerCase` ikut
     /// menurunkan huruf bulat (Ⓞ -> ⓞ), jadi string ini juga menguji
     /// keakuratan tabel small caps.
     #[test]
@@ -918,8 +895,8 @@ mod tests {
     fn daftar_kategori_berisi_legend_dan_kotak_kategori() {
         let t = teks(&menucat(ctx(&[])));
         assert!(t.contains("╭─〔 🤖 `KETERANGAN`"), "{t}");
-        // `toLowerCase` JS ikut menurunkan huruf bulat (Ⓞ -> ⓞ), persis
-        // seperti yang dilakukan `toSmallCaps` di JS.
+        // `toLowerCase` versi awal ikut menurunkan huruf bulat (Ⓞ -> ⓞ), persis
+        // seperti yang dilakukan `toSmallCaps` di versi awal.
         assert!(t.contains("ⓞ = ʜᴀɴʏᴀ ᴜɴᴛᴜᴋ ᴏᴡɴᴇʀ"), "{t}");
         assert!(t.contains("ⓟ = ʜᴀɴʏᴀ ᴅɪ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ"), "{t}");
         assert!(t.contains("ⓛ = ᴍᴇᴍʙᴜᴛᴜʜᴋᴀɴ ʟɪᴍɪᴛ"), "{t}");
@@ -975,7 +952,7 @@ mod tests {
         assert!(!t.contains("`sᴛᴏʀᴇ`"), "{t}");
     }
 
-    // -- kartu --------------------------------------------------------------
+    // - kartu --------------------------------------------------------------
 
     #[test]
     fn varian_satu_mengirim_teks_polos() {
@@ -1100,7 +1077,7 @@ mod tests {
         let mut c = ctx_dengan_aset(1, &["main"]);
         c.settings = serde_json::Value::Null;
         assert_eq!(variant_aktif(&c), DEFAULT_VARIANT);
-        // Setting 0 falsy di JS (`||`), jadi bukan varian 0.
+        // Setting 0 falsy di versi awal (`||`), jadi bukan varian 0.
         c.settings = serde_json::json!({ "menucatVariant": 0 });
         assert_eq!(variant_aktif(&c), DEFAULT_VARIANT);
         // Setting yang ada dipakai apa adanya.

@@ -1,10 +1,9 @@
-//! `plugins/main/rules.js` — peraturan bot, dari setting atau bawaan.
+//! Peraturan bot, dari setting atau bawaan.
 //!
-//! `ponytail:` `getAssetBuffer("rules")` membaca gambar dari disk lalu
-//! mengirimnya sebagai `image` + caption. Plugin tidak punya `fs`, dan
-//! `MediaSource::Path` butuh path yang sudah diketahui router — sedangkan
-//! `getAssetBuffer` tidak pernah mengembalikan path, hanya buffer. Jadi
-//! gambar tidak bisa dikirim dan balasan selalu teks.
+//! `Keterbatasan:` `getAssetBuffer("rules")` membaca gambar dari disk lalu mengirimnya
+//! sebagai `image` + caption. Plugin tidak punya `fs`, dan `MediaSource::Path` butuh path
+//! yang sudah diketahui router — sedangkan `getAssetBuffer` tidak pernah mengembalikan
+//! path, hanya buffer. Jadi gambar tidak bisa dikirim dan balasan selalu teks.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
@@ -13,7 +12,7 @@ use crate::common::joined_strings;
 /// `config.bot?.name || "Bot"` — `Ctx` tidak membawa config.
 pub(crate) const BOT_NAME: &str = "Oktz Bot";
 
-/// `buildDefaultRules` (`rules.js:21`) dengan `botName` dan `prefix` diisi.
+/// `buildDefaultRules` dengan `botName` dan `prefix` diisi.
 pub(crate) fn build_default_rules(prefix: &str) -> String {
     let bot = BOT_NAME.to_uppercase();
     format!(
@@ -38,7 +37,7 @@ pub(crate) fn build_default_rules(prefix: &str) -> String {
     )
 }
 
-/// Tiga cabang `rules.js:55-65`: string non-kosong → dipakai utuh; array
+/// Tiga cabang: string non-kosong → dipakai utuh; array
 /// non-kosong → jadi daftar bernomor; selain itu → teks bawaan.
 pub(crate) fn render(custom: Option<&serde_json::Value>, prefix: &str) -> String {
     match custom {

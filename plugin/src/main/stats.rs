@@ -1,19 +1,13 @@
-//! `plugins/main/stats.js` — statistik bot.
-//!
-//! Balasan memakai tabel V2 (`Reply::tabel_v2`) — padanan `sock.sendTableV2`
-//! JS (`stats.js:88-91`): baris heading, baris isi, dan footer, isi serta
-//! urutannya sama dengan JS.
+//! Statistik bot.
 //!
 //! Judul input `📊 Bot Statistics` (`table[0]`) sengaja TIDAK dikirim ke wire:
-//! `generateTableContentV2` (`rich-messages.js:978-993`) hanya memakainya
-//! sebagai `tableMetadata.title` dan menulis section heading dari
-//! `options.headerText || options.title`. Tidak ada `headerText` di `.stats`,
-//! jadi yang mendarat di wire adalah `title` (`📊 Berikut ini adalah statistik
-//! dari bot kami`) dan `table[0]` hilang — persis seperti produksi.
-//! `ponytail:` `process.memoryUsage()` tidak ada; Heap memakai VmRSS/VmSize
-//! dari `/proc/self/status` — padanan terdekat.
-//! `ponytail:` `process.version` tidak punya padanan di Rust; kolom Node
-//! diisi `N/A`.
+//! `generateTableContentV2` hanya memakainya sebagai `tableMetadata.title` dan menulis
+//! section heading dari `options.headerText || options.title`. Tidak ada `headerText` di
+//! `.stats`, jadi yang mendarat di wire adalah `title` (`📊 Berikut ini adalah statistik
+//! dari bot kami`) dan `table[0]` hilang — persis seperti produksi. `Keterbatasan:`
+//! `process.memoryUsage()` tidak ada; Heap memakai VmRSS/VmSize dari `/proc/self/status` —
+//! padanan terdekat. `Keterbatasan:` `process.version` tidak punya padanan di Rust; kolom
+//! Node diisi `N/A`.
 
 use std::fs;
 
@@ -36,7 +30,7 @@ fn platform() -> String {
     format!("{os} {arch}")
 }
 
-/// `Number.prototype.toFixed(2)` — setengah menjauhi nol seperti JS, bukan
+/// `Number.prototype.toFixed(2)` — setengah menjauhi nol seperti versi awal, bukan
 /// setengah ke genap seperti format float bawaan Rust.
 fn fixed2(nilai: f64) -> String {
     format!("{:.2}", (nilai * 100.0).round() / 100.0)
@@ -52,7 +46,7 @@ fn buang_nol_ekor(teks: &str) -> String {
     }
 }
 
-/// `formatBytes` (`stats.js:20-26`) — satuan sampai `GB`; di luar itu JS
+/// `formatBytes` — satuan sampai `GB`; di luar itu versi awal
 /// mencetak `undefined`.
 fn format_bytes(bytes: u64) -> String {
     if bytes == 0 {
@@ -69,7 +63,7 @@ fn format_bytes(bytes: u64) -> String {
     )
 }
 
-/// `formatUptime` (`stats.js:28-42`) — hari/jam/menit/detik, satuan nol
+/// `formatUptime` — hari/jam/menit/detik, satuan nol
 /// dibuang; kalau semua nol tetap `0s`.
 fn format_uptime(ms: u64) -> String {
     let detik = ms / 1000;
@@ -129,7 +123,7 @@ fn baca_memori() -> (u64, u64) {
     (total, bebas)
 }
 
-/// `process.memoryUsage().heapUsed/.heapTotal` — `ponytail:` padanan terdekat
+/// `process.memoryUsage().heapUsed/.heapTotal` — `Keterbatasan:` padanan terdekat
 /// adalah VmRSS/VmSize proses ini (byte), bukan heap V8.
 fn baca_heap() -> (u64, u64) {
     let teks = fs::read_to_string("/proc/self/status").unwrap_or_default();
@@ -153,11 +147,11 @@ fn baca_heap() -> (u64, u64) {
 }
 
 /// `Object.keys(db.db.data.users/groups)` dan `u.premium` tidak ada di `Ctx`;
-/// `ctx.store_users`/`store_groups` dirangkum pipeline dari snapshot store yang
+/// `ctx.store_users`/`store_groups` dirangkum pipeline dari snapshot store
 /// sama dengan yang dipakai gate permission.
 ///
 /// Quirk produksi yang disalin apa adanya: `.stats` memfilter `u.premium`
-/// (`stats.js:56`) padahal skema store memakai `isPremium`, jadi hasilnya
+/// padahal skema store memakai `isPremium`, jadi hasilnya
 /// SELALU `0` — beda dengan `.ping2` yang memang membaca `isPremium`.
 fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
     (ctx.store_users, 0, ctx.store_groups)
@@ -169,12 +163,12 @@ fn jam_jakarta() -> String {
     format!("{jam:02}.{menit:02}.{detik:02}")
 }
 
-/// Susun tabel V2 — padanan `sock.sendTableV2` JS (`stats.js:88-91`).
+/// Susun tabel V2 — padanan `sock.sendTableV2` versi awal.
 ///
-/// `toTableMetadataV2` (`rich-messages.js:944-977`) membaca `table[0]` sebagai
+/// `toTableMetadataV2` membaca `table[0]` sebagai
 /// `title`, tapi `generateTableContentV2` hanya mengirim `unified_rows` plus
 /// section heading `headerText || title` dan section `footer`. Karena itu
-/// judul di sini (`table[0]` JS) tidak pernah mendarat di wire, dan heading
+/// judul di sini (`table[0]` versi awal) tidak pernah mendarat di wire, dan heading
 /// yang terkirim adalah `options.title`.
 fn reply(ctx: &Ctx) -> Reply {
     let cfg = ctx.config();
@@ -192,8 +186,8 @@ fn reply(ctx: &Ctx) -> Reply {
 
     let mut t = Reply::tabel_v2("📊 Bot Statistics")
         .with_table_header(["Key", "Value"])
-        // `options.title` JS — satu-satunya teks yang mendarat di wire sebagai
-        // section heading (`rich-messages.js:982-983`: `headerText || title`).
+        // `options.title` versi awal — satu-satunya teks yang mendarat di wire sebagai
+        // section heading.
         .with_table_header_text("📊 Berikut ini adalah statistik dari bot kami");
 
     t = t.with_table_row(["Bot".to_string(), bot.to_string()]);
@@ -229,7 +223,7 @@ fn reply(ctx: &Ctx) -> Reply {
     ]);
     t = t.with_table_row(["Updated".to_string(), jam_jakarta()]);
 
-    // JS `footer: botConfig?.bot?.name` — string kosong berarti tanpa footer.
+    // versi awal `footer: botConfig?.bot?.name` — string kosong berarti tanpa footer.
     if nama_bot.is_empty() {
         t
     } else {
@@ -274,8 +268,8 @@ mod tests {
     #[test]
     fn stats_uses_table_v2_exact_heading_footer() {
         // `sock.sendTableV2(m.chat, table, m, { title, footer })`
-        // (`stats.js:88-91`) — judul input `📊 Bot Statistics` (`table[0]`)
-        // hanya jadi `tableMetadata.title` dan TIDAK dikirim ke wire; yang
+        // Judul input `📊 Bot Statistics` (`table[0]`)
+        // hanya jadi `tableMetadata.title` dan TIDAK dikirim ke wire;
         // mendarat sebagai section heading adalah `title`.
         let r = stats(Ctx::default());
         assert!(
@@ -313,8 +307,8 @@ mod tests {
         );
         assert_eq!(t.baris.len(), 12);
 
-        // Config bawaan kosong, jadi nama bot jatuh ke "Bot" dan versi ke
-        // "1.0.0" (`stats.js:59-60`).
+        // Config bawaan kosong, jadi nama bot jatuh ke "Bot" dan versi
+        // "1.0.0".
         assert_eq!(t.baris[0], vec!["Bot", "Bot"]);
         assert_eq!(t.baris[1], vec!["Version", "v1.0.0"]);
         assert_eq!(t.baris[8][0], "CPU Load");
@@ -325,7 +319,7 @@ mod tests {
 
     #[test]
     fn footer_ikut_nama_bot_dan_hilang_kala_kosong() {
-        // Nama bot kosong -> tanpa footer (JS `if (footer)`).
+        // Nama bot kosong -> tanpa footer (versi awal `if (footer)`).
         let r = stats(Ctx::default());
         assert_eq!(tabel_dari(&r).footer, None);
 
@@ -348,7 +342,7 @@ mod tests {
         // saja tidak boleh dihitung sebagai jumlah user.
         //
         // Quirk `.stats`: `Object.values(users).filter((u) => u.premium)`
-        // membaca field `premium` yang tidak ada di store (`isPremium` yang
+        // membaca field `premium` yang tidak ada di store (`isPremium`
         // ada), jadi produksi selalu menulis `0` — diuji apa adanya.
         let ctx = Ctx {
             user_data: serde_json::json!({"isPremium": true}),

@@ -1,12 +1,12 @@
-//! `plugins/main/sc.js` — link script bot (kartu tombol `cta_url`).
+//! Link script bot (kartu tombol `cta_url`).
 
 use oktz_plugin_api::registry::{CardContext, InteractiveButton};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-/// `sc.js:24` — satu-satunya URL.
+/// Satu-satunya URL.
 pub(crate) const REPO_URL: &str = "https://github.com/OktzO/oktz-md";
 
-/// Body kartu (`sc.js:33-45`).
+/// Body kartu.
 pub(crate) fn body(nama_pengirim: &str, bot: &oktz_plugin_api::config::BotInfo) -> String {
     format!(
         "🌾 Halo kak *{nama_pengirim}*\n\n\
@@ -49,7 +49,7 @@ pub fn sc(ctx: Ctx) -> Reply {
                 "merchant_url": REPO_URL,
             }),
         ))
-        // `sc.js:63` — `quoted: m`, jadi kartu mengutip pesan pemicu.
+        // `quoted: m`, jadi kartu mengutip pesan pemicu.
         .with_context(CardContext::new().quote_trigger())
 }
 

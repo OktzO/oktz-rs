@@ -1,12 +1,11 @@
-//! `plugins/main/donasi.js` — informasi donasi dengan QRIS (nama command:
-//! `donasi`).
+//! Informasi donasi dengan QRIS (nama command:
 //!
-//! `ponytail:` JS mengirim tombol interaktif (`sendButton`/`interactiveButtons`)
-//! yang tidak ada dalam enum `Reply`; kirimannya disederhanakan jadi teks, atau
-//! gambar QRIS dengan teks sebagai caption kalau `qrisUrl` terisi. Footer dan
-//! `contextInfo` (newsletter) tidak dapat dicerminkan di API plugin —
-//! `saluran.id`/`saluran.name` (default id `120363400911374213@newsletter`)
-//! hanya dipakai untuk `contextInfo` itu, jadi tidak dibaca di sini.
+//! `Keterbatasan:` versi awal mengirim tombol interaktif
+//! (`sendButton`/`interactiveButtons`) yang tidak ada dalam enum `Reply`; kirimannya
+//! disederhanakan jadi teks, atau gambar QRIS dengan teks sebagai caption kalau `qrisUrl`
+//! terisi. Footer dan `contextInfo` (newsletter) tidak dapat dicerminkan di API plugin —
+//! `saluran.id`/`saluran.name` (default id `120363400911374213@newsletter`) hanya dipakai
+//! untuk `contextInfo` itu, jadi tidak dibaca di sini.
 
 use oktz_plugin_api::{Ctx, MediaSource, Reply, plugin};
 
@@ -114,9 +113,9 @@ pub fn donasi(ctx: Ctx) -> Reply {
     Reply::text(text.trim().to_string())
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // Test
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

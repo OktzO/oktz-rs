@@ -1,4 +1,4 @@
-//! `plugins/main/owner.js` — teks owner + kartu kontak/vCard.
+//! Teks owner + kartu kontak/vCard.
 
 use oktz_plugin_api::{Ctx, Reply, plugin};
 use serde_json::Value;

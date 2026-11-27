@@ -1,20 +1,13 @@
-//! `plugins/main/ping2.js` — performa dan status sistem bot real-time.
+//! Performa dan status sistem bot real-time.
 //!
-//! Balasan memakai tabel V2 (`Reply::tabel_v2`) — padanan `sock.sendTable`
-//! JS: judul tabel, baris heading, baris isi, teks sebelum tabel
-//! (`headerText`), dan teks setelah tabel (`footer`), isi serta urutannya
-//! sama dengan JS. Wire V2 dipakai (bukan V1) karena format itulah yang
-//! terbukti dirender WhatsApp produksi (lihat `oktz-wa::rich`; bot JS
-//! `stats.js` juga jalan lewat `sendTableV2`).
-//! `ponytail:` data sistem dibaca dari `/proc` + `std`; `df` tetap dipanggil
-//! lewat `std::process::Command` karena `statvfs` tidak ada di `std`.
-//! `ponytail:` `process.memoryUsage()`, `process.version`, dan
-//! `m.messageTimestamp` tidak ada; Heap = VmRSS/VmSize, Node = `N/A`,
-//! WA Roundtrip = 1 ms (cabang `Date.now()` di JS).
-//!
-//! Urutan kirim meniru handler JS: tabel dulu, BARU reaksi `✅`
-//! (`ping2.js:129-141`). Reaksi pembuka `🕕` (`ping2.js:60`) dikirim sebelum
-//! tabel dan dibawa `Reply::Sequence`.
+//! Balasan memakai tabel V2 (`Reply::tabel_v2`) — padanan `sock.sendTable` versi awal:
+//! judul tabel, baris heading, baris isi, teks sebelum tabel (`headerText`), dan teks
+//! setelah tabel (`footer`), isi serta urutannya sama dengan versi awal. Wire V2 dipakai
+//! (bukan V1) karena format itulah yang terbukti dirender WhatsApp produksi.
+//! `Keterbatasan:` data sistem dibaca dari `/proc` + `std`; `df` tetap dipanggil lewat
+//! `std::process::Command` karena `statvfs` tidak ada di `std`. `Keterbatasan:`
+//! `process.memoryUsage()`, `process.version`, dan `m.messageTimestamp` tidak ada; Heap =
+//! VmRSS/VmSize, Node = `N/A`, WA Roundtrip = 1 ms (cabang `Date.now()` di versi awal).
 
 use std::fs;
 use std::process::Command;
@@ -39,8 +32,8 @@ fn platform() -> String {
     format!("{os} {arch}")
 }
 
-/// `fmtSize` (`ping2.js:24-29`) — satu desimal, `0 B` untuk nol; di luar `TB`
-/// JS mencetak `undefined`.
+/// `fmtSize` — satu desimal, `0 B` untuk nol; di luar `TB`
+/// versi awal mencetak `undefined`.
 fn fmt_size(b: u64) -> String {
     if b == 0 {
         return "0 B".to_string();
@@ -56,7 +49,7 @@ fn fmt_size(b: u64) -> String {
     )
 }
 
-/// `fmtUp` (`ping2.js:31-37`) — detik, tanpa satuan nol di bawahnya.
+/// `fmtUp` — detik, tanpa satuan nol di bawahnya.
 fn fmt_up(s: f64) -> String {
     let d = (s / 86_400.0).floor();
     let h = (s % 86_400.0 / 3600.0).floor();
@@ -145,7 +138,7 @@ fn baca_memori() -> (u64, u64) {
     (total, bebas)
 }
 
-/// `process.memoryUsage().heapUsed/.heapTotal` — `ponytail:` padanan terdekat
+/// `process.memoryUsage().heapUsed/.heapTotal` — `Keterbatasan:` padanan terdekat
 /// adalah VmRSS/VmSize proses ini (byte), bukan heap V8.
 fn baca_heap() -> (u64, u64) {
     let teks = fs::read_to_string("/proc/self/status").unwrap_or_default();
@@ -190,7 +183,7 @@ fn baca_hostname() -> String {
         .unwrap_or_else(|| "N/A".to_string())
 }
 
-/// `df -k --output=size,used /` (kiB di JS, byte di sini); 0 kalau perintah
+/// `df -k --output=size,used /` (kiB di versi awal, byte di sini); 0 kalau perintah
 /// tidak tersedia. Cabang `wmic` Windows tidak diport.
 fn baca_disk() -> (u64, u64) {
     let keluaran = Command::new("df")
@@ -235,15 +228,15 @@ fn antarmuka_jaringan() -> String {
 }
 
 /// `Object.keys(db.data.users/groups)` dan `u.isPremium` tidak ada di `Ctx`;
-/// `ctx.store_users`/`store_premium`/`store_groups` dirangkum pipeline dari
+/// `ctx.store_users`/`store_premium`/`store_groups` dirangkum pipeline
 /// snapshot store yang sama dengan yang dipakai gate permission.
 fn hitung_db(ctx: &Ctx) -> (usize, usize, usize) {
     (ctx.store_users, ctx.store_premium, ctx.store_groups)
 }
 
-/// Susun tabel V2 — padanan `sock.sendTable` JS (`ping2.js:129-139`).
+/// Susun tabel V2 — padanan `sock.sendTable` versi awal.
 ///
-/// Urutan baris sama persis dengan `tableData` JS; tiap `.with_table_row`
+/// Urutan baris sama persis dengan `tableData` versi awal; tiap `.with_table_row`
 /// menambah satu baris.
 fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
     let cfg = ctx.config();
@@ -332,7 +325,7 @@ fn reply(ctx: &Ctx, mulai: Instant) -> Reply {
 )]
 pub fn ping2(ctx: Ctx) -> Reply {
     let mulai = Instant::now();
-    // `await m.react('🕕')` (`ping2.js:60`) lalu tabel lalu `await m.react('✅')`
+    // `await m.react('🕕')` lalu tabel lalu `await m.react('✅')`
     // (`:141`). Urutan itu bisa disusun karena `Reply::Sequence` dikirim
     // berurutan: reaksi → tabel → reaksi.
     Reply::sequence(vec![
@@ -370,7 +363,7 @@ mod tests {
         let r = ping2(Ctx::default());
         let list = isi_sequence(&r);
 
-        // Urutan event JS: reaksi pembuka → tabel → reaksi `✅`. Bukan
+        // Urutan event versi awal: reaksi pembuka → tabel → reaksi `✅`. Bukan
         // `✅` lebih dulu (`with_reaction` mengirim reaksi SEBELUM balasan).
         assert!(
             matches!(&list[0], Reply::Reaction { emoji, .. } if emoji == "🕕"),
@@ -388,7 +381,7 @@ mod tests {
             list[2]
         );
 
-        // Angka Users/Premium/Groups dari SELURUH store (`ping2.js:100-102`),
+        // Angka Users/Premium/Groups dari SELURUH store,
         // jadi tetap stabil walau `user_data`/`group_data` pengirim terisi.
         let ctx = Ctx {
             user_data: serde_json::json!({"isPremium": true}),
@@ -419,7 +412,7 @@ mod tests {
 
         assert_eq!(t.judul, "⚡ System Performance");
         assert_eq!(t.header, vec!["Metric", "Value"]);
-        // `tableData` JS punya 18 baris, urutan sama.
+        // `tableData` versi awal punya 18 baris, urutan sama.
         assert_eq!(t.baris.len(), 18);
         assert_eq!(t.baris[0], vec!["WA Roundtrip", "1 ms"]);
         assert_eq!(t.baris[1][0], "Kecepatan Respon bot mu");

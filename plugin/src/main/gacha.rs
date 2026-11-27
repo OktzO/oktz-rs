@@ -1,16 +1,7 @@
-//! `plugins/main/gacha.js` — undian berbobot untuk koin/exp.
+//! Undian berbobot untuk koin/exp.
 //!
-//! Dua kursor yang sengaja dipertahankan:
-//!
-//! 1. `switch (reward.type)` TIDAK punya `case "limit"`, padahal `rewards`
-//!    memuat lima entri `limit` dengan total chance 50.5 — jadi ~26% tarikan
-//!    jatuh ke type itu dan TIDAK menulis apa pun ke store. `rewardText` dan
-//!    `typeEmoji` tetap kosong, jadi baris Hadiah jadi `*Hadiah:*  `. Itu
-//!    bug JS, bukan kelewatan port.
-//! 2. `case "energi"` tidak pernah kena — tidak ada entri `energi` di tabel.
-//!
-//! `ponytail:` kartu level-up `addExpWithLevelCheck` tidak ikut (butuh
-//! canvas + `sock.sendMedia`).
+//! `Keterbatasan:` kartu level-up `addExpWithLevelCheck` tidak ikut (butuh canvas +
+//! `sock.sendMedia`).
 
 use oktz_plugin_api::{Ctx, Mutation, Reply, plugin};
 use serde_json::Value;
@@ -40,7 +31,7 @@ const REWARDS: [(&str, i64, i64, &str, &str, f64); 16] = [
     ("jackpot", 100000, 500000, "mythic", "🌟", 0.1),
 ];
 
-/// `rarityColors` (`gacha.js:107-114`).
+/// `rarityColors`.
 const RARITY_COLORS: [(&str, &str); 6] = [
     ("common", "⚪ Common"),
     ("uncommon", "🟢 Uncommon"),
@@ -126,7 +117,7 @@ pub fn gacha(ctx: Ctx) -> Reply {
     }
 }
 
-/// `rarityColors[reward.rarity]` — selalu ketemu karena `rarity` berasal dari
+/// `rarityColors[reward.rarity]` — selalu ketemu karena `rarity` berasal
 /// tabel sendiri.
 fn rarity_color(rarity: &str) -> &'static str {
     RARITY_COLORS
@@ -135,7 +126,7 @@ fn rarity_color(rarity: &str) -> &'static str {
         .map_or("", |(_, v)| *v)
 }
 
-/// `getRandomReward` (`gacha.js:116-130`) — undian berbobot linear, bukan
+/// `getRandomReward` — undian berbobot linear, bukan
 /// tabel Rufle: `random` dikurangi chance tiap entri dan yang pertama
 /// membuat `random <= 0` menang. cabang fallback hanya mungkin kalau
 /// `Math.random()` persis 1.0, jadi di sini tetap ditulis sebagai jaring.
@@ -152,7 +143,7 @@ fn pick_reward() -> (&'static str, i64, i64, &'static str, &'static str, f64) {
     (kind, min, max, rarity, emoji, chance)
 }
 
-/// `db.updateKoin` (`database.js:646`) — `koin === -1` berarti tak terbatas
+/// `db.updateKoin` — `koin === -1` berarti tak terbatas
 /// dan tidak boleh disentuh sama sekali.
 fn update_koin(ctx: &Ctx, amount: i64) -> (&'static str, Value) {
     let koin = ctx.user_field("koin").and_then(Value::as_i64).unwrap_or(0);
@@ -163,7 +154,7 @@ fn update_koin(ctx: &Ctx, amount: i64) -> (&'static str, Value) {
     }
 }
 
-/// `db.updateExp` (`database.js:664`).
+/// `db.updateExp`.
 fn update_exp(ctx: &Ctx, amount: i64) -> (&'static str, Value) {
     let exp = ctx.user_field("exp").and_then(Value::as_i64).unwrap_or(0);
     ("exp", Value::from(exp_gain_only(exp, amount)))
@@ -194,7 +185,7 @@ mod tests {
         let p = oktz_plugin_api::find("gacha").unwrap();
         assert_eq!(p.meta.name, "gacha");
         assert_eq!(p.meta.alias, ["pull", "lucky"]);
-        // `category` di JS adalah "rpg" walau berkasnya di `plugins/main/`.
+        // `category` di versi awal adalah "rpg" walau berkasnya di `plugins/main/`.
         assert_eq!(p.meta.category, "rpg");
         assert_eq!(p.meta.description, "Gacha untuk dapat hadiah random");
         assert_eq!(p.meta.usage, ".gacha");
@@ -288,7 +279,7 @@ mod tests {
                 let gained = koin.as_i64().unwrap() - 1_000;
                 let t = text_of(&r);
                 // `case "jackpot"` juga `updateKoin`, tapi rentangnya 100rb+
-                // — bukan branch `balance` yang 100..50.000.
+                // Bukan branch `balance` yang 100..50.000.
                 if t.contains("*Rarity:* 🌟 MYTHIC") {
                     assert!((100_000..=500_000).contains(&gained), "jackpot {gained}");
                     assert!(t.contains("*Hadiah:* 💎"), "{t}");
@@ -336,7 +327,7 @@ mod tests {
     fn a_pull_writes_the_sender_and_nothing_else() {
         let r = run(serde_json::json!({"koin": 0, "exp": 0}));
         match r.mutations() {
-            // `switch` di JS tak punya `case "limit"`, jadi tarikan itu
+            // `switch` di versi awal tak punya `case "limit"`, jadi tarikan itu
             // sengaja tidak menulis apa pun.
             [] => assert!(text_of(&r).contains("*Hadiah:*  \n"), "tarikan limit"),
             [Mutation::SetUser { jid, .. }] => assert_eq!(jid, "628111@s.whatsapp.net"),

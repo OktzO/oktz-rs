@@ -9,20 +9,20 @@ pub mod owner;
 pub mod rules;
 pub mod tqto;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod leaderboard;
 pub mod ping;
 pub mod stopjadibot;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod donasi;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod ping2;
 pub mod stats;
 pub mod totalfitur;
 
-// Ditambahkan scripts/pasang-modul.mjs.
+// Ditambahkan.
 pub mod sc;

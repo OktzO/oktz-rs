@@ -1,4 +1,4 @@
-//! `plugins/main/leaderboard.js` — lihat leaderboard global (koin, exp, energi).
+//! Lihat leaderboard global (koin, exp, energi).
 
 use oktz_plugin_api::{Ctx, Reply, Tombol, plugin};
 use serde_json::Value;
@@ -21,7 +21,7 @@ struct UserRow {
     #[allow(dead_code)] // data `name` JS masih disimpan; dipakai plugin lain di batch ini
     name: String,
     /// `users[key].lid` — entri berkunci PN menyimpan LID-nya di sini, jadi
-    /// pasangan PN↔LID bisa dipulihkan tanpa roster grup (`database.js:565`).
+    /// pasangan PN↔LID bisa dipulihkan tanpa roster grup.
     lid: Option<String>,
 }
 
@@ -55,7 +55,7 @@ fn format_number(num: i64) -> String {
 
 /// Direktori store: `DATABASE_PATH` (dibaca `Config::from_env`) atau default.
 /// Store Rust menaruh SELURUH data di `<dir>/settings.json` di bawah kunci
-/// `users`; DB hasil salinan JS memisahkannya di `<dir>/users.json`. Keduanya
+/// `users`; DB hasil salinan versi awal memisahkannya di `<dir>/users.json`. Keduanya
 /// dibaca supaya leaderboard tidak lagi kosong di salah satu layout.
 fn db_dir() -> String {
     std::env::var("DATABASE_PATH")
@@ -256,7 +256,7 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
         };
         let (label, mention, is_me) = sebutan(&ctx, u, &peta);
         let me = if is_me { " *(You)*" } else { "" };
-        // Nomor tetap ditulis `@nomor` seperti JS; nama tidak diberi `@`
+        // Nomor tetap ditulis `@nomor` seperti versi awal; nama tidak diberi `@`
         // karena bukan token mention.
         let tampil = if label.bytes().all(|b| b.is_ascii_digit()) {
             format!("@{label}")
@@ -291,8 +291,8 @@ pub fn leaderboard(ctx: Ctx) -> Reply {
 /// Peta LID-digit → PN-digit dari store dan `database/lid-cache.json`.
 ///
 /// Dua sumber, karena user yang belum pernah muncul di grup mana pun setelah
-/// bot jalan tetap punya pasangan PN dari entri lamanya (`users[pn].lid`) atau
-/// dari cache milik versi JS (`src/lib/lid.js`).
+/// bot jalan tetap punya pasangan PN dari entri lamanya (`users[pn].lid`)
+/// dari cache milik versi versi awal.
 fn peta_lid(ctx: &Ctx, users: &[UserRow]) -> std::collections::HashMap<String, String> {
     let mut peta = std::collections::HashMap::new();
     for u in users {
@@ -323,7 +323,7 @@ fn peta_lid(ctx: &Ctx, users: &[UserRow]) -> std::collections::HashMap<String, S
 }
 
 /// Nama yang layak tampil — `"Unknown"` adalah default `setUser`
-/// (`database.js:564`), bukan nama orang.
+/// , bukan nama orang.
 fn nama_layak<'a>(nama: &'a str, kunci: &str) -> Option<&'a str> {
     let nama = nama.trim();
     if nama.is_empty()
@@ -338,7 +338,7 @@ fn nama_layak<'a>(nama: &'a str, kunci: &str) -> Option<&'a str> {
 
 /// `(label, mention, is_me)` untuk satu baris ranking.
 ///
-/// Kunci store boleh bentuk `lid:...`; LID mentah TIDAK pernah dicetak — yang
+/// Kunci store boleh bentuk `lid:...`; LID mentah TIDAK pernah dicetak —
 /// tampil nama asli, lalu PN hasil peta LID, lalu "Pengguna". Mention hanya
 /// dikirim kalau PN-nya diketahui, karena mention LID dirender klien sebagai
 /// deretan angka acak.

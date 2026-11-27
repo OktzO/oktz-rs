@@ -27,7 +27,7 @@ pub(crate) fn owner_message(command_list: &[String]) -> String {
     message.push_str("╭┈┈⬡「 📋 *ᴅᴀꜰᴛᴀʀ ᴄᴏᴍᴍᴀɴᴅ ᴏᴡɴᴇʀ* 」\n");
     message.push_str(&format!("┃ `Total: {total_commands} command`\n"));
     message.push_str("┃\n");
-    // JS: `commandList.map(cmd => `┃ ${cmd}`).join('\n')` — tiap baris
+    // versi awal: `commandList.map(cmd => `┃ ${cmd}`).join('\n')` — tiap baris
     // dapat awalan "┃ ", bukan cuma dipisah newline.
     let listed: Vec<String> = command_list.iter().map(|c| format!("┃ {c}")).collect();
     message.push_str(&listed.join("\n"));

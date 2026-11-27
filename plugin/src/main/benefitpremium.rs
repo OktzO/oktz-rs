@@ -1,13 +1,13 @@
 use crate::common::{CONFIG_PREFIX, registry_command_lines};
 use oktz_plugin_api::{Ctx, Reply, plugin};
 
-// `config.limits` tidak ada di `config.js`, jadi `|| 25` dan `|| 100` yang
-// selalu dipakai — angka di bawah bukan tebakan, itu hasil runtime JS.
+// `config.limits` tidak ada, jadi `|| 25` dan `|| 100`
+// selalu dipakai — angka di bawah bukan tebakan, itu hasil runtime versi awal.
 pub(crate) const LIMIT_DEFAULT: u32 = 25;
 
 pub(crate) const LIMIT_PREMIUM: u32 = 100;
 
-// `ponytail:` `config.owner.number` di-hardcode dari `config.js`.
+// `Keterbatasan:` `config.owner.number` di-hardcode.
 pub(crate) const OWNER_NUMBERS: [&str; 1] = ["6285608953677"];
 
 /// Badan pesan `benefitpremium` — cabang `total > 0`vs`total == 0` di sini,
@@ -49,7 +49,7 @@ pub(crate) fn premium_message(command_list: &[String]) -> String {
         message.push_str("┃ Semua command bisa diakses user biasa");
     }
     message.push_str("\n╰┈┈┈┈┈┈┈┈⬡\n\n");
-    // Spasi penutup milik `join()` di dalam literal JS, bukan bagian output —
+    // Spasi penutup milik `join()` di dalam literal versi awal, bukan bagian output —
     // balasannya TIDAK berakhir dengan spasi.
     let wa_links: Vec<String> = OWNER_NUMBERS
         .iter()

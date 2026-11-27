@@ -1,20 +1,8 @@
-//! `plugins/main/totalfitur.js` — distribusi jumlah plugin per kategori.
-//!
-//! JS mengirim tabel WhatsApp asli lewat `sock.sendTable`
-//! (`src/lib/socket.js:1300`), yaitu `botForwardedMessage > richResponseMessage`.
-//! Wire V2 (`Reply::tabel_v2`) dipakai karena format itulah yang terbukti
-//! dirender WhatsApp produksi (lihat `oktz-wa::rich`; catatan di
-//! `oktz-md/src/lib/rich-messages.js`: format lama relay sukses tapi tidak
-//! muncul di chat).
-//!
-//! Reaksi `📊` dikirim sebelum tabel (`totalfitur.js:49`), jadi balasan
-//! dibungkus `Reply::with_reaction`. Cabang `catch` JS (`totalfitur.js:74-77`)
-//! membalas template error + reaksi `☢`; di Rust penghitungan memakai
-//! `checked_add`, jadi luapan jadi galat biasa dan masuk cabang yang sama.
+//! Distribusi jumlah plugin per kategori.
 
 use oktz_plugin_api::{Ctx, Reply, all_plugins, plugin};
 
-/// `ICONS` (`totalfitur.js:20-29`) — urutan tidak memengaruhi hasil.
+/// `ICONS` — urutan tidak memengaruhi hasil.
 const IKON: [(&str, &str); 37] = [
     ("main", "🏠"),
     ("tools", "🔧"),
@@ -55,7 +43,7 @@ const IKON: [(&str, &str); 37] = [
     ("other", "📦"),
 ];
 
-/// Rekap satu kategori — `cats[cat]` (`totalfitur.js:40`).
+/// Rekap satu kategori — `cats[cat]`.
 struct Rekap {
     kategori: String,
     total: usize,
@@ -64,7 +52,7 @@ struct Rekap {
 
 /// Galat saat menghitung distribusi.
 ///
-/// Di JS blok perhitungan dibungkus `try` (`totalfitur.js:32`) dan `catch`
+/// Di versi awal blok perhitungan dibungkus `try` dan `catch`
 /// (`:74-77`) membalas template error + reaksi `☢`. Penghitungan Rust tidak
 /// melakukan I/O dan praktis tidak pernah gagal; penhitungnya memakai
 /// `checked_add` supaya luapan jadi galat biasa — bukan panic — dan ikut
@@ -75,14 +63,14 @@ struct GagalHitung;
 /// Hitung total dan jumlah aktif per kategori, lalu urutkan total menurun.
 ///
 /// `sort_by_key` stabil, jadi kategori dengan jumlah sama tetap mengikuti urutan
-/// registry seperti `Object.entries(...).sort(...)` di JS (`totalfitur.js:51`).
+/// registry seperti `Object.entries(...).sort(...)` di versi awal.
 fn rekap() -> Result<(Vec<Rekap>, usize, usize), GagalHitung> {
     let mut daftar: Vec<Rekap> = Vec::new();
     let (mut total, mut aktif) = (0usize, 0usize);
 
     for p in all_plugins() {
         let meta = &p.meta;
-        // Plugin tanpa config dilewati di JS (`totalfitur.js:38`); setiap entri
+        // Plugin tanpa config dilewati di versi awal; setiap entri
         // registry punya meta, jadi tidak ada yang dilewati di sini.
         let kategori = if meta.category.is_empty() {
             "other"
@@ -103,7 +91,7 @@ fn rekap() -> Result<(Vec<Rekap>, usize, usize), GagalHitung> {
 
         daftar[i].total = daftar[i].total.checked_add(1).ok_or(GagalHitung)?;
         total = total.checked_add(1).ok_or(GagalHitung)?;
-        // `p.config.isEnabled !== false` (`totalfitur.js:43`) — aktif kecuali
+        // `p.config.isEnabled !== false` — aktif kecuali
         // dinonaktifkan eksplisit; `meta.is_enabled` sudah embody itu.
         if meta.is_enabled {
             daftar[i].aktif = daftar[i].aktif.checked_add(1).ok_or(GagalHitung)?;
@@ -112,12 +100,12 @@ fn rekap() -> Result<(Vec<Rekap>, usize, usize), GagalHitung> {
     }
 
     // `Object.entries(cats).sort((a, b) => b[1].total - a[1].total)`
-    // (`totalfitur.js:51`) — total menurun.
+    // Total menurun.
     daftar.sort_by_key(|r| std::cmp::Reverse(r.total));
     Ok((daftar, total, aktif))
 }
 
-/// `ICONS[cat] || '📦'` (`totalfitur.js:56`) — kategori tanpa ikon pakai 📦.
+/// `ICONS[cat] || '📦'` — kategori tanpa ikon pakai 📦.
 fn ikon(kategori: &str) -> &'static str {
     IKON
         .iter()
@@ -125,7 +113,7 @@ fn ikon(kategori: &str) -> &'static str {
         .map_or("📦", |(_, emoji)| *emoji)
 }
 
-/// `((bagian / total) * 100).toFixed(1)` (`totalfitur.js:54`) — dibulatkan
+/// `((bagian / total) * 100).toFixed(1)` — dibulatkan
 /// setengah ke atas seperti `toFixed`, bukan setengah ke genap seperti format
 /// float Rust.
 fn persen(bagian: usize, total: usize) -> String {
@@ -136,15 +124,15 @@ fn persen(bagian: usize, total: usize) -> String {
     format!("{}.{}", sepuluh / 10, sepuluh % 10)
 }
 
-/// `sock.sendTable(...)` (`totalfitur.js:62-72`) — tabel WhatsApp asli.
+/// `sock.sendTable(...)` — tabel WhatsApp asli.
 ///
 /// Judul `Distribusi Fitur`, baris judul `Kategori | Jumlah | Persen`, lalu
 /// satu baris per kategori: ikon + nama besar, jumlah, dan persen. `headerText`
-/// dan `footer` mengikuti `options` (`src/lib/rich-messages.js:616`).
+/// dan `footer` mengikuti `options`.
 /// Wire V2 dipakai (bukan V1) karena format itulah yang terbukti dirender
-/// WhatsApp produksi (lihat `oktz-wa::rich`, `stats.js`/`sendTableV2`).
+/// WhatsApp produksi.
 fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
-    // `tableData` (`totalfitur.js:53-60`).
+    // `tableData`.
     let baris: Vec<Vec<String>> = daftar
         .iter()
         .map(|r| {
@@ -169,7 +157,7 @@ fn tabel(daftar: &[Rekap], total: usize, aktif: usize) -> Reply {
         .with_table_footer(format!("Total {total} fitur tersedia"))
 }
 
-/// `catch` (`totalfitur.js:74-77`) — `m.react('☢')` lalu `m.reply(te(...))`.
+/// `catch` — `m.react('☢')` lalu `m.reply(te(...))`.
 fn balas_gagal(ctx: &Ctx) -> Reply {
     Reply::text(crate::common::error_template(ctx)).with_reaction("☢")
 }
@@ -193,10 +181,10 @@ fn balas_gagal(ctx: &Ctx) -> Reply {
 )]
 pub fn totalfitur(ctx: Ctx) -> Reply {
     match rekap() {
-        // `m.react('📊')` (`totalfitur.js:49`) lalu `sock.sendTable(...)`
-        // (`totalfitur.js:62-72`).
+        // `m.react('📊')` lalu `sock.sendTable(...)`
+        //
         Ok((daftar, total, aktif)) => tabel(&daftar, total, aktif).with_reaction("📊"),
-        // `catch` (`totalfitur.js:74-77`) — reaksi `☢` + template error.
+        // `catch` — reaksi `☢` + template error.
         Err(_) => balas_gagal(&ctx),
     }
 }
