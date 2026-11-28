@@ -142,7 +142,7 @@ const ASET = process.env.OKTZ_ASET || ASET_STATIS;
 // v0.2.115 — log pesan gaya badge `[TIPE] nama(id) [REPLY] » isi` + status
 //           `↳ ✓ Terkirim`; tracing ringkas `[jam] [tag]` + `OKTZ_LOG`;
 //           penanda `oktz bot online` untuk deteksi Running panel.
-export const VERSI_BIN = "v0.2.117";
+export const VERSI_BIN = "v0.2.118";
 export function sha256(data) {
   return createHash("sha256").update(data).digest("hex");
 }
