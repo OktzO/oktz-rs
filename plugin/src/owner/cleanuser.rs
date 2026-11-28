@@ -6,7 +6,8 @@ fn kunci_user_valid(key: &str) -> bool {
     if let Some(lid) = key.strip_prefix("lid:") {
         return (10..=20).contains(&lid.len()) && lid.bytes().all(|b| b.is_ascii_digit());
     }
-    (10..=15).contains(&key.len())
+    !key.is_empty()
+        && key.len() <= 15
         && key.bytes().all(|b| b.is_ascii_digit())
         && !key.starts_with("120")
 }
@@ -81,9 +82,7 @@ pub fn cleanuser(ctx: Ctx) -> Reply {
     }
     teks.push_str("\n┃\n┃ ✅ Data valid tidak disentuh\n╰┈┈⬡");
 
-    Reply::text(teks)
-        .with_reaction("🧹")
-        .mutating(mutations)
+    Reply::text(teks).with_reaction("🧹").mutating(mutations)
 }
 
 #[cfg(test)]
@@ -99,7 +98,9 @@ mod tests {
         assert!(!kunci_user_valid("628123456789:5"));
         assert!(!kunci_user_valid("unknown"));
         assert!(!kunci_user_valid("120363123456789"));
-        assert!(!kunci_user_valid("62812"));
+        assert!(!kunci_user_valid("62812abc"));
+        assert!(!kunci_user_valid(""));
+        assert!(kunci_user_valid("62812"), "nomor pendek bukan bukti junk");
     }
 
     #[test]
@@ -115,6 +116,9 @@ mod tests {
         let p = find("cleanuser").unwrap();
         assert_eq!(p.meta.category, "owner");
         assert!(p.meta.is_owner);
-        assert_eq!(p.meta.alias, ["bersihuser", "hapususerinvalid", "cleangroup"]);
+        assert_eq!(
+            p.meta.alias,
+            ["bersihuser", "hapususerinvalid", "cleangroup"]
+        );
     }
 }
