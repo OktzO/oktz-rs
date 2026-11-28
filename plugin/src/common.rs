@@ -2462,6 +2462,7 @@ mod tests_batch_g {
             "bcgc",
             "cekschedule",
             "clearsessiondb",
+            "cleanuser",
             "clearsessions",
             "disableplugin",
             "editproduk",
