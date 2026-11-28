@@ -109,20 +109,23 @@ fn warnai(aktif: bool, s: &str, f: impl FnOnce(&str) -> String) -> String {
 }
 
 /// Baris pesan masuk: `[jam] [TIPE] nama(id)[ [REPLY]] » isi`.
-/// Panjang `isi` ditentukan pemanggil (non-command sudah jadi "NoCmd").
-pub fn baris_masuk(
+/// `isi` sudah ditentukan pemanggil (non-command = "NoCmd"); baris baru di
+/// dalamnya ikut apa adanya. `aktif` = apakah warna dipakai (murni, gampang
+/// dites tanpa bergantung tty global).
+fn format_masuk(
     ts: DateTime<Utc>,
     tipe: TipeChat,
     nama: &str,
     id: &str,
     is_reply: bool,
     isi: &str,
+    aktif: bool,
 ) -> String {
-    let aktif = warna_aktif();
     let jam = warnai(aktif, &format!("[{}]", jam(ts)), |s| {
         s.bright_black().to_string()
     });
     let badge = warnai(aktif, tipe.badge(), |s| s.style(tipe.gaya()).to_string());
+    let id = warnai(aktif, id, |s| s.bright_black().to_string());
     let reply = if is_reply {
         format!(
             " {}",
@@ -132,6 +135,17 @@ pub fn baris_masuk(
         String::new()
     };
     format!("{jam} {badge} {nama}({id}){reply} » {isi}")
+}
+
+pub fn baris_masuk(
+    ts: DateTime<Utc>,
+    tipe: TipeChat,
+    nama: &str,
+    id: &str,
+    is_reply: bool,
+    isi: &str,
+) -> String {
+    format_masuk(ts, tipe, nama, id, is_reply, isi, warna_aktif())
 }
 
 /// Rail pesan masuk. `chat` = tipe chat; `isi` = body (atau "NoCmd").
@@ -151,14 +165,14 @@ pub fn pesan_masuk(
 
 /// Baris status kirim: `[jam] ↳ ✓ Terkirim → X · ms` / `↳ ✕ Gagal → X · alasan`.
 /// Hanya dicetak kalau bot BENAR-BENAR mengirim (bukan chat biasa).
-pub fn baris_status(
+fn format_status(
     ts: DateTime<Utc>,
     ok: bool,
     tujuan: &str,
     dur_ms: f64,
     alasan: Option<&str>,
+    aktif: bool,
 ) -> String {
-    let aktif = warna_aktif();
     let jam = warnai(aktif, &format!("[{}]", jam(ts)), |s| {
         s.bright_black().to_string()
     });
@@ -174,8 +188,21 @@ pub fn baris_status(
             format!("Gagal → {tujuan}"),
         )
     };
-    let alasan = alasan.map(|a| format!(" · {a}")).unwrap_or_default();
+    let sisa = warnai(aktif, &sisa, |s| s.bright_black().to_string());
+    let alasan = alasan
+        .map(|a| format!(" · {}", warnai(aktif, a, |s| s.bright_black().to_string())))
+        .unwrap_or_default();
     format!("{jam} {branch} {mark} {sisa}{alasan}")
+}
+
+pub fn baris_status(
+    ts: DateTime<Utc>,
+    ok: bool,
+    tujuan: &str,
+    dur_ms: f64,
+    alasan: Option<&str>,
+) -> String {
+    format_status(ts, ok, tujuan, dur_ms, alasan, warna_aktif())
 }
 
 /// Status kirim. `tujuan` = nama tampil tujuan; `alasan` diisi saat gagal.
@@ -205,103 +232,125 @@ mod tests {
             .into()
     }
 
-    /// `tampil_selalu` menyetel flag global, jadi test paralel bisa sesaat
-    /// menyalakan warna — buang escape sebelum membandingkan supaya hasil
-    /// tes tidak bergantung urutan thread.
-    fn polos(s: &str) -> String {
-        let mut out = String::new();
-        let mut chars = s.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == '\x1b' {
-                for e in chars.by_ref() {
-                    if e == 'm' {
-                        break;
-                    }
-                }
-            } else {
-                out.push(c);
-            }
-        }
-        out
-    }
-
     #[test]
-    fn baris_masuk_badge_tipe() {
+    fn format_masuk_badge_tipe_polos() {
         assert_eq!(
-            polos(&baris_masuk(
+            format_masuk(
                 contoh_ts(),
                 TipeChat::Private,
                 "oktz",
                 "6285...",
                 false,
-                ".menu"
-            )),
+                ".menu",
+                false
+            ),
             "[02:41:05] [PRIVATE] oktz(6285...) » .menu"
         );
         assert_eq!(
-            polos(&baris_masuk(
+            format_masuk(
                 contoh_ts(),
                 TipeChat::Group,
                 "zilll",
                 "6285...",
                 false,
-                ".ping"
-            )),
+                ".ping",
+                false
+            ),
             "[02:41:05] [GROUP] zilll(6285...) » .ping"
         );
         assert_eq!(
-            polos(&baris_masuk(
+            format_masuk(
                 contoh_ts(),
                 TipeChat::Channel,
                 "admin",
                 "x",
                 false,
-                "post"
-            )),
+                "post",
+                false
+            ),
             "[02:41:05] [CHANNEL] admin(x) » post"
         );
         assert_eq!(
-            polos(&baris_masuk(
-                contoh_ts(),
-                TipeChat::Status,
-                "a",
-                "b",
-                false,
-                "s"
-            )),
+            format_masuk(contoh_ts(), TipeChat::Status, "a", "b", false, "s", false),
             "[02:41:05] [STATUS] a(b) » s"
         );
     }
 
     #[test]
-    fn baris_masuk_tandai_reply() {
+    fn format_masuk_tandai_reply() {
         assert_eq!(
-            polos(&baris_masuk(
+            format_masuk(
                 contoh_ts(),
                 TipeChat::Private,
                 "budi",
                 "6281...",
                 true,
-                "91 x 29 berapa"
-            )),
+                "91 x 29 berapa",
+                false
+            ),
             "[02:41:05] [PRIVATE] budi(6281...) [REPLY] » 91 x 29 berapa"
+        );
+        assert_eq!(
+            format_masuk(
+                contoh_ts(),
+                TipeChat::Private,
+                "budi",
+                "6281...",
+                false,
+                "NoCmd",
+                false
+            ),
+            "[02:41:05] [PRIVATE] budi(6281...) » NoCmd"
         );
     }
 
     #[test]
-    fn baris_status_ok_dan_gagal() {
+    fn format_masuk_pertahankan_baris_baru() {
+        let out = format_masuk(
+            contoh_ts(),
+            TipeChat::Group,
+            "a",
+            "b",
+            false,
+            "baris1\nbaris2",
+            false,
+        );
+        assert!(
+            out.ends_with("» baris1\nbaris2"),
+            "isi multi-baris terpotong: {out:?}"
+        );
+    }
+
+    #[test]
+    fn format_polos_tanpa_escape_warna_menyala_pakai_escape() {
+        // aktif=false → tanpa tty sekalipun output polos
+        assert!(
+            !format_masuk(contoh_ts(), TipeChat::Group, "a", "b", true, ".x", false)
+                .contains('\x1b')
+        );
+        assert!(!format_status(contoh_ts(), true, "a", 1.0, None, false).contains('\x1b'));
+        // aktif=true → ada escape
+        assert!(
+            format_masuk(contoh_ts(), TipeChat::Group, "a", "b", true, ".x", true).contains('\x1b')
+        );
+        assert!(format_status(contoh_ts(), true, "a", 1.0, None, true).contains('\x1b'));
+    }
+
+    #[test]
+    fn format_status_ok_dan_gagal() {
         assert_eq!(
-            polos(&baris_status(contoh_ts(), true, "oktz", 1072.7, None)),
+            format_status(contoh_ts(), true, "oktz", 1072.7, None, false),
             "[02:41:05] ↳ ✓ Terkirim → oktz · 1072.7ms"
         );
         assert_eq!(
-            polos(&baris_status(
+            format_status(
                 contoh_ts(),
                 false,
                 "budi",
                 0.0,
-                Some("plugin: error")
-            )),
+                Some("plugin: error"),
+                false
+            ),
             "[02:41:05] ↳ ✕ Gagal → budi · plugin: error"
         );
     }

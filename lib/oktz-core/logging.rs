@@ -48,20 +48,39 @@ where
     }
 }
 
+/// Pilih level dari env. `None` = jangan pasang subscriber (OKTZ_LOG=off).
+/// `RUST_LOG` menang atas `OKTZ_LOG` (escape hatch tetap hidup).
+fn pilih_level(oktz: Option<&str>, rust: Option<&str>, def: &str) -> Option<String> {
+    let bersih = |v: Option<&str>| {
+        v.map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    };
+    let rust = bersih(rust);
+    if rust.is_some() {
+        return rust;
+    }
+    match bersih(oktz) {
+        Some(v) if v.eq_ignore_ascii_case("off") => None,
+        Some(v) => Some(v),
+        None => Some(def.to_string()),
+    }
+}
+
 /// Pasang subscriber tracing. Level dari `OKTZ_LOG` (`off|error|warn|info|debug|trace`,
 /// default argumen `level`); `RUST_LOG` menimpa keduanya. `OKTZ_LOG=off` =
-/// tak ada log tracing sama sekali.
+/// tak ada log tracing sama sekali (kecuali `RUST_LOG` diisi).
 pub fn init(level: &str) {
     INIT.call_once(|| {
-        let dipilih = std::env::var("OKTZ_LOG")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .unwrap_or_else(|| level.to_string());
-        if dipilih.trim().eq_ignore_ascii_case("off") {
+        let Some(spec) = pilih_level(
+            std::env::var("OKTZ_LOG").ok().as_deref(),
+            std::env::var("RUST_LOG").ok().as_deref(),
+            level,
+        ) else {
             return;
-        }
+        };
         let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&dipilih));
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&spec));
         let _ = tracing_subscriber::fmt()
             .event_format(FormatRingkas)
             .with_env_filter(filter)
@@ -84,18 +103,26 @@ mod tests {
     }
 
     #[test]
+    fn pilih_level_off_dan_prioritas_rust_log() {
+        // off tanpa RUST_LOG → senyap total
+        assert_eq!(pilih_level(Some("off"), None, "info"), None);
+        // RUST_LOG menang: off diabaikan
+        assert_eq!(
+            pilih_level(Some("off"), Some("debug"), "info").as_deref(),
+            Some("debug")
+        );
+        assert_eq!(
+            pilih_level(Some("warn"), None, "info").as_deref(),
+            Some("warn")
+        );
+        assert_eq!(pilih_level(Some(""), None, "info").as_deref(), Some("info"));
+        assert_eq!(pilih_level(None, None, "info").as_deref(), Some("info"));
+    }
+
+    #[test]
     fn init_is_idempotent() {
         init("info");
         init("debug");
         init("trace");
-    }
-
-    #[test]
-    fn init_off_tidak_panic() {
-        // INIT sudah terkunci oleh test lain; panggilan ini hanya memastikan
-        // cabang "off" tidak panic saat dipanggil.
-        unsafe { std::env::set_var("OKTZ_LOG", "off") };
-        init("info");
-        unsafe { std::env::remove_var("OKTZ_LOG") };
     }
 }
