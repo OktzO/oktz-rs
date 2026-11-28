@@ -119,6 +119,8 @@ pub mod sewabot;
 pub mod savedb;
 
 // Ditambahkan.
+pub mod cleanuser;
+// Ditambahkan.
 pub mod clearsessiondb;
 pub mod clearsessions;
 
