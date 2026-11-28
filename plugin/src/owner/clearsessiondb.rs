@@ -4,7 +4,7 @@ use oktz_plugin_api::{Ctx, Reply, plugin};
 
 fn help(prefix: &str) -> String {
     format!(
-        "╭┈┈⬡「 🧹 *ᴄʟᴇᴀʀ sᴇssɪᴏɴ* 」\n┃\n┃ Hapus session basi: karantina lokal\n┃ + backup/legacy di Turso.\n┃ Session aktif TIDAK disentuh.\n┃\n┃ Contoh: `{prefix}clearsessiondb`\n╰┈┈⬡",
+        "╭┈┈⬡「 🧹 *ᴄʟᴇᴀʀ sᴇssɪᴏɴ* 」\n┃\n┃ Hapus session basi: karantina lokal,\n┃ prune tabel kedaluwarsa, backup/legacy\n┃ Turso. Prekey & session aktif TIDAK disentuh.\n┃\n┃ Contoh: `{prefix}clearsessiondb`\n╰┈┈⬡",
         prefix = prefix
     )
 }
@@ -46,6 +46,40 @@ fn bersih_karantina(db_dir: &str, base: &str) -> (usize, Vec<String>) {
         }
     }
     (n, gagal)
+}
+
+/// Prune SQLite lokal di thread + runtime sendiri, bukan `block_in_place`.
+fn prune_lokal(db_path: &str) -> Result<oktz_store::session_db::PruneReport, String> {
+    let now = crate::common::now_ms() / 1000;
+    std::thread::scope(|s| {
+        s.spawn(move || -> Result<oktz_store::session_db::PruneReport, String> {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("runtime: {e}"))?;
+            rt.block_on(async move {
+                oktz_store::session_db::prune_expired(db_path, now)
+                    .await
+                    .map(|r| r.unwrap_or_default())
+                    .map_err(|e| e.to_string())
+            })
+        })
+        .join()
+    })
+    .map_err(|_| "thread prune panic".to_string())?
+}
+
+fn bersih_lokal(
+    db_dir: &str,
+    base: &str,
+) -> (
+    usize,
+    Vec<String>,
+    Result<oktz_store::session_db::PruneReport, String>,
+) {
+    let (n, gagal) = bersih_karantina(db_dir, base);
+    let path = std::path::Path::new(db_dir).join(base);
+    (n, gagal, prune_lokal(&path.to_string_lossy()))
 }
 
 /// Hapus snapshot basi di Turso. `Ok(None)` = Turso tidak dikonfigurasi.
@@ -101,9 +135,18 @@ pub fn clearsessiondb(ctx: Ctx) -> Reply {
     }
 
     let db_dir = dir_db_session();
-    let (lokal, gagal) = bersih_karantina(&db_dir, "oktz-run.db");
+    let (lokal, gagal, prune) = bersih_lokal(&db_dir, "oktz-run.db");
 
     let mut laporan = vec![format!("┃ 📁 Karantina lokal dihapus: *{lokal}*")];
+    match prune {
+        Ok(r) => {
+            laporan.push(format!("┃ 🗃️ msg_secrets: *{}*", r.msg_secrets));
+            laporan.push(format!("┃ 🗃️ tc_tokens: *{}*", r.tc_tokens));
+            laporan.push(format!("┃ 🗃️ sent_messages: *{}*", r.sent_messages));
+            laporan.push(format!("┃ 🗃️ pending_inbound: *{}*", r.pending_inbound));
+        }
+        Err(e) => laporan.push(format!("┃ ⚠️ Prune lokal: {e}")),
+    }
     if !gagal.is_empty() {
         laporan.push(format!("┃ ⚠️ Gagal hapus: {}", gagal.join(", ")));
     }
@@ -193,6 +236,20 @@ mod tests {
         assert!(t.contains("Turso: tidak aktif"));
         assert!(t.contains("Session aktif utuh"));
         assert!(!d.join("oktz-run.db.broken-1").exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn prune_lokal_dipanggil_untuk_db_yang_ada() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let d = scratch("prune-lokal");
+        std::fs::write(d.join("oktz-run.db"), b"").unwrap();
+
+        let (lokal, gagal, prune) = bersih_lokal(&d.to_string_lossy(), "oktz-run.db");
+        assert_eq!(lokal, 0, "tidak ada karantina");
+        assert!(gagal.is_empty(), "{gagal:?}");
+        let r = prune.expect("db kosong tetap harus diproses");
+        assert_eq!(r, oktz_store::session_db::PruneReport::default());
         std::fs::remove_dir_all(&d).ok();
     }
 

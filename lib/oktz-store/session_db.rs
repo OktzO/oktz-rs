@@ -18,6 +18,19 @@ pub struct PruneReport {
     pub pending_inbound: u64,
 }
 
+async fn hapus(
+    conn: &libsql::Connection,
+    sql: &str,
+    param: i64,
+    tabel: &str,
+) -> Result<u64> {
+    match conn.execute(sql, [param]).await {
+        Ok(n) => Ok(n),
+        Err(e) if e.to_string().contains("no such table") => Ok(0),
+        Err(e) => Err(Error::Config(format!("session_db {tabel}: {e}"))),
+    }
+}
+
 /// `Ok(None)` kalau `db_path` belum ada (bot belum pernah pairing).
 pub async fn prune_expired(db_path: &str, now_secs: i64) -> Result<Option<PruneReport>> {
     if !std::path::Path::new(db_path).exists() {
@@ -38,36 +51,36 @@ pub async fn prune_expired(db_path: &str, now_secs: i64) -> Result<Option<PruneR
     let tc_cutoff = now_secs.saturating_sub(TC_TTL);
     let sent_cutoff = now_secs.saturating_sub(SENT_TTL);
 
-    let msg_secrets = conn
-        .execute(
-            "DELETE FROM msg_secrets WHERE expires_at != 0 AND expires_at <= ?1",
-            [now_secs],
-        )
-        .await
-        .map_err(|e| Error::Config(format!("session_db msg_secrets: {e}")))?;
-    let tc_tokens = conn
-        .execute(
-            "DELETE FROM tc_tokens \
-             WHERE (token = X'' OR token_timestamp < ?1) \
-               AND (sender_timestamp IS NULL OR sender_timestamp < ?1)",
-            [tc_cutoff],
-        )
-        .await
-        .map_err(|e| Error::Config(format!("session_db tc_tokens: {e}")))?;
-    let sent_messages = conn
-        .execute(
-            "DELETE FROM sent_messages WHERE created_at < ?1",
-            [sent_cutoff],
-        )
-        .await
-        .map_err(|e| Error::Config(format!("session_db sent_messages: {e}")))?;
-    let pending_inbound = conn
-        .execute(
-            "DELETE FROM pending_inbound_messages WHERE inserted_at < ?1",
-            [sent_cutoff],
-        )
-        .await
-        .map_err(|e| Error::Config(format!("session_db pending_inbound: {e}")))?;
+    let msg_secrets = hapus(
+        &conn,
+        "DELETE FROM msg_secrets WHERE expires_at != 0 AND expires_at <= ?1",
+        now_secs,
+        "msg_secrets",
+    )
+    .await?;
+    let tc_tokens = hapus(
+        &conn,
+        "DELETE FROM tc_tokens \
+         WHERE (token = X'' OR token_timestamp < ?1) \
+           AND (sender_timestamp IS NULL OR sender_timestamp < ?1)",
+        tc_cutoff,
+        "tc_tokens",
+    )
+    .await?;
+    let sent_messages = hapus(
+        &conn,
+        "DELETE FROM sent_messages WHERE created_at < ?1",
+        sent_cutoff,
+        "sent_messages",
+    )
+    .await?;
+    let pending_inbound = hapus(
+        &conn,
+        "DELETE FROM pending_inbound_messages WHERE inserted_at < ?1",
+        sent_cutoff,
+        "pending_inbound_messages",
+    )
+    .await?;
 
     Ok(Some(PruneReport {
         msg_secrets,
@@ -158,5 +171,19 @@ mod tests {
             .await
             .unwrap();
         assert!(r.is_none());
+    }
+
+    #[tokio::test]
+    async fn db_kosong_tanpa_tabel_dianggap_nol() {
+        let path = db_baru();
+        std::fs::write(&path, b"").unwrap();
+        let r = prune_expired(path.to_str().unwrap(), 1_700_000_000)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(r, PruneReport::default());
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
+        }
     }
 }
