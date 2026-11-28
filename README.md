@@ -51,6 +51,10 @@ ratchet di `database/wa/oktz-run.db`. Dua direktori itu harus persisten.
 6. Isi `.env` (salin dari `.env.example`). Kalau belum ada sesi, launcher
    pairing sendiri lewat `PAIRING_NUMBER`; kalau Turso diisi, sesi dipulihkan
    dulu.
+7. Deteksi "Running" panel: buka *Startup* → **Start Configuration** dan set
+   `done` ke `oktz bot online` (baris yang dicetak bot saat tersambung ke
+   WhatsApp). Tanpa itu server tetap "Starting" walau bot jalan. Bisa juga
+   dikosongkan (`{}`) supaya panel menandai Running begitu proses jalan.
 
 Sinyal stop panel diteruskan launcher ke binary; exit code binary = exit code
 launcher.
@@ -61,6 +65,8 @@ Semua config lewat `.env` (salin dari `.env.example`), dibaca binary Rust dan
 launcher. Kunci utama: `OWNER_NUMBERS`, `BOT_*`, `PAIRING_NUMBER`,
 `USE_PAIRING_CODE`, `DATABASE_PATH`, `TURSO_*`, `STICKER_*`, `SALURAN_*`,
 `APIKEY_*`. Config JSON kompleks masih bisa lewat `OKTZ_CONFIG_JSON`.
+`OKTZ_LOG` mengatur keriuhan log tracing Rust: `off|error|warn|info|debug|trace`
+(default `info`); `off` = senyap total, `RUST_LOG` menimpa.
 
 ## Build ulang
 
