@@ -10,8 +10,7 @@ fn ts(h: u32, m: u32, s: u32) -> DateTime<Utc> {
 fn main() {
     // TZ Jakarta supaya jam() = 09:41:05 dst, dan paksa tampil (stdout demo
     // bukan tty). Unsafe: single-threaded di awal main, sebelum chrono Local
-    // membaca TZ. Format POSIX <+07>-7 = UTC+7 tanpa perlu tzdata (sandbox
-    // produksi punya tzdata, boleh pakai nama zona).
+    // membaca TZ. Format POSIX <+07>-7 = UTC+7 tanpa perlu tzdata.
     unsafe { std::env::set_var("TZ", "<+07>-7") };
     ui::tampil_selalu(true);
 
@@ -50,14 +49,23 @@ fn main() {
         ),
     );
 
-    // chat biasa (bukan command) → tanpa tanda
+    // chat biasa (bukan command) → isi "NoCmd"
     ui::pesan_masuk(
         ts(2, 41, 5),
+        ui::TipeChat::Group,
         "budi",
-        "Keluarga Semur",
-        "Woy pada! *jangan lupa* jam 3 siang ya",
+        "6285...",
+        false,
+        "NoCmd",
     );
-    ui::pesan_masuk(ts(2, 41, 38), "siti", "pribadi", "halo bot, .menu dong");
+    ui::pesan_masuk(
+        ts(2, 41, 38),
+        ui::TipeChat::Private,
+        "siti",
+        "6281...",
+        true,
+        ".menu",
+    );
     ui::status_kirim(ts(2, 41, 39), true, "siti", 1.234, None);
 
     ui::sistem(
@@ -71,7 +79,14 @@ fn main() {
     );
 
     // plugin error spesifik → ✕
-    ui::pesan_masuk(ts(2, 42, 11), "budi", "Keluarga Semur", ".ytmp3 lagu enak");
+    ui::pesan_masuk(
+        ts(2, 42, 11),
+        ui::TipeChat::Group,
+        "budi",
+        "6285...",
+        false,
+        ".ytmp3 lagu enak",
+    );
     ui::status_kirim(
         ts(2, 42, 13),
         false,
@@ -81,7 +96,14 @@ fn main() {
     );
 
     // plugin error generik "Command ada kendala" → ✕
-    ui::pesan_masuk(ts(2, 42, 30), "rizky", "Keluarga Semur", ".sticker png");
+    ui::pesan_masuk(
+        ts(2, 42, 30),
+        ui::TipeChat::Group,
+        "rizky",
+        "6287...",
+        false,
+        ".sticker png",
+    );
     ui::status_kirim(
         ts(2, 42, 31),
         false,
@@ -90,16 +112,22 @@ fn main() {
         Some("Command ada kendala"),
     );
 
-    // media masuk, bukan command → tanpa tanda
+    // saluran + status sebagai tipe chat tersendiri
+    ui::pesan_masuk(
+        ts(2, 43, 0),
+        ui::TipeChat::Channel,
+        "admin",
+        "x",
+        false,
+        "post saluran",
+    );
     ui::pesan_masuk(
         ts(2, 43, 2),
+        ui::TipeChat::Status,
         "budi",
-        "Keluarga Semur",
-        &format!(
-            "{} {}",
-            ui::f(ui::CYAN, "[ptt 00:47]"),
-            ui::f(ui::ABU, "82.2 KB")
-        ),
+        "6285...",
+        false,
+        "NoCmd",
     );
 
     // warning & error sistem — gaya teks, tanpa ✓/✕

@@ -1624,7 +1624,9 @@ name = "oktz-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "dotenvy",
+ "owo-colors",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1734,6 +1736,7 @@ dependencies = [
  "oktz-plugin-api",
  "oktz-router",
  "oktz-store",
+ "owo-colors",
  "serde",
  "serde_json",
  "tokio",
@@ -1763,6 +1766,12 @@ checksum = "36820e9051aca1014ddc75770aab4d68bc1e9e632f0f5627c4086bc216fb583b"
 dependencies = [
  "ttf-parser",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "4.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83aa311bb2fea0015723819d8bb5a009ed8587a124a6e05e5d2a7462b23f7edc"
 
 [[package]]
 name = "parking"

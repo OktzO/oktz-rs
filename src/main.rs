@@ -146,6 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
+    oktz_core::env::Env::load_dotenv();
     oktz_core::logging::init("info");
     atur_jemalloc();
 
@@ -509,6 +510,9 @@ async fn run(
                 ui::f("", &format!("{} kB", oktz_wa::rss::current_kb()))
             ),
         );
+        // Baris POLOS tanpa warna/escape: deteksi "Running" panel Pterodactyl
+        // cocokkan string ini apa adanya (lihat ui::PENANDA_ONLINE).
+        println!("{}", ui::PENANDA_ONLINE);
         let _ = &client;
     })
     .await?;

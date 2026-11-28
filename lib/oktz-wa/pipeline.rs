@@ -3355,20 +3355,24 @@ fn interactive_params_json(m: &wa::Message) -> Option<String> {
     }
 }
 
-/// Label chat untuk log/rail UI. Grup punya nama subjek; saluran (`@newsletter`)
-/// dan status (`@broadcast`) bukan "pribadi" — keduanya chat tersendiri, dan
-/// sebelumnya ikut dilabeli "pribadi" sehingga saluran tampak seperti chat PC.
-fn label_chat_untuk(is_group: bool, chat: &str, subjek_grup: impl FnOnce() -> String) -> String {
+/// Tipe chat untuk log/rail UI. Grup punya subjek; saluran (`@newsletter`) dan
+/// status (`@broadcast`) bukan "pribadi" — keduanya chat tersendiri.
+fn tipe_chat_untuk(is_group: bool, chat: &str) -> ui::TipeChat {
     if is_group {
-        return subjek_grup();
-    }
-    if chat.ends_with("@newsletter") {
-        "saluran".to_string()
+        ui::TipeChat::Group
+    } else if chat.ends_with("@newsletter") {
+        ui::TipeChat::Channel
     } else if chat.ends_with("@broadcast") {
-        "status".to_string()
+        ui::TipeChat::Status
     } else {
-        "pribadi".to_string()
+        ui::TipeChat::Private
     }
+}
+
+/// Isi log pesan masuk: teks command apa adanya, sisanya cukup "NoCmd"
+/// (pesan non-command bisa sangat panjang).
+fn isi_log(is_command: bool, body: &str) -> &str {
+    if is_command { body } else { "NoCmd" }
 }
 
 /// Body pesan masuk, sesuai `getMessageBody` (`src/lib/serialize.js:327-372`).
@@ -5038,20 +5042,21 @@ impl Pipeline {
         // dicetak di sini (setelah dedup/replay) supaya pesan lama & duplikat
         // tidak dobel. Status ✓/✕ menyusul di titik kirim.
         let ui_t0 = Instant::now();
-        let label_chat = label_chat_untuk(caller.is_group, &caller.chat, || {
-            self.ctx
-                .group_entry(&caller.chat)
-                .get("subject")
-                .and_then(Value::as_str)
-                .unwrap_or("(grup)")
-                .to_string()
-        });
+        let tipe = tipe_chat_untuk(caller.is_group, &caller.chat);
+        let balasan =
+            context_info_of(&m.message).is_some_and(|ci| ci.quoted_message.as_option().is_some());
+        let isi = isi_log(parse_command(&body, &self.parse_opts).is_command, &body);
         let nama_tampil = if caller.push_name.is_empty() {
             ui::nomor(&caller.sender)
         } else {
             caller.push_name.clone()
         };
-        ui::pesan_masuk(m.info.timestamp, &nama_tampil, &label_chat, &body);
+        let id = caller
+            .sender
+            .split(['@', ':'])
+            .next()
+            .unwrap_or(&caller.sender);
+        ui::pesan_masuk(m.info.timestamp, tipe, &nama_tampil, id, balasan, isi);
 
         // `handler.js:1120-1124` — SEMUA pesan dengan body dapat +15 EXP,
         // sebelum gate apa pun. Notifikasi level-up versi teks; kartu canvas
@@ -6495,24 +6500,30 @@ mod tests {
     }
 
     #[test]
-    fn label_chat_bedakan_grup_saluran_status_dan_pribadi() {
-        assert_eq!(
-            label_chat_untuk(true, "120363@g.us", || "Grup Uji".into()),
-            "Grup Uji"
-        );
-        assert_eq!(
-            label_chat_untuk(false, "120363411617217441@newsletter", || unreachable!()),
-            "saluran",
-            "saluran tidak boleh dilabeli pribadi"
-        );
-        assert_eq!(
-            label_chat_untuk(false, "status@broadcast", || unreachable!()),
-            "status"
-        );
-        assert_eq!(
-            label_chat_untuk(false, "628111@s.whatsapp.net", || unreachable!()),
-            "pribadi"
-        );
+    fn tipe_chat_bedakan_grup_saluran_status_dan_pribadi() {
+        assert!(matches!(
+            tipe_chat_untuk(true, "120363@g.us"),
+            ui::TipeChat::Group
+        ));
+        assert!(matches!(
+            tipe_chat_untuk(false, "120363411617217441@newsletter"),
+            ui::TipeChat::Channel
+        ));
+        assert!(matches!(
+            tipe_chat_untuk(false, "status@broadcast"),
+            ui::TipeChat::Status
+        ));
+        assert!(matches!(
+            tipe_chat_untuk(false, "628111@s.whatsapp.net"),
+            ui::TipeChat::Private
+        ));
+    }
+
+    #[test]
+    fn isi_log_non_command_jadi_nocmd() {
+        assert_eq!(isi_log(true, ".menu"), ".menu");
+        assert_eq!(isi_log(false, &"teks panjang banget ".repeat(50)), "NoCmd");
+        assert_eq!(isi_log(false, ""), "NoCmd");
     }
 
     // `cargo test` menjalankan test dalam thread paralel; nama file tetap
