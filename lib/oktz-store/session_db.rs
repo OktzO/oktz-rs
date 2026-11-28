@@ -18,12 +18,7 @@ pub struct PruneReport {
     pub pending_inbound: u64,
 }
 
-async fn hapus(
-    conn: &libsql::Connection,
-    sql: &str,
-    param: i64,
-    tabel: &str,
-) -> Result<u64> {
+async fn hapus(conn: &libsql::Connection, sql: &str, param: i64, tabel: &str) -> Result<u64> {
     match conn.execute(sql, [param]).await {
         Ok(n) => Ok(n),
         Err(e) if e.to_string().contains("no such table") => Ok(0),

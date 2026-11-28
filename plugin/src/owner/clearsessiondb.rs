@@ -52,18 +52,20 @@ fn bersih_karantina(db_dir: &str, base: &str) -> (usize, Vec<String>) {
 fn prune_lokal(db_path: &str) -> Result<oktz_store::session_db::PruneReport, String> {
     let now = crate::common::now_ms() / 1000;
     std::thread::scope(|s| {
-        s.spawn(move || -> Result<oktz_store::session_db::PruneReport, String> {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| format!("runtime: {e}"))?;
-            rt.block_on(async move {
-                oktz_store::session_db::prune_expired(db_path, now)
-                    .await
-                    .map(|r| r.unwrap_or_default())
-                    .map_err(|e| e.to_string())
-            })
-        })
+        s.spawn(
+            move || -> Result<oktz_store::session_db::PruneReport, String> {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("runtime: {e}"))?;
+                rt.block_on(async move {
+                    oktz_store::session_db::prune_expired(db_path, now)
+                        .await
+                        .map(|r| r.unwrap_or_default())
+                        .map_err(|e| e.to_string())
+                })
+            },
+        )
         .join()
     })
     .map_err(|_| "thread prune panic".to_string())?
