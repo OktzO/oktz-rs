@@ -121,6 +121,10 @@ pub enum Mutation {
     SetGroup { jid: String, data: Value },
     /// `db.setting(key, value)` (`database.js:753-758`).
     SetSetting { key: String, value: Value },
+    /// Hapus satu key `users` apa adanya, tanpa normalisasi JID.
+    DeleteUser { key: String },
+    /// Hapus satu key `groups` apa adanya, tanpa normalisasi JID.
+    DeleteGroup { key: String },
 }
 
 /// Balasan plugin.

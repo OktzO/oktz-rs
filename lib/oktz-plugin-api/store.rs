@@ -19,6 +19,14 @@ pub trait StoreView: Send + Sync + std::fmt::Debug {
     /// Iterasi seluruh user tanpa menyalin nilainya.
     fn for_each_user(&self, f: &mut dyn FnMut(&str, &Value));
 
+    /// `Object.keys(db.data.groups).length`.
+    fn group_count(&self) -> usize {
+        0
+    }
+
+    /// Iterasi seluruh grup tanpa menyalin nilainya.
+    fn for_each_group(&self, _f: &mut dyn FnMut(&str, &Value)) {}
+
     /// Cari user lewat nomor; kunci store menyimpan nomor tanpa server.
     fn user_by_phone(&self, phone: &str) -> Option<Value> {
         let mut found = None;

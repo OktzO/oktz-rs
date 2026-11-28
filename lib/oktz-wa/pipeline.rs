@@ -545,6 +545,16 @@ fn apply_mutation(
                 })?;
             settings[key] = value.clone();
         }
+        Mutation::DeleteUser { key } => {
+            if let Some(users) = store.get_mut("users").ok().and_then(Value::as_object_mut) {
+                users.remove(key);
+            }
+        }
+        Mutation::DeleteGroup { key } => {
+            if let Some(groups) = store.get_mut("groups").ok().and_then(Value::as_object_mut) {
+                groups.remove(key);
+            }
+        }
     }
     Ok(())
 }
@@ -1056,6 +1066,23 @@ impl oktz_plugin_api::StoreView for StoreSnapshot {
         let store = self.store.read();
         if let Some(users) = store.get("users").and_then(Value::as_object) {
             for (key, value) in users {
+                f(key, value);
+            }
+        }
+    }
+
+    fn group_count(&self) -> usize {
+        self.store
+            .read()
+            .get("groups")
+            .and_then(Value::as_object)
+            .map_or(0, serde_json::Map::len)
+    }
+
+    fn for_each_group(&self, f: &mut dyn FnMut(&str, &Value)) {
+        let store = self.store.read();
+        if let Some(groups) = store.get("groups").and_then(Value::as_object) {
+            for (key, value) in groups {
                 f(key, value);
             }
         }
@@ -6918,6 +6945,60 @@ mod tests {
             "settings.json berupa direktori harus gagal ditulis"
         );
         assert!(!ctx.take_dirty_turso(), "gagal tulis disk = jangan mirror");
+    }
+
+    #[test]
+    fn delete_user_menghapus_key_persis() {
+        let path = std::env::temp_dir().join(format!(
+            "oktz-deluser-{}.json",
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::write(
+            &path,
+            r#"{"users":{"unknown":{"koin":1},"628111":{"koin":2}}}"#,
+        )
+        .unwrap();
+        let mut store = JsonStore::open(&path).unwrap();
+        apply_mutation(
+            &mut store,
+            &Mutation::DeleteUser {
+                key: "unknown".into(),
+            },
+            0,
+            path.clone(),
+        )
+        .unwrap();
+        let users = store.get("users").unwrap();
+        assert!(users.get("unknown").is_none(), "key invalid harus hilang");
+        assert_eq!(users["628111"]["koin"], 2, "user valid utuh");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn delete_group_menghapus_key_persis() {
+        let path = std::env::temp_dir().join(format!(
+            "oktz-delgroup-{}.json",
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::write(
+            &path,
+            r#"{"groups":{"bukan-grup":{"rpg":true},"120363@g.us":{"rpg":true}}}"#,
+        )
+        .unwrap();
+        let mut store = JsonStore::open(&path).unwrap();
+        apply_mutation(
+            &mut store,
+            &Mutation::DeleteGroup {
+                key: "bukan-grup".into(),
+            },
+            0,
+            path.clone(),
+        )
+        .unwrap();
+        let groups = store.get("groups").unwrap();
+        assert!(groups.get("bukan-grup").is_none());
+        assert_eq!(groups["120363@g.us"]["rpg"], true);
+        std::fs::remove_file(&path).ok();
     }
 
     #[tokio::test]
