@@ -6,7 +6,8 @@
 //!
 //! Catatan kepala: pemakaian `fs` di 32 plugin JS mencakup baca daftar berkas,
 //! tulis database, buat folder, dan hapus berkas — semuanya tercakup di trait
-//! ini. Tidak ada metode tambahan.
+//! ini. [`Berkas::store_view`] bukan operasi `fs`: itu snapshot store yang
+//! dibawa backend pipeline supaya plugin tidak mem-parse ulang database.
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -39,6 +40,11 @@ pub trait Berkas: Send + Sync + std::fmt::Debug {
     fn ukuran(&self, jalur: &str) -> Result<u64, String>;
     /// `fs.copyFileSync(dari, ke)`.
     fn salin(&self, dari: &str, ke: &str) -> Result<(), String>;
+    /// Snapshot store yang sudah di-parse, kalau backend ini membawanya.
+    /// Default `None` supaya implementasi berkas biasa tidak wajib tahu store.
+    fn store_view(&self) -> Option<&dyn crate::store::StoreView> {
+        None
+    }
 }
 
 /// Validasi jalur mentah dari plugin: tolak absolut dan komponen `..`.

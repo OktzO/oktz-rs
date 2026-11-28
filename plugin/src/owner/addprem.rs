@@ -213,16 +213,11 @@ fn tambah_premium(ctx: &Ctx, target_number: &str) -> Reply {
     }
 
     // `user.energi === -1` tidak ditimpa.
-    let energi_sekarang = ctx
-        .berkas()
-        .baca_teks("database/main/settings.json")
-        .ok()
-        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
-        .and_then(|root| root.get("users").cloned())
-        .and_then(|u| u.get(target_number).cloned())
-        .and_then(|u| u.get("energi").and_then(Value::as_i64).map(|e| e == -1));
+    let energi_sekarang = user_entry(ctx, target_number)
+        .and_then(|u| u.get("energi").and_then(Value::as_i64))
+        == Some(-1);
     let mut user_data = serde_json::json!({ "isPremium": true, "energi": PREMIUM_ENERGI_DEFAULT });
-    if energi_sekarang == Some(true) {
+    if energi_sekarang {
         user_data["energi"] = Value::from(-1);
     }
 
@@ -278,6 +273,18 @@ fn baca_daftar(ctx: &Ctx) -> Vec<String> {
         .iter()
         .filter_map(|v| v.as_str().map(String::from))
         .collect()
+}
+
+/// Entri `users[nomor]` dari snapshot store, tanpa mem-parse ulang file.
+fn user_entry(ctx: &Ctx, nomor: &str) -> Option<Value> {
+    if let Some(store) = ctx.store().filter(|s| s.user_count() > 0) {
+        return store.user(nomor);
+    }
+    ctx.berkas()
+        .baca_teks("database/main/settings.json")
+        .ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        .and_then(|root| root.get("users").and_then(|u| u.get(nomor)).cloned())
 }
 
 /// `.listprem`.

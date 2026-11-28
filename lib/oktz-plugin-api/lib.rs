@@ -1,6 +1,9 @@
 pub mod meta;
 pub mod registry;
+pub mod store;
 mod ureq_http;
+
+pub use store::StoreView;
 
 pub use meta::PluginMeta;
 pub use oktz_plugin_macros::{answer_handler, plugin};

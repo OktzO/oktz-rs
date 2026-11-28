@@ -403,19 +403,26 @@ impl StoreContext {
                 return Ok(mutations.len());
             }
         };
-        // Satu serialisasi per batch: mutasi dikerjakan pada salinan, disk
-        // ditulis dari salinan, memori di-commit setelah disk sukses.
-        // Rollback = buang salinan — semantik sama dengan backup
-        // serialisasi lama, tanpa biaya serialisasi kedua.
-        let mut kerja = inner.clone();
+        // `Arc::get_mut` menjamin tidak ada pembaca lain, jadi mutasi bisa
+        // dikerjakan langsung tanpa menyalin seluruh pohon JSON. Kalau gagal
+        // di tengah, state dikembalikan dari disk — disk belum ditulis.
         for m in mutations {
-            apply_mutation(&mut kerja, m, now_ms, self.path.clone())?;
+            if let Err(e) = apply_mutation(inner, m, now_ms, self.path.clone()) {
+                if let Ok(fresh) = JsonStore::open(&self.path) {
+                    *inner = fresh;
+                }
+                return Err(e);
+            }
         }
-        kerja.write().map_err(|e| StoreWriteError {
-            path: self.path.clone(),
-            detail: format!("tulis gagal: {e}"),
-        })?;
-        *inner = kerja;
+        if let Err(e) = inner.write() {
+            if let Ok(fresh) = JsonStore::open(&self.path) {
+                *inner = fresh;
+            }
+            return Err(StoreWriteError {
+                path: self.path.clone(),
+                detail: format!("tulis gagal: {e}"),
+            });
+        }
         self.dirty.store(true, std::sync::atomic::Ordering::Release);
         Ok(mutations.len())
     }
@@ -1012,6 +1019,114 @@ impl StoreContext {
                 .count()
         });
         (total_users, premium, total_groups)
+    }
+}
+
+/// Snapshot store untuk plugin, dibaca dari `Arc` yang sama dengan pipeline.
+struct StoreSnapshot {
+    store: Arc<StoreContext>,
+}
+
+impl fmt::Debug for StoreSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StoreSnapshot")
+            .field("path", &self.store.path)
+            .finish()
+    }
+}
+
+impl oktz_plugin_api::StoreView for StoreSnapshot {
+    fn user(&self, key: &str) -> Option<Value> {
+        self.store
+            .read()
+            .get("users")
+            .and_then(|users| users.get(key))
+            .cloned()
+    }
+
+    fn user_count(&self) -> usize {
+        self.store
+            .read()
+            .get("users")
+            .and_then(Value::as_object)
+            .map_or(0, serde_json::Map::len)
+    }
+
+    fn for_each_user(&self, f: &mut dyn FnMut(&str, &Value)) {
+        let store = self.store.read();
+        if let Some(users) = store.get("users").and_then(Value::as_object) {
+            for (key, value) in users {
+                f(key, value);
+            }
+        }
+    }
+}
+
+/// `Berkas` yang meneruskan ke backend asli dan menambahkan snapshot store.
+#[derive(Debug)]
+struct BerkasStore {
+    inner: Arc<dyn Berkas>,
+    view: StoreSnapshot,
+}
+
+impl BerkasStore {
+    fn baru(inner: Arc<dyn Berkas>, store: &Arc<StoreContext>) -> Self {
+        Self {
+            inner,
+            view: StoreSnapshot {
+                store: Arc::clone(store),
+            },
+        }
+    }
+}
+
+impl Berkas for BerkasStore {
+    fn ada(&self, jalur: &str) -> bool {
+        self.inner.ada(jalur)
+    }
+
+    fn baca(&self, jalur: &str) -> Result<Vec<u8>, String> {
+        self.inner.baca(jalur)
+    }
+
+    fn baca_teks(&self, jalur: &str) -> Result<String, String> {
+        self.inner.baca_teks(jalur)
+    }
+
+    fn tulis(&self, jalur: &str, isi: &[u8]) -> Result<(), String> {
+        self.inner.tulis(jalur, isi)
+    }
+
+    fn tulis_teks(&self, jalur: &str, isi: &str) -> Result<(), String> {
+        self.inner.tulis_teks(jalur, isi)
+    }
+
+    fn tambah_teks(&self, jalur: &str, isi: &str) -> Result<(), String> {
+        self.inner.tambah_teks(jalur, isi)
+    }
+
+    fn daftar(&self, folder: &str) -> Result<Vec<String>, String> {
+        self.inner.daftar(folder)
+    }
+
+    fn hapus(&self, jalur: &str) -> Result<(), String> {
+        self.inner.hapus(jalur)
+    }
+
+    fn buat_folder(&self, jalur: &str) -> Result<(), String> {
+        self.inner.buat_folder(jalur)
+    }
+
+    fn ukuran(&self, jalur: &str) -> Result<u64, String> {
+        self.inner.ukuran(jalur)
+    }
+
+    fn salin(&self, dari: &str, ke: &str) -> Result<(), String> {
+        self.inner.salin(dari, ke)
+    }
+
+    fn store_view(&self) -> Option<&dyn oktz_plugin_api::StoreView> {
+        Some(&self.view)
     }
 }
 
@@ -4064,7 +4179,10 @@ impl Pipeline {
                 http: Arc::new(NoHttp),
                 config: Arc::new(oktz_core::config::Runtime::default()),
                 sock: Arc::new(SockMati),
-                berkas: Arc::new(oktz_plugin_api::berkas::BerkasPalsu::baru()),
+                berkas: Arc::new(BerkasStore::baru(
+                    Arc::new(oktz_plugin_api::berkas::BerkasPalsu::baru()),
+                    &ctx,
+                )),
                 db_owners: Vec::new(),
                 recent_media: Arc::new(Mutex::new(HashMap::new())),
                 recent_media_data: Arc::new(Mutex::new(HashMap::new())),
@@ -4150,7 +4268,8 @@ impl Pipeline {
 
     /// Pasang `fs` untuk `ctx.berkas`. Default-nya [`BerkasPalsu`].
     pub fn with_berkas(mut self, berkas: Arc<dyn Berkas>) -> Self {
-        self.plugin_src.berkas = berkas;
+        let terbungkus = Arc::new(BerkasStore::baru(berkas, &self.plugin_src.store));
+        self.plugin_src.berkas = terbungkus;
         self
     }
 
@@ -9248,6 +9367,28 @@ mod tests {
             recent_media_data: Arc::new(Mutex::new(HashMap::new())),
             lid_cache: Arc::new(Mutex::new(None)),
         }
+    }
+
+    #[test]
+    fn berkas_store_membagikan_snapshot_store_tanpa_parse_ulang() {
+        let ctx = Arc::new(StoreContext::new(store_with(
+            "view",
+            r#"{"users":{"628111":{"koin":5}},"groups":{},"settings":{}}"#,
+        )));
+        let berkas =
+            BerkasStore::baru(Arc::new(oktz_plugin_api::berkas::BerkasPalsu::baru()), &ctx);
+        let view = berkas.store_view().expect("snapshot harus tersedia");
+        assert_eq!(view.user_count(), 1);
+        assert_eq!(view.user("628111").unwrap()["koin"], 5);
+        let mut jid = String::new();
+        view.for_each_user(&mut |k, _| jid.push_str(k));
+        assert_eq!(jid, "628111");
+        assert!(berkas.baca_teks("tidak-ada.json").is_err());
+        assert!(
+            oktz_plugin_api::berkas::BerkasPalsu::baru()
+                .store_view()
+                .is_none()
+        );
     }
 
     #[test]

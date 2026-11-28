@@ -90,67 +90,81 @@ fn mention_jid(jid: &str) -> String {
     }
 }
 
+/// Satu baris user dari entri store, atau `None` kalau kuncinya bukan nomor.
+fn user_row(jid: &str, data: &Value) -> Option<UserRow> {
+    let is_lid = jid.starts_with("lid:");
+    let clean = key_number(jid);
+    if clean.is_empty() || clean == "-" {
+        return None;
+    }
+    // Kunci LID dilewatkan utuh (dulu dibuang karena `jid.len() > 15` saat
+    // Whatsapp memberi semua user kunci `lid:<nomor>` → leaderboard kosong).
+    if !is_lid && (clean.len() > 15 || clean.starts_with("120")) {
+        return None;
+    }
+    let koin = data.get("koin").and_then(Value::as_i64).unwrap_or(0);
+    let exp = data
+        .get("rpg")
+        .and_then(|r| r.get("exp"))
+        .and_then(Value::as_i64)
+        .or_else(|| data.get("exp").and_then(Value::as_i64))
+        .unwrap_or(0);
+    let energi = data.get("energi").and_then(Value::as_i64).unwrap_or(0);
+    let level = data
+        .get("rpg")
+        .and_then(|r| r.get("level"))
+        .and_then(Value::as_i64)
+        .or_else(|| data.get("level").and_then(Value::as_i64))
+        .unwrap_or(1);
+    let name = data
+        .get("name")
+        .and_then(Value::as_str)
+        .map(String::from)
+        .unwrap_or_else(|| clean.to_string());
+    let lid = data
+        .get("lid")
+        .and_then(Value::as_str)
+        .filter(|l| !l.is_empty())
+        .map(String::from);
+    Some(UserRow {
+        jid: jid.to_string(),
+        koin,
+        exp,
+        energi,
+        level,
+        name,
+        lid,
+    })
+}
+
 fn load_users(ctx: &Ctx) -> Vec<UserRow> {
     let dir = db_dir();
-    let mut users = serde_json::Map::new();
+    let mut out = Vec::new();
+    let mut terlihat = std::collections::HashSet::new();
+    let mut tambah = |jid: &str, data: &Value, out: &mut Vec<UserRow>| {
+        if terlihat.insert(jid.to_string())
+            && let Some(row) = user_row(jid, data)
+        {
+            out.push(row);
+        }
+    };
+    if let Some(store) = ctx.store().filter(|s| s.user_count() > 0) {
+        store.for_each_user(&mut |jid, data| tambah(jid, data, &mut out));
+        return out;
+    }
     if let Some(m) = read_json(ctx, &format!("{dir}/settings.json"))
         .and_then(|r| r.get("users").and_then(Value::as_object).cloned())
     {
-        users.extend(m);
+        for (jid, data) in &m {
+            tambah(jid, data, &mut out);
+        }
     }
     if let Some(m) =
         read_json(ctx, &format!("{dir}/users.json")).and_then(|r| r.as_object().cloned())
     {
-        for (k, v) in m {
-            users.entry(k).or_insert(v);
+        for (jid, data) in &m {
+            tambah(jid, data, &mut out);
         }
-    }
-
-    let mut out = Vec::new();
-    for (jid, data) in &users {
-        let is_lid = jid.starts_with("lid:");
-        let clean = key_number(jid);
-        if clean.is_empty() || clean == "-" {
-            continue;
-        }
-        // Kunci LID dilewatkan utuh (dulu dibuang karena `jid.len() > 15` saat
-        // Whatsapp memberi semua user kunci `lid:<nomor>` → leaderboard kosong).
-        if !is_lid && (clean.len() > 15 || clean.starts_with("120")) {
-            continue;
-        }
-        let koin = data.get("koin").and_then(Value::as_i64).unwrap_or(0);
-        let exp = data
-            .get("rpg")
-            .and_then(|r| r.get("exp"))
-            .and_then(Value::as_i64)
-            .or_else(|| data.get("exp").and_then(Value::as_i64))
-            .unwrap_or(0);
-        let energi = data.get("energi").and_then(Value::as_i64).unwrap_or(0);
-        let level = data
-            .get("rpg")
-            .and_then(|r| r.get("level"))
-            .and_then(Value::as_i64)
-            .or_else(|| data.get("level").and_then(Value::as_i64))
-            .unwrap_or(1);
-        let name = data
-            .get("name")
-            .and_then(Value::as_str)
-            .map(String::from)
-            .unwrap_or_else(|| clean.to_string());
-        let lid = data
-            .get("lid")
-            .and_then(Value::as_str)
-            .filter(|l| !l.is_empty())
-            .map(String::from);
-        out.push(UserRow {
-            jid: jid.clone(),
-            koin,
-            exp,
-            energi,
-            level,
-            name,
-            lid,
-        });
     }
     out
 }

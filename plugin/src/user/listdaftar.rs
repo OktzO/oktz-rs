@@ -135,8 +135,21 @@ fn emoji_gender(user: &serde_json::Value) -> &'static str {
     }
 }
 
-/// Semua user dari snapshot store, apa adanya (`db.getAllUsers()`).
-fn semua_user(ctx: &Ctx) -> Vec<(String, serde_json::Value)> {
+fn sudah_terdaftar(user: &serde_json::Value) -> bool {
+    crate::common::js_truthy_value(user.get("isRegistered").unwrap_or(&serde_json::Value::Null))
+}
+
+/// User terdaftar dari snapshot store (`db.getAllUsers()` + filter).
+fn user_terdaftar(ctx: &Ctx) -> Vec<(String, serde_json::Value)> {
+    let mut out = Vec::new();
+    if let Some(store) = ctx.store().filter(|s| s.user_count() > 0) {
+        store.for_each_user(&mut |kunci, user| {
+            if sudah_terdaftar(user) {
+                out.push((kunci.to_string(), user.clone()));
+            }
+        });
+        return out;
+    }
     let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json") else {
         return Vec::new();
     };
@@ -145,7 +158,12 @@ fn semua_user(ctx: &Ctx) -> Vec<(String, serde_json::Value)> {
     };
     root.get("users")
         .and_then(|u| u.as_object())
-        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .map(|m| {
+            m.iter()
+                .filter(|(_, user)| sudah_terdaftar(user))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -200,16 +218,8 @@ fn baris_user(no: usize, user: &serde_json::Value, jid: &str) -> String {
     is_private = false
 )]
 pub fn listdaftar(ctx: Ctx) -> Reply {
-    let semua = semua_user(&ctx);
     let opsi = parse_opsi(&ctx.text);
-    let mut terdaftar: Vec<(String, serde_json::Value)> = semua
-        .into_iter()
-        .filter(|(_, u)| {
-            crate::common::js_truthy_value(
-                u.get("isRegistered").unwrap_or(&serde_json::Value::Null),
-            )
-        })
-        .collect();
+    let mut terdaftar = user_terdaftar(&ctx);
 
     if terdaftar.is_empty() {
         return Reply::text("❌ Belum ada user yang terdaftar!");

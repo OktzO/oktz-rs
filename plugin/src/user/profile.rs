@@ -87,6 +87,17 @@ fn target_premium(ctx: &Ctx, target: &str, user: &Value) -> bool {
 
 /// Ambil objek user untuk `target` dari snapshot store (`db.getUser(target)`).
 fn user_of(ctx: &Ctx, target: &str) -> Value {
+    if target == ctx.sender && !ctx.user_data.is_null() {
+        return ctx.user_data.clone();
+    }
+    if let Some(store) = ctx.store().filter(|s| s.user_count() > 0) {
+        if let Some(u) = store.user(target) {
+            return u;
+        }
+        return store
+            .user_by_phone(&phone_of(target))
+            .unwrap_or(Value::Null);
+    }
     let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json") else {
         return Value::Null;
     };

@@ -2548,20 +2548,25 @@ pub fn fisht(ctx: Ctx) -> Reply {
         // --- top ----
         "top" => {
             let mut rankings: Vec<(String, i64, f64, i64, i64)> = Vec::new();
-            if let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json")
+            let mut kumpulkan = |jid: &str, ud: &Value| {
+                if let Some(fs) = ud.get("fisch").filter(|v| !v.is_null()) {
+                    rankings.push((
+                        jid.to_string(),
+                        fs["fishCaught"].as_i64().unwrap_or(0),
+                        fs["money"].as_f64().unwrap_or(0.0),
+                        fs["level"].as_i64().unwrap_or(1),
+                        fs["prestige"].as_i64().unwrap_or(0),
+                    ));
+                }
+            };
+            if let Some(store) = ctx.store().filter(|s| s.user_count() > 0) {
+                store.for_each_user(&mut kumpulkan);
+            } else if let Ok(teks) = ctx.berkas().baca_teks("database/main/settings.json")
                 && let Ok(root) = serde_json::from_str::<Value>(&teks)
                 && let Some(users) = root.get("users").and_then(Value::as_object)
             {
                 for (jid, ud) in users {
-                    if let Some(fs) = ud.get("fisch").filter(|v| !v.is_null()) {
-                        rankings.push((
-                            jid.clone(),
-                            fs["fishCaught"].as_i64().unwrap_or(0),
-                            fs["money"].as_f64().unwrap_or(0.0),
-                            fs["level"].as_i64().unwrap_or(1),
-                            fs["prestige"].as_i64().unwrap_or(0),
-                        ));
-                    }
+                    kumpulkan(jid, ud);
                 }
             }
             if rankings.is_empty() {

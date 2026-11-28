@@ -102,8 +102,28 @@ impl JsonStore {
     /// saling menimpa temp yang sama: rename pertama memindahkan file,
     /// rename kedua gagal `NotFound` dan proses mati.
     pub fn write(&self) -> Result<()> {
-        let body = serde_json::to_string(&self.data).map_err(Error::from)?;
-        self.write_bytes(body.as_bytes())
+        if let Some(parent) = self.path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+        let seq = TMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let tmp = self
+            .path
+            .with_extension(format!("{}-{seq}.tmp", std::process::id()));
+        let hasil = (|| -> Result<()> {
+            let file = std::fs::File::create(&tmp)?;
+            let mut writer = std::io::BufWriter::new(file);
+            serde_json::to_writer(&mut writer, &self.data).map_err(Error::from)?;
+            std::io::Write::flush(&mut writer)?;
+            Ok(())
+        })();
+        if let Err(e) = hasil {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
+        }
+        std::fs::rename(&tmp, &self.path)?;
+        Ok(())
     }
 
     /// Tulis body JSON mentah atomik (tmp+rename sama seperti `write`) —

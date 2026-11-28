@@ -1360,6 +1360,14 @@ impl Ctx {
         self.berkas.as_ref()
     }
 
+    /// Snapshot store yang sudah di-parse pipeline, kalau tersedia.
+    ///
+    /// Dipakai plugin yang butuh seluruh user; jangan mem-parse ulang
+    /// `settings.json` lewat [`Ctx::berkas`] kalau ini ada.
+    pub fn store(&self) -> Option<&dyn crate::store::StoreView> {
+        self.berkas.store_view()
+    }
+
     pub fn db_owners(&self) -> &[String] {
         &self.db_owners
     }
